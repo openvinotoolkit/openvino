@@ -4,15 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -95,8 +94,8 @@ TEST_F(TransformationTestsF, ConvertDeformableConv8to1_mask) {
                                                                                padding,
                                                                                dilations);
 
-        function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter,
-                                                                                    mask, offsets});
+        function =
+            std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, mask, offsets});
 
         pass::Manager manager;
         manager.register_pass<pass::ConvertDeformableConv8To1>();

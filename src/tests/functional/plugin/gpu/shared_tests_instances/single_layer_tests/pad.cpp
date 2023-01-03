@@ -23,87 +23,63 @@ const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::REFLECT,
 };
 
-const auto pad2DConstparams = testing::Combine(
-        testing::ValuesIn(padsBegin2D),
-        testing::ValuesIn(padsEnd2D),
-        testing::ValuesIn(argPadValue),
-        testing::Values(ngraph::helpers::PadMode::CONSTANT),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{13, 5}),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Pad2DConst,
+                         PadLayerTest,
+                         testing::Combine(testing::ValuesIn(padsBegin2D),
+                                          testing::ValuesIn(padsEnd2D),
+                                          testing::ValuesIn(argPadValue),
+                                          testing::Values(ngraph::helpers::PadMode::CONSTANT),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(std::vector<size_t>{13, 5}),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         PadLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Pad2DConst,
-        PadLayerTest,
-        pad2DConstparams,
-        PadLayerTest::getTestCaseName
-);
-
-const auto pad2Dparams = testing::Combine(
-        testing::ValuesIn(padsBegin2D),
-        testing::ValuesIn(padsEnd2D),
-        testing::Values(0),
-        testing::ValuesIn(padMode),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{13, 5}),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Pad2D,
-        PadLayerTest,
-        pad2Dparams,
-        PadLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Pad2D,
+                         PadLayerTest,
+                         testing::Combine(testing::ValuesIn(padsBegin2D),
+                                          testing::ValuesIn(padsEnd2D),
+                                          testing::Values(0),
+                                          testing::ValuesIn(padMode),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(std::vector<size_t>{13, 5}),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         PadLayerTest::getTestCaseName);
 
 const std::vector<std::vector<int64_t>> padsBegin4D = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 1, 0}, {0, 3, 0, 1}};
 const std::vector<std::vector<int64_t>> padsEnd4D   = {{0, 0, 0, 0}, {1, 1, 1, 1}, {2, 0, 0, 1}, {1, 3, 2, 0}};
 
-const auto pad4DConstparams = testing::Combine(
-        testing::ValuesIn(padsBegin4D),
-        testing::ValuesIn(padsEnd4D),
-        testing::ValuesIn(argPadValue),
-        testing::Values(ngraph::helpers::PadMode::CONSTANT),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{3, 5, 10, 11}),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Pad4DConst,
+                         PadLayerTest,
+                         testing::Combine(testing::ValuesIn(padsBegin4D),
+                                          testing::ValuesIn(padsEnd4D),
+                                          testing::ValuesIn(argPadValue),
+                                          testing::Values(ngraph::helpers::PadMode::CONSTANT),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(std::vector<size_t>{3, 5, 10, 11}),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         PadLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Pad4DConst,
-        PadLayerTest,
-        pad4DConstparams,
-        PadLayerTest::getTestCaseName
-);
-
-const auto pad4Dparams = testing::Combine(
-        testing::ValuesIn(padsBegin4D),
-        testing::ValuesIn(padsEnd4D),
-        testing::Values(0),
-        testing::ValuesIn(padMode),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(std::vector<size_t>{3, 5, 10, 11}),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Pad4D,
-        PadLayerTest,
-        pad4Dparams,
-        PadLayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
+                         PadLayerTest,
+                         testing::Combine(testing::ValuesIn(padsBegin4D),
+                                          testing::ValuesIn(padsEnd4D),
+                                          testing::Values(0),
+                                          testing::ValuesIn(padMode),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(std::vector<size_t>{3, 5, 10, 11}),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         PadLayerTest::getTestCaseName);
 
 }  // namespace

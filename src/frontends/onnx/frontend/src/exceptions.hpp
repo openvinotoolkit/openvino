@@ -27,6 +27,7 @@ public:
 struct invalid_external_data : ngraph_error {
     invalid_external_data(const onnx_import::detail::TensorExternalData& external_data)
         : ngraph_error{std::string{"invalid external data: "} + external_data.to_string()} {}
+    invalid_external_data(const std::string& what_arg) : ngraph_error{what_arg} {}
 };
 
 }  // namespace  error

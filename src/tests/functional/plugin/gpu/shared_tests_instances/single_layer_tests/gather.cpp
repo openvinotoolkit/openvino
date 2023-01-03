@@ -78,107 +78,107 @@ const std::vector<std::vector<size_t>> inputShapesAxes4b2 = {
         std::vector<size_t>{2, 3, 7, 8, 4},
 };
 
-const auto GatherAxes4i4b1 = testing::Combine(
-        testing::ValuesIn(inputShapesAxes4b1),
-        testing::ValuesIn(indicesShapes2),
-        testing::ValuesIn(axis_batch41),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes4i4b1 = []() {
+    return testing::Combine(testing::ValuesIn(inputShapesAxes4b1),
+                            testing::ValuesIn(indicesShapes2),
+                            testing::ValuesIn(axis_batch41),
+                            testing::ValuesIn(netPrecisions),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
-const auto GatherAxes4i4b2 = testing::Combine(
-        testing::ValuesIn(inputShapesAxes4b2),
-        testing::ValuesIn(indicesShapes23),
-        testing::ValuesIn(axis_batch42),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes4i4b2 = []() {
+    return testing::Combine(testing::ValuesIn(inputShapesAxes4b2),
+                            testing::ValuesIn(indicesShapes23),
+                            testing::ValuesIn(axis_batch42),
+                            testing::ValuesIn(netPrecisions),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
-const auto GatherAxes4i8b1 = testing::Combine(
-        testing::ValuesIn(inputShapesAxes4b1),
-        testing::ValuesIn(indicesShapes2),
-        testing::ValuesIn(axis_batch41),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes4i8b1 = []() {
+    return testing::Combine(testing::ValuesIn(inputShapesAxes4b1),
+                            testing::ValuesIn(indicesShapes2),
+                            testing::ValuesIn(axis_batch41),
+                            testing::ValuesIn(netPrecisions),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
-const auto GatherAxes4i8b2 = testing::Combine(
-        testing::ValuesIn(inputShapesAxes4b2),
-        testing::ValuesIn(indicesShapes23),
-        testing::ValuesIn(axis_batch42),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes4i8b2 = []() {
+    return testing::Combine(testing::ValuesIn(inputShapesAxes4b2),
+                            testing::ValuesIn(indicesShapes23),
+                            testing::ValuesIn(axis_batch42),
+                            testing::ValuesIn(netPrecisions),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i4b1,
         Gather7LayerTest,
-        GatherAxes4i4b1,
+        GatherAxes4i4b1(),
         Gather7LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i4b2,
         Gather7LayerTest,
-        GatherAxes4i4b1,
+        GatherAxes4i4b1(),
         Gather7LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i8b1,
         Gather7LayerTest,
-        GatherAxes4i8b1,
+        GatherAxes4i8b1(),
         Gather7LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i8b2,
         Gather7LayerTest,
-        GatherAxes4i8b2,
+        GatherAxes4i8b2(),
         Gather7LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i4b1,
         Gather8LayerTest,
-        GatherAxes4i4b1,
+        GatherAxes4i4b1(),
         Gather8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i4b2,
         Gather8LayerTest,
-        GatherAxes4i4b1,
+        GatherAxes4i4b1(),
         Gather8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i8b1,
         Gather8LayerTest,
-        GatherAxes4i8b1,
+        GatherAxes4i8b1(),
         Gather8LayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather7Axes4i8b2,
         Gather8LayerTest,
-        GatherAxes4i8b2,
+        GatherAxes4i8b2(),
         Gather8LayerTest::getTestCaseName
 );
 
@@ -210,18 +210,18 @@ const std::vector<std::vector<size_t>> inputShapes6DAxes5 = {
 
 const std::vector<int> axes5 = {5};
 
-const auto Gather6dAxes5 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes1),
-        testing::ValuesIn(axes5),
-        testing::ValuesIn(inputShapes6DAxes5),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto Gather6dAxes5 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes1),
+                            testing::ValuesIn(axes5),
+                            testing::ValuesIn(inputShapes6DAxes5),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 const std::vector<std::vector<size_t>> inputShapesAxes4 = {
         std::vector<size_t>{5, 6, 7, 8, 9},
@@ -247,43 +247,43 @@ const std::vector<std::vector<size_t>> inputShapes6DAxes4 = {
 
 const std::vector<int> axes4 = {4};
 
-const auto GatherAxes4 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes12),
-        testing::ValuesIn(axes4),
-        testing::ValuesIn(inputShapesAxes4),
-        testing::ValuesIn(netPrecisionsFP16),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes4 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes12),
+                            testing::ValuesIn(axes4),
+                            testing::ValuesIn(inputShapesAxes4),
+                            testing::ValuesIn(netPrecisionsFP16),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes4,
         GatherLayerTest,
-        GatherAxes4,
+        GatherAxes4(),
         GatherLayerTest::getTestCaseName
 );
 
-const auto Gather6dAxes4 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes1),
-        testing::ValuesIn(axes4),
-        testing::ValuesIn(inputShapes6DAxes4),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto Gather6dAxes4 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes1),
+                            testing::ValuesIn(axes4),
+                            testing::ValuesIn(inputShapes6DAxes4),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes4,
         GatherLayerTest,
-        Gather6dAxes4,
+        Gather6dAxes4(),
         GatherLayerTest::getTestCaseName
 );
 
@@ -315,43 +315,43 @@ const std::vector<std::vector<size_t>> inputShapes6DAxes3 = {
 
 const std::vector<int> axes3 = {3};
 
-const auto GatherAxes3 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes12),
-        testing::ValuesIn(axes3),
-        testing::ValuesIn(inputShapesAxes3),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes3 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes12),
+                            testing::ValuesIn(axes3),
+                            testing::ValuesIn(inputShapesAxes3),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes3,
         GatherLayerTest,
-        GatherAxes3,
+        GatherAxes3(),
         GatherLayerTest::getTestCaseName
 );
 
-const auto Gather6dAxes3 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes1),
-        testing::ValuesIn(axes3),
-        testing::ValuesIn(inputShapes6DAxes3),
-        testing::ValuesIn(netPrecisionsI32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto Gather6dAxes3 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes1),
+                            testing::ValuesIn(axes3),
+                            testing::ValuesIn(inputShapes6DAxes3),
+                            testing::ValuesIn(netPrecisionsI32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes3,
         GatherLayerTest,
-        Gather6dAxes3,
+        Gather6dAxes3(),
         GatherLayerTest::getTestCaseName
 );
 
@@ -384,43 +384,43 @@ const std::vector<std::vector<size_t>> inputShapes6DAxes2 = {
 
 const std::vector<int> axes2 = {2};
 
-const auto GatherAxes2 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes12),
-        testing::ValuesIn(axes2),
-        testing::ValuesIn(inputShapesAxes2),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes2 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes12),
+                            testing::ValuesIn(axes2),
+                            testing::ValuesIn(inputShapesAxes2),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes2,
         GatherLayerTest,
-        GatherAxes2,
+        GatherAxes2(),
         GatherLayerTest::getTestCaseName
 );
 
-const auto Gather6dAxes2 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes1),
-        testing::ValuesIn(axes2),
-        testing::ValuesIn(inputShapes6DAxes2),
-        testing::ValuesIn(netPrecisionsFP16),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto Gather6dAxes2 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes1),
+                            testing::ValuesIn(axes2),
+                            testing::ValuesIn(inputShapes6DAxes2),
+                            testing::ValuesIn(netPrecisionsFP16),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes2,
         GatherLayerTest,
-        Gather6dAxes2,
+        Gather6dAxes2(),
         GatherLayerTest::getTestCaseName
 );
 
@@ -454,43 +454,43 @@ const std::vector<std::vector<size_t>> inputShapes6DAxes1 = {
 
 const std::vector<int> axes1 = {1};
 
-const auto GatherAxes1 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes12),
-        testing::ValuesIn(axes1),
-        testing::ValuesIn(inputShapesAxes1),
-        testing::ValuesIn(netPrecisionsI32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes1 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes12),
+                            testing::ValuesIn(axes1),
+                            testing::ValuesIn(inputShapesAxes1),
+                            testing::ValuesIn(netPrecisionsI32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes1,
         GatherLayerTest,
-        GatherAxes1,
+        GatherAxes1(),
         GatherLayerTest::getTestCaseName
 );
 
-const auto Gather6dAxes1 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes1),
-        testing::ValuesIn(axes1),
-        testing::ValuesIn(inputShapes6DAxes1),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto Gather6dAxes1 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes1),
+                            testing::ValuesIn(axes1),
+                            testing::ValuesIn(inputShapes6DAxes1),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes1,
         GatherLayerTest,
-        Gather6dAxes1,
+        Gather6dAxes1(),
         GatherLayerTest::getTestCaseName
 );
 
@@ -525,43 +525,43 @@ const std::vector<std::vector<size_t>> inputShapes6DAxes0 = {
 
 const std::vector<int> axes0 = {0};
 
-const auto GatherAxes0 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes12),
-        testing::ValuesIn(axes0),
-        testing::ValuesIn(inputShapesAxes0),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto GatherAxes0 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes12),
+                            testing::ValuesIn(axes0),
+                            testing::ValuesIn(inputShapesAxes0),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_GatherAxes0,
         GatherLayerTest,
-        GatherAxes0,
+        GatherAxes0(),
         GatherLayerTest::getTestCaseName
 );
 
-const auto Gather6dAxes0 = testing::Combine(
-        testing::ValuesIn(indices),
-        testing::ValuesIn(indicesShapes1),
-        testing::ValuesIn(axes0),
-        testing::ValuesIn(inputShapes6DAxes0),
-        testing::ValuesIn(netPrecisionsFP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
+const auto Gather6dAxes0 = []() {
+    return testing::Combine(testing::ValuesIn(indices),
+                            testing::ValuesIn(indicesShapes1),
+                            testing::ValuesIn(axes0),
+                            testing::ValuesIn(inputShapes6DAxes0),
+                            testing::ValuesIn(netPrecisionsFP32),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(InferenceEngine::Layout::ANY),
+                            testing::Values(CommonTestUtils::DEVICE_GPU));
+};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_Gather6dAxes0,
         GatherLayerTest,
-        Gather6dAxes0,
+        Gather6dAxes0(),
         GatherLayerTest::getTestCaseName
 );
 

@@ -149,7 +149,6 @@ jobs:
       sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang
       # For Python API
       python3 -m pip install --upgrade pip
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
@@ -216,7 +215,6 @@ jobs:
         -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -276,8 +274,6 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary
       export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
@@ -289,8 +285,6 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       # because of static build libgna is needed for python binary and mock_py frontend library
       export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
@@ -383,6 +377,10 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
+    continueOnError: false
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
+    displayName: 'Paddle Tests'
     continueOnError: false
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml

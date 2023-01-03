@@ -6,9 +6,9 @@
    :maxdepth: 1
    :hidden:
 
-   ovsa_get_started
    ovtf_integration
    ote_documentation
+   ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
    workbench_docs_Workbench_DG_Introduction
@@ -18,15 +18,6 @@
 
 
 OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
-
-### OpenVINO™ Model Server (OVMS)	   
-OpenVINO Model Server is a scalable, high-performance solution for serving deep learning models optimized for Intel® architectures. The server uses Inference Engine libraries as a backend and exposes gRPC and HTTP/REST interfaces for inference that are fully compatible with TensorFlow Serving.
-
-More resources:
-* [OpenVINO documentation](https://docs.openvino.ai/latest/openvino_docs_ovms.html)
-* [Docker Hub](https://hub.docker.com/r/openvino/model_server)
-* [GitHub](https://github.com/openvinotoolkit/model_server)
-* [Red Hat Ecosystem Catalog](https://catalog.redhat.com/software/container-stacks/detail/60649e41ccfb383fe395a167)
 
 ### Neural Network Compression Framework (NNCF)
 A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy drop. NNCF applies quantization, filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
