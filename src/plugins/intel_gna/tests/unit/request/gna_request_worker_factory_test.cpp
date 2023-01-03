@@ -9,7 +9,7 @@
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_factory.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna;
 using namespace request;
 using namespace testing;
 

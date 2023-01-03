@@ -9,7 +9,7 @@
 #include "log/debug.hpp"
 #include "log/log.hpp"
 #include "layers/gna_fake_quantize_layer.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "quantization.hpp"
 
 namespace ov {
