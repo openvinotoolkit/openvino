@@ -87,7 +87,7 @@ void op::v4::Range::validate_and_infer_types() {
 
     std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
     std::vector<PartialShape> input_shapes;
-    for (int i = 0; i < get_input_size(); i++)
+    for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
     op::v4::shape_infer(this, input_shapes, result_shapes);
@@ -360,7 +360,7 @@ void op::v0::Range::validate_and_infer_types() {
     } else {
         std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
         std::vector<PartialShape> input_shapes;
-        for (int i = 0; i < get_input_size(); i++)
+        for (size_t i = 0; i < get_input_size(); i++)
             input_shapes.push_back(get_input_partial_shape(i));
 
         op::v0::shape_infer(this, input_shapes, result_shapes);
