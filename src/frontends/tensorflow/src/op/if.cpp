@@ -16,6 +16,7 @@ namespace tensorflow {
 namespace op {
 OutputVector translate_if_op(const NodeContext& node) {
     default_op_checks(node, 1, {"If", "StatelessIf"});
+    auto node_name = node.get_name();
     auto translate_session = node.get_translate_session();
     FRONT_END_GENERAL_CHECK(translate_session, "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
 
@@ -70,7 +71,14 @@ OutputVector translate_if_op(const NodeContext& node) {
         if_op->set_output(then_results[ind], else_results[ind]);
     }
 
-    return if_op->outputs();
+    auto ov_outputs = if_op->outputs();
+
+    // set output tensor names
+    for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+        ov_outputs[idx].get_tensor().set_names({node_name + ":" + std::to_string(idx)});
+    }
+
+    return ov_outputs;
 }
 
 }  // namespace op

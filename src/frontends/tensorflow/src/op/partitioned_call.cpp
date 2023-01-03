@@ -15,6 +15,7 @@ namespace tensorflow {
 namespace op {
 OutputVector translate_partitioned_call_op(const NodeContext& node) {
     default_op_checks(node, 0, {"PartitionedCall", "StatefulPartitionedCall"});
+    auto node_name = node.get_name();
     auto translate_session = node.get_translate_session();
     FRONT_END_GENERAL_CHECK(translate_session, "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
     auto operation_type = node.get_attribute<std::string>("f");
@@ -36,6 +37,11 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
     // inject the body graph into the parent graph
     OutputVector ov_outputs;
     translate_session->inject_body_model(body_model, operation_type, ov_inputs, ov_outputs);
+
+    // set output tensor names
+    for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+        set_out_name({node_name + ":" + std::to_string(idx)}, ov_outputs[idx]);
+    }
 
     return ov_outputs;
 }

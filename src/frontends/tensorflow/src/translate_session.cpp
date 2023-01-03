@@ -180,6 +180,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 is_converted = true;
             } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
                 inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
+
+                // set output tensor names
+                for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
+                    ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
+                }
                 is_converted = true;
             }
             FRONT_END_OP_CONVERSION_CHECK(is_converted, "No translator found for " + operation_type + " node.");
@@ -322,6 +327,14 @@ std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string
         translate_graph(body_input_model, body_model);
         // save new instance of body_model in the cache of body models
         // before its injection into the parent graph
+
+        // before caching, erase tensor names from the body graph
+        // otherwise, it can lead tensor names conflicts
+        for (const auto& op : body_model->get_ordered_ops()) {
+            for (size_t ind = 0; ind < op->get_output_size(); ++ind) {
+                op->get_output_tensor(ind).set_names({});
+            }
+        }
 
         auto cached_body_model = body_model->clone();
         update_cached_body_models(body_graph_name, cached_body_model);
