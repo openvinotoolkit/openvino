@@ -76,9 +76,9 @@ public:
         }
     }
 
-    GNAPluginNS::Config _config;
-    GNAPluginNS::HeaderLatest::ModelHeader _header;
-    GNAPluginNS::GnaInputs _gna_inputs;
+    Config _config;
+    header_latest::ModelHeader _header;
+    GnaInputs _gna_inputs;
     std::vector<std::pair<std::string, float>> _test_inputs;
     bool _applicable;
     bool _legacy_scale_factor;
@@ -91,7 +91,7 @@ TEST_P(GNAApplyInputScaleFactorsTest, test_import_scale_factor_set_properly) {
         if (_applicable) {
             EXPECT_FLOAT_EQ(input_ref.scale_factor, input.second);
         } else {
-            EXPECT_FLOAT_EQ(input_ref.scale_factor, GNAPluginNS::kScaleFactorDefault);
+            EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
         }
     }
 }
@@ -118,7 +118,7 @@ TEST_P(GNAApplyInputScaleFactorsTest, inputs_count_not_match_to_scale_factors) {
         EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_gna_inputs, _config, _header));
         for (const auto& input : _test_inputs) {
             auto& input_ref = _gna_inputs[input.first];
-            EXPECT_FLOAT_EQ(input_ref.scale_factor, GNAPluginNS::kScaleFactorDefault);
+            EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
         }
     }
 }
@@ -138,9 +138,9 @@ INSTANTIATE_TEST_CASE_P(smoke_,
 
 // Tests if nothing was changed if there is no custom scale factor in configuration
 TEST(smoke_GNAApplyInputScaleFactorsTest, test_default_scale_factor) {
-    GNAPluginNS::Config config;
-    GNAPluginNS::HeaderLatest::ModelHeader header;
-    GNAPluginNS::GnaInputs inputs;
+    Config config;
+    header_latest::ModelHeader header;
+    GnaInputs inputs;
 
     std::string input_name = "input";
     auto& input_ref = inputs[input_name];
@@ -149,16 +149,16 @@ TEST(smoke_GNAApplyInputScaleFactorsTest, test_default_scale_factor) {
 
     EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(inputs, config, header));
 
-    EXPECT_FLOAT_EQ(input_ref.scale_factor, GNAPluginNS::kScaleFactorDefault);
+    EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
 }
 
 // Tests if exception is thron if input scale factor name does not match to input name
 TEST(smoke_GNAApplyInputScaleFactorsTest, test_wrong_scale_factor_config_input_name) {
-    GNAPluginNS::Config config;
-    GNAPluginNS::HeaderLatest::ModelHeader header;
+    Config config;
+    header_latest::ModelHeader header;
     header.version.major = 2;
     header.version.minor = 7;
-    GNAPluginNS::GnaInputs gna_inputs;
+    GnaInputs gna_inputs;
 
     const std::string name_1{"input_1"};
     const std::string name_2{"input_2"};

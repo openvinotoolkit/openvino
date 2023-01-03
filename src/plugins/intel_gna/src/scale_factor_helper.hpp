@@ -9,12 +9,11 @@
 #include "descriptions/gna_desc.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 
-namespace GNAPluginNS {
-class Config;
-};  // namespace GNAPluginNS
-
 namespace ov {
-namespace intela_gna {
+namespace intel_gna {
+
+class Config;
+
 /**
  * @namespace helpers contains helpers tools for gna plugin.
  */
@@ -27,5 +26,5 @@ void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
                             const GNAPluginNS::Config& config);
 
 }  // namespace helpers
-}  // namespace intela_gna
+}  // namespace intel_gna
 }  // namespace ov
