@@ -237,7 +237,8 @@ int getCoreOffset(const cpu_core_type_of_processor core_type) {
     int offset = 0;
     if (core_type <= EFFICIENT_CORE_PROC && core_type >= ALL_PROC) {
         for (int i = 0; i < cpu._processors; i++) {
-            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type && cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
                 offset = i;
                 break;
             }
@@ -252,7 +253,8 @@ int getThreadStep(const cpu_core_type_of_processor core_type) {
     std::vector<int> proc_array;
     if (core_type <= EFFICIENT_CORE_PROC && core_type >= ALL_PROC) {
         for (int i = 0; i < cpu._processors; i++) {
-            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type && cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
                 proc_array.push_back(i);
             }
             if (proc_array.size() == 2) {

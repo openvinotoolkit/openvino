@@ -117,8 +117,8 @@ struct CPUStreamsExecutor::Impl {
                             : (_streamId < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
                                    ? HYPER_THREADING_PROC
                                    : EFFICIENT_CORE_PROC);
-                    const auto small_core_threads_3 =
-                        cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 && _impl->_config._small_core_streams > 1;
+                    const auto small_core_threads_3 = cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 &&
+                                                      _impl->_config._small_core_streams > 1;
                     const auto thread_binding_step = getThreadStep(cpu_core_type);
                     const auto cpu_idx_offset = getCoreOffset(cpu_core_type);
                     for (int i = 0; i < concurrency; i++) {
