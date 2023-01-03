@@ -49,8 +49,13 @@ ParamsKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -60,7 +65,7 @@ ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
         return autoTuneOptions[autoTuneIndex];
 
-    return {8, 2, AGE_BASED};
+    return {8, 2, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_fs_byx_fsv32::SetDefault(const convolution_params& arg,

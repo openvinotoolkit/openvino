@@ -13,7 +13,6 @@
 
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
-#include <cldnn/cldnn_config.hpp>
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/itt.hpp"
 
@@ -114,6 +113,20 @@ void Graph::Build() {
         net.serialize(debug_config->dry_run_path);
         exit(0);
     }
+
+
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty() && m_stream_id == 0) {
+        static int net_id = 0;
+        auto steps_info = GetNetwork()->get_optimizer_passes_info();
+        size_t step_idx = 0;
+        for (auto& step : steps_info) {
+            CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
+            net.serialize(debug_config->dump_graphs + std::to_string(net_id) + "_" +
+                          std::to_string(step_idx) + "_" + step.first + "_graph.xml");
+            step_idx++;
+        }
+        net_id++;
+    }
 }
 
 bool Graph::use_external_queue() const {
@@ -134,20 +147,6 @@ std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::progr
         network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
     } else {
         network = std::make_shared<cldnn::network>(program, m_stream_id);
-    }
-
-
-    if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
-        static int net_id = 0;
-        auto steps_info = network->get_optimizer_passes_info();
-        size_t step_idx = 0;
-        for (auto& step : steps_info) {
-            CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
-            net.serialize(m_config.graph_dumps_dir + std::to_string(net_id) + "_" +
-                          std::to_string(step_idx) + "_" + step.first + "_graph.xml");
-            step_idx++;
-        }
-        net_id++;
     }
 
     return network;

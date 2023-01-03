@@ -33,6 +33,13 @@ ParamsKey CumSumKernelPartialSum::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey CumSumKernelPartialSum::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
 JitConstants CumSumKernelPartialSum::GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const {
     auto jits = CumSumKernelBase::GetJitConstants(params, dispatchData);
 

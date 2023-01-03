@@ -247,7 +247,7 @@ public:
         ASSERT_EQ(params.final_id_tensor.count(), out_ptr.size());
 
         for (size_t i = 0; i < params.final_id.size(); ++i) {
-            EXPECT_NEAR(params.final_id[i], out_ptr[i], 0.005) << "at i = " << i;
+            ASSERT_NEAR(params.final_id[i], out_ptr[i], 0.005) << "at i = " << i;
         }
     }
 };

@@ -162,7 +162,7 @@ class TestUnique(unittest.TestCase):
                   ('unique_node', 'output_indices', {'out': 1}),
                   ('unique_node', 'output_counts', {'out': 2})]
         inputs_ = {'input': {'shape': int64_array([10]),
-                             'value': np.array([8.0, 1.0, 2.0, 1.0, 8.0, 5.0, 1.0, 5.0, 0.0, 0.0], dtype=np.float)},
+                             'value': np.array([8.0, 1.0, 2.0, 1.0, 8.0, 5.0, 1.0, 5.0, 0.0, 0.0], dtype=float)},
                    'unique_node': {
                        'sorted': 'false',
                        'return_inverse': 'true',
@@ -175,11 +175,11 @@ class TestUnique(unittest.TestCase):
 
         # prepare reference results
         ref_output_uniques_shape = int64_array([5])
-        ref_output_uniques_value = np.array([8.0, 1.0, 2.0, 5.0, 0.0], dtype=np.float)
+        ref_output_uniques_value = np.array([8.0, 1.0, 2.0, 5.0, 0.0], dtype=float)
         ref_output_indices_shape = int64_array([10])
-        ref_output_indices_value = np.array([0.0, 1.0, 2.0, 1.0, 0.0, 3.0, 1.0, 3.0, 4.0, 4.0], dtype=np.float)
+        ref_output_indices_value = np.array([0.0, 1.0, 2.0, 1.0, 0.0, 3.0, 1.0, 3.0, 4.0, 4.0], dtype=float)
         ref_output_counts_shape = int64_array([5])
-        ref_output_counts_value = np.array([2.0, 3.0, 1.0, 2.0, 2.0], dtype=np.float)
+        ref_output_counts_value = np.array([2.0, 3.0, 1.0, 2.0, 2.0], dtype=float)
 
         # get resulted shapes
         res_output_uniques_shape = graph.node['output_uniques']['shape']
@@ -217,7 +217,7 @@ class TestUnique(unittest.TestCase):
                   ('unique_node', 'output_indices', {'out': 1}),
                   ('unique_node', 'output_counts', {'out': 2})]
         inputs_ = {'input': {'shape': int64_array([10]),
-                             'value': np.array([8.0, 1.0, 2.0, 1.0, 8.0, 5.0, 1.0, 5.0, 0.0, 0.0], dtype=np.float)},
+                             'value': np.array([8.0, 1.0, 2.0, 1.0, 8.0, 5.0, 1.0, 5.0, 0.0, 0.0], dtype=float)},
                    'unique_node': {
                        'sorted': 'true',
                        'return_inverse': 'true',
@@ -230,11 +230,11 @@ class TestUnique(unittest.TestCase):
 
         # prepare reference results
         ref_output_uniques_shape = int64_array([5])
-        ref_output_uniques_value = np.array([0.0, 1.0, 2.0, 5.0, 8.0], dtype=np.float)
+        ref_output_uniques_value = np.array([0.0, 1.0, 2.0, 5.0, 8.0], dtype=float)
         ref_output_indices_shape = int64_array([10])
-        ref_output_indices_value = np.array([4.0, 1.0, 2.0, 1.0, 4.0, 3.0, 1.0, 3.0, 0.0, 0.0], dtype=np.float)
+        ref_output_indices_value = np.array([4.0, 1.0, 2.0, 1.0, 4.0, 3.0, 1.0, 3.0, 0.0, 0.0], dtype=float)
         ref_output_counts_shape = int64_array([5])
-        ref_output_counts_value = np.array([2.0, 3.0, 1.0, 2.0, 2.0], dtype=np.float)
+        ref_output_counts_value = np.array([2.0, 3.0, 1.0, 2.0, 2.0], dtype=float)
 
         # get resulted shapes
         res_output_uniques_shape = graph.node['output_uniques']['shape']
