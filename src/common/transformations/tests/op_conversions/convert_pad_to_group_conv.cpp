@@ -4,16 +4,15 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
+#include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -47,7 +46,7 @@ TEST_F(TransformationTestsF, ConvertPadToConv) {
 TEST_F(TransformationTestsF, ConvertPadToConvNeg1) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
-        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {1, 0, 1, 0}); // Batch dim padding
+        auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {1, 0, 1, 0});  // Batch dim padding
         auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
         auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
@@ -64,7 +63,7 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg2) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
-        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 1, 0, 1}); // Channel dim padding
+        auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 1, 0, 1});  // Channel dim padding
         auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
@@ -82,7 +81,7 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg3) {
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
         auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
         auto pad_value = opset4::Constant::create(element::f32, Shape{}, {0});
-        auto pad_mode = op::PadMode::SYMMETRIC; // Unsupported mode
+        auto pad_mode = op::PadMode::SYMMETRIC;  // Unsupported mode
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
     };
@@ -92,13 +91,12 @@ TEST_F(TransformationTestsF, ConvertPadToConvNeg3) {
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
 }
 
-
 TEST_F(TransformationTestsF, ConvertPadToConvNeg4) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
         auto pad_end = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 0, 1});
-        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {1.}); // Unsupported value
+        auto pad_value = opset4::Constant::create(element::f32, Shape{}, {1.});  // Unsupported value
         auto pad_mode = op::PadMode::CONSTANT;
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});

@@ -71,8 +71,6 @@ protected:
 };
 
 TEST_P(FuseSplitConcatPairToInterpolateTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     Run();
 }
 

@@ -262,8 +262,6 @@ protected:
 };
 
 TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Interpolate");
 }

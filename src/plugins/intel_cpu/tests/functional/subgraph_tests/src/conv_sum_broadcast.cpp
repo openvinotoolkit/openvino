@@ -146,8 +146,6 @@ protected:
 };
 
 TEST_P(ConcatConvSumInPlaceTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
@@ -212,8 +210,6 @@ public:
 };
 
 TEST_P(ConcatConvSumInPlaceTestInt8, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 
     CheckPluginRelatedResults(compiledModel, "Convolution");
