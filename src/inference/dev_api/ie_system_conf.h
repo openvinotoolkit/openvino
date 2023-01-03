@@ -141,7 +141,7 @@ typedef enum {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     HYPER_THREADING_PROC = 2,  //!< Processor based on logical core of Intel Performance-cores
-    EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Performance-cores
+    EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Efficient-cores
 } cpu_core_type_of_processor;
 
 /**
