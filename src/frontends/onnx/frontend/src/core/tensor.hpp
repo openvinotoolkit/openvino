@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "exceptions.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -238,6 +239,11 @@ private:
         if (has_external_data()) {
             auto external_data = load_external_data();
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, external_data.data());
+            if (constant->get_byte_size() != external_data.size()) {
+                throw error::invalid_external_data(
+                    "The size of the external data file does not match the byte size of an initializer '" + get_name() +
+                    "' in the model");
+            }
         } else if (data_size == shape_size(m_shape)) {
             constant = std::make_shared<ngraph::op::Constant>(type, m_shape, get_data_ptr());
         } else if (data_size == 0 && m_shape.size() == 0) {

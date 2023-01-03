@@ -147,7 +147,7 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,
