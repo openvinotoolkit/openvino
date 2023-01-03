@@ -64,7 +64,11 @@ static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_in
     }
 
     for (auto&& sf : per_input_scale_factors) {
-        auto input_it = inputs.find(sf.first);
+        // to support the both legacy and 2.0 API we need to check all possible names in the configuration
+        auto input_it = std::find_if(inputs.Get().begin(), inputs.Get().end(), [&](const GNAPluginNS::InputDesc& input_desc) {
+                return sf.first == input_desc.name || input_desc.tensor_names.count(sf.first);
+            });
+
         if (input_it == inputs.end()) {
             IE_THROW() << "Given scale factor for invalid input: " << sf.first;
         }
@@ -85,9 +89,16 @@ static bool CheckIfCanApplyCustomScaleFactor(const header_latest::ModelHeader& h
     return true;
 }
 
-void ApplyInputScaleFactors(const Config& config,
-                            const header_latest::ModelHeader& header,
-                            GnaInputs& inputs) {
+void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
+                            const GNAPluginNS::Config& config,
+                            const GNAPluginNS::HeaderLatest::ModelHeader& header) {
+    if (CheckIfCanApplyCustomScaleFactor(header)) {
+        ApplyInputScaleFactors(inputs, config);
+    }
+}
+
+void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
+                            const GNAPluginNS::Config& config) {
     // If scale factors are defined in configuration we still need to use them instead of imported values,
     // for example to change the scale factors for the old models.
     const bool custom_scale_factor_per_input =
@@ -98,11 +109,7 @@ void ApplyInputScaleFactors(const Config& config,
         return;
     }
 
-    if (!CheckIfCanApplyCustomScaleFactor(header)) {
-        return;
-    }
-
-    // Due the fact inputScaleFactors is set by defuault construcor of Config
+    // Due the fact inputScaleFactors is set by defuault construcor of GNAPluginNS::Config
     // we need to check is_intput_scale_factor_per_input_given as first.
     if (custom_scale_factor_per_input) {
         ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);

@@ -84,8 +84,8 @@ public:
     bool _legacy_scale_factor;
 };
 
-TEST_P(GNAApplyInputScaleFactorsTest, test_scale_factor_set_properly) {
-    EXPECT_NO_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs));
+TEST_P(GNAApplyInputScaleFactorsTest, test_import_scale_factor_set_properly) {
+    EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_gna_inputs, _config, _header));
     for (const auto& input : _test_inputs) {
         auto& input_ref = _gna_inputs[input.first];
         if (_applicable) {
@@ -93,6 +93,14 @@ TEST_P(GNAApplyInputScaleFactorsTest, test_scale_factor_set_properly) {
         } else {
             EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
         }
+    }
+}
+
+TEST_P(GNAApplyInputScaleFactorsTest, test_load_scale_factor_set_properly) {
+    EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_gna_inputs, _config));
+    for (const auto& input : _test_inputs) {
+        auto& input_ref = _gna_inputs[input.first];
+        EXPECT_FLOAT_EQ(input_ref.scale_factor, input.second);
     }
 }
 
@@ -104,10 +112,10 @@ TEST_P(GNAApplyInputScaleFactorsTest, inputs_count_not_match_to_scale_factors) {
     }
 
     if (_applicable) {
-        EXPECT_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs), std::exception);
+        EXPECT_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_gna_inputs, _config, _header), std::exception);
     } else {
         // check if no exception and data are not changed
-        EXPECT_NO_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs));
+        EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_gna_inputs, _config, _header));
         for (const auto& input : _test_inputs) {
             auto& input_ref = _gna_inputs[input.first];
             EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
@@ -139,7 +147,7 @@ TEST(smoke_GNAApplyInputScaleFactorsTest, test_default_scale_factor) {
     config.inputScaleFactors.clear();
     config.inputScaleFactorsPerInput.clear();
 
-    EXPECT_NO_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(config, header, inputs));
+    EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(inputs, config, header));
 
     EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
 }
@@ -161,5 +169,30 @@ TEST(smoke_GNAApplyInputScaleFactorsTest, test_wrong_scale_factor_config_input_n
     config.inputScaleFactorsPerInput[name_1] = 2.0;
     config.inputScaleFactorsPerInput[name_2 + "__"] = 2.0;
 
-    EXPECT_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(config, header, gna_inputs), std::exception);
+    EXPECT_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(gna_inputs, config, header), std::exception);
+}
+
+// Tests if input scale factor name matches to the tensor name
+TEST_P(GNAApplyInputScaleFactorsTest, test_scale_factor_config_input_tensor_name) {
+    GNAPluginNS::Config config;
+    GNAPluginNS::GnaInputs gna_inputs;
+
+    const std::string name_1{"input_1"};
+    const std::string tensor_name_1{"input_1:0"};
+
+    const std::string name_2{"input_2"};
+    const std::string tensor_name_2{"input_2:0"};
+
+    gna_inputs[name_1].tensor_names = {tensor_name_1};
+    gna_inputs[name_2].tensor_names = {tensor_name_2};
+
+    config.inputScaleFactorsPerInput.clear();
+    config.inputScaleFactorsPerInput[tensor_name_1] = 2.0;
+    config.inputScaleFactorsPerInput[name_2] = 2.0;
+
+    EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(gna_inputs, config));
+
+    for (const auto& input : gna_inputs.Get()) {
+        EXPECT_FLOAT_EQ(input.scale_factor, 2.0);
+    }
 }
