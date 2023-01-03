@@ -405,7 +405,7 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
 def print_detail_result(result_list):
     """ Print_perf_counters_sort result 
     """
-    max_layer_name = 30
+    max_print_length = 20
     for tmp_result in result_list:
         node_name = tmp_result[0]
         layerStatus = tmp_result[1]
@@ -416,32 +416,33 @@ def print_detail_result(result_list):
         if real_proportion == "0.00":
             real_proportion = "N/A"
         execType = tmp_result[6]
-        print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
-            f"{str(layerStatus):<15} "
-            f"layerType: {layerType:<15} "
-            f"execType: {execType:<15} "
-            f"realTime (ms): {real_time / 1000:.3} "
-            f"cpuTime (ms): {cpu_time / 1000:.3f} "
-            f"proportion: {str(real_proportion +'%'):<8}")
+        print(f"{node_name[:max_print_length - 4] + '...' if (len(node_name) >= max_print_length) else node_name:<20} "
+                f"{str(layerStatus):<20} "
+                f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
+                f"execType: {execType:<20} "
+                f"realTime (ms): {real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {cpu_time / timedelta(milliseconds=1):<10.3f}"
+                f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
-    max_layer_name = 30
+    max_print_length = 20
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
         total_time = timedelta()
         total_time_cpu = timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
-            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30} "
-                                                                f"{str(pi.status):<15} "
-                                                                f"layerType: {pi.node_type:<15} "
-                                                                f"execType: {pi.exec_type:<15} "
-                                                                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):.3f} "
-                                                                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):.3f}")
+            print(f"{pi.node_name[:max_print_length - 4] + '...' if (len(pi.node_name) >= max_print_length) else pi.node_name:<20} "
+                f"{str(pi.status):<20} "
+                f"layerType: {pi.node_type[:max_print_length - 4] + '...' if (len(pi.node_type) >= max_print_length) else pi.node_type:<20} "
+                f"execType: {pi.exec_type:<20} "
+                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):<10.3f}")
+
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
         print(f'Total time:     {total_time / timedelta(milliseconds=1)} milliseconds')
-        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} seconds\n')
+        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} milliseconds\n')
 
 
 def get_command_line_arguments(argv):
