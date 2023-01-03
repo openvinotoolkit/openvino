@@ -323,6 +323,7 @@ else()
     ie_add_compiler_flags(-Wundef)
     ie_add_compiler_flags(-Wreturn-type)
     ie_add_compiler_flags(-Wunused-variable)
+    ie_add_compiler_flags(-Wsign-compare)
 
     if(OV_COMPILER_IS_APPLECLANG)
         ie_add_compiler_flags(-Wswitch)
