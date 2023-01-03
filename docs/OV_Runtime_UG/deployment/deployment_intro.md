@@ -1,4 +1,4 @@
-# Deploy via OpenVINO Runtime {#openvino_deployment_guide}
+# Run and Deploy Locally {#openvino_deployment_guide}
 
 @sphinxdirective
 
