@@ -135,7 +135,8 @@ public:
         std::vector<U> ret;
         auto ptr = get_output_memory(id);
         if (ptr->get_layout().data_type != type_to_data_type<T>::value)
-            IE_THROW() << "WARNING: datatype mismatch with T";
+            IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
+                       << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
         mem_lock<T, mem_lock_type::read> mem(ptr, get_stream());
         for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
             ret.push_back(mem[i]);
