@@ -2,7 +2,7 @@
 
 @sphinxdirective
 .. note::
-  * These steps apply to Raspbian OS, which is an official OS for Raspberry Pi boards.
+  * These steps apply to Raspbian OS (the official OS for Raspberry Pi boards).
   * These steps have been validated with Raspberry Pi 3.
   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS>`_).
 @endsphinxdirective
