@@ -65,6 +65,7 @@ struct primitive_impl {
         return {};
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
+    virtual void reset_kernels_source() {}
     virtual void set_kernels(std::vector<kernel::ptr>) {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
@@ -316,6 +317,19 @@ protected:
     bool is_valid_fusion() const;
 
     static std::string generic_to_string(program_node const& node, const char* type_name);
+
+    template<typename ShapeType>
+    static std::vector<layout> forward_input0_shape(const kernel_impl_params& impl_param) {
+        auto in_layout = impl_param.get_input_layout(0);
+        auto output_type = impl_param.desc->output_data_types[0].value_or(in_layout.data_type);
+
+        if (impl_param.has_fused_primitives()) {
+            output_type = impl_param.get_fused_output_layout().data_type;
+        }
+
+        return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
+    }
+
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

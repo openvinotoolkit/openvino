@@ -10,14 +10,15 @@
 #define IMPLEMENT_INFERENCE_ENGINE_PLUGIN
 #include "gna_infer_request.hpp"
 #include "gna_mock_api.hpp"
+#include "gna_plugin.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/subrequest_impl.hpp"
 #include "request/worker_factory.hpp"
 #include "request/worker_impl.hpp"
 #include "request/worker_pool.hpp"
 
-using GNAPluginNS::GNAInferRequest;
-using GNAPluginNS::GNAPlugin;
+using namespace GNAPluginNS;
+using namespace GNAPluginNS::request;
 using ::testing::_;
 using ::testing::Return;
 
@@ -27,9 +28,6 @@ class GNAPluginForGNAWaitTest : public GNAPlugin {
 public:
     // Prepare underlining object to enable GNAInferRequest::Wait() working
     GNAPluginForGNAWaitTest() {
-        using namespace GNAPluginNS;
-        using namespace request;
-
         InferenceEngine::TensorDesc td{InferenceEngine::Precision::FP32, {1, 1}, InferenceEngine::Layout::HW};
         auto fakeInfo = std::make_shared<InferenceEngine::InputInfo>();
         auto fakePtr = std::make_shared<InferenceEngine::Data>("fakeName", td);
@@ -55,20 +53,32 @@ public:
 
         auto model = ModelWrapperFactory::createWithNumberOfEmptyOperations(1);
         subrequests.push_back(std::make_shared<SubrequestImpl>(std::move(enqueue), std::move(wait)));
-        auto worker = std::make_shared<WorkerImpl>(model, std::move(subrequests));
+        _worker = std::make_shared<WorkerImpl>(model, std::move(subrequests));
 
-        requestWorkerPool_->addModelWorker(worker);
-        worker->enqueueRequest();
+        requestWorkerPool_->addModelWorker(_worker);
     }
+
+    void EnqueTestRequest() {
+        _worker->enqueueRequest();
+    }
+
+private:
+    std::shared_ptr<Worker> _worker;
 };
 
 class GNAInferRequestForGNAWaitTest : public GNAInferRequest {
 public:
     // Prepare underlining object to enable Wait() working
-    GNAInferRequestForGNAWaitTest(std::shared_ptr<GNAPlugin> plugin)
-        : GNAInferRequest{plugin, plugin->GetNetworkInputs(), plugin->GetNetworkOutputs()} {
-        inferRequestIdx = 0;
+    GNAInferRequestForGNAWaitTest(std::shared_ptr<GNAPluginForGNAWaitTest> plugin)
+        : GNAInferRequest{plugin, plugin->GetNetworkInputs(), plugin->GetNetworkOutputs()},
+          _plugin(plugin) {}
+
+    void EnqueTestRequest() {
+        _plugin->EnqueTestRequest();
+        SetRequestIndex(0);
     }
+
+    std::shared_ptr<GNAPluginForGNAWaitTest> _plugin;
 };
 
 TEST_F(GNAWaitTest, ReturnsGna2StatusDriverQoSTimeoutExceeded) {
@@ -76,6 +86,7 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusDriverQoSTimeoutExceeded) {
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDriverQoSTimeoutExceeded));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};
+    inferRequest.EnqueTestRequest();
     ASSERT_EQ(InferenceEngine::INFER_NOT_STARTED, inferRequest.Wait(0));
 }
 
@@ -84,6 +95,38 @@ TEST_F(GNAWaitTest, ReturnsGna2StatusWarningDeviceBusy) {
     EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusWarningDeviceBusy));
     auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
     GNAInferRequestForGNAWaitTest inferRequest{plugin};
-
+    inferRequest.EnqueTestRequest();
     ASSERT_EQ(InferenceEngine::RESULT_NOT_READY, inferRequest.Wait(0));
+}
+
+TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange) {
+    GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDeviceParameterOutOfRange));
+    auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
+    GNAInferRequestForGNAWaitTest inferRequest{plugin};
+    inferRequest.EnqueTestRequest();
+    ASSERT_THROW(inferRequest.Wait(0), std::exception);
+}
+
+TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange_Extra_Sync) {
+    GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDeviceParameterOutOfRange));
+    auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
+    GNAInferRequestForGNAWaitTest inferRequest{plugin};
+    inferRequest.EnqueTestRequest();
+    ASSERT_THROW(inferRequest.Wait(0), std::exception);
+    EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(0);
+    ASSERT_EQ(InferenceEngine::INFER_NOT_STARTED, inferRequest.Wait(0));
+}
+
+TEST_F(GNAWaitTest, ReturnsGna2StatusDeviceParameterOutOfRange_Another_Use) {
+    GNACppApi enableMocks;
+    EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusDeviceParameterOutOfRange));
+    auto plugin = std::make_shared<GNAPluginForGNAWaitTest>();
+    GNAInferRequestForGNAWaitTest inferRequest{plugin};
+    inferRequest.EnqueTestRequest();
+    ASSERT_THROW(inferRequest.Wait(0), std::exception);
+    inferRequest.EnqueTestRequest();
+    EXPECT_CALL(enableMocks, Gna2RequestWait(_, _)).Times(1).WillOnce(Return(Gna2StatusSuccess));
+    ASSERT_EQ(InferenceEngine::OK, inferRequest.Wait(0));
 }

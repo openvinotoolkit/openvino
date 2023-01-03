@@ -4,23 +4,22 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_common.hpp"
-#include <string>
-#include <sstream>
 #include <fstream>
-#include <memory>
-#include <queue>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
 #include <map>
-
+#include <memory>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
-#include <transformations/utils/utils.hpp>
+#include <queue>
+#include <sstream>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 
 using namespace testing;
 
@@ -80,7 +79,6 @@ TEST_F(TransformationTestsF, FullyConnectedBiasFusionTest2D) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
     }
 }
-
 
 TEST_F(TransformationTestsF, FullyConnectedBiasFusionTestBias1x1) {
     {

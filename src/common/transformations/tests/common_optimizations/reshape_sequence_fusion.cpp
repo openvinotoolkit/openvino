@@ -4,16 +4,14 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <queue>
+#include <string>
 #include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace testing;
 using namespace ngraph;
@@ -21,9 +19,10 @@ using namespace ngraph;
 namespace {
 Output<Node> reshape(Output<Node> input, std::vector<int64_t> values, bool special_zero = true) {
     return std::make_shared<opset6::Reshape>(input,
-                opset6::Constant::create(element::i64, Shape{values.size()}, values), special_zero);
+                                             opset6::Constant::create(element::i64, Shape{values.size()}, values),
+                                             special_zero);
 }
-}
+}  // namespace
 
 TEST_F(TransformationTestsF, ReshapeSequenceFusion1) {
     {

@@ -55,6 +55,7 @@ ov::pass::FoldSubgraphEmptyInputs::FoldSubgraphEmptyInputs() {
                              std::end(multi_subgraph_op_inputs),
                              input,
                              const_empty_replacement);
+                copy_runtime_info(input.get_node_shared_ptr(), const_empty_replacement.get_node_shared_ptr());
             }
             multi_subgraph_op->set_arguments(multi_subgraph_op_inputs);
             return true;

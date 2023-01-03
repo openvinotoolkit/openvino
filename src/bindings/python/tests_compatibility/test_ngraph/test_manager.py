@@ -3,13 +3,11 @@
 
 # flake8: noqa
 
-import json
 
 import numpy as np
-import pytest
 
 import ngraph as ng
-from ngraph.impl import Function, PartialShape, Shape
+from ngraph.impl import Function
 from ngraph.impl.passes import Manager
 from tests_compatibility.test_ngraph.util import count_ops_of_type
 

@@ -1,4 +1,4 @@
-# Runtime Inference Optimization {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
+# Optimize Inference {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
 
 @sphinxdirective
 
@@ -7,9 +7,11 @@
    :hidden:
 
    openvino_docs_deployment_optimization_guide_common
+   openvino_docs_OV_UG_Performance_Hints
    openvino_docs_deployment_optimization_guide_latency
    openvino_docs_deployment_optimization_guide_tput
    openvino_docs_deployment_optimization_guide_tput_advanced
+   openvino_docs_OV_UG_Preprocessing_Overview
    openvino_docs_deployment_optimization_guide_internals
 
 @endsphinxdirective

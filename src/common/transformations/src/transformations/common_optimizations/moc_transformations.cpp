@@ -66,6 +66,7 @@
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/swish_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include <transformations/common_optimizations/transpose_sinking_general.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>

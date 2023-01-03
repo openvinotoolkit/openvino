@@ -10,10 +10,12 @@ using namespace InferenceEngine::gpu;
 
 namespace {
 
-Params params[] = {
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) }}},
-    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(CACHE_DIR), "cache" }}},
+auto params = []() {
+    return std::vector<Params>{
+        std::tuple<Device, Config>{CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}},
+        std::tuple<Device, Config>{CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)}}},
+        std::tuple<Device, Config>{CommonTestUtils::DEVICE_GPU, {{CONFIG_KEY(CACHE_DIR), "cache"}}},
+    };
 };
 
 }  // namespace
@@ -39,10 +41,10 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     }, numIterations, numThreads);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GPU, CoreThreadingTests, testing::ValuesIn(params()), CoreThreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_GPU, CoreThreadingTestsWithIterations,
-    testing::Combine(testing::ValuesIn(params),
+    testing::Combine(testing::ValuesIn(params()),
                      testing::Values(4),
                      testing::Values(20),
                      testing::Values(ModelClass::Default)),

@@ -8,10 +8,22 @@
 
 using namespace std;
 
+ov::descriptor::Tensor::Tensor(const element::Type& element_type,
+                               const PartialShape& pshape,
+                               const std::unordered_set<std::string>& names)
+    : m_element_type(element_type),
+      m_partial_shape(pshape),
+      m_shape_changed(true) {
+    m_name_it = m_names.cend();
+    set_names(names);
+}
+
 ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
     : m_element_type(element_type),
       m_partial_shape(pshape),
-      m_shape_changed(true) {}
+      m_shape_changed(true) {
+    m_name_it = m_names.cend();
+}
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                const PartialShape& pshape,
@@ -19,7 +31,9 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
                                size_t node_output_number)
     : m_element_type(element_type),
       m_partial_shape(pshape),
-      m_shape_changed(true) {}
+      m_shape_changed(true) {
+    m_name_it = m_names.cend();
+}
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
@@ -96,23 +110,29 @@ const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const
     return m_names;
 }
 
-std::string ov::descriptor::Tensor::get_any_name() const {
-    if (m_names.empty()) {
+const std::string& ov::descriptor::Tensor::get_any_name() const {
+    if (m_name_it == m_names.cend()) {
         throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
     }
-    // As unordered_set for std::string doesn't guaranty the same elements order between runs
-    // we have to manually determine the order by sorting tensor name in lexicographical and returning the first one
-    std::set<std::string> sorted_names(m_names.begin(), m_names.end());
-    return *sorted_names.begin();
+    return *m_name_it;
 }
 
 void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
     m_names = names;
+    m_name_it = m_names.cbegin();
+    for (auto it = m_names.cbegin(); it != m_names.cend(); it++) {
+        if (*it < *m_name_it)
+            // Update any name
+            m_name_it = it;
+    }
 }
 
 void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& names) {
     for (const auto& name : names) {
-        m_names.insert(name);
+        auto res = m_names.insert(name);
+        if (m_name_it == m_names.end() || *res.first < *m_name_it)
+            // Update any name
+            m_name_it = res.first;
     }
 }
 
