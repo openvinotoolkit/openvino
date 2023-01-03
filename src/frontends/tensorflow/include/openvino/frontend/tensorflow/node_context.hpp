@@ -21,16 +21,16 @@ public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs)
         : ov::frontend::NodeContext(decoder->get_op_type()),
-          m_translate_session(nullptr),
           m_decoder(decoder),
+          m_translate_session(nullptr),
           m_inputs(inputs) {}
 
     NodeContext(TranslateSession* translate_session,
                 const std::shared_ptr<DecoderBase>& decoder,
                 const OutputVector& inputs)
         : ov::frontend::NodeContext(decoder->get_op_type()),
-          m_translate_session(translate_session),
           m_decoder(decoder),
+          m_translate_session(translate_session),
           m_inputs(inputs) {}
 
     /// Detects if there is at least one input attached with a given name
