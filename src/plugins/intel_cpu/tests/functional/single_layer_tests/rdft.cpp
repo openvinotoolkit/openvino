@@ -14,6 +14,8 @@ using namespace ov;
 
 namespace CPULayerTestsDefinitions {
 
+std::vector<element::Type> precisions{element::f32};
+
 using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
                                      std::vector<int64_t>,  // axes
                                      std::vector<int64_t>,  // signal sizes
@@ -22,10 +24,12 @@ using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
                                      bool,  // const signal sizes if true
                                      CPUSpecificParams>;
 
-class RDFTTestCPU : public testing::WithParamInterface<RDFTTestCPUParams>,
+class RDFTTestCPU : public testing::WithParamInterface<std::tuple<element::Type, RDFTTestCPUParams>>,
                            virtual public test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RDFTTestCPUParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<element::Type, RDFTTestCPUParams>> obj) {
+        element::Type precision;
+        RDFTTestCPUParams params;
         std::vector<InputShape> shapes;
         std::vector<int64_t> axes;
         std::vector<int64_t> signalSizes;
@@ -33,10 +37,12 @@ public:
         bool constAxes, constSignalSizes;
         CPUSpecificParams cpuParams;
 
-        std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = obj.param;
+        std::tie(precision, params) = obj.param;
+        std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = params;
 
         std::ostringstream result;
-        result << "shapes=(";
+        result << "prec=" << precision;
+        result << "_shapes=(";
         for (size_t i = 0; i < shapes.size(); i++) {
             if (shapes[i].first.size() == 0)
                 result << shapes[i].second[0];
@@ -56,12 +62,14 @@ public:
 
 protected:
     void SetUp() override {
+        element::Type precision;
+        RDFTTestCPUParams params;
         std::vector<InputShape> shapes;
-        element::Type_t precision = element::f32;
         bool inverse;
         CPUSpecificParams cpuParams;
 
-        std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = GetParam();
+        std::tie(precision, params) = GetParam();
+        std::tie(shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams) = params;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = makeSelectedTypeStr(selectedType, precision);
         targetDevice = CommonTestUtils::DEVICE_CPU;
@@ -70,9 +78,9 @@ protected:
 
         auto inputShapeIt = inputDynamicShapes.begin();
 
-        ParameterVector params;
+        ParameterVector inputs;
         auto param = std::make_shared<opset9::Parameter>(precision, *inputShapeIt++);
-        params.push_back(param);
+        inputs.push_back(param);
         std::shared_ptr<Node> axesNode;
         if (constAxes) {
             axesNode = opset9::Constant::create(element::i64, Shape{axes.size()}, axes);
@@ -80,7 +88,7 @@ protected:
             ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
             auto param = std::make_shared<opset9::Parameter>(element::i64, *inputShapeIt++);
             axesNode = param;
-            params.push_back(param);
+            inputs.push_back(param);
         }
 
         std::shared_ptr<Node> rdft;
@@ -92,7 +100,7 @@ protected:
                 ASSERT_NE(inputShapeIt, inputDynamicShapes.end());
                 auto param = std::make_shared<opset9::Parameter>(element::i64, *inputShapeIt);
                 signalSizesNode = param;
-                params.push_back(param);
+                inputs.push_back(param);
             }
             if (inverse) {
                 rdft = std::make_shared<opset9::IRDFT>(param, axesNode, signalSizesNode);
@@ -106,7 +114,7 @@ protected:
                 rdft = std::make_shared<opset9::RDFT>(param, axesNode);
             }
         }
-        function = std::make_shared<Model>(rdft, params);
+        function = std::make_shared<Model>(rdft, inputs);
     }
 
     void generate_inputs(const std::vector<Shape>& targetInputStaticShapes) override {
@@ -265,7 +273,10 @@ std::vector<RDFTTestCPUParams> getParams1D() {
     return {};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_1D, RDFTTestCPU, ::testing::ValuesIn(getParams1D()), RDFTTestCPU::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_1D, RDFTTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(getParams1D())),
+                         RDFTTestCPU::getTestCaseName);
 
 std::vector<RDFTTestCPUParams> getParams2D() {
     if (InferenceEngine::with_cpu_x86_avx512_core()) {
@@ -410,7 +421,10 @@ std::vector<RDFTTestCPUParams> getParams2D() {
     return {};
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_2D, RDFTTestCPU, ::testing::ValuesIn(getParams2D()), RDFTTestCPU::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_2D, RDFTTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(getParams2D())),
+                         RDFTTestCPU::getTestCaseName);
 
 std::vector<RDFTTestCPUParams> getParams4D() {
     std::vector<RDFTTestCPUParams> params;
@@ -528,7 +542,10 @@ std::vector<RDFTTestCPUParams> getParams4D() {
     return params;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_4D, RDFTTestCPU, ::testing::ValuesIn(getParams4D()), RDFTTestCPU::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_RDFT_CPU_4D, RDFTTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(precisions),
+                                            ::testing::ValuesIn(getParams4D())),
+                         RDFTTestCPU::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
