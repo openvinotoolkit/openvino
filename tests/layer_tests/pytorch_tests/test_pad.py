@@ -8,7 +8,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestPad(PytorchLayerTest):
     def _prepare_input(self, ndim=4):
         import numpy as np
-        input_5d_shape = [1, 3, 224, 224, 128]
+        input_5d_shape = [1, 3, 14, 14, 18]
         return (np.random.randn(*input_5d_shape[:ndim]).astype(np.float32),)
 
     def create_model(self, pads, mode, value=None):
