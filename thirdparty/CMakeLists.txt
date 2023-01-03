@@ -319,10 +319,6 @@ if(ENABLE_SAMPLES)
     if(CONAN_EXPORTED)
         find_package(nlohmann_json REQUIRED)
     else()
-        # # this is required only because of VPUX plugin reused this
-        # # openvino_developer_export_targets(COMPONENT openvino_common
-        # # TARGETS nlohmann_json)
-        # add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json INTERFACE IMPORTED GLOBAL)
         add_subdirectory(json)
 
         # this is required only because of VPUX plugin reused this
