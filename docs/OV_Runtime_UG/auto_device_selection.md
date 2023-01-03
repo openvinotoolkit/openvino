@@ -54,7 +54,7 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 
 Note that if you choose to exclude CPU from the priority list, it will be unable to support the initial model compilation stage.
      
-![autoplugin_accelerate]
+![](../img/autoplugin_accelerate.svg)
 
 This mechanism can be easily observed in the [Using AUTO with Benchmark app sample](#using-auto-with-openvino-samples-and-benchmark-app) section, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
@@ -318,11 +318,9 @@ For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.
    No demos are yet fully optimized for AUTO, by means of selecting the most suitable device, using the GPU streams/throttling, and so on.
 @endsphinxdirective
 
-## See Also
+## Additional Resources
 
 - [Debugging AUTO](AutoPlugin_Debugging.md)
 - [Running on Multiple Devices Simultaneously](./multi_device.md)
 - [Supported Devices](supported_plugins/Supported_Devices.md)
 
-
-[autoplugin_accelerate]: ../img/autoplugin_accelerate.png
