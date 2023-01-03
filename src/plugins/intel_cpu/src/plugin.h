@@ -46,6 +46,19 @@ private:
 
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
+    struct StreamCfg {
+        int num_streams;
+        int big_core_streams;          // Number of streams in Performance-core(big core)
+        int small_core_streams;        // Number of streams in Efficient-core(small core)
+        int threads_per_stream_big;    // Threads per stream in big cores
+        int threads_per_stream_small;  // Threads per stream in small cores
+        int small_core_offset;
+    };
+    enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
+    StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
+                            int stream_mode,
+                            const bool enable_hyper_thread = true) const;
+
     Config engConfig;
     ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority even than performance hints.
