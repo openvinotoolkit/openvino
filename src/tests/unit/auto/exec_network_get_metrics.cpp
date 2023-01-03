@@ -218,7 +218,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
                 return cpuMockExeNetwork;
                 }));
     } else {
@@ -231,7 +231,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(actualDeviceName)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
                 return actualMockExeNetwork;
                 }));
     } else {
