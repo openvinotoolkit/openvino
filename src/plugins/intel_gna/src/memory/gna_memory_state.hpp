@@ -9,8 +9,10 @@
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
 #include "gna_plugin.hpp"
 
-namespace  GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
+
 class GNAVariableState : public InferenceEngine::IVariableStateInternal {
  public:
     GNAVariableState(std::string name, std::shared_ptr<GNAMemoryLayer> state)
@@ -33,5 +35,7 @@ private:
  */
     InferenceEngine::Precision getPrecision() const;
 };
+
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov
