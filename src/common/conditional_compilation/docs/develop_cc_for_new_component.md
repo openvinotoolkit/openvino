@@ -11,6 +11,8 @@
 There are several macros to help enable the conditional compilation (CC) feature for a new component. They must be defined with the same name but different macro content in each CC mode (SELECTIVE BUILD ANALYZER and SELECTIVE BUILD). You can apply or reference these macros to enable conditional compilation for your own component. You can find these macros in [selective_buld.h](https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/include/openvino/cc/selective_build.h) and [itt.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/common/conditional_compilation/include/openvino/cc/pass/itt.hpp).
 
 
+
+
 |  Macros | SELECTIVE_BUILD_ANALYZER | SELECTIVE_BUILD | Off Conditional Compilation |
 |---------|--------------------------| ----------------|-----------------------------|
 | OV_CC_DOMAINS | defines CC domains |  empty | empty  |

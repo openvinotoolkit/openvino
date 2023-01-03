@@ -10,6 +10,7 @@ We welcome community contributions to OpenVINO™. Please read the following gui
 -   If you are going to fix a bug, check that it's still exists in the latest release. This can be done by building the latest master branch, and make sure that the error is still reproducible there. We do not fix bugs that only affect older non-LTS releases like 2020.2 for example (more details about  [branching strategy](https://github.com/openvinotoolkit/openvino/wiki/Branches)).
 
 
+
 ## "Fork & Pull Request model" for code contribution
 
 ### [](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md#the-instruction-in-brief)The instruction in brief

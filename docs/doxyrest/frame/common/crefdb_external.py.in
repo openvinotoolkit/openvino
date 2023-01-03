@@ -18,3 +18,4 @@ for id, url in pairs(EXTERNAL_CREF_DB) do
 %{
 end -- for
 }
+
