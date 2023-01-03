@@ -22,8 +22,8 @@ Example command:
 ```
 
 
-## Pre steps for all Python tests:
-1. Build OpenVINO with with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. In order to avoid problems with many Python interpreters installed on the host, it is worth to set also `-DPYTHON_EXECUTABLE=PYTHON_INTERPRETER_PATH` build option.
+## Pre-steps for all Python tests:
+1. Build OpenVINO with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. In order to avoid problems with many Python interpreters installed on the host, it is worth to set also `-DPYTHON_EXECUTABLE=PYTHON_INTERPRETER_PATH` build option.
 Note: if you want to run the tests from installation directory location (like in the CI), you should add `-P cmake_install.cmake` and `-DCOMPONENT=tests` cmake build options and install OpenVINO (via `cmake --build . --target install`) as additional steps.
 2. Set-up `Python` paths via `source <OV_INSTALL_DIR>/setupvars.sh` (or `sh <INSTALL_DIR>\setupvars.bat` for `Windows`) or set `export PYTHONPATH=<OV_REPO_DIR>/bin/intel64/<BUILD_TYPE>/python_api/python<PYTHON_VERSION>` (note that `set` instead of `export` should be used for `Windows`).
 3. Instal `Python` dependencies:
@@ -79,7 +79,7 @@ Pre: Download [models](https://github.com/onnx/models) (the current OpenVINO ONN
 ```
 model_zoo_preprocess.sh -d <ONNX_MODELS_DIR> -o
 ```
-Note that the current CI test also models from MSFT package (`-m` flag of `model_zoo_preprocess.sh` script enables precessing it), but it is a deprecated pipeline. If you encounter some problems with this package, please contact [openvino-onnx-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-onnx-frontend-maintainers).
+Note that the current CI test also models from MSFT package (`-m` flag of `model_zoo_preprocess.sh` script enables processing it), but it is a deprecated pipeline. If you encounter some problems with this package, please contact [openvino-onnx-frontend-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-onnx-frontend-maintainers).
 
 Command to run OpenModelZoo tests:
 
