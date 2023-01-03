@@ -36,7 +36,7 @@ If you installed OpenVINO Runtime via the installer, APT, or YUM, sample applica
 * `<INSTALL_DIR>/samples/cpp`
 * `<INSTALL_DIR>/samples/python`
 
-If you installed OpenVINO via PyPI, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/1) and use samples from `samples/python`.
+If you installed OpenVINO Runtime using PyPI, samples are not installed locally and must be accessed through GitHub. Download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/1) and use samples from `samples/python`.
 
 The applications include:
 
