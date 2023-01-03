@@ -373,6 +373,11 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
  */
 namespace log {
 
+#ifdef DEBUG
+#    define WAS_DEBUG DEBUG
+#    undef DEBUG
+#endif
+
 /**
  * @brief Enum to define possible log levels
  * @ingroup ov_runtime_cpp_prop_api
@@ -433,6 +438,11 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
+
+#ifdef WAS_DEBUG
+#    define DEBUG WAS_DEBUG
+#    undef WAS_DEBUG
+#endif
 }  // namespace log
 
 /**
