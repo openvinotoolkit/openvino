@@ -790,7 +790,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     // DEPRECATED: To be removed after fully switching to POT optimized models.
     // Set Scale Factors for inputs according to configuration.
-    ov::intela_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config);
+    ov::intel_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config);
 
     if (fake_quantized) {
         UpdateInputScaleFromNetwork(network);
@@ -1629,7 +1629,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     SetNetworkInputs();
     SetNetworkOutputs();
 
-    ov::intela_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config, header);
+    ov::intel_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config, header);
 
     auto getOrientation = [](Gna2Operation& gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ? kDnnNonInterleavedOrientation

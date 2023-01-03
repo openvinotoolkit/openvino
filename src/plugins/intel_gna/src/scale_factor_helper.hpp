@@ -19,11 +19,8 @@ class Config;
  */
 namespace helpers {
 
-void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
-                            const GNAPluginNS::Config& config,
-                            const GNAPluginNS::HeaderLatest::ModelHeader& header);
-void ApplyInputScaleFactors(GNAPluginNS::GnaInputs& inputs,
-                            const GNAPluginNS::Config& config);
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config, const header_latest::ModelHeader& header);
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config);
 
 }  // namespace helpers
 }  // namespace intel_gna
