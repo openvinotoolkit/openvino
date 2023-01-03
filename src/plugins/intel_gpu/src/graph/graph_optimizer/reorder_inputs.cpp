@@ -664,13 +664,6 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
     auto fmt_map = get_preferred_formats(p, lo);
 
-    for (auto n : p.get_processing_order()) {
-        auto forced_format = lo.get_forced_format(*n);
-        if (forced_format != format::any) {
-            n->set_preferred_output_fmt(0, forced_format);
-        }
-    }
-
     GPU_DEBUG_LOG_PASS << "Preferred formats:" << std::endl;
     for (auto& node_fmt : fmt_map) {
         if (node_fmt.second != format::any) {

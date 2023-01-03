@@ -1873,6 +1873,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                     dst_fmt = format::b_fs_yx_fsv32;
                 }
             }
+            auto forced_format = get_forced_format(node);
+            if (forced_format != format::any)
+                dst_fmt = forced_format;
 
             if (node.get_preferred_output_fmt() == format::any) {
                 for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
