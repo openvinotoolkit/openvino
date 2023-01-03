@@ -9,6 +9,8 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -22,6 +24,8 @@ bool ov::pass::ConvertCompressedToMixedPrecision::run_on_model(const std::shared
     Manager manager(get_pass_config());
     // Mark nodes in ShapeOf subgraphs with disable_fp16_compression rt_info to keep them in FP32 precision
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
+    REGISTER_PASS(manager, MarkSugraphsToKeepInMixedPrecision)
+    REGISTER_PASS(manager, AlignMixedFP32FP16Types)
 
     const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
     type_to_fuse_map additional_fuse_map = {};

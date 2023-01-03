@@ -4,7 +4,10 @@
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
+#include <iomanip>
+
 #include "itt.hpp"
+#include "ngraph/env_util.hpp"
 #include "ngraph/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -25,19 +28,43 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     if (dst_data == nullptr)
         return nullptr;
 
-    bool is_overflow = false;
+    bool is_out_of_range = false;
+    int num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
-        if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
+        // if it is smaller than the smallest positive normal fp16 but not zero
+        if (std::abs(src_data[i]) < ov::float16::from_bits(0x0400) && src_data[i] != 0.0f) {
+            num_out_of_range++;
+            is_out_of_range = true;
+        } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
             dst_data[i] = std::numeric_limits<ov::float16>::max();
-            is_overflow = true;
+            is_out_of_range = true;
+            num_out_of_range++;
         } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
-            is_overflow = true;
+            is_out_of_range = true;
+            num_out_of_range++;
         } else {
             dst_data[i] = static_cast<ov::float16>(src_data[i]);
         }
     }
-    if (is_overflow) {
+
+    // thresholds in percents
+    // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
+    auto keep_threshold = static_cast<float>(ngraph::getenv_int("KEEP_FP32_THRESHOLD", 75));
+    auto actual_out_of_range_in_percent = 100.0f * static_cast<float>(num_out_of_range) / static_cast<float>(size);
+
+    if (actual_out_of_range_in_percent > keep_threshold) {
+        std::cerr << "Warning: while the model was compressed into FP16, Constant '" << constant->get_friendly_name()
+                  << "' "
+                     "is kept in FP32. This means the model originally was not designed to be inferred on FP16. "
+                     "Therefore inference results on FP16 supporting plugins potentially can significantly "
+                     "differ from FP32."
+                  << std::endl;
+
+        return nullptr;
+    }
+
+    if (is_out_of_range) {
         std::cerr << "Warning: One or more of the values of the Constant can't fit in the float16 data type."
                      " Those values were casted to the nearest limit value, the model can produce incorrect results."
                   << std::endl;
@@ -68,6 +95,10 @@ ov::pass::CompressFloatConstantsImpl::CompressFloatConstantsImpl() {
         } else if (c_type == ov::element::f64) {
             new_const = change_constant_precision_to_fp16<ov::element::Type_t::f64>(const_node);
         } else {
+            return false;
+        }
+
+        if (!new_const) {
             return false;
         }
         auto convert = std::make_shared<ov::opset8::Convert>(new_const, const_node->get_element_type());

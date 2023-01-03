@@ -271,3 +271,5 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
         function_ref = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
     }
 }
+
+// todo: add tests when const need to be kept in FP32

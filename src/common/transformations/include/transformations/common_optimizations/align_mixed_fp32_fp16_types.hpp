@@ -1,0 +1,27 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pass.hpp"
+#include "transformations_visibility.hpp"
+
+namespace ov {
+namespace pass {
+
+class TRANSFORMATIONS_API AlignMixedFP32FP16Types;
+
+}  // namespace pass
+}  // namespace ov
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Adds Converts to keep mixed FP16/FP32 graph type consistent
+ */
+class ov::pass::AlignMixedFP32FP16Types : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("AlignMixedFP32FP16Types", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
