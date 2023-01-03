@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 /// Kernels
 /// 0: Only boxes exceeding SCORE_THRESHOLD are copied to intermediate-buffer0.
@@ -29,14 +28,12 @@
 ///  - desc: sorted box num for batch*class
 
 /// optional input variables
-/// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0 
+/// NUM_SELECT_PER_CLASS_VAL TO_UNIT_TYPE(num_select_per_class[0]),   default is 0
 /// IOU_THRESHOLD_VAL        TO_ACCUMULATOR_TYPE(iou_threshold[0]),   default is ACCUMULATOR_VAL_ZERO
 /// SCORE_THRESHOLD_VAL      TO_ACCUMULATOR_TYPE(score_threshold[0]), default is ACCUMULATOR_VAL_ZERO
 /// SOFT_NMS_SIGMA_VAL       TO_ACCUMULATOR_TYPE(soft_nms_sigma[0]),  default is ACCUMULATOR_VAL_ZERO
 /// OUTPUT_NUM               Number of outputs. [OUTPUT_NUM, 3, 1, 1]
 /// BUFFER_STRIDE            sizeof(SBOX_INFO) * NUM_BOXES
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define NUM_BATCHES     INPUT0_BATCH_NUM
 #define NUM_BOXES       INPUT0_FEATURE_NUM
@@ -183,7 +180,7 @@ inline void FUNC(quickSortIterative)(__global SBOX_INFO* arr, int l, int h)
         // Set pivot element at its correct position
         // in sorted array
         const int p = FUNC_CALL(partition)(arr, l, h);
-  
+
         // If there are elements on left side of pivot,
         // then push left side to stack
         if (p - 1 > l) {

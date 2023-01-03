@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 
 // ==============================================================================================================================
 // DECLARE_PACKED_ACCUMULATE(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp)
@@ -36,7 +35,7 @@
 //   offset         - Offset into "input" from where accumulation should start
 //   worker_id      - Number of current work-item
 //   ExtraArgsDecl  - Optional extra arguments, declared from template argument.
-// 
+//
 // Pseduocode:
 //  function Name(input, offset, worker_id, ExtraArgs... eargs) {
 //      AccT<SliceSize> accumulator = 0;
