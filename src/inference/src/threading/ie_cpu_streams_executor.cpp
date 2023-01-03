@@ -16,6 +16,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
@@ -79,6 +80,7 @@ struct CPUStreamsExecutor::Impl {
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             if (cpuMapAvailable()) {
+                std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
                 const auto concurrency =
                     (_streamId < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
                         ? _impl->_config._threads_per_stream_big
@@ -109,22 +111,23 @@ struct CPUStreamsExecutor::Impl {
                     }
                 }
                 if (_impl->_config._bind_cores) {
-                    const auto cpu_col =
+                    const auto cpu_core_type =
                         _streamId < _impl->_config._big_core_streams
-                            ? CPU_MAP_PHY_CORE
+                            ? MAIN_CORE_PROC
                             : (_streamId < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
-                                   ? CPU_MAP_LOG_CORE
-                                   : CPU_MAP_SMALL_CORE);
+                                   ? HYPER_THREADING_PROC
+                                   : EFFICIENT_CORE_PROC);
                     const auto small_core_threads_3 =
-                        cpu_col == CPU_MAP_SMALL_CORE && concurrency == 3 && _impl->_config._small_core_streams > 1;
-                    auto stream_id = cpu_col == CPU_MAP_PHY_CORE
-                                         ? _streamId
-                                         : (cpu_col == CPU_MAP_LOG_CORE ? _streamId - _impl->_config._big_core_streams
-                                                                        : _streamId - _impl->_config._big_core_streams -
-                                                                              _impl->_config._big_core_logic_streams);
-                    const auto thread_binding_step = getThreadStep(cpu_col);
-                    const auto cpu_idx_offset = getCoreOffset(cpu_col) + (small_core_threads_3 ? stream_id * 4 : 0);
-                    stream_id = small_core_threads_3 ? 0 : stream_id;
+                        cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 && _impl->_config._small_core_streams > 1;
+                    const auto thread_binding_step = getThreadStep(cpu_core_type);
+                    const auto cpu_idx_offset = getCoreOffset(cpu_core_type);
+                    for (int i = 0; i < concurrency; i++) {
+                        _cpu_ids.push_back(cpu_idx_offset + thread_binding_step * i);
+                    }
+                    if (small_core_threads_3) {
+                        _cpu_ids.push_back(cpu_idx_offset + 3);
+                    }
+                    setCpuUsed(_cpu_ids, 1);
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = GetProcessMask();
@@ -132,7 +135,7 @@ struct CPUStreamsExecutor::Impl {
                         _observer.reset(new Observer{*_taskArena,
                                                      std::move(processMask),
                                                      ncpus,
-                                                     stream_id,
+                                                     0,
                                                      concurrency,
                                                      thread_binding_step,
                                                      _impl->_config._threadBindingOffset,
@@ -279,6 +282,7 @@ struct CPUStreamsExecutor::Impl {
                 _impl->_streamIdQueue.push(_streamId);
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+            setCpuUsed(_cpu_ids, 0);
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
@@ -293,6 +297,7 @@ struct CPUStreamsExecutor::Impl {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
+        std::vector<int> _cpu_ids;
 #endif
     };
 
@@ -406,6 +411,7 @@ struct CPUStreamsExecutor::Impl {
     std::queue<int> _streamIdQueue;
     std::vector<std::thread> _threads;
     std::mutex _mutex;
+    std::mutex _cpumap_mutex;
     std::condition_variable _queueCondVar;
     std::queue<Task> _taskQueue;
     bool _isStopped = false;

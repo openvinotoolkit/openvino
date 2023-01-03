@@ -13,6 +13,15 @@
 #include "threading/ie_parallel_custom_arena.hpp"
 
 namespace InferenceEngine {
+struct CPU {
+    int _processors = 0;
+    int _sockets = 0;
+    int _cores = 0;
+
+    std::vector<int> _proc_type_table;
+    std::vector<std::vector<int>> _cpu_mapping_table;
+};
+static CPU cpu;
 int getNumberOfCPUCores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
@@ -48,5 +57,20 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
 // OMP/SEQ threading on the Windows doesn't support NUMA
 std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
+
+bool cpuMapAvailable() {
+    return cpu._cpu_mapping_table.size() > 0;
+}
+
+int getCoreOffset(const cpu_core_type_of_processor core_type) {
+    return 0;
+}
+
+int getThreadStep(const cpu_core_type_of_processor core_type) {
+    return 0;
+}
+
+void setCpuUsed(std::vector<int> cpu_ids, int used) {
+}
 
 }  // namespace InferenceEngine

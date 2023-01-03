@@ -140,35 +140,66 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 INFERENCE_ENGINE_API_CPP(bool) cpuMapAvailable();
 
 /**
- * @brief      Returns offset of cores on Linux
+ * @brief      Set flag bit 'Used' of CPU
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  cpu_col col in cup_mapping.
+ * @param[in]  cpu_ids cpus in cup_mapping.
+ * @param[in]  used flag bit
+ */
+INFERENCE_ENGINE_API_CPP(void) setCpuUsed(std::vector<int> cpu_ids, int used);
+
+/**
+ * @enum cpu_core_type_of_processor
+ * @brief This enum contains defination of processor based on specific cpu core types.
+ * Will extend to support other CPU core type like ARM.
+ */
+typedef enum {
+    ALL_PROC = 0,              //!< All processors, regardless of backend cpu
+    MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
+    HYPER_THREADING_PROC = 2,  //!< Processor based on logical core of Intel Performance-cores
+    EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Performance-cores
+} cpu_core_type_of_processor;
+
+/**
+ * @brief      Returns offset of cores
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  core_type core type.
  * @return     Offset of CPU cores.
  */
-INFERENCE_ENGINE_API_CPP(int) getCoreOffset(const int cpu_col);
+INFERENCE_ENGINE_API_CPP(int) getCoreOffset(const cpu_core_type_of_processor core_type);
 
 /**
- * @brief      Returns step of threads on Linux
+ * @brief      Returns step of threads
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  cpu_col col in cup_mapping.
+ * @param[in]  core_type core type.
  * @return     Step of threads.
  */
-INFERENCE_ENGINE_API_CPP(int) getThreadStep(const int cpu_col);
+INFERENCE_ENGINE_API_CPP(int) getThreadStep(const cpu_core_type_of_processor core_type);
 
 /**
- * @enum CpuMapColumn
- * @brief This enum contains columns of CPU map. Below is the structure of CPU map
+ * @enum column_of_cpu_mapping_table
+ * @brief This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
- * Proc ID | Socket ID | HW Core ID | Phy Core of Pcores | Logic Core of Pcores | ID of Ecore Group | Used
+ * Below is the example of CPU mapping table.
+ *  1. Four processors of two Pcore
+ *  2. Four processors of four Ecores shared L2 cache
  *
+ *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
+ *    	  0        	   0	      0          2           0        0
+ *    	  1        	   0	      0          1           0        0
+ *    	  2        	   0	      1          2           1        0
+ *    	  3        	   0	      1          1           1        0
+ *    	  4        	   0	      2          3           2        0
+ *    	  5        	   0	      3          3           2        0
+ *    	  6        	   0	      4          3           2        0
+ *    	  7        	   0	      5          3           2        0
  */
-enum CpuMapColumn : int {
-    CPU_MAP_SOCKET = 0,
-    CPU_MAP_CORE = 1,
-    CPU_MAP_PHY_CORE = 2,
-    CPU_MAP_LOG_CORE = 3,
-    CPU_MAP_SMALL_CORE = 4,
-    CPU_MAP_USED_PROC = 5
-};
+typedef enum {
+    CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
+    CPU_MAP_SOCKET_ID = 1,     //!< column for socket id of the processor
+    CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
+    CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
+    CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
+    CPU_MAP_USED_FLAG = 5      //!< column for resource management of the processor
+} column_of_cpu_mapping_table;
 
 }  // namespace InferenceEngine
