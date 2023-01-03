@@ -12,7 +12,14 @@ void FrontEndWrapperTensorflow::add_extension(const std::shared_ptr<ov::Extensio
 }
 
 bool FrontEndWrapperTensorflow::check_conversion_extension_registered(const std::string& name) {
-    return m_op_translators.find(name) != m_op_translators.end();
+    bool is_found = false;
+    for (const auto& conversion : m_conversion_extensions) {
+        if (conversion->get_op_type() == name) {
+            is_found = true;
+            break;
+        }
+    }
+    return is_found;
 }
 #endif
 
