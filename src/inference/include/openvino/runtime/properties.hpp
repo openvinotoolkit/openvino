@@ -374,7 +374,7 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
 namespace log {
 
 #ifdef DEBUG
-#    define WAS_DEBUG DEBUG
+#    define _OV_WAS_DEBUG DEBUG
 #    undef DEBUG
 #endif
 
@@ -439,9 +439,9 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
 
-#ifdef WAS_DEBUG
-#    define DEBUG WAS_DEBUG
-#    undef WAS_DEBUG
+#ifdef _OV_WAS_DEBUG
+#    define DEBUG _OV_WAS_DEBUG
+#    undef _OV_WAS_DEBUG
 #endif
 }  // namespace log
 
