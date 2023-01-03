@@ -34,7 +34,6 @@
 
 'category: CPU':
 - 'src/plugins/intel_cpu/**/*'
-- 'src/tests/**/cpu/**/*'
 - 'src/common/snippets/**/*'
 - 'thirdparty/xbyak/**/*'
 

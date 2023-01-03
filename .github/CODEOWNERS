@@ -2,19 +2,11 @@
 
 *  @openvinotoolkit/openvino-maintainers
 
-#
-# Generic per-folder codeowners
-#
-
 # CI
 /Jenkinsfile  @openvinotoolkit/openvino-ci-maintainers
 /.github/  @openvinotoolkit/openvino-ci-maintainers
 /.ci/  @openvinotoolkit/openvino-ci-maintainers
 /.github/CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintainers
-
-# Documentation:
-/docs/  @openvinotoolkit/openvino-docs-maintainers
-/docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 
 # Licensing:
 /licensing/ @openvinotoolkit/openvino-legal-maintainers
@@ -57,7 +49,6 @@
 # OpenVINO CPU:
 /src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
 /src/common/snippets/ @openvinotoolkit/openvino-ie-cpu-maintainers
-/src/tests/**/cpu/ @openvinotoolkit/openvino-ie-cpu-maintainers
 /thirdparty/xbyak/ @openvinotoolkit/openvino-ie-cpu-maintainers
 
 # OpenVINO LPT
@@ -112,22 +103,10 @@
 /tools/pot/  @openvinotoolkit/openvino-pot-maintainers
 /thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers @openvinotoolkit/openvino-pot-maintainers
 
-#
-# Specific codeowners for file extension patterns or dedicated files
-#
-
-# Specific patterns must go last
+# Documentation
+/docs/  @openvinotoolkit/openvino-docs-maintainers
+/docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 /**/*.md  @openvinotoolkit/openvino-docs-maintainers
-/**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
-/**/requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
-/docs/requirements.txt @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-configuration-mgmt
-
-# CMake scripts
-/**/cmake/ @openvinotoolkit/openvino-ie-maintainers
-/**/*.cmake @openvinotoolkit/openvino-ie-maintainers
-/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
-
-# Dedicated MO and Runtime documents
 /docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-mo-maintainers
 /docs/OV_Runtime_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/IE_PLUGIN_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
@@ -137,3 +116,13 @@
 /docs/OV_Runtime_UG/supported_plugins/CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
 /docs/OV_Runtime_UG/supported_plugins/GNA.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gna-maintainers
 /docs/OV_Runtime_UG/supported_plugins/GPU*.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
+
+# Configuration management
+/**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
+/**/requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
+/docs/requirements.txt @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-configuration-mgmt
+
+# CMake scripts
+/**/cmake/ @openvinotoolkit/openvino-ie-maintainers
+/**/*.cmake @openvinotoolkit/openvino-ie-maintainers
+/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
