@@ -1877,10 +1877,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             if (forced_format != format::any)
                 dst_fmt = forced_format;
 
-            if (node.get_preferred_output_fmt() == format::any) {
-                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
+            for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
+                if (node.get_preferred_output_fmt(usr) == format::any)
                     node.set_preferred_output_fmt(usr, dst_fmt);
-            }
 
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
                           << " For index : " << idx << std::endl;
