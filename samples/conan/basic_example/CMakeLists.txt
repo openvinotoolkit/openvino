@@ -8,6 +8,4 @@ set(SOURCE ${CMAKE_SOURCE_DIR}/main.cpp)
 
 add_executable(${PROJECT_NAME} ${SOURCE})
 
-conan_target_link_libraries(${PROJECT_NAME})
-
-# get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+target_link_libraries(${PROJECT_NAME} openvino)
