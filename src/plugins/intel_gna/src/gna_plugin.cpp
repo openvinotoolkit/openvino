@@ -455,7 +455,7 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
             // to support the both legacy and 2.0 API we need to check all possible names in the configuration
             auto sf_it = std::find_if(config.inputScaleFactorsPerInput.begin(), config.inputScaleFactorsPerInput.end(),
                 [&names](const std::pair<std::string, float> &sf_item) {
-                    return (std::count(names.begin(), names.end(), sf_item.first) == 1);
+                    return names.count(sf_item.first);
             });
 
             if (sf_it != config.inputScaleFactorsPerInput.end()) {
