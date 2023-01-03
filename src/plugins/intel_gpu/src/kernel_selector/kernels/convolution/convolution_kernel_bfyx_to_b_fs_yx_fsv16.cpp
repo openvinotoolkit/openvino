@@ -56,9 +56,14 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableDifferentTypes();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_to_bfyx_f16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
