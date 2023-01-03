@@ -433,7 +433,7 @@ int64_t calculate_num_spatial(const ConvType* op,
                                             num_non_spatial_filter_dims);
         if (const auto& size = op->m_output_padding.size()) {
             NODE_VALIDATION_CHECK(op,
-                                  num_spatial == -1 || num_spatial == size,
+                                  num_spatial == -1 || num_spatial == static_cast<int64_t>(size),
                                   "Output padding should be defined for all and only spatial dimensions.");
             num_spatial = static_cast<int64_t>(size);
         }
@@ -589,8 +589,8 @@ void shape_infer(const ConvolutionBackpropData* op,
 
     NODE_VALIDATION_CHECK(
         op,
-        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
         "Data and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
@@ -610,7 +610,7 @@ void shape_infer(const ConvolutionBackpropData* op,
     if (input_size == 3) {
         if (output_shape_from_input.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
-                                  output_shape_from_input.size() == num_spatial,
+                                  static_cast<int64_t>(output_shape_from_input.size()) == num_spatial,
                                   "Output shape should be specified only and for all spatial dimensions.");
             for (int64_t i = 0; i < num_spatial; ++i)
                 output_shape[i + num_non_spatial_data_dims] = output_shape_from_input[i];
@@ -670,8 +670,8 @@ void shape_infer(const GroupConvolutionBackpropData* op,
 
     NODE_VALIDATION_CHECK(
         op,
-        (static_cast<int64_t>(input_shape.size()) == (num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == (num_spatial + num_non_spatial_filter_dims)),
+        (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_data_dims)) &&
+            (static_cast<int64_t>(filters_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
         "Data and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
@@ -713,7 +713,7 @@ void shape_infer(const GroupConvolutionBackpropData* op,
     if (input_size == 3) {
         if (output_shape_from_input.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
-                                  output_shape_from_input.size() == num_spatial,
+                                  static_cast<int64_t>(output_shape_from_input.size()) == num_spatial,
                                   "Output shape should be specified only and for all spatial dimensions.");
             for (int64_t i = 0; i < num_spatial; ++i)
                 output_shape[i + num_non_spatial_data_dims] = output_shape_from_input[i];
