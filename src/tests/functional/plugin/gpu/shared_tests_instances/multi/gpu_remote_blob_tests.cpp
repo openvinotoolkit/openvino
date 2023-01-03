@@ -89,9 +89,17 @@ TEST_P(MultiDevice_Bind_test, oversubsciptionOfInferRequest) {
         return;
     }
 
+    unsigned int optimalNum = 0;
+    try {
+        optimalNum = exec_net_multi.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
+    } catch (...) {
+        std::cout << "ExecutableNetwork getMetric failed" << std::endl;
+        return;
+    }
+
     // test binder mode to throw exception when oversubsciption of infer requests
     InferenceEngine::InferRequest req;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < optimalNum; i++) {
         req = exec_net_multi.CreateInferRequest();
     }
     ASSERT_ANY_THROW(req = exec_net_multi.CreateInferRequest());
