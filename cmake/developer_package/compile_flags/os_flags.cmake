@@ -143,11 +143,11 @@ macro(ie_arm_neon_optimization_flags flags)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
         elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
-            set(${flags} -march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon -Wno-unused-command-line-argument)
+            set(${flags} -march=armv7-a+fp -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon -Wno-unused-command-line-argument)
         elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
                (ANDROID_ABI STREQUAL "armeabi-v7a" AND
                 DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
-                set(${flags} -march=armv7-a -mfloat-abi=softfp -mfpu=neon -Wno-unused-command-line-argument)
+                set(${flags} -march=armv7-a+fp -mfloat-abi=softfp -mfpu=neon -Wno-unused-command-line-argument)
         endif()
     else()
         if(AARCH64)
@@ -308,10 +308,10 @@ if(WIN32)
     # but provides no way to specify CMAKE_COMPILE_PDB_NAME on root level
     # In order to avoid issues with ninja we are replacing default flag instead of having two of them
     # and observing warning D9025 about flag override
-    string(REPLACE "/Zi" "/Zi /FS" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Zi /FS" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-    string(REPLACE "/Zi" "/Zi /FS" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-    string(REPLACE "/Zi" "/Zi /FS" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+    string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 else()
     if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
         # TODO: enable for C sources as well

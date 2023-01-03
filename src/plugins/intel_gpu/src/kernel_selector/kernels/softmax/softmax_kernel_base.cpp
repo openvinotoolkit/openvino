@@ -80,7 +80,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
     bool is_dynamic = orgParams.outputs[0].is_dynamic();
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      1,

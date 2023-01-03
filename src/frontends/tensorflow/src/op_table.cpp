@@ -64,6 +64,8 @@ OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
+OP_CONVERTER(translate_input_arg_op);
+OP_CONVERTER(translate_output_arg_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_is_inf_op);
@@ -246,6 +248,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
+        {"input_arg", translate_input_arg_op},
+        {"output_arg", translate_output_arg_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},

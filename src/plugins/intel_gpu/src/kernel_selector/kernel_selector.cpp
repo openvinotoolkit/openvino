@@ -254,6 +254,8 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
     std::multiset<PriorityPair, decltype(comparePriority)> sortedImpls(comparePriority);
     KernelList result;
 
+    auto device_features_key = params.engineInfo.get_supported_device_features_key();
+
     if (params.GetType() == kType && options.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
         bool forceImplementation = !params.forceImplementation.empty();
@@ -261,6 +263,11 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
                 continue;
+
+            auto required_device_features_key = impl->get_required_device_features_key(params, options);
+            if (!device_features_key.supports(required_device_features_key))
+                continue;
+
             if (forceImplementation && params.forceImplementation != impl->GetName())
                 continue;
             sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);
