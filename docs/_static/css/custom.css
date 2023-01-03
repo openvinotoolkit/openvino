@@ -13,6 +13,10 @@ main  .searchForm {
     margin-bottom: 2rem;
     margin-top: 2rem;
 }
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
 
 /* navigation panels override */
 /* =================================================== */
