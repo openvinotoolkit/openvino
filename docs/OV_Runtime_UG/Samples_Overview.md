@@ -41,7 +41,7 @@ If you installed OpenVINO Runtime via archive files, sample applications for С,
 * `<INSTALL_DIR>/samples/cpp`
 * `<INSTALL_DIR>/samples/python`
 
-If you installed OpenVINO via PyPI, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/3) and use samples from `samples/python`.
+If you installed OpenVINO via PyPI, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/) and use samples from `samples/python`.
 
 The applications include:
 
