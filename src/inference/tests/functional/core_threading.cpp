@@ -14,7 +14,6 @@
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <mutex>
-#include <ngraph_functions/subgraph_builders.hpp>
 #include <thread>
 
 #include "openvino/util/file_util.hpp"
