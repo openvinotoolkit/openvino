@@ -262,7 +262,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
                 dims.push_back(add_cnt);
                 Shape const_shape(dims);
                 std::vector<int64_t> vals(add_cnt);
-                for (auto i = 0; i < add_cnt; i++) {
+                for (size_t i = 0; i < add_cnt; i++) {
                     vals[i] = i;
                 }
                 auto axes = op::v0::Constant::create<int64_t>(element::i64, const_shape, vals);
