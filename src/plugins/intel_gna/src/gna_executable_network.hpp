@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include <threading/ie_executor_manager.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <ie_icore.hpp>
-#include <ie_system_conf.h>
 
 namespace ov {
 namespace intel_gna {
@@ -131,16 +130,10 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
-        if (ov::supported_properties == name || InferenceEngine::Metrics::METRIC_SUPPORTED_CONFIG_KEYS == name) {
+        if (ov::supported_properties == name) {
             return Config::GetSupportedProperties(true);
         } else if (ov::model_name == name) {
             return networkName;
-        } else if (InferenceEngine::Metrics::METRIC_SUPPORTED_METRICS == name) {
-            return std::vector<std::string>{ov::model_name.name(),
-                                            ov::supported_properties.name(),
-                                            InferenceEngine::Metrics::METRIC_SUPPORTED_METRICS,
-                                            InferenceEngine::Metrics::METRIC_SUPPORTED_CONFIG_KEYS,
-                                            ov::optimal_number_of_infer_requests.name()};
         } else {
             return plg->GetMetric(name, {});
         }
