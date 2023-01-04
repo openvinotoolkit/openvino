@@ -21,7 +21,6 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
         , m_external_queue(nullptr)
         , m_type(ContextType::OCL)
         , m_device_name(device_name)
-        , m_device_id("")
         , m_memory_cache(cache_capacity) {
     OPENVINO_ASSERT(devices.size() == 1, "[GPU] Currently context can be created for single device only");
     // TODO: Parameterize this based on plugin config and compilation options
@@ -33,11 +32,10 @@ RemoteContextImpl::RemoteContextImpl(std::string device_name, std::vector<cldnn:
     GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 }
 
-RemoteContextImpl::RemoteContextImpl(std::string plugin_name, std::string default_device_id, const AnyMap& params)
+RemoteContextImpl::RemoteContextImpl(const std::vector<RemoteContextImpl::Ptr>& known_contexts, const AnyMap& params)
         : m_va_display(nullptr)
         , m_external_queue(nullptr)
         , m_type(ContextType::OCL)
-        , m_device_id(default_device_id)
         , m_memory_cache(cache_capacity) {
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
@@ -78,8 +76,7 @@ RemoteContextImpl::RemoteContextImpl(std::string plugin_name, std::string defaul
     OPENVINO_ASSERT(device_map.size() == 1, "[GPU] Only one device expected in case of context sharing");
 
     m_engine = cldnn::engine::create(engine_type, runtime_type, device_map.begin()->second);
-
-    m_device_name = get_device_name(plugin_name, device_map, m_engine->get_device());
+    m_device_name = get_device_name(known_contexts, m_engine->get_device());
 
     GPU_DEBUG_LOG << "Initialize RemoteContext for " << m_device_name << " (" << m_engine->get_device_info().dev_name << ")" << std::endl;
 }
@@ -103,19 +100,16 @@ AnyMap RemoteContextImpl::get_params() const {
     return ret;
 }
 
-std::string RemoteContextImpl::get_device_name(const std::string& plugin_name,
-                                               const std::map<std::string, cldnn::device::ptr>& all_devices,
+// For external contexts we try to match underlying handles with default contexts created by plugin to find device name
+std::string RemoteContextImpl::get_device_name(const std::vector<RemoteContextImpl::Ptr>& known_contexts,
                                                const cldnn::device::ptr current_device) {
-    auto device_name = plugin_name;
-    try {
-        for (auto& kv : all_devices) {
-            if (current_device->is_same(kv.second))
-                return device_name + "." + kv.first;
+    std::string device_name = "GPU";
+    for (auto& c : known_contexts) {
+        if (c->get_engine().get_device()->is_same(current_device)) {
+            device_name = c->get_device_name();
+            break;
         }
-    } catch (...) { }
-
-    if (!m_device_id.empty())
-        device_name += "." + m_device_id;
+    }
     return device_name;
 }
 

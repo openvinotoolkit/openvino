@@ -218,15 +218,19 @@ InferenceEngine::RemoteContext::Ptr Plugin::CreateContext(const AnyMap& params) 
         return get_default_context(default_device_id);
     }
 
+    std::vector<RemoteContextImpl::Ptr> known_contexts;
+    for (auto& c : m_default_contexts) {
+        known_contexts.push_back(c.second->get_impl());
+    }
     std::string context_type = extract_object<std::string>(params, GPU_PARAM_KEY(CONTEXT_TYPE));
 
     if (GPU_PARAM_VALUE(OCL) == context_type) {
-        return std::make_shared<RemoteCLContext>(GetName(), default_device_id, params);
+        return std::make_shared<RemoteCLContext>(known_contexts, params);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == context_type) {
 #ifdef _WIN32
-        return std::make_shared<RemoteD3DContext>(GetName(), default_device_id, params);
+        return std::make_shared<RemoteD3DContext>(known_contexts, params);
 #else
-        return std::make_shared<RemoteVAContext>(GetName(), default_device_id, params);
+        return std::make_shared<RemoteVAContext>(known_contexts, params);
 #endif
     }
 

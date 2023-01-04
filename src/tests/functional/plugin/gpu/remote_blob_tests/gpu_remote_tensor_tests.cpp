@@ -1554,6 +1554,39 @@ static void check_contexts_are_same(const ov::RemoteContext& c1, const ov::Remot
     ASSERT_EQ(c1_casted.get(), c2_casted.get());
 }
 
+TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    for (size_t i = 0; i < gpuDevices.size(); i++) {
+        auto device_name = "GPU." + std::to_string(i);
+        auto ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
+        cl::Context original_ctx_handle = ctx;
+        std::vector<cl::Device> devices = original_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
+        cl::Context new_ctx_handle(devices);
+        ASSERT_NE(new_ctx_handle.get(), original_ctx_handle.get());
+        auto remote_context = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle.get(), 0);
+        ASSERT_EQ(remote_context.get_device_name(), device_name);
+
+        // Check that ctx_device_id doesn't impact device name reported by context
+        cl::Context new_ctx_handle_md({devices.front(), devices.front()});
+        ASSERT_NE(original_ctx_handle.get(), new_ctx_handle_md.get());
+        auto remote_context0 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 0);
+        auto remote_context1 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 1);
+        ASSERT_EQ(remote_context0.get_device_name(), device_name);
+        ASSERT_EQ(remote_context1.get_device_name(), device_name);
+    }
+}
+
 TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
 #if defined(ANDROID)
     GTEST_SKIP();

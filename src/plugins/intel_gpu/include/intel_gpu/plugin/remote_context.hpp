@@ -66,7 +66,7 @@ public:
     using CPtr = std::shared_ptr<const RemoteContextImpl>;
 
     RemoteContextImpl(std::string device_name, std::vector<cldnn::device::ptr> devices);
-    RemoteContextImpl(std::string plugin_name, std::string default_device_id, const InferenceEngine::ParamMap& params);
+    RemoteContextImpl(const std::vector<RemoteContextImpl::Ptr>& known_contexts, const InferenceEngine::ParamMap& params);
 
     InferenceEngine::ParamMap get_params() const;
     std::string get_device_name() const noexcept;
@@ -82,8 +82,7 @@ public:
     void add_to_cache(size_t hash, cldnn::memory::ptr memory);
 
 private:
-    std::string get_device_name(const std::string& plugin_name,
-                                const std::map<std::string, cldnn::device::ptr>& all_devices,
+    std::string get_device_name(const std::vector<RemoteContextImpl::Ptr>& known_contexts,
                                 const cldnn::device::ptr current_device);
     InferenceEngine::RemoteBlob::Ptr reuse_surface(InferenceEngine::gpu::ClContext::Ptr public_context,
                                                    const InferenceEngine::TensorDesc& desc,
@@ -105,7 +104,6 @@ private:
 
     ContextType m_type;
     std::string m_device_name = "";
-    std::string m_device_id = "";
     const std::string m_plugin_name;
     cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache;
     std::mutex m_cache_mutex;
@@ -136,8 +134,8 @@ public:
 
     TypedRemoteContext(std::string device_name, std::vector<cldnn::device::ptr> devices)
         : m_impl(std::make_shared<RemoteContextImpl>(device_name, devices)) {}
-    TypedRemoteContext(std::string plugin_name, std::string default_device_id, const InferenceEngine::ParamMap& params)
-        : m_impl(std::make_shared<RemoteContextImpl>(plugin_name, default_device_id, params)) {}
+    TypedRemoteContext(const std::vector<RemoteContextImpl::Ptr>& known_contexts, const InferenceEngine::ParamMap& params)
+        : m_impl(std::make_shared<RemoteContextImpl>(known_contexts, params)) {}
 
     InferenceEngine::ParamMap getParams() const override { return m_impl->get_params(); }
     std::string getDeviceName() const noexcept override { return m_impl->get_device_name(); }
