@@ -1037,8 +1037,8 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return alg != Algorithm::Default;
 }
 
-ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, ColorConvertShapeInferFactory(op)) {
+ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, ColorConvertShapeInferFactory(op)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)

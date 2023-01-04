@@ -13,7 +13,7 @@ namespace node {
 
 class ExperimentalDetectronROIFeatureExtractor : public Node {
 public:
-    ExperimentalDetectronROIFeatureExtractor(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    ExperimentalDetectronROIFeatureExtractor(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

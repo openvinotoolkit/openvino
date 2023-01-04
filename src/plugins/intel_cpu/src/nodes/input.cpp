@@ -230,8 +230,8 @@ jit_has_subnormals_base::fn_t jit_has_subnormals_function() {
 
 }   // namespace
 
-Input::Input(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : Node(op, rtEnv, PassThroughShapeInferFactory()) {
+Input::Input(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : Node(op, context, PassThroughShapeInferFactory()) {
     if (!one_of(op->get_type_info(),
             v0::Parameter::get_type_info_static(),
             v0::Constant::get_type_info_static(),
@@ -367,8 +367,8 @@ Input::Input(const Shape& shape,
              const InferenceEngine::Precision& prc,
              const std::string& name,
              const std::string& type,
-             RuntimeEnv::Ptr rtEnv)
-    : Node(type, name, rtEnv) {
+             GraphContext::Ptr context)
+    : Node(type, name, context) {
     constant = ConstantType::NoConst;
     if (getType() == Type::Input) {
         outputShapes.emplace_back(shape);
@@ -379,8 +379,8 @@ Input::Input(const Shape& shape,
     }
 }
 
-Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, RuntimeEnv::Ptr rtEnv)
-    : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, rtEnv) {
+Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, GraphContext::Ptr context)
+    : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
     extMemDesc = memDesc;
 }
 

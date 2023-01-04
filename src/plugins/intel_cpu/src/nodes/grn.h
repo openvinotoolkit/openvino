@@ -13,7 +13,7 @@ namespace node {
 
 class GRN : public Node {
 public:
-    GRN(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    GRN(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

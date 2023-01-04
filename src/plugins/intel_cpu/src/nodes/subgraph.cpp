@@ -36,8 +36,8 @@ namespace intel_cpu {
 namespace node {
 
 
-Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
@@ -55,7 +55,7 @@ void Snippet::copy_snippet() {
     std::shared_ptr<ov::Model> new_body = nullptr;
     // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
     if (original_snippet->has_type_relaxed_ops()) {
-        std::lock_guard<std::mutex> lock(*rtEnv->sharedMutex);
+        std::lock_guard<std::mutex> lock(*context->getSharedMutex());
         new_body = ov::clone_model(*original_snippet->body_ptr());
     } else {
         new_body = ov::clone_model(*original_snippet->body_ptr());

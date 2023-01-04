@@ -38,8 +38,8 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

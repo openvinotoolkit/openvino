@@ -27,8 +27,8 @@ bool ReorgYolo::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ReorgYolo::ReorgYolo(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

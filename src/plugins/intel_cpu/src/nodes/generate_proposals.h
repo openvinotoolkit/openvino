@@ -13,7 +13,7 @@ namespace node {
 
 class GenerateProposals : public Node {
 public:
-    GenerateProposals(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    GenerateProposals(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

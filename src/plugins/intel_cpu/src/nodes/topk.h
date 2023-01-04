@@ -78,7 +78,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    TopK(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;

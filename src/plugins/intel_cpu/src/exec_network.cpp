@@ -176,17 +176,17 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         std::exception_ptr exception;
         auto makeGraph = [&] {
             try {
-                RuntimeEnv::Ptr rtenv;
+                GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
-                    rtenv = std::make_shared<RuntimeEnv>(_cfg,
+                    // disable weights caching if graph was created only once
+                    auto weightsCache = _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
+                    ctx = std::make_shared<GraphContext>(_cfg,
                                                          extensionManager,
-                                                         _numaNodesWeights[numaNodeId],
-                                                         _mutex,
-                                                         streamId,
-                                                         numaNodeId);
+                                                         weightsCache,
+                                                         _mutex);
                 }
-                graphLock._graph.CreateGraph(_network, rtenv);
+                graphLock._graph.CreateGraph(_network, ctx);
             } catch (...) {
                 exception = std::current_exception();
             }

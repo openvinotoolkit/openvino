@@ -13,7 +13,7 @@ namespace node {
 
 class ReorgYolo : public Node {
 public:
-    ReorgYolo(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    ReorgYolo(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

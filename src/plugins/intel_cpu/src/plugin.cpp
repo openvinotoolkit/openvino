@@ -594,8 +594,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         IE_THROW() << "Only ngraph-based models are supported!";
     }
 
-    auto rtEnv =
-        std::make_shared<RuntimeEnv>(conf, extensionManager, fake_w_cache, std::make_shared<std::mutex>(), 0, 0);
+    auto context =
+        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, std::make_shared<std::mutex>());
 
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
@@ -606,7 +606,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
                                            std::unique_ptr<Node> ptr;
                                            try {
-                                               ptr.reset(Node::factory().create(op, rtEnv));
+                                               ptr.reset(Node::factory().create(op, context));
                                            } catch (const InferenceEngine::Exception&) {
                                                return false;
                                            }

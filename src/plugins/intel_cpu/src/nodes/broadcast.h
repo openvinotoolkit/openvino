@@ -16,7 +16,7 @@ namespace node {
 
 class Broadcast : public Node, public TileBroadcastCommon {
 public:
-    Broadcast(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Broadcast(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

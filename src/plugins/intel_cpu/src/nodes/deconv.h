@@ -17,7 +17,7 @@ namespace node {
 
 class Deconvolution : public Node {
 public:
-    Deconvolution(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Deconvolution(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,

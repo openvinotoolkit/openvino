@@ -13,7 +13,7 @@ namespace node {
 
 class Bucketize : public Node {
 public:
-    Bucketize(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Bucketize(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

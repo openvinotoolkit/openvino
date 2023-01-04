@@ -16,7 +16,7 @@ namespace node {
 
 class ShapeOf : public Node {
 public:
-    ShapeOf(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    ShapeOf(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

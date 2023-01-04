@@ -43,8 +43,8 @@ public:
 };
 } // namespace
 
-Generic::Generic(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, GenericShapeInferFactory()), ngraphOp(op) {
+Generic::Generic(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, GenericShapeInferFactory()), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {

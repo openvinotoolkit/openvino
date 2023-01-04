@@ -13,7 +13,7 @@ namespace node {
 
 class ReverseSequence : public Node {
 public:
-    ReverseSequence(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    ReverseSequence(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

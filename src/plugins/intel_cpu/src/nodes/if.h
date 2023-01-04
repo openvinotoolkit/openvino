@@ -17,7 +17,7 @@ namespace node {
 
 class If : public Node {
 public:
-    If(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
+    If(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;

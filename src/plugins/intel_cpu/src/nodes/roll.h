@@ -14,7 +14,7 @@ namespace node {
 
 class Roll : public Node {
 public:
-    Roll(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Roll(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

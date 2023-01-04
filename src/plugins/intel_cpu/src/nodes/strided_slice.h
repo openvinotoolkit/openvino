@@ -14,7 +14,7 @@ namespace node {
 
 class StridedSlice : public Node {
 public:
-    StridedSlice(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
+    StridedSlice(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;

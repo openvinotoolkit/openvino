@@ -77,7 +77,7 @@ struct jit_uni_bin_conv_kernel {
 
 class BinaryConvolution : public Node {
 public:
-    BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void createPrimitive() override;

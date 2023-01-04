@@ -30,8 +30,8 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, PassThroughShapeInferFactory()) {
+Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

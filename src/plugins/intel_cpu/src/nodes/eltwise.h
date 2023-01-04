@@ -90,7 +90,7 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Eltwise(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

@@ -13,7 +13,7 @@ namespace node {
 
 class CumSum : public Node {
 public:
-    CumSum(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    CumSum(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

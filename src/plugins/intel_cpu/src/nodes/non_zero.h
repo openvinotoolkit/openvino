@@ -18,7 +18,7 @@ namespace node {
 
 class NonZero : public Node {
 public:
-  NonZero(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+  NonZero(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

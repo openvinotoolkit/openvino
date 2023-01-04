@@ -72,13 +72,13 @@ Graph::~Graph() {
 }
 
 template<typename NET>
-void Graph::CreateGraph(NET &net, RuntimeEnv::Ptr runtime_env) {
+void Graph::CreateGraph(NET &net, GraphContext::Ptr ctx) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
     if (IsReady())
         ForgetGraphData();
 
-    rtEnv = runtime_env;
+    context = ctx;
 
     Replicate(net);
 
@@ -89,12 +89,12 @@ void Graph::CreateGraph(NET &net, RuntimeEnv::Ptr runtime_env) {
 
 void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
                               const std::vector<EdgePtr> &graphEdges,
-                              RuntimeEnv::Ptr runtime_env,
+                              GraphContext::Ptr ctx,
                               std::string name) {
     if (IsReady())
         ForgetGraphData();
 
-    rtEnv = runtime_env;
+    context = ctx;
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -115,15 +115,15 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, RuntimeEnv::Ptr);
-template void Graph::CreateGraph(const CNNNetwork&, RuntimeEnv::Ptr);
+template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, GraphContext::Ptr);
+template void Graph::CreateGraph(const CNNNetwork&, GraphContext::Ptr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
 
-    isQuantizedFlag = (rtEnv->config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph);
+    context->setGraphQuantizedFlag((context->getConfig().lpTransformsMode == Config::On) &&
+                                   ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph));
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
@@ -144,10 +144,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     };
 
     for (const auto op : subgraph->get_ordered_ops()) {
-        const NodePtr node {Node::factory().create(op, rtEnv)};
-        if (isQuantized()) {
-            node->setQuantizedGraphFlag(true);
-        }
+        const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
 
@@ -192,14 +189,14 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", rtEnv);
+                                                                        nodeName, "Result", context);
         EdgePtr edge(new Edge(parentNode, outNode, port, 0));
         outNode->addEdge(edge);
         graphEdges.push_back(edge);
         graphNodes.push_back(outNode);
     }
 
-    if (rtEnv->config.enforceBF16)
+    if (context->getConfig().enforceBF16)
         EnforceBF16();
 }
 
@@ -215,12 +212,12 @@ void Graph::Replicate(const CNNNetwork &network) {
     // we perform model cloning and reshaping on Replicate stage to preserve input/output information
     // it help to perform a graph compilation like in static case
     // and handle dynamic batch case in inference stage with minimal code changes
-    if (rtEnv->config.isNewApi && rtEnv->config.batchLimit > 0) {
+    if (context->getConfig().isNewApi && context->getConfig().batchLimit > 0) {
         auto upperBoundModel = ngraph::clone_function(*network.getFunction());
         std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
         for (const auto& in : upperBoundModel->get_parameters()) {
             auto newShape = in->get_output_partial_shape(0);
-            newShape[0] = rtEnv->config.batchLimit;
+            newShape[0] = context->getConfig().batchLimit;
             newInShape[in] = newShape;
         }
         upperBoundModel->reshape(newInShape);
@@ -234,8 +231,8 @@ void Graph::Replicate(const CNNNetwork &network) {
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
-    isQuantizedFlag = (rtEnv->config.lpTransformsMode == Config::On) &&
-                      ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+    context->setGraphQuantizedFlag((context->getConfig().lpTransformsMode == Config::On) &&
+                                   ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func));
 
     auto orderedOps = func->get_ordered_ops();
 
@@ -258,10 +255,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
     // Replicate All Nodes in topological order
     for (const auto& op : orderedOps) {
-        const NodePtr node(Node::factory().create(op, rtEnv));
-        if (isQuantized()) {
-            node->setQuantizedGraphFlag(true);
-        }
+        const NodePtr node(Node::factory().create(op, context));
 
         graphNodes.push_back(node);
 
@@ -314,18 +308,15 @@ void Graph::Replicate(const CNNNetwork &network) {
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", rtEnv);
+                                                                        nodeName, "Result", context);
         EdgePtr edge(new Edge(parentNode, outNode, port, 0));
         outNode->addEdge(edge);
         graphEdges.push_back(edge);
         graphNodes.push_back(outNode);
     }
 
-    if (rtEnv->config.enforceBF16)
+    if (context->getConfig().enforceBF16)
         EnforceBF16();
-
-    if (rtEnv->config.fcSparseWeiDecompressionRate < 1.0f)
-        setMinSparseRate(rtEnv->config.fcSparseWeiDecompressionRate);
 
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
         const auto & childEdges = node->getChildEdges();
@@ -521,7 +512,7 @@ void Graph::ExecuteConstantNodesOnly() const {
             auto edgePtr = node->getChildEdgeAt(i);
             if (edgePtr) {
                 if (edgePtr->isUseExternalMemory()) {
-                    auto ptr = rtEnv->weightsCache->get(edgePtr->name());
+                    auto ptr = context->getWeightsCache()->get(edgePtr->name());
                     outputs.emplace_back(ptr);
                     if (!ptr->isValid())
                         hasExternalInvalidEdges = true;
@@ -535,7 +526,7 @@ void Graph::ExecuteConstantNodesOnly() const {
     };
 
     for (const auto &node : constantGraphNodes) {
-        if (rtEnv->weightsCache) {
+        if (context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
@@ -620,7 +611,7 @@ void Graph::InitEdges() {
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
 
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                       convertName, rtEnv);
+                                                                       convertName, context);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
 
@@ -704,7 +695,7 @@ void Graph::AllocateWithReuse() {
                     auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
                     edge->reuse(std::const_pointer_cast<Memory>(constNode->getMemoryPtr()));
                 } else {
-                    edge->externalAllocate(rtEnv->weightsCache);
+                    edge->externalAllocate(context->getWeightsCache());
                 }
                 erase = true;
             }
@@ -1057,8 +1048,8 @@ void Graph::InferStatic(InferRequestBase* request) {
     dnnl::stream stream(getEngine());
 
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, rtEnv->config.debugCaps.verbose);
-        PERF(node, rtEnv->config.collectPerfCounters);
+        VERBOSE(node, context->getConfig().debugCaps.verbose);
+        PERF(node, context->getConfig().collectPerfCounters);
 
         if (request)
             request->ThrowIfCanceled();
@@ -1144,8 +1135,8 @@ void Graph::InferDynamic(InferRequestBase* request) {
         updateNodes(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
-            VERBOSE(node, rtEnv->config.debugCaps.verbose);
-            PERF(node, rtEnv->config.collectPerfCounters);
+            VERBOSE(node, context->getConfig().debugCaps.verbose);
+            PERF(node, context->getConfig().collectPerfCounters);
 
             if (request)
                 request->ThrowIfCanceled();
@@ -1155,7 +1146,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, rtEnv->config.debugCaps, infer_count);
+    DUMP(node, context->getConfig().debugCaps, infer_count);
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
@@ -1302,11 +1293,11 @@ void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEnginePr
 }
 
 void Graph::setProperty(const std::map<std::string, std::string>& properties) {
-    rtEnv->config.readProperties(properties);
+    context->getConfig().readProperties(properties);
 }
 
 Config Graph::getProperty() const {
-    return rtEnv->config;
+    return context->getConfig();
 }
 
 void Graph::RemoveEdge(EdgePtr& edge) {
@@ -1456,7 +1447,7 @@ void Graph::RemoveDroppedEdges() {
 
 NodePtr Graph::InsertReorder(EdgePtr edge, std::string layerName, const MemoryDesc& inDesc, const MemoryDesc& outDesc,
                                          bool isOptimized, const std::vector<int> & src_perm) {
-    NodePtr newReorder(new node::Reorder(layerName, rtEnv));
+    NodePtr newReorder(new node::Reorder(layerName, context));
     auto *reorderPtr = dynamic_cast<node::Reorder *>(newReorder.get());
     if (reorderPtr == nullptr) {
         IE_THROW() << "Graph::InsertReorder: Cannot cast to Reorder";
@@ -1506,10 +1497,6 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
     afterNode->getParent()->childEdges.push_back(afterNode);
     child->parentEdges.push_back(afterNode);
 
-    if (isQuantized()) {
-        node->setQuantizedGraphFlag(true);
-    }
-
     if (initNode) {
         node->getSupportedDescriptors();
         node->initSupportedPrimitiveDescriptors();
@@ -1528,7 +1515,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 void Graph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (!implication(isQuantized(), rtEnv->config.manualEnforceBF16))
+    if (!implication(context->getGraphQuantizedFlag(), context->getConfig().manualEnforceBF16))
         return;
 
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
@@ -1590,14 +1577,6 @@ void Graph::EnforceBF16() {
                 if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
-        }
-    }
-}
-
-void Graph::setMinSparseRate(float minSparseRate) {
-    for (const auto &node : graphNodes) {
-        if (auto fcNodePtr = std::dynamic_pointer_cast<node::FullyConnected>(node)) {
-            fcNodePtr->setMinSparseRate(minSparseRate);
         }
     }
 }

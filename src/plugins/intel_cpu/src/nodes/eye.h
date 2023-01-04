@@ -22,7 +22,7 @@ public:
     static constexpr size_t BATCH_SHAPE = 3lu;
 
 public:
-    Eye(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Eye(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

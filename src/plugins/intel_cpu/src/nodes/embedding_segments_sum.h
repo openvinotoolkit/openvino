@@ -17,7 +17,7 @@ namespace node {
 
 class EmbeddingSegmentsSum : public Node, public EmbeddingBagSum {
 public:
-    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

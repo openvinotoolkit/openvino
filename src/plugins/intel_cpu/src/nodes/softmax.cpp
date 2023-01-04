@@ -66,8 +66,8 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv) :
-        Node(op, rtEnv, PassThroughShapeInferFactory()) {
+SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -174,7 +174,7 @@ void SoftMax::prepareParams() {
         return std::make_shared<softmax_forward>(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {

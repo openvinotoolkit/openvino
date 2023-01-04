@@ -110,7 +110,7 @@ public:
                     const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
         Config conf;
         conf.rtCacheCapacity = 100;
-        auto rtEnv = std::make_shared<RuntimeEnv>(conf,
+        auto rtEnv = std::make_shared<GraphContext>(conf,
                                                   nullptr,
                                                   std::make_shared<WeightsSharing>(),
                                                   std::make_shared<std::mutex>(),

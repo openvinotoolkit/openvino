@@ -77,10 +77,21 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv, const ShapeInferFactory& shapeInferFactory)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          rtEnv(rtEnv), engine(rtEnv->eng), weightCache(rtEnv->weightsCache), name(op->get_friendly_name()), typeStr(op->get_type_name()),
-          type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
+Node::Node(const std::shared_ptr<ngraph::Node>& op,
+           const GraphContext::Ptr ctx,
+           const ShapeInferFactory& shapeInferFactory)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      engine(ctx->getEngine()),
+      weightCache(ctx->getWeightsCache()),
+      isInQuantizedGraph(ctx->getGraphQuantizedFlag()),
+      name(op->get_friendly_name()),
+      typeStr(op->get_type_name()),
+      type(TypeFromName(op->get_type_name())),
+      profiling(op->get_friendly_name()) {
     algorithm = Algorithm::Default;
     fusingPort = -1;
     const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
@@ -170,10 +181,20 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv, const
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, RuntimeEnv::Ptr rtEnv)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          rtEnv(rtEnv), engine(rtEnv->eng), weightCache(rtEnv->weightsCache), fusingPort(-1), name(name), typeStr(type),
-          type(TypeFromName(type)), profiling(name) {
+Node::Node(const std::string& type, const std::string& name, GraphContext::Ptr ctx)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      engine(ctx->getEngine()),
+      weightCache(ctx->getWeightsCache()),
+      isInQuantizedGraph(ctx->getGraphQuantizedFlag()),
+      fusingPort(-1),
+      name(name),
+      typeStr(type),
+      type(TypeFromName(type)),
+      profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 
@@ -1206,7 +1227,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:
@@ -1228,15 +1249,15 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, Runtim
     Node *newNode = nullptr;
     std::string errorMessage;
     {
-        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, rtEnv));
-        if (ol != nullptr && ol->created(rtEnv->extensionManager))
+        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
+        if (ol != nullptr && ol->created(context->getExtensionManager()))
             newNode = ol.release();
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, rtEnv));
-            if (ol != nullptr && ol->created(rtEnv->extensionManager))
+            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
@@ -1249,8 +1270,8 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, Runtim
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(new Reference(op, rtEnv, errorMessage));
-            if (ol != nullptr && ol->created(rtEnv->extensionManager))
+            std::unique_ptr<Node> ol(new Reference(op, context, errorMessage));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {

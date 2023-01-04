@@ -32,8 +32,8 @@ bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Unique::Unique(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv) :
-        Node(op, rtEnv, InternalDynShapeInferFactory()) {
+Unique::Unique(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context) :
+        Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -15,13 +15,13 @@ namespace node {
 
 class Input : public Node {
 public:
-    Input(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Input(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
     Input(const Shape& shape,
           const InferenceEngine::Precision& prc,
           const std::string& name,
           const std::string& type,
-          RuntimeEnv::Ptr rtEnv);
-    Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, RuntimeEnv::Ptr rtEnv);
+          GraphContext::Ptr context);
+    Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

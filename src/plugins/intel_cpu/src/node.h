@@ -37,7 +37,7 @@
 #include "utils/debug_capabilities.h"
 
 #include "dnnl_postops_composer.h"
-#include "runtime_env.h"
+#include "graph_context.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -98,8 +98,6 @@ private:
     NodeConfig config;
     impl_desc_type implementationType;
 };
-
-class Graph;
 
 class Node {
 public:
@@ -530,10 +528,6 @@ public:
         return false;
     }
 
-    void setQuantizedGraphFlag(bool flag) {
-        isInQuantizedGraph = flag;
-    }
-
     bool canBePerformedAsScaleShift(const Node *parentNode = nullptr) const;
 
     bool isDynamicNode() const {
@@ -609,8 +603,8 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr runtime_env, const ShapeInferFactory& shapeInferFactory);
-    Node(const std::string& type, const std::string& name, RuntimeEnv::Ptr runtime_env);
+    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::Ptr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::string& type, const std::string& name, const GraphContext::Ptr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -636,7 +630,7 @@ protected:
     Primitive prim;
     std::vector<DnnlDesriptor> descs;
 
-    RuntimeEnv::Ptr rtEnv;
+    const GraphContext::Ptr context;
     WeightsSharing::Ptr weightCache;
 
     Algorithm algorithm = Algorithm::Default;
@@ -707,17 +701,9 @@ protected:
         IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
     }
 
-    MultiCachePtr getRuntimeCache() const {
-        return rtEnv->rtParamsCache;
-    }
-
-    DnnlScratchPadPtr getRuntimeScratchPad() const {
-        return rtEnv->rtScratchPad;
-    }
-
     MemoryPtr getScratchPadMem(const const_dnnl_primitive_desc_t& pd) {
         auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-        scratchpadMem = getRuntimeScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
         return scratchpadMem;
     }
 
@@ -784,17 +770,17 @@ constexpr uint64_t PortMask(int n, T... rest) {
 
 class Node::NodesFactory : public openvino::cc::Factory<Type,
                                             Node*(const std::shared_ptr<ngraph::Node>& op,
-                                                  RuntimeEnv::Ptr)> {
+                                                  GraphContext::Ptr)> {
 public:
     NodesFactory();
 
-    Node* create(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Node* create(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 };
 
 template<typename NodeType>
 struct NodeImpl : public NodeType {
-    NodeImpl(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : NodeType(op, rtEnv) {
+    NodeImpl(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : NodeType(op, context) {
         NodeType::perfCounters().template buildClassCounters<NodeType>(NameFromType(NodeType::getType()));
     }
 };

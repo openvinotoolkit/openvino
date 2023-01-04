@@ -16,7 +16,7 @@ namespace node {
 
 class PSROIPooling : public Node {
 public:
-    PSROIPooling(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    PSROIPooling(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

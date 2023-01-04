@@ -16,7 +16,7 @@ namespace node {
 
 class Pooling : public Node {
 public:
-    Pooling(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Pooling(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context);
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;

@@ -16,7 +16,7 @@ namespace node {
 
 class SoftMax : public Node {
 public:
-    SoftMax(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    SoftMax(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,

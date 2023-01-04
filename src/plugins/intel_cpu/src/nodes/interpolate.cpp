@@ -1576,8 +1576,8 @@ private:
 };
 } // namespace
 
-Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : Node(op, rtEnv, InterpolateShapeInferFactory(op)) {
+Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : Node(op, context, InterpolateShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";
@@ -1920,7 +1920,7 @@ void Interpolate::prepareParams() {
         return executor;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 

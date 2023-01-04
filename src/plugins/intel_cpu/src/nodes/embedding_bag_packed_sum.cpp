@@ -27,8 +27,8 @@ bool EmbeddingBagPackedSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+EmbeddingBagPackedSum::EmbeddingBagPackedSum(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
       EmbeddingBagSum(op, 2lu, 1lu, 2lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

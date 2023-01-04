@@ -75,7 +75,7 @@ struct RDFTExecutor {
 
 class RDFT : public Node {
 public:
-    RDFT(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    RDFT(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

@@ -21,7 +21,7 @@ enum class MulticlassNmsSortResultType {
 
 class MultiClassNms : public Node {
 public:
-    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    MultiClassNms(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

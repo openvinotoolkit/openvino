@@ -103,7 +103,7 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
 
 class Convolution::FusedSubgraph {
 public:
-    FusedSubgraph(const std::vector<NodePtr> &opList, const Convolution &conv, RuntimeEnv::Ptr rtEnv) {
+    FusedSubgraph(const std::vector<NodePtr> &opList, const Convolution &conv, GraphContext::Ptr context) {
         _graph = std::unique_ptr<Graph>(new Graph());
 
         std::unordered_set<NodePtr> nodesSet;
@@ -119,11 +119,11 @@ public:
 
         //Make inputs
         const auto &inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
-        auto inp0 = std::make_shared<Input>(inpMemDesc1, "inp0", "Parameter", rtEnv);
+        auto inp0 = std::make_shared<Input>(inpMemDesc1, "inp0", "Parameter", context);
         inputs.push_back(inp0);
         const size_t sumPortNum = conv.getParentEdges().size() - 1;
         const auto &inpMemDesc2 = conv.getBaseMemDescAtInputPort(sumPortNum);
-        auto inp1 = std::make_shared<Input>(inpMemDesc2, "inp1", "Parameter", rtEnv);
+        auto inp1 = std::make_shared<Input>(inpMemDesc2, "inp1", "Parameter", context);
         inputs.push_back(inp1);
 
         auto itr = std::find_if(opList.begin(), opList.end(), [](const NodePtr &node) {
@@ -162,13 +162,13 @@ public:
 
         //Make output
         const auto &outMemDesc = conv.getBaseMemDescAtOutputPort(0);
-        auto out = std::make_shared<Input>(outMemDesc, "out", "Result", rtEnv);
+        auto out = std::make_shared<Input>(outMemDesc, "out", "Result", context);
         addEdge(*parentItr, out, 0, 0);
         outputs.push_back(out);
 
         std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
 
-        _graph->CreateGraph(nodes, edges, rtEnv, "fused_subgraph");
+        _graph->CreateGraph(nodes, edges, context, "fused_subgraph");
     }
 
     std::shared_ptr<Input> getInput(size_t idx) const {
@@ -222,8 +222,8 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
+Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
           groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(Precision::FP32) {
     std::string errorMessage;
@@ -1426,7 +1426,7 @@ void Convolution::prepareParams() {
     };
 
     execPtr = nullptr;
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
@@ -1524,7 +1524,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
             if (!subgraph) {
-                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, rtEnv);
+                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
             }
             auto inp0 = subgraph->getInput(0);
             inp0->redefineOutputMemory(newOutputShapes);

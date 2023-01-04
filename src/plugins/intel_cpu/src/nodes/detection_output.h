@@ -14,7 +14,7 @@ namespace node {
 
 class DetectionOutput : public Node {
 public:
-    DetectionOutput(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv);
+    DetectionOutput(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

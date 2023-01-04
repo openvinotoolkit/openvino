@@ -68,7 +68,7 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;

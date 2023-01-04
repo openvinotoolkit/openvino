@@ -65,8 +65,8 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -158,7 +158,7 @@ void ShuffleChannels::prepareParams() {
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
     if (!result.first) {
         IE_THROW() << "ShuffleChannelsExecutor was not found for node " << getName() << ".";

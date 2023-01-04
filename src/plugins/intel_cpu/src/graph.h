@@ -12,7 +12,7 @@
 #include "edge.h"
 #include "cache/multi_cache.h"
 #include "dnnl_scratch_pad.h"
-#include "runtime_env.h"
+#include "graph_context.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -46,11 +46,11 @@ public:
     Config getProperty() const;
 
     template<typename NET>
-    void CreateGraph(NET &network, RuntimeEnv::Ptr runtime_env);
+    void CreateGraph(NET &network, GraphContext::Ptr ctx);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
-                     RuntimeEnv::Ptr runtime_env,
+                     GraphContext::Ptr ctx,
                      std::string name);
 
     bool hasMeanImageFor(const std::string& name) {
@@ -105,11 +105,11 @@ public:
     }
 
     dnnl::engine getEngine() const {
-        return rtEnv->eng;
+        return context->getEngine();
     }
 
-    RuntimeEnv::Ptr getRuntimeEnv() const {
-        return rtEnv;
+    GraphContext::Ptr getGraphContext() const {
+        return context;
     }
 
     void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const;
@@ -185,10 +185,6 @@ public:
 
     void SortTopologically();
 
-    bool isQuantized() const {
-        return isQuantizedFlag;
-    }
-
     bool hasDynamicInput() const {
         return graphHasDynamicInput;
     }
@@ -222,7 +218,6 @@ protected:
     std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
 
-    bool isQuantizedFlag = false;
     bool graphHasDynamicInput = false;
 
     void Replicate(const InferenceEngine::CNNNetwork &network);
@@ -259,10 +254,9 @@ private:
 
     std::unordered_map<Node*, size_t> syncNodesInds;
 
-    RuntimeEnv::Ptr rtEnv;
+    GraphContext::Ptr context;
 
     void EnforceBF16();
-    void setMinSparseRate(float minSparseRate);
 };
 
 }   // namespace intel_cpu

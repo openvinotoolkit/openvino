@@ -55,13 +55,13 @@ bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
 }
 
-Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv) :
-        Node(op, rtEnv, PassThroughShapeInferFactory()) {
+Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
-Reorder::Reorder(const std::string& name, RuntimeEnv::Ptr rtEnv) :
-        Node("Reorder", name, rtEnv) {}
+Reorder::Reorder(const std::string& name, GraphContext::Ptr context) :
+        Node("Reorder", name, context) {}
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
@@ -247,7 +247,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         return std::make_shared<dnnl::reorder>(pd);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
         nullptr,
         CacheEntryBase::LookUpStatus::Miss};

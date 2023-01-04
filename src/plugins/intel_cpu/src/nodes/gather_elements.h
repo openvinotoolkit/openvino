@@ -16,7 +16,7 @@ namespace node {
 
 class GatherElements : public Node {
 public:
-    GatherElements(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    GatherElements(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

@@ -13,7 +13,7 @@ namespace node {
 
 class CTCGreedyDecoder : public Node {
 public:
-    CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    CTCGreedyDecoder(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

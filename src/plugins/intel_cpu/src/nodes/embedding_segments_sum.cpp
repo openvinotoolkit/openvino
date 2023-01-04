@@ -27,8 +27,8 @@ bool EmbeddingSegmentsSum::isSupportedOperation(const std::shared_ptr<const ngra
     return true;
 }
 
-EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, NgraphShapeInferFactory(op, PortMask(NUM_SEGMENTS_IDX))),
+EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(NUM_SEGMENTS_IDX))),
       EmbeddingBagSum(op, 4lu, 1lu, 5lu, 4lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

@@ -16,7 +16,7 @@ namespace node {
 
 class SpaceToBatch : public Node {
 public:
-    SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

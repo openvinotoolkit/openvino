@@ -17,7 +17,7 @@ namespace node {
 
 class Transpose : public Node {
 public:
-    Transpose(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Transpose(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;

@@ -32,8 +32,8 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-    : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -48,7 +48,7 @@ private:
 };
 } // namespace
 
-Eye::Eye(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv) : Node(op, rtEnv, EyeShapeInferFactory(op)) {
+Eye::Eye(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context) : Node(op, context, EyeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;

@@ -350,8 +350,8 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, RuntimeEnv::Ptr rtEnv) :
-        Node(op, rtEnv, InternalDynShapeInferFactory()), ngraphOp(op) {
+TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context) :
+        Node(op, context, InternalDynShapeInferFactory()), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -364,7 +364,7 @@ void TensorIterator::getSupportedDescriptors() {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
-    sub_graph.CreateGraph(body, rtEnv);
+    sub_graph.CreateGraph(body, context);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {

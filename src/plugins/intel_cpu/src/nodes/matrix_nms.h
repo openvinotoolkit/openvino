@@ -25,7 +25,7 @@ enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
 
 class MatrixNms : public Node {
 public:
-    MatrixNms(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    MatrixNms(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

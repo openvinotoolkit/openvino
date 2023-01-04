@@ -68,7 +68,7 @@ struct jit_uni_roi_pooling_kernel {
 
 class ROIPooling : public Node {
 public:
-    ROIPooling(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    ROIPooling(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

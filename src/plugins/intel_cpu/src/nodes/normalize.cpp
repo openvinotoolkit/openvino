@@ -752,8 +752,8 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv) :
-        Node(op, rtEnv, PassThroughShapeInferFactory()) {
+NormalizeL2::NormalizeL2(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -918,7 +918,7 @@ void NormalizeL2::prepareParams() {
         return NormalizeL2Executor::getNormalizeL2Executor(key.attrs, key.kernel_attrs, key.dims);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {

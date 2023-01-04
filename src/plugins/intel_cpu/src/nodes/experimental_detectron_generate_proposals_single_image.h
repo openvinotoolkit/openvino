@@ -14,7 +14,7 @@ namespace node {
 class ExperimentalDetectronGenerateProposalsSingleImage : public Node {
 public:
     ExperimentalDetectronGenerateProposalsSingleImage(const std::shared_ptr<ngraph::Node>& op,
-        RuntimeEnv::Ptr rtEnv);
+        GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

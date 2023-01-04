@@ -44,7 +44,7 @@ struct jit_uni_extract_image_patches_kernel {
 
 class ExtractImagePatches : public Node {
 public:
-    ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

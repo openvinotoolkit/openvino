@@ -13,7 +13,7 @@ namespace node {
 
 class GatherTree : public Node {
 public:
-    GatherTree(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    GatherTree(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

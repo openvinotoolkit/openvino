@@ -897,8 +897,8 @@ bool BinaryConvolution::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv)
-        : Node(op, rtEnv, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+BinaryConvolution::BinaryConvolution(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "BinaryConvolution node with name '" + getName() + "' ";

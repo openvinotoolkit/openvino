@@ -102,7 +102,7 @@ public:
     static constexpr int CUBIC_GRID_LEN = 4;
 
 public:
-    Interpolate(const std::shared_ptr<ngraph::Node>& op, RuntimeEnv::Ptr rtEnv);
+    Interpolate(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
