@@ -8,7 +8,9 @@
 #include "openvino/runtime/intel_gna/properties.hpp"
 #include "gna/gna_config.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 struct GNAFlags {
     uint8_t num_requests = 1;
     bool compact_mode = true;
@@ -22,4 +24,6 @@ struct GNAFlags {
     bool input_low_precision = false;
     ov::log::Level log_level = ov::log::Level::NO;
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

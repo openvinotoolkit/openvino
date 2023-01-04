@@ -6,7 +6,8 @@
 
 #include <cstdint>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 void ConvertToInt16(int16_t *ptr_dst,
                     const float *ptr_src,
@@ -32,4 +33,5 @@ inline void UnscaleAndCast(T2 *ptr_dst, T1 *ptr_src, const uint32_t num_rows, co
     }
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov
