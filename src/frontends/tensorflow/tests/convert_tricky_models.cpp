@@ -117,7 +117,7 @@ TEST_F(TransformationTestsF, ModelWithSwishF32BodyGraph) {
 
 TEST_F(TransformationTestsF, StatefulPartitionedCall) {
     {
-        model = convert_model("stateful_partitioned_call/stateful_partitioned_call.pb");
+        model = convert_model("partitioned_call/partitioned_call.pb");
         // need to call shape inference since body graphs can be injected with undefined shapes
         model->validate_nodes_and_infer_types();
     }
@@ -167,7 +167,7 @@ TEST_F(TransformationTestsF, ModelWithIf) {
 
 TEST_F(TransformationTestsF, PartitionedCallAndIf) {
     {
-        model = convert_model("partitioned_call_and_if/partitioned_call_and_if.pb");
+        model = convert_model("injected_body_and_if/injected_body_and_if.pb");
         // need to call shape inference since body graphs can be injected with undefined shapes
         model->validate_nodes_and_infer_types();
     }
