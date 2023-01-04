@@ -40,6 +40,7 @@ public:
                             {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "0"},
                             };
             }
+        config.insert({ov::hint::inference_precision.name(), "f32"});
         fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice(with_auto_batching ? CommonTestUtils::DEVICE_BATCH : deviceName);
     }
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
@@ -229,7 +230,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserContext) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -276,7 +277,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -304,7 +305,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_out_of_order) {
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context, {{ov::hint::inference_precision.name(), "f32"}});
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request
@@ -374,7 +375,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -403,7 +404,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_in_order) {
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context, {{ov::hint::inference_precision.name(), "f32"}});
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request
@@ -468,7 +469,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_infer_call_many_times) {
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
     auto ie = PluginCache::get().ie();
-    auto exec_net_regular = ie->LoadNetwork(net, deviceName);
+    auto exec_net_regular = ie->LoadNetwork(net, deviceName, {{ov::hint::inference_precision.name(), "f32"}});
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -497,7 +498,7 @@ TEST_P(RemoteBlob_Test, smoke_canInferOnUserQueue_infer_call_many_times) {
     // In this scenario we create shared OCL queue and run simple pre-process action and post-process action (buffer copies in both cases)
     // without calling thread blocks
     auto remote_context = make_shared_context(*ie, deviceName, ocl_instance->_queue.get());
-    auto exec_net_shared = ie->LoadNetwork(net, remote_context); // no auto-batching support, so no config is passed
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context, {{ov::hint::inference_precision.name(), "f32"}});
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
 
     // Allocate shared buffers for input and output data which will be set to infer request
@@ -600,7 +601,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
 
     /* XXX: is it correct to set KEY_CLDNN_NV12_TWO_INPUTS in case of remote blob? */
     auto exec_net_b = ie.LoadNetwork(net_remote, CommonTestUtils::DEVICE_GPU,
-                { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES} });
+                { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS, PluginConfigParams::YES}, {ov::hint::inference_precision.name(), "f32"} });
     auto inf_req_remote = exec_net_b.CreateInferRequest();
     auto cldnn_context = exec_net_b.GetContext();
     cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
@@ -669,7 +670,7 @@ TEST_P(BatchedBlob_Test, canInputNV12) {
     net_local.getInputsInfo().begin()->second->setPrecision(Precision::U8);
     net_local.getInputsInfo().begin()->second->getPreProcess().setColorFormat(ColorFormat::NV12);
 
-    auto exec_net_b1 = ie.LoadNetwork(net_local, CommonTestUtils::DEVICE_GPU);
+    auto exec_net_b1 = ie.LoadNetwork(net_local, CommonTestUtils::DEVICE_GPU, {{ov::hint::inference_precision.name(), "f32"}});
 
     auto inf_req_local = exec_net_b1.CreateInferRequest();
 
@@ -740,7 +741,8 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
         net.getInputsInfo().begin()->second->setPrecision(Precision::FP32);
 
         auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU,
-                                       {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
+                                       {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)},
+                                        {ov::hint::inference_precision.name(), "f32"}});
 
         for (int j = 0; j < num_streams * num_requests; j++) {
             outputs.push_back(net.getOutputsInfo().begin()->first);

@@ -32,7 +32,7 @@ struct Config {
                                           max_dynamic_batch(1),
                                           customLayers({}),
                                           kernels_cache_dir(""),
-                                          inference_precision(ov::element::undefined),
+                                          inference_precision(ov::element::f16),
                                           task_exec_config({"GPU plugin internal task executor",                        // name
                                                     std::max(1, static_cast<int>(std::thread::hardware_concurrency())), // # of streams
                                                     1,                                                                  // # of threads per streams

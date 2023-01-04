@@ -19,7 +19,7 @@ class OnnxRuntimeInfer(BaseInfer):
         super().__init__('OnnxRuntime')
         self.net = net
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
         import onnxruntime as rt
 
         sess = rt.InferenceSession(self.net)
