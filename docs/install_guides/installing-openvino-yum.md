@@ -9,20 +9,10 @@ This guide provides installation steps for OpenVINO™ Runtime for Linux distrib
 ## System Requirements
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-  * Red Hat Enterprise Linux 8 x86, 64-bit
-
-.. tab:: Hardware
-
-  Optimized for these processors:
-
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
-  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
-  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
-  * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
-  * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
-  * Intel® Iris® Xe MAX Graphics
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Processor Notes
 
