@@ -11,6 +11,7 @@ trigger:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tools/*'
 
 pr:
   drafts: 'false'
@@ -26,6 +27,7 @@ pr:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tools/*'
 
 jobs:
 - job: onnxruntime
