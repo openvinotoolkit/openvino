@@ -69,16 +69,15 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
                               const std::map<std::string, std::string>& mergedConfig) {
         auto isSetPerHint = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != mergedConfig.end();
         auto isSetDeviceProperties = mergedConfig.find(targetDevice) != mergedConfig.end();
-        auto isSetNumStreams = deviceConfig.find(ov::num_streams.name()) != deviceConfig.end();
-        if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties && !isSetNumStreams) {
+        if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
             // 2. no ov::device::properties(secondary properties) setting for target device
-            // 3. no ov::num_streams setting for target device
             deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::LATENCY;
             return;
         }
 
+        auto isSetNumStreams = deviceConfig.find(ov::num_streams.name()) != deviceConfig.end();
         if (GetName() == "MULTI") {
             auto isSetAffinity = mergedConfig.find(ov::affinity.name()) != mergedConfig.end();
             auto isSetNumThreads = mergedConfig.find(ov::inference_num_threads.name()) != mergedConfig.end();
