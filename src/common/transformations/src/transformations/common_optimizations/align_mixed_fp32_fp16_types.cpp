@@ -6,7 +6,7 @@
 
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>
-
+#include <ngraph/rt_info.hpp>
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "transformations/convert_precision.hpp"

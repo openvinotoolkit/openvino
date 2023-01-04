@@ -146,7 +146,7 @@ public:
 bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
 
-    ngraph::pass::Manager manager(get_pass_config());
+    Manager manager(get_pass_config());
     REGISTER_PASS(manager, MarkExpReduceOpToKeepInMixedPrecision)
     REGISTER_PASS(manager, InitMarkToKeepInMixedPrecision)
     REGISTER_PASS(manager, MarkDivWithEpsToKeepInMixedPrecision)
