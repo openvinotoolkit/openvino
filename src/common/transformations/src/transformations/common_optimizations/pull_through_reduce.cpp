@@ -59,8 +59,8 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target
         return result;
     }
     auto cur_input_shape_elem_idx = 0;
-    auto cur_input_shape_elem = input_shape[cur_input_shape_elem_idx];
-    auto target_shape_idx = 0;
+    size_t cur_input_shape_elem = input_shape[cur_input_shape_elem_idx];
+    size_t target_shape_idx = 0;
     for (; target_shape_idx < target_shape.size(); ++target_shape_idx) {
         if (cur_input_shape_elem == target_shape[target_shape_idx] &&
             cur_input_shape_elem_idx + 1 < input_shape.size()) {
