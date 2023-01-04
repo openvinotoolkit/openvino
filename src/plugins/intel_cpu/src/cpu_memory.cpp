@@ -35,9 +35,9 @@ namespace {
 }   // namespace
 
 Memory::Memory(const dnnl::engine& eng) :
-    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this) {}
+    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::unique_ptr<MemoryMngrWithReuse>(new MemoryMngrWithReuse())), this), dnnlMemHandle(this) {}
 Memory::Memory(const dnnl::engine& eng, std::unique_ptr<IMemoryMngr> mngr) :
-    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this) {}
+    eng(eng), mgrHandle(std::make_shared<DnnlMemoryMngr>(std::move(mngr)), this), dnnlMemHandle(this) {}
 
 size_t Memory::GetSize() const {
     auto size = getDesc().getCurrentMemSize();
@@ -47,23 +47,6 @@ size_t Memory::GetSize() const {
     return size;
 }
 
-void Memory::createDnnlPrim(const dnnl::memory::desc& desc, const void *data, bool pads_zeroing) const {
-    // OneDNN accepts not a const data, probably need to remove some level of consteness in a call stack
-
-    // ========================
-    // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-    // but with ability to skipp pads zeroing.
-    prim = memory(desc, eng, DNNL_MEMORY_NONE);
-    //
-    // ========================
-    if (data != nullptr) {
-        if (pads_zeroing)
-            prim.set_data_handle(const_cast<void*>(data));
-        else
-            prim.set_data_handle_no_pads_proc(const_cast<void*>(data));
-    }
-}
-
 void Memory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing) {
     Create(desc.clone(), data, pads_zeroing);
 }
@@ -71,7 +54,7 @@ void Memory::Create(const MemoryDesc &desc, const void *data, bool pads_zeroing)
 void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     pMemDesc = desc;
     padsZeroing = pads_zeroing;
-    resetDnnlPrim();
+    dnnlMemHandle.resetDnnlPrim();
 
     size_t memSize = MemoryDesc::UNDEFINED_SIZE;
     if (pMemDesc->isDefined()) {
@@ -140,13 +123,15 @@ void Memory::setDataHandle(void *data) {
 
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
-    if (testDnnlPrim()) {
+    if (dnnlMemHandle.isInit()) {
+        auto prim = dnnlMemHandle.getPrim();
         prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
     }
 }
 
 void Memory::update() {
-    if (testDnnlPrim()) {
+    if (dnnlMemHandle.isInit()) {
+        auto prim = dnnlMemHandle.getPrim();
         prim.set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
     }
 }
@@ -167,27 +152,45 @@ BlockedMemoryDescPtr Memory::GetDescWithType<BlockedMemoryDesc, 0, 0>() const {
     return MemoryDescUtils::convertToBlockedMemoryDesc(pMemDesc);
 }
 
-bool Memory::testDnnlPrim() const {
-    return prim.get(true) != nullptr;
-}
-
-void Memory::resetDnnlPrim() {
-    prim = dnnl::memory();
-}
-
 dnnl::memory Memory::GetPrimitive() const {
-    if (!testDnnlPrim()) {
-        std::lock_guard<std::mutex> guard(primCachingLock);
-        if (testDnnlPrim()) {
-            return prim;
-        }
-        if (pMemDesc->isDefined()) {
-            createDnnlPrim(MemoryDescUtils::convertToDnnlMemoryDesc(pMemDesc)->getDnnlDesc(), mgrHandle->getRawPtr(), padsZeroing);
-        } else {
+    return dnnlMemHandle.getPrim();
+}
+
+void Memory::DnnlMemPrimHandle::resetDnnlPrim() {
+    m_prim = dnnl::memory();
+}
+
+bool Memory::DnnlMemPrimHandle::isInit() const {
+    std::lock_guard<std::mutex> guard(m_primCachingLock);
+    return m_prim.get(true) != nullptr;
+}
+
+dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
+    std::lock_guard<std::mutex> guard(m_primCachingLock);
+    if (!m_prim) {
+        // OneDNN accepts not a const data, probably need to remove some level of constantness in a call stack
+
+        if (!m_memObjPtr->getDesc().isDefined()) {
             IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
         }
+
+        // ========================
+        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
+        // but with ability to skipp pads zeroing.
+        auto desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_memObjPtr->getDescPtr());
+        m_prim = memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
+        //
+        // ========================
+        auto data = m_memObjPtr->GetData();
+        auto pads_zeroing = m_memObjPtr->padsZeroing;
+        if (data != nullptr) {
+            if (pads_zeroing)
+                m_prim.set_data_handle(const_cast<void*>(data));
+            else
+                m_prim.set_data_handle_no_pads_proc(const_cast<void*>(data));
+        }
     }
-    return prim;
+    return m_prim;
 }
 
 void* MemoryMngrWithReuse::getRawPtr() const noexcept {

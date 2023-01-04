@@ -70,7 +70,7 @@ public:
 };
 
 /**
- * @brief An implementation of the mem manager where memory reallocation occures only if bigger buffer is requested.
+ * @brief An implementation of the mem manager where memory reallocation occurs only if a bigger buffer is requested.
  */
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
@@ -264,18 +264,26 @@ private:
     friend DnnlMemoryMngr;
 
 private:
-    void createDnnlPrim(const dnnl::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true) const;
     void update();
-    void resetDnnlPrim();
-    bool testDnnlPrim() const;
 
 private:
     MemoryDescPtr pMemDesc;
     dnnl::engine eng;
     DnnlMemMngrHandle mgrHandle;
     bool padsZeroing = true;
-    mutable std::mutex primCachingLock;
-    mutable dnnl::memory prim;
+    class DnnlMemPrimHandle {
+    public:
+        explicit DnnlMemPrimHandle(const Memory* memObjPtr): m_memObjPtr(memObjPtr) {}
+        bool isInit() const;
+        dnnl::memory getPrim() const;
+        void resetDnnlPrim();
+
+    private:
+        mutable std::mutex m_primCachingLock;
+        mutable dnnl::memory m_prim;
+        const Memory* m_memObjPtr;
+    } dnnlMemHandle;
+
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;
