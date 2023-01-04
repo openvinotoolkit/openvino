@@ -93,7 +93,10 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/common/util/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new/")
+                                                  "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/frontend/include"
+                                                  "${OpenVINO_SOURCE_DIR}/src/frontends/tensorflow/include")
+
 
 if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})

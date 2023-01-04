@@ -17,6 +17,12 @@
 #include <openvino/opsets/opset8.hpp>
 //! [frontend_extension_ThresholdedReLU_header]
 
+//! [frontend_extension_framework_map_macro_headers]
+#include <openvino/frontend/extension/op.hpp>
+#include <openvino/frontend/onnx/extension/op.hpp>
+#include <openvino/frontend/tensorflow/extension/op.hpp>
+//! [frontend_extension_framework_map_macro_headers]
+
 #include <identity.hpp>
 
 //! [frontend_extension_CustomOperation]
@@ -37,6 +43,27 @@ public:
 
     // ... implement other required methods
     //! [frontend_extension_CustomOperation]
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override { return nullptr; }
+};
+
+//! [frontend_extension_framework_map_macro_CustomOp]
+class CustomOp : public ov::op::Op {
+    std::string m_mode;
+    int m_axis;
+
+public:
+    OPENVINO_OP("CustomOp");
+    OPENVINO_FRAMEWORK_MAP(onnx, "CustomOp", { {"m_mode", "mode"} }, { {"m_axis", -1} });
+    OPENVINO_FRAMEWORK_MAP(tensorflow, "CustomOpV3", { {"m_axis", "axis"} }, { {"m_mode", "linear"} });
+
+    bool visit_attributes(ov::AttributeVisitor& visitor) override {
+        visitor.on_attribute("m_mode", m_mode);
+        visitor.on_attribute("m_axis", m_axis);
+        return true;
+    }
+
+    // ... implement other required methods
+//! [frontend_extension_framework_map_macro_CustomOp]
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override { return nullptr; }
 };
 
@@ -124,6 +151,13 @@ ov::Core core;
 // Load extensions library to ov::Core
 core.add_extension("openvino_template_extension.so");
 //! [add_extension_lib]
+}
+
+{
+//! [frontend_extension_framework_map_macro_add_extension]
+ov::Core core;
+core.add_extension(ov::frontend::OpExtension<CustomOp>());
+//! [frontend_extension_framework_map_macro_add_extension]
 }
 return 0;
 }

@@ -88,6 +88,32 @@ So the conclusion is that each attribute of target OpenVINO operation should be 
 
 This is achieved by specifying maps as arguments for `OpExtension` constructor.
 
+### Mapping custom operations to frontends with OPENVINO_FRAMEWORK_MAP macro
+
+> **NOTE**: Below solution works only for ONNX and Tensorflow frontends.
+
+`OPENVINO_FRAMEWORK_MAP` is a macro that should be used inside OpenVINO operation's class definition and that let you specify the mapping between this operation to a frontend operation.
+
+Let's consider following example. Imagine you have an ONNX model with `CustomOp` operation (and this operation has `mode` attribute) and a Tensorflow model with `CustomOpV3` operation (this operation has `axis` attribute) and both of them can be implemented with a single OpenVINO operation `CustomOp` like follows:
+
+@snippet ov_extensions.cpp frontend_extension_framework_map_macro_headers
+@snippet ov_extensions.cpp frontend_extension_framework_map_macro_CustomOp
+
+Let's take a closer look on the parameters this macro takes:
+```cpp
+OPENVINO_FRAMEWORK_MAP(framework, name, attributes_map, attributes_values)
+```
+- `framework` - framework name.
+- `name` - the framework operation name. It's optional if the OpenVINO custom operation name (that is the name that is passed as the first parameter to `OPENVINO_OP` macro) is the same as framework operation name and both `attributes_map` and `attributes_values` are not provided.
+- `attributes_map` - used to provide mapping between OpenVINO operation attribute and framework operation attribute. Contains key-value pairs, where key is an OpenVINO operation attribute name and value is its corresponding framework operation attribute name. This parameter is optional if number of OpenVINO operation attributes and their names match one-to-one with framework operation attributes.
+- `attributes_values` - used to provide default values for OpenVINO operation attributes that are not specified in `attributes_map`. Contains key-value pairs, where key is an OpenVINO operation attribute name and the value is this attribute value. This parameter cannot be provided if `attributes_map` contains all of OpenVINO operation attributes or if `attributes_map` is not provided.
+
+In the example above, `OPENVINO_FRAMEWORK_MAP` is used twice.
+First, OpenVINO `CustomOp` is mapped to ONNX `CustomOp` operation, `m_mode` attribute is mapped to `mode` attribute, while `m_axis` attribute gets default value `-1`.
+Secondly, OpenVINO `CustomOp` is mapped to Tensorflow `CustomOpV3` operation, `m_axis` attribute is mapped to `axis` attribute, while `m_mode` attribute gets default value `"linear"`.
+
+The last step is to register this custom operation by following:
+@snippet ov_extensions.cpp frontend_extension_framework_map_macro_add_extension
 
 ## Mapping to Multiple Operations with ConversionExtension
 
