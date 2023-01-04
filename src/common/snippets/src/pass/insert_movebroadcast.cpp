@@ -38,7 +38,7 @@ std::shared_ptr<ngraph::Node> broadcast_node_last_dim(const ngraph::Output<ngrap
 
 std::pair<ov::Shape, std::vector<ov::Shape>> get_numpy_broadcast_shapes(const std::vector<ov::Shape>& input_shapes) {
     ov::PartialShape target_shape =  input_shapes.front();
-    for (auto i = 1; i < input_shapes.size(); i++) {
+    for (size_t i = 1; i < input_shapes.size(); i++) {
         if (!ov::PartialShape::broadcast_merge_into(target_shape, input_shapes[i], op::AutoBroadcastType::NUMPY))
             throw ngraph::ngraph_error("InsertMoveBroadcast: Failed broadcast-merge input shapes");
     }
