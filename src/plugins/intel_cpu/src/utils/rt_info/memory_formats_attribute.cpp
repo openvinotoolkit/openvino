@@ -19,7 +19,7 @@ std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
     auto it_info = node->get_rt_info().find(InputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
         if (it_info->second.is<InputMemoryFormats>()) {
-            return it_info->second.as<InputMemoryFormats>().getMemoryFormats();
+            return it_info->second.as<InputMemoryFormats>().to_string();
         }
     }
     return {};
@@ -31,7 +31,7 @@ std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
     auto it_info = node->get_rt_info().find(OutputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
         if (it_info->second.is<OutputMemoryFormats>()) {
-            return it_info->second.as<OutputMemoryFormats>().getMemoryFormats();
+            return it_info->second.as<OutputMemoryFormats>().to_string();
         }
     }
     return {};

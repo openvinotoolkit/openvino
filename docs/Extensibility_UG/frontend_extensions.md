@@ -43,7 +43,16 @@ If operation have multiple inputs and/or outputs they will be mapped in order. T
 
 Here is an example for a custom framework operation “MyRelu”. Suppose it is mathematically equivalent to standard `Relu` that exists in OpenVINO operation set, but for some reason has type name “MyRelu”. In this case you can directly say that “MyRelu” -> `Relu` mapping should be used:
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet ov_extensions.cpp frontend_extension_MyRelu
+@endsphinxtab
+@sphinxtab{Python}
+@snippet ov_extensions.py py_frontend_extension_MyRelu
+@endsphinxtab
+
+@endsphinxtabset
 
 In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation `Relu` from the latest available OpenVINO operation set. Notice that when standard operation is used, it can be specified using just a type string (“Relu”) instead of using a `ov::opset8::Relu` class name as a template parameter for `OpExtension`. This method is available for operations from the standard operation set only. For a user custom OpenVINO operation the corresponding class should be always specified as a template parameter as it was demonstrated with `TemplateExtension::Identity`.
 
@@ -92,8 +101,27 @@ The next example illustrates using `ConversionExtension` for conversion of “Th
 
 > **NOTE**: `ThresholdedRelu` is one of the standard ONNX operators which is supported by ONNX frontend natively out-of-the-box. Here we are re-implementing it to illustrate how you can add a similar support for your custom operation instead of `ThresholdedRelu`.
 
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet ov_extensions.cpp frontend_extension_ThresholdedReLU_header
+@endsphinxtab
+@sphinxtab{Python}
+@snippet ov_extensions.py py_frontend_extension_ThresholdedReLU_header
+@endsphinxtab
+
+@endsphinxtabset
+
+@sphinxtabset
+
+@sphinxtab{C++}
 @snippet ov_extensions.cpp frontend_extension_ThresholdedReLU
+@endsphinxtab
+@sphinxtab{Python}
+@snippet ov_extensions.py py_frontend_extension_ThresholdedReLU
+@endsphinxtab
+
+@endsphinxtabset
 
 To access original framework operation attribute value and connect to inputs, `node` object of type `NodeContext` is used. It has two main methods:
 

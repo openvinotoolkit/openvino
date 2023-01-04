@@ -1016,14 +1016,18 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     const auto& device_info = program->get_engine().get_device_info();
 
     params.uniqueID = std::to_string(param_info.unique_id);
-    params.engineInfo.bSubGroupSupport = device_info.supports_subgroups;
-    params.engineInfo.bSubGroupShortSupport = device_info.supports_subgroups_short;
-    params.engineInfo.bSubGroupCharSupport = device_info.supports_subgroups_char;
-    params.engineInfo.bFP16Support = device_info.supports_fp16;
-    params.engineInfo.bFP64Support = device_info.supports_fp64;
-    params.engineInfo.bIMADSupport = device_info.supports_imad != 0;
-    params.engineInfo.bIMMADSupport = device_info.supports_immad != 0;
-    params.engineInfo.bImageSupport = device_info.supports_image != 0;
+    params.engineInfo.supports_fp16 = device_info.supports_fp16;
+    params.engineInfo.supports_fp64 = device_info.supports_fp64;
+    params.engineInfo.supports_fp16_denorms = device_info.supports_fp16_denorms;
+    params.engineInfo.supports_khr_subgroups = device_info.supports_khr_subgroups;
+    params.engineInfo.supports_intel_subgroups = device_info.supports_intel_subgroups;
+    params.engineInfo.supports_intel_subgroups_short = device_info.supports_intel_subgroups_short;
+    params.engineInfo.supports_intel_subgroups_char = device_info.supports_intel_subgroups_char;
+    params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
+
+    params.engineInfo.supports_imad = device_info.supports_imad;
+    params.engineInfo.supports_immad = device_info.supports_immad;
+    params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
     params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
@@ -1038,6 +1042,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.deviceCache = program->get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
+    params.engineInfo.vendor_id = device_info.vendor_id;
 
     auto impl_forcing_bo = program->get_options().get<build_option_type::force_implementations>();
     const auto& impl_forcing = impl_forcing_bo->forcing;
