@@ -76,7 +76,7 @@ ov::pass::ReshapeSinkingMatMul::ReshapeSinkingMatMul() {
                 return false;
             const auto& desired_K_index = matmul->get_transpose_b() ? 1 : 0;
             const auto& O_index = matmul->get_transpose_b() ? 0 : 1;
-            if (constant_shape[desired_K_index] != K)
+            if (constant_shape[desired_K_index] != (const int)K)
                 return false;
             O = static_cast<int64_t>(constant_shape[O_index]);
         }
