@@ -39,7 +39,8 @@ public:
             if (!node)
                 return false;
 
-            if (auto exp_op = dynamic_pointer_cast<opset3::Exp>(node) && !is_reduceop_path(node))
+            auto exp_op = dynamic_pointer_cast<opset3::Exp>(node);
+            if (exp_op != nullptr && !is_reduceop_path(exp_op))
                 return false;
 
             disable_fp16_compression(node);
