@@ -3,7 +3,7 @@
 //
 
 #include "scale_factor_calc.hpp"
-#include "gna_slope_scale.h"
+#include "gna_slope_scale.hpp"
 #include "common/numerical_utils.hpp"
 #include "layer_quantizer.hpp"
 #include "gna_upstream_iterator.hpp"
@@ -323,7 +323,7 @@ bool ScaleFactorCalculator::requantizeInput(InferenceEngine::CNNLayerPtr input,
     */
 float ScaleFactorCalculator::adjustScaleFactor(float sf,
                                                InferenceEngine::CNNLayer const* cnnLayer,
-                        GNAPluginNS::LayerInfo const& layer,
+                        LayerInfo const& layer,
                         QuantizedLayerParams* quantizedParams) const {
     auto get_rank = [](uint32_t value) {
         uint8_t rank = 0;
@@ -365,7 +365,7 @@ float ScaleFactorCalculator::adjustScaleFactor(float sf,
 }
 
 float ScaleFactorCalculator::getActivationScale(InferenceEngine::CNNLayer const* cnnLayer,
-                            GNAPluginNS::LayerInfo const& layer,
+                            LayerInfo const& layer,
                             int inputsSize,
                             const bool fake_quantized) const {
     auto quantizedParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
@@ -420,9 +420,9 @@ float ScaleFactorCalculator::getActivationScale(InferenceEngine::CNNLayer const*
         double offset = 0;
         auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
         if (!powerLayer) {
-            std::shared_ptr<ov::intel_gna::op::Pwl> pwl_node;
+            std::shared_ptr<op::Pwl> pwl_node;
             if (!cnnLayer->getNode() ||
-                !(pwl_node = std::dynamic_pointer_cast<ov::intel_gna::op::Pwl>(cnnLayer->getNode()))) {
+                !(pwl_node = std::dynamic_pointer_cast<op::Pwl>(cnnLayer->getNode()))) {
                 IE_THROW() << "Incorrect Power Layer pointer \n";
             } else {
                 auto powerIE = std::dynamic_pointer_cast<ngraph::op::PowerIE>(pwl_node->get_base_node());
@@ -587,7 +587,7 @@ float ScaleFactorCalculator::getActivationScale(InferenceEngine::CNNLayer const*
 bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cnnLayer,
                 ScaleFactorUpdateResult& result,
                 int infiniteLoopCount,
-                const GNAPluginNS::Config& gna_config) const {
+                const Config& gna_config) const {
     if ( !cnnLayer ) {
         IE_THROW() << "Incorrect Layer pointer \n";
     }
@@ -1234,7 +1234,7 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
         auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
         if (conv && !LayerInfo(conv).isConvolutionFilter()) {
             const auto inDepth = GetDataDimByName(conv->insData.front().lock(), InferenceEngine::DataDimName::C);
-            weights_reducer = GNAConvolutionLayer::getWeightsReducer(*conv);
+            weights_reducer = gna_convolution_layer::getWeightsReducer(*conv);
             weights_reducer *= MAX_VAL_2B_FEAT * scaleRange * inDepth / std::numeric_limits<int32_t>::max();
             weights_reducer = std::max(1.0, weights_reducer);
         }

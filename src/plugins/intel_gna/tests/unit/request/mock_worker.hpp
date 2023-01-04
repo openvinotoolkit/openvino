@@ -7,7 +7,8 @@
 #include "gmock/gmock.h"
 #include "request/worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 class MockWorker : public Worker {
@@ -25,4 +26,5 @@ public:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

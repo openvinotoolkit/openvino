@@ -12,7 +12,8 @@
 #include "gna_device.hpp"
 #include "memory/gna_mem_requests.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 /**
  * wrap GNA interface into c++ allocator friendly one
@@ -35,9 +36,11 @@ class GNAAllocator {
     void deallocate(uint8_t *p, std::size_t n) {
         _device->free(p);
     }
-    void setTag(void* memPtr, GNAPluginNS::memory::rRegion tagValue) {
+    void setTag(void* memPtr, memory::rRegion tagValue) {
         _device->tagMemoryRegion(memPtr, tagValue);
     }
 };
+
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov
