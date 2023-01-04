@@ -115,7 +115,7 @@ public:
             const auto const_op = std::dynamic_pointer_cast<opset6::Constant>(cur_node);
             const auto shape_rank = const_op->get_shape().size();
             const auto shift = (matmul->get_transpose_b()) ? 2 : 1;
-            if (shape_rank < shift) {
+            if (shape_rank < (const size_t)shift) {
                 NGRAPH_DEBUG << "Can't init mask for MatMul: " << matmul->get_friendly_name() << std::endl;
                 return false;
             }
