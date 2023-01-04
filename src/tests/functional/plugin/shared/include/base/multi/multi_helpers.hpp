@@ -9,6 +9,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "base/ov_behavior_test_utils.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 using namespace ::testing;
 
@@ -62,19 +63,43 @@ class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public 
     void SetUp() override {
         device_names = getDeviceStringWithMulti(this->GetParam());
         device_lists = this->GetParam();
-        fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice("");
+        auto fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice("");
+        using namespace ov::preprocess;
+        auto p = PrePostProcessor(fn_ptr);
+        p.input().tensor().set_element_type(ov::element::i8);
+        p.input().preprocess().convert_element_type(ov::element::f32);
+
+        function = p.build();
+        std::string prioritylist;
+        std::vector<std::string>::iterator iter;
+        for (iter = device_lists.begin(); iter != device_lists.end();) {
+            prioritylist += *iter;
+            prioritylist += ((*iter == device_lists[device_lists.size()-1]) ? "" : ",");
+            // remove CPU from context candidate list
+            if ((*iter).find("CPU") != std::string::npos)
+                device_lists.erase(iter);
+            else
+                iter++;
+        }
+        config = {ov::device::priorities(prioritylist)};
     }
+
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
         auto s = getDeviceStringWithMulti(obj.param);
         std::replace(s.begin(), s.end(), ',', '_');
         return "device_names_" + s;
     }
+
 protected:
     std::string device_names;
     std::vector<std::string> device_lists;
-    std::shared_ptr<ngraph::Function> fn_ptr;
+    std::shared_ptr<ov::Model> function;
+    ov::AnyMap config;
 };
+
+using MultiDeviceCreateContextMultipleGPU_Test = MultiDeviceMultipleGPU_Test;
+
 #define MULTI  CommonTestUtils::DEVICE_MULTI
 #define CPU    CommonTestUtils::DEVICE_CPU
 #define GPU    CommonTestUtils::DEVICE_GPU

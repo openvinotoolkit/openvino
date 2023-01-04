@@ -74,7 +74,7 @@ struct OpenCL {
         _get_mem_alloc_info_fn = try_load_entrypoint<clGetMemAllocInfoINTEL_fn>(platform, "clGetMemAllocInfoINTEL");
     }
 
-    explicit OpenCL(std::shared_ptr<std::vector<cl_context_properties>> media_api_context_properties = nullptr) {
+    explicit OpenCL(unsigned int index = 0, std::shared_ptr<std::vector<cl_context_properties>> media_api_context_properties = nullptr) {
         // get Intel iGPU OCL device, create context and queue
         {
             const unsigned int refVendorID = 0x8086;
@@ -89,12 +89,15 @@ struct OpenCL {
                 cl::Platform platform = cl::Platform(id);
                 std::vector<cl::Device> devices;
                 platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+                unsigned int count = 0;
                 for (auto& d : devices) {
                     if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
                         _device = d;
                         _context = cl::Context(_device);
                         _platform = id;
-                        break;
+                        if (count == index)
+                            break;
+                        count++;
                     }
                 }
             }
