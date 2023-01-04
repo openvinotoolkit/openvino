@@ -7,6 +7,7 @@
 #include <ngraph/node.hpp>
 #include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset9.hpp>
 
 #include <memory>
 #include <vector>
@@ -17,7 +18,7 @@ class StaticShapeNonMaxSuppression : public ngraph::op::NonMaxSuppressionIE3 {
 public:
     OPENVINO_OP("StaticShapeNonMaxSuppression", "VPUOpset", ngraph::op::NonMaxSuppressionIE3);
 
-    explicit StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms);
+    explicit StaticShapeNonMaxSuppression(const ngraph::opset9::NonMaxSuppression& nms);
 
     StaticShapeNonMaxSuppression(const Output<Node>& boxes,
                                  const Output<Node>& scores,

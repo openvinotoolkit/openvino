@@ -36,6 +36,7 @@
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph/opsets/opset8.hpp"
+#include "ngraph/opsets/opset9.hpp"
 
 namespace vpu {
 
@@ -110,7 +111,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Minimum::get_type_info_static(),               dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Less::get_type_info_static(),                  dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset5::Select::get_type_info_static(),                dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset5::NonMaxSuppression::get_type_info_static(),     dynamicToStaticNonMaxSuppression},
+        {ngraph::opset9::NonMaxSuppression::get_type_info_static(),     dynamicToStaticNonMaxSuppression},
         {ngraph::opset3::NonZero::get_type_info_static(),               dynamicToStaticShapeNonZero},
         {ngraph::opset3::TopK::get_type_info_static(),                  dynamicToStaticShapeTopK},
         {ngraph::opset3::Transpose::get_type_info_static(),             dynamicToStaticShapeTranspose},

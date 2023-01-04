@@ -2,7 +2,7 @@
 
 @sphinxdirective
 .. note::
-  * These steps apply to 32-bit Raspbian OS, which is an official OS for Raspberry Pi boards.
+  * These steps apply to Raspbian OS (the official OS for Raspberry Pi boards).
   * These steps have been validated with Raspberry Pi 3.
   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS>`_).
 @endsphinxdirective
@@ -10,61 +10,88 @@
 ## Development and Target Systems 
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-  * Raspbian Buster, ARM, 32-bit
-  * Raspbian Stretch, ARM, 32-bit
-
-.. tab:: Hardware
-
-  * Raspberry Pi board with ARM ARMv7-A CPU architecture. Check that `uname -m` returns `armv7l`.
-  * Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
-
-  .. note::
-    The current version of the Intel® Distribution of OpenVINO™ toolkit for Raspbian OS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Software Requirements
 
-  * CMake 3.7.2 or higher
-  * Python 3.7 - 3.10, 32-bit
+  * CMake 3.10 or higher
+  * Python 3.7 - 3.10
 
 @endsphinxdirective
 
 ## <a name="install-openvino"></a>Step 1: Download and Install OpenVINO Runtime
 
+@sphinxdirective
+
 1. Open the Terminal or your preferred console application.
 2. Create an installation folder for OpenVINO. If the folder already exists, skip this step.
-   ```sh
-   sudo mkdir -p /opt/intel
-   ```
-   > **NOTE**: The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
-3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from [OpenVINO package repository](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/).
-   ```sh
-   cd ~/Downloads/
-   sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/linux/l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf.tgz -O openvino_2022.2.0.7713.tgz
-   ```
+   .. code-block:: sh
+
+      sudo mkdir -p /opt/intel
+   
+   .. note::
+   
+      The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
+
+3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_.
+
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf.tgz -O openvino_2022.3.0.tgz
+
+   .. tab:: ARM 64-bit
+
+      .. code-block:: sh
+
+         cd ~/Downloads/
+         sudo wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64.tgz -O openvino_2022.3.0.tgz
+
 4. Extract the archive file and move it to the installation folder:
-   ```sh
-   sudo tar -xf openvino_2022.2.0.7713.tgz
-   sudo mv l_openvino_toolkit_debian9_arm_2022.2.0.7713.af16ea1d79a_armhf /opt/intel/openvino_2022.2.0.7713
-   ```
-5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
-   ```sh
-   sudo -E ./install_dependencies/install_openvino_dependencies.sh
-   ```
-6. For simplicity, it is useful to create a symbolic link as below:
-   ```sh
-   sudo ln -s openvino_2022.2.0.7713 openvino_2022
-   ```
-   > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
 
+   .. tab:: ARM 32-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_armhf /opt/intel/openvino_2022.3.0
+
+   .. tab:: ARM 64-bit
+
+      .. code-block:: sh
+
+         sudo tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_debian9_2022.3.0.9052.9752fafe8eb_arm64 /opt/intel/openvino_2022.3.0
+
+5. Install required system dependencies on Linux. To do this, OpenVINO provides a script in the extracted installation directory. Run the following command:
+
+   .. code-block:: sh
+
+      sudo -E ./install_dependencies/install_openvino_dependencies.sh
+   
+6. For simplicity, it is useful to create a symbolic link as below:
+
+   .. code-block:: sh
+
+      sudo ln -s openvino_2022.3.0 openvino_2022
+   
+   .. note::
+   
+      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
+
+@endsphinxdirective
 
 Congratulations, you finished the installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, `/home/<USER>/intel/`, OpenVINO is then installed in `/home/<USER>/intel/openvino_2022`. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
 ## <a name="install-external-dependencies"></a>Step 2: Install External Software Dependencies
 
-CMake version 3.7.2 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
+CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sample application. To install, open a Terminal window and run the following command:
 ```sh
 sudo apt install cmake
 ```
@@ -110,16 +137,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 @sphinxdirective
 .. tab:: Get started with Python
 
-   Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.3/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
    .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
       :width: 400
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`_
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`_
 
 .. tab:: Get started with C++
 

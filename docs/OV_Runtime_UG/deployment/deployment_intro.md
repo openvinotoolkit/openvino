@@ -1,4 +1,4 @@
-# Deploy via OpenVINO Runtime {#openvino_deployment_guide}
+# Run and Deploy Locally {#openvino_deployment_guide}
 
 @sphinxdirective
 
@@ -44,7 +44,7 @@ The table below shows which distribution type can be used for what target operat
 
 The granularity of OpenVINO packages may vary for different distribution types. For example, the PyPI distribution of OpenVINO has a [single 'openvino' package](https://pypi.org/project/openvino/) that contains all the runtime libraries and plugins, while a [local distribution](local-distribution.md) is a more configurable type providing higher granularity. Below are important details of the set of libraries included in the OpenVINO Runtime package:
 
-![deployment_simplified]
+![](../../img/deployment_simplified.svg)
 
 - The main library `openvino` is used by users' C++ applications to link against with. The library provides all OpenVINO Runtime public APIs, including both API 2.0 and the previous Inference Engine and nGraph APIs. For C language applications, `openvino_c` is additionally required for distribution.
 - The "optional" plugin libraries like `openvino_intel_cpu_plugin` (matching the `openvino_.+_plugin` pattern) are used to provide inference capabilities on specific devices or additional capabilities like [Hetero Execution](../hetero_execution.md) and [Multi-Device Execution](../multi_device.md).
@@ -56,5 +56,3 @@ Here the term "optional" means that if the application does not use the capabili
 Building a local distribution will require more detailed information, and you will find it in the dedicated [Libraries for Local Distribution](local-distribution.md) article.
 
 > **NOTE**: Depending on your target OpenVINO devices, the following configurations might be needed for deployed machines: [Configurations for GPU](../../install_guides/configurations-for-intel-gpu.md), [Configurations for GNA](../../install_guides/configurations-for-intel-gna.md), [Configurations for NCS2](../../install_guides/configurations-for-ncs2.md), [Configurations for VPU](../../install_guides/configurations-for-ivad-vpu.md).
-
-[deployment_simplified]: ../../img/deployment_simplified.png

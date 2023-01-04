@@ -12,7 +12,7 @@
 
 .. rst-class:: openvino-diagram
 
-   .. image:: _static/images/openvino_diagram.svg
+   .. image:: _static/images/ov_chart.png
       :align: center
 
 
@@ -43,7 +43,7 @@ A typical workflow with OpenVINO is shown below.
 
          .. image:: _static/images/OV_flow_optimization_hvr.svg
             :alt: link to an optimization guide
-            :target: openvino_docs_optimization_guide_dldt_optimization_guide.html
+            :target: openvino_docs_model_optimization_guide.html
 
       .. container:: hp-flow-arrow
 
@@ -127,4 +127,4 @@ Get Started
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
-   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   RELEASE NOTES <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>

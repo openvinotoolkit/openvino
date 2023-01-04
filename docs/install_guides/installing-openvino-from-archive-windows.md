@@ -1,33 +1,20 @@
 # Install OpenVINO™ Runtime on Windows from an Archive File {#openvino_docs_install_guides_installing_openvino_from_archive_windows}
 
-With the OpenVINO™ 2022.2 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples. 
+With the OpenVINO™ 2022.3 release, you can download and use archive files to install OpenVINO Runtime. The archive files contain pre-built binaries and library files needed for OpenVINO Runtime, as well as code samples. 
 
 Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
-See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the latest release.
+See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
 
 ## System Requirements
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-  * Microsoft Windows 10, x86, 64-bit
-  * Microsoft Windows 11, x86, 64-bit
-
-.. tab:: Hardware
-
-  Optimized for these processors:
-
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
-  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
-  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
-  * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
-  * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
-  * Intel® Iris® Xe MAX Graphics
-  * Intel® Neural Compute Stick 2
-  * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
   
 .. tab:: Processor Notes
 
@@ -65,29 +52,29 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    ```
    > **NOTE**: `C:\Program Files (x86)\Intel` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
-2. Download the [OpenVINO Runtime archive file for Windows](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows/) to your local `Downloads` folder.
+2. Download the [OpenVINO Runtime archive file for Windows](https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/windows/) to your local `Downloads` folder.
    
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
    ```sh
    cd <user_home>/Downloads
-   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.2/windows/w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64.zip --output openvino_2022.2.0.7713.zip
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/windows/w_openvino_toolkit_windows_2022.3.0.9052.9752fafe8eb_x86_64.zip --output openvino_2022.3.0.zip
    ```
-   > **NOTE**: A `.sha256` file is provided together with the archive file to validate your download process. To do that, download the `.sha256` file from the same repository and run `CertUtil -hashfile openvino_2022.2.0.7713.zip SHA256`. Compare the returned value in the output with what's in the `.sha256` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
+   > **NOTE**: A `.sha256` file is provided together with the archive file to validate your download process. To do that, download the `.sha256` file from the same repository and run `CertUtil -hashfile openvino_2022.3.0.zip SHA256`. Compare the returned value in the output with what's in the `.sha256` file: if the values are the same, you have downloaded the correct file successfully; if not, create a Support ticket [here](https://www.intel.com/content/www/us/en/support/contact-intel.html).
 
 
-3. Use your favorite tool to extract the archive file, rename the extracted folder as `openvino_2022.2.0.7713`, and move it to the `C:\Program Files (x86)\Intel` directory.
+3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the `C:\Program Files (x86)\Intel` directory.
    
    To do this step using command-lines, run the following commands in the command prompt window you opened:
    ```sh
-   tar -xf openvino_2022.2.0.7713.zip
-   ren w_openvino_toolkit_windows_2022.2.0.7713.af16ea1d79a_x86_64 openvino_2022.2.0.7713
-   move openvino_2022.2.0.7713 "C:\Program Files (x86)\Intel"
+   tar -xf openvino_2022.3.0.zip
+   ren w_openvino_toolkit_windows_2022.3.0.9052.9752fafe8eb_x86_64 openvino_2022.3.0
+   move openvino_2022.3.0 "C:\Program Files (x86)\Intel"
    ```
 
 4. For simplicity, it is useful to create a symbolic link. Open a command prompt window as administrator (see Step 1 for how to do this) and run the following commands:
    ```sh
    cd C:\Program Files (x86)\Intel
-   mklink /D openvino_2022 openvino_2022.2.0.7713
+   mklink /D openvino_2022 openvino_2022.3.0
    ```
    > **NOTE**: If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. If you want to override it, nagivate to the `C:\Program Files (x86)\Intel` folder and delete the existing linked folder before running the `mklink` command.
 
@@ -144,16 +131,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 @sphinxdirective
 .. tab:: Get started with Python
 
-   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.2/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.3/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
    
    .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
       :width: 400
 
    Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
    
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.2/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.2/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.2/notebooks/205-vision-background-removal-with-output.html>`_
+   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`_
+   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`_
+   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`_
 
 .. tab:: Get started with C++
 
