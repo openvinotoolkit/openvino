@@ -166,7 +166,7 @@ void verifyNumpyFile(std::ifstream& binaryFile,
                      const unsigned long inputSize) {
     auto fullFileSize = static_cast<std::size_t>(binaryFile.tellg());
     binaryFile.seekg(0, std::ios_base::beg);
-    OPENVINO_ASSERT(binaryFile.good(), "Can not read ", fileName);
+    OPENVINO_ASSERT(binaryFile.good(), "Cannot read ", fileName);
 
     std::string magic_string(6, ' ');
     binaryFile.read(&magic_string[0], magic_string.size());
@@ -175,7 +175,7 @@ void verifyNumpyFile(std::ifstream& binaryFile,
                     fileName,
                     " might be corrupted");
 
-    binaryFile.ignore(2);  // Skip major and minor version bytes
+    binaryFile.ignore(2);
     unsigned short headerSize;
     binaryFile.read((char*)&headerSize, sizeof(headerSize));
 
@@ -214,15 +214,17 @@ void verifyNumpyFile(std::ifstream& binaryFile,
         }
     }
 
-    OPENVINO_ASSERT(
-        numpyShape.size() == inputShape.size() && std::equal(numpyShape.begin(), numpyShape.end(), inputShape.begin()),
-        "Numpy array shape mismatch. File ",
-        fileName,
-        " has shape: (",
-        ov::Shape(numpyShape).to_string(),
-        "), expected: (",
-        ov::Shape(numpyShape).to_string(),
-        ")");
+    if (!inputShape.empty()) {
+        OPENVINO_ASSERT(numpyShape.size() == inputShape.size() &&
+                            std::equal(numpyShape.begin(), numpyShape.end(), inputShape.begin()),
+                        "Numpy array shape mismatch. File ",
+                        fileName,
+                        " has shape: (",
+                        ov::Shape(numpyShape).to_string(),
+                        "), expected: (",
+                        ov::Shape(numpyShape).to_string(),
+                        ")");
+    }
 
     // Verify array data type matches input's
     std::string dataTypeKey = "'descr':";

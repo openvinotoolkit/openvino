@@ -16,7 +16,8 @@ XML_EXTENSION = '.xml'
 BIN_EXTENSION = '.bin'
 BLOB_EXTENSION = '.blob'
 
-IMAGE_EXTENSIONS = ['.bmp', '.dib', '.jpeg', '.jpg', '.jpe', '.jp2', '.png', '.pbm', '.pgm', '.ppm', '.sr', '.ras', '.tiff', '.tif']
+IMAGE_EXTENSIONS = ['.bmp', '.dib', '.jpeg', '.jpg', '.jpe', '.jp2', '.png',
+                    '.pbm', '.pgm', '.ppm', '.sr', '.ras', '.tiff', '.tif']
 NUMPY_EXTENSIONS = ['.npy']
 BINARY_EXTENSIONS = ['.bin']
 
