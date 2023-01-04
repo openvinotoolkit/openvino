@@ -9,7 +9,8 @@
 
 #include "worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 /**
@@ -86,4 +87,5 @@ public:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

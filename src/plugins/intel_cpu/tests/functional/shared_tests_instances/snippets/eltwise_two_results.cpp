@@ -14,7 +14,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise, EltwiseTwoResults,
                         ::testing::Combine(
                              ::testing::Values(ov::Shape {1, 64, 10, 10}),
                              ::testing::Values(ov::Shape {1, 64, 10,  1}),
-                             ::testing::Values(4),
+                             ::testing::Values(2),
                              ::testing::Values(2),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          EltwiseTwoResults::getTestCaseName);
