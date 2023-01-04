@@ -1,28 +1,31 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
 
 resources:
   repositories:
@@ -34,7 +37,7 @@ resources:
 jobs:
 - job: LinCC
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -78,9 +81,9 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
@@ -94,8 +97,9 @@ jobs:
     displayName: 'Install dependencies'
 
   - checkout: testdata
-    clean: true
-    lfs: true
+    clean: 'true'
+    fetchDepth: '1'
+    lfs: 'true'
     path: testdata
 
   - task: CMake@1
@@ -131,7 +135,10 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
-      python3 thirdparty/itt_collector/runtool/sea_runtool.py --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+      python3 thirdparty/itt_collector/runtool/sea_runtool.py \
+          --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+          -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
@@ -151,6 +158,7 @@ jobs:
     displayName: 'List bin files ON'
 
   - script: |
-      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+        -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Use OpenVINO after CC'
