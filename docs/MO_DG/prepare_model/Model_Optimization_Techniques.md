@@ -10,7 +10,7 @@ Many convolution neural networks includes `BatchNormalization` and `ScaleShift` 
 
 ### Usage
 
-In the Model Optimizer, this optimization is turned on by default. To disable it, you can pass `--disable_fusing` parameter to the Model Optimizer.
+In the Model Optimizer, this optimization is turned on by default.
 
 ### Optimization Description
 
@@ -32,7 +32,7 @@ The picture below shows the depicted part of Caffe Resnet269 topology where `Bat
 
 ## ResNet optimization (stride optimization)
 
-ResNet optimization is a specific optimization that applies to Caffe ResNet topologies such as ResNet50, ResNet101, ResNet152 and to ResNet-based topologies. This optimization is turned on by default, and can be disabled with the `--disable_resnet_optimization` key.
+ResNet optimization is a specific optimization that applies to Caffe ResNet topologies such as ResNet50, ResNet101, ResNet152 and to ResNet-based topologies.
 
 ### Optimization Description
 
@@ -49,17 +49,3 @@ In this example, the stride from the `res3a_branch1` and `res3a_branch2a` Convol
 Grouped convolution fusing is a specific optimization that applies for TensorFlow topologies. The main idea of this optimization is to combine convolutions results for the `Split` outputs and then recombine them using `Concat` operation in the same order as they were out from `Split`.
 
 ![Split→Convolutions→Concat block from TensorBoard*](../img/optimizations/groups.svg)
-
-* * *
-
-## Disabling Fusing
-
-Model Optimizer allows to disable optimizations for specified nodes via `--finegrain_fusing <node_name1>,<node_name2>,...` (regex is also supported). Using this key, you mark nodes that will noy be touched by any optimizations.
-
-### Examples of usage
-
-On the picture below you can see two visualized Intermediate Representations (IR) of TensorFlow InceptionV4 topology.
-The first one is original IR that will be produced by the Model Optimizer.
-The second one will be produced by the Model Optimizer with key `--finegrain_fusing InceptionV4/InceptionV4/Conv2d_1a_3x3/Conv2D`, where you can see that `Convolution` was not fused with `Mul1_3752` and `Mul1_4061/Fused_Mul_5096/FusedScaleShift_5987` operations.
-
-![TF InceptionV4 block without/with key --finegrain_fusing (from IR visualizer)](../img/optimizations/inception_v4.svg)
