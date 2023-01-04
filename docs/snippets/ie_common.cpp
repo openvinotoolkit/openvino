@@ -38,7 +38,7 @@ int main() {
     }
 
     InferenceEngine::Blob::Ptr input_blob2 = infer_request.GetBlob("data2");
-    // fill first blob
+    // fill second blob
     InferenceEngine::MemoryBlob::Ptr minput2 = InferenceEngine::as<InferenceEngine::MemoryBlob>(input_blob2);
     if (minput2) {
         // locked memory holder should be alive all time while access to its
