@@ -1,0 +1,133 @@
+'category: AUTO BATCH':
+- 'src/plugins/auto_batch/**/*'
+
+'category: AUTO':
+- 'src/plugins/auto/**/*'
+
+'category: build':
+- 'cmake/**/*'
+- '**/CMakeLists.txt'
+- '**/*.cmake'
+
+'category: C API':
+- 'src/bindings/c/**/*'
+
+'category: CI':
+- '.github/**/*'
+- '.ci/**/*'
+- 'Jenkinsfile'
+
+'category: Core':
+- 'src/core/**/*'
+- 'src/common/itt/**/*'
+- 'src/common/util/**/*'
+- 'src/frontends/common/**/*'
+- 'src/common/conditional_compilation/**/*'
+
+'category: CPP API':
+- 'src/inference/include/**/*'
+- 'src/core/include/**/*'
+- 'src/frontends/common/**/*'
+- 'src/frontends/onnx/frontend/include/**/*'
+- 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/paddle/include/**/*'
+
+'category: CPU':
+- 'src/plugins/intel_cpu/**/*'
+- 'src/common/snippets/**/*'
+- 'thirdparty/xbyak/**/*'
+
+'category: dependency_changes':
+- '**/requirement*.txt'
+- 'scripts/**/*'
+- 'thirdparty/**/*'
+- '.gitmodules'
+- '**/setup.py'
+
+'category: docs':
+- 'docs/**/*'
+- '**/*.md'
+
+'category: extensions':
+- 'src/core/include/openvino/core/extension.hpp'
+- 'src/frontends/common/include/openvino/frontend/extension.hpp'
+- 'src/frontends/common/include/openvino/frontend/extension/**/*'
+
+'category: GNA':
+- 'src/plugins/intel_gna/**/*'
+- 'src/common/legacy/**/*'
+
+'category: GPU':
+- 'src/plugins/intel_gpu/**/*'
+- 'src/tests/**/gpu/**/*'
+- 'thirdparty/ocl/**/*'
+
+'category: HETERO':
+- 'src/plugins/hetero/**/*'
+
+'category: IE Tests':
+- any: ['src/tests/**/*',
+        'thirdparty/gtest/**/*',
+        'src/frontends/tests/frontend/shared/**/*']
+  all: ['!src/tests/**/gpu/**/*',
+        '!src/tests/**/cpu/**/*',
+        '!src/tests/**/myriad/**/*',
+        '!src/tests/**/inference_engine/**/*']
+
+'category: inference':
+- 'src/inference/**/*'
+- 'src/tests/functional/inference_engine/**/*'
+
+'category: IR FE':
+- 'src/frontends/ir/**/*'
+
+'category: LP transformations':
+- 'src/common/low_precision_transformations/**/*'
+
+'category: MO':
+- 'tools/mo/**/*'
+
+'category: ONNX FE':
+- 'src/frontends/onnx/**/*'
+- 'thirdparty/onnx/**/*'
+
+'category: packaging':
+- 'cmake/**/packaging/**/*'
+- 'src/bindings/python/wheel/**/*'
+- 'tools/openvino_dev/**/*'
+
+'category: PDPD FE':
+- 'src/frontends/paddle/**/*'
+
+'category: POT':
+- 'tools/pot/**/*'
+
+'category: preprocessing':
+- 'src/common/preprocessing/**/*'
+
+'category: Python API':
+- 'src/bindings/python/**/*'
+
+'category: samples':
+- 'samples/**/*'
+- 'thirdparty/zlib/**/*'
+- 'thirdparty/gflags/**/*'
+- 'thirdparty/json/**/*'
+- 'thirdparty/cnpy/**/*'
+
+'category: TEMPLATE':
+- 'src/plugins/template/**/*'
+
+'category: TF FE':
+- 'src/frontends/tensorflow/**/*'
+
+'category: tools':
+- 'tools/**'
+
+'category: transformations':
+- 'src/common/transformations/**/*'
+- 'src/common/offline_transformations/**/*'
+
+'category: VPU':
+- 'src/plugins/intel_myriad/**/*'
+- 'src/tests/**/myriad/**/*'
