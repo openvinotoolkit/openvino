@@ -63,50 +63,80 @@ namespace ov {
  * \return Object of TResult with data from input pointer and transformed by unary operation.
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const size_t size, UnaryOperation func) {
+TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const size_t size, UnaryOperation&& func) {
     TResult out;
     auto out_it = std::inserter(out, out.end());
 
     switch (et) {
     case element::Type_t::i4: {
         using dtype = fundamental_type_for<element::Type_t::i4>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::i8: {
         using dtype = fundamental_type_for<element::Type_t::i8>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::i16: {
         using dtype = fundamental_type_for<element::Type_t::i16>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::i32: {
         using dtype = fundamental_type_for<element::Type_t::i32>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::i64: {
         using dtype = fundamental_type_for<element::Type_t::i64>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::u4: {
         using dtype = fundamental_type_for<element::Type_t::u4>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::u8: {
         using dtype = fundamental_type_for<element::Type_t::u8>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::u16: {
         using dtype = fundamental_type_for<element::Type_t::u16>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::u32: {
         using dtype = fundamental_type_for<element::Type_t::u32>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::u64: {
         using dtype = fundamental_type_for<element::Type_t::u64>;
-        std::transform(static_cast<const dtype*>(ptr), static_cast<const dtype*>(ptr) + size, out_it, func);
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
     } break;
     default:
         OPENVINO_ASSERT(false, "Not supported element type ", et);
@@ -127,9 +157,9 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
  * \return Object of TResult with data from host tensor.
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(HostTensor& tv, UnaryOperation func) {
+TResult get_tensor_data_as(HostTensor& tv, UnaryOperation&& func) {
     auto t = Tensor(tv.get_element_type(), tv.get_shape(), tv.get_data_ptr());
-    return get_tensor_data_as<T, TResult>(t, func);
+    return get_tensor_data_as<T, TResult>(t, std::forward<UnaryOperation>(func));
 }
 
 /**
@@ -145,8 +175,11 @@ TResult get_tensor_data_as(HostTensor& tv, UnaryOperation func) {
  * \return Object of TResult with data from tensor.
  */
 template <class T, class TResult = std::vector<T>, class UnaryOperation>
-TResult get_tensor_data_as(const Tensor& t, UnaryOperation func) {
-    return get_raw_data_as<T, TResult>(t.get_element_type(), t.data(), t.get_size(), func);
+TResult get_tensor_data_as(const Tensor& t, UnaryOperation&& func) {
+    return get_raw_data_as<T, TResult>(t.get_element_type(),
+                                       t.data(),
+                                       t.get_size(),
+                                       std::forward<UnaryOperation>(func));
 }
 
 namespace op {
@@ -176,16 +209,19 @@ template <class TShape,
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
                                               const std::map<size_t, HostTensorPtr>& constant_data = {},
-                                              UnaryOperation func = sh_infer::tr::Cast<TData>()) {
+                                              UnaryOperation&& func = sh_infer::tr::Cast<TData>()) {
     if (constant_data.count(idx)) {
-        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(*constant_data.at(idx), func)));
+        return std::unique_ptr<TRes>(
+            new TRes(get_tensor_data_as<TData, TRes>(*constant_data.at(idx), std::forward<UnaryOperation>(func))));
     } else {
         const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
-        return std::unique_ptr<TRes>(
-            new TRes(get_raw_data_as<TData, TRes>(et, constant->get_data_ptr(), shape_size(shape), func)));
+        return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
+                                                                           constant->get_data_ptr(),
+                                                                           shape_size(shape),
+                                                                           std::forward<UnaryOperation>(func))));
     }
 }
 
@@ -215,14 +251,17 @@ template <class TShape,
 std::unique_ptr<std::vector<TData>> get_input_const_data_as(const ov::Node* op,
                                                             size_t idx,
                                                             const std::map<size_t, HostTensorPtr>& constant_data = {},
-                                                            UnaryOperation func = sh_infer::tr::Cast<TData>()) {
+                                                            UnaryOperation&& func = sh_infer::tr::Cast<TData>()) {
     if (constant_data.count(idx)) {
-        return std::unique_ptr<TRes>(new TRes(get_tensor_data_as<TData, TRes>(*constant_data.at(idx), func)));
+        return std::unique_ptr<TRes>(
+            new TRes(get_tensor_data_as<TData, TRes>(*constant_data.at(idx), std::forward<UnaryOperation>(func))));
     } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
         const auto& et = constant->get_element_type();
         const auto& shape = constant->get_shape();
-        return std::unique_ptr<TRes>(
-            new TRes(get_raw_data_as<TData, TRes>(et, constant->get_data_ptr(), shape_size(shape), func)));
+        return std::unique_ptr<TRes>(new TRes(get_raw_data_as<TData, TRes>(et,
+                                                                           constant->get_data_ptr(),
+                                                                           shape_size(shape),
+                                                                           std::forward<UnaryOperation>(func))));
     } else {
         return {};
     }
@@ -251,10 +290,11 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(
     const ov::Node* op,
     size_t idx,
     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {},
-    UnaryOperation func = sh_infer::tr::InTypeRange<TDimValue>()) {
+    UnaryOperation&& func = sh_infer::tr::InTypeRange<TDimValue>()) {
     std::unique_ptr<TShape> shape_ptr;
 
-    if (auto d = get_input_const_data_as<TShape, TDimValue>(op, idx, constant_data, func)) {
+    if (auto d =
+            get_input_const_data_as<TShape, TDimValue>(op, idx, constant_data, std::forward<UnaryOperation>(func))) {
         shape_ptr.reset(new TShape(std::move(*d)));
     } else {
         PartialShape shape;

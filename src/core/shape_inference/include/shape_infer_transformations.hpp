@@ -36,7 +36,6 @@ struct Cast {
 template <class T>
 struct InTypeRange {
     const std::pair<T, T> m_range{};
-    bool in_range{};
 
     constexpr InTypeRange() : m_range{std::numeric_limits<T>::min(), std::numeric_limits<T>::max()} {};
 
@@ -50,7 +49,7 @@ struct InTypeRange {
                         ":",
                         m_range.second,
                         "]");
-        return Cast<T>()(u);
+        return static_cast<T>(u);
     }
 };
 
