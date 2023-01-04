@@ -161,7 +161,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_4) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Add>(mvn_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
@@ -183,7 +183,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_4) {
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
         auto convert_to_f32_1 = make_shared<opset8::Convert>(input_1, element::f32);
         auto mvn_1 =
-            make_shared<opset8::MVN>(convert_to_f32_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+                make_shared<opset8::MVN>(convert_to_f32_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Add>(mvn_1, addition_const);
         auto convert_to_f16_1 = make_shared<opset8::Convert>(add_1, element::f16);
@@ -203,7 +203,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_mnv_with_split) {
 
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
         auto mvn_1 =
-            make_shared<opset8::MVN>(split->output(0), reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+                make_shared<opset8::MVN>(split->output(0), reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Add>(mvn_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
@@ -233,7 +233,7 @@ TEST_F(TransformationTestsF, align_mixed_fp16_fp32_mnv_with_split) {
 
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
         auto mvn_1 =
-            make_shared<opset8::MVN>(split->output(0), reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+                make_shared<opset8::MVN>(split->output(0), reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Add>(mvn_1, addition_const);
         auto convert_to_f16_1 = make_shared<opset8::Convert>(add_1, element::f16);
