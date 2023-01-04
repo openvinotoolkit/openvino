@@ -29,14 +29,14 @@
 
 @endsphinxdirective
 
-The OpenVINO samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
+The OpenVINO™ samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
 
-If you install OpenVINO™ Runtime, sample applications for С, C++, and Python are created in the following directories:
+If you installed OpenVINO Runtime via the installer, APT, or YUM, sample applications for С, and C++, and Python are created in the following directories:
 * `<INSTALL_DIR>/samples/c`
 * `<INSTALL_DIR>/samples/cpp`
 * `<INSTALL_DIR>/samples/python`
 
-Source code for the samples is also available in the [OpenVINO™ samples repository on GitHub](https://github.com/openvinotoolkit/openvino/tree/master/samples). If you installed OpenVINO™ Runtime using PyPI, samples are not installed locally and must be accessed through GitHub.
+If you installed OpenVINO Runtime using PyPI, samples are not installed locally and must be accessed through GitHub. Download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/1) and use samples from `samples/python`.
 
 The applications include:
 
