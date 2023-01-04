@@ -1,28 +1,33 @@
 trigger:
   branches:
     include:
-    - master 
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 resources:
   repositories:
@@ -34,7 +39,7 @@ resources:
 jobs:
 - job: WinCC
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: WIN_VMSS_VENV_F8S_WU2
@@ -75,9 +80,9 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
@@ -88,8 +93,9 @@ jobs:
     displayName: 'Install dependencies'
 
   - checkout: testdata
-    clean: true
-    lfs: true
+    clean: 'true'
+    lfs: 'true'
+    fetchDepth: '1'
     path: testdata
 
   - script: |
@@ -176,7 +182,6 @@ jobs:
   - script: type $(BUILD_DIR_2)\src\common\conditional_compilation\conditional_compilation_gen.h
     displayName: 'Check conditional_compilation_gen.h header'
 
-  # TODO: Enable after the fix on CPU side
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
       $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
