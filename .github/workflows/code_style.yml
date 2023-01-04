@@ -1,5 +1,10 @@
 name: Code Style
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+      - 'releases/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -8,8 +13,10 @@ concurrency:
 jobs:
   clang-format:
     runs-on: ubuntu-20.04
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -28,39 +35,22 @@ jobs:
           python3 -m pip install -r ./src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
-      - name: CMake
-        run: |
-          mkdir build
-          cd build
-          cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT ..
+      - name: CMake configure
+        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -B build
 
-      - name: Check code style
-        run: cmake --build . --target clang_format_check_all -j8
-        working-directory: build
+      - name: Fix code style
+        run: cmake --build build --target clang_format_fix_all -j8
 
-      - name: Create code style diff
-        if: failure()
-        run: |
-          cmake --build build --target clang_format_fix_all -j8
-          git diff > code_style_diff.diff
-
-      - name: suggester / clang-format
-        if: failure() && startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@v1
+      - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          level: error
-          tool_name: clang-format
-
-      - uses: actions/upload-artifact@v2
-        if: failure()
-        with:
-          name: code_style_diff
-          path: code_style_diff.diff
+          commit_message: "[github actions] Apply clang-format code style fixes"
 
   ShellCheck:
     runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -69,23 +59,29 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install shellcheck
 
-      - name: Install dependencies
-        run: python3 -m pip install -r ./src/bindings/python/requirements.txt
+      - name: CMake configure
+        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
 
-      - name: CMake
-        run: |
-          mkdir build
-          cd build
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
+      - name: Shellcheck cmake target
+        run: cmake --build build --target ie_shellcheck -j8
 
-      - name: ShellCheck
-        run: cmake --build . --target ie_shellcheck -j8
-        working-directory: build
+      # always provide suggestions even for skipped scripts in ie_shellcheck tagret
+      - name: ShellCheck action
+        if: always()
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          level: style
+          reporter: github-pr-review
+          check_all_files_with_shebangs: true
+          fail_on_error: true
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -98,12 +94,8 @@ jobs:
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
-      - name: CMake
-        run: |
-          mkdir build
-          cd build
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF ..
+      - name: CMake configure
+        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
 
       - name: Naming convention check
-        run: cmake --build . --target ncc_all -j8
-        working-directory: build
+        run: cmake --build build --target ncc_all -j8

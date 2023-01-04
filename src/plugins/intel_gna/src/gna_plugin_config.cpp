@@ -19,9 +19,11 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-using namespace ov::intel_gna;
+using namespace ov::intel_gna::common;
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 const uint8_t Config::max_num_requests;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
@@ -55,7 +57,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         auto value = item.second;
 
         auto check_scale_factor = [&] (float scale_factor) {
-            if (ov::intel_gna::common::fp32eq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+            if (AreFpEq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
         };
@@ -126,7 +128,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             check_scale_factor(scale_factor);
             // missing scale factors are set to be 1.0f
             if (inputScaleFactors.size() <= input_index) {
-                inputScaleFactors.resize(input_index + 1, GNAPluginNS::kScaleFactorDefault);
+                inputScaleFactors.resize(input_index + 1, kScaleFactorDefault);
             }
             inputScaleFactors[input_index] = InferenceEngine::CNNLayer::ie_parse_float(value);
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE) || key ==  ov::intel_gna::firmware_model_image_path) {
@@ -400,6 +402,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::hint::inference_precision.name(), model_mutability },
         { ov::hint::num_requests.name(), model_mutability },
         { ov::log::level.name(), ov::PropertyMutability::RW },
+        { ov::execution_devices.name(), ov::PropertyMutability::RO },
     };
     return supported_properties;
 }
@@ -412,4 +415,6 @@ std::vector<std::string> Config::GetSupportedKeys() const {
     }
     return result;
 }
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

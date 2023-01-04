@@ -6,7 +6,8 @@
 
 #include "subrequest.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 /**
@@ -34,14 +35,20 @@ public:
     /**
      * @brief Wait until subrequest will be finished for given timeout.
      * @param timeoutMilliseconds timeout in milliseconds
-     * @return status of execution of subrequest @see GNAPluginNS::RequestStatus
+     * @return status of execution of subrequest @see RequestStatus
      */
     RequestStatus wait(int64_t timeoutMilliseconds) override;
 
     /**
      * @brief Add subrequest to execution queue.
+     * @return true in case subrequest was properly enqueued, otherwise return false
      */
-    void enqueue() override;
+    bool enqueue() override;
+
+    /**
+     * @brief Finalize subrequest and set it status to RequestStatus::kNone
+     */
+    void cleanup() override;
 
     /**
      * @brief Return true if subrequest is pending, otherwise return false
@@ -66,4 +73,5 @@ private:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

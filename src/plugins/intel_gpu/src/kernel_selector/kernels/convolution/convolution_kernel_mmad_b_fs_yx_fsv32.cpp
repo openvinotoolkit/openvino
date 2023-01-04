@@ -44,6 +44,13 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_mmad_b_fs_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_blocked_read_write();
+
+    return k;
+}
+
 bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) {
         return false;
@@ -68,7 +75,7 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     auto& params = dynamic_cast<const convolution_params&>(p);
     auto& output = params.outputs[0];

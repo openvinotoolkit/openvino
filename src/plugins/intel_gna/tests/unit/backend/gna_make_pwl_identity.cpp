@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "backend/make_pwl.hpp"
 #include "backend/pwl_input_params.hpp"
 #include "backend/pwl_segments_creator_factory.hpp"
@@ -18,6 +18,7 @@
 #include "runtime/pwl.h"
 
 using namespace ov::intel_gna::backend;
+using namespace ov::intel_gna::common;
 using namespace ov::intel_gna::backend::pwl_tools;
 
 namespace {
@@ -236,7 +237,7 @@ MakePWLIdentityTestParam createIdentityParamsForScales(double in, double out) {
 
     // check if exception is thrown if division by zero is possible
     // check if exception is thrown if scale factor with too big difference are used
-    const auto x_lower = FLOAT_TO_INT32(static_cast<double>(std::numeric_limits<int16_t>::min()) * in / out);
+    const auto x_lower = FloatToInt32(static_cast<double>(std::numeric_limits<int16_t>::min()) * in / out);
 
     if (slope.value == 0 || x_lower == 0) {
         should_throw = true;
