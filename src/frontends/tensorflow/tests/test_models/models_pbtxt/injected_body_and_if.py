@@ -32,5 +32,4 @@ with tf.Session() as sess:
     tf.global_variables_initializer()
     tf_net = sess.graph_def
 
-tf.io.write_graph(tf_net, './', 'partitioned_call_and_if.pbtxt', as_text=True)
-tf.io.write_graph(tf_net, './', 'partitioned_call_and_if.pb', as_text=False)
+tf.io.write_graph(tf_net, './', 'injected_body_and_if.pbtxt', as_text=True)

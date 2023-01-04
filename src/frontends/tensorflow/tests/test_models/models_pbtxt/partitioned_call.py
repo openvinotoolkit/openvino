@@ -15,4 +15,4 @@ def first_func(x, y):
 
 
 graph_def = first_func.get_concrete_function(tf.constant([6, 3]), tf.constant([7])).graph.as_graph_def()
-tf.io.write_graph(graph_def, '.', 'stateful_partitioned_call.pbtxt', as_text=True)
+tf.io.write_graph(graph_def, '.', 'partitioned_call.pbtxt', as_text=True)
