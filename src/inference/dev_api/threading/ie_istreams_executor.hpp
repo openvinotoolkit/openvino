@@ -100,10 +100,12 @@ public:
                                             //!< Reserved. Should not be used.
         int _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
         int _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
+        int _big_core_logic_streams = 0;    //!< Number of streams in Logical-core
         int _threads_per_stream_big = 0;    //!< Threads per stream in big cores
         int _threads_per_stream_small = 0;  //!< Threads per stream in small cores
         int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
         bool _enable_hyper_thread = true;   //!< enable hyper thread
+        bool _bind_cores = false;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,
