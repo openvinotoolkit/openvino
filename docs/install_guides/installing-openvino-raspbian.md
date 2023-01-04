@@ -10,18 +10,10 @@
 ## Development and Target Systems 
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-  * Raspbian Buster, ARM, 32-bit & 64-bit
-  * Raspbian Stretch, ARM, 32-bit & 64-bit
-
-.. tab:: Hardware
-
-  * Raspberry Pi board with ARM ARMv7-A CPU architecture. To check that, run `uname -m` to see if it returns `armv7l`.
-  * Intel® Neural Compute Stick 2, which as one of the Intel® Movidius™ Visual Processing Units (VPUs)
-
-  .. note::
-    The current version of the Intel® Distribution of OpenVINO™ toolkit for Raspbian OS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Software Requirements
 
