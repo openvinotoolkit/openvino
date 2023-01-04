@@ -92,7 +92,22 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
 
     auto zeros_like = make_shared<Broadcast>(make_shared<Constant>(ov::element::f32, Shape{1}, std::vector<int64_t>{0}),
                                              make_shared<ShapeOf>(sparse_segment_op));
-    auto select_pattern = make_shared<Select>(tile, zeros_like, sparse_segment_op);
+
+    // compute number of dimensions to unsqueeze the condition
+    auto cond_rank = compute_subgraph_scalar_rank(tile, element::i32);
+    auto x_rank = compute_subgraph_scalar_rank(zeros_like, element::i32);
+    auto num_new_axes = make_shared<Subtract>(x_rank, cond_rank);
+
+    // generate a new shape for the condition
+    auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto new_subshape = make_shared<Broadcast>(const_one, num_new_axes);
+    auto cond_shape = make_shared<ShapeOf>(tile, element::i32);
+    auto new_cond_shape = make_shared<Concat>(OutputVector{cond_shape, new_subshape}, 0);
+
+    // prepare the condition to have the same rank as operands `x` and `y`
+    auto prep_cond = make_shared<Reshape>(tile, new_cond_shape, false);
+
+    auto select_pattern = make_shared<Select>(prep_cond, zeros_like, sparse_segment_op);
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
