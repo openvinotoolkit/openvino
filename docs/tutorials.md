@@ -243,7 +243,11 @@ Live inference demos that run on a webcam or video files.
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `403-action-recognition-webcam <notebooks/403-action-recognition-webcam-with-output.html>`__ |br| |n403|                      | Human action recognition with a webcam or video file.                                                                                      | |n403-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| `404-style-transfer-webcam <notebooks/404-style-transfer-webcam-with-output.html>`__ |br| |n404|                              | Style Transfer with a webcam or video file                                                                                                 | |n404-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `405-paddle-ocr-webcam <notebooks/405-paddle-ocr-webcam-with-output.html>`__ |br| |n405|                                      | OCR with a webcam or video file                                                                                                            | |n405-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| `406-3D-pose-estimation-webcam <notebooks/406-3D-pose-estimation-webcam-with-output.html>`__ |br| |n406|                      | 3D display of human pose estimation with a webcam or video file                                                                            | |n406-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
@@ -393,8 +397,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/4547501/138267961-41d754e7-59db-49f6-b700-63c3a636fad7.gif
 .. |n403-img1| image:: https://user-images.githubusercontent.com/10940214/151552326-642d6e49-f5a0-4fc1-bf14-ae3f457e1fec.gif
    :target: https://user-images.githubusercontent.com/10940214/151552326-642d6e49-f5a0-4fc1-bf14-ae3f457e1fec.gif
+.. |n404-img1| image:: https://user-images.githubusercontent.com/109281183/203772234-f17a0875-b068-43ef-9e77-403462fde1f5.gif
+   :target: https://user-images.githubusercontent.com/109281183/203772234-f17a0875-b068-43ef-9e77-403462fde1f5.gif
 .. |n405-img1| image:: https://raw.githubusercontent.com/yoyowz/classification/master/images/paddleocr.gif
    :target: https://raw.githubusercontent.com/yoyowz/classification/master/images/paddleocr.gif
+.. |n406-img1| image:: https://user-images.githubusercontent.com/42672437/183292131-576cc05a-a724-472c-8dc9-f6bc092190bf.gif
+   :target: https://user-images.githubusercontent.com/42672437/183292131-576cc05a-a724-472c-8dc9-f6bc092190bf.gif
 .. |launch-jupyter| image:: https://user-images.githubusercontent.com/15709723/120527271-006fd200-c38f-11eb-9935-2d36d50bab9f.gif
    :target: https://user-images.githubusercontent.com/15709723/120527271-006fd200-c38f-11eb-9935-2d36d50bab9f.gif
 
@@ -457,8 +465,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F402-pose-estimation-webcam%2F402-pose-estimation.ipynb
 .. |n403| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F403-action-recognition-webcam%2F403-action-recognition-webcam.ipynb
+.. |n404| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F404-style-transfer-webcam%2F404-style-transfer.ipynb
 .. |n405| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F405-paddle-ocr-webcam%2F405-paddle-ocr-webcam.ipynb
+.. |n406| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks.git/main?labpath=notebooks%2F406-3D-pose-estimation-webcam%2F406-3D-pose-estimation.ipynb
 
 .. |binder logo| image:: https://mybinder.org/badge_logo.svg
    :alt: Binder button
