@@ -30,13 +30,17 @@ static bool IsCustomInputScaleFactorAvailableLegacy(const std::vector<float>& in
 }
 
 static void ApplyScaleFactorsLegacy(const std::vector<float>& input_scale_factors, GnaInputs& inputs) {
+    if (input_scale_factors.size() > inputs.size()) {
+        IE_THROW() << "Configuration input scale factors count is bigger than inputs count";
+    }
+
     for (size_t id = 0; id < inputs.size(); ++id) {
         log::warning() << "Using input scale factor: " << input_scale_factors[id]
                          << ", defined in configuration for input id: " << id << std::endl;
         if (input_scale_factors.size() > id) {
             inputs.Get().at(id).scale_factor = input_scale_factors[id];
         } else {
-            log::warning() << "Configuration input scale factors count is lower than inputs count" << std::endl;
+            log::warning() << "Using default input scale factor: " << kScaleFactorDefault << " for input id: " << id << std::endl;
         }
     }
 }
