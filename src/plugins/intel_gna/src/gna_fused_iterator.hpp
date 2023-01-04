@@ -10,7 +10,9 @@
 #include "gna_graph_tools.hpp"
 #include "layers/gna_layer_helpers.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
  * @brief Modify child layers walking order to maintain strict ordering required for gna_fuse logic
  */
@@ -99,4 +101,5 @@ inline FuzedLayersContainer make_fuzed_order(InferenceEngine::CNNLayer* origin) 
     return fusedCnt;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

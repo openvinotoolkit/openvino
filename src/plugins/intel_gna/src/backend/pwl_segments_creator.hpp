@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "pwl_border_values_counter.hpp"
 
 namespace ov {

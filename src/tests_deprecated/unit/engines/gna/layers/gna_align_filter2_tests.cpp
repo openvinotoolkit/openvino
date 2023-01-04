@@ -12,7 +12,6 @@
 #include "../gna_matcher.hpp"
 
 using GNAAlignFilterTestParams  = std::tuple<InferenceEngine::Precision, std::size_t, std::size_t>;
-using namespace GNAPluginNS;
 
 class GNAAlignFilterTest : public GNATest<>,
                              public testing::WithParamInterface<GNAAlignFilterTestParams> {
