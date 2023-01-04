@@ -29,8 +29,8 @@
 - 'src/core/include/**/*'
 - 'src/frontends/common/**/*'
 - 'src/frontends/onnx/frontend/include/**/*'
-- 'src/frontends/tensorflow/**/*'
-- 'src/frontends/paddle/**/*'
+- 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/paddle/include/**/*'
 
 'category: CPU':
 - 'src/plugins/intel_cpu/**/*'
