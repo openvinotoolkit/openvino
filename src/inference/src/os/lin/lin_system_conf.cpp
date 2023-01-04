@@ -229,4 +229,52 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     return phys_cores;
 }
 
+bool cpuMapAvailable() {
+    return cpu._cpu_mapping_table.size() > 0;
+}
+
+int getCoreOffset(const cpu_core_type_of_processor core_type) {
+    int offset = 0;
+    if (core_type <= EFFICIENT_CORE_PROC && core_type >= ALL_PROC) {
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
+                offset = i;
+                break;
+            }
+        }
+    } else {
+        IE_THROW() << "Wrong value for cpu_col " << core_type;
+    }
+    return offset;
+}
+
+int getThreadStep(const cpu_core_type_of_processor core_type) {
+    std::vector<int> proc_array;
+    if (core_type <= EFFICIENT_CORE_PROC && core_type >= ALL_PROC) {
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
+                proc_array.push_back(i);
+            }
+            if (proc_array.size() == 2) {
+                break;
+            }
+        }
+    } else {
+        IE_THROW() << "Wrong value for cpu_col " << core_type;
+    }
+    return proc_array.size() == 2 ? proc_array[1] - proc_array[0] : 1;
+}
+
+void setCpuUsed(std::vector<int> cpu_ids, int used) {
+    const auto cpu_size = static_cast<int>(cpu_ids.size());
+    const auto cpu_mapping_size = static_cast<int>(cpu._cpu_mapping_table.size());
+    for (auto i = 0; i < cpu_size; i++) {
+        if (cpu_ids[i] < cpu_mapping_size) {
+            cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        }
+    }
+}
+
 }  // namespace InferenceEngine

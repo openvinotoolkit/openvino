@@ -133,6 +133,21 @@ INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx_bf16();
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx512_core_amx();
 
 /**
+ * @brief      Checks whether CPU mapping Available
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is CPU mapping is available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) cpuMapAvailable();
+
+/**
+ * @brief      Set flag bit 'Used' of CPU
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cup_mapping.
+ * @param[in]  used flag bit
+ */
+INFERENCE_ENGINE_API_CPP(void) setCpuUsed(std::vector<int> cpu_ids, int used);
+
+/**
  * @enum cpu_core_type_of_processor
  * @brief This enum contains defination of processor based on specific cpu core types.
  * Will extend to support other CPU core type like ARM.
@@ -143,6 +158,22 @@ typedef enum {
     HYPER_THREADING_PROC = 2,  //!< Processor based on logical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Efficient-cores
 } cpu_core_type_of_processor;
+
+/**
+ * @brief      Returns offset of cores
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  core_type core type.
+ * @return     Offset of CPU cores.
+ */
+INFERENCE_ENGINE_API_CPP(int) getCoreOffset(const cpu_core_type_of_processor core_type);
+
+/**
+ * @brief      Returns step of threads
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  core_type core type.
+ * @return     Step of threads.
+ */
+INFERENCE_ENGINE_API_CPP(int) getThreadStep(const cpu_core_type_of_processor core_type);
 
 /**
  * @enum column_of_cpu_mapping_table

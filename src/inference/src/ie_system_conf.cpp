@@ -114,6 +114,9 @@ std::vector<int> getAvailableNUMANodes() {
 int getNumberOfLogicalCPUCores(bool) {
     return parallel_get_max_threads();
 }
+bool cpuMapAvailable() {
+    return false;
+}
 #else
 int getNumberOfLogicalCPUCores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();

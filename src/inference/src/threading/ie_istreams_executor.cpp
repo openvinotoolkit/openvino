@@ -450,7 +450,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         }
         // temporary change for core binding refactor
         if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big >
-            num_big_cores_phys) {
+                num_big_cores_phys &&
+            cpuMapAvailable()) {
             streamExecutorConfig._big_core_streams /= 2;
             streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
         }
@@ -483,7 +484,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     streamExecutorConfig._threadsPerStream =
         streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
     // temporary change for core binding refactor
-    if (streamExecutorConfig._big_core_streams == 0) {
+    if (streamExecutorConfig._big_core_streams == 0 && cpuMapAvailable()) {
         streamExecutorConfig._big_core_streams = streamExecutorConfig._streams;
         streamExecutorConfig._threads_per_stream_big = streamExecutorConfig._threadsPerStream;
         if (streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big > num_cores_default) {
