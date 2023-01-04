@@ -17,10 +17,6 @@
 bool ov::pass::ConvertCompressedToMixedPrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(ConvertCompressedToMixedPrecision);
 
-    // pass is triggered only for fp16 compressed Models
-    if (!ov::op::util::has_decompression_converts(f))
-        return false;
-
     Manager manager(get_pass_config());
     // Mark nodes in ShapeOf subgraphs with disable_fp16_compression rt_info to keep them in FP32 precision
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
