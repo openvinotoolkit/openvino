@@ -994,9 +994,9 @@ TEST_P(LLT2Sequence, RNNLowLatency_v2) {
         auto H = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto C = make_shared<Parameter>(element::f32, Shape{attrs.batch, attrs.num_dir, attrs.hidden_size});
         auto variable_h =
-            make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_14/variable_0"});
+            make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_0"});
         auto variable_c =
-            make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_14/variable_1"});
+            make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "node_28/variable_1"});
         auto read_val_H = create_read_value(H, variable_h);
         auto read_val_C = create_read_value(C, variable_c);
 
