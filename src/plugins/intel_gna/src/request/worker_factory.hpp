@@ -10,7 +10,9 @@
 
 #include "worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class GNADevice;
 
 namespace backend {
@@ -30,7 +32,7 @@ public:
                                                 std::shared_ptr<GNADevice> device,
                                                 const Gna2AccelerationMode accelerationMode);
     static std::shared_ptr<Worker> createWorkerFP32(std::shared_ptr<ModelWrapper> model,
-                                                    std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn);
+                                                    std::shared_ptr<backend::AMIntelDNN> dnn);
     static std::shared_ptr<Worker> createWorkerTrivialTopology(std::shared_ptr<ModelWrapper> model);
 
     static std::vector<std::shared_ptr<Subrequest>> createModelSubrequests(std::shared_ptr<ModelWrapper> model,
@@ -45,4 +47,5 @@ private:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

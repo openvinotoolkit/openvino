@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <memory>
 
-using namespace GNAPluginNS;
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 
@@ -58,6 +57,8 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
         }
     } else if (ov::intel_gna::library_full_version == name) {
         return GNADeviceHelper::GetGnaLibraryVersion();
+    } else if (ov::execution_devices == name) {
+        return decltype(ov::execution_devices)::value_type {GetName()};
     } else {
         const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
             {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},

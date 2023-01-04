@@ -1066,6 +1066,11 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto input_layout = node.get_dependency(0).get_output_layout();
     auto output_layout = node.calc_output_layout();
 
+    if (prim->deformable_mode) {
+        output_layout.format = format::adjust_to_rank(format::bfyx, output_layout.get_partial_shape().size());
+        return output_layout;
+    }
+
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
         if (input_layout.get_partial_shape().size() <= 4)
             expected_format = format::b_fs_yx_fsv16;
@@ -1863,7 +1868,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             }
 
             if (node.get_preferred_output_fmt() == format::any) {
-                for (size_t usr = 0 ; usr < node.get_users().size() ; usr++)
+                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
                     node.set_preferred_output_fmt(usr, dst_fmt);
             }
 
