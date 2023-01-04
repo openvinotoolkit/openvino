@@ -378,3 +378,26 @@ REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
 
 typedef Types<op::v1::TopK, op::v3::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop, TopKTypes);
+
+class TypePropTopKV1Test : public TypePropOpTest<op::v1::TopK> {};
+
+TEST_F(TypePropTopKV1Test, k_is_u32) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{5, {-1, 2}});
+    const auto k = Constant::create(element::u32, Shape{}, {1});
+
+    OV_EXPECT_THROW(const auto op = this->make_op(data, k, 0, "max", "value"),
+                    NodeValidationFailure,
+                    HasSubstr("K input element type must be i8, i32 or i64 (got u32)"));
+}
+
+class TypePropTopKV3Test : public TypePropOpTest<op::v3::TopK> {};
+
+TEST_F(TypePropTopKV3Test, k_is_u32) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{5, {-1, 2}});
+    const auto k = Constant::create(element::u32, Shape{}, {1});
+
+    const auto op = this->make_op(data, k, 0, "max", "value");
+
+    EXPECT_THAT(op->outputs(),
+                Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({1, {-1, 2}}))));
+}

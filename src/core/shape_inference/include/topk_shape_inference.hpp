@@ -28,7 +28,7 @@ struct GetK {
                               " (got ",
                               k,
                               ").");
-        return sh_infer::tr::Cast<T>()(k);
+        return static_cast<T>(k);
     }
 };
 
@@ -51,6 +51,11 @@ std::vector<TShape> shape_infer(const TopK* op,
     using TDimValue = typename TDim::value_type;
 
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
+    const auto& idx_element_type = op->get_index_element_type();
+    NODE_VALIDATION_CHECK(op,
+                          idx_element_type == element::i32 || idx_element_type == element::i64,
+                          "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
+                          idx_element_type);
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
 
