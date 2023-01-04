@@ -292,7 +292,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 }
             } else if (const auto multiSubGraph = ov::as_type_ptr<ngraph::op::util::MultiSubGraphOp>(parent)) {
                 // Look inside subraph operations, such as TensorIterator, Loop, If, etc
-                for (int i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
+                for (size_t i = 0; i < multiSubGraph->get_internal_subgraphs_size(); i++) {
                     if (isFunctionQuantized(multiSubGraph->get_function(i))) {
                         return true;
                     }
