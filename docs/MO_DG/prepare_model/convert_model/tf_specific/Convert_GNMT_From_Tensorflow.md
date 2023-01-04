@@ -273,4 +273,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to the [OpenVINO Runtime Python API](https://docs.openvino.ai/2022.2/api/api_reference.html) guide.
+For more information about Python API, refer to the [OpenVINO Runtime Python API](https://docs.openvino.ai/latest/api/api_reference.html) guide.
