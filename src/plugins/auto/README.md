@@ -9,13 +9,7 @@ Please see more detail features at [AUTO Plugin introduction](https://docs.openv
 Please report issues and suggestions [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
 
 ## How to Contribute
-We welcome community contributions to AUTO plugin. If you have an idea how to improve the library:
-
-Share your proposal via [GitHub issues](https://github.com/openvinotoolkit/openvino/issues)
-Ensure you can build the product and run all the tests with your patch
-In the case of a larger feature, create a test
-Submit a [pull request](https://github.com/openvinotoolkit/openvino/pulls)
-We will review your contribution and, if any additional fixes or modifications are necessary, may provide feedback to guide you. When accepted, your pull request will be merged into our GitHub repository.
+Please follow the [Guidance](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md) for code contribution.   
 
 ## Key Contacts
 [AUTO Plugin maintainer group](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-auto-multi-maintainers) will help in case of questions, and also review and merge PRs.
