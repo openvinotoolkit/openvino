@@ -393,25 +393,6 @@ void LegacyInferRequest::changeDefaultPtr() {
     }
     InferRequestBase::changeDefaultPtr();
 }
-void LegacyInferRequest::tuneInputDesc(const std::string &name, InferenceEngine::TensorDesc &desc) {
-    auto itr = _networkInputs.find(name);
-    if (itr != _networkInputs.end()) {
-        const InferenceEngine::Layout &l = itr->second->getLayout();
-        const InferenceEngine::Precision &p = itr->second->getPrecision();
-        const InferenceEngine::SizeVector &dims = itr->second->getTensorDesc().getDims();
-        desc = InferenceEngine::TensorDesc(p, dims, l);
-    }
-}
-
-void LegacyInferRequest::tuneOutputDesc(InferenceEngine::TensorDesc &desc) {
-    desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
-    // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
-    // in situation if we push output blobs as inputs for next network (in Hetero plugin)
-    // it may be that output tensor desc will be different from real input tensor desc for next network
-    // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
-    auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
-    desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
-}
 
 void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlobLegacy");
@@ -541,7 +522,14 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             }
 
             InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
-            tuneInputDesc(name, desc);
+            auto itr = _networkInputs.find(name);
+            if (itr != _networkInputs.end()) {
+                const InferenceEngine::Layout &l = itr->second->getLayout();
+                const InferenceEngine::Precision &p = itr->second->getPrecision();
+                const InferenceEngine::SizeVector &dims = itr->second->getTensorDesc().getDims();
+                desc = InferenceEngine::TensorDesc(p, dims, l);
+            }
+
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
             if (pBlob->getTensorDesc() == desc &&
@@ -575,7 +563,15 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
             auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory());
             if (!data) {
                 InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-                tuneOutputDesc(desc);
+                desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
+
+                // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
+                // in situation if we push output blobs as inputs for next network (in Hetero plugin)
+                // it may be that output tensor desc will be different from real input tensor desc for next network
+                // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
+                auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
+                desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+
                 data = make_blob_with_precision(desc);
                 data->allocate();
             } else {

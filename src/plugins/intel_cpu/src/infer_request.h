@@ -86,8 +86,6 @@ private:
     void initBlobs() override;
     void SetBatch(int batch = -1) override;
     void changeDefaultPtr() override;
-    void tuneInputDesc(const std::string &name, InferenceEngine::TensorDesc &desc);
-    void tuneOutputDesc(InferenceEngine::TensorDesc &desc);
 };
 
 class InferRequest : public InferRequestBase {
