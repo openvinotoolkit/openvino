@@ -40,28 +40,3 @@ using namespace ov::frontend;
 //    ASSERT_NO_THROW(frontEnd->convert(function));
 //}
 //
-//TEST(FrontEndConvertModelTest, test_unsupported_tf1_while) {
-//    FrontEndManager fem;
-//    FrontEnd::Ptr frontEnd;
-//    InputModel::Ptr inputModel;
-//    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
-//    ASSERT_NE(frontEnd, nullptr);
-//    auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_MODELS_DIRNAME) +
-//                                                             string("model_tf1_while/model_tf1_while.pb"));
-//    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
-//    ASSERT_NE(inputModel, nullptr);
-//    shared_ptr<ngraph::Function> function;
-//
-//    try {
-//        function = frontEnd->convert(inputModel);
-//        FAIL() << "TensorFlow 1 While is not supported in TF FE but conversion passed without errors. "
-//                  "OpConversionFailure is expected.";
-//    } catch (const OpConversionFailure& error) {
-//        string error_message = error.what();
-//        string ref_message = "No translator found for NextIteration node.";
-//        ASSERT_TRUE(error_message.find(ref_message) != string::npos);
-//        ASSERT_EQ(function, nullptr);
-//    } catch (...) {
-//        FAIL() << "Conversion of TensorFlow 1 While failed by wrong reason.";
-//    }
-//}

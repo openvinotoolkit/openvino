@@ -50,6 +50,12 @@ public:
     void set_element_type(const Place::Ptr& place, const ov::element::Type& type) override;
     ov::element::Type get_element_type(const Place::Ptr& place) const override;
     void set_tensor_value(const Place::Ptr& place, const void* value) override;
+
+    ///// Topology Editing  /////
+    void override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) override;
+    void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) override;
+    void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                          const std::vector<ov::frontend::Place::Ptr>& outputs) override;
 };
 
 }  // namespace tensorflow_lite

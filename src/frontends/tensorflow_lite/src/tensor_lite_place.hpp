@@ -51,8 +51,15 @@ public:
     }
     size_t get_output_index() const {
         FRONT_END_GENERAL_CHECK(is_output(), "This is not output TensorPlace. Can not deliver output index");
-        return static_cast<size_t>(m_input_idx);
+        return static_cast<size_t>(m_output_idx);
     }
+    void set_input_index(const int64_t& idx) {
+        m_input_idx = idx;
+    }
+    void set_output_index(const int64_t& idx) {
+        m_output_idx = idx;
+    }
+
     const void* get_data() const {
         return m_data;
     }

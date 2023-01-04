@@ -126,6 +126,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
     return res;
 }
 
+// TODO: Uncomment when extensions supported
 //INSTANTIATE_TEST_SUITE_P(TFOpExtensionTestViaUserClass,
 //                         FrontEndOpExtensionTest,
 //                         ::testing::Values(getTestDataOpExtensionViaUserClass()),

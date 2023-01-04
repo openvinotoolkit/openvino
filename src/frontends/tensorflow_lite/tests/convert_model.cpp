@@ -12,14 +12,12 @@ using namespace ov::frontend;
 using TFConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
-    std::string("2in_2out/2in_2out.pb"),
-    std::string("forward_edge_model/forward_edge_model.pb"),
-    std::string("forward_edge_model2/forward_edge_model2.pb"),
+    std::string("2in_2out/2in_2out.tflite"),
 };
 
-//INSTANTIATE_TEST_SUITE_P(TFConvertModelTest,
-//                         FrontEndConvertModelTest,
-//                         ::testing::Combine(::testing::Values(TF_LITE_FE),
-//                                            ::testing::Values(std::string(TEST_TENSORFLOW_MODELS_DIRNAME)),
-//                                            ::testing::ValuesIn(models)),
-//                         FrontEndConvertModelTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(TFConvertModelTest,
+                         FrontEndConvertModelTest,
+                         ::testing::Combine(::testing::Values(TF_LITE_FE),
+                                            ::testing::Values(std::string(TEST_TENSORFLOW_MODELS_DIRNAME)),
+                                            ::testing::ValuesIn(models)),
+                         FrontEndConvertModelTest::getTestCaseName);

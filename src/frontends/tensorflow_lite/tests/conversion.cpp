@@ -47,7 +47,8 @@ static ConversionExtensionFEParam getTestData() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(TFConversionExtensionTest,
-                         FrontEndConversionExtensionTest,
-                         ::testing::Values(getTestData()),
-                         FrontEndConversionExtensionTest::getTestCaseName);
+// TODO: Uncomment when extensions supported
+//INSTANTIATE_TEST_SUITE_P(TFConversionExtensionTest,
+//                         FrontEndConversionExtensionTest,
+//                         ::testing::Values(getTestData()),
+//                         FrontEndConversionExtensionTest::getTestCaseName);

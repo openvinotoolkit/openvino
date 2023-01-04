@@ -51,8 +51,6 @@ public:
     std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_input_tensor(size_t idx, const InputModel& model) const;
 
     std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(size_t idx, const InputModel& model) const;
-    // access to input / output tensors / buffers -- get info like quantization
-    //  or simply method decode to translate tensor info to tensor place!
 
 private:
 //    std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;

@@ -154,7 +154,7 @@ macro(ov_add_frontend)
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
     endforeach()
 
-    file(GLOB flatbuffers_schema_files ${frontend_root_dir}/schema/*.fbs)
+    file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)
     foreach(INFILE IN LISTS flatbuffers_schema_files)
         get_filename_component(FILE_WE ${INFILE} NAME_WE)
         set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)

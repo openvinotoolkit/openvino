@@ -54,8 +54,14 @@ public:
     ov::element::Type getElementType(ov::frontend::Place::Ptr place) const;
     void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
 
+    ///// Topology Editing  /////
+    void overrideAllOutputs(const std::vector<ov::frontend::Place::Ptr>& outputs);
+    void overrideAllInputs(const std::vector<ov::frontend::Place::Ptr>& inputs);
+    void extractSubgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                         const std::vector<ov::frontend::Place::Ptr>& outputs);
 private:
     void loadModel();
+    void cleanUp();
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
@@ -73,6 +79,7 @@ private:
 
 void InputModel::InputModelTFLiteImpl::loadModel() {
     std::unordered_set<size_t> non_constant_tensors;
+    std::map<std::string, uint64_t> op_statistics;
 
     // go over all ops. collect info regarding constant, input and output tensors
     //  -- how to preserve order of inputs / outputs?
@@ -80,6 +87,10 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         const auto& decoder = m_graph_iterator->get_decoder();
         m_op_places.push_back(std::make_shared<OpPlace>(m_input_model, decoder));
+
+        if (m_telemetry) {
+            op_statistics[decoder->get_op_type()]++;
+        }
 
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
             auto place = decoder->decode_input_tensor(i, m_input_model);
@@ -120,7 +131,32 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
             }
         }
     }
-    // TODO: reorder inputs and outputs in their respective vectors with regards to their original indices
+
+    auto sorting_places_by_idx = [](bool are_input_places) {
+        return [are_input_places](const ov::frontend::Place::Ptr& lhs_place, const ov::frontend::Place::Ptr& rhs_place) {
+            auto tflite_lhs_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(lhs_place);
+            auto tflite_rhs_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(rhs_place);
+            FRONT_END_GENERAL_CHECK(tflite_lhs_place != nullptr && tflite_rhs_place != nullptr,
+                                    "TFLite Frontend works with TensorLitePlaces only");
+            size_t rhs_idx, lhs_idx;
+            if (are_input_places) {
+                lhs_idx = tflite_lhs_place->get_input_index();
+                rhs_idx = tflite_rhs_place->get_input_index();
+            } else {
+                lhs_idx = tflite_lhs_place->get_output_index();
+                rhs_idx = tflite_rhs_place->get_output_index();
+            }
+            return lhs_idx < rhs_idx;
+        };
+    };
+    std::sort(m_inputs.begin(), m_inputs.end(), sorting_places_by_idx(true));
+    std::sort(m_outputs.begin(), m_outputs.end(), sorting_places_by_idx(false));
+
+    if (m_telemetry) {
+        for (const auto& op : op_statistics) {
+            m_telemetry->send_event("op_count", "tflite_" + op.first, static_cast<int>(op.second));
+        }
+    }
 }
 
 
@@ -224,6 +260,59 @@ InputModel::InputModelTFLiteImpl::setNameForOperation(const Place::Ptr &operatio
 }
 
 
+void InputModel::InputModelTFLiteImpl::overrideAllInputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    for (const auto& input_place : m_inputs) {
+        auto input_lite_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(input_place);
+        FRONT_END_GENERAL_CHECK(input_lite_place != nullptr, ""); // FIXME
+        input_lite_place->set_input_index(-1);
+    }
+    m_inputs.clear();
+    for (const auto& input_place : inputs) {
+        m_inputs.push_back(castToTensorPlace(input_place));
+    }
+    cleanUp();
+}
+
+void InputModel::InputModelTFLiteImpl::overrideAllOutputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    for (const auto& output_place : m_outputs) {
+        auto output_lite_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(output_place);
+        FRONT_END_GENERAL_CHECK(output_lite_place != nullptr, ""); // FIXME
+        output_lite_place->set_output_index(-1);
+    }
+    m_outputs.clear();
+    for (const auto& output_place : outputs) {
+        m_outputs.push_back(castToTensorPlace(output_place));
+    }
+    cleanUp();
+}
+
+void InputModel::InputModelTFLiteImpl::extractSubgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    for (const auto& input_place : m_inputs) {
+        auto input_lite_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(input_place);
+        FRONT_END_GENERAL_CHECK(input_lite_place != nullptr, ""); // FIXME
+        input_lite_place->set_input_index(-1);
+    }
+    m_inputs.clear();
+    for (const auto& input_place : inputs) {
+        m_inputs.push_back(castToTensorPlace(input_place));
+    }
+    for (const auto& output_place : m_outputs) {
+        auto output_lite_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(output_place);
+        FRONT_END_GENERAL_CHECK(output_lite_place != nullptr, ""); // FIXME
+        output_lite_place->set_output_index(-1);
+    }
+    m_outputs.clear();
+    for (const auto& output_place : outputs) {
+        m_outputs.push_back(castToTensorPlace(output_place));
+    }
+    cleanUp();
+}
+
+void InputModel::InputModelTFLiteImpl::cleanUp() {
+    // TODO: remove all the unnecessary tensors and operations now!
+}
+
 InputModel::InputModel(const GraphIteratorFlatBuffer::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry) : _impl{std::make_shared<InputModelTFLiteImpl>(graph_iterator, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<ov::frontend::tensorflow::OpPlace>> InputModel::get_op_places() const {
@@ -282,6 +371,21 @@ void InputModel::add_name_for_tensor(const Place::Ptr &tensor, const std::string
 void InputModel::set_name_for_operation(const Place::Ptr &operation, const std::string &new_name) {
     _impl->setNameForOperation(operation, new_name);
 }
+
+
+void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    _impl->overrideAllOutputs(outputs);
+}
+
+void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
+    _impl->overrideAllInputs(inputs);
+}
+
+void InputModel::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                                  const std::vector<ov::frontend::Place::Ptr>& outputs) {
+    _impl->extractSubgraph(inputs, outputs);
+}
+
 
 }  // namespace tensorflow
 }  // namespace frontend
