@@ -64,7 +64,7 @@ OpenVINO™ 运行时 API 具有枚举设备及其功能的专用方法。请参
 
 .. tab:: C++
 
-    .. doxygensnippet:: docs/snippets/MULTI2.cpp
+    .. doxygensnippet:: ../../../snippets/MULTI2.cpp
        :language: cpp
        :fragment: [part2]
 
@@ -84,7 +84,7 @@ OpenVINO™ 运行时 API 具有枚举设备及其功能的专用方法。请参
 
 .. tab:: C++
 
-    .. doxygensnippet:: docs/snippets/MULTI3.cpp
+    .. doxygensnippet:: ../../../snippets/MULTI3.cpp
        :language: cpp
        :fragment: [part3]
 
