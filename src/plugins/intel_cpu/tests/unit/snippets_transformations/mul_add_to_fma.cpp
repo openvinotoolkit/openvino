@@ -78,20 +78,7 @@ protected:
 
         auto fma = std::make_shared<ov::intel_cpu::FusedMulAdd>(a, b, c);
         auto store = std::make_shared<ngraph::snippets::op::Store>(fma);
-        auto model = std::make_shared<ov::Model>(NodeVector{store}, parameters);
-
-        ResultVector results({model->get_results()[0]});
-        const auto& inner_loop_begin = ngraph::snippets::op::insertLoopBegin(parameters);
-        // control dependency is added only in the case when scalar are located before loopBegin in topological order
-        if (scalar_input && add_input_idx == 1) {
-            data2->add_control_dependency(inner_loop_begin);
-        }
-        std::vector<bool> apply_increments(parameters.size() + results.size(), true);
-        ngraph::snippets::op::insertLoopEnd(results, inner_loop_begin, 1, 1, apply_increments);
-        const auto& outer_loop_begin = ngraph::snippets::op::insertLoopBegin(parameters);
-        ngraph::snippets::op::insertLoopEnd(results, outer_loop_begin, 1, 1, apply_increments);
-
-        return model;
+        return std::make_shared<ov::Model>(NodeVector{store}, parameters);
     }
 
     void validate_function(const std::shared_ptr<Model> &m) const override {

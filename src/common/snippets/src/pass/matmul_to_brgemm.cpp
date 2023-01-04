@@ -10,6 +10,7 @@
 
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/rt_info.hpp"
+#include <snippets/tensor_descriptor.hpp>
 #include "ngraph/pattern/op/wrap_type.hpp"
 
 namespace ngraph {
@@ -37,6 +38,9 @@ MatMulToBrgemm::MatMulToBrgemm() {
         brgemm->set_friendly_name(matmul->get_friendly_name());
         ngraph::copy_runtime_info(matmul, nodes);
         ngraph::replace_node(matmul, nodes.back());
+        const std::vector<size_t> tensor = brgemm->get_output_shape(0);
+        const std::vector<size_t> subtensor = {tensor[tensor.size() - 2], tensor[tensor.size() - 1]};
+        ngraph::snippets::set_tensor_descriptor_ptr(brgemm->output(0), std::make_shared<TensorDescriptor>(tensor, subtensor));
         return true;
     };
 

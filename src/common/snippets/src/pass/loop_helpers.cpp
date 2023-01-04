@@ -8,13 +8,14 @@
 namespace ngraph {
 namespace snippets {
 namespace op {
+//todo: deprecate these helpers. We don't need them after migration to linear IR
 std::shared_ptr<LoopBegin> insertLoopBeginAfterOutputs(const OutputVector& originalOutputs) {
     std::vector<std::set<Input<Node>>> originalChildInputs;
     for (const auto& out : originalOutputs) {
         originalChildInputs.push_back(out.get_target_inputs());
     }
 
-    auto loop_begin = std::make_shared<LoopBegin>(originalOutputs);
+    auto loop_begin = std::make_shared<LoopBegin>();
 
     for (size_t i = 0; i < originalChildInputs.size(); i++) {
         for (auto& input : originalChildInputs[i]) {

@@ -3,14 +3,12 @@
 //
 
 #include "snippets/op/kernel.hpp"
-#include "snippets/generator.hpp"
 
 namespace ngraph {
 namespace snippets {
 namespace op {
 
-Kernel::Kernel(std::vector<AllocatedEmitter> nested, std::shared_ptr<const ov::Model> m)
-: Op(), region(std::move(nested)), model(std::move(m)) {
+Kernel::Kernel(LoweredExprIR nested) : Op(), region(std::move(nested)) {
 }
 
 } // namespace op

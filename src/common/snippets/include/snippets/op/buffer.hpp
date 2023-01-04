@@ -40,6 +40,9 @@ public:
 
     Type get_type() const { return m_type; }
     ov::Shape get_allocation_shape() const { return m_shape; }
+    int64_t get_offset() const { return m_offset; }
+    void set_offset(int64_t offset) { m_offset = offset; }
+
     size_t get_byte_size() const;
 
     bool is_intermediate_memory() const { return m_type == Type::IntermediateMemory; }
@@ -48,6 +51,7 @@ public:
 private:
     Type m_type = Type::IntermediateMemory;
     ov::Shape m_shape = {};
+    int64_t m_offset = 0;
 };
 
 } // namespace op

@@ -87,7 +87,11 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        return ov::is_type<opset1::Select>(n);
+        // todo: disabled to turn-off MHASelect tokenization patterns
+        //  it's not enough to disable Select support inside MHATokenization because Select will be
+        //  fused into the parent MHA subgraph through generic pipeline
+        //return ov::is_type<opset1::Select>(n);
+        return false;
     };
 
     auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {

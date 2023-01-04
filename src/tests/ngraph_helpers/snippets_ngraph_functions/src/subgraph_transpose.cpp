@@ -26,6 +26,14 @@ std::shared_ptr<ov::Model> TransposeFunction::initReference() const {
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data});
 }
+std::shared_ptr<ov::Model> TransposeMulFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {order.size()}, order);
+    auto transpose = std::make_shared<op::v1::Transpose>(data0, const_order);
+    auto multiply = std::make_shared<op::v1::Multiply>(transpose, data1);
+    return std::make_shared<ov::Model>(NodeVector{multiply}, ParameterVector{data0, data1});
+}
 
 }  // namespace snippets
 }  // namespace test

@@ -20,17 +20,12 @@ namespace op {
 class LoopBase : public ngraph::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
-    LoopBase(const std::vector<Output<Node>>& args, size_t work_amount, size_t increment);
+    LoopBase(const std::vector<Output<Node>>& args);
     LoopBase() = default;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-    size_t get_work_amount() const;
-    size_t get_increment() const;
-    bool get_evaluate_once() const;
-
+    virtual size_t get_work_amount() const = 0;
+    virtual size_t get_increment() const = 0;
+    virtual bool get_evaluate_once() const = 0;
 protected:
-    size_t work_amount;
-    size_t work_amount_increment;
-    bool evaluate_once; // true if the Loop is executed only once, used to skip setting and testing the loop counter
 };
 class LoopEnd;
 /**
@@ -45,18 +40,20 @@ class LoopBegin : public LoopBase {
 
 public:
     OPENVINO_OP("LoopBegin", "SnippetsOpset", LoopBase);
-    explicit LoopBegin(const OutputVector& args);
-    LoopBegin() = default;
+    LoopBegin();
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
-    std::shared_ptr<LoopEnd> get_loop_end();
+    std::shared_ptr<LoopEnd> get_loop_end() const;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    size_t get_work_amount() const override;
+    size_t get_increment() const override;
+    bool get_evaluate_once() const override;
     // begin_address and input_regs are needed to communicate information between LoopBegin and LoopEnd emitters
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
 
 private:
     void validate_and_infer_types_except_LoopEnd();
-    LoopBegin(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment);
 };
 
 /**
@@ -99,11 +96,18 @@ public:
     // to skip pointer increments when outer Loop is empty, and work_amount == vector_size (one inner vector Loop)
     // true by default, the optimizations enabled if it's false;
     bool has_outer_loop;
+    size_t get_work_amount() const override;
+    size_t get_increment() const override;
+    bool get_evaluate_once() const override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
 
 private:
     std::vector<int64_t> ptr_increments;
     std::vector<int64_t> finalization_offsets;
-    size_t loop_io_size;
+    size_t work_amount;
+    size_t work_amount_increment;
+    bool evaluate_once; // true if the Loop is executed only once, used to skip setting and testing the loop counter
 };
 
 } // namespace op

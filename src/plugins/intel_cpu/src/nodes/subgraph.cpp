@@ -448,17 +448,21 @@ std::vector<VectorDims> Snippet::shapeInfer() {
 
 void Snippet::prepareParams() {
     masterShape = getNormalizedDimsBySize(masterShape, tensorRank);
-    for (auto& pshape : normInputShapes)
+    std::vector<size_t> original_input_shape_ranks;
+    for (auto& pshape : normInputShapes) {
+        original_input_shape_ranks.push_back(pshape.size());
         pshape = getNormalizedDimsBySize(pshape, tensorRank);
+    }
     for (auto& pshape : normOutputShapes)
         pshape = getNormalizedDimsBySize(pshape, tensorRank);
 
     tileRank = 1;
+    bool dims_collapsed = false;
     fullWorkAmount = std::accumulate(masterShape.begin(), masterShape.end(), 1, std::multiplies<size_t>());
     if (snippet->has_domain_sensitive_ops()) {
         tileRank = 2;
     } else {
-        optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
+        dims_collapsed = optimizeExecDomain(normInputShapes, normOutputShapes, masterShape, tileRank);
     }
     exec_domain = masterShape;
 
@@ -495,10 +499,19 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    auto& body_rt_info = snippet->body_ptr()->get_rt_info();
-    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
-    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
-    body_rt_info["PluginShapesOverride"] = new_shapes;
+    if (dims_collapsed) {
+        std::vector<ov::Shape> new_shapes;
+        for (int i = 0; i < normInputShapes.size(); i++) {
+            const auto norm_shape = normInputShapes[i];
+            size_t ndims_to_skip = norm_shape.size() - original_input_shape_ranks[i];
+            new_shapes.emplace_back(norm_shape.begin() + ndims_to_skip, norm_shape.end());
+        }
+        snippet->reshape_body(new_shapes);
+    }
+//    auto& body_rt_info = snippet->body_ptr()->get_rt_info();
+//    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
+//    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
+//    body_rt_info["PluginShapesOverride"] = new_shapes;
     snippet->set_master_shape(ov::PartialShape(masterShape));
     snippet->set_tile_rank(tileRank);
 }

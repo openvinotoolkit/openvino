@@ -17,17 +17,17 @@ auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t
 }
 
 snippets::op::Buffer::Buffer(const ov::Shape& shape)
-    : Op(), m_type(Type::NewMemory), m_shape(shape) {
+    : Op(), m_type(Type::NewMemory), m_shape(shape), m_offset(0) {
     constructor_validate_and_infer_types();
 }
 
 snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape)
-    : Op({arg}), m_type(Type::IntermediateMemory), m_shape(shape) {
+    : Op({arg}), m_type(Type::IntermediateMemory), m_shape(shape), m_offset(0) {
     constructor_validate_and_infer_types();
 }
 
 snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank)
-    : Op({arg}), m_type(Type::IntermediateMemory) {
+    : Op({arg}), m_type(Type::IntermediateMemory), m_offset(0) {
     const auto pshape = arg.get_partial_shape();
     OPENVINO_ASSERT(pshape.is_static(), "Buffer supports only static input shape");
     const auto shape = pshape.get_shape();
@@ -40,6 +40,7 @@ snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation
 bool snippets::op::Buffer::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(Buffer_visit_attributes);
     visitor.on_attribute("allocation_shape", m_shape);
+    visitor.on_attribute("offset", m_offset);
     return true;
 }
 
@@ -65,12 +66,16 @@ void snippets::op::Buffer::validate_and_infer_types() {
 std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
+    std::shared_ptr<op::Buffer> new_buffer = nullptr;
     if (m_type == Type::NewMemory) {
-         return std::make_shared<Buffer>(m_shape);
+        new_buffer = std::make_shared<Buffer>(m_shape);
     } else if (m_type == Type::IntermediateMemory) {
-        return std::make_shared<Buffer>(new_args.at(0), m_shape);
+        new_buffer = std::make_shared<Buffer>(new_args.at(0), m_shape);
+    } else {
+        OPENVINO_THROW("Buffer supports only the following types: NewMemory and IntermediateMemory");
     }
-    OPENVINO_THROW("Buffer supports only the following types: NewMemory and IntermediateMemory");
+    new_buffer->m_offset = m_offset;
+    return new_buffer;
 }
 
 size_t ngraph::snippets::op::Buffer::get_byte_size() const {

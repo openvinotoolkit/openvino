@@ -21,6 +21,7 @@ bool intel_cpu::LoadConvertSaturation::visit_attributes(AttributeVisitor& visito
     INTERNAL_OP_SCOPE(LoadConvert_visit_attributes);
     MemoryAccess::visit_attributes(visitor);
     visitor.on_attribute("destination_type", m_destination_type);
+    Load::visit_attributes(visitor);
     return true;
 }
 
