@@ -6,6 +6,8 @@
 
 #include <type_traits>
 
+#include "openvino/core/type/float16.hpp"
+
 namespace ov {
 namespace cmp {
 /** \brief Enumerate bounds to compare */
@@ -93,7 +95,8 @@ template <
     typename std::enable_if<(std::is_signed<T>::value && std::is_signed<U>::value) ||
                             (std::is_unsigned<T>::value && std::is_unsigned<U>::value) ||
                             // temporary to be able compare float element types
-                            (std::is_floating_point<T>::value || std::is_floating_point<U>::value)>::type* = nullptr>
+                            (std::is_floating_point<T>::value || std::is_floating_point<U>::value) ||
+                            (std::is_same<T, float16>::value || std::is_same<U, float16>::value)>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return a < b;
 }

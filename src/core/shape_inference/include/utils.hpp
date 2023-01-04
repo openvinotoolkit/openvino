@@ -140,7 +140,7 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
                        std::forward<UnaryOperation>(func));
     } break;
     case element::Type_t::f16: {
-        using dtype = fundamental_type_for<element::Type_t::f32>;
+        using dtype = fundamental_type_for<element::Type_t::f16>;
         std::transform(static_cast<const dtype*>(ptr),
                        static_cast<const dtype*>(ptr) + size,
                        out_it,
