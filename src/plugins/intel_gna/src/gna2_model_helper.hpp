@@ -6,7 +6,7 @@
 
 #include <gna2-common-api.h>
 #include <gna2-model-api.h>
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
 #include <cstdint>
 
