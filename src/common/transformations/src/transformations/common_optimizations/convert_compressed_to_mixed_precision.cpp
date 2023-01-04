@@ -7,10 +7,10 @@
 #include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
-#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
 

@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/mark_div_with_eps_to_keep_in_mixed_precision.hpp"
+
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <openvino/opsets/opset4.hpp>
 #include <openvino/pass/manager.hpp>
 #include <string>
-#include "transformations/common_optimizations/mark_div_with_eps_to_keep_in_mixed_precision.hpp"
 #include <transformations/init_node_info.hpp>
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace testing;
 using namespace std;
@@ -46,9 +47,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision) {
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
     // need to compare twice ensure that there are no extra runtime keys in model_ref
@@ -87,9 +88,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithNegativeEx
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
     // need to compare twice ensure that there are no extra runtime keys in model_ref
@@ -128,9 +129,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveEx
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
     // need to compare twice ensure that there are no extra runtime keys in model_ref
@@ -165,9 +166,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
     // need to compare twice ensure that there are no extra runtime keys in model_ref
@@ -210,9 +211,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
     // need to compare twice ensure that there are no extra runtime keys in model_ref
@@ -251,13 +252,13 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         auto sqrt = std::make_shared<opset4::Sqrt>(add);
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
         disable_fp16_compression(divide);
-        
+
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
     // need to compare twice ensure that there are no extra runtime keys in model_ref

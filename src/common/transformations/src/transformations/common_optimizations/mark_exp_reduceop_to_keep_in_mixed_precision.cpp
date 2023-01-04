@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/common_optimizations/mark_exp_reduceop_to_keep_in_mixed_precision.hpp"
+
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 
 #include "itt.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
-#include "transformations/common_optimizations/mark_exp_reduceop_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/reduceop_path.hpp"
 #include "transformations/utils/utils.hpp"
@@ -51,7 +52,7 @@ public:
 
             bool has_marked_output = false;
             for (const auto& output : node->outputs()) {
-                for (const auto &out_inputs: output.get_target_inputs()) {
+                for (const auto& out_inputs : output.get_target_inputs()) {
                     if (out_inputs.get_element_type().is_real() &&
                         is_reduceop_path(out_inputs.get_node()->shared_from_this())) {
                         has_marked_output = true;
@@ -69,9 +70,9 @@ public:
     }
 };
 
-    MarkExpReduceOpToKeepInMixedPrecision::MarkExpReduceOpToKeepInMixedPrecision() {
-        ADD_MATCHER_FOR_THIS(InitMarkReduceOpExp)
-        ADD_MATCHER_FOR_THIS(PropagateUpMarkReduceOpExp)
-    }
+MarkExpReduceOpToKeepInMixedPrecision::MarkExpReduceOpToKeepInMixedPrecision() {
+    ADD_MATCHER_FOR_THIS(InitMarkReduceOpExp)
+    ADD_MATCHER_FOR_THIS(PropagateUpMarkReduceOpExp)
+}
 }  // namespace pass
 }  // namespace ov

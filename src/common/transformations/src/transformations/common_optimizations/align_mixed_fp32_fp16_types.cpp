@@ -4,15 +4,15 @@
 
 #include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
 
+#include <ngraph/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset8.hpp>
-#include <ngraph/rt_info.hpp>
+
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/convert_precision.hpp"
 
 using namespace ov;
 
@@ -36,8 +36,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 existing_convert->set_convert_element_type(element::f32);
             } else {
                 auto convert = std::make_shared<opset8::Convert>(incoming_output, ov::element::f32);
-                convert->set_friendly_name(incoming_node->get_friendly_name() +
-                                           "_decompressed_to_f32");
+                convert->set_friendly_name(incoming_node->get_friendly_name() + "_decompressed_to_f32");
                 copy_runtime_info(incoming_node, convert);
                 input.replace_source_output(convert);
                 ov::disable_fp16_compression(convert);
@@ -81,7 +80,6 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
         }
         return is_changed;
     };
-
 
     bool is_changed = false;
     for (auto& node : model->get_ordered_ops()) {

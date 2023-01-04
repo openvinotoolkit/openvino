@@ -8,9 +8,9 @@
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 #include "itt.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
 using namespace std;

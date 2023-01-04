@@ -3,13 +3,15 @@
 //
 
 #include <gtest/gtest.h>
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/rt_info/reduceop_path.hpp"
+
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp>
+
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/reduceop_path.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -23,11 +25,11 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
         auto exp_1 = make_shared<opset8::Exp>(input_1);
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -41,11 +43,11 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
         auto exp_1 = make_shared<opset8::Exp>(input_1);
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
@@ -62,7 +64,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -77,11 +80,11 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_with_reducemean) {
         auto exp_1 = make_shared<opset8::Exp>(input_1);
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -95,11 +98,11 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_with_reducemean) {
         auto exp_1 = make_shared<opset8::Exp>(input_1);
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_mean_1 =  make_shared<opset8::ReduceMean>(exp_1, reduction_axes);
+        auto reduce_mean_1 = make_shared<opset8::ReduceMean>(exp_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_mean_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_mean_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
@@ -116,7 +119,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_with_reducemean) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -133,11 +137,11 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(input_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(input_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -150,11 +154,11 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(input_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(input_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         mark_reduceop_path(reduce_sum_1);
@@ -162,7 +166,8 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -180,12 +185,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
 
         auto unsqueeze_axes = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_1 =  make_shared<opset8::Unsqueeze>(exp_1, unsqueeze_axes);
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(unsqueeze_1, reduction_axes);
+        auto unsqueeze_1 = make_shared<opset8::Unsqueeze>(exp_1, unsqueeze_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(unsqueeze_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -201,12 +206,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
 
         auto unsqueeze_axes = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto unsqueeze_1 =  make_shared<opset8::Unsqueeze>(exp_1, unsqueeze_axes);
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(unsqueeze_1, reduction_axes);
+        auto unsqueeze_1 = make_shared<opset8::Unsqueeze>(exp_1, unsqueeze_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(unsqueeze_1, reduction_axes);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
@@ -225,7 +230,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -242,13 +248,13 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
 
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 =  make_shared<opset8::Add>(reduce_sum_1, addition_const);
+        auto add_1 = make_shared<opset8::Add>(reduce_sum_1, addition_const);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(add_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(add_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -263,13 +269,13 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
 
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(exp_1, reduction_axes);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 =  make_shared<opset8::Add>(reduce_sum_1, addition_const);
+        auto add_1 = make_shared<opset8::Add>(reduce_sum_1, addition_const);
 
         auto factor_const = opset8::Constant::create(element::f16, Shape{1}, {-1});
-        auto factor_const_decompressed =  make_shared<opset8::Convert>(factor_const, element::f32);
-        auto mul_1 =  make_shared<opset8::Multiply>(add_1, factor_const_decompressed);
+        auto factor_const_decompressed = make_shared<opset8::Convert>(factor_const, element::f32);
+        auto mul_1 = make_shared<opset8::Multiply>(add_1, factor_const_decompressed);
         auto matmul_1 = make_shared<opset8::MatMul>(mul_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
@@ -288,9 +294,10 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-//    ASSERT_TRUE(result.valid);
+    //    ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
@@ -303,9 +310,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 =  make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 =  make_shared<opset8::Unsqueeze>(mvn_1, addition_const);
+        auto add_1 = make_shared<opset8::Unsqueeze>(mvn_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -318,9 +325,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 =  make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 =  make_shared<opset8::Unsqueeze>(mvn_1, addition_const);
+        auto add_1 = make_shared<opset8::Unsqueeze>(mvn_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
@@ -331,7 +338,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -346,9 +354,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 =  make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 =  make_shared<opset8::Unsqueeze>(normalizel2_1, addition_const);
+        auto add_1 = make_shared<opset8::Unsqueeze>(normalizel2_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -361,9 +369,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 =  make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 =  make_shared<opset8::Unsqueeze>(normalizel2_1, addition_const);
+        auto add_1 = make_shared<opset8::Unsqueeze>(normalizel2_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
@@ -374,7 +382,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -389,7 +398,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 =  make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
         auto matmul_1 = make_shared<opset8::MatMul>(normalizel2_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -402,7 +411,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 =  make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
         auto matmul_1 = make_shared<opset8::MatMul>(normalizel2_1, input_2);
 
         disable_fp16_compression(normalizel2_1);
@@ -410,13 +419,13 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
-
 
 TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
     shared_ptr<Model> model, model_ref;
@@ -430,43 +439,43 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         auto exp_1 = make_shared<opset8::Exp>(input_1);
         auto exp_2 = make_shared<opset8::Exp>(input_2);
 
-        auto factor_1 = opset8::Constant::create(element::f32, Shape{1}, {0.5}); // add decompression
-        auto mul_1 =  make_shared<opset8::Multiply>(exp_1, factor_1);
+        auto factor_1 = opset8::Constant::create(element::f32, Shape{1}, {0.5});  // add decompression
+        auto mul_1 = make_shared<opset8::Multiply>(exp_1, factor_1);
         auto factor_2 = opset8::Constant::create(element::f32, Shape{1}, {0.5});
-        auto mul_2 =  make_shared<opset8::Multiply>(exp_2, factor_2);
+        auto mul_2 = make_shared<opset8::Multiply>(exp_2, factor_2);
 
         auto const_unsqueeze_1 = opset8::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_1 =  make_shared<opset8::Reshape>(mul_1, const_unsqueeze_1, false);
+        auto unsqueeze_1 = make_shared<opset8::Reshape>(mul_1, const_unsqueeze_1, false);
 
         auto const_unsqueeze_2 = opset8::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_2 =  make_shared<opset8::Reshape>(mul_2, const_unsqueeze_1, false);
+        auto unsqueeze_2 = make_shared<opset8::Reshape>(mul_2, const_unsqueeze_1, false);
         auto reduction_axes_1 = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(mul_2, reduction_axes_1, true);
-        auto mul_3 =  make_shared<opset8::Multiply>(reduce_sum_1, mul_1);
-        auto mul_4 =  make_shared<opset8::Multiply>(input_3, unsqueeze_2);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(mul_2, reduction_axes_1, true);
+        auto mul_3 = make_shared<opset8::Multiply>(reduce_sum_1, mul_1);
+        auto mul_4 = make_shared<opset8::Multiply>(input_3, unsqueeze_2);
 
         auto reduction_axes_2 = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_2 =  make_shared<opset8::ReduceSum>(mul_4, reduction_axes_2);
+        auto reduce_sum_2 = make_shared<opset8::ReduceSum>(mul_4, reduction_axes_2);
         auto reduction_axes_3 = opset8::Constant::create(element::i64, Shape{1}, {2});
-        auto reduce_sum_3 =  make_shared<opset8::ReduceSum>(mul_3, reduction_axes_3, true);
+        auto reduce_sum_3 = make_shared<opset8::ReduceSum>(mul_3, reduction_axes_3, true);
 
         auto broadcast_to_shape = opset8::Constant::create(element::i64, Shape{3}, {1, 1, 1});
-        auto broadcast =  make_shared<opset8::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast =
+            make_shared<opset8::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto tile_shape = opset8::Constant::create(element::i64, Shape{3}, {1, 1, 64});
-        auto tile =  make_shared<opset8::Tile>(broadcast, tile_shape);
+        auto tile = make_shared<opset8::Tile>(broadcast, tile_shape);
         auto eps_const = opset8::Constant::create(element::f32, Shape{1}, {1.e-10});
-        auto add_1 =  make_shared<opset8::Add>(tile, eps_const);
-
+        auto add_1 = make_shared<opset8::Add>(tile, eps_const);
 
         auto const_unsqueeze_3 = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
-        auto unsqueeze_3 =  make_shared<opset8::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
-        auto mul_5 =  make_shared<opset8::Multiply>(unsqueeze_1, unsqueeze_3);
+        auto unsqueeze_3 = make_shared<opset8::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
+        auto mul_5 = make_shared<opset8::Multiply>(unsqueeze_1, unsqueeze_3);
 
         auto reduction_axes_4 = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_4 =  make_shared<opset8::ReduceSum>(mul_5, reduction_axes_4);
+        auto reduce_sum_4 = make_shared<opset8::ReduceSum>(mul_5, reduction_axes_4);
 
-        auto div_1 =  make_shared<opset8::Divide>(reduce_sum_4, add_1);
-        auto matmul_1 =  make_shared<opset8::MatMul>(div_1, input_4, false, true);
+        auto div_1 = make_shared<opset8::Divide>(reduce_sum_4, add_1);
+        auto matmul_1 = make_shared<opset8::MatMul>(div_1, input_4, false, true);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
 
@@ -482,43 +491,43 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         auto exp_1 = make_shared<opset8::Exp>(input_1);
         auto exp_2 = make_shared<opset8::Exp>(input_2);
 
-        auto factor_1 = opset8::Constant::create(element::f32, Shape{1}, {0.5}); // add decompression
-        auto mul_1 =  make_shared<opset8::Multiply>(exp_1, factor_1);
+        auto factor_1 = opset8::Constant::create(element::f32, Shape{1}, {0.5});  // add decompression
+        auto mul_1 = make_shared<opset8::Multiply>(exp_1, factor_1);
         auto factor_2 = opset8::Constant::create(element::f32, Shape{1}, {0.5});
-        auto mul_2 =  make_shared<opset8::Multiply>(exp_2, factor_2);
+        auto mul_2 = make_shared<opset8::Multiply>(exp_2, factor_2);
 
         auto const_unsqueeze_1 = opset8::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_1 =  make_shared<opset8::Reshape>(mul_1, const_unsqueeze_1, false);
+        auto unsqueeze_1 = make_shared<opset8::Reshape>(mul_1, const_unsqueeze_1, false);
 
         auto const_unsqueeze_2 = opset8::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_2 =  make_shared<opset8::Reshape>(mul_2, const_unsqueeze_1, false);
+        auto unsqueeze_2 = make_shared<opset8::Reshape>(mul_2, const_unsqueeze_1, false);
         auto reduction_axes_1 = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_1 =  make_shared<opset8::ReduceSum>(mul_2, reduction_axes_1, true);
-        auto mul_3 =  make_shared<opset8::Multiply>(reduce_sum_1, mul_1);
-        auto mul_4 =  make_shared<opset8::Multiply>(input_3, unsqueeze_2);
+        auto reduce_sum_1 = make_shared<opset8::ReduceSum>(mul_2, reduction_axes_1, true);
+        auto mul_3 = make_shared<opset8::Multiply>(reduce_sum_1, mul_1);
+        auto mul_4 = make_shared<opset8::Multiply>(input_3, unsqueeze_2);
 
         auto reduction_axes_2 = opset8::Constant::create(element::i64, Shape{1}, {1});
-        auto reduce_sum_2 =  make_shared<opset8::ReduceSum>(mul_4, reduction_axes_2);
+        auto reduce_sum_2 = make_shared<opset8::ReduceSum>(mul_4, reduction_axes_2);
         auto reduction_axes_3 = opset8::Constant::create(element::i64, Shape{1}, {2});
-        auto reduce_sum_3 =  make_shared<opset8::ReduceSum>(mul_3, reduction_axes_3, true);
+        auto reduce_sum_3 = make_shared<opset8::ReduceSum>(mul_3, reduction_axes_3, true);
 
         auto broadcast_to_shape = opset8::Constant::create(element::i64, Shape{3}, {1, 1, 1});
-        auto broadcast =  make_shared<opset8::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto broadcast =
+            make_shared<opset8::Broadcast>(reduce_sum_3, broadcast_to_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto tile_shape = opset8::Constant::create(element::i64, Shape{3}, {1, 1, 64});
-        auto tile =  make_shared<opset8::Tile>(broadcast, tile_shape);
+        auto tile = make_shared<opset8::Tile>(broadcast, tile_shape);
         auto eps_const = opset8::Constant::create(element::f32, Shape{1}, {1.e-10});
-        auto add_1 =  make_shared<opset8::Add>(tile, eps_const);
-
+        auto add_1 = make_shared<opset8::Add>(tile, eps_const);
 
         auto const_unsqueeze_3 = opset8::Constant::create(element::i64, Shape{4}, {1, 1, 64, 32});
-        auto unsqueeze_3 =  make_shared<opset8::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
-        auto mul_5 =  make_shared<opset8::Multiply>(unsqueeze_1, unsqueeze_3);
+        auto unsqueeze_3 = make_shared<opset8::Reshape>(reduce_sum_2, const_unsqueeze_3, false);
+        auto mul_5 = make_shared<opset8::Multiply>(unsqueeze_1, unsqueeze_3);
 
         auto reduction_axes_4 = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto reduce_sum_4 =  make_shared<opset8::ReduceSum>(mul_5, reduction_axes_4);
+        auto reduce_sum_4 = make_shared<opset8::ReduceSum>(mul_5, reduction_axes_4);
 
-        auto div_1 =  make_shared<opset8::Divide>(reduce_sum_4, add_1);
-        auto matmul_1 =  make_shared<opset8::MatMul>(div_1, input_4, false, true);
+        auto div_1 = make_shared<opset8::Divide>(reduce_sum_4, add_1);
+        auto matmul_1 = make_shared<opset8::MatMul>(div_1, input_4, false, true);
 
         // marking nodes to be kept in fp32 for mixed precision
         disable_fp16_compression(mul_1);
@@ -566,7 +575,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -603,7 +613,8 @@ TEST(TransformationTests, DivisionByZeroMinimalPattern) {
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -647,7 +658,8 @@ TEST(TransformationTests, PowWithNegativeExponent) {
 
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -685,7 +697,8 @@ TEST(TransformationTests, PowWithPositiveExponent) {
 
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -719,7 +732,8 @@ TEST(TransformationTests, DivisionByZeroMinimalPatternUnchanged) {
 
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -774,13 +788,13 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
 
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
-
 
 TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
     shared_ptr<Model> model, model_ref;
@@ -830,7 +844,8 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
 
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);

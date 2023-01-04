@@ -20,7 +20,7 @@ extern std::shared_ptr<Node> propagate_through_ops;
 }  // namespace ov
 
 /* MarkSugraphsToKeepInMixedPrecision  marks patterns that should be kept in f32 for
-* mixed precision inference. Such patterns include: L2Normalize, MVN, Division with small eps values
+ * mixed precision inference. Such patterns include: L2Normalize, MVN, Division with small eps values
  */
 class ov::pass::MarkSugraphsToKeepInMixedPrecision : public ov::pass::ModelPass {
 public:
