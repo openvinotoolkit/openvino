@@ -4,8 +4,9 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/imad.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define TYPE_N_(type, n) type##n
 #define TYPE_N(type, n) TYPE_N_(type, n)
@@ -60,13 +61,10 @@
 
 #endif
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
-
 #define FSV  16
 #define SIMD 16
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(1, SIMD * FEATURE_SLM_SPLIT, 1)))
 KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     const __global INPUT0_TYPE   *conv_input,
@@ -102,8 +100,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 
     const uint max_out_yx = OUTPUT_SIZE_X * OUTPUT_SIZE_Y;
     uint max_local_yx = min(max_out_yx, out_yx_sg + OUT_BLOCK_SPATIAL);
-    __attribute__((opencl_unroll_hint))
-    for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+    unroll_for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
         uint out_yx_shuffle = out_yx_sg + sglid + os * SIMD;
         uint out_yx_clamp = max_out_yx % OUT_BLOCK_SPATIAL == 0
                           ? out_yx_shuffle
@@ -136,8 +133,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         uint input_y[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
     #endif
 
-    __attribute__((opencl_unroll_hint))
-    for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+    unroll_for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
         #ifdef SHOULD_USE_DATA_ZP
             input_x[os] = out_x_shuffle[os] * STRIDE_SIZE_X - PADDING_SIZE_X;
             input_y[os] = out_y_shuffle[os] * STRIDE_SIZE_Y - PADDING_SIZE_Y;
@@ -158,18 +154,15 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 
     #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
         uint4 weights_zp_val[OUT_BLOCK_FEATURES];
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+        unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
             weights_zp_val[ofb] = as_uint4((FILTER_TYPE_16)weights_zp[out_f + ofb * FSV]);
         }
         #if INPUT0_FEATURE_NUM % FSV != 0
             uint4 weights_zp_vec_partial[OUT_BLOCK_FEATURES];
-            __attribute__((opencl_unroll_hint))
-            for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+            unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
                 weights_zp_vec_partial[ofb] = weights_zp_val[ofb];
                 FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial[ofb];
-                __attribute__((opencl_unroll_hint))
-                for (uint f = INPUT0_FEATURE_NUM % FSV; f < FSV; f++) {
+                unroll_for(uint f = INPUT0_FEATURE_NUM % FSV; f < FSV; f++) {
                     wzp_p[f] = 0;
                 }
             }
@@ -181,8 +174,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
             #if INPUT0_FEATURE_NUM % FSV != 0
                 if (feature_offset + (k + 1) * FSV >= ALIGN(INPUT0_FEATURE_NUM, FSV)) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+                    unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
                         weights_zp_val[ofb] = weights_zp_vec_partial[ofb];
                     }
                 }
@@ -199,11 +191,9 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 
         #ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
             ACCUMULATOR_TYPE_4 dotProdAZPxWZP[OUT_BLOCK_FEATURES];
-            __attribute__((opencl_unroll_hint))
-            for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+            unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
                 dotProdAZPxWZP[ofb] = 0;
-                __attribute__((opencl_unroll_hint))
-                for (uint ive = 0; ive < 4; ive++) {
+                unroll_for(uint ive = 0; ive < 4; ive++) {
                     dotProdAZPxWZP[ofb][ive] = TO_ACCUMULATOR_TYPE(
                     IMAD(dotProdAZPxWZP[ofb][ive],
                     AS_INPUT0_TYPE_4(data_zp_val[ive]),
@@ -213,14 +203,12 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         #endif
 
         uint4 weights_val[OUT_BLOCK_FEATURES] = { };
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+        unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
             weights_val[ofb] = vload4(0, (__global uint*)(weights + filter_idx + ofb * WEIGHTS_FEATURE_BLOCK_PITCH));
         }
 
         uint4 input_val[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+        unroll_for(uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
             #if defined ASYMMETRIC_DATA_QUANTIZATION && defined NON_ZERO_INPUT0_PAD_BEFORE
                 if (((input_x[os] < 0) || (input_x[os] >= INPUT0_SIZE_X)) ||
                     ((input_y[os] < 0) || (input_y[os] >= INPUT0_SIZE_Y))) {
@@ -236,12 +224,9 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #if OUT_BLOCK_FEATURES > 1 && FEATURE_SLM_SPLIT != 1 && OUT_BLOCK_SPATIAL > 14
         // For some cases compiler spills here due to loop order
         // Use suboptimal order to avoid this at cost of instruction dispatch delays.
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
-            __attribute__((opencl_unroll_hint))
-            for (uint ive = 0; ive < 4; ++ive) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+        unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+            unroll_for(uint ive = 0; ive < 4; ++ive) {
+                unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
                     #ifdef SHOULD_USE_DATA_ZP
                         ACCUMULATOR_TYPE dotProdAZPxW = 0;
                         dotProdAZPxW = TO_ACCUMULATOR_TYPE(
@@ -250,10 +235,8 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
                         AS_FILTER_TYPE_4(weights_val[ofb][ive])));
                     #endif
 #else
-        __attribute__((opencl_unroll_hint))
-        for (uint ive = 0; ive < 4; ++ive) {
-            __attribute__((opencl_unroll_hint))
-            for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+        unroll_for(uint ive = 0; ive < 4; ++ive) {
+            unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
                 #ifdef SHOULD_USE_DATA_ZP
                     ACCUMULATOR_TYPE dotProdAZPxW = 0;
                     dotProdAZPxW = TO_ACCUMULATOR_TYPE(
@@ -261,10 +244,9 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
                     AS_INPUT0_TYPE_4(data_zp_val[ive]),
                     AS_FILTER_TYPE_4(weights_val[ofb][ive])));
                 #endif
-                __attribute__((opencl_unroll_hint))
-                for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
 #endif
-                        INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[os / SIMD][ive], os % SIMD));
+                        INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(_sub_group_shuffle(input_val[os / SIMD][ive], os % SIMD));
 
                         dotProd[ofb][os] = IMAD(dotProd[ofb][os],
                                                 inputs,
@@ -293,8 +275,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         }
 
         filter_idx += WEIGHTS_IS_PITCH;
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+        unroll_for(uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
             input_idx[os] += INPUT0_FEATURE_PITCH * FSV;
         }
 
@@ -317,27 +298,21 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OUT_BLOCK_FEATURES * SIMD * OUT_BLOCK_SPATIAL + sglid;
 
     if (get_sub_group_id() < OUT_BLOCK_FEATURES) {
-        __attribute__((opencl_unroll_hint))
-        for (uint wg = 0; wg < OUT_BLOCK_FEATURES; ++wg) {
+        unroll_for(uint wg = 0; wg < OUT_BLOCK_FEATURES; ++wg) {
             if (get_sub_group_id() == wg) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ofb = 0; ofb < wg; ++ofb) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                unroll_for(uint ofb = 0; ofb < wg; ++ofb) {
+                    unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
                         const uint partial_acc_ptr_idx =
                             ofb * OUT_BLOCK_SPATIAL * SIMD +
                             os * SIMD;
                         partial_acc_ptr[partial_acc_ptr_idx] = dotProd[ofb][os];
                     }
                 }
-                __attribute__((opencl_unroll_hint))
-                for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
                     dotProd[0][os] = dotProd[wg][os];
                 }
-                __attribute__((opencl_unroll_hint))
-                for (uint ofb = wg + 1; ofb < OUT_BLOCK_FEATURES; ++ofb) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                unroll_for(uint ofb = wg + 1; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+                    unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
                         const uint partial_acc_ptr_idx =
                             ((wg != 0) ? OUT_BLOCK_SPATIAL * OUT_BLOCK_FEATURES * SIMD : 0) +
                             ofb * OUT_BLOCK_SPATIAL * SIMD +
@@ -348,10 +323,8 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
             }
         }
     } else {
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
-            __attribute__((opencl_unroll_hint))
-            for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+        unroll_for(uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+            unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
                 const uint partial_acc_ptr_idx =
                     ofb * OUT_BLOCK_SPATIAL * SIMD +
                     os * SIMD;
@@ -366,10 +339,8 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         return;
 
     partial_acc_ptr = partial_acc + get_sub_group_id() * OUT_BLOCK_SPATIAL * SIMD + sglid;
-    __attribute__((opencl_unroll_hint))
-    for (uint wg = 0; wg < FEATURE_SLM_SPLIT - 1; ++wg) {
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+    unroll_for (uint wg = 0; wg < FEATURE_SLM_SPLIT - 1; ++wg) {
+        unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
             const uint partial_acc_ptr_idx =
                 wg * OUT_BLOCK_FEATURES * SIMD * OUT_BLOCK_SPATIAL +
                 os * SIMD;
@@ -399,18 +370,15 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 
 #ifdef COMPENSATION_TERM
     COMPENSATION_TYPE comp[FINAL_OUT_BLOCK_FEATURES];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+    unroll_for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
         comp[ofb] = compensation[out_f + ofb * SIMD];
     }
 #endif
 
     // Convert accumulator type to activation type
     ACTIVATION_TYPE dequantized[FINAL_OUT_BLOCK_FEATURES][OUT_BLOCK_SPATIAL];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+    unroll_for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+        unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
             dequantized[ofb][os] = TO_ACTIVATION_TYPE(dotProd[ofb][os]);
 
 #if BIAS_TERM
@@ -424,13 +392,11 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 
     // Fused ops/activation
     OUTPUT_TYPE result[FINAL_OUT_BLOCK_FEATURES][OUT_BLOCK_SPATIAL];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+    unroll_for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD_SCALAR
         FUSED_OPS_PRELOAD_SCALAR;
 #endif
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+        unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
 #if HAS_FUSED_OPS
     #if FUSED_OPS_CAN_USE_PRELOAD_SCALAR
             FUSED_OPS_CALC_SCALAR;
@@ -462,10 +428,9 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     if (can_use_full_block_write) {
         uint output_idx = OUTPUT_GET_INDEX(out_b,
                                            out_fg,
-                                           intel_sub_group_shuffle(out_y_shuffle[0], 0),
-                                           intel_sub_group_shuffle(out_x_shuffle[0], 0));
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+                                           _sub_group_shuffle(out_y_shuffle[0], 0),
+                                           _sub_group_shuffle(out_x_shuffle[0], 0));
+        unroll_for(uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
             bool good_of_block = (CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES == 0)
                                || (out_fg + FINAL_OUT_BLOCK_FEATURES * SIMD <= OUTPUT_FEATURE_NUM)
                                || (ofb < CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES);
@@ -474,8 +439,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #if OUTPUT_TYPE_SIZE == 1
                 for (; os + 8 <= OUT_BLOCK_SPATIAL; os += 8) {
                     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) result_val;
-                    __attribute__((opencl_unroll_hint))
-                    for (uint i = 0; i < 8; ++i) {
+                    unroll_for(uint i = 0; i < 8; ++i) {
                         result_val[i] = result[ofb][os + i];
                     }
                     DT_OUTPUT_BLOCK_WRITE8(output, output_idx, result_val);
@@ -485,8 +449,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #if OUTPUT_TYPE_SIZE <= 2
                 for (; os + 4 <= OUT_BLOCK_SPATIAL; os += 4) {
                     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) result_val;
-                    __attribute__((opencl_unroll_hint))
-                    for (uint i = 0; i < 4; ++i) {
+                    unroll_for(uint i = 0; i < 4; ++i) {
                         result_val[i] = result[ofb][os + i];
                     }
                     DT_OUTPUT_BLOCK_WRITE4(output, output_idx, result_val);
@@ -495,8 +458,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #endif
                 for (; os + 2 <= OUT_BLOCK_SPATIAL; os += 2) {
                     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) result_val;
-                    __attribute__((opencl_unroll_hint))
-                    for (uint i = 0; i < 2; ++i) {
+                    unroll_for(uint i = 0; i < 2; ++i) {
                         result_val[i] = result[ofb][os + i];
                     }
                     DT_OUTPUT_BLOCK_WRITE2(output, output_idx, result_val);
@@ -512,23 +474,20 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
         }
     } else {
         uint output_idx_shuffle[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
-        __attribute__((opencl_unroll_hint))
-        for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+        unroll_for(uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
             output_idx_shuffle[os] = OUTPUT_GET_INDEX(out_b, out_fg, out_y_shuffle[os], out_x_shuffle[os]);
         }
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+        unroll_for(uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
             bool good_of_block = (CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES == 0)
                                || (out_fg + FINAL_OUT_BLOCK_FEATURES * SIMD <= OUTPUT_FEATURE_NUM)
                                || (ofb < CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES);
             if (good_of_block) {
-                __attribute__((opencl_unroll_hint))
-                for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                unroll_for(uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
                     bool good_os = (max_out_yx % OUT_BLOCK_SPATIAL == 0) || (out_yx_sg <= max_out_yx - OUT_BLOCK_SPATIAL) || (os < max_out_yx % OUT_BLOCK_SPATIAL);
                     if (!good_os)
                         break;
 
-                    uint output_idx = intel_sub_group_shuffle(output_idx_shuffle[os / SIMD], os % SIMD);
+                    uint output_idx = _sub_group_shuffle(output_idx_shuffle[os / SIMD], os % SIMD);
                     bool good_of = (OUTPUT_FEATURE_NUM % SIMD == 0) || (out_f + ofb * SIMD < OUTPUT_FEATURE_NUM);
 
                     if (!good_of)
@@ -538,8 +497,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
                 }
             }
 
-            __attribute__((opencl_unroll_hint))
-            for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+            unroll_for(uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
                 output_idx_shuffle[os] += OUTPUT_FEATURE_PITCH * FSV;
             }
         }
@@ -581,9 +539,6 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #endif
 
 #undef AS_FILTER_TYPE_4
-
-#undef CEIL_DIV
-#undef ALIGN
 
 #undef SIMD
 #undef FSV

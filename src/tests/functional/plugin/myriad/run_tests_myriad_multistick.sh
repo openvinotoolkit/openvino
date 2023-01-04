@@ -33,7 +33,7 @@ else
 fi
 
 echo "Test directory: ${TEST_DIR}"
-cd "${TEST_DIR}"
+cd "${TEST_DIR}" || exit
 
 export IE_VPU_MYRIADX=1
 
