@@ -37,8 +37,6 @@ public:
 protected:
     void SetUp() override;
     void GenerateInputs() override;
-
-private:
     ngraph::helpers::SequenceTestsMode m_mode;
     int64_t m_max_seq_len = 0;
 };

@@ -42,10 +42,6 @@ class RollRealImagPack(FrontReplacementSubgraph):
     """
     enabled = True
 
-    def run_after(self):
-        from openvino.tools.mo.front.tf.SSliceComplex import SSliceComplex
-        return [SSliceComplex]
-
     def run_before(self):
         from openvino.tools.mo.front.Pack import Pack
         return [Pack]

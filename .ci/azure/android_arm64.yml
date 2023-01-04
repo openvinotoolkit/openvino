@@ -1,11 +1,33 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
     exclude:
-    - docs/*
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+pr:
+  drafts: 'false'
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 resources:
   repositories:
@@ -13,11 +35,12 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: master
 
 jobs:
 - job: android_arm64
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -43,6 +66,9 @@ jobs:
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
+      echo ls /usr/bin/python3.10
+      rm -rf /usr/bin/python3
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
@@ -71,20 +97,20 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - script: |
       set -e
-      $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       # Move into contrib install_build_dependencies.sh
       sudo apt --assume-yes install scons crossbuild-essential-arm64 libprotoc-dev protobuf-compiler default-jdk
       # Speed up build
@@ -103,26 +129,23 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_TOOLCHAIN_FILE=$(ANDROID_TOOLS)/ndk-bundle/build/cmake/android.toolchain.cmake
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DANDROID_ABI=$(ANDROID_ABI_CONFIG)
         -DANDROID_STL=c++_shared
         -DANDROID_PLATFORM=$(ANDROID_SDK_VERSION)
-        -DENABLE_OPENCV=OFF
         -DENABLE_TESTS=ON
-        -DENABLE_SAMPLES=ON
-        -DENABLE_INTEL_MYRIAD=OFF
         -DBUILD_java_api=ON
-        -DTHREADING=SEQ
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DBUILD_nvidia_plugin=OFF
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(OPENVINO_REPO_DIR)
       workingDirectory: $(BUILD_DIR)
-
-  - script: ls -alR $(OPENVINO_REPO_DIR)/temp/
-    displayName: 'List temp SDKs'
 
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'

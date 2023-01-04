@@ -14,27 +14,20 @@ namespace node {
 
 class StridedSlice : public Node {
 public:
-    StridedSlice(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
 
     bool isExecutable() const override;
-
-protected:
-    void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
-
-private:
-    void addHiddenDims(const size_t nSrcDims, int ellipsisPos1);
-    void orderParametersByLayouts(const MemoryPtr& srcMemPtr);
+    bool needShapeInfer() const override;
 
     struct StridedSliceAttributes {
         std::vector<int> begin;
@@ -55,17 +48,46 @@ private:
 
         bool equalDims = false;
         size_t dataSize = 1lu;
+        int ellipsisMaskCounter = 0;
+        bool isStridedSliceOp = true;
+        int ellipsisPos1 = -1;
+        bool hasConstInputs = false;
     } attrs;
 
-    struct StridedSliceExecutor {
-        StridedSliceExecutor(const StridedSliceAttributes& attrs, const VectorDims& srcBlockedDims, const VectorDims& dstBlockedDims);
-        void exec(const uint8_t* srcData, uint8_t* dstData);
-        ~StridedSliceExecutor() = default;
+protected:
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+private:
+    class StridedSliceExecutor {
+    public:
+        StridedSliceExecutor(const StridedSliceAttributes& attrs,
+                             const std::vector<MemoryCPtr>& srcMemory,
+                             const std::vector<MemoryCPtr>& dstMemory,
+                             const std::string& errorPrefix) : errorPrefix(errorPrefix) {}
+        virtual void exec(const std::vector<MemoryCPtr>& srcMemory,
+                          const std::vector<MemoryCPtr>& dstMemory) = 0;
+        virtual ~StridedSliceExecutor() = default;
+
+    protected:
+        const std::string errorPrefix;
+    };
+
+    class StridedSliceCommonExecutor : public StridedSliceExecutor {
+    public:
+        StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
+                                   const std::vector<MemoryCPtr>& srcMemory,
+                                   const std::vector<MemoryCPtr>& dstMemory,
+                                   const std::string& errorPrefix);
+        void exec(const std::vector<MemoryCPtr>& srcMemory,
+                  const std::vector<MemoryCPtr>& dstMemory) override;
 
     private:
         struct StridedSliceParams {
             StridedSliceAttributes attrs;
             VectorDims srcBlockedDims;
+            VectorDims srcOrder;
             VectorDims dstBlockedDims;
             VectorDims srcStrides;
             VectorDims dstStrides;
@@ -73,11 +95,16 @@ private:
             bool isOptimized = false;
         };
 
-        void dimsNormalization(StridedSliceParams& params);
-        void dimsGluing(StridedSliceParams& params, const size_t realNDims);
-        void indicesCalculation(const StridedSliceParams& params);
-        void indicesCalculationForOptimized(const StridedSliceParams& params);
+        void paramsInitialization(const StridedSliceAttributes& attrs,
+                                  const std::vector<MemoryCPtr>& srcMemory,
+                                  const std::vector<MemoryCPtr>& dstMemory);
+        void dimsNormalization();
+        void dimsGluing();
+        void indicesCalculation();
+        void indicesCalculationForOptimized();
+        void orderParametersByLayouts(const BlockedMemoryDescCPtr& blockedMemoryDesc);
 
+        StridedSliceParams params;
         VectorDims srcIndices;
         VectorDims dstIndices;
         size_t nThreads = 0lu;
@@ -88,7 +115,6 @@ private:
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;
 
-    bool isStridedSliceOp = true;
     bool isStrideSpecified = false;
     bool isAxesSpecified = false;
 
@@ -99,6 +125,13 @@ private:
     static constexpr size_t AXES_ID = 4;
 
     bool isConstantInput[AXES_ID + 1] = {false};
+    bool shapeHasDataDependency = false;
+    bool hasConstAttrInputs = true;
+
+    std::vector<MemoryCPtr> srcMemory;
+    std::vector<MemoryCPtr> dstMemory;
+
+    std::string errorPrefix;
 };
 
 }   // namespace node

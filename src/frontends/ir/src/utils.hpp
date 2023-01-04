@@ -14,10 +14,10 @@ namespace ov {
 void operator>>(const std::stringstream& in, ov::element::Type& type);
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value);
-Dimension str_to_dimension(const std::string& value);
-PartialShape str_to_partial_shape(const std::string& value);
 bool get_dimension_from_attribute(const pugi::xml_node& node, const std::string& name, Dimension& value);
 bool get_partial_shape_from_attribute(const pugi::xml_node& node, const std::string& name, PartialShape& value);
+
+void str_to_container(const std::string& value, std::vector<std::string>& res);
 
 template <class T>
 void str_to_container(const std::string& value, T& res) {
@@ -32,6 +32,10 @@ void str_to_container(const std::string& value, T& res) {
         res.insert(res.end(), val);
     }
 }
+
+// separated function for set<string> to keep whitespaces in values
+// because stringstream splits its values with whitespace delimiter
+void str_to_set_of_strings(const std::string& value, std::set<std::string>& res);
 
 template <class T>
 bool getParameters(const pugi::xml_node& node, const std::string& name, std::vector<T>& value) {

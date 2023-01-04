@@ -35,9 +35,8 @@ struct generic_layer : public primitive_base<generic_layer> {
                   const primitive_id& input,
                   const layout& output_layout,
                   const kernel_selector::generic_kernel_params& generic_params,
-                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding), output_layout(output_layout), generic_params(generic_params) {}
+        : primitive_base(id, {input}, {output_padding}), output_layout(output_layout), generic_params(generic_params) {}
 
     /// @brief Requested memory layout.
     layout output_layout;

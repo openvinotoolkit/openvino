@@ -14,12 +14,14 @@
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include <transformations/rt_info/disable_constant_folding.hpp>
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(const Params& params) : WeightableLayerTransformation(params) {
+    MATCHER_SCOPE(ConvolutionBackpropDataTransformation);
     auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
         pattern::wrap_type<opset1::ConvolutionBackpropData>({
             pattern::wrap_type<opset1::Multiply>(),
@@ -49,7 +51,7 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "ConvolutionBackpropDataTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -147,7 +149,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
 
         if (ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
             const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
-            std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true);
+            std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true, 1);
             NetworkHelper::copyInfo(fq, newFQ);
             replace_node(fq, newFQ);
         }

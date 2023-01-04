@@ -1,4 +1,4 @@
-##  MatrixNonMaxSuppression<a name="MatrixNonMaxSuppression"></a> {#openvino_docs_ops_sort_MatrixNms_8}
+##  MatrixNonMaxSuppression {#openvino_docs_ops_sort_MatrixNms_8}
 
 **Versioned name**: *MatrixNonMaxSuppression-8*
 

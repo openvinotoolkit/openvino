@@ -18,6 +18,10 @@
 # define NOMINMAX
 #endif
 
+#ifndef OV_GPU_USE_OPENCL_HPP
+#define OV_GPU_USE_OPENCL_HPP
+#endif
+
 #ifdef _WIN32
 # include <gpu/gpu_context_api_dx.hpp>
 #else
@@ -30,7 +34,6 @@
 #include <atomic>
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 class RemoteAllocator;
 
@@ -64,11 +67,13 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept;
     InferenceEngine::LockedMemory<void> buffer() noexcept;
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept;
-    InferenceEngine::LockedMemory<void> rwmap()noexcept;
+    InferenceEngine::LockedMemory<void> rwmap() noexcept;
     InferenceEngine::LockedMemory<const void> rmap() const noexcept;
-    InferenceEngine::LockedMemory<void> wmap()noexcept;
+    InferenceEngine::LockedMemory<void> wmap() noexcept;
     const std::shared_ptr<InferenceEngine::IAllocator> &getAllocator() const noexcept;
     void *getHandle() const noexcept { return _handle; }
+
+    void reinterpret(cldnn::layout new_layout);
 
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
@@ -77,6 +82,8 @@ public:
 protected:
     static RemoteAllocator m_allocator;
     std::weak_ptr<InferenceEngine::gpu::ClContext> m_context;
+    // retain engine ptr to ensure that memory object can be released properly in cases when RemoteContext if deleted before RemoteTensor
+    std::shared_ptr<cldnn::engine> m_engine;
     cldnn::stream& m_stream;
 
     // constructor stuff
@@ -112,12 +119,13 @@ public:
                              cldnn::shared_surface surf = 0,
                              uint32_t plane = 0,
                              RemoteBlobImpl::BlobType mem_type = RemoteBlobImpl::BlobType::BT_BUF_INTERNAL)
-        : _impl(context, stream, layout, mem, surf, plane, mem_type)
-        , TpublicAPI(desc) {}
+        : TpublicAPI(desc)
+        , _impl(context, stream, layout, mem, surf, plane, mem_type) {}
 
     void allocate() noexcept override {
         try {
-            _impl.allocate();
+            if (!_impl.is_allocated())
+                _impl.allocate();
         } catch (...) {}
     }
     bool deallocate() noexcept override { return _impl.deallocate(); }
@@ -186,14 +194,6 @@ protected:
 
     void regLockedBlob(void* handle, const RemoteBlobImpl* blob);
 
-    void acquire_lock() {
-        while (_lock.test_and_set(std::memory_order_acquire)) {}
-    }
-
-    void release_lock() {
-        _lock.clear(std::memory_order_release);
-    }
-
 public:
     using Ptr = std::shared_ptr<RemoteAllocator>;
 
@@ -220,6 +220,14 @@ public:
     * @return false if handle cannot be released, otherwise - true.
     */
     bool free(void* handle) noexcept override { return true; }
+
+    void lock() {
+        while (_lock.test_and_set(std::memory_order_acquire)) {}
+    }
+
+    void unlock() {
+        _lock.clear(std::memory_order_release);
+    }
 };
 
 class USMHostAllocator : public InferenceEngine::IAllocator {
@@ -263,6 +271,9 @@ public:
             InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
             _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
             _usm_host_blob->allocate();
+            if (!getBlobImpl(_usm_host_blob.get())->is_allocated()) {
+                return nullptr;
+            }
             return _usm_host_blob->get();
         } catch (...) {
             return nullptr;
@@ -305,12 +316,12 @@ public:
     InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
     const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
 
-    void acquire_lock() {
-        while (lock.test_and_set(std::memory_order_acquire)) {}
+    void lock() {
+        while (m_lock.test_and_set(std::memory_order_acquire)) {}
     }
 
-    void release_lock() {
-        lock.clear(std::memory_order_release);
+    void unlock() {
+        m_lock.clear(std::memory_order_release);
     }
 
 protected:
@@ -322,7 +333,7 @@ protected:
 
     ContextType m_type;
     std::weak_ptr<InferenceEngine::IInferencePlugin> m_plugin;
-    std::atomic_flag lock;
+    std::atomic_flag m_lock;
 };
 
 template<typename TpublicContextAPI>
@@ -360,7 +371,7 @@ class TypedExecutionContext : public TpublicContextAPI {
         cldnn::shared_surface surf = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_surface>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
         surf_key skey(surf, plane);
 #endif
-        _impl.acquire_lock();
+        std::lock_guard<ExecutionContextImpl> locker(_impl);
 
         // try to locate previously shared surface
         auto itr = shared_surf_reg.find(skey);
@@ -385,7 +396,6 @@ class TypedExecutionContext : public TpublicContextAPI {
             shared_surf_reg[skey] = ret;
         }
 
-        _impl.release_lock();
         return ret;
     }
 
@@ -394,7 +404,7 @@ class TypedExecutionContext : public TpublicContextAPI {
                                                RemoteBlobImpl::BlobType blob_type) {
         InferenceEngine::RemoteBlob::Ptr ret = nullptr;
 
-        _impl.acquire_lock();
+        std::lock_guard<ExecutionContextImpl> locker(_impl);
         auto& stream = _impl.GetEngine()->get_program_stream();
 
         // try to locate previously shared object
@@ -431,7 +441,6 @@ class TypedExecutionContext : public TpublicContextAPI {
             shared_obj_reg[mem] = ret;
         }
 
-        _impl.release_lock();
         return ret;
     }
 
@@ -582,5 +591,4 @@ inline ExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext::Ptr
 }
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

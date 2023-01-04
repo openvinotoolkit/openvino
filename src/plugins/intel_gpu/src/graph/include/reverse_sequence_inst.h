@@ -10,27 +10,22 @@
 #include <string>
 
 namespace cldnn {
-template <>
-struct typed_program_node<reverse_sequence> : public typed_program_node_base<reverse_sequence> {
-    using parent = typed_program_node_base<reverse_sequence>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using reverse_sequence_node = typed_program_node<reverse_sequence>;
 
 template <>
 class typed_primitive_inst<reverse_sequence> : public typed_primitive_inst_base<reverse_sequence> {
     using parent = typed_primitive_inst_base<reverse_sequence>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(reverse_sequence_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(reverse_sequence_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
+    static layout calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(reverse_sequence_node const& node);
 
-public:
     typed_primitive_inst(network& network, reverse_sequence_node const& desc);
 };
 

@@ -10,12 +10,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FakeQuantizeTransformation);
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -27,7 +29,7 @@ FakeQuantizeTransformation::FakeQuantizeTransformation(const Params& params) : L
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -40,7 +42,7 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     bool wasHandled = false;
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = layer;
     do {
-        fakeQuantize = fuseElementwise(context, this, fakeQuantize);
+        fakeQuantize = fuseElementwise(context, this, fakeQuantize, updatePrecisions);
         wasHandled = wasHandled || (fakeQuantize != nullptr);
     } while (fakeQuantize != nullptr);
 
@@ -86,6 +88,41 @@ static std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>
     return ov::as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
 }
 
+bool all_precisions_equal(const std::shared_ptr<Node>& node) {
+    const auto& inputs = node->inputs();
+    const auto first_input_precision = inputs.empty() ? element::undefined : inputs[0].get_element_type();
+    if (!inputs.empty()) {
+        const auto first_input_precision = inputs[0].get_element_type();
+        if (std::any_of(
+            inputs.begin(),
+            inputs.end(),
+            [first_input_precision](const ov::Input<ov::Node>& input) {
+                return input.get_element_type() != first_input_precision;
+            })) {
+            return false;
+        }
+    }
+
+    const auto& outputs = node->outputs();
+    if (!outputs.empty()) {
+        const auto first_output_precision = outputs[0].get_element_type();
+        if ((first_input_precision != element::undefined) && (first_input_precision != first_output_precision)) {
+            return false;
+        }
+
+        if (std::any_of(
+            outputs.begin(),
+            outputs.end(),
+            [first_output_precision](const ov::Output<ov::Node>& output) {
+                return output.get_element_type() != first_output_precision;
+            })) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace fq
 
 bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& eltwise) {
@@ -119,8 +156,13 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
 std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwise(
     TransformationContext& context,
     MatcherPass* matcherPass,
-    const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize,
+    const bool updatePrecisions) {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
+
+    if (!updatePrecisions && !fq::all_precisions_equal(eltwise)) {
+        return nullptr;
+    }
 
     std::shared_ptr<Node> inputLowConst_f32 = foldConvert(fakeQuantize->input_value(1), element::f32);
     std::shared_ptr<Node> inputHighConst_f32 = foldConvert(fakeQuantize->input_value(2), element::f32);
@@ -155,6 +197,7 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         if (ov::is_type<opset1::Convolution>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::GroupConvolution>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::ConvolutionBackpropData>(fq::getDataNode(eltwise)) ||
+            ov::is_type<opset1::MatMul>(fq::getDataNode(eltwise)) ||
             ov::is_type<opset1::GroupConvolutionBackpropData>(fq::getDataNode(eltwise))) {
             return nullptr;
         }

@@ -5,19 +5,15 @@
 #include "ngraph/op/select.hpp"
 
 #include <memory>
-#include <ngraph/validation_util.hpp>
-#include <select_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/not.hpp"
 #include "ngraph/runtime/reference/select.hpp"
+#include "ngraph/validation_util.hpp"
+#include "select_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::Select);
 
 op::v1::Select::Select(const Output<Node>& arg0,
                        const Output<Node>& arg1,
@@ -29,7 +25,7 @@ op::v1::Select::Select(const Output<Node>& arg0,
 }
 
 void op::v1::Select::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Select_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Select_validate_and_infer_types);
     // Condition element type check
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_dynamic() || get_input_element_type(0) == element::boolean,
@@ -43,22 +39,21 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
+
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Select_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Select_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Select>(new_args.at(0), new_args.at(1), new_args.at(2), m_auto_broadcast);
 }
 
 bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Select_visit_attributes);
+    OV_OP_SCOPE(v1_Select_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
 }
@@ -119,7 +114,7 @@ bool evaluate_select(const HostTensorVector& output_values,
 }  // namespace detail
 
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
-    NGRAPH_OP_SCOPE(v1_Select_evaluate);
+    OV_OP_SCOPE(v1_Select_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(input_values, 3));
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
@@ -127,7 +122,7 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostT
 }
 
 bool op::v1::Select::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Select_has_evaluate);
+    OV_OP_SCOPE(v1_Select_has_evaluate);
     switch (get_output_element_type(0)) {
     case ngraph::element::i8:
     case ngraph::element::i16:

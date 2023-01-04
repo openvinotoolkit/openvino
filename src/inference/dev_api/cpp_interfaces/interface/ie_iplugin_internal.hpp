@@ -97,6 +97,31 @@ SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                   bool new_api);
 
 /**
+ * @brief Returns set of nodes which were removed after transformation.
+ * If originalFunction contains node1 and transformedFunction does not
+ * contains node1 in ops list, node1 will be returned.
+ * @param originalFunction Original network
+ * @param transformedFunction Transformed network
+ * @return Set of strings which contains removed node names
+ */
+INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
+GetRemovedNodes(const std::shared_ptr<const ov::Model>& originalFunction,
+                const std::shared_ptr<const ov::Model>& transformedFunction);
+
+/**
+ * @brief Returns set of nodes from original model which are
+ * determined as supported after applied transformation pipeline.
+ * @param model Original model
+ * @param transform Transformation pipeline function
+ * @param is_node_supported Function returning whether node is supported or not
+ * @return Set of strings which contains supported node names
+ */
+INFERENCE_ENGINE_API_CPP(std::unordered_set<std::string>)
+GetSupportedNodes(const std::shared_ptr<const ov::Model>& model,
+                  std::function<void(std::shared_ptr<ov::Model>&)> transform,
+                  std::function<bool(const std::shared_ptr<ngraph::Node>)> is_node_supported);
+
+/**
  * @interface IInferencePlugin
  * @brief An API of plugin to be implemented by a plugin
  * @ingroup ie_dev_api_plugin_api
@@ -174,8 +199,8 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
-                                                                    const std::map<std::string, std::string>& config);
+    virtual ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                              const std::map<std::string, std::string>& config);
 
     /**
      * @brief Registers extension within plugin
@@ -188,6 +213,12 @@ public:
      * @param config string-string map of config parameters
      */
     virtual void SetConfig(const std::map<std::string, std::string>& config);
+
+    /**
+     * @brief Sets configuration for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
+     * @param config  ov::AnyMap of config parameters
+     */
+    virtual void SetProperties(const ov::AnyMap& config);
 
     /**
      * @brief Gets configuration dedicated to plugin behaviour
@@ -265,6 +296,12 @@ public:
     virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
 
     /**
+     * @brief Provides an information about used API
+     * @return true if new API is used
+     */
+    bool IsNewAPI() const noexcept;
+
+    /**
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
@@ -339,6 +376,7 @@ protected:
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
     std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
+    bool _isNewAPI;                                     //!< A flag which shows used API
 };
 
 /**

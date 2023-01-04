@@ -23,9 +23,10 @@ using convert_color_node = typed_program_node<convert_color>;
 template <>
 class typed_primitive_inst<convert_color> : public typed_primitive_inst_base<convert_color> {
     using parent = typed_primitive_inst_base<convert_color>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(convert_color_node const& node);
+    static layout calc_output_layout(convert_color_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(convert_color_node const& node);
     typed_primitive_inst(network& network, convert_color_node const& desc);
 };

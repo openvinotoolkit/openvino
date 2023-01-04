@@ -450,6 +450,19 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
 
+/**
+ * @brief The key to decide whether terminate tbb threads when inference engine destructing.
+ *
+ * value type: boolean
+ *   - True explicitly terminate tbb when inference engine destruction
+ *   - False will not involve additional tbb operations when inference engine destruction
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(FORCE_TBB_TERMINATE), CONFIG_VALUE(YES)}}); // enable
+ * @endcode
+ */
+DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
+
 }  // namespace PluginConfigParams
 
 /**
@@ -462,9 +475,9 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
 
 }  // namespace InferenceEngine
 
+#include "gpu/gpu_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "multi-device/multi_device_config.hpp"
 
 // remove in 2022.1 major release
-#include "cldnn/cldnn_config.hpp"
 #include "gna/gna_config.hpp"

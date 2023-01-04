@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -14,11 +14,11 @@ namespace v5 {
 ///     'HALF_TO_EVEN' - round halfs to the nearest even integer.
 ///     'HALF_AWAY_FROM_ZERO': - round in such a way that the result heads away from
 /// zero.
-class OPENVINO_API Round : public Op {
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API Round : public util::UnaryElementwiseArithmetic {
 public:
     enum class RoundMode { HALF_TO_EVEN, HALF_AWAY_FROM_ZERO };
-    OPENVINO_OP("Round", "opset5", op::Op, 5);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Round", "opset5", util::UnaryElementwiseArithmetic, 5);
 
     /// \brief Constructs a round operation.
     Round() = default;
@@ -42,6 +42,9 @@ public:
     RoundMode get_mode() const {
         return m_mode;
     }
+    void set_mode(const RoundMode& mode) {
+        m_mode = mode;
+    }
 
 private:
     RoundMode m_mode{RoundMode::HALF_TO_EVEN};
@@ -58,7 +61,6 @@ public:
     AttributeAdapter(op::v5::Round::RoundMode& value) : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v5::Round::RoundMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

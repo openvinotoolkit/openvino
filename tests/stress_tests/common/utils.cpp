@@ -12,7 +12,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 #else
-#include <sys/unistd.h>
+#include <unistd.h>
 #include <sys/wait.h>
 #endif
 

@@ -17,7 +17,7 @@ namespace low_precision {
  * @brief FakeQuantizeTransformation fuses dequantization operations into FakeQuantize operation.
  *
  * For more details about the transformation, refer to
- * [FakeQuantizeTransformation](@ref openvino_docs_IE_DG_lpt_FakeQuantizeTransformation) page
+ * [FakeQuantizeTransformation](@ref openvino_docs_OV_UG_lpt_FakeQuantizeTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FakeQuantizeTransformation : public LayerTransformation {
@@ -32,7 +32,8 @@ public:
     static std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
             TransformationContext& context,
             MatcherPass* matcherPass,
-            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize,
+            const bool updatePrecisions);
 };
 
 } // namespace low_precision

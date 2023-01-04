@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise maximum operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Maximum : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Maximum", "opset1", op::util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a maximum operation.
     Maximum() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

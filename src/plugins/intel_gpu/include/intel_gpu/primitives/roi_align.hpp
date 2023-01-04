@@ -19,10 +19,10 @@ struct roi_align : public primitive_base<roi_align> {
     CLDNN_DECLARE_PRIMITIVE(roi_align)
 
     /// @brief Pooling mode for the @ref roi_align
-    enum PoolingMode {
-        Max,
-        Avg
-    };
+    enum PoolingMode { max, avg };
+
+    /// @brief Aligned mode for the @ref roi_align
+    enum AlignedMode { asymmetric, half_pixel_for_nn, half_pixel };
 
     /// @brief Constructs roi_align primitive.
     /// @param id This primitive id.
@@ -32,24 +32,24 @@ struct roi_align : public primitive_base<roi_align> {
     /// @param sampling_ratio Number of bins over height and width to use to calculate each output feature map element.
     /// @param spatial_scale multiplicative spatial scale factor to translate ROI coordinates
     /// from their input spatial scale to the scale used when pooling.
-    /// @param mode Method to perform pooling to produce output feature map elements.
-    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @param pooling_mode Method to perform pooling to produce output feature map elements.
+    /// @param aligned_mode Method to coordinates alignment.
     roi_align(const primitive_id& id,
-              const std::vector<primitive_id>& inputs,
+              const std::vector<input_info>& inputs,
               int pooled_h,
               int pooled_w,
               int sampling_ratio,
               float spatial_scale,
-              PoolingMode mode,
-              const primitive_id& ext_prim_id = "",
+              PoolingMode pooling_mode,
+              AlignedMode aligned_mode,
               const padding& output_padding = padding())
-        : primitive_base(id, inputs, ext_prim_id, output_padding),
-          pooled_h {pooled_h},
-          pooled_w {pooled_w},
-          sampling_ratio {sampling_ratio},
-          spatial_scale {spatial_scale},
-          mode {mode}
-    {}
+        : primitive_base(id, inputs, {output_padding}),
+          pooled_h{pooled_h},
+          pooled_w{pooled_w},
+          sampling_ratio{sampling_ratio},
+          spatial_scale{spatial_scale},
+          pooling_mode{pooling_mode},
+          aligned_mode{aligned_mode} {}
 
     /// @brief Height of the ROI output feature map.
     int pooled_h;
@@ -61,7 +61,9 @@ struct roi_align : public primitive_base<roi_align> {
     /// from their input spatial scale to the scale used when pooling.
     float spatial_scale;
     /// @brief Method to perform pooling to produce output feature map elements.
-    PoolingMode mode;
+    PoolingMode pooling_mode;
+    /// @brief Method to coordinate alignment.
+    AlignedMode aligned_mode;
 };
 /// @}
 /// @}

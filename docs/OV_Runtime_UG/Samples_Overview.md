@@ -1,4 +1,4 @@
-# OpenVINO Samples {#openvino_docs_IE_DG_Samples_Overview}
+# OpenVINO Samples {#openvino_docs_OV_UG_Samples_Overview}
 
 @sphinxdirective
 
@@ -8,6 +8,7 @@
    :maxdepth: 1
    :hidden:
    
+   Get Started with C++ Samples <openvino_docs_get_started_get_started_demos>
    openvino_inference_engine_samples_classification_sample_async_README
    openvino_inference_engine_ie_bridges_python_sample_classification_sample_async_README
    openvino_inference_engine_samples_hello_classification_README
@@ -23,26 +24,30 @@
    openvino_inference_engine_ie_bridges_python_sample_model_creation_sample_README
    openvino_inference_engine_samples_speech_sample_README
    openvino_inference_engine_ie_bridges_python_sample_speech_sample_README
+   openvino_inference_engine_samples_sync_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_sync_benchmark_README
+   openvino_inference_engine_samples_throughput_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_throughput_benchmark_README
+   openvino_inference_engine_ie_bridges_python_sample_bert_benchmark_README
    openvino_inference_engine_samples_benchmark_app_README
    openvino_inference_engine_tools_benchmark_tool_README
 
 @endsphinxdirective
 
-The OpenVINO sample applications are simple console applications that show how to utilize specific OpenVINO API capabilities within an application, assist developers in executing specific tasks such as loading a model, running inference, querying specific device capabilities and etc.
+The OpenVINO™ samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
 
-After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and Python* sample applications are available in the following directories, respectively:
+If you installed OpenVINO Runtime via archive files, sample applications for С, and C++, and Python are created in the following directories:
 * `<INSTALL_DIR>/samples/c`
 * `<INSTALL_DIR>/samples/cpp`
 * `<INSTALL_DIR>/samples/python`
 
-OpenVINO sample applications include the following:
+If you installed OpenVINO via PyPI, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/) and use samples from `samples/python`.
+
+The applications include:
 
 - **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors.
    - [Automatic Speech Recognition C++ Sample](../../samples/cpp/speech_sample/README.md)
    - [Automatic Speech Recognition Python Sample](../../samples/python/speech_sample/README.md)
-- **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
-   - [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md)
-   - [Benchmark Python Tool](../../tools/benchmark_tool/README.md)
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
    - [Hello Classification C++ Sample](../../samples/cpp/hello_classification/README.md)
    - [Hello Classification C Sample](../../samples/c/hello_classification/README.md)
@@ -62,8 +67,22 @@ OpenVINO sample applications include the following:
 - **OpenVINO Model Creation Sample** – Construction of the LeNet model using the OpenVINO model creation sample.
    - [OpenVINO Model Creation C++ Sample](../../samples/cpp/model_creation_sample/README.md)
    - [OpenVINO Model Creation Python Sample](../../samples/python/model_creation_sample/README.md)
+- **Benchmark Samples** - Simple estimation of a model inference performance
+   - [Sync Benchmark C++ Sample](../../samples/cpp/benchmark/sync_benchmark/README.md)
+   - [Sync Benchmark Python* Sample](../../samples/python/benchmark/sync_benchmark/README.md)
+   - [Throughput Benchmark C++ Sample](../../samples/cpp/benchmark/throughput_benchmark/README.md)
+   - [Throughput Benchmark Python* Sample](../../samples/python/benchmark/throughput_benchmark/README.md)
+   - [Bert Benchmark Python* Sample](../../samples/python/benchmark/bert_benchmark/README.md)
 
-> **NOTE**: All C++ samples support input paths containing only ASCII characters, except the Hello Classification Sample, that supports Unicode.
+
+- **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
+   - [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md)
+   
+   Note that the Python version of the benchmark tool is currently available only through the [OpenVINO Development Tools installation](../install_guides/installing-model-dev-tools.md). It is not created in the samples directory but can be launched with the following command: 
+   `benchmark_app -m <model> -i <input> -d <device>`
+   For more information, check the [Benchmark Python Tool](../../tools/benchmark_tool/README.md) documentation.
+
+> **NOTE**: All C++ samples support input paths containing only ASCII characters, except for the Hello Classification Sample, that supports Unicode.
 
 ## Media Files Available for Samples
 
@@ -75,7 +94,7 @@ To run the sample, you can use [public](@ref omz_models_group_public) or [Intel'
 
 ## Build the Sample Applications
 
-### <a name="build_samples_linux"></a>Build the Sample Applications on Linux*
+### <a name="build-samples-linux"></a>Build the Sample Applications on Linux
 
 The officially supported Linux* build environment is the following:
 
@@ -91,8 +110,8 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/inference_engine_c_samples_build/intel64/Release`
-* C++ samples: `~/inference_engine_cpp_samples_build/intel64/Release`
+* C samples: `~/openvino_c_samples_build/intel64/Release`
+* C++ samples: `~/openvino_cpp_samples_build/intel64/Release`
 
 You can also build the sample applications manually:
 
@@ -102,7 +121,7 @@ You can also build the sample applications manually:
 ```sh
 mkdir build
 ```
-> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/inference_engine_cpp_samples_build/`
+> **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: `~/openvino_cpp_samples_build/`
 
 2. Go to the created directory:
 ```sh
@@ -124,16 +143,16 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
-### <a name="build_samples_windows"></a>Build the Sample Applications on Microsoft Windows* OS
+### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
-The recommended Windows* build environment is the following:
-* Microsoft Windows* 10
-* Microsoft Visual Studio* 2019
-* CMake* version 3.10 or higher
+The recommended Windows build environment is the following:
+* Microsoft Windows 10
+* Microsoft Visual Studio 2019
+* CMake version 3.10 or higher
 
-> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
+> **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14 or higher.
 
 To build the C or C++ sample applications on Windows, go to the `<INSTALL_DIR>\samples\c` or `<INSTALL_DIR>\samples\cpp` directory, respectively, and run the `build_samples_msvc.bat` batch file:
 ```sh
@@ -143,14 +162,14 @@ build_samples_msvc.bat
 By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build a solution for a sample code
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_c_samples_build\intel64\Release`
-* C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release`
+* C samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_c_samples_build\intel64\Release`
+* C++ samples: `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\intel64\Release`
 
 You can also build a generated solution manually. For example, if you want to build C++ sample binaries in Debug configuration, run the appropriate version of the
-Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
+Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`
 directory.
 
-### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
+### <a name="build-samples-macos"></a>Build the Sample Applications on macOS*
 
 The officially supported macOS* build environment is the following:
 
@@ -166,8 +185,8 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/inference_engine_c_samples_build/intel64/Release`
-* C++ samples: `~/inference_engine_cpp_samples_build/intel64/Release`
+* C samples: `~/openvino_c_samples_build/intel64/Release`
+* C++ samples: `~/openvino_cpp_samples_build/intel64/Release`
 
 You can also build the sample applications manually:
 
@@ -183,7 +202,7 @@ source setupvars.sh
 ```sh
 mkdir build
 ```
-> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/inference_engine_cpp_samples_build/`
+> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/openvino_cpp_samples_build/`
 
 2. Go to the created directory:
 ```sh
@@ -205,7 +224,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 

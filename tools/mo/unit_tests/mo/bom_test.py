@@ -7,16 +7,19 @@ import re
 import unittest
 from itertools import islice
 
+from openvino.tools.mo.utils.utils import get_mo_root_dir
+
 dir_patterns_to_skip = ['.*__pycache__.*']
 file_patterns_to_skip = ['.*\\.DS_Store$',
                          '.*\\.swp',
-                         '.*\\.pyc$']
+                         '.*\\.pyc$',
+                         'requirements.*\.txt',
+                         'version.txt']
 full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
                               '^openvino/tools/mo/front/caffe/CustomLayersMapping.xml$',
                               ]
 if platform.system() == 'Windows':
     full_name_patterns_to_skip = [i.replace('/', '\\\\') for i in full_name_patterns_to_skip]
-dirs_to_search = ['openvino/tools/mo']
 
 
 def is_match(name: str, patterns: ()):
@@ -35,8 +38,9 @@ class TestBOMFile(unittest.TestCase):
             else:
                 cls.existing_files = [name.rstrip() for name in bom_file.readlines()]
 
-        # output_dir is the model_optimizer directory that is located in 'pkg/tools'
-        cls.output_dir = mo_path.replace('tests', 'tools')
+        # dirs_to_search is the root directory where MO is located, 'openvino_project_root/tools/mo/openvino/tools'
+        cls.dirs_to_search = os.path.normpath(get_mo_root_dir() + '/mo/')
+        cls.prefix = os.path.normpath(get_mo_root_dir() + '../../../')  # prefix which is used in BOM file
         cls.expected_header = [re.compile(pattern) for pattern in [
             r'^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
             r'^# SPDX-License-Identifier: Apache-2.0$',
@@ -44,8 +48,7 @@ class TestBOMFile(unittest.TestCase):
 
     def test_bom_file(self):
         missing_files = list()
-        for src_dir in dirs_to_search:
-            src_dir = os.path.join(self.output_dir, src_dir)
+        for src_dir in [self.dirs_to_search]:
             if not os.path.isdir(src_dir):
                 continue
             for root, dirs, files in os.walk(src_dir):
@@ -53,7 +56,7 @@ class TestBOMFile(unittest.TestCase):
                     continue
                 for f in files:
                     full_name = os.path.join(root, f)
-                    full_name = full_name[len(self.output_dir) + 1:]
+                    full_name = full_name[len(self.prefix) + 1:]
                     if is_match(f, file_patterns_to_skip):
                         continue
                     if is_match(full_name, full_name_patterns_to_skip):
@@ -74,7 +77,7 @@ class TestBOMFile(unittest.TestCase):
     def test_deleted_files_still_stored_in_bom(self):
         deleted = list()
         for file in self.existing_files:
-            if not os.path.isfile(os.path.join(self.output_dir, file)):
+            if not os.path.isfile(os.path.join(self.prefix, file)):
                 deleted.append(file)
         if len(deleted) != 0:
             print("Deleted files still stored in BOM file:")
@@ -91,8 +94,7 @@ class TestBOMFile(unittest.TestCase):
 
     def test_missed_intel_header(self):
         missing_files = list()
-        for src_dir in dirs_to_search:
-            src_dir = os.path.join(self.output_dir, src_dir)
+        for src_dir in [self.dirs_to_search]:
             if not os.path.isdir(src_dir):
                 continue
             for root, dirs, files in os.walk(src_dir):

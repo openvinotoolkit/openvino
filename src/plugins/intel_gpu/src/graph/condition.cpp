@@ -10,10 +10,8 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id condition::type_id() {
-    static primitive_type_base<condition> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
+
 /*
     Calc_output_layout method is called only when output layout is invalidated.
     It means, that it is called when:
@@ -22,20 +20,20 @@ primitive_type_id condition::type_id() {
     In this both cases, we need to recalc branch_true and branch_false.
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
-layout condition_inst::calc_output_layout(condition_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout condition_inst::calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for condition_node!");
     node.set_branches();
 
     auto branch_true_output = node.get_branch_true()->get_outputs();
     auto branch_false_output = node.get_branch_false()->get_outputs();
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
+    CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
                           "Count of branch true outputs",
                           branch_true_output.size(),
                           "expected outputs size",
                           1,
                           "Branch true should have one output.");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
+    CLDNN_ERROR_NOT_EQUAL(impl_param.desc->id,
                           "Count of branch false outputs",
                           branch_false_output.size(),
                           "expected outputs size",
@@ -44,7 +42,7 @@ layout condition_inst::calc_output_layout(condition_node const& node) {
 
     auto layout_true = branch_true_output.at(0)->get_output_layout();
     auto layout_false = branch_false_output.at(0)->get_output_layout();
-    CLDNN_ERROR_LAYOUT_MISMATCH(node.id(),
+    CLDNN_ERROR_LAYOUT_MISMATCH(impl_param.desc->id,
                                 "Branch true output layout",
                                 layout_true,
                                 "branch false output layout",
@@ -73,8 +71,8 @@ condition_inst::typed_primitive_inst(network& network, condition_node const& nod
     : parent(network, node),
       _net_true(network::allocate_network(node.get_program().get_engine(), node.get_branch_true(), true)),
       _net_false(network::allocate_network(node.get_program().get_engine(), node.get_branch_false(), true)) {
-    auto compare_tensor = node.compare().get_output_layout().size;
-    auto input_tensor = node.input().get_output_layout().size;
+    auto compare_tensor = node.compare().get_output_layout().get_tensor();
+    auto input_tensor = node.input().get_output_layout().get_tensor();
     CLDNN_ERROR_TENSOR_SIZES_GREATER_THAN(node.id(),
                                           "Compare tensor",
                                           compare_tensor,

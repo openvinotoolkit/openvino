@@ -13,10 +13,10 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise inverse cosine (arccos) operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Acos : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Acos", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an arccos operation.
     Acos() = default;
     /// \brief Constructs an arccos operation.
@@ -27,9 +27,6 @@ public:
     /// Output `[d1, ...]`
     ///
     Acos(const Output<Node>& arg);
-    bool visit_attributes(AttributeVisitor&) override {
-        return true;
-    }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;

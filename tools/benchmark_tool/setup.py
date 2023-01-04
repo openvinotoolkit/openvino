@@ -21,7 +21,6 @@ with open('requirements.txt') as requirements_txt:
         in pkg_resources.parse_requirements(requirements_txt)
     ]
 
-
 setup(
     name='benchmark_tool',
     version='0.0.0',
@@ -42,5 +41,5 @@ setup(
     ],
     packages=find_packages(),
     install_requires=reqs,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )

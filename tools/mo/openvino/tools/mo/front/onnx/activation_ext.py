@@ -260,3 +260,13 @@ class TanhExtractor(FrontExtractorOp):
     def extract(cls, node):
         Tanh.update_node_stat(node)
         return cls.enabled
+
+
+class SoftSignExtractor(FrontExtractorOp):
+    op = 'Softsign'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        SoftSign.update_node_stat(node, {})
+        return cls.enabled

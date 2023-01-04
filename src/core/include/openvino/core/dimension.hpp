@@ -20,6 +20,7 @@ class TableOfEquivalence;
 ///
 /// Static dimensions may be implicitly converted from value_type. A dynamic dimension is
 /// constructed with Dimension() or Dimension::dynamic().
+/// \ingroup ov_model_cpp_api
 class OPENVINO_API Dimension {
 public:
     using value_type = int64_t;
@@ -32,6 +33,10 @@ public:
     /// \param min_dimension The lower inclusive limit for the dimension
     /// \param max_dimension The upper inclusive limit for the dimension
     Dimension(value_type min_dimension, value_type max_dimension);
+
+    /// \brief Construct a dimension from string.
+    /// \param str String to parse to dimension.
+    Dimension(const std::string& str);
 
     /// \brief Construct a dynamic dimension with range [0, ...]
     Dimension() = default;
@@ -175,6 +180,9 @@ public:
         swap(a.m_label, b.m_label);
         swap(a.m_table_of_equivalence, b.m_table_of_equivalence);
     }
+
+    /// \brief String representation of Dimension
+    std::string to_string() const;
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}

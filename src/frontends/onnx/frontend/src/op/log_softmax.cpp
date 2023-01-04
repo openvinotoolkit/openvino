@@ -14,7 +14,7 @@ namespace ngraph {
 namespace onnx_import {
 namespace {
 std::shared_ptr<ngraph::Node> onnx_logsoftmax(const Output<ngraph::Node> data, const int64_t axis) {
-    const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
+    const auto coerced_data = ngraph::builder::opset1::flatten(data, static_cast<int>(axis));
     const auto result = std::make_shared<default_opset::LogSoftmax>(coerced_data, 1);
     const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
     return std::make_shared<default_opset::Reshape>(result, data_shape, false);

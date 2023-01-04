@@ -56,4 +56,70 @@ void CascadeConcat::SetUp() {
     }
     function = std::make_shared<ngraph::Function>(results, input, "concat_reshape_reshape_concat_mul");
 }
+
+std::string CascadeConcatWithMultiConnReshape::getTestCaseName(const testing::TestParamInfo<CascadeConcatWithMultiConnReshapeTuple> &obj) {
+    std::vector<size_t> inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::string targetName;
+    std::map<std::string, std::string> additional_config;
+    std::tie(inputShape, netPrecision, targetName, additional_config) = obj.param;
+    std::ostringstream results;
+
+    results << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    results << "netPRC=" << netPrecision.name() << "_";
+    results << "targetDevice=" << targetName << "_";
+    for (auto const& configItem : additional_config) {
+        results << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
+    return results.str();
+}
+
+/**
+ * Tests a case when 2 concats have Squeeze between them and Concat2 is the second connection of Squeeze output
+ * Input     Const1
+ *   |         |
+ *  Relu       |
+ *    |        |
+ *      Concat1
+ *        |
+ *      Squeeze   Const2
+ *    |        |   |
+ *   Relu1    Concat2
+ *    |          |
+ * Unsqueeze1   Relu2
+ *               |
+ *            Unsqueeze2
+ */
+void CascadeConcatWithMultiConnReshape::SetUp() {
+    std::vector<size_t> inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> additional_config;
+    std::tie(inputShape, netPrecision, targetDevice, additional_config) = this->GetParam();
+    configuration.insert(additional_config.begin(), additional_config.end());
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+    auto inputShapeSqueezed = inputShape;
+    inputShapeSqueezed.insert(std::begin(inputShapeSqueezed), 1);
+    auto input = ngraph::builder::makeParams(ngPrc, {inputShapeSqueezed});
+    auto relu = std::make_shared<ngraph::opset8::Relu>(input[0]);
+    auto const1 = ngraph::builder::makeConstant(ngPrc, inputShapeSqueezed, std::vector<float>{}, true);
+    auto concat1 = ngraph::builder::makeConcat({relu, const1}, inputShapeSqueezed.size() - 1);
+
+    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(concat1, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+
+    auto relu1 = std::make_shared<ngraph::opset8::Relu>(squeeze);
+    auto unsqueeze1 = ngraph::builder::makeSqueezeUnsqueeze(relu1, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+
+    auto const2 = ngraph::builder::makeConstant(ngPrc, inputShape, std::vector<float>{}, true);
+    auto concat2 = ngraph::builder::makeConcat({squeeze, const2}, 1);
+    // Change concat name to make it the second connection in the map of squeeze output connections
+    concat2->set_friendly_name("XConcat");
+
+    auto relu2 = std::make_shared<ngraph::opset8::Relu>(concat2);
+    auto unsqueeze2 = ngraph::builder::makeSqueezeUnsqueeze(relu2, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+    ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(unsqueeze1),
+                                    std::make_shared<ngraph::opset1::Result>(unsqueeze2)};
+
+    function = std::make_shared<ngraph::Function>(results, input, "CascadeConcatWithMultiConnReshapeTest");
+}
 } // namespace SubgraphTestsDefinitions

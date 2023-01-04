@@ -9,7 +9,7 @@ For more details about low-precision model representation please refer to this [
 During the model load each plugin can interpret quantization rules expressed in *FakeQuantize* operations:
 - Independently based on the definition of *FakeQuantize* operation.
 - Using a special library of low-precision transformations (LPT) which applies common rules for generic operations,
-such as Convolution, Fully-Connected, Eltwise, etc., and translates "fake-quantized" models into the models with low-precision operations. For more information about low-precision flow please refer to the following [document](../OV_Runtime_UG/Int8Inference.md). 
+such as Convolution, Fully-Connected, Eltwise, etc., and translates "fake-quantized" models into models with low-precision operations.
 
 Here we provide only a high-level overview of the interpretation rules of FakeQuantize. 
 At runtime each FakeQuantize can be split into two independent operations: **Quantize** and **Dequantize**. 
@@ -32,7 +32,7 @@ Thus we can define:
 - **Scale** as `(output_high - output_low) / (levels-1)`
 - **Zero-point** as `-output_low / (output_high - output_low) * (levels-1)`
 
-**Note**: During the quantization process the values `input_low`, `input_high`, `output_low`, `output_high` are selected so that to map a floating-point zero exactly to an integer value (zero-point) and vice versa.
+> **NOTE**: During the quantization process the values `input_low`, `input_high`, `output_low`, `output_high` are selected so that to map a floating-point zero exactly to an integer value (zero-point) and vice versa.
 
 ## Quantization specifics and restrictions
 In general, OpenVINO can represent and execute quantized models from different sources. However, the Post-training Optimization Tool (POT)

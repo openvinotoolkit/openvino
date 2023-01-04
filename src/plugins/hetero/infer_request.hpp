@@ -50,14 +50,17 @@ public:
 
     const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override;
 
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> QueryState() override;
+
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     SubRequestsList _inferRequests;
     std::map<std::string, InferenceEngine::Blob::Ptr> _blobs;
-    std::map<std::string, InferenceEngine::IInferRequestInternal*> _subRequestFromBlobName;
+    std::map<std::string, InferenceEngine::SoIInferRequestInternal> _subRequestFromBlobName;
 
 private:
     void CreateInferRequest(const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames);
+    std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> memoryStates;
 };
 
 }  // namespace HeteroPlugin

@@ -61,10 +61,10 @@ struct padded_pool_comparer {
             return ll.format < rl.format;
         if (ll.data_type != rl.data_type)
             return ll.data_type < rl.data_type;
-        if (ll.size.spatial[0] != rl.size.spatial[0])
-            return ll.size.spatial[0] < rl.size.spatial[0];
-        if (ll.size.spatial[1] != rl.size.spatial[1])
-            return ll.size.spatial[1] < rl.size.spatial[1];
+        if (ll.spatial(0) != rl.spatial(0))
+            return ll.spatial(0) < rl.spatial(0);
+        if (ll.spatial(1) != rl.spatial(1))
+            return ll.spatial(1) < rl.spatial(1);
         return ll.data_padding < rl.data_padding;
     }
 };
@@ -90,7 +90,7 @@ struct padded_pool_comparer {
 class memory_pool {
     memory_pool();
 
-    memory_ptr alloc_memory(const layout& layout, allocation_type type);
+    memory_ptr alloc_memory(const layout& layout, allocation_type type, bool reset = true);
     static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
@@ -107,7 +107,7 @@ public:
                           const std::set<primitive_id>& restrictions,
                           allocation_type type,
                           bool reusable = true);  // get from pool or create memory allocation
-    memory_ptr get_memory(const layout& layout, allocation_type type);
+    memory_ptr get_memory(const layout& layout, allocation_type type, bool reset = true);
     memory_ptr get_from_non_padded_pool(const layout& layout,
                                         const primitive_id& id,
                                         uint32_t network_id,

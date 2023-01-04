@@ -19,7 +19,8 @@ inline void DoTestBase(engine& engine,
     const int batch_dims,
     const cldnn::format fmt,
     const tensor ts,
-    const bool batch_merged_output) {
+    const bool batch_merged_output,
+    bool is_caching_test=false) {
     topology topology;
 
     int input_rank = 0;
@@ -33,23 +34,40 @@ inline void DoTestBase(engine& engine,
         FAIL();
     }
 
-    auto gather_nd_inst = gather_nd("gather_nd", "InputData", "InputIndices", input_rank, indices_rank, batch_dims, batch_merged_output);
+    auto gather_nd_inst = gather_nd("gather_nd", input_info("InputData"), input_info("InputIndices"), input_rank, indices_rank, batch_dims, batch_merged_output);
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(gather_nd_inst);
 
-    network network(engine, topology);
+    cldnn::network::ptr network;
 
-    network.set_input_data("InputData", input0);
-    network.set_input_data("InputIndices", input1);
-    auto outputs = network.execute();
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("InputData", input0);
+    network->set_input_data("InputIndices", input1);
+    auto outputs = network->execute();
     auto output = outputs.at("gather_nd").get_memory();
 
     // Compare output shape
     auto output_format = output->get_layout().format;
-    auto output_shape = output->get_layout().size;
+    auto output_shape = output->get_layout().get_tensor();
 
-    EXPECT_EQ(fmt, output_format);
+    ASSERT_EQ(fmt, output_format);
 
     int32_t dim_size = 6;
     if (fmt == format::bfyx) {
@@ -60,13 +78,13 @@ inline void DoTestBase(engine& engine,
 
     for (int32_t i = 0; i < dim_size; i++)
     {
-        EXPECT_EQ(ts.sizes()[i], output_shape.sizes()[i]);
+        ASSERT_EQ(ts.sizes()[i], output_shape.sizes()[i]);
     }
 
     // Compare output value
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -77,8 +95,9 @@ inline void DoTestV5(engine& engine,
     const int indices_rank,
     const int batch_dims,
     const cldnn::format fmt,
-    const tensor size) {
-    DoTestBase(engine, input0, input1, expected_results, indices_rank, batch_dims, fmt, size, true);
+    const tensor size,
+    bool is_caching_test=false) {
+    DoTestBase(engine, input0, input1, expected_results, indices_rank, batch_dims, fmt, size, true, is_caching_test);
 }
 
 inline void DoTestV8(engine& engine,
@@ -88,8 +107,9 @@ inline void DoTestV8(engine& engine,
     const int indices_rank,
     const int batch_dims,
     const cldnn::format fmt,
-    const tensor size) {
-    DoTestBase(engine, input0, input1, expected_results, indices_rank, batch_dims, fmt, size, false);
+    const tensor size,
+    bool is_caching_test=false) {
+    DoTestBase(engine, input0, input1, expected_results, indices_rank, batch_dims, fmt, size, false, is_caching_test);
 }
 
 TEST(gather_nd_gpu_fp16, d23322_i231312_ir6_batch2) {
@@ -746,4 +766,34 @@ TEST(gather_nd_gpu_fp16, d22_i32_ir2_batch0) {
 
     DoTestV5(engine,input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 });
     DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 });
+}
+
+TEST(gather_nd_gpu_fp16, export_import) {
+    auto& engine = get_test_engine();
+
+    const int indices_rank = 2;
+    const int batch_dims = 0;
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 2, 1, 1 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 3, 2, 1, 1 } }); // indices
+    // expected output dim: {3,1,1}
+
+    set_values(input0, {
+        FLOAT16(1), FLOAT16(2),
+        FLOAT16(3), FLOAT16(4)
+    });
+
+    set_values(input1, {
+        FLOAT16(0), FLOAT16(0),
+        FLOAT16(1), FLOAT16(0),
+        FLOAT16(1), FLOAT16(1),
+    });
+
+    std::vector<float> expected_results = {
+        FLOAT16(1),
+        FLOAT16(3),
+        FLOAT16(4),
+    };
+
+    DoTestV5(engine,input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 }, true);
+    DoTestV8(engine, input0, input1, expected_results, indices_rank, batch_dims, format::bfyx, { 3, 1, 1, 1 }, true);
 }

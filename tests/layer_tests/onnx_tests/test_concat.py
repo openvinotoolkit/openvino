@@ -3,12 +3,12 @@
 
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestConcat(Caffe2OnnxLayerTest):
+class TestConcat(OnnxRuntimeLayerTest):
     # TODO Add test with default values (axis=0)
     def create_concat_net_const(self, input_shape, output_shape, axis, ir_version):
         """
@@ -33,7 +33,7 @@ class TestConcat(Caffe2OnnxLayerTest):
         concat_output_shape[concat_axis] *= 2
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, output_shape)
 
@@ -252,39 +252,39 @@ class TestConcat(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_concat_3D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_concat_3D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.precommit
     def test_concat_4D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                       api_2):
+                                       use_old_api):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_concat_4D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_concat_4D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.nightly
     def test_concat_5D_const_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                       api_2):
+                                       use_old_api):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_concat_5D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_concat_5D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_concat_net_const(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_concat_inputs_order_params)
     @pytest.mark.nightly
-    def test_concat_inputs_order(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_concat_inputs_order(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_concat_net(**params, ir_version=ir_version), ie_device=ie_device,
                    precision=precision, ir_version=ir_version, temp_dir=temp_dir,
-                   input_names=params['input_names'], api_2=api_2)
+                   input_names=params['input_names'], use_old_api=use_old_api)

@@ -14,10 +14,12 @@
 namespace ov {
 namespace op {
 namespace v5 {
+/// \brief GRUSequence operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GRUSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("GRUSequence", "opset5", op::Op, 5);
-    BWDCMP_RTTI_DECLARATION;
     GRUSequence();
 
     GRUSequence(const Output<Node>& X,

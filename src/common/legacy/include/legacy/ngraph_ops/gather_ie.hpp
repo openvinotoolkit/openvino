@@ -17,7 +17,6 @@ namespace op {
 class GatherIE : public Op {
 public:
     OPENVINO_OP("GatherIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
     GatherIE() = default;
 
     GatherIE(const Output<Node>& params, const Output<Node>& indices, int64_t axis);

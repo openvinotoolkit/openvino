@@ -5,6 +5,7 @@
 #include "ngraph/node.hpp"
 
 #include <memory>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
@@ -24,6 +25,8 @@
 using namespace std;
 
 atomic<size_t> ov::Node::m_next_instance_id(0);
+
+ov::Node::Node() = default;
 
 ov::Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
@@ -129,7 +132,8 @@ std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(
     for (size_t i = 0; i < get_output_size(); i++) {
         clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
         NGRAPH_SUPPRESS_DEPRECATED_START
-        clone->get_output_tensor(i).set_name(get_output_tensor(i).get_name());
+        ov::descriptor::set_ov_tensor_legacy_name(clone->get_output_tensor(i),
+                                                  ov::descriptor::get_ov_tensor_legacy_name(get_output_tensor(i)));
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
     return clone;
@@ -471,18 +475,6 @@ const ov::PartialShape& ov::Node::get_input_partial_shape(size_t i) const {
     return m_inputs[i].get_partial_shape();
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-const string& ov::Node::get_input_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
-    return m_inputs[i].get_tensor().get_name();
-}
-
-const string& ov::Node::get_output_tensor_name(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     if (get_output_size() != node->get_output_size()) {
         return false;
@@ -701,6 +693,15 @@ protected:
     }
 };
 
+inline ov::Tensor create_tensor_from_output(const ov::Output<ov::Node>& output) {
+    if (output.get_element_type().is_dynamic()) {
+        return ov::Tensor();
+    } else if (output.get_partial_shape().is_dynamic()) {
+        return ov::Tensor(output.get_element_type(), {0});
+    }
+    return ov::Tensor(output.get_element_type(), output.get_shape());
+}
+
 inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tensors) {
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
@@ -743,13 +744,15 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
 bool ov::Node::evaluate(ov::TensorVector& output_values,
                         const ov::TensorVector& input_values,
                         const ov::EvaluationContext& evaluationContext) const {
+    // Call evaluate for old implementation with EvaluationContext
     HostTensorVector output = create_tmp_tensors(output_values);
     HostTensorVector input = create_tmp_tensors(input_values);
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
     OPENVINO_SUPPRESS_DEPRECATED_END
     update_output_tensors(output_values, output);
-    return sts;
+    // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
+    return sts ? sts : evaluate(output_values, input_values);
 }
 
 bool ov::Node::evaluate_lower(ov::TensorVector& output_values) const {
@@ -799,9 +802,9 @@ bool ov::Node::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& input_values) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Node::constant_fold");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Node::constant_fold");
 
-    if (m_rt_info.count(ov::pass::DisableConstantFolding::get_type_info_static())) {
+    if (is_const_fold_disabled()) {
         return false;
     }
 
@@ -812,22 +815,28 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!all_constants)
         return false;
 
-    HostTensorVector input_tensors;
+    NodeVector nodes;
+    TensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
-        input_tensors.push_back(host_tensor);
+        nodes.push_back(input.get_node_shared_ptr());
+        auto constant = ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr());
+        auto tensor = ov::Tensor(input.get_element_type(), input.get_shape());
+        std::copy_n(constant->get_data_ptr<uint8_t>(), constant->get_byte_size(), static_cast<uint8_t*>(tensor.data()));
+        input_tensors.push_back(tensor);
     }
-    HostTensorVector output_tensors;
-    OutputVector output_constants;
+
+    TensorVector output_tensors;
     for (const auto& output : outputs()) {
-        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
-        output_tensors.push_back(tensor);
+        output_tensors.push_back(create_tensor_from_output(output));
     }
+
     OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
+            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i].get_element_type(),
+                                                                 output_tensors[i].get_shape(),
+                                                                 output_tensors[i].data());
+            copy_runtime_info(nodes, output_values[i].get_node_shared_ptr());
         }
         return true;
     }
@@ -835,9 +844,15 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     return false;
 }
 
-namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<shared_ptr<Node>>);
+bool ov::Node::is_const_fold_disabled() const {
+    return ov::pass::constant_folding_is_disabled(this);
+}
 
+bool ov::Node::visit_attributes(AttributeVisitor&) {
+    return true;
+}
+
+namespace ov {
 AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>& value) : m_ref(value) {}
 
 bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor& visitor) {
@@ -849,8 +864,6 @@ bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor&
     }
     return true;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<NodeVector>);
 
 AttributeAdapter<NodeVector>::AttributeAdapter(NodeVector& ref) : m_ref(ref) {}
 

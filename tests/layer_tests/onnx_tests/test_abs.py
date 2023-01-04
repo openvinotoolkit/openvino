@@ -90,7 +90,7 @@ class TestAbs(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
@@ -167,12 +167,12 @@ class TestAbs(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_abs(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_abs(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_abs_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_abs_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

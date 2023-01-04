@@ -27,5 +27,5 @@ ngraph::snippets::pass::ConvertPowerToPowerStatic::ConvertPowerToPowerStatic() {
 
         return true;
     };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(scalarPower), callback);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(scalarPower, matcher_name), callback);
 }

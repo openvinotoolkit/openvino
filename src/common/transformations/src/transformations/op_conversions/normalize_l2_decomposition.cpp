@@ -5,17 +5,17 @@
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 
-ngraph::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
+ov::pass::NormalizeL2Decomposition::NormalizeL2Decomposition() {
     MATCHER_SCOPE(NormalizeL2Decomposition);
     auto normalize_l2_pattern = ngraph::pattern::wrap_type<opset8::NormalizeL2>();
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto normalize_l2 = std::dynamic_pointer_cast<opset8::NormalizeL2>(m.get_match_root());
 
         if (!normalize_l2 || transformation_callback(normalize_l2)) {

@@ -27,7 +27,11 @@ public:
         validate_and_infer_types();
     }
 
-    void validate_and_infer_types() override;
+    void validate_and_infer_types() override {
+        for (size_t i = 0; i < get_output_size(); ++i) {
+            set_output_type(i, ov::element::dynamic, PartialShape::dynamic());
+        }
+    }
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
         return std::make_shared<FrameworkNode>(m_decoder, inputs, get_output_size());

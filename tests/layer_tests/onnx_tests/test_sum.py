@@ -37,7 +37,7 @@ class TestSum(OnnxRuntimeLayerTest):
         nodes = list()
         consts = list()
         for i, shape in enumerate(const_shapes):
-            const = np.random.randint(-127, 127, shape).astype(np.float)
+            const = np.random.randint(-127, 127, shape).astype(float)
             const_name = 'const{}'.format(i + 1)
             nodes.append(helper.make_node(
                 'Constant',
@@ -111,7 +111,7 @@ class TestSum(OnnxRuntimeLayerTest):
         input_names = list()
         consts = list()
         for i, shape in enumerate(const_shapes):
-            const = np.random.randint(-127, 127, shape).astype(np.float)
+            const = np.random.randint(-127, 127, shape).astype(float)
             const_name = 'const{}'.format(i + 1)
             nodes.append(helper.make_node(
                 'Constant',
@@ -285,57 +285,57 @@ class TestSum(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sum_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_sum_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, opset=6, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
-    def test_sum_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_sum_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_sum(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_sum(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_net(**params, precision=precision, ir_version=ir_version), ie_device,
             precision, ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", const_test_data)
     @pytest.mark.nightly
-    def test_sum_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_sum_const_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_const_net(**params, opset=6, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", const_test_data_precommit)
     @pytest.mark.precommit
-    def test_sum_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_sum_const_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", const_test_data)
     @pytest.mark.nightly
-    def test_sum_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_sum_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", const_test_data_broadcasting_precommit)
     @pytest.mark.precommit
     def test_sum_const_broadcasting_precommit(self, params, ie_device, precision, ir_version,
-                                              temp_dir, api_2):
+                                              temp_dir, use_old_api):
         self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", const_test_data_broadcasting)
     @pytest.mark.nightly
     def test_sum_const_broadcasting(self, params, ie_device, precision, ir_version, temp_dir,
-                                    api_2):
+                                    use_old_api):
         self._test(*self.create_const_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

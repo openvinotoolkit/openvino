@@ -70,13 +70,61 @@ QUANTILE_WEIGHTS_RANGE_ESTIMATOR_CONFIG = {
     }}
 
 
+DEFAULT_OUTPUTS_RANGE_ESTIMATOR_CONFIG = {
+    'perchannel': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min', 'granularity': 'pertensor'},
+            'max': {'aggregator': 'max', 'type': 'abs_max'}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'min', 'type': 'min'},
+            'max': {'aggregator': 'max', 'type': 'max'}
+        }
+    },
+    'pertensor': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min'},
+            'max': {'aggregator': 'mean', 'type': 'abs_max'}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'mean', 'type': 'min'},
+            'max': {'aggregator': 'mean', 'type': 'max'}
+        }
+    }}
+
+
+QUANTILE_OUTPUTS_RANGE_ESTIMATOR_CONFIG = {
+    'perchannel': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min', 'granularity': 'pertensor'},
+            'max': {'aggregator': 'max', 'type': 'abs_quantile', 'outlier_prob': 1e-4}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'min', 'type': 'quantile', 'outlier_prob': 1e-4},
+            'max': {'aggregator': 'max', 'type': 'quantile', 'outlier_prob': 1e-4}
+        }
+    },
+    'pertensor': {
+        'symmetric': {
+            'min': {'aggregator': 'min', 'type': 'min'},
+            'max': {'aggregator': 'mean', 'type': 'abs_quantile', 'outlier_prob': 1e-4}
+        },
+        'asymmetric': {
+            'min': {'aggregator': 'mean', 'type': 'quantile', 'outlier_prob': 1e-4},
+            'max': {'aggregator': 'mean', 'type': 'quantile', 'outlier_prob': 1e-4}
+        }
+    }}
+
+
 RANGE_ESTIMATOR_CONFIG_PRESETS = {
     'default': {
         'activations': DEFAULT_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG,
+        'outputs': DEFAULT_OUTPUTS_RANGE_ESTIMATOR_CONFIG,
         'weights': DEFAULT_WEIGHTS_RANGE_ESTIMATOR_CONFIG,
     },
     'quantile': {
         'activations': QUANTILE_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG,
+        'outputs': QUANTILE_OUTPUTS_RANGE_ESTIMATOR_CONFIG,
         'weights': QUANTILE_WEIGHTS_RANGE_ESTIMATOR_CONFIG,
     }
 }
@@ -90,7 +138,7 @@ def get_range_estimator_config(config, tensor_type, granularity, q_mode, preset=
         preset = range_estimator.get('preset', 'default')
     preset_config = deepcopy(RANGE_ESTIMATOR_CONFIG_PRESETS[preset][tensor_type])
     result_config = preset_config[granularity][q_mode] \
-        if tensor_type == 'activations' else preset_config[q_mode]
+        if tensor_type in ['activations', 'outputs'] else preset_config[q_mode]
     if 'min' in range_estimator:
         if 'min' not in result_config:
             result_config['min'] = {}

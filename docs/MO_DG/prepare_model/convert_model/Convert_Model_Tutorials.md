@@ -37,8 +37,7 @@
 
 @endsphinxdirective
 
-This section provides you with a set of tutorials that demonstrate conversion steps for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models.
-It contains conversion recipes for concrete models, that unnecessarily cover your case.
-Try to convert the model out-of-the-box, meaning only the `--input_model` parameter is specified in the command line, before studying the tutorials.
+This section provides a set of tutorials that demonstrate conversion methods for specific TensorFlow, ONNX, PyTorch, MXNet, and Kaldi models, that unnecessarily cover your case.
+Before studying the tutorials, try to convert the model out-of-the-box by specifying only the `--input_model` parameter in the command line.
 
-You can also find a collection of [Python tutorials](../../../tutorials.md) written for running on Jupyter* notebooks that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference.
+You will find a collection of [Python tutorials](../../../tutorials.md) written for running on Jupyter notebooks that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference.

@@ -5,21 +5,27 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertMatrixNmsToMatrixNmsIE;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertMatrixNmsToMatrixNmsIE : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMatrixNmsToMatrixNmsIE : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertMatrixNmsToMatrixNmsIE", "0");
     ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type = true);
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertMatrixNmsToMatrixNmsIE;
+}  // namespace pass
+}  // namespace ngraph

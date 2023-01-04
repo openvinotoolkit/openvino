@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief ReorgYolo operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReorgYolo : public Op {
 public:
     OPENVINO_OP("ReorgYolo", "opset2");
-    BWDCMP_RTTI_DECLARATION;
 
     ReorgYolo() = default;
     /// \brief Constructs a ReorgYolo operation

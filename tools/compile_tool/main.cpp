@@ -453,7 +453,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
                     }
                 }
             }
-            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+            OPENVINO_ASSERT(tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
         }
     }
     if (!il.empty()) {
@@ -490,7 +490,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
                     }
                 }
             }
-            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+            OPENVINO_ASSERT(tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
         }
     }
 
@@ -528,7 +528,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Model>& model,
                     }
                 }
             }
-            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
+            OPENVINO_ASSERT(tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
         }
     }
 

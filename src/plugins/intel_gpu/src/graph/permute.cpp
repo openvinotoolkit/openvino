@@ -13,32 +13,71 @@
 #include <vector>
 
 namespace cldnn {
+GPU_DEFINE_PRIMITIVE_TYPE_ID(permute)
 
-primitive_type_id permute::type_id() {
-    static primitive_type_base<permute> instance;
-    return &instance;
-}
-
-layout permute_inst::calc_output_layout(permute_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout permute_inst::calc_output_layout(permute_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for permute_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto permute_order = node.get_primitive()->permute_order;
-    std::vector<tensor::value_type> output_sizes;
+    auto desc = impl_param.typed_desc<permute>();
+    auto input_layout = impl_param.get_input_layout();
+    auto permute_order = desc->permute_order;
+    std::vector<tensor::value_type> output_shape;
+
+    auto input_shape = input_layout.get_dims();
 
     for (size_t x = 0; x < permute_order.size(); x++) {
-        output_sizes.push_back(input_layout.size.raw[permute_order[x]]);
+        output_shape.push_back(input_shape[permute_order[x]]);
     }
 
-    auto input_size = tensor(output_sizes);
-    auto op = node.get_primitive()->output_padding;
-
-    if (node.has_fused_primitives()) {
-        input_layout.data_type = node.get_fused_output_layout().data_type;
+    for (size_t i = output_shape.size(); i < 4; i++) {
+        output_shape.push_back(1);
     }
 
-    return layout(input_layout.data_type, input_layout.format, input_size, op);
+    auto output_size = tensor(format::get_default_format(input_layout.get_rank()), output_shape);
+    auto op = desc->output_paddings[0];
+
+    if (impl_param.has_fused_primitives()) {
+        input_layout.data_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    return layout(input_layout.data_type, input_layout.format, output_size, op);
 }
+
+template<typename ShapeType>
+std::vector<layout> permute_inst::calc_output_layouts(permute_node const& /*node*/, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<permute>();
+    auto input_layout = impl_param.get_input_layout();
+
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    ShapeType input_shape = input_layout.get<ShapeType>();
+    ShapeType output_shape;
+    ov::Rank input_rank = input_shape.rank();
+
+    if (input_rank.is_dynamic()) {
+        output_shape = ShapeType::dynamic(desc->permute_order.size());
+        return { layout{output_shape, output_type, input_layout.format} };
+    }
+
+    int64_t input_static_rank = input_rank.get_length();
+    auto permute_order = desc->permute_order;
+    if (permute_order.empty()) {
+        for (int64_t i = 1; i <= input_static_rank; ++i) {
+            permute_order.emplace_back(input_static_rank - i);
+        }
+    }
+
+    for (int64_t i = 0; i < input_static_rank; ++i) {
+        output_shape.push_back(input_shape[permute_order[i]]);
+    }
+
+    return { layout{output_shape, output_type, input_layout.format, desc->output_paddings[0]} };
+}
+
+template std::vector<layout> permute_inst::calc_output_layouts<ov::PartialShape>(permute_node const& node, const kernel_impl_params& impl_param);
 
 std::string permute_inst::to_string(permute_node const& node) {
     auto desc = node.get_primitive();
@@ -65,14 +104,7 @@ std::string permute_inst::to_string(permute_node const& node) {
 }
 
 permute_inst::typed_primitive_inst(network& network, permute_node const& node) : parent(network, node) {
-    auto permute_order = argument.permute_order;
-
-    CLDNN_ERROR_LESS_THAN(node.id(),
-                          "Permute order size",
-                          permute_order.size(),
-                          "minimum order size",
-                          4,
-                          "Permute order size needs to be at least 4.");
+    auto permute_order = argument->permute_order;
 
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
 

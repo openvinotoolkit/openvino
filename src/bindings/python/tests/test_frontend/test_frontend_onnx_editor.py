@@ -1,13 +1,16 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+
+import numpy as np
 import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
-import numpy as np
-from openvino.runtime import Dimension, PartialShape
-from openvino.frontend import FrontEndManager
+
+from openvino.frontend import FrontEndManager, GeneralFailure
+from openvino.runtime import Dimension, PartialShape, Type
 
 
 # ------Test input model 1------
@@ -86,7 +89,7 @@ def create_test_onnx_models():
     # Input model 2
     split_2 = onnx.helper.make_node("Split", inputs=["add_out"],
                                     outputs=["sp_out1", "sp_out2"], name="split2", axis=0)
-    abs = onnx.helper.make_node("Abs", inputs=["sp_out1"], outputs=["out1"], name="abs1")
+    absolute = onnx.helper.make_node("Abs", inputs=["sp_out1"], outputs=["out1"], name="abs1")
     sin = onnx.helper.make_node("Sin", inputs=["sp_out2"], outputs=["out2"])
 
     input_tensors = [
@@ -97,7 +100,7 @@ def create_test_onnx_models():
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
         make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
     ]
-    graph = make_graph([add, split_2, abs, sin], "test_graph_2", input_tensors, output_tensors)
+    graph = make_graph([add, split_2, absolute, sin], "test_graph_2", input_tensors, output_tensors)
     models["input_model_2.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                               opset_imports=[onnx.helper.make_opsetid("", 13)])
 
@@ -336,12 +339,30 @@ def create_test_onnx_models():
         make_tensor_value_info("sub_out", onnx.TensorProto.FLOAT, (2, 2)),
     ]
     initializers = [
-        onnx.helper.make_tensor("one_const", 1, [1], [1])
+        onnx.helper.make_tensor("one_const", 1, [1], [1]),
     ]
     graph = make_graph([add, sub, split, mul], "test_graph", input_tensors, output_tensors,
                        value_info=value_infos, initializer=initializers)
     models["test_place_names.onnx"] = make_model(graph, producer_name="ONNX Importer",
                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Input model with integer types
+    add = onnx.helper.make_node("Add", inputs=["x", "y"], outputs=["z"])
+    const_tensor = onnx.helper.make_tensor("const_tensor",
+                                           onnx.TensorProto.INT32,
+                                           (2, 2),
+                                           [5, 1, 4, 20])
+    const_node = onnx.helper.make_node("Constant", [], outputs=["const_node"],
+                                       value=const_tensor, name="const_node")
+    mul = onnx.helper.make_node("Mul", inputs=["z", "const_node"], outputs=["out"])
+    input_tensors = [
+        make_tensor_value_info("x", onnx.TensorProto.INT32, (2, 2)),
+        make_tensor_value_info("y", onnx.TensorProto.INT32, (2, 2)),
+    ]
+    output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
+    graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
+    models["input_model_int32.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                  opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     return models
 
@@ -371,7 +392,7 @@ def skip_if_onnx_frontend_is_disabled():
 
 # Function to compare ng Functions (ops names, types and shapes).
 # Note that the functions uses get_ordered_ops, so the topological order of ops should be also preserved.
-def compare_functions(current, expected):  # noqa: C901 the function is too complex
+def compare_models(current, expected):  # noqa: C901 the function is too complex
     result = True
     msg = ""
     if current.get_friendly_name() != expected.get_friendly_name():
@@ -397,20 +418,20 @@ def compare_functions(current, expected):  # noqa: C901 the function is too comp
         if current_ops[i].get_output_size() != expected_ops[i].get_output_size():
             result = False
             msg += f"Not equal output size of {current_ops[i].get_friendly_name()}. "
-        for j in range(current_ops[i].get_output_size()):
-            if current_ops[i].get_output_partial_shape(j) != expected_ops[i].get_output_partial_shape(j):
+        for idx in range(current_ops[i].get_output_size()):
+            if current_ops[i].get_output_partial_shape(idx) != expected_ops[i].get_output_partial_shape(idx):
                 result = False
                 msg += f"Not equal op partial shapes of {current_ops[i].get_friendly_name()}. "
-                msg += f"Current: {current_ops[i].get_partial_shape({j})}, "
-                msg += f"expected: {expected_ops[i].get_partial_shape({j})}. "
-            if current_ops[i].get_output_element_type(j) != expected_ops[i].get_output_element_type(j):
+                msg += f"Current: {current_ops[i].get_partial_shape({idx})}, "
+                msg += f"expected: {expected_ops[i].get_partial_shape({idx})}. "
+            if current_ops[i].get_output_element_type(idx) != expected_ops[i].get_output_element_type(idx):
                 result = False
                 msg += f"Not equal output element type of {current_ops[i].get_friendly_name()}. "
-                msg += f"Current: {current_ops[i].get_output_element_type(j)}, "
-                msg += f"expected: {expected_ops[i].get_output_element_type(j)}. "
+                msg += f"Current: {current_ops[i].get_output_element_type(idx)}, "
+                msg += f"expected: {expected_ops[i].get_output_element_type(idx)}. "
 
     if not result:
-        print(msg)
+        print(msg)  # noqa: T201
 
     return result
 
@@ -427,12 +448,11 @@ def test_extract_subgraph():
     place2 = model.get_place_by_tensor_name(tensor_name="add_out").get_input_port(input_port_index=1)  # in2
     place3 = model.get_place_by_tensor_name(tensor_name="add_out")
     model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -447,12 +467,11 @@ def test_extract_subgraph_2():
     place1 = model.get_place_by_tensor_name(tensor_name="add_out")
     place2 = model.get_place_by_tensor_name(tensor_name="out3")
     model.extract_subgraph(inputs=[], outputs=[place1, place2])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph_2.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph_2.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -468,12 +487,11 @@ def test_extract_subgraph_3():
     place2 = model.get_place_by_tensor_name(tensor_name="out1")
     place3 = model.get_place_by_tensor_name(tensor_name="out2")
     model.extract_subgraph(inputs=[place1], outputs=[place2, place3])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph_3.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -495,10 +513,9 @@ def test_extract_subgraph_4():
     model.extract_subgraph(inputs=[place1, place2, place3], outputs=[place4, place5, place6])
     result_func = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph_4.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph_4.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_func, expected_model)
     assert res
 
 
@@ -517,12 +534,11 @@ def test_extract_subgraph_by_op_place_as_input():
     out2 = model.get_place_by_tensor_name(tensor_name="out2")
 
     model.extract_subgraph(inputs=[split_op, mul_op], outputs=[out1, out2, out4])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph_4.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph_4.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -540,12 +556,11 @@ def test_extract_subgraph_by_op_place_as_output():
     add_op = add_out_tensor.get_producing_operation()
 
     model.extract_subgraph(inputs=[in1_tensor, in2_tensor], outputs=[add_op])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph_5.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph_5.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -562,12 +577,11 @@ def test_extract_subgraph_by_op_place_as_output_2():
     mul_op = out4.get_producing_operation()
 
     model.extract_subgraph(inputs=[split_op, mul_op], outputs=[])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_override_all_inputs.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_override_all_inputs.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -586,12 +600,11 @@ def test_extract_subgraph_by_port_place_as_output():
     in2_tensor = model.get_place_by_tensor_name(tensor_name="in2")
 
     model.extract_subgraph(inputs=[in1_tensor, in2_tensor], outputs=[add_op_out_port])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("extract_subgraph.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("extract_subgraph.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -606,12 +619,11 @@ def test_override_all_outputs():
     place1 = model.get_place_by_tensor_name(tensor_name="add_out")
     place2 = model.get_place_by_tensor_name(tensor_name="out3")
     model.override_all_outputs(outputs=[place1, place2])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_override_all_outputs.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_override_all_outputs.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -625,12 +637,11 @@ def test_override_all_outputs_2():
 
     place1 = model.get_place_by_tensor_name(tensor_name="out4")
     model.override_all_outputs(outputs=[place1])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_override_all_outputs_2.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_override_all_outputs_2.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -645,12 +656,11 @@ def test_override_all_outputs_3():
     place1 = model.get_place_by_tensor_name(tensor_name="out1")
     place2 = model.get_place_by_tensor_name(tensor_name="out1")
     model.override_all_outputs(outputs=[place1, place2])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_override_all_outputs_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_override_all_outputs_3.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -669,12 +679,11 @@ def test_override_all_outputs_invalid_place():
     place1 = model.get_place_by_tensor_name(tensor_name="out1")
     place2 = model.get_place_by_tensor_name(tensor_name="out1")
     model.override_all_outputs(outputs=[place1, place2, invalid_place])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_override_all_outputs_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_override_all_outputs_3.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -693,12 +702,11 @@ def test_override_all_inputs():
     place3 = out4_tensor.get_producing_operation().get_input_port(input_port_index=1)
     place4 = model.get_place_by_tensor_name(tensor_name="in3")
     model.override_all_inputs(inputs=[place1, place2, place3, place4])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_override_all_inputs.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_override_all_inputs.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -720,12 +728,11 @@ def test_override_all_inputs_invalid_place():
     place1 = out1_tensor.get_producing_operation().get_input_port(input_port_index=0)
     place2 = out1_tensor.get_producing_operation().get_input_port(input_port_index=1)
     model.override_all_inputs(inputs=[place1, place2, invalid_place])
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("input_model_3.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("input_model_3.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -773,12 +780,11 @@ def test_set_partial_shape():
     model.set_partial_shape(place2, PartialShape([8, 16]))
     place3 = model.get_place_by_tensor_name(tensor_name="in3")
     model.set_partial_shape(place3, PartialShape([4, 6]))
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    expected_model = fe.load("test_partial_shape.onnx")
-    expected_func = fe.convert(expected_model)
+    expected_model = fe.convert(fe.load("test_partial_shape.onnx"))
 
-    res = compare_functions(result_func, expected_func)
+    res = compare_models(result_model, expected_model)
     assert res
 
 
@@ -1001,14 +1007,14 @@ def test_add_output_place_is_output():
     model = fe.load("input_model.onnx")
     assert model
 
-    orig_func = fe.convert(model)
+    orig_model = fe.convert(model)
 
     place = model.get_place_by_tensor_name(tensor_name="out1")
     model.add_output(place)
 
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    res = compare_functions(orig_func, result_func)
+    res = compare_models(orig_model, result_model)
     assert res
 
 
@@ -1020,14 +1026,13 @@ def test_add_output_place_is_input():
     model = fe.load("input_model.onnx")
     assert model
 
+    orig_model = fe.convert(model)
+
     place = model.get_place_by_tensor_name(tensor_name="in1")
     model.add_output(place)
-    result_func = fe.convert(model)
+    result_model = fe.convert(model)
 
-    orig_model = fe.load("input_model.onnx")
-    orig_func = fe.convert(orig_model)
-
-    res = compare_functions(orig_func, result_func)
+    res = compare_models(orig_model, result_model)
     assert res
 
 
@@ -1065,8 +1070,7 @@ def test_get_consuming_ports_2():
     split_op = model.get_place_by_operation_name(operation_name="split2")
     split_op_consuming_ports = split_op.get_consuming_ports()
     assert len(split_op_consuming_ports) == 2
-    abs_input_port = model.get_place_by_operation_name(operation_name="abs1") \
-                          .get_input_port(input_port_index=0)
+    abs_input_port = model.get_place_by_operation_name(operation_name="abs1").get_input_port(input_port_index=0)
     assert split_op_consuming_ports[0].is_equal(abs_input_port)
     out2_tensor = model.get_place_by_tensor_name(tensor_name="out2")
     sin_input_port = out2_tensor.get_producing_operation().get_input_port(input_port_index=0)
@@ -1238,11 +1242,10 @@ def test_remove_output():
     place = model.get_place_by_tensor_name(tensor_name="out4")
     model.remove_output(place)
 
-    expected_model = fe.load("remove_output.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model = fe.convert(fe.load("remove_output.onnx"))
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model)
     assert res
 
 
@@ -1257,11 +1260,10 @@ def test_remove_output_when_place_is_input():
     place = model.get_place_by_tensor_name(tensor_name="in1")
     model.remove_output(place)
 
-    expected_model = fe.load("input_model.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model = fe.convert(fe.load("input_model.onnx"))
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model)
     assert res
 
 
@@ -1307,11 +1309,10 @@ def test_cut_and_add_new_input_place():
 
     model.cut_and_add_new_input(place, "new_input")
 
-    expected_model = fe.load("cut_and_add_new_input_place.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model = fe.convert(fe.load("cut_and_add_new_input_place.onnx"))
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model)
     assert res
 
 
@@ -1329,11 +1330,10 @@ def test_cut_and_add_new_input_edge():
 
     model.cut_and_add_new_input(edge_mul0, "new_input")
 
-    expected_model = fe.load("cut_and_add_new_input_edge.onnx")
-    expected_func = fe.convert(expected_model)
-    model_func = fe.convert(model)
+    expected_model = fe.convert(fe.load("cut_and_add_new_input_edge.onnx"))
+    model_converted = fe.convert(model)
 
-    res = compare_functions(model_func, expected_func)
+    res = compare_models(model_converted, expected_model)
     assert res
 
 
@@ -1350,24 +1350,23 @@ def test_set_tensor_value():
     place1 = model.get_place_by_tensor_name(tensor_name="in1")
     model.set_tensor_value(place1, new_values)
 
-    model_func = fe.convert(model)
+    model_converted = fe.convert(model)
 
-    iter = None
-    current_ops = model_func.get_ordered_ops()
+    iteration = None
+    current_ops = model_converted.get_ordered_ops()
 
     for i in range(len(current_ops)):
         if (current_ops[i].get_friendly_name() == "in1"):
-            iter = i
+            iteration = i
 
-    assert current_ops[iter] is not None
+    assert current_ops[iteration] is not None
 
-    retrieved_data = current_ops[iter].get_data()
+    retrieved_data = current_ops[iteration].get_data()
     assert np.allclose(new_values, retrieved_data)
 
 
 def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()
-    from openvino.frontend import GeneralFailure
 
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     model = fe.load("test_place_names.onnx")
@@ -1389,18 +1388,18 @@ def test_set_name_for_tensor():
     # ignore rename to own name (expect no exception)
     model.set_name_for_tensor(tensor=tensor, new_name=old_name)
 
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="")
     assert "name must not be empty" in str(e.value)
 
     # ONNX model stores tensor info separately for inputs, outputs and between nodes tensors
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="in1")
     assert "already used by another tensor" in str(e.value)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="out1")
     assert "already used by another tensor" in str(e.value)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         model.set_name_for_tensor(tensor=tensor, new_name="sub_out")
     assert "already used by another tensor" in str(e.value)
 
@@ -1496,13 +1495,12 @@ def test_set_name_for_dimension():
     sub_output = model.get_place_by_tensor_name(tensor_name="sub_out")
     model.set_name_for_dimension(sub_output, 3, dim_name)
     assert model.get_partial_shape(sub_output) == PartialShape([2, 2, -1, -1])
-
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         model.set_name_for_dimension(input1, 0, "")
     assert "name must not be empty" in str(e.value)
 
     one_const = model.get_place_by_tensor_name(tensor_name="one_const")
-    with pytest.raises(Exception) as e:
+    with pytest.raises(RuntimeError) as e:
         model.set_name_for_dimension(one_const, 0, dim_name)
     assert "ONNX initializer shape dimension cannot be dynamic." in str(e.value)
 
@@ -1551,8 +1549,8 @@ def test_set_partial_shape_with_range_and_cut_it_off():
     model.extract_subgraph(inputs=[add_out], outputs=[])
 
     ov_model = fe.convert(model)
-    for input in ov_model.inputs:
-        assert input.get_partial_shape() != ranged_shape
+    for model_input in ov_model.inputs:
+        assert model_input.get_partial_shape() != ranged_shape
 
 
 def test_set_partial_shape_with_range_and_rename_it():
@@ -1698,3 +1696,104 @@ def test_add_name_for_tensor_and_rename_it():
     assert "renamed_input" in input_tensor_names
     assert "extra_name" in input_tensor_names
     assert "in2" not in input_tensor_names
+
+
+def test_invalidate_input_place_after_extraction():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    split_op = model.get_place_by_operation_name(operation_name="split1")
+    place_to_cut = split_op.get_input_port(input_port_index=0)
+    model.extract_subgraph(inputs=[split_op], outputs=[])
+
+    with pytest.raises(GeneralFailure) as e:
+        place_to_cut.get_source_tensor()
+    assert "The place InputEdge{1, 0} is outdated" in str(e.value)
+
+
+def test_invalidate_output_place_after_extraction():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    split_op = model.get_place_by_operation_name(operation_name="split1")
+    out1 = model.get_place_by_tensor_name(tensor_name="out1")
+    out2 = model.get_place_by_tensor_name(tensor_name="out2")
+    place_to_cut = model.get_place_by_tensor_name(tensor_name="out3").get_producing_port()
+    model.extract_subgraph(inputs=[split_op], outputs=[out1, out2])
+
+    with pytest.raises(GeneralFailure) as e:
+        place_to_cut.get_target_tensor()
+    assert "The place OutputEdge{2, 0} is outdated" in str(e.value)
+
+
+def test_invalidate_op_place_after_extraction():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model.onnx")
+
+    add_out_tensor = model.get_place_by_tensor_name(tensor_name="add_out")
+    place_to_cut = model.get_place_by_operation_name(operation_name="split1")
+    model.override_all_outputs(outputs=[add_out_tensor])
+
+    with pytest.raises(GeneralFailure) as e:
+        place_to_cut.get_input_port(input_port_index=0)
+    assert "The place split1 is outdated" in str(e.value)
+
+
+def test_override_cut_inputs():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    split = model.get_place_by_tensor_name(tensor_name="sp_out1").get_producing_operation()
+    place_to_cut = model.get_place_by_tensor_name(tensor_name="add_out").get_consuming_ports()[0]
+    model.override_all_inputs(inputs=[split])
+
+    with pytest.raises(GeneralFailure) as e:
+        model.override_all_inputs(inputs=[place_to_cut])
+    assert "The place InputEdge{1, 0} is outdated" in str(e.value)
+
+
+def test_override_cut_outputs():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    add_out = model.get_place_by_tensor_name(tensor_name="add_out")
+    place_to_cut = model.get_place_by_tensor_name(tensor_name="sp_out1").get_producing_port()
+    model.override_all_outputs(outputs=[add_out])
+
+    with pytest.raises(GeneralFailure) as e:
+        model.override_all_outputs(outputs=[place_to_cut])
+    assert "The place OutputEdge{1, 0} is outdated" in str(e.value)
+
+
+def test_get_element_type():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_2.onnx")
+
+    in1 = model.get_place_by_tensor_name(tensor_name="in1")
+    assert model.get_element_type(in1) == Type.f32
+
+    in1_output_edge = in1.get_consuming_ports()[0]
+    assert model.get_element_type(in1_output_edge) == Type.f32
+
+
+def test_get_element_type_int32():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    model = fe.load("input_model_int32.onnx")
+
+    x_input = model.get_place_by_tensor_name(tensor_name="x")
+    assert model.get_element_type(x_input) == Type.i32
+
+    x_output_edge = x_input.get_consuming_ports()[0]
+    assert model.get_element_type(x_output_edge) == Type.i32
+
+    # get_element_type can return the concrete element type only for model inputs
+    # for other places, it returns undefined type
+    const_node = model.get_place_by_tensor_name(tensor_name="const_node")
+    assert model.get_element_type(const_node) == Type.undefined

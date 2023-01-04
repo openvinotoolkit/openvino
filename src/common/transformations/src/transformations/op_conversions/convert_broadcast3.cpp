@@ -5,10 +5,10 @@
 #include "transformations/op_conversions/convert_broadcast3.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset3.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -57,11 +57,11 @@ bool make_compatible_shape(const ngraph::PartialShape& input_shape, std::vector<
 
 }  // namespace
 
-ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
+ov::pass::ConvertBroadcast3::ConvertBroadcast3() {
     MATCHER_SCOPE(ConvertBroadcast3);
     auto broadcast = pattern::wrap_type<opset3::Broadcast>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<opset3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -94,17 +94,23 @@ ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
                                                  Shape({aligned_target_shape.size()}),
                                                  aligned_target_shape));
                 } else {
-                    input = std::make_shared<opset1::Multiply>(
-                        input,
-                        opset1::Constant::create(input_element_type, target_shape, {1}));
+                    if (input_element_type == element::boolean) {
+                        input = std::make_shared<opset1::LogicalAnd>(
+                            input,
+                            opset1::Constant::create(input_element_type, target_shape, {1}));
+                    } else {
+                        input = std::make_shared<opset1::Multiply>(
+                            input,
+                            opset1::Constant::create(input_element_type, target_shape, {1}));
+                    }
                 }
             } else {
                 auto constant_one = opset1::Constant::create(input_element_type, {1}, {1});
                 auto broadcast_ones = std::make_shared<opset1::Broadcast>(constant_one, target_shape_input);
                 if (input_element_type == element::boolean) {
-                    input = std::make_shared<ngraph::opset1::LogicalAnd>(input, broadcast_ones);
+                    input = std::make_shared<ov::opset1::LogicalAnd>(input, broadcast_ones);
                 } else {
-                    input = std::make_shared<ngraph::opset1::Multiply>(input, broadcast_ones);
+                    input = std::make_shared<ov::opset1::Multiply>(input, broadcast_ones);
                 }
                 copy_runtime_info(broadcast, broadcast_ones);
             }

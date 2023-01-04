@@ -11,10 +11,11 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -93,6 +94,7 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
 } // namespace
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
+    MATCHER_SCOPE(AddTransformation);
     auto matcher = ngraph::pattern::wrap_type<opset1::Add>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -103,7 +105,7 @@ AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransfor
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "AddTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

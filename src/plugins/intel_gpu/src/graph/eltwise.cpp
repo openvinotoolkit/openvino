@@ -11,22 +11,34 @@
 #include <vector>
 #include <algorithm>
 
+#include "openvino/op/add.hpp"
+#include "utils.hpp"
+
 namespace cldnn {
-primitive_type_id eltwise::type_id() {
-    static primitive_type_base<eltwise> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(eltwise)
 
-layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
-    auto input_node_layout = node.input().get_non_padded_output_layout();
+layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
+    size_t primary_input_idx = 0;
+    if (node.input(primary_input_idx).is_constant()) {
+        for (size_t i = 1; i < node.get_dependencies().size(); i++) {
+            if (!node.input(i).is_constant()) {
+                primary_input_idx = i;
+                break;
+            }
+        }
+    }
+    auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
+    auto desc = impl_param.typed_desc<eltwise>();
+    auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
 
-    auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
-
-    auto size = input_node_layout.size;
+    auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
-    for (size_t i = 1; i < node.inputs_count(); i++) {
-        auto l = node.input(i).get_non_padded_output_layout();
-        size = tensor::max(size, l.size);
+    for (size_t i = 0; i < desc->input_size(); i++) {
+        if (i == primary_input_idx)
+            continue;
+
+        auto l = impl_param.get_non_padded_input_layout(i);
+        size = tensor::max(size, l.get_tensor());
         if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             format = format::b_fs_zyx_fsv16;
         else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
@@ -34,7 +46,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     }
     auto output_layout = layout(output_type, format, size);
 
-    auto mode = node.get_primitive()->mode;
+    auto mode = desc->mode;
     // list of operations supported for integer types
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
         input_node_layout.data_type == data_types::i32 || input_node_layout.data_type == data_types::i64) {
@@ -57,7 +69,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
                                                        eltwise_mode::logic_or,
                                                        eltwise_mode::logic_xor};
         if (std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) == eltwise_int_modes.end())
-            CLDNN_ERROR_MESSAGE(node.id(), "Requested eltwise mode is not supported for integer types.");
+            CLDNN_ERROR_MESSAGE(desc->id, "Requested eltwise mode is not supported for integer types.");
     }
 
     // Logic and comparison operations should return i8 for any inputs
@@ -74,25 +86,135 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
         output_layout.data_type = data_types::i8;
     }
 
-    if (node.get_primitive()->output_data_type) {
-        output_layout.data_type = *node.get_primitive()->output_data_type;
+    if (desc->output_data_types[0]) {
+        output_layout.data_type = *desc->output_data_types[0];
     }
 
     if (node.has_fused_primitives()) {
         output_layout.data_type = node.get_fused_output_layout().data_type;
     }
 
-    auto eltw = std::static_pointer_cast<const eltwise>((node.get_primitive()));
-    if (!eltw->stride.empty()) {
+    if (!desc->stride.empty()) {
+        auto new_size = input_node_layout.get_tensor();
         // we can safely use only first stride, since we're using first input, and input / stride should give exact same
         // value for every input
-        input_node_layout.size.spatial[0] = (input_node_layout.size.spatial[0] - 1) / eltw->stride[0].spatial[0] + 1;
-        input_node_layout.size.spatial[1] = (input_node_layout.size.spatial[1] - 1) / eltw->stride[0].spatial[1] + 1;
-        input_node_layout.size.spatial[2] = (input_node_layout.size.spatial[2] - 1) / eltw->stride[0].spatial[2] + 1;
+        new_size.spatial[0] = (input_node_layout.spatial(0) - 1) / desc->stride[0].spatial[0] + 1;
+        new_size.spatial[1] = (input_node_layout.spatial(1) - 1) / desc->stride[0].spatial[1] + 1;
+        new_size.spatial[2] = (input_node_layout.spatial(2) - 1) / desc->stride[0].spatial[2] + 1;
+        input_node_layout.set_tensor(new_size);
         return input_node_layout;
     }
     return output_layout;
 }
+
+template<typename ShapeType>
+std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<eltwise>();
+    auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
+    auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
+
+    auto get_output_layout = [&]() {
+        auto out_pshape = input_layout.get<ShapeType>();
+        cldnn::format out_format = input_layout.format;
+
+        // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
+        ov::op::v1::Add op;
+        op.set_autob(desc->broadcast_spec);
+
+        std::vector<ShapeType> output_shapes = {ShapeType()};
+        std::vector<ShapeType> input_shapes;
+        for (size_t i = 0; i < desc->input_size(); i++) {
+            input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
+        }
+        eltwise_shape_infer(&op, input_shapes, output_shapes);
+
+        if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+            out_format = format::b_fs_zyx_fsv16;
+        else if (input_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+            out_format = format::bs_fs_zyx_bsv16_fsv16;
+
+        for (size_t i = 0; i < desc->input_size(); i++) {
+            if (impl_param.primary_input_idx == i)
+                continue;
+
+            auto l = impl_param.get_non_padded_input_layout(i);
+            if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+                out_format = format::b_fs_zyx_fsv16;
+            else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
+                out_format = format::bs_fs_zyx_bsv16_fsv16;
+        }
+
+        return layout(output_shapes[0], out_data_type, out_format);
+    };
+
+    auto output_layout = get_output_layout();
+    auto mode = desc->mode;
+    // list of operations supported for integer types
+    if (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8 ||
+        input_layout.data_type == data_types::i32 || input_layout.data_type == data_types::i64) {
+        std::vector<eltwise_mode> eltwise_int_modes = {eltwise_mode::sum,
+                                                       eltwise_mode::sub,
+                                                       eltwise_mode::prod,
+                                                       eltwise_mode::div,
+                                                       eltwise_mode::min,
+                                                       eltwise_mode::max,
+                                                       eltwise_mode::mod,
+                                                       eltwise_mode::eq,
+                                                       eltwise_mode::ne,
+                                                       eltwise_mode::lt,
+                                                       eltwise_mode::le,
+                                                       eltwise_mode::gt,
+                                                       eltwise_mode::ge,
+                                                       eltwise_mode::squared_diff,
+                                                       eltwise_mode::floor_mod,
+                                                       eltwise_mode::logic_and,
+                                                       eltwise_mode::logic_or,
+                                                       eltwise_mode::logic_xor};
+
+        OPENVINO_ASSERT((std::find(eltwise_int_modes.begin(), eltwise_int_modes.end(), mode) != eltwise_int_modes.end()),
+                            desc->id + "Requested eltwise mode is not supported for integer types.");
+    }
+
+    // Logic and comparison operations should return i8 for any inputs
+    std::vector<eltwise_mode> eltwise_bool_modes = {eltwise_mode::eq,
+                                                    eltwise_mode::ne,
+                                                    eltwise_mode::lt,
+                                                    eltwise_mode::le,
+                                                    eltwise_mode::gt,
+                                                    eltwise_mode::ge,
+                                                    eltwise_mode::logic_and,
+                                                    eltwise_mode::logic_or,
+                                                    eltwise_mode::logic_xor};
+    if (std::find(eltwise_bool_modes.begin(), eltwise_bool_modes.end(), mode) != eltwise_bool_modes.end()) {
+        output_layout.data_type = data_types::i8;
+    }
+
+    output_layout.data_type = desc->output_data_types[0].value_or(output_layout.data_type);
+
+    if (impl_param.has_fused_primitives()) {
+        output_layout.data_type = impl_param.get_fused_output_layout().data_type;
+    }
+
+    if (!desc->stride.empty()) {
+        auto input_pshape = input_layout.get<ShapeType>();
+        if (input_pshape.is_static()) {
+            // we can safely use only first stride, since we're using first input, and input / stride should give exact same
+            // value for every input
+            auto in_shape = input_pshape.get_shape();
+            for (size_t i = 0; i < desc->stride[0].spatial.size(); i++) {
+                const size_t idx = in_shape.size() - 1 - i;
+                if (idx < 0)
+                    break;
+                in_shape[idx] = (in_shape[idx] - 1) / desc->stride[0].spatial[i] + 1;
+            }
+            input_layout.set_partial_shape({in_shape});
+        }
+        return { input_layout };
+    }
+    return { output_layout };
+}
+
+template std::vector<layout> eltwise_inst::calc_output_layouts<ov::PartialShape>(eltwise_node const& node, const kernel_impl_params& impl_param);
 
 static inline std::string stringify_vector(const std::vector<float>& v) {
     std::stringstream s;
@@ -200,6 +322,9 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
     auto prim = node.get_primitive();
     auto inputs_count = node.inputs_count();
 
+    if (is_dynamic())
+        return;
+
     if (!prim->stride.empty()) {
         // number of strides must match number of inputs
         CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -209,14 +334,14 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                               prim->stride.size(),
                               "");
 
-        const auto out_x = node.get_output_layout().size.spatial[0];
-        const auto out_y = node.get_output_layout().size.spatial[1];
+        const auto out_x = node.get_output_layout().spatial(0);
+        const auto out_y = node.get_output_layout().spatial(1);
         // check if strides are correctly set. I.e INPUT_SIZE_X / STRIDE_X = OUTPUT_SIZE_X, same for Y dimension
         for (size_t i = 0; i < inputs_count; i++) {
             const auto& in_layout = node.input(i).get_output_layout();
             auto stride = prim->stride[i];
 
-            const auto in_x_div_stride_x = (in_layout.size.spatial[0] - 1) / stride.spatial[0] + 1;
+            const auto in_x_div_stride_x = (in_layout.spatial(0) - 1) / stride.spatial[0] + 1;
             if (in_x_div_stride_x != out_x && in_x_div_stride_x != 1)
                 CLDNN_ERROR_NOT_EQUAL(node.id(),
                                       "Eltwise input_x / stride_x",
@@ -225,7 +350,7 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       out_x,
                                       "");
 
-            const auto in_y_div_stride_y = (in_layout.size.spatial[1] - 1) / stride.spatial[1] + 1;
+            const auto in_y_div_stride_y = (in_layout.spatial(1) - 1) / stride.spatial[1] + 1;
             if (in_y_div_stride_y != out_y && in_y_div_stride_y != 1)
                 CLDNN_ERROR_NOT_EQUAL(node.id(),
                                       "Eltwise inputyx / stride_y",
@@ -235,9 +360,9 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                                       "");
         }
     } else {
-        std::vector<int32_t> input0_size = node.input().get_output_layout().size.raw.vector();
+        std::vector<int32_t> input0_size = node.input().get_output_layout().get_tensor().raw.vector();
         for (size_t i = 1; i < inputs_count; i++) {
-            std::vector<int32_t> input_size = node.input(i).get_output_layout().size.raw.vector();
+            std::vector<int32_t> input_size = node.input(i).get_output_layout().get_tensor().raw.vector();
             for (size_t d = 0; d < input0_size.size(); d++) {
                 bool sizes_equal = input0_size[d] == input_size[d];
                 bool broadcast =

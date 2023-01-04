@@ -12,12 +12,15 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 FuseConvertTransformation::FuseConvertTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FuseConvertTransformation);
     auto multiply = pattern::wrap_type<opset1::Multiply>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
     auto subtract = pattern::wrap_type<opset1::Subtract>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
     auto add = pattern::wrap_type<opset1::Add>({ pattern::wrap_type<opset1::Convert>(), pattern::wrap_type<opset1::Constant>() });
@@ -29,7 +32,7 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Lay
         pattern::any_input()});
     auto matcher = std::make_shared<ngraph::pattern::Matcher>(
         std::make_shared<pattern::op::Or>(OutputVector{ multiply, subtract, add, fakeQuantize }),
-        "FuseConvertTransformation");
+        matcher_name);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -111,6 +114,10 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    if (!getAttribute<SkipCleanupAttribute>(op).empty()) {
+        return false;
+    }
+
     const auto convert = ov::as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
     // issue #40395
     if (convert == nullptr) {

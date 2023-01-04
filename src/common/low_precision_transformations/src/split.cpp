@@ -8,12 +8,14 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 SplitTransformation::SplitTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(SplitTransformation);
     auto matcher = pattern::wrap_type<opset1::Split>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -24,7 +26,7 @@ SplitTransformation::SplitTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "SplitTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -88,7 +90,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
 
         if (dequantization.subtract) {
-            const auto subtract = std::make_shared<opset1::Subtract>(parent, splitedSub[i]);
+            const auto subtract = NetworkHelper::makeDequantizationSubtract(parent, splitedSub[i]);
             copy_runtime_info({ newSplit, subtract }, subtract);
             parent = subtract;
         }
@@ -151,20 +153,7 @@ bool SplitTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) cons
 }
 
 bool SplitTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer) || NetworkHelper::getDequantization(layer, defaultPrecisions).empty()) {
-        return false;
-    }
-
-    const auto consumers = NetworkHelper::consumers(layer);
-    const auto concat = ov::as_type_ptr<opset1::Concat>(consumers[0]);
-
-    // WA to avoid propagation of dequantization if after Split all consumers are the same unsupported Concat
-    if (concat && concat->get_axis() != 1ul) {
-        const size_t id = consumers[0]->get_instance_id();
-        return std::any_of(consumers.begin(), consumers.end(), [&](const std::shared_ptr<Node>& node) { return node->get_instance_id() != id; });
-    }
-
-    return true;
+    return !NetworkHelper::getDequantization(layer, defaultPrecisions).empty() && layer->get_input_partial_shape(0).rank().is_static();
 }
 
 } // namespace low_precision

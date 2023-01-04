@@ -5,18 +5,18 @@
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
+ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     MATCHER_SCOPE(PullTransposeThroughFQUp);
-    const auto weights = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
+    const auto weights = ngraph::pattern::wrap_type<opset1::Constant>();
     auto m_fq = pattern::wrap_type<opset1::FakeQuantize>({weights,
                                                           pattern::any_input(pattern::has_static_shape()),
                                                           pattern::any_input(pattern::has_static_shape()),
@@ -26,7 +26,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto m_transpose_perm = pattern::wrap_type<opset1::Constant>();
     auto m_transpose = pattern::wrap_type<opset1::Transpose>({m_fq, m_transpose_perm});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
@@ -56,7 +56,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
                 unsqueeze_axes.push_back(j);
             }
             if (!unsqueeze_axes.empty()) {
-                fq_input = std::make_shared<ngraph::opset1::Unsqueeze>(
+                fq_input = std::make_shared<opset1::Unsqueeze>(
                     fq_input,
                     opset1::Constant::create(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes));
                 new_ops.push_back(fq_input.get_node_shared_ptr());

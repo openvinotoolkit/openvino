@@ -21,8 +21,8 @@ void adaptive_max_pool_1d(const T* arg, T* out, IT* indices, size_t h_in, size_t
         auto to = arg + adaptive_pool::window_end(i, h_in, h_out);
         NGRAPH_CHECK(to - from != 0, "AdaptiveMaxPool elements == 0, must be non-zero");
         auto it = std::max_element(from, to);
-        out[i] = *it;
-        indices[i] = it - arg;
+        out[i] = static_cast<T>(*it);
+        indices[i] = static_cast<IT>(it - arg);
     }
 }
 template <typename T, typename IT>
@@ -41,8 +41,8 @@ void adaptive_max_pool_2d(const T* arg, T* out, IT* indices, size_t h_in, size_t
                 auto it = std::max_element(from, to);
                 result = *it > *result ? it : result;
             }
-            out[i * w_out + j] = *result;
-            indices[i * w_out + j] = result - arg;
+            out[i * w_out + j] = static_cast<T>(*result);
+            indices[i * w_out + j] = static_cast<IT>(result - arg);
         }
     }
 }
@@ -76,8 +76,8 @@ void adaptive_max_pool_3d(const T* arg,
                         result = *it > *result ? it : result;
                     }
                 }
-                out[i * h_out * w_out + j * w_out + k] = *result;
-                indices[i * h_out * w_out + j * w_out + k] = result - arg;
+                out[i * h_out * w_out + j * w_out + k] = static_cast<T>(*result);
+                indices[i * h_out * w_out + j * w_out + k] = static_cast<IT>(result - arg);
             }
         }
     }

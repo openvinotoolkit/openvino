@@ -12,10 +12,10 @@ namespace op {
 namespace v0 {
 /// \brief Layer which generates prior boxes of specified sizes
 /// normalized to input image size
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API PriorBoxClustered : public Op {
 public:
     OPENVINO_OP("PriorBoxClustered", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // widths         Desired widths of prior boxes
         // heights        Desired heights of prior boxes

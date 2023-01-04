@@ -12,6 +12,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "itt.hpp"
+
 
 namespace {
     bool is_data_movement_operation(const std::shared_ptr<ngraph::Node>& node) {
@@ -38,6 +40,7 @@ namespace {
 } // namespace
 
 ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
+    MATCHER_SCOPE(MoveEltwiseUpThroughDataMov);
     auto eltwise_pattern = ngraph::pattern::wrap_type<ngraph::op::util::UnaryElementwiseArithmetic,
                                                       ngraph::op::util::BinaryElementwiseArithmetic>(ngraph::pattern::has_static_rank());
 
@@ -86,6 +89,7 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         if (is_binary_op && current->get_output_partial_shape(0).rank().get_length() != eltwise->get_input_partial_shape(1).rank().get_length()) {
             auto old_eltwise_const = std::dynamic_pointer_cast<ngraph::opset8::Constant>(eltwise->get_input_node_shared_ptr(1));
             auto new_constant = std::make_shared<ngraph::opset8::Constant>(*old_eltwise_const.get(), ngraph::Shape{});
+            ngraph::copy_runtime_info(old_eltwise_const, new_constant);
             ngraph::replace_node(old_eltwise_const, new_constant);
         }
         ngraph::replace_output_update_name(eltwise->output(0), eltwise->input_value(0));
@@ -108,6 +112,6 @@ ov::intel_cpu::MoveEltwiseUpThroughDataMov::MoveEltwiseUpThroughDataMov() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise_pattern, "MoveEltwiseUpThroughDataMov");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }

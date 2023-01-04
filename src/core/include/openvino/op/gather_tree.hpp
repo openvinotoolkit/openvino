@@ -11,10 +11,10 @@ namespace op {
 namespace v1 {
 /// \brief Generates the complete beams from the ids per each step and the parent beam
 /// ids.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GatherTree : public Op {
 public:
     OPENVINO_OP("GatherTree", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     GatherTree() = default;
     /// \param step_ids     Tensor of shape [MAX_TIME, BATCH_SIZE, BEAM_WIDTH] with

@@ -5,17 +5,17 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MulFakeQuantizeFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -24,8 +24,14 @@ class TRANSFORMATIONS_API MulFakeQuantizeFusion;
  * Restrictions:
  * - second input to Mul is a Constant
  */
-class ngraph::pass::MulFakeQuantizeFusion : public ngraph::pass::MatcherPass {
+class ov::pass::MulFakeQuantizeFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MulFakeQuantizeFusion", "0");
     MulFakeQuantizeFusion();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::MulFakeQuantizeFusion;
+}  // namespace pass
+}  // namespace ngraph

@@ -1113,7 +1113,7 @@ cdef class ExecutableNetwork:
         """
         A tuple of :class:`InferRequest` instances
         """
-        cdef size_t c_infer_requests_size = deref(self.impl).infer_requests.size()
+        cdef int c_infer_requests_size = deref(self.impl).infer_requests.size()
         if len(self._infer_requests) == 0:
             for i in range(c_infer_requests_size):
                 infer_request = InferRequest()

@@ -46,6 +46,7 @@ void program::nodes_ordering::calc_processing_order(program& p) {
     output: BFS topological order.
     */
 void program::nodes_ordering::calculate_BFS_processing_order() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("calculate_BFS_processing_order");
     std::map<program_node*, int> distances;
     for (auto itr : _processing_order) {
         distances[itr] = -1;
@@ -85,7 +86,7 @@ void program::nodes_ordering::calculate_BFS_processing_order() {
 // verifies if a given node will be processed before all its dependent nodes
 bool program::nodes_ordering::is_correct(program_node* node) {
     for (auto& dep : node->get_dependencies()) {
-        if (get_processing_number(node) < get_processing_number(dep)) {
+        if (get_processing_number(node) < get_processing_number(dep.first)) {
             return false;
         }
     }

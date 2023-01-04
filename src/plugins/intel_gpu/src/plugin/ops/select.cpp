@@ -12,16 +12,15 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Select>& op) {
-    p.ValidateInputs(op, {3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {3});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outDims = op->get_output_shape(0);
-    auto outDimsN = outDims.size();
+    auto output_pshape = op->get_output_partial_shape(0);
+    auto output_rank = output_pshape.size();
 
     auto broadcast_type = op->get_auto_broadcast();
 
@@ -32,65 +31,61 @@ static void CreateSelectOp(Program& p, const std::shared_ptr<ngraph::op::v1::Sel
 
     if (broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
         // Preprocess inputs
-        for (size_t i = 0; i < inputPrimitives.size(); ++i) {
-            auto inputDims = op->get_input_shape(i);
-            auto inputDimsN = inputDims.size();
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            auto input_pshape = op->get_input_partial_shape(i);
 
-            // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outDimsN);
+            if (input_pshape.is_static() && !p.use_new_shape_infer()) {
+                auto input_shape = input_pshape.to_shape();
+                auto input_rank = input_shape.size();
 
-            if (targetFormat.value != DefaultFormatForDims(inputDimsN).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+                // Add reorder if changing number of dimensions requires changing format
+                auto targetFormat = cldnn::format::get_default_format(output_rank);
 
-                p.AddPrimitive(reorderPrim);
-                p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
+                if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
+                    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
+                    auto reorderPrim = cldnn::reorder(reorderName,
+                                                      inputs[i],
+                                                      targetFormat,
+                                                      targetDatatype,
+                                                      std::vector<float>(),
+                                                      cldnn::reorder_mean_mode::subtract);
 
-                inputPrimitives[i] = reorderName;
-            }
+                    p.add_primitive(*op, reorderPrim);
 
-            // Reshape input if they differ or select specific shape matches default one
-            if (inputDimsN != outDimsN || inputDimsN < 4) {
-                auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
+                    inputs[i] = cldnn::input_info(reorderName);
+                }
 
-                // Extend input dimensions to the same size as output dimensions by prepending ones
-                inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
+                // Reshape input if they differ or select specific shape matches default one
+                if (input_rank != output_rank || input_rank < 4) {
+                    auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
-                auto targetShape = tensor_from_dims(inputDims);
+                    // Extend input dimensions to the same size as output dimensions by prepending ones
+                    input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
+                    auto targetShape = tensor_from_dims(input_shape);
 
-                p.AddPrimitive(reshapePrim);
-                p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
+                    auto reshapePrim = cldnn::reshape(reshapeName, inputs[i], targetShape);
 
-                inputPrimitives[i] = reshapeName;
+                    p.add_primitive(*op, reshapePrim);
+
+                    inputs[i] = cldnn::input_info(reshapeName);
+                }
             }
         }
     }
 
-    std::string bc_string = broadcast_type.m_type == ngraph::op::AutoBroadcastType::NUMPY ? "numpy" : "none";
-
     auto selectPrim = cldnn::select(layerName,
-                                    inputPrimitives[0],
-                                    inputPrimitives[1],
-                                    inputPrimitives[2],
-                                    op->get_friendly_name(),
-                                    cldnn::padding(),
-                                    bc_string);
+                                    inputs[0],
+                                    inputs[1],
+                                    inputs[2],
+                                    broadcast_type,
+                                    cldnn::padding());
 
-    p.AddPrimitive(selectPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, selectPrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, Select);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

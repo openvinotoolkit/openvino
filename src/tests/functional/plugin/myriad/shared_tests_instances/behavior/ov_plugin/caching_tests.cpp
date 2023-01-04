@@ -15,6 +15,11 @@ namespace {
             ngraph::element::u8,
     };
 
+    static const std::vector<ngraph::element::Type> nightly_floatPrecisionsMyriad = {
+            ngraph::element::f32,
+            ngraph::element::f16
+    };
+
     static const std::vector<ngraph::element::Type> smoke_precisionsMyriad = {
             ngraph::element::f32,
     };
@@ -36,14 +41,25 @@ namespace {
                                     ::testing::ValuesIn(smoke_functions()),
                                     ::testing::ValuesIn(smoke_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad, CompileModelCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(CompileModelCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(nightly_precisionsMyriad),
                                     ::testing::ValuesIn(batchSizesMyriad),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                    ::testing::Values(ov::AnyMap{})),
+                            CompileModelCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(nightly_CachingSupportCase_Myriad_Float, CompileModelCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(nightly_floatPrecisionsMyriad),
+                                    ::testing::ValuesIn(batchSizesMyriad),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                    ::testing::Values(ov::AnyMap{})),
                             CompileModelCacheTestBase::getTestCaseName);
 } // namespace

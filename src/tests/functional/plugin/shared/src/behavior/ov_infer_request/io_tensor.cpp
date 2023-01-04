@@ -7,7 +7,7 @@
 
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/io_tensor.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/result.hpp"
@@ -15,10 +15,6 @@
 namespace ov {
 namespace test {
 namespace behavior {
-
-std::string OVInferRequestIOTensorTest::getTestCaseName(const testing::TestParamInfo<InferRequestParams>& obj) {
-    return OVInferRequestTests::getTestCaseName(obj);
-}
 
 void OVInferRequestIOTensorTest::SetUp() {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
@@ -179,14 +175,62 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithGetOut) {
     OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetInputTensor) {
+    const ov::Shape shape1 = {1, 1, 32, 32};
+    const ov::Shape shape2 = {1, 1, 40, 40};
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[function->inputs().back().get_any_name()] = shape1;
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
+    auto execNet = ie->compile_model(function, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+    // Get input_tensor
+    ov::runtime::Tensor tensor;
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->inputs().back().get_any_name()));
+    // Set shape
+    OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
+    ASSERT_ANY_THROW(req.infer());
+}
+
+TEST_P(OVInferRequestIOTensorTest, InferStaticNetworkSetOutputTensor) {
+    const ov::Shape shape1 = {1, 1, 32, 32};
+    ov::Shape shape2;
+    if (target_device.find(CommonTestUtils::DEVICE_BATCH) == std::string::npos)
+        shape2 = ov::Shape{1, 20};
+    else
+        shape2 = ov::Shape{1, 4, 20, 20};
+
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[function->inputs().back().get_any_name()] = shape1;
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
+    auto execNet = ie->compile_model(function, target_device, configuration);
+    // Create InferRequest
+    ov::InferRequest req;
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    OV_ASSERT_NO_THROW(req.infer());
+    // Get output_tensor
+    ov::runtime::Tensor tensor;
+    OV_ASSERT_NO_THROW(tensor = req.get_tensor(function->outputs().back().get_any_name()););
+    // Set shape
+    OV_ASSERT_NO_THROW(tensor.set_shape(shape2));
+    ASSERT_ANY_THROW(req.infer());
+}
+
 std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testing::TestParamInfo<OVInferRequestSetPrecisionParams>& obj) {
     element::Type type;
-    std::string targetDevice;
+    std::string target_device;
     ov::AnyMap configuration;
-    std::tie(type, targetDevice, configuration) = obj.param;
+    std::tie(type, target_device, configuration) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "type=" << type << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
@@ -199,8 +243,9 @@ std::string OVInferRequestIOTensorSetPrecisionTest::getTestCaseName(const testin
 }
 
 void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(element_type, target_device, config) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     function = ngraph::builder::subgraph::makeConvPoolRelu();
     execNet = core->compile_model(function, target_device, config);
     req = execNet.create_infer_request();
@@ -209,6 +254,7 @@ void OVInferRequestIOTensorSetPrecisionTest::SetUp() {
 void OVInferRequestIOTensorSetPrecisionTest::TearDown() {
     execNet = {};
     req = {};
+    APIBaseTest::TearDown();
 }
 
 TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetInBlobWithDifferentPrecision) {
@@ -235,12 +281,12 @@ TEST_P(OVInferRequestIOTensorSetPrecisionTest, CanSetOutBlobWithDifferentPrecisi
 
 std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::TestParamInfo<OVInferRequestCheckTensorPrecisionParams>& obj) {
     element::Type type;
-    std::string targetDevice;
+    std::string target_device;
     AnyMap configuration;
-    std::tie(type, targetDevice, configuration) = obj.param;
+    std::tie(type, target_device, configuration) = obj.param;
     std::ostringstream result;
     result << "type=" << type << "_";
-    result << "targetDevice=" << targetDevice << "_";
+    result << "target_device=" << target_device << "_";
     if (!configuration.empty()) {
         using namespace CommonTestUtils;
         for (auto &configItem : configuration) {
@@ -253,8 +299,9 @@ std::string OVInferRequestCheckTensorPrecision::getTestCaseName(const testing::T
 }
 
 void OVInferRequestCheckTensorPrecision::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::tie(element_type, target_device, config) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
     {
         auto parameter1 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
         auto parameter2 = std::make_shared<ov::op::v0::Parameter>(element_type, ov::PartialShape{1, 3, 2, 2});
@@ -269,6 +316,7 @@ void OVInferRequestCheckTensorPrecision::SetUp() {
 void OVInferRequestCheckTensorPrecision::TearDown() {
     compModel = {};
     req = {};
+    APIBaseTest::TearDown();
 }
 
 void OVInferRequestCheckTensorPrecision::Run() {

@@ -1,4 +1,4 @@
-## Slice <a name="Slice"></a> {#openvino_docs_ops_movement_Slice_8}
+## Slice {#openvino_docs_ops_movement_Slice_8}
 
 **Versioned name**: *Slice-8*
 

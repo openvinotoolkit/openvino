@@ -12,25 +12,32 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+OutputVector translate_top_k_base_op(const NodeContext& node, const ov::Output<ov::Node>& k_input, int min_input_size) {
+    default_op_checks(node, min_input_size, {"TopK", "TopKV2"});
+    auto input = node.get_input(0);
+
+    // retrieve k attribute
+    bool sorted = node.get_attribute<bool>("sorted", true);
+    auto top_k = make_shared<TopK>(input,
+                                   k_input,
+                                   -1,
+                                   ov::op::v1::TopK::Mode::MAX,
+                                   sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES,
+                                   ov::element::i32);
+    set_node_name(node.get_name(), top_k);
+    return top_k->outputs();
+}
+OutputVector translate_top_k_op(const NodeContext& node) {
+    // retrieve k attribute
+    auto k = node.get_attribute<int64_t>("k");
+    auto k_input = make_shared<Constant>(ov::element::i64, Shape{}, std::vector<int64_t>({k}));
+    return translate_top_k_base_op(node, k_input, 1);
+}
 
 OutputVector translate_top_k_v2_op(const NodeContext& node) {
-    auto input = node.get_input(0);
-    auto k = node.get_input(1);
-
-    TENSORFLOW_OP_VALIDATION(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
-    TENSORFLOW_OP_VALIDATION(node,
-                             input.get_partial_shape().rank().get_length() >= 1,
-                             "Input rank must be greater than 0.");
-    // axis along which to compute top k indices
-    int64_t k_axis = input.get_partial_shape().rank().get_length() - 1;
-    bool sorted = node.get_attribute<bool>("sorted", true);
-    auto res = std::make_shared<TopK>(input,
-                                      k,
-                                      k_axis,
-                                      TopK::Mode::MAX,
-                                      sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    default_op_checks(node, 2, {"TopKV2"});
+    auto k_input = node.get_input(1);
+    return translate_top_k_base_op(node, k_input, 1);
 }
 
 }  // namespace op

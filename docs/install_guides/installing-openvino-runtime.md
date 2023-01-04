@@ -6,10 +6,10 @@
    :maxdepth: 2
    :hidden:
    
-   Install on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
-   Install on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
-   Install on macOS <openvino_docs_install_guides_installing_openvino_macos_header>
-   Install on Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
+   Linux <openvino_docs_install_guides_installing_openvino_linux_header>
+   Windows <openvino_docs_install_guides_installing_openvino_windows_header>
+   macOS <openvino_docs_install_guides_installing_openvino_macos_header>
+   Raspbian OS <openvino_docs_install_guides_installing_openvino_raspbian>
 
 @endsphinxdirective
 

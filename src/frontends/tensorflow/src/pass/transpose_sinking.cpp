@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking.hpp"
+#include "pass/transpose_sinking.hpp"
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::frontend::tensorflow;
 using namespace opset8;
 
 using TransposeMap = unordered_map<string, shared_ptr<Transpose>>;
@@ -50,21 +53,25 @@ static string describe(shared_ptr<Node> node) {
     stringstream ss;
     auto transpose = as_type_ptr<T>(node);
     auto const1 = as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
-    ss << transpose->get_name() << " ( axis order = " << ov::util::vector_to_string(const1->get_axis_vector_val())
-       << " , shape = " << ov::util::vector_to_string(transpose->get_shape()) << " ) "
-       << " , input = " << transpose->input_value(0).get_node()->get_name();
+    if (transpose) {
+        ss << "transpose name: " << transpose->get_name();
+        ss << " , input = " << transpose->input_value(0).get_node()->get_name();
+        if (transpose->output(0).get_partial_shape().is_static()) {
+            ss << " , shape = " << ov::util::vector_to_string(transpose->output(0).get_shape());
+        }
+        if (const1) {
+            ss << " , axis order = " << ov::util::vector_to_string(const1->get_axis_vector_val());
+        } else {
+            ss << " , axis order = (unknown, not constant values)";
+        }
+    } else {
+        ss << "Node can not be cast to Transpose/Reshape operations.";
+    }
     return ss.str();
 }
 
-static shared_ptr<Transpose> make_transpose(const Output<Node>& arg, const AxisVector& input_order) {
-    auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
-    auto transpose = make_shared<Transpose>(arg, order);
-    OPENVINO_DEBUG << "Make Transpose " << describe<Transpose>(transpose);
-    return transpose;
-}
-
 static shared_ptr<Reshape> make_reshape(const Output<Node>& arg, const AxisVector& input_order) {
-    auto order = std::make_shared<Constant>(element::u64, Shape{input_order.size()}, input_order);
+    auto order = std::make_shared<Constant>(element::i64, Shape{input_order.size()}, input_order);
     auto transpose = make_shared<Reshape>(arg, order, false);
     OPENVINO_DEBUG << "Make Reshape " << describe<Reshape>(transpose);
     return transpose;
@@ -80,7 +87,7 @@ static void write_transposemap(TransposeMap& reorders,
 
 static shared_ptr<Transpose> read_transposemap(TransposeMap& reorders, const Output<Node>& target) {
     auto name = target.get_node()->get_name() + "." + to_string(target.get_index());
-    auto transpose = reorders[name];
+    auto transpose = reorders.at(name);
     OPENVINO_DEBUG << "Read TransposeMap[" << name << "]  -> " << describe<Transpose>(transpose);
     return transpose;
 }
@@ -90,13 +97,16 @@ static shared_ptr<Transpose> combine_transposes(const shared_ptr<Transpose>& t1,
     auto t1_const = as_type_ptr<Constant>(t1->input_value(1).get_node_shared_ptr());
     auto t2_const = as_type_ptr<Constant>(t2->input_value(1).get_node_shared_ptr());
 
-    auto perm_t1 = apply_permutation(default_order, t1_const->get_axis_vector_val());
-    auto perm_t2 = apply_permutation(perm_t1, t2_const->get_axis_vector_val());
+    if (t1_const && t2_const) {
+        auto perm_t1 = apply_permutation(default_order, t1_const->get_axis_vector_val());
+        auto perm_t2 = apply_permutation(perm_t1, t2_const->get_axis_vector_val());
 
-    auto combined = make_transpose(t2->input_value(0), perm_t2);
-    OPENVINO_DEBUG << "Combining " << describe<Transpose>(t1) << " and " << describe<Transpose>(t2) << " into "
-                   << describe<Transpose>(combined);
-    return combined;
+        auto combined = make_transpose(t2->input_value(0), perm_t2);
+        OPENVINO_DEBUG << "Combining " << describe<Transpose>(t1) << " and " << describe<Transpose>(t2) << " into "
+                       << describe<Transpose>(combined);
+        return combined;
+    }
+    return {};
 }
 
 static void insert_transpose(const shared_ptr<Node>& target, const shared_ptr<Node>& transpose, size_t input_index) {
@@ -109,6 +119,10 @@ static void insert_transpose(const shared_ptr<Node>& target, const shared_ptr<No
                    << " input index " << input_index;
 
     target->input(input_index).replace_source_output(new_transpose->output(0));
+    if (std::dynamic_pointer_cast<Result>(target)) {
+        new_transpose->output(0).add_names(arg.get_names());
+        arg.set_names({});
+    }
 }
 
 static void delete_transpose(const shared_ptr<Node>& transpose) {
@@ -117,10 +131,7 @@ static void delete_transpose(const shared_ptr<Node>& transpose) {
         Output<Node> output = transpose->output(0);
         OPENVINO_DEBUG << "output " << output.get_node_shared_ptr()->get_name();
         OPENVINO_DEBUG << "target input size " << output.get_target_inputs().size();
-        for (auto input : output.get_target_inputs()) {
-            OPENVINO_DEBUG << "input " << input.get_node()->get_name();
-            input.replace_source_output(transpose->input_value(0));
-        }
+        output.replace(transpose->input_value(0));
     }
 }
 
@@ -132,7 +143,7 @@ static void mark_transpose_for_deletion(const shared_ptr<Node>& transpose,
 
 static shared_ptr<Transpose> create_default_transpose(const Output<Node>& n) {
     auto default_order = get_default_order(n.get_shape().size());
-    auto order = std::make_shared<Constant>(element::u64, Shape{default_order.size()}, default_order);
+    auto order = std::make_shared<Constant>(element::i64, Shape{default_order.size()}, default_order);
     return make_shared<Transpose>(n, order);
 }
 
@@ -160,7 +171,6 @@ static void convert_binary_to_default_order(const shared_ptr<Node>& binary,
         left_shape.insert(left_shape.begin(), perm_to_def.size() - left_shape.size(), 1);
 
         auto new_shape = apply_permutation(left_shape, perm_to_def);
-
         new_node = make_reshape(left, new_shape);
     } else if (left_shape.size() == perm_to_def.size()) {
         new_node = make_transpose(left, perm_to_def);
@@ -208,13 +218,15 @@ static void sink_transpose(const shared_ptr<Transpose>& transpose,
     auto orig_transpose = read_transposemap(reorders, transpose_in);
     // combine both transposes
     auto new_transpose = combine_transposes(orig_transpose, transpose);
-    // remove original transpose now it's combined with a new one
-    // should be safe to remove an already detached node
-    mark_transpose_for_deletion(orig_transpose, transposes_to_delete);
-    // replace transpose with combined one
-    replace_node(transpose, new_transpose);
-    mark_transpose_for_deletion(new_transpose, transposes_to_delete);
-    write_transposemap(reorders, new_transpose, new_transpose);
+    if (new_transpose) {
+        // remove original transpose now it's combined with a new one
+        // should be safe to remove an already detached node
+        mark_transpose_for_deletion(orig_transpose, transposes_to_delete);
+        // replace transpose with combined one
+        replace_node(transpose, new_transpose);
+        mark_transpose_for_deletion(new_transpose, transposes_to_delete);
+        write_transposemap(reorders, new_transpose, new_transpose);
+    }
 }
 
 static void sink_unary(const shared_ptr<Node>& n,
@@ -264,7 +276,7 @@ static void sink_binary(const shared_ptr<Node>& binary,
                     convert_binary_to_default_order(binary, binary->input(1), left, reorders, transposes_to_delete);
                 }
             }
-        } catch (const std::exception& ex) {
+        } catch (const std::exception&) {
             throw std::runtime_error("");
         }
     }
@@ -353,6 +365,29 @@ static void sink_concat(const shared_ptr<Concat>& n,
     write_transposemap(reorders, new_concat, new_transpose);
 }
 
+static void sink_prelu(const shared_ptr<PRelu>& prelu,
+                       TransposeMap& reorders,
+                       set<shared_ptr<Node>>& transposes_to_delete) {
+    FRONT_END_GENERAL_CHECK(prelu, "Null pointer is given to PRelu node.");
+    FRONT_END_GENERAL_CHECK(prelu->get_input_size() > 1, "The PRelu node must contain at least two inputs.");
+    auto slope_shape = prelu->input_value(1).get_partial_shape();
+    if (slope_shape.is_static() && shape_size(slope_shape.to_shape()) == 1) {
+        // handle a case covering LeakyRelu decomposition
+        auto arg_transpose = read_transposemap(reorders, prelu->input_value(0));
+        OPENVINO_DEBUG << "Propagating " << describe<Transpose>(arg_transpose) << " for " << prelu->get_name();
+        write_transposemap(reorders, prelu, arg_transpose);
+    } else {
+        // TODO: handle other cases with non-scalar slope
+        materialize_shapes(prelu, reorders, transposes_to_delete);
+    }
+}
+
+void purge_transposes(const set<shared_ptr<Node>>& transposes_to_delete) {
+    for (const auto& r : transposes_to_delete) {
+        delete_transpose(r);
+    }
+}
+
 // The goal of TransposeSinking is to remove
 // round-trip transposes(i.e. nhwc->nchw(nchw-only-op)->nhwc)
 // around nchw-only-op (e.g.Convolution, Batchnorm, Avg/MaxPool)
@@ -377,7 +412,10 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
             }
             if (auto transpose = as_type_ptr<opset8::Transpose>(n)) {
                 sink_transpose(transpose, reorders, transposes_to_delete);
-            } else if (ov::op::util::is_unary_elementwise_arithmetic(n)) {
+            } else if (ov::op::util::is_unary_elementwise_arithmetic(n) || as_type_ptr<Clamp>(n) ||
+                       as_type_ptr<Elu>(n) || as_type_ptr<SoftPlus>(n) || as_type_ptr<LogicalNot>(n)) {
+                // Some unary operations are inherrited from Op class
+                // so we need explicitly to check them
                 sink_unary(n, reorders, transposes_to_delete);
             } else if (ov::op::util::is_binary_elementwise_arithmetic(n)) {
                 sink_binary(n, reorders, transposes_to_delete);
@@ -385,20 +423,21 @@ bool ov::frontend::tensorflow::pass::TransposeSinking::run_on_model(const shared
                 sink_pad(pad, reorders, transposes_to_delete);
             } else if (auto concat = as_type_ptr<Concat>(n)) {
                 sink_concat(concat, reorders, transposes_to_delete);
+            } else if (auto prelu = as_type_ptr<PRelu>(n)) {
+                sink_prelu(prelu, reorders, transposes_to_delete);
             } else {
                 materialize_shapes(n, reorders, transposes_to_delete);
             }
         }
     } catch (...) {
         OPENVINO_DEBUG << "Caught exception while sinking op";
+        purge_transposes(transposes_to_delete);
         return false;
     }
 
     // STEP 2: purge all the transposes we either sunk or swam.
     OPENVINO_DEBUG << "Purging transposes ";
-    for (const auto& r : transposes_to_delete) {
-        delete_transpose(r);
-    }
+    purge_transposes(transposes_to_delete);
 
     // STEP 3: fix wrong shape info wholesale
     OPENVINO_DEBUG << "Fixing wrong shape info for the whole graph";

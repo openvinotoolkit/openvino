@@ -14,12 +14,14 @@
 
 #include "low_precision/concat.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(MoveFakeQuantize);
     const auto concat = ngraph::pattern::wrap_type<opset1::Concat>(pattern::consumers_count(1));
     const auto operation = ngraph::pattern::wrap_type<opset1::Relu>({ concat });
     const auto input_low = ngraph::pattern::wrap_type<ngraph::opset1::Constant>();
@@ -48,7 +50,7 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(
         std::make_shared<pattern::op::Or>(OutputVector{fq, fq_with_operation}),
-        "MoveFakeQuantize");
+        matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -84,7 +86,8 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
     const auto concat_axis = concat_node->get_concatenation_axis();
     for (size_t i = 0; i < 4; i++) {
         curr_constants[i] = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(i + 1));
-        if (!multi_chanels && curr_constants[i]->get_shape().size() > concat_axis && curr_constants[i]->get_shape()[concat_axis] != 1) {
+        if (!multi_chanels && concat_axis >= 0 && curr_constants[i]->get_shape().size() > static_cast<size_t>(concat_axis)
+            && curr_constants[i]->get_shape()[concat_axis] != 1) {
             multi_chanels = true;
         }
     }

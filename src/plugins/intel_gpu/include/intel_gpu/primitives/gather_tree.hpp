@@ -31,13 +31,12 @@ struct gather_tree : public primitive_base<gather_tree> {
         ///                                a value of the end_token
         /// @param output_padding          Optional padding for output from primitive
         gather_tree(const primitive_id& id,
-                    const primitive_id& step_input,
-                    const primitive_id& parent_input,
-                    const primitive_id& max_seq_len_input,
-                    const primitive_id& end_token,
-                    const primitive_id& ext_prim_id = "",
+                    const input_info& step_input,
+                    const input_info& parent_input,
+                    const input_info& max_seq_len_input,
+                    const input_info& end_token,
                     const padding& output_padding = padding())
-            : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, ext_prim_id, output_padding) {}
+            : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, {output_padding}) {}
 };
     /// @}
     /// @}

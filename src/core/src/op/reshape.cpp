@@ -8,6 +8,7 @@
 #include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -41,8 +42,6 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
 }  // namespace
 }  // namespace reshapeop
 
-BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
-
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
       m_special_zero(zero_flag) {
@@ -51,12 +50,12 @@ op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_patt
 }
 
 bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Reshape_visit_attributes);
+    OV_OP_SCOPE(v1_Reshape_visit_attributes);
     visitor.on_attribute("special_zero", m_special_zero);
     return true;
 }
 void op::v1::Reshape::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Reshape_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Reshape_validate_and_infer_types);
     auto shape_pattern_et = get_input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(this,
@@ -132,14 +131,14 @@ void op::v1::Reshape::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Reshape_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
 }
 
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                    \
     case element::Type_t::a: {                                            \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));     \
+        OV_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));         \
         reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__); \
     } break;
 
@@ -182,14 +181,14 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs, const Ho
 }
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
+    OV_OP_SCOPE(v1_Reshape_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(inputs, 2));
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     return evaluate_reshape(outputs, inputs);
 }
 
 bool op::v1::Reshape::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Reshape_has_evaluate);
+    OV_OP_SCOPE(v1_Reshape_has_evaluate);
     switch (get_input_element_type(1)) {
     case ngraph::element::i8:
     case ngraph::element::i16:
@@ -225,7 +224,7 @@ bool op::v1::Reshape::evaluate_label(TensorLabelVector& output_labels) const {
 }
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
-    if (get_output_partial_shape(0).is_dynamic()) {
+    if (get_output_partial_shape(0).is_dynamic() || is_const_fold_disabled()) {
         return false;
     }
 
@@ -417,18 +416,16 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
 
     ov::PartialShape output_pshape(output_shape);
     if (input_pshape.is_static() && output_pshape.is_static()) {
-        size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), [](Dimension dim) {
-            return dim.get_max_length() == 0 && dim.get_min_length() == 0;
-        });
+        size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), cmp::Equal<Dimension>(0));
 
         bool backward_compatible_check = (zero_dims && get_special_zero()) || minus_one_idx != -1;
-        bool in_out_elements_equal = shape_size(get_input_shape(0)) == shape_size(output_pshape.to_shape());
+        bool in_out_elements_equal = shape_size(input_pshape.get_shape()) == shape_size(output_pshape.to_shape());
 
         NODE_VALIDATION_CHECK(this,
                               backward_compatible_check || in_out_elements_equal,
                               "Requested output shape ",
                               output_shape,
                               " is incompatible with input shape ",
-                              get_input_shape(0));
+                              input_pshape);
     }
 }

@@ -19,6 +19,8 @@ MO_PATH = Path(openvino.tools.mo.__file__).parent.parent
 DEFAULT_TARGET_DEVICE = 'ANY'
 DEFAULT_PRESET = 'performance'
 
+GNA_DEVICES = ['GNA', 'GNA3', 'GNA3.5']
+
 
 # pylint: disable=W0212
 class Config(Dict):
@@ -247,7 +249,7 @@ class Config(Dict):
                 'shuffle_data': None,
                 'seed': None,
             },
-            'Ranger': {
+            'RangeSupervision': {
                 'stat_subset_size': None,
                 'shuffle_data': None,
                 'seed': None,
@@ -347,6 +349,8 @@ class Config(Dict):
             presets_aliases_by_device = {
                 'VPU': {'accuracy': 'accuracy'},
                 'GNA': {'accuracy': 'accuracy', 'mixed': 'accuracy'},
+                'GNA3': {'accuracy': 'accuracy', 'mixed': 'accuracy'},
+                'GNA3.5': {'accuracy': 'accuracy', 'mixed': 'accuracy'},
                 'CPU': {'accuracy': 'mixed'},
                 'ANY': {'accuracy': 'mixed'},
                 'GPU': {'accuracy': 'mixed'},

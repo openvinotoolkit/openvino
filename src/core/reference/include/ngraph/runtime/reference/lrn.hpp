@@ -33,7 +33,7 @@ static std::vector<size_t> slice_indices(const Shape& full_shape,
     indices.reserve(slice_size);
     indices.push_back(point_to_flat_idx(full_shape, coord));
     for (size_t i = 0; i < slice_size - 1; i++) {
-        for (int r = rank - 1; r >= 0; r--) {
+        for (int r = static_cast<int>(rank) - 1; r >= 0; r--) {
             coord[r]++;
             if (coord[r] < (begin[r] + slice_shape[r]))
                 break;
@@ -66,7 +66,7 @@ void lrn(const T* arg,
     T alpha = static_cast<T>(dalpha);
     T beta = static_cast<T>(dbeta);
     T bias = static_cast<T>(dbias);
-    T scale = alpha / std::pow(size, axes.size());
+    T scale = alpha / static_cast<T>(std::pow(size, axes.size()));
 
     std::vector<size_t> begin_area(arg_shape.size());
     Shape area_shape(arg_shape.size(), 1);
@@ -80,8 +80,10 @@ void lrn(const T* arg,
         // area determined by in_coord local neighborhood
         for (size_t i = 0; i < axes_map.size(); i++) {
             if (axes_map[i]) {
-                begin_area[i] = std::max<int>(0, in_coord.at(i) - (size - 1) / 2);
-                area_shape[i] = std::min<int>(arg_shape.at(i), in_coord.at(i) + (size - 1) / 2 + 1) - begin_area[i];
+                begin_area[i] = std::max<int>(0, static_cast<int>(in_coord.at(i)) - (static_cast<int>(size) - 1) / 2);
+                area_shape[i] = std::min<int>(static_cast<int>(arg_shape.at(i)),
+                                              static_cast<int>(in_coord.at(i)) + (static_cast<int>(size) - 1) / 2 + 1) -
+                                begin_area[i];
             } else {
                 begin_area[i] = in_coord.at(i);
             }
@@ -90,7 +92,7 @@ void lrn(const T* arg,
         T square_sum = sum_region_across_axes(arg, slice_indices(arg_shape, begin_area, area_shape));
         auto index = input_transform.index(in_coord);
         T x = arg[index];
-        out[index] = x / (std::pow(bias + scale * square_sum, beta));
+        out[index] = x / static_cast<T>(std::pow(bias + scale * square_sum, beta));
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }

@@ -19,7 +19,7 @@ namespace low_precision {
  * @brief ReduceMinTransformation propagates dequantization operations through ReduceMin operation.
  *
  * For more details about the transformation, refer to
- * [ReduceMinTransformation](@ref openvino_docs_IE_DG_lpt_ReduceMinTransformation) page
+ * [ReduceMinTransformation](@ref openvino_docs_OV_UG_lpt_ReduceMinTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReduceMinTransformation : public ReduceBaseTransformation {

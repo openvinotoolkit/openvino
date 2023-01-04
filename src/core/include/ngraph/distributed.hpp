@@ -37,7 +37,6 @@ public:
     AttributeAdapter(ngraph::reduction::Type& value) : EnumAttributeAdapterBase<ngraph::reduction::Type>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<reduction::Type>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

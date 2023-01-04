@@ -22,9 +22,9 @@ struct proposal : public primitive_base<proposal> {
     CLDNN_DECLARE_PRIMITIVE(proposal)
 
     proposal(const primitive_id& id,
-             const primitive_id& cls_scores,
-             const primitive_id& bbox_pred,
-             const primitive_id& image_info,
+             const input_info& cls_scores,
+             const input_info& bbox_pred,
+             const input_info& image_info,
              int max_proposals,
              float iou_threshold,
              int min_bbox_size,
@@ -33,9 +33,8 @@ struct proposal : public primitive_base<proposal> {
              int post_nms_topn,
              const std::vector<float>& ratios_param,
              const std::vector<float>& scales_param,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {cls_scores, bbox_pred, image_info}, ext_prim_id, output_padding),
+        : primitive_base(id, {cls_scores, bbox_pred, image_info}, {output_padding}),
           max_proposals(max_proposals),
           iou_threshold(iou_threshold),
           base_bbox_size(16),
@@ -58,9 +57,9 @@ struct proposal : public primitive_base<proposal> {
           normalize(false) {}
 
     proposal(const primitive_id& id,
-             const primitive_id& cls_scores,
-             const primitive_id& bbox_pred,
-             const primitive_id& image_info,
+             const input_info& cls_scores,
+             const input_info& bbox_pred,
+             const input_info& image_info,
              int max_proposals,
              float iou_threshold,
              int base_bbox_size,
@@ -81,9 +80,8 @@ struct proposal : public primitive_base<proposal> {
              bool round_ratios,
              bool shift_anchors,
              bool normalize,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-        : primitive_base(id, {cls_scores, bbox_pred, image_info}, ext_prim_id, output_padding),
+        : primitive_base(id, {cls_scores, bbox_pred, image_info}, {output_padding}),
           max_proposals(max_proposals),
           iou_threshold(iou_threshold),
           base_bbox_size(base_bbox_size),
@@ -106,10 +104,10 @@ struct proposal : public primitive_base<proposal> {
           normalize(normalize) {}
 
     proposal(const primitive_id& id,
-             const primitive_id& cls_scores,
-             const primitive_id& bbox_pred,
-             const primitive_id& image_info,
-             const primitive_id& second_output,
+             const input_info& cls_scores,
+             const input_info& bbox_pred,
+             const input_info& image_info,
+             const input_info& second_output,
              int max_proposals,
              float iou_threshold,
              int base_bbox_size,
@@ -130,9 +128,8 @@ struct proposal : public primitive_base<proposal> {
              bool round_ratios,
              bool shift_anchors,
              bool normalize,
-             const primitive_id& ext_prim_id = "",
              const padding& output_padding = padding())
-            : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, ext_prim_id, output_padding),
+            : primitive_base(id, {cls_scores, bbox_pred, image_info, second_output}, {output_padding}),
               max_proposals(max_proposals),
               iou_threshold(iou_threshold),
               base_bbox_size(base_bbox_size),

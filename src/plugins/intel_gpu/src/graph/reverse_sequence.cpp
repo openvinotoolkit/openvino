@@ -10,18 +10,13 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id reverse_sequence::type_id() {
-    static primitive_type_base<reverse_sequence> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse_sequence)
 
-layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& node) {
-    auto desc = node.get_primitive();
-
-    auto input_layout = node.input(0).get_output_layout();
+layout reverse_sequence_inst::calc_output_layout(reverse_sequence_node const& node, kernel_impl_params const& impl_param) {
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
-    return layout{input_layout.data_type, input_format, input_layout.size};
+    return layout{input_layout.data_type, input_format, input_layout.get_tensor()};
 }
 
 std::string reverse_sequence_inst::to_string(reverse_sequence_node const& node) {

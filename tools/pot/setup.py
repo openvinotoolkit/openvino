@@ -65,32 +65,35 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    "scipy~=1.5.4",
-    "jstyleson~=0.0.2",
-    "numpy>=1.16.6,<1.20",
+    "scipy~=1.7; python_version == '3.7'",
+    "scipy>=1.8; python_version >= '3.8'",
+    "jstyleson>=0.0.2",
+    "numpy>=1.16.6",
     "addict>=2.4.0",
-    "networkx~=2.5;python_version<='3.6'",
-    "networkx~=2.6;python_version>'3.6'",
+    "networkx<=2.8.8",
     "tqdm>=4.54.1",
-    "texttable~=1.6.3",
-    "pandas~=1.1.5",
+    "texttable>=1.6.3",
+    "pandas~=1.3.5",
     "openvino-telemetry>=2022.1.0"
 ]
 
-ALGO_EXTRAS = [
-    'hyperopt~=0.1.2',
-]
+ALGO_EXTRAS = []
 
-DEV_EXTRAS = ['pytest==4.5.0', 'openpyxl==2.6.4', 'pytest-mock==3.1.1']
+DEV_EXTRAS = [
+    "pytest>=5.0,<=7.0.1;python_version<'3.10'",
+    "pytest==7.2.0;python_version>='3.10'",
+    "py>=1.9.0",
+    "pytest-mock==3.1.1"
+]
 
 DEPENDENCY_LINKS = []
 
 python_version = sys.version_info[:2]
 if python_version[0] < 3:
-    print('Only Python >= 3.6 is supported by POT/OV')
+    print('Only Python >= 3.7 is supported by POT/OV')
     sys.exit(0)
-elif python_version[1] < 6:
-    print('Only Python >= 3.6 is supported by POT/OV')
+elif python_version[1] < 7:
+    print('Only Python >= 3.7 is supported by POT/OV')
     sys.exit(0)
 
 
@@ -103,7 +106,7 @@ version_string = "{}{}".format(sys.version_info[0], sys.version_info[1])
 version_string_with_mem_manager = version_string + 'm' if sys.version_info[1] < 8 else version_string
 os_string = None if sys.platform not in OS_POSTFIXES else OS_POSTFIXES[sys.platform]
 
-TORCH_VERSION = '1.8.1'
+TORCH_VERSION = '1.12.1'
 TORCH_SOURCE_URL_TEMPLATE = 'https://download.pytorch.org/whl/cpu/torch-{tv}%2Bcpu-cp{ver}-cp{' \
                             'ver_m}-{os}.whl'
 

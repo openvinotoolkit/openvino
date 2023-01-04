@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import mo_array, shape_array, dynamic_dimension
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_value_in_port, \
     get_tensor_in_port
@@ -70,7 +70,11 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         # TODO : ch_dim should be equal to node.in_node(1).value.shape
         # We will multiply weights according output/input channel dimension
         ch_dim = weights_port.data.get_attr('output_channel_dim' if backward else 'input_channel_dim')
-        shape = mo_array([weights_port.data.get_shape()[ch_dim]])
+        shape = shape_array([weights_port.data.get_shape()[ch_dim]])
+
+        # no fusing is possible in case dynamic weights
+        if weights_port.data.get_shape()[ch_dim] is dynamic_dimension:
+            return False
 
         # Scalar broadcast
         if value.size == 1:
@@ -99,7 +103,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
             value = np.reshape(value, shape)
         except ValueError:
             log.error("Cannot fuse const from {} to {}. Reshape failed. Skipping.".format(
-                node.soft_get('name', node.id),fuse_node.soft_get('name', fuse_node.id)), extra={'is_warning': True})
+                node.soft_get('name', node.id), fuse_node.soft_get('name', fuse_node.id)), extra={'is_warning': True})
             return False
 
         # Weights multiplication

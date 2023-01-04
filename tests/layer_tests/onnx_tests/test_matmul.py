@@ -33,7 +33,7 @@ class TestMatMul(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shape2)), shape2], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shape1[-2], shape2[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
@@ -107,7 +107,7 @@ class TestMatMul(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shape2)), shape2], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shape1[-2], shape2[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input1 = helper.make_tensor_value_info('input1', TensorProto.FLOAT, shape1)
         input2 = helper.make_tensor_value_info('input2', TensorProto.FLOAT, shape2)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
@@ -167,26 +167,26 @@ class TestMatMul(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_matmul(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_matmul(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_broadcasting)
     @pytest.mark.nightly
-    def test_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_dual_matmul(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_dual_matmul(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_dual_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_broadcasting)
     @pytest.mark.nightly
-    def test_dual_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_dual_matmul_bc(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_dual_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

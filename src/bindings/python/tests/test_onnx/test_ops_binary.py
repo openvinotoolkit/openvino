@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -31,13 +32,9 @@ def test_add_opset4():
 
     assert np.array_equal(import_and_compute("Add", [1], [2], opset=4), np.array([3], dtype=np.float32))
 
-    assert np.array_equal(
-        import_and_compute("Add", [1, 2], [3, 4], opset=4), np.array([4, 6], dtype=np.float32)
-    )
+    assert np.array_equal(import_and_compute("Add", [1, 2], [3, 4], opset=4), np.array([4, 6], dtype=np.float32))
 
-    assert np.array_equal(
-        import_and_compute("Add", [1, 2, 3], [4, 5, 6], opset=4), np.array([5, 7, 9], dtype=np.float32)
-    )
+    assert np.array_equal(import_and_compute("Add", [1, 2, 3], [4, 5, 6], opset=4), np.array([5, 7, 9], dtype=np.float32))
 
     assert np.array_equal(
         import_and_compute("Add", [[1, 2, 3], [4, 5, 6]], [7, 8, 9], broadcast=1, opset=4),
@@ -79,7 +76,7 @@ def test_add_opset4():
 
 
 @pytest.mark.parametrize(
-    "left_shape,right_shape",
+    ("left_shape", "right_shape"),
     [
         ((1,), (1,)),
         ((256, 256, 3), (3,)),

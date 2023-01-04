@@ -17,10 +17,10 @@ namespace v3 {
 ///        [0, 1, 1],
 ///        [0, 1, 2]]
 ///       The values point to input elements at [0,0,0], [0,1,1] and [2,1,2]
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NonZero : public Op {
 public:
     OPENVINO_OP("NonZero", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a NonZero operation.
     NonZero() = default;
     /// \brief Constructs a NonZero operation.

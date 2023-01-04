@@ -6,7 +6,7 @@
 #pragma once
 #include "intel_gpu/primitives/activation.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/activation/activation_kernel_base.h"
+#include "kernel_selector/kernels/activation/activation_kernel_base.h"
 
 #include <memory>
 #include <string>
@@ -42,17 +42,22 @@ using activation_node = typed_program_node<activation>;
 template <>
 class typed_primitive_inst<activation> : public typed_primitive_inst_base<activation> {
     using parent = typed_primitive_inst_base<activation>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(activation_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(activation_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
+
+    static layout calc_output_layout(activation_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(activation_node const& node);
 
-public:
     typed_primitive_inst(network& network, activation_node const& node);
 
     memory::ptr slope_memory() const { return dep_memory_ptr(1); }
 
-    bool is_parameterized() const { return !argument.additional_params_input.empty(); }
+    bool is_parameterized() const { return !argument->additional_params_input.empty(); }
 };
 
 using activation_inst = typed_primitive_inst<activation>;

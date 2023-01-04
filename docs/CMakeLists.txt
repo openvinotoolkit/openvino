@@ -2,46 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(NOT ENABLE_DOCKER)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wall)
-    endif()
-
-    # Detect OpenVINO
-    find_package(OpenVINO QUIET
-                 PATHS "${CMAKE_BINARY_DIR}"
-                 NO_DEFAULT_PATH)
-    if(NOT OpenVINO_FOUND)
-        set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
-    endif()
-
-    add_subdirectory(snippets)
-
-    add_subdirectory(template_extension)
-
-    set(all_docs_targets
-        ie_docs_snippets ov_template_func_tests
-        template_extension openvino_template_extension openvino_template_plugin)
-    foreach(target_name IN LISTS all_docs_targets)
-        if(TARGET ${target_name})
-            set_target_properties(${target_name} PROPERTIES FOLDER docs)
-            if(WIN32)
-                set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
-            endif()
-        endif()
-    endforeach()
-
-    # install
-
-    foreach(target openvino_template_plugin template_extension openvino_template_extension)
-        if(TARGET ${target})
-            install(TARGETS ${target}
-                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
-                    COMPONENT tests
-                    EXCLUDE_FROM_ALL)
-        endif()
-    endforeach()
-endif()
+add_subdirectory(snippets)
 
 set(LINKCHECKER_PY "" CACHE FILEPATH "Path to linkchecker.py for documentation check dir.")
 set(ENABLE_OPENVINO_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks")
@@ -69,15 +30,11 @@ function(build_docs)
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${SCRIPTS_DIR}/doxy_md_filter.py")
-    set(PYNGRAPH_REF_SCRIPT "${SCRIPTS_DIR}/pyngraph_ref.py")
-    set(DOXY_LOG_SCRIPT "${SCRIPTS_DIR}/log.py")
-    set(PYX_FILTER "${SCRIPTS_DIR}/pyx_filter.py")
     set(PREPARE_XML_SCRIPT "${SCRIPTS_DIR}/prepare_xml.py")
     set(REMOVE_XML_SCRIPT "${SCRIPTS_DIR}/remove_xml.py")
     set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")
     set(DOC_TEST_DIR "${SCRIPTS_DIR}/tests")
     set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
-    set(DOXYGEN_MAPPING_FILE "${DOCS_BUILD_DIR}/mapping.json")
 
     # out dirs
     set(XML_OUTPUT "${DOCS_BUILD_DIR}/xml")
@@ -126,20 +83,15 @@ function(build_docs)
 
     if(GRAPH_CSV_DIR)
         set(GRAPH_CSV_DIR_OUT "${RST_OUTPUT}/csv")
-    list(APPEND commands
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
-    )
+        list(APPEND commands
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${GRAPH_CSV_DIR}" "${GRAPH_CSV_DIR_OUT}"
+        )
     endif()
 
     list(APPEND commands
         COMMAND ${CMAKE_COMMAND} -E copy ${API_DOCS_IN}/api_reference.rst ${API_DOCS_OUT}/api_reference.rst
-    )
-
-    if(ENABLE_PYTHON)
-    list(APPEND commands
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${API_DOCS_IN}/ie_python_api ${API_DOCS_OUT}/ie_python_api
-        )
-    endif()
+    )
 
     # omz doc files
     if(EXISTS "${OMZ_DOCS_DIR}")
@@ -174,8 +126,8 @@ function(build_docs)
         get_filename_component(OVMS_DOCS_DIR "${OVMS_DOCS_DIR}" ABSOLUTE)
 
         list(APPEND commands COMMAND ${PYTHON_EXECUTABLE} ${DOXY_MD_FILTER}
-        --input_dir=${OVMS_DOCS_DIR}
-        --output_dir=${DOCS_BUILD_DIR}/ovms)
+            --input_dir=${OVMS_DOCS_DIR}
+            --output_dir=${DOCS_BUILD_DIR}/ovms)
     endif()
 
     add_custom_target(preprocess_docs
@@ -216,7 +168,7 @@ function(build_docs)
 
     add_custom_target(sphinx_docs
                       DEPENDS doxygen_xml
-                      COMMAND sphinx-build -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      COMMAND sphinx-build -q -j auto -w ${DOCS_BUILD_DIR}/sphinx.log -b html ${RST_OUTPUT} ${SPHINX_OUTPUT}
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 

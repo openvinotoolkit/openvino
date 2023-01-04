@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/runtime/lru_cache.hpp"
 #include "build_options.hpp"
 
 #include <list>
@@ -44,8 +45,9 @@ struct program {
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
-    friend class program_wrapper;       // this class is intended to extend the interface of program for
+    friend class program_wrapper;            // this class is intended to extend the interface of program for
                                              // the usage within tests_core_internal project only
+    friend class prepare_primitive_fusing_through;   // to be removed when possible
 public:
     struct nodes_ordering {
     public:
@@ -133,6 +135,7 @@ public:
             std::set<std::shared_ptr<program_node>> const& nodes,
             build_options const& options,
             bool is_internal);
+    explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
     const build_options& get_options() const { return options; }
@@ -148,6 +151,7 @@ public:
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
     stream& get_stream() { return *_stream; }
+    const stream& get_stream() const { return *_stream; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     const std::list<optimized_info>& get_optimized() const { return optimized; }
     bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
@@ -188,6 +192,12 @@ public:
     // prereq: node cannot be marked as output and has to have exactly one dependency
     // returns if 'node' has been extracted and removed successfully
     bool extract_and_remove(program_node& node);
+
+    bool extract(program_node& node);
+
+    bool move_node(program_node& node,
+                   program_node& new_prev,
+                   program_node& new_next);
 
     // Fuses two nodes into fused_node and removes peer_node from graph
     void fuse_nodes(program_node& fused_node,
@@ -233,12 +243,17 @@ public:
     void init_kernels();
     kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
     kernel::ptr get_kernel(kernel_id id);
+    kernels_cache& get_kernels_cache() const;
 
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
+
+    void remove_kernel(kernel_id id);
+    bool is_local_block_io_supported() const;
+    void query_local_block_io_supported();
 
 private:
     uint32_t prog_id = 0;
@@ -253,6 +268,7 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
     bool is_body_program;
+    int8_t is_subgroup_local_block_io_supported;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;
@@ -324,7 +340,7 @@ private:
 
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
-    void replace_all_usages(program_node& old_node, program_node& new_node);
+    void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

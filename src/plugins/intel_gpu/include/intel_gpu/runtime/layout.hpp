@@ -16,6 +16,9 @@
 #include <functional>
 #include <set>
 
+#include <openvino/core/partial_shape.hpp>
+#include <openvino/core/type/element_type.hpp>
+
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
 /// @{
@@ -38,52 +41,23 @@ enum class data_types : size_t {
     i64 = sizeof(int64_t)
 };
 
-class optional_data_type {
-    // Must be the same as the undrelying type of `data_types`.
-    using storage_type = size_t;
-
-    // Implicitly assumes that this value is not used in the `data_types`.
-    static constexpr auto non_specified_type =
-        std::numeric_limits<storage_type>::max();
-
-public:
-    optional_data_type()
-        : storage(non_specified_type) {}
-
-    explicit optional_data_type(data_types type)
-        : storage(static_cast<storage_type>(type)) {}
-
-    operator bool() const { return storage != non_specified_type; }
-
-    // Similarly to std::optional does *not* verify that the object has the type
-    // set. Unlike it, though, returns the value instead of pointer/reference.
-    data_types operator*() const { return static_cast<data_types>(storage); }
-
-    optional_data_type& operator=(const data_types new_type) {
-        storage = static_cast<storage_type>(new_type);
-        return *this;
-    }
-
-private:
-    storage_type storage;
-};
 
 /// Converts C++ type to @ref data_types .
 template <typename T>
 struct type_to_data_type;
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 template <>
-struct type_to_data_type<int8_t> { static const data_types value = data_types::i8; };
+struct type_to_data_type<int8_t> { static constexpr data_types value = data_types::i8; };
 template <>
-struct type_to_data_type<uint8_t> { static const data_types value = data_types::u8; };
+struct type_to_data_type<uint8_t> { static constexpr data_types value = data_types::u8; };
 template <>
-struct type_to_data_type<int32_t> { static const data_types value = data_types::i32; };
+struct type_to_data_type<int32_t> { static constexpr data_types value = data_types::i32; };
 template <>
-struct type_to_data_type<int64_t> { static const data_types value = data_types::i64; };
+struct type_to_data_type<int64_t> { static constexpr data_types value = data_types::i64; };
 template <>
-struct type_to_data_type<half_t> { static const data_types value = data_types::f16; };
+struct type_to_data_type<half_t> { static constexpr data_types value = data_types::f16; };
 template <>
-struct type_to_data_type<float> { static const data_types value = data_types::f32; };
+struct type_to_data_type<float> { static constexpr data_types value = data_types::f32; };
 #endif
 
 /// Converts @ref data_types to C++ type.
@@ -143,6 +117,8 @@ struct data_type_traits {
 
     static std::string name(data_types data_type) {
         switch (data_type) {
+            case data_types::bin:
+                return "bin";
             case data_types::i8:
                 return "i8";
             case data_types::u8:
@@ -157,7 +133,7 @@ struct data_type_traits {
                 return "f32";
             default:
                 assert(0);
-                return std::string("invalid data type: " + std::to_string(static_cast<int>(data_type)));
+                return "unknown (" + std::to_string(typename std::underlying_type<data_types>::type(data_type)) + ")";
         }
     }
 
@@ -226,10 +202,63 @@ struct data_type_traits {
     }
 };
 
+inline ::std::ostream& operator<<(::std::ostream& os, const data_types& dt) {
+    return os << data_type_traits::name(dt);
+}
+
 /// Helper function to check if C++ type matches @p data_type.
 template <typename T>
 bool data_type_match(data_types data_type) {
     return data_type == type_to_data_type<T>::value;
+}
+
+inline data_types element_type_to_data_type(ov::element::Type t) {
+    switch (t) {
+    case ov::element::Type_t::i16:
+    case ov::element::Type_t::u16:
+    case ov::element::Type_t::f32:
+    case ov::element::Type_t::f64:
+        return cldnn::data_types::f32;
+    case ov::element::Type_t::f16:
+        return cldnn::data_types::f16;
+    case ov::element::Type_t::u8:
+        return cldnn::data_types::u8;
+    case ov::element::Type_t::i8:
+        return cldnn::data_types::i8;
+    case ov::element::Type_t::i32:
+    case ov::element::Type_t::u32:
+    case ov::element::Type_t::u64:
+        return cldnn::data_types::i32;
+    case ov::element::Type_t::i64:
+        return cldnn::data_types::i64;
+    case ov::element::Type_t::boolean:
+        return cldnn::data_types::i8;
+    case ov::element::Type_t::u1:
+        return cldnn::data_types::bin;
+    default:
+        throw std::runtime_error("Can't convert " + t.get_type_name() + " element type");
+    }
+}
+
+inline ov::element::Type data_type_to_element_type(data_types t) {
+    switch (t) {
+    case cldnn::data_types::f32:
+        return ov::element::Type_t::f32;
+    case cldnn::data_types::f16:
+        return ov::element::Type_t::f16;
+    case cldnn::data_types::u8:
+        return ov::element::Type_t::u8;
+    case cldnn::data_types::i8:
+        return ov::element::Type_t::i8;
+    case cldnn::data_types::i32:
+        return ov::element::Type_t::i32;
+    case cldnn::data_types::i64:
+        return ov::element::Type_t::i64;
+    case cldnn::data_types::bin:
+        return ov::element::Type_t::u1;
+    default:
+        throw std::runtime_error("Can't convert " + data_type_traits::name(t) + " precision");
+    }
 }
 
 /// Helper function to get both data_types and format::type in a single, unique value. Useable in 'case' statement.
@@ -324,9 +353,29 @@ private:
 struct layout {
     /// Constructs layout based on @p data_type and @p size information described by @ref tensor
     layout(data_types data_type, cldnn::format fmt, tensor size, padding apadding = padding())
-        : data_type(data_type), format(fmt), size(size), data_padding(apadding) {}
+        : data_type(data_type)
+        , format(fmt)
+        , data_padding(apadding) {
+            auto sizes = fmt == format::any ? size.sizes() : size.sizes(format::get_default_format(fmt.dimension(),
+                                                                                                   format::is_weights_format(fmt),
+                                                                                                   format::is_grouped(fmt)));
+            ov::Shape shape(sizes.begin(), sizes.end());
+            this->size = ov::PartialShape(shape);
+        }
+
+    layout(ov::PartialShape size, data_types data_type, cldnn::format fmt, padding apadding = padding())
+        : data_type(data_type)
+        , format(fmt)
+        , data_padding(apadding)
+        , size(size) { }
 
     layout(const layout& other) = default;
+
+    layout()
+        : data_type(cldnn::data_types::bin)
+        , format(cldnn::format::any)
+        , data_padding(padding())
+        , size(ov::PartialShape()) { }
 
     layout& operator=(const layout& other) {
         if (this == &other)
@@ -339,7 +388,15 @@ struct layout {
     }
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
-        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
+        auto get_pshape = [&](const layout& l){
+            if (l.format != cldnn::format::any && l.size.size() < l.format.dimension()) {
+                auto dims = l.get_dims();
+                return ov::PartialShape(ov::Shape(dims.begin(), dims.end()));
+            }
+            return l.size;
+        };
+        auto check_pshape = (lhs.is_dynamic() || rhs.is_dynamic()) ? (lhs.size == rhs.size) : (get_pshape(lhs) == get_pshape(rhs));
+        return lhs.data_type == rhs.data_type && lhs.format == rhs.format && check_pshape && lhs.data_padding == rhs.data_padding;
     }
 
     friend bool operator!=(const layout& lhs, const layout& rhs) {
@@ -351,145 +408,34 @@ struct layout {
             return (lhs.data_type < rhs.data_type);
         if (lhs.format != rhs.format)
             return (lhs.format < rhs.format);
-        if (lhs.size < rhs.size)
-            return (lhs.size < rhs.size);
+        if (lhs.count() < rhs.count())
+            return (lhs.count() < rhs.count());
         return (lhs.data_padding < rhs.data_padding);
     }
 
     /// Number of elements to be stored in this memory layout
-    size_t count() const { return size.count(); }
+    size_t count() const;
 
     /// Layout size with padding included
-    tensor get_buffer_size() const {
-        return size.add(data_padding.lower_size()).add(data_padding.upper_size());
-    }
+    tensor get_buffer_size() const;
 
-    tensor get_pitches() const {
-        auto sizes = get_buffer_size().sizes(format);
-
-        std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
-        std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
-        return {format, pitches};
-    }
+    tensor get_pitches() const;
 
     // @brief Calculates position within buffer of the data element pointed by the provided tensor.
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
-    size_t get_linear_offset(tensor element = tensor(0)) const {
-        auto l_padd = data_padding.lower_size();
-        auto u_padd = data_padding.upper_size();
-
-        if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
-            (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
-            (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
-            (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
-            (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
-            (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
-            (element.batch[0] >= size.batch[0] + u_padd.batch[0]) ||
-            (element.feature[0] >= size.feature[0] + u_padd.feature[0]) ||
-            (element.spatial[0] >= size.spatial[0] + u_padd.spatial[0]) ||
-            (element.spatial[1] >= size.spatial[1] + u_padd.spatial[1]) ||
-            (element.spatial[2] >= size.spatial[2] + u_padd.spatial[2]) ||
-            (element.spatial[3] >= size.spatial[3] + u_padd.spatial[3]))
-            throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
-
-        auto padded_size = size + l_padd + u_padd;
-        auto padded_element = element + l_padd;
-
-        return padded_size.get_linear_offset(padded_element, format);
-    }
+    size_t get_linear_offset(tensor element = tensor(0)) const;
 
     /// @brief Get aligned linear size calculated as multiplication of all elements.
-    size_t get_linear_size() const {
-        auto sizes = get_buffer_size().sizes();
-
-        std::set<size_t> processed_dims;
-        const auto& blocks = format.block_sizes();
-        for (size_t i = 0; i < blocks.size(); i++) {
-            if (processed_dims.count(blocks[i].first))
-                continue;
-
-            auto block_axis = blocks[i].first;
-            auto block_size = blocks[i].second;
-
-            for (size_t j = i + 1; j < blocks.size(); j++) {
-                if (blocks[j].first != block_axis)
-                    continue;
-
-                block_size *= blocks[j].second;
-            }
-
-            sizes[block_axis] = align_to(sizes[block_axis], block_size);
-            processed_dims.insert(block_axis);
-        }
-
-        if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4 && (!(is_aligned_to(sizes[0], 8)) || !(is_aligned_to(sizes[1], 32)))) {
-            sizes[0] = align_to(sizes[0], 8);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
-            sizes[0] = align_to(sizes[0], 16);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && (!(is_aligned_to(sizes[0], 32)) || !(is_aligned_to(sizes[1], 32)))) {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32)))) {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_y_x8_osv8_isv4 || this->format == cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4) {
-            sizes[1] = align_to(sizes[1], 4);
-            sizes[0] = align_to(sizes[0], 8);
-            sizes[2] = align_to(sizes[2], 8);
-        } else if (this->format == cldnn::format::b_fs_yx_32fp) {
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::os_is_yx_osv32_isv32p) {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[1] = align_to(sizes[1], 32);
-        } else if (this->format == cldnn::format::image_2d_rgba) {
-            sizes[1] = 4;
-        } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
-                   this->format == cldnn::format::gs_oi_yxs_gsv16_yxsv4 ||
-                   this->format == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 4);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(sizes[1], 32)) {
-            sizes[1] = align_to(sizes[1], 32);
-        } else if ((this->format == cldnn::format::iy_xs_os_xsv2_osv8__ao32 ||
-                    this->format == cldnn::format::iy_xs_os_xsv2_osv16__ao32 ||
-                    this->format == cldnn::format::giy_xs_os_xsv2_osv8__ao32 ||
-                    this->format == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(sizes[0], 32))  {
-            sizes[0] = align_to(sizes[0], 32);
-            sizes[3] = align_to(sizes[2] * sizes[3], 2);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 2);
-            sizes[2] = 1;
-        } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
-            sizes[3] = align_to(sizes[2] * sizes[3], 4);
-            sizes[2] = 1;
-        }
-        size_t total = std::accumulate(
-            sizes.begin(),
-            sizes.end(),
-            static_cast<size_t>(1),
-            std::multiplies<size_t>());
-
-        return (this->data_type == data_types::bin) ? ceil_div(total, 32) : total;
-    }
+    size_t get_linear_size() const;
 
     /// Modify padding in layout
-    layout with_padding(padding const& padd) const {
-        layout ret = *this;
-        ret.data_padding = padd;
-        return ret;
-    }
+    layout with_padding(padding const& padd) const;
 
     /// Data type stored in @ref memory (see. @ref data_types)
     data_types data_type;
 
     /// Format stored in @ref memory (see. @ref format)
     cldnn::format format;
-
-    /// The size of the @ref memory (excluding padding)
-    tensor size;
 
     /// Explicit padding of the @ref memory
     padding data_padding;
@@ -526,7 +472,45 @@ struct layout {
     layout convert_to_weights_layout(bool is_grouped) const;
 
     std::string to_string() const;
+    std::string to_short_string() const;
+
+    bool is_dynamic() const;
+
+    bool is_static() const;
+
+    ov::PartialShape get_partial_shape() const;
+
+    ov::Shape get_shape() const;
+
+    tensor get_tensor() const;
+
+    template<typename T>
+    T get() const;
+
+    void set_tensor(const tensor& size);
+
+    void set_partial_shape(const ov::PartialShape& size);
+
+    // Returns true if other layout can be reinterpreted without need of reordering
+    bool compatible(const layout& other) const;
+
+    // Returns true if other layout is identical to this.
+    // Note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
+    // nor dropped). If layouts describe two buffers with different size, consider them not to be identical even if
+    // smaller buffer can be considered to hold subsequence of larger buffer,  this behavior is required to force buffer allocation
+    // for smaller buffer which, currently, should always be performed
+    bool identical(const layout& other) const;
+
+    ov::PartialShape transform(cldnn::format new_fmt) const;
+
+private:
+    /// The size of the @ref memory (excluding padding)
+    ov::PartialShape size;
 };
+
+inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
+    return os << p.to_string();
+}
 
 /// @}
 /// @}

@@ -14,8 +14,14 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+enum MVNLayoutType {
+    mvn_planar,
+    mvn_block,
+    mvn_by_channel
+};
+
 struct jit_mvn_config_params {
-    bool planar_layout;
+    MVNLayoutType layout;
     bool across_channels;
     bool normalize_variance;
     InferenceEngine::Precision src_prc;
@@ -62,25 +68,26 @@ struct jit_uni_mvn_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const dnnl_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_mvn_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_mvn_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
+    int optimized_scaleshift_num = 0;
 };
 
 class MVN : public Node {
 public:
-    MVN(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -102,11 +109,6 @@ public:
         OUTSIDE_SQRT
     };
 
-    enum MVNLayoutType {
-        planar,
-        block,
-        by_channel
-    };
     struct MVNAttrs {
         MVNLayoutType layout;
         std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
@@ -120,7 +122,7 @@ public:
     };
 
 private:
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, bool initWeights = false);
 
     void transformTo5DCase(const InferenceEngine::SizeVector& shape);
 
@@ -145,13 +147,14 @@ private:
     class MVNJitExecutor : public MVNExecutor {
         public:
             MVNJitExecutor(const MVNAttrs& mvnAttrs,
-                           const mkldnn::primitive_attr &attr);
+                           const dnnl::primitive_attr &attr);
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_) override;
 
         private:
             void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
             void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
+            void mvn_nspc(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
 
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;

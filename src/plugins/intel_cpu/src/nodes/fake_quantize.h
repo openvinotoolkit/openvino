@@ -68,13 +68,13 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
 
     size_t getAxis() const { return axis; }
 
@@ -96,23 +96,25 @@ public:
     const std::vector<float>& getOutputShift() const { return outputShift; }
 
     void setCropLow(std::vector<float> newCropLow) {
-        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); isPostOpDataInitialized = false;
+        cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); ++parameterVersion;
     }
     void setCropHigh(std::vector<float> newCropHigh) {
-        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); isPostOpDataInitialized = false;
+        cropHigh = std::move(newCropHigh); cropHighSize = cropHigh.size(); ++parameterVersion;
     }
     void setInputScale(std::vector<float> newInputScale) {
-        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); isPostOpDataInitialized = false;
+        inputScale = std::move(newInputScale); inputScaleSize = inputScale.size(); ++parameterVersion;
     }
     void setInputShift(std::vector<float> newInputShift) {
-        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); isPostOpDataInitialized = false;
+        inputShift = std::move(newInputShift); inputShiftSize = inputShift.size(); ++parameterVersion;
     }
     void setOutputScale(std::vector<float> newOutputScale) {
-        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); isPostOpDataInitialized = false;
+        outputScale = std::move(newOutputScale); outputScaleSize = outputScale.size(); ++parameterVersion;
     }
     void setOutputShift(std::vector<float> newOutputShift) {
-        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); isPostOpDataInitialized = false;
+        outputShift = std::move(newOutputShift); outputShiftSize = outputShift.size(); ++parameterVersion;
     }
+
+    const std::vector<float>& getFQScales() const { return fqScales; }
 
     bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
     bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
@@ -122,9 +124,13 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& postOpsMem) override;
-    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem) override;
-    void appendBinPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<MemoryPtr>& binaryPostOpsMem) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
+    void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
+    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+                           bool isLastPostOp,
+                           dnnl::memory::data_type outDataType,
+                           bool allowBinary = true,
+                           bool do_rounding = true);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -159,7 +165,7 @@ private:
 
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
-    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment);
+    void initializePostOpData(const VectorDims &postOpDims, const size_t bufferAlignment, bool doRounding);
     void initializePostOpDataLegacy(const VectorDims &dims, const size_t bufferAlignment);
     void executeReference();
     void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
@@ -168,7 +174,7 @@ private:
     void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const size_t dataSize, const void *data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
     template <typename T>
-    void appendPostOpsImpl(mkldnn::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
+    void appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<T>& postOpsMem);
 
     size_t levels = 0;
 
@@ -177,12 +183,51 @@ private:
     std::vector<float> binarizationThresholds;
     std::vector<uint32_t> binarizationOutputMask;
 
+    // inference formula strictly following definition:
+    //   x1 = crop(x, cropLow, cropHigh)
+    //   x2 = x1 * inputScale + inputShift
+    //   x3 = round(x2)
+    //    y = x3 * outputScale + outputShift
     std::vector<float> cropLow;
     std::vector<float> cropHigh;
     std::vector<float> inputScale;
     std::vector<float> inputShift;
     std::vector<float> outputScale;
     std::vector<float> outputShift;
+
+    // equivalently, we can push crop operation through
+    // input linear mapping and rounding stage, according to
+    // definition of FQ, this should turn the per-OC crop into
+    // a per-tensor crop2 (maybe not always)
+    struct OptimizedFormula {
+        std::vector<float> isc;
+        std::vector<float> ish;
+        std::vector<float> osc;
+        std::vector<float> osh;
+        std::vector<float> clo;
+        std::vector<float> chi;
+
+        void shrinkLength() {
+            auto _do_shrink = [](std::vector<float>& v) {
+                if (v.size() <= 1)
+                    return;
+                auto ref = v[0];
+                if (std::all_of(v.cbegin(), v.cend(), [&](float val) {
+                        return val == ref;
+                    })) {
+                    v.resize(1);
+                }
+            };
+            _do_shrink(isc);
+            _do_shrink(ish);
+            _do_shrink(clo);
+            _do_shrink(chi);
+            _do_shrink(osc);
+            _do_shrink(osh);
+        }
+    } optimizedFormula;
+
+    void updateOptimizedFormula(bool do_rounding);
 
     std::vector<float> quantizationData;
     size_t quantizationDataSize = 0lu;
@@ -195,14 +240,14 @@ private:
     size_t outputScaleSize;
     size_t outputShiftSize;
 
-    // mkldnn style post ops data representation
-    bool isPostOpDataInitialized = false;
-    mkldnn::impl::shifts_t<float> cropLowData;
-    mkldnn::impl::shifts_t<float> cropHighData;
-    mkldnn::impl::scales_t inputScaleData;
-    mkldnn::impl::shifts_t<float> inputShiftData;
-    mkldnn::impl::scales_t outputScaleData;
-    mkldnn::impl::shifts_t<float> outputShiftData;
+    std::vector<float> fqScales;
+
+    // version based lazy evaluation, any parameter change increases parameterVersion
+    // and postOpDataVersion will be compared with it to see if an update is required
+    // when it was being actually used.
+    size_t parameterVersion = 1lu;
+    size_t postOpDataVersion = 0lu;
+    size_t legacyPostOpDataVersion = 0lu;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;

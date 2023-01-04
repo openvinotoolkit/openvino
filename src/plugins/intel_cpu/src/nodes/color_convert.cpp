@@ -13,8 +13,8 @@
 #include <utils/jit_kernel.hpp>
 
 using namespace InferenceEngine;
-using namespace mkldnn::impl::utils;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl::impl::utils;
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace ov {
@@ -40,7 +40,6 @@ class Converter : public ColorConvert::Converter {
 public:
     Converter(Node *node);
 
-    Shapes shapeInfer() const override;
     bool singlePlane() const;
 
     template <typename T>
@@ -52,16 +51,6 @@ Converter::Converter(Node *node)
                     || node->getAlgorithm() == Algorithm::ColorConvertI420toRGB
                         ? ColorFormat { { 0, 1, 2 } }
                         : ColorFormat { { 2, 1, 0 } }) {
-}
-
-ColorConvert::Converter::Shapes
-Converter::shapeInfer() const {
-    const auto & dims = inputDims(0);
-    if (dims.size() != 4)
-        IE_THROW() <<"NV12Converter node has incorrect input dimensions";
-    return singlePlane()
-                ? Shapes { { dims[N_DIM], dims[H_DIM] * 2 / 3, dims[W_DIM], 3 } }
-                : Shapes { { dims[N_DIM], dims[H_DIM], dims[W_DIM], 3 } };
 }
 
 bool Converter::singlePlane() const {
@@ -127,7 +116,8 @@ protected:
 };
 
 jit_uni_converter::jit_uni_converter()
-    : _consts(*this) {
+    : jit_kernel(jit_name()),
+      _consts(*this) {
 }
 
 void jit_uni_converter::init() {
@@ -358,7 +348,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -383,7 +373,7 @@ class TwoPlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -522,7 +512,7 @@ const jit_uni_converter & jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_common)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
@@ -559,7 +549,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -594,7 +584,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -710,7 +700,7 @@ class SinglePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const size_t batch_size = dims[N_DIM];
@@ -736,7 +726,7 @@ class ThreePlaneConvert<T, impl_desc_type::ref> : public RefConverter {
 public:
     using RefConverter::RefConverter;
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & dims = inputDims(0);
 
         const T* y = static_cast<const T*>(input(0));
@@ -871,7 +861,7 @@ const jit_uni_converter & jit_converter_create() {
     auto createKernel = []() {
         std::unique_ptr<jit_uni_converter> kernel;
 
-        if (mayiuse(cpu_isa_t::avx512_common)) {
+        if (mayiuse(cpu_isa_t::avx512_core)) {
             auto converter = new JitConverter<T[16]>;
             kernel.reset(converter);
             converter->init();
@@ -908,7 +898,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -945,7 +935,7 @@ public:
         jit_converter_create<T>();
     }
 
-    void execute(mkldnn::stream strm) override {
+    void execute(dnnl::stream strm) override {
         const auto & kernel = jit_converter_get<T>();
         const auto & dims = inputDims(0);
 
@@ -975,6 +965,44 @@ public:
 };
 
 }   // namespace i420
+
+/**
+ * Implements Color Convert shape inference algorithm. Depending on wether it has only single plain H dimension is
+ * passed through or recalculated as 2/3 of the initial size.
+ * 
+ */
+class ColorConvertShapeInfer : public ShapeInferEmptyPads {
+public:
+    ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
+    std::vector<VectorDims> infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto& dims = input_shapes.front().get();
+        if (dims.size() != 4)
+            IE_THROW() <<"NV12Converter node has incorrect input dimensions";
+        return m_singlePlain
+                    ? std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM] * 2 / 3, dims[Converter::W_DIM], 3 } }
+                    : std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM], dims[Converter::W_DIM], 3 } };
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    bool m_singlePlain = false;
+};
+
+class ColorConvertShapeInferFactory : public ShapeInferFactory {
+public:
+    ColorConvertShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        bool isSinglePlain = m_op->get_input_size() == 1;
+        return std::make_shared<ColorConvertShapeInfer>(isSinglePlain);
+    }
+
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
 
 }   // namespace
 
@@ -1010,9 +1038,9 @@ bool ColorConvert::isSupportedOperation(const std::shared_ptr<const ngraph::Node
 }
 
 ColorConvert::ColorConvert(const std::shared_ptr<ngraph::Node>& op,
-                                               const mkldnn::engine& eng,
+                                               const dnnl::engine& eng,
                                                WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache) {
+    : Node(op, eng, cache, ColorConvertShapeInferFactory(op)) {
     std::string errorMessage;
     std::tie(algorithm, errorMessage) = getAlgorithmFor(op);
     if (algorithm == Algorithm::Default)
@@ -1128,7 +1156,7 @@ void ColorConvert::createPrimitive() {
     }
 }
 
-void ColorConvert::execute(mkldnn::stream strm) {
+void ColorConvert::execute(dnnl::stream strm) {
     if (!_impl)
         IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
                    << "has no any implemented converter";
@@ -1139,18 +1167,11 @@ bool ColorConvert::created() const {
     return getType() == Type::ColorConvert;
 }
 
-std::vector<VectorDims> ColorConvert::shapeInfer() const {
-    if (!_impl)
-        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-                   << "has no any implemented converter";
-    return _impl->shapeInfer();
-}
-
 bool ColorConvert::needPrepareParams() const {
     return false;
 }
 
-void ColorConvert::executeDynamicImpl(mkldnn::stream strm) {
+void ColorConvert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

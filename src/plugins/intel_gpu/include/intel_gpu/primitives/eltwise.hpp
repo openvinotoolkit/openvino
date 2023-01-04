@@ -72,18 +72,18 @@ struct eltwise : public primitive_base<eltwise> {
     /// @param input Input primitive id.
     /// @param input2 Second input primitive id with values needed for eltwise computation.
     /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
+    /// @param spec Auto broadcast rule specificiation.
     eltwise(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& input2,
+            const input_info& input,
+            const input_info& input2,
             eltwise_mode mode,
-            const primitive_id& ext_prim_id = "",
+            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, ext_prim_id, output_padding),
+        : primitive_base(id, {input, input2}, {output_padding}),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)) {}
+          stride(std::vector<tensor>(0)),
+          broadcast_spec(spec.m_type, spec.m_axis) { }
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -91,66 +91,73 @@ struct eltwise : public primitive_base<eltwise> {
     /// @param input2 Second input primitive id with values needed for eltwise computation.
     /// @param stride Defines shift in input buffers between adjacent calculations of output values.
     /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
+    /// @param spec Auto broadcast rule specificiation.
     eltwise(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& input2,
+            const input_info& input,
+            const input_info& input2,
             std::vector<tensor> stride,
             eltwise_mode mode,
-            const primitive_id& ext_prim_id = "",
+            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, ext_prim_id, output_padding),
+        : primitive_base(id, {input, input2}, {output_padding}),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(stride) {}
+          stride(stride),
+          broadcast_spec(spec.m_type, spec.m_axis) { }
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
     /// @param mode Eltwise mode.
     /// @param data_type Expected output data type.
+    /// @param spec Auto broadcast rule specificiation.
     eltwise(const primitive_id& id,
-            const std::vector<primitive_id>& inputs,
+            const std::vector<input_info>& inputs,
             eltwise_mode mode,
             data_types data_type,
-            const primitive_id& ext_prim_id = "",
+            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, ext_prim_id, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)) {}
+          stride(std::vector<tensor>(0)),
+          broadcast_spec(spec.m_type, spec.m_axis) { }
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
     /// @param mode Eltwise mode.
+    /// @param spec Auto broadcast rule specificiation.
     eltwise(const primitive_id& id,
-            const std::vector<primitive_id>& inputs,
+            const std::vector<input_info>& inputs,
             eltwise_mode mode,
-            const primitive_id& ext_prim_id = "",
+            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, ext_prim_id, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)) {}
+          stride(std::vector<tensor>(0)),
+          broadcast_spec(spec.m_type, spec.m_axis) { }
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
-    /// @param coefficients Blob-wise coefficient for SUM operation
     /// @param mode Eltwise mode.
+    /// @param coefficients Blob-wise coefficient for SUM operation
+    /// @param data_type Expected output data type.
+    /// @param spec Auto broadcast rule specificiation.
     eltwise(const primitive_id& id,
-            const std::vector<primitive_id>& inputs,
+            const std::vector<input_info>& inputs,
             eltwise_mode mode,
             const std::vector<float>& coefficients,
             data_types data_type,
-            const primitive_id& ext_prim_id = "",
+            const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, ext_prim_id, output_padding, optional_data_type{data_type}),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           mode(mode),
           coefficients(coefficients),
-          stride(std::vector<tensor>(0)) {
+          stride(std::vector<tensor>(0)),
+          broadcast_spec(spec.m_type, spec.m_axis) {
         if (mode == eltwise_mode::sum && !coefficients.empty() && coefficients.size() != inputs.size()) {
             throw std::invalid_argument("Invalid eltwise sum coefficients count (should be equal to 0 or input.size)");
         }
@@ -165,6 +172,8 @@ struct eltwise : public primitive_base<eltwise> {
     std::vector<float> coefficients;
     /// @brief Defines shift in input buffers between adjacent calculations of output values.
     std::vector<tensor> stride;
+    /// @brief Define auto broadcast rule specification.
+    ov::op::AutoBroadcastSpec broadcast_spec;
 };
 /// @}
 /// @}

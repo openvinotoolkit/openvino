@@ -58,20 +58,20 @@ namespace LayerTestsDefinitions {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         using namespace LayerTestsUtils;
         auto crashHandler = [](int errCode) {
-            auto &s = Summary::getInstance();
+            auto &s = ov::test::utils::OpSummary::getInstance();
             s.saveReport();
             std::cout << "Unexpected application crash!" << std::endl;
             std::abort();
         };
         signal(SIGSEGV, crashHandler);
 
-        auto &s = LayerTestsUtils::Summary::getInstance();
+        auto &s = ov::test::utils::OpSummary::getInstance();
         s.setDeviceName(targetDevice);
         if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            s.updateOPsStats(function, PassRate::Statuses::SKIPPED);
+            s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::SKIPPED);
             GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
         } else {
-            s.updateOPsStats(function, PassRate::Statuses::CRASHED);
+            s.updateOPsStats(function, ov::test::utils::PassRate::Statuses::CRASHED);
         }
 
         try {
@@ -82,23 +82,29 @@ namespace LayerTestsDefinitions {
                 ConfigureNetwork();
                 executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
             }
+            inferRequest = executableNetwork.CreateInferRequest();
             GenerateInputs();
             for (int64_t i = 0; i < iteration_count; ++i) {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, ov::test::utils::PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
+    }
+
+    void MemoryTest::Infer() {
+        ConfigureInferRequest();
+        inferRequest.Infer();
     }
 
     std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> MemoryTest::CalculateRefs() {
@@ -177,10 +183,12 @@ namespace LayerTestsDefinitions {
 
     void MemoryTest::CreateCommonFunc() {
         auto param = builder::makeParams(ngPrc, {inputShape});
-        auto variable = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"});
-        auto read_value = std::make_shared<ReadValue>(param.at(0), variable);
+        const auto variable_info = targetDevice == CommonTestUtils::DEVICE_GPU ?
+            VariableInfo{Shape{inputShape}, ngPrc, "v0"} : VariableInfo{PartialShape::dynamic(), element::dynamic, "v0"};
+        auto variable = std::make_shared<Variable>(variable_info);
+        auto read_value = CreateReadValueOp(param.at(0), variable);
         auto add = std::make_shared<Add>(read_value, param.at(0));
-        auto assign = std::make_shared<Assign>(add, variable);
+        auto assign = CreateAssignOp(add, variable);
         auto res = std::make_shared<Result>(add);
         function = std::make_shared<Function>(ResultVector{res}, SinkVector{assign}, param, "TestMemory");
     }

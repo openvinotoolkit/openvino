@@ -4,12 +4,12 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestNonZero(Caffe2OnnxLayerTest):
+class TestNonZero(OnnxRuntimeLayerTest):
     def create_net(self, shape, ir_version):
         """
             ONNX net                    IR net
@@ -186,13 +186,13 @@ class TestNonZero(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_non_zero(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_non_zero(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_const_data)
     @pytest.mark.nightly
-    def test_non_zero_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_non_zero_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

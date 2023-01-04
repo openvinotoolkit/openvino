@@ -15,10 +15,10 @@ namespace v0 {
 /// Parameters are nodes that represent the arguments that will be passed to
 /// user-defined models. Model creation requires a sequence of parameters.
 /// Basic graph operations do not need parameters attached to a model.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Parameter : public op::Op {
 public:
     OPENVINO_OP("Parameter", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructions a tensor-typed parameter node.
     Parameter() = default;
     /// \brief Constructions a tensor-typed parameter node.
@@ -77,7 +77,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<ParameterVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ParameterVector& m_ref;

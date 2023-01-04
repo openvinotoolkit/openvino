@@ -49,8 +49,8 @@ static void genInputs(InferenceEngine::BlobMap inputMap,
 
     // boxes generator
     auto genXY = [](int min, int max, int maxSize) {
-            int a = min + maxSize * (static_cast<float>(rand()) / RAND_MAX);
-            int b = a + maxSize * (static_cast<float>(rand()) / RAND_MAX) + 1;
+            int a = min + maxSize * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+            int b = a + maxSize * (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) + 1;
 
             if (b > max) {
                 const int d = b - max;
@@ -84,13 +84,13 @@ static void genInputs(InferenceEngine::BlobMap inputMap,
         for (int h = 0; h < iScoresDims[1]; ++h) {
             for (int w = 0; w < iScoresDims[0]; ++w) {
                 const float maxDelta = 16.0f;
-                float dx = maxDelta * (static_cast<float>(std::rand()) / RAND_MAX);
-                float dy = maxDelta * (static_cast<float>(std::rand()) / RAND_MAX);
+                float dx = maxDelta * (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX));
+                float dy = maxDelta * (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX));
 
                 const float maxlogDelta = 1000.f / 128;
                 const float minlogDelta = 0.65;
-                float d_log_w = std::log(minlogDelta + (maxlogDelta - minlogDelta) * (static_cast<float>(std::rand()) / RAND_MAX));
-                float d_log_h = std::log(minlogDelta + (maxlogDelta - minlogDelta) * (static_cast<float>(std::rand()) / RAND_MAX));
+                float d_log_w = std::log(minlogDelta + (maxlogDelta - minlogDelta) * (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)));
+                float d_log_h = std::log(minlogDelta + (maxlogDelta - minlogDelta) * (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)));
 
                 ie_fp16* ideltas = &inputDeltas[idx * step_hw * 4];
 

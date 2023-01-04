@@ -12,4 +12,8 @@ TEST_P(CascadeConcat, CompareWithRefs) {
     Run();
 }
 
+TEST_P(CascadeConcatWithMultiConnReshape, CompareWithRefs) {
+    Run();
+}
+
 } // namespace SubgraphTestsDefinitions

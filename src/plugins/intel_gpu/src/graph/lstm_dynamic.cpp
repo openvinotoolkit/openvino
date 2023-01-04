@@ -10,10 +10,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lstm_dynamic::type_id() {
-    static primitive_type_base<lstm_dynamic> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_dynamic)
 
 // input_tensor:   [b: batch, f: max_sequence_length, x: input_size, y: direction]
 // weights_tensor: [b: 1, f: direction, x: input_size, y: 4 * hidden_size]
@@ -21,13 +18,13 @@ primitive_type_id lstm_dynamic::type_id() {
 // init_hidden:    [b: batch, f: 1, x: hidden_size, y: direction]
 // init_cell:      [b: batch, f: 1, x: hidden_size, y: direction]
 // output_tensor:  [b: batch, f: max_sequence_length, x: hidden_size, y: direction]
-layout lstm_dynamic_inst::calc_output_layout(lstm_dynamic_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout lstm_dynamic_inst::calc_output_layout(lstm_dynamic_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for lstm_dynamic_node!");
     /*
         This program node is just placeholder for input + timeloop combinations, thus this is returning dummy layout.
         */
-    return node.get_dependency(0).get_output_layout();
+    return impl_param.get_input_layout();
 }
 
 std::string lstm_dynamic_inst::to_string(lstm_dynamic_node const& node) {

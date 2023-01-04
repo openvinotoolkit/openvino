@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise greater-than-or-equal operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API GreaterEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("GreaterEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a greater-than-or-equal operation.
     GreaterEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a greater-than-or-equal operation.

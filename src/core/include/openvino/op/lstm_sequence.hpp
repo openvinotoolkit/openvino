@@ -28,10 +28,10 @@ namespace v0 {
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public Op {
 public:
     OPENVINO_OP("LSTMSequence", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     LSTMSequence();
 
     using direction = RecurrentSequenceDirection;
@@ -103,29 +103,6 @@ public:
     }
 
 private:
-    ///
-    /// \brief      Gets the masked value according to sequence length in a batch.
-    ///
-    /// \note       Zeros out values or sets them to default value for inputs with
-    ///             sequence length shorter than currently procssed time step.
-    ///
-    /// \param[in]  data           The input value.
-    /// \param[in]  time_step      The current time step denoting sequence length.
-    /// \param[in]  batch_axis     The batch axis index of data tensor.
-    /// \param[in]  default_value  The default value for masked elements.
-    ///
-    /// \return     The masked value.
-    ///
-    std::shared_ptr<Node> get_masked_node(const Output<Node>& data,
-                                          std::int32_t time_step,
-                                          std::size_t batch_axis = 0,
-                                          const Output<Node>& default_value = Output<Node>()) const;
-
-    OutputVector lstm_pass(bool is_reverse = false) const;
-
-    // Split(bi-directional) and squeeze input data to remove 'num_direction' dimension.
-    std::shared_ptr<Node> prepare_input(Output<Node> node, bool is_reverse, size_t num_direction_axis = 0) const;
-
     std::vector<float> m_activations_alpha;
     std::vector<float> m_activations_beta;
     std::vector<std::string> m_activations;
@@ -147,10 +124,10 @@ namespace v5 {
 /// \sa         LSTMCell, RNNCell, GRUCell
 ///
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMSequence : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMSequence", "opset5", util::RNNCellBase, 5);
-    BWDCMP_RTTI_DECLARATION;
     LSTMSequence() = default;
 
     using direction = RecurrentSequenceDirection;

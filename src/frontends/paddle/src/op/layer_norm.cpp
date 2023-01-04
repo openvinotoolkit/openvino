@@ -12,7 +12,7 @@ namespace op {
 NamedOutputs layer_norm(const NodeContext& node) {
     using namespace default_opset;
     const auto data = node.get_input("X");
-    const auto epsilon = node.get_attribute<float>("epsilon", 1e-05);
+    const auto epsilon = node.get_attribute<float>("epsilon", 1e-05f);
     const auto begin_norm_axis = node.get_attribute<int32_t>("begin_norm_axis", 1);
     // The limitation from:
     // https://github.com/paddle/Paddle/blob/cec36ea6ff16fda90c1a004c6e043cd9b2096a2a/paddle/fluid/operators/layer_norm_op.cc#L176

@@ -9,10 +9,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id experimental_detectron_roi_feature_extractor::type_id() {
-    static primitive_type_base<experimental_detectron_roi_feature_extractor> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_roi_feature_extractor)
 
 size_t experimental_detectron_roi_feature_extractor_inst::inputs_memory_count() const {
     return parent::inputs_memory_count() - 1;
@@ -30,14 +27,15 @@ void experimental_detectron_roi_feature_extractor_inst::copy_rois_input_to_secon
     second_output_memory()->copy_from(get_network().get_stream(), *rois_memory());
 }
 
-layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(experimental_detectron_roi_feature_extractor_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout experimental_detectron_roi_feature_extractor_inst::calc_output_layout(
+    experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
-    layout rois_layout = node.input(0).get_output_layout();
-    layout data_layout = node.input(1).get_output_layout();
-    int num_rois = rois_layout.size.batch[0];
-    int num_channels = data_layout.size.feature[0];
-    auto desc = node.get_primitive();
+    layout rois_layout = impl_param.get_input_layout(0);
+    layout data_layout = impl_param.get_input_layout(1);
+    int num_rois = rois_layout.batch();
+    int num_channels = data_layout.feature();
+    auto desc = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
 
     return layout(data_layout.data_type, format::bfyx, {num_rois, num_channels, desc->output_dim, desc->output_dim});
 }

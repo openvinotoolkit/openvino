@@ -18,7 +18,6 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
@@ -26,14 +25,18 @@ public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
     CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
+    CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
 
+    void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                                        const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
-
+    template <class T>
+    InferenceEngine::IInferRequestInternal::Ptr GetInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                    const std::vector<std::shared_ptr<const ov::Node>>& outputs);
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
@@ -43,8 +46,10 @@ public:
     Config m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
+
+private:
+    bool is_serializable();
 };
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

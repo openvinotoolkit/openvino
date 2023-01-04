@@ -7,17 +7,16 @@
 #include "fake_quantize.h"
 #include "conv.h"
 #include "concat.h"
-#include <mkldnn.hpp>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include <utils/general_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -39,7 +38,7 @@ struct PoolingKey {
     /// For OneDNN default dilation is vector of zero
     std::vector<ptrdiff_t> effective_dilation;
     std::vector<ptrdiff_t> data_pad_end;
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
     algorithm alg;
     impl_desc_type implType;
 
@@ -79,16 +78,16 @@ struct PoolingKey {
     }
 };
 
-std::shared_ptr<pooling_v2_forward::desc> createDescriptorHelper(const mkldnn::memory::desc& in_candidate,
-                                                                 const mkldnn::memory::desc& out_candidate,
-                                                                 const mkldnn::algorithm alg,
+std::shared_ptr<pooling_v2_forward::desc> createDescriptorHelper(const dnnl::memory::desc& in_candidate,
+                                                                 const dnnl::memory::desc& out_candidate,
+                                                                 const dnnl::algorithm alg,
                                                                  const std::vector<ptrdiff_t>& stride,
                                                                  const std::vector<ptrdiff_t>& kernel,
                                                                  const std::vector<ptrdiff_t>& effective_pad_begin,
                                                                  const std::vector<ptrdiff_t>& effective_pad_end,
                                                                  const std::vector<ptrdiff_t>& effective_dilation,
                                                                  const std::vector<ptrdiff_t>& data_pad_end) {
-    if (alg == mkldnn::algorithm::undef) {
+    if (alg == dnnl::algorithm::undef) {
         IE_THROW() << "Unsupported pooling type";
     }
 
@@ -105,13 +104,13 @@ std::shared_ptr<pooling_v2_forward::desc> createDescriptorHelper(const mkldnn::m
                                                                                     convert(effective_pad_begin),
                                                                                     convert(effective_pad_end)));
 
-    if (alg == mkldnn::algorithm::pooling_avg_include_padding) {
+    if (alg == dnnl::algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
         // original values for end paddings.
         //
-        // WA. Because mkldnn uses different formula to calculate AVG norm coeff
-        //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
+        // WA. Because onednn uses different formula to calculate AVG norm coeff
+        //     in compare with Caffe. In onednn coeff is always 1/(KH*KW)
         for (int i = 0; i < data_pad_end.size(); i++) {
             if (data_pad_end[i] != effective_pad_end[i])
                 desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
@@ -140,8 +139,8 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
     return true;
 }
 
-Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -340,7 +339,7 @@ void Pooling::prepareParams() {
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
 
-    mkldnn::algorithm alg = getPoolingAlgorithm();
+    dnnl::algorithm alg = getPoolingAlgorithm();
     PoolingKey key = {inDesc,
                       outDesc,
                       stride,
@@ -353,7 +352,7 @@ void Pooling::prepareParams() {
                       alg,
                       selected_pd->getImplementationType()};
     auto engine = getEngine();
-    auto builder = [&engine](const PoolingKey& key) -> std::shared_ptr<mkldnn::primitive> {
+    auto builder = [&engine](const PoolingKey& key) -> std::shared_ptr<dnnl::primitive> {
         auto desc_ptr = createDescriptorHelper(key.inp->getDnnlDesc(),
                                                key.out->getDnnlDesc(),
                                                key.alg,
@@ -364,8 +363,8 @@ void Pooling::prepareParams() {
                                                key.effective_dilation,
                                                key.data_pad_end);
         DnnlDesriptor desc{desc_ptr};
-        pooling_v2_forward::primitive_desc prim_desc;
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        pooling_v2_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -374,7 +373,7 @@ void Pooling::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                break;
         }
         return std::make_shared<pooling_v2_forward>(prim_desc);
     };
@@ -388,14 +387,16 @@ void Pooling::prepareParams() {
 
     prim = result.first;
 
+    auto pd = (*prim).get_primitive_desc();
+    auto scratchpadMem = getScratchPadMem(pd);
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
 
     Node::appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }
 
-void Pooling::executeDynamicImpl(mkldnn::stream strm) {
+void Pooling::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
@@ -403,7 +404,7 @@ bool Pooling::created() const {
     return getType() == Type::Pooling;
 }
 
-mkldnn::algorithm Pooling::getPoolingAlgorithm() const {
+dnnl::algorithm Pooling::getPoolingAlgorithm() const {
     if (algorithm == Algorithm::PoolingAvg) {
         bool not_zero_l = false;
         for (auto lr : data_pad_begin) {
@@ -420,20 +421,20 @@ mkldnn::algorithm Pooling::getPoolingAlgorithm() const {
             }
         }
         if (!exclude_pad && (not_zero_l || not_zero_r))
-            return mkldnn::algorithm::pooling_avg_include_padding;
+            return dnnl::algorithm::pooling_avg_include_padding;
         else
-            return mkldnn::algorithm::pooling_avg_exclude_padding;
+            return dnnl::algorithm::pooling_avg_exclude_padding;
     } else if (algorithm == Algorithm::PoolingMax) {
-        return mkldnn::algorithm::pooling_max;
+        return dnnl::algorithm::pooling_max;
     } else {
-        return mkldnn::algorithm::undef;
+        return dnnl::algorithm::undef;
     }
 }
 
 std::shared_ptr<pooling_v2_forward::desc> Pooling::createDescriptorInternal(
-    const mkldnn::memory::desc& in_candidate,
-    const mkldnn::memory::desc& out_candidate,
-    const mkldnn::algorithm alg) const {
+    const dnnl::memory::desc& in_candidate,
+    const dnnl::memory::desc& out_candidate,
+    const dnnl::algorithm alg) const {
     return createDescriptorHelper(in_candidate,
                                   out_candidate,
                                   alg,
@@ -472,7 +473,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
     setPostOps(attr);
 
     for (auto& desc : descs) {
@@ -532,7 +533,7 @@ void Pooling::initDescriptor(const NodeConfig& config) {
         outDescs.push_back(outConf.getMemDesc());
     createDescriptor(inDescs, outDescs);
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
     setPostOps(attr);
 
     NodeConfig rightConfig = selectedPD->getConfig();
@@ -613,15 +614,17 @@ void Pooling::initDescriptor(const NodeConfig& config) {
 }
 
 Node::AttrPtr Pooling::initPrimitiveAttr() {
-    auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
+    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
 
     setPostOps(*attr);
+
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     return attr;
 }
 
-void Pooling::setPostOps(mkldnn::primitive_attr &attr) {
-    mkldnn::post_ops ops;
+void Pooling::setPostOps(dnnl::primitive_attr &attr) {
+    dnnl::post_ops ops;
 
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize *>(node.get());
@@ -636,6 +639,6 @@ void Pooling::setPostOps(mkldnn::primitive_attr &attr) {
     attr.set_post_ops(ops);
 }
 
-}   // namespace node
+}  // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

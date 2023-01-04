@@ -17,6 +17,12 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
+const std::vector<InferenceEngine::Precision> netPrecisions_fp_i32 = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32
+};
+
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                           {3, 5}};
 const std::vector<std::vector<size_t >> strides = {{1, 1},
@@ -50,7 +56,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisions_fp_i32),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
@@ -75,7 +81,7 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisions_fp_i32),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
@@ -181,7 +187,7 @@ const auto maxPool8_ExplicitPad_FloorRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_FloorRounding, MaxPoolingV8LayerTest,
                         ::testing::Combine(
                                 maxPool8_ExplicitPad_FloorRounding_Params,
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisions_fp_i32),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
@@ -206,7 +212,7 @@ const auto maxPool8_ExplicitPad_CeilRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool8_ExplicitPad_CeilRounding, MaxPoolingV8LayerTest,
                          ::testing::Combine(
                                  maxPool8_ExplicitPad_CeilRounding_Params,
-                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::ValuesIn(netPrecisions_fp_i32),
                                  ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                  ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                  ::testing::Values(InferenceEngine::Layout::ANY),

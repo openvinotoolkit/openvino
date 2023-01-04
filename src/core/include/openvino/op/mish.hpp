@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -12,10 +12,10 @@ namespace v4 {
 /// \brief A Self Regularized Non-Monotonic Neural Activation Function
 /// f(x) =  x * tanh(log(exp(x) + 1.))
 ///
-class OPENVINO_API Mish : public Op {
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API Mish : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Mish", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Mish", "opset4", util::UnaryElementwiseArithmetic, 4);
 
     Mish() = default;
     /// \brief Constructs an Mish operation.

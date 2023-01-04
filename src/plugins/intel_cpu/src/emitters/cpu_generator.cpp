@@ -11,8 +11,15 @@
 #include "cpu_generator.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "jit_eltwise_emitters.hpp"
-#include "jit_mkldnn_emitters.hpp"
-#include "jit_mkldnn_ext_emitters.hpp"
+#include "jit_dnnl_emitters.hpp"
+#include "jit_dnnl_ext_emitters.hpp"
+#include "jit_conversion_emitters.hpp"
+
+#include "snippets_transformations/op/load_convert.hpp"
+#include "snippets_transformations/op/store_convert.hpp"
+#include "ngraph_transformations/op/swish_cpu.hpp"
+
+#include <ngraph/opsets/opset5.hpp>
 
 using namespace std;
 using namespace ngraph::snippets;
@@ -26,7 +33,7 @@ public:
 
     ~jit_snippet() = default;
 
-    jit_snippet() : jit_generator() {
+    jit_snippet() : jit_generator(jit_name()) {
     }
 
     void generate() override {
@@ -37,25 +44,25 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     : TargetMachine(), h(new jit_snippet()), isa(host_isa) {
     // data movement
     jitters[ngraph::opset1::Parameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
-    jitters[ngraph::snippets::op::BlockedParameter::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     jitters[ngraph::opset1::Result::get_type_info_static()] = CREATE_EMITTER(NopEmitter);
     // jitters[ngraph::opset1::Constant::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::VectorLoad::get_type_info_static()] = CREATE_EMITTER(LoadEmitter);
-    jitters[ngraph::snippets::op::ScalarLoad::get_type_info_static()] = CREATE_EMITTER(ScalarLoadEmitter);
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_EMITTER(BroadcastLoadEmitter);
+    jitters[ov::intel_cpu::LoadConvertSaturation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
+    jitters[ov::intel_cpu::LoadConvertTruncation::get_type_info_static()] = CREATE_EMITTER(LoadConvertEmitter);
 
     jitters[ngraph::snippets::op::Store::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::VectorStore::get_type_info_static()] = CREATE_EMITTER(StoreEmitter);
-    jitters[ngraph::snippets::op::ScalarStore::get_type_info_static()] = CREATE_EMITTER(ScalarStoreEmitter);
+    jitters[ov::intel_cpu::StoreConvertSaturation::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
+    jitters[ov::intel_cpu::StoreConvertTruncation::get_type_info_static()] = CREATE_EMITTER(StoreConvertEmitter);
 
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = CREATE_EMITTER(ScalarEmitter);
-    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(FakeBroadcastEmitter);
+    jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = CREATE_EMITTER(BroadcastMoveEmitter);
     // jitters[ngraph::snippets::op::Nop::get_type_info_static()] = CREATE_EMITTER(NopEmitter); // Not supported
     // jitters[ngraph::opset1::Broadcast::get_type_info_static()] = CREATE_EMITTER(); // Not supported
 
-    // jitters[ngraph::opset1::Convert::get_type_info_static()] = CREATE_EMITTER(); // Not supported
+    jitters[ngraph::snippets::op::ConvertTruncation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_truncation_emitter);
+    jitters[ngraph::snippets::op::ConvertSaturation::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_convert_saturation_emitter);
     // jitters[ngraph::opset1::FakeQuantize::get_type_info_static()] = CREATE_EMITTER(); // not supported
 
     // binary
@@ -87,14 +94,15 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Acos::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Asin::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Atan::get_type_info_static()] = CREATE_EMITTER(); // not supported
-    // jitters[ngraph::opset1::Ceiling::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Ceiling::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_ceiling_emitter);
     jitters[ngraph::opset1::Clamp::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_clamp_emitter);
     // jitters[ngraph::opset1::Cos::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Cosh::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Elu::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_elu_emitter);
     jitters[ngraph::opset1::Erf::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_erf_emitter);
     jitters[ngraph::opset1::Exp::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_exp_emitter);
-    // jitters[ngraph::opset1::Floor::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::opset1::Floor::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_floor_emitter);
+    jitters[ngraph::opset5::Round::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_round_emitter);
     // jitters[ngraph::opset1::Log::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::LogicalNot::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_logical_not_emitter);
     jitters[ngraph::opset1::Negative::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_negative_emitter);
@@ -107,6 +115,7 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
     // jitters[ngraph::opset1::Tan::get_type_info_static()] = CREATE_EMITTER(); // not supported
     jitters[ngraph::opset1::Tanh::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_tanh_emitter);
 
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_swish_emitter);
     jitters[ngraph::op::v4::HSwish::get_type_info_static()] = CREATE_EMITTER(ov::intel_cpu::jit_hswish_emitter);
     // jitters[ngraph::opset1::HardSigmoid::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
@@ -115,13 +124,14 @@ ov::intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);
+    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = CREATE_EMITTER(TileSchedulerEmitter);
 }
 
 size_t ov::intel_cpu::CPUTargetMachine::get_lanes() const {
     switch (isa) {
         case dnnl::impl::cpu::x64::avx2 : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
         case dnnl::impl::cpu::x64::sse41 : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
-        case dnnl::impl::cpu::x64::avx512_common : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_common>::vlen / sizeof(float);
+        case dnnl::impl::cpu::x64::avx512_core : return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
         default : IE_THROW() << "unknown isa " << isa;
     }
 }

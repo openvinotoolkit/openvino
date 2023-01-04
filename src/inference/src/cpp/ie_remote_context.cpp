@@ -51,7 +51,7 @@ RemoteContext::~RemoteContext() {
     _impl = {};
 }
 
-RemoteContext::RemoteContext(const ie::RemoteContext::Ptr& impl, const std::shared_ptr<void>& so)
+RemoteContext::RemoteContext(const ie::RemoteContext::Ptr& impl, const std::vector<std::shared_ptr<void>>& so)
     : _impl{impl},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "RemoteContext was not initialized.");
@@ -67,7 +67,7 @@ RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape
             {ie::details::convertPrecision(type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
             params);
         blob->allocate();
-        return {blob, _so};
+        return {blob, {_so}};
     });
 }
 
@@ -76,7 +76,7 @@ Tensor RemoteContext::create_host_tensor(const element::Type element_type, const
         auto blob = _impl->CreateHostBlob(
             {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
         blob->allocate();
-        return {blob, _so};
+        return {blob, {_so}};
     });
 }
 

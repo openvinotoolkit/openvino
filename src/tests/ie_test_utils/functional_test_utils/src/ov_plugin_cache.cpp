@@ -3,6 +3,8 @@
 //
 
 #include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 
 #include <gtest/gtest.h>
 
@@ -56,7 +58,7 @@ std::shared_ptr<ov::Core> PluginCache::core(const std::string &deviceToCheck) {
     try {
         std::string pluginName = "openvino_template_plugin";
         pluginName += IE_BUILD_POSTFIX;
-        ov_core->register_plugin(pluginName, "TEMPLATE");
+        ov_core->register_plugin(ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(), pluginName), "TEMPLATE");
     } catch (...) {
     }
 

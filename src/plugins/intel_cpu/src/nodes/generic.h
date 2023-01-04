@@ -18,13 +18,13 @@ namespace node {
 
 class Generic : public Node {
 public:
-    Generic(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Generic(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
     ~Generic() = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
-    void execute(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
     bool created() const override;
     bool created(const ExtensionManager::Ptr& extMgr) override;
     bool canBeInPlace() const override {

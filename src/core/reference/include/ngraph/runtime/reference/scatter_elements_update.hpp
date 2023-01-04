@@ -36,10 +36,10 @@ void scatter_elem_update(const DataType* input_data,
 
     for (const Coordinate& indices_cord : indices_transform) {
         const size_t indices_idx =
-            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), 0);
+            std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
         Coordinate out_cord(indices_cord);
         out_cord.at(axis) = indices[indices_idx];
-        const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), 0);
+        const auto out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
         out_buf[out_idx] = updates[indices_idx];
     }
 }

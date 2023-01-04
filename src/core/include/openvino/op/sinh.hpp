@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Elementwise hyperbolic sine (sinh) operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Sinh : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sinh", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a hyperbolic sine operation.
     ///
     /// \param arg Node that produces the input tensor.

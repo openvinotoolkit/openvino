@@ -6,30 +6,42 @@
    :maxdepth: 1
    :hidden:
    
-   pot_README
-   docs_nncf_introduction
-   openvino_docs_IE_DG_Int8Inference
+   ptq_introduction
+   tmo_introduction
+   (Experimental) Protecting Model <pot_ranger_README>
 
 @endsphinxdirective
 
- Model optimization assumes applying transformations to the model and relevant data flow to improve the inference performance. These transformations are basically offline and can require the availability of training and validation data. It includes such methods as quantization, pruning, preprocessing optimization, etc. OpenVINO provides several tools to optimize models at different steps of model development:
 
- - **Post-training Optimization tool [(POT)](../../tools/pot/README.md)** is designed to optimize the inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, like post-training quantization. 
+ Model optimization is an optional offline step of improving final model performance by applying special optimization methods, such as quantization, pruning, preprocessing optimization, etc. OpenVINO provides several tools to optimize models at different steps of model development:
 
-- **Neural Network Compression Framework [(NNCF)](./nncf_introduction.md)** provides a suite of advanced algorithms for Neural Networks inference optimization with minimal accuracy drop, for example, quantization, pruning algorithms.
+@sphinxdirective
 
-- **Model Optimizer** implements optimization to a model, most of them added by default, but you can configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed-up preprocess of a model ([Embedding Preprocessing Computation](../MO_DG/prepare_model/Additional_Optimizations.md)) 
+- :ref:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` implements most of the optimization parameters to a model by default. Yet, you are free to configure mean/scale values, batch size, RGB vs BGR input channels, and other parameters to speed up preprocess of a model (:ref:`Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>`).
+
+- :ref:`Post-training Quantization` is designed to optimize inference of deep learning models by applying post-training methods that do not require model retraining or fine-tuning, for example, post-training 8-bit integer quantization.
+
+- :ref:`Training-time Optimization`, a suite of advanced methods for training-time model optimization within the DL framework, such as PyTorch and TensorFlow 2.x. It supports methods, like Quantization-aware Training and Filter Pruning. NNCF-optimized models can be inferred with OpenVINO using all the available workflows.
+
+@endsphinxdirective
 
 
 ## Detailed workflow: 
+To understand which development optimization tool you need, refer to the diagram:
 
 ![](../img/DEVELOPMENT_FLOW_V3_crunch.svg)
 
-To understand which development optimization tool you need, refer to the diagram: 
+Post-training methods are limited in terms of achievable accuracy-performance trade-off for optimizing models. In this case, training-time optimization with NNCF is an option.
 
-POT is the easiest way to get optimized models, and usually takes several minutes depending on the model size and used HW. NNCF can be considered as an alternative or addition when the first one does not give accurate results. 
+Once the model is optimized using the aforementioned tools it can be used for inference using the regular OpenVINO inference workflow. No changes to the inference code are required.
 
 ![](../img/WHAT_TO_USE.svg)
 
-## See also
+Post-training methods are limited in terms of achievable accuracy, which may degrade for certain scenarios.  In such cases, training-time optimization with NNCF may give better results.
+
+Once the model has been optimized using the aforementioned tools, it can be used for inference using the regular OpenVINO inference workflow. No changes to the code are required.
+
+If you are not familiar with model optimization methods, refer to [post-training methods](@ref pot_introduction).
+
+## Additional Resources
 - [Deployment optimization](./dldt_deployment_optimization_guide.md)

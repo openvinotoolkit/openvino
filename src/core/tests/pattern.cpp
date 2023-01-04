@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <common_test_utils/ngraph_test_utils.hpp>
 #include <cstdio>
 #include <iostream>
 #include <list>

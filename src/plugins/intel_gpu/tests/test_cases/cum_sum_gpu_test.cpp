@@ -10,6 +10,8 @@
 #include <intel_gpu/primitives/cum_sum.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "cum_sum_inst.h"
+
 #include <algorithm>
 #include <fstream>
 
@@ -102,55 +104,30 @@ static std::vector<T1> vectorCast(const std::vector<T2>& vec) {
     return ret;
 }
 
-static cldnn::cum_sum::cum_sum_axis getCumSumAxis(int axis, unsigned sz) {
-    unsigned cldnn_axis = axis;
-    if (axis >= 2) {
-        auto spatial_axis = axis - 2;
-        auto spatial_size = std::max(sz, 4u) - 2;
-        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
-    }
-    switch (cldnn_axis) {
-        case 0:
-            return cldnn::cum_sum::cum_sum_axis::along_b;
-        case 1:
-            return cldnn::cum_sum::cum_sum_axis::along_f;
-        case 2:
-            return cldnn::cum_sum::cum_sum_axis::along_x;
-        case 3:
-            return cldnn::cum_sum::cum_sum_axis::along_y;
-        case 4:
-            return cldnn::cum_sum::cum_sum_axis::along_z;
-        case 5:
-            return cldnn::cum_sum::cum_sum_axis::along_w;
-        default:
-            return cldnn::cum_sum::cum_sum_axis::along_b;
-    }
-}
-
 #define CASE_CUM_SUM_AXIS_0 ::testing::Values(5), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[0]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_1 ::testing::Values(2), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(1), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[1]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_2 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[2]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_3 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(1), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(format::bfyx), ::testing::ValuesIn(axes[3]),    \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_4 ::testing::Values(5), ::testing::Values(5), ::testing::Values(1), \
                             ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(format::bfzyx), ::testing::ValuesIn(axes[4]),   \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 #define CASE_CUM_SUM_AXIS_5 ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(5), ::testing::Values(5), ::testing::Values(5), \
                             ::testing::Values(format::bfwzyx), ::testing::ValuesIn(axes[5]),  \
-                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants)
+                            ::testing::ValuesIn(variants), ::testing::ValuesIn(variants), ::testing::Values(false)
 
 using cum_sum_test_params = std::tuple<int,            // batch
                                        int,            // feature
@@ -161,7 +138,8 @@ using cum_sum_test_params = std::tuple<int,            // batch
                                        cldnn::format,  // in_out format
                                        int,            // axis
                                        bool,           // exclusive
-                                       bool>;          // reverse
+                                       bool,           // reverse
+                                       bool>;          // is_caching_test
 
 template <typename cum_sum_params, typename input_type = float, typename output_type = float>
 class cum_sum_gpu : public ::testing::TestWithParam<cum_sum_params> {
@@ -195,12 +173,7 @@ public:
         auto axis = std::get<7>(p);
         auto exclusive = std::get<8>(p);
         auto reverse = std::get<9>(p);
-
-        auto size = 4;
-        if (in_out_format == format::bfzyx)
-            size = 5;
-        else if (in_out_format == format::bfwzyx)
-            size = 6;
+        bool is_caching_test = std::get<10>(p);
 
         auto input = engine.allocate_memory({ get_alloc_data_type(), in_out_format, shape });
         const int inputSize = b * f * w * z * y * x;
@@ -212,16 +185,33 @@ public:
 
         topology topology;
         topology.add(input_layout("Input0", input->get_layout()));
-        topology.add(cum_sum("cum_sum", "Input0", getCumSumAxis(axis, size), exclusive, reverse));
+        topology.add(cum_sum("cum_sum", input_info("Input0"), axis, exclusive, reverse));
 
-        network network(engine, topology);
+        cldnn::network::ptr network;
 
-        network.set_input_data("Input0", input);
+        if (is_caching_test) {
+            membuf mem_buf;
+            {
+                cldnn::network _network(engine, topology);
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+                _network.save(ob);
+            }
+            {
+                std::istream in_mem(&mem_buf);
+                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            }
+        } else {
+            network = std::make_shared<cldnn::network>(engine, topology);
+        }
 
-        auto outputs = network.execute();
+        network->set_input_data("Input0", input);
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "cum_sum");
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
         auto output = outputs.at("cum_sum").get_memory();
         cldnn::mem_lock<output_type> output_ptr(output, get_test_stream());
@@ -229,7 +219,7 @@ public:
         auto answers = cumsum<output_type>(inputVals, in_out_format, { b, f, w, z, y, x }, axis, exclusive, reverse);
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i) {
-            EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
         }
     }
 };
@@ -286,6 +276,13 @@ INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_fp32, ::testing::Combine(CASE_CUM_S
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int32, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 INSTANTIATE_TEST_SUITE_P(axis_5, cum_sum_gpu_int64, ::testing::Combine(CASE_CUM_SUM_AXIS_5));
 
+INSTANTIATE_TEST_SUITE_P(export_import, cum_sum_gpu_int64,
+    ::testing::Combine(::testing::Values(5), ::testing::Values(5), ::testing::Values(5),
+                       ::testing::Values(5), ::testing::Values(5), ::testing::Values(5),
+                       ::testing::Values(format::bfwzyx), ::testing::Values(axes[5][0]),
+                       ::testing::Values(variants[0]), ::testing::Values(variants[0]),
+                       ::testing::Values(true)));
+
 // FIXME: This test fails on some driver versions. Looks like UB in impl or driver issue
 TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     // Input : 5x1x1x1
@@ -302,7 +299,7 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     topology topology;
     topology.add(input_layout("Input0", input->get_layout()));
-    topology.add(cum_sum("cum_sum", "Input0"));
+    topology.add(cum_sum("cum_sum", input_info("Input0")));
 
     network network(engine, topology);
 
@@ -310,8 +307,8 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "cum_sum");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
@@ -320,6 +317,47 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
 
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], float16_to_float32(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(answers[i], half_to_float(output_ptr[i]))) << i;
+    }
+}
+
+TEST(cum_sum_gpu_fp32, dynamic) {
+    auto& engine = get_test_engine();
+    ov::Shape shape = { 5, 1, 1, 1 };
+    auto in_layout = layout{ov::PartialShape::dynamic(shape.size()), data_types::f32, format::bfyx};
+    std::vector<float> input_data = {
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f
+    };
+    auto input = engine.allocate_memory(layout{ov::PartialShape(shape), data_types::f32, format::bfyx});
+
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(cum_sum("cum_sum", input_info("input")));
+
+    build_options bo;
+    bo.set_option(build_option::allow_new_shape_infer(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("cum_sum");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
+
+    auto output = outputs.at("cum_sum").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    auto answers = cumsum(input_data, format::bfyx, { 5, 1, 1, 1, 1, 1 });
+
+    ASSERT_EQ(output->count(), answers.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }

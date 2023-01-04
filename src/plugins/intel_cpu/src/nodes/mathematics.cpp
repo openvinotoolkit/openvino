@@ -10,6 +10,7 @@
 #include "ie_parallel.hpp"
 #include "mathematics.h"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 
@@ -38,8 +39,8 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-Math::Math(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), alpha(0.f), beta(0.f), gamma(0.f) {
+Math::Math(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, PassThroughShapeInferFactory()), alpha(0.f), beta(0.f), gamma(0.f) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -62,15 +63,11 @@ void Math::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-std::vector<VectorDims> Math::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
-}
-
-void Math::executeDynamicImpl(mkldnn::stream strm) {
+void Math::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Math::execute(mkldnn::stream strm) {
+void Math::execute(dnnl::stream strm) {
     size_t dataSize = getChildEdgesAtPort(0)[0]->getMemory().GetShape().getElementsCount();
     const float *src_data = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dst_data = reinterpret_cast<float *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());

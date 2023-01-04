@@ -13,9 +13,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
-            // Expected behavior
-            R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
-            R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 43794
             R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
@@ -23,12 +20,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
-            // TODO: Issue: 41462
-            R"(.*(SoftMaxLayerTest).*axis=0.*)",
-            // TODO: Issue: 43511
-            R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
-            R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
-            R"(.*EltwiseLayerTest.*OpType=FloorMod.*netPRC=I64.*)",
             // TODO: Issue: 46841
             R"(.*(QuantGroupConvBackpropData3D).*)",
 
@@ -74,11 +65,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
-            R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
-            // Issue connected with OV2.0
+            // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
             R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
-            // TODO: Issue: 67486
-            R"(.*(SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // TODO: Issue 69187
@@ -92,12 +80,53 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: CVS-66778
             R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
             R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-            R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            // Dynamic batch allocates output using upper bound
+            R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
             // need dynamic shapes
             R"(.*RangeLayerTest.*)",
+            // need dynamic rank
+            R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+            R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)",
+            R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // Issue: 76197
             R"(.*registerPluginsXMLUnicodePath.*)",
             // Not supported yet
-            R"(.*CompileModelCacheTestBase.*)",
+            R"(.*CompileModelCacheTestBase.*ConvBias.*)",
+            R"(.*CompileModelCacheTestBase.*KSOFunction.*)",
+            R"(.*CompileModelCacheTestBase.*ReadConcatSplitAssign.*)",
+            R"(.*LoadNetworkCacheTestBase.*)",
+            // Issue: 83014
+            R"(.*smoke_RemoteBlob.*canInferOnUserQueue.*)",
+            // Issue: CVS-76980
+            R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetwork/.*)",
+            // Issue: CVS-86976
+            R"(.*smoke_VirtualPlugin_BehaviorTests.*LoadedRemoteContext.*)",
+            // Issue: CVS-88667 - Need to verify hetero interoperability
+            R"(.*nightly_OVClassHeteroExecutableNetworlGetMetricTest.*SUPPORTED_(CONFIG_KEYS|METRICS).*)",
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTest.*LoadedTensor.*target_device=AUTO.*)",
+            // TODO: Issue: 89555
+            R"(.*CoreThreadingTests.*smoke.*Network.*)",
+            // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
+            R"(smoke_MemoryTestV3.*)",
+            // Unsupported 8d tensors
+            R"(smoke_Basic/SqueezeUnsqueezeLayerTest.CompareWithRefs/OpType=Unsqueeze_IS=\(1.1.1.1\)_Axes=\((0.1.2|0.2.3|1.2.3|0.1.2.3|)\)_.*)",
+            // Issue: 90539
+            R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
+            // TODO: range input with one element should NOT be regarded as dynamic batch model in Program::IsDynBatchModel().
+            R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
+            // Issue: 90183
+            R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
+            R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
+#if defined(_WIN32) || defined(_WIN64)
+            R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
+#endif
+            R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
+            // Currently 1D convolution has an issue
+            R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
+            R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
+            R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
+
+            // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
+            R"(.*ExecGraphSerializationTest.*)",
     };
 }

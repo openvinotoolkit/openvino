@@ -14,12 +14,14 @@
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(FakeQuantizeDecompositionTransformation);
     auto matcher = pattern::wrap_type<opset1::FakeQuantize>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -31,7 +33,7 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "FakeQuantizeDecompositionTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -206,7 +208,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         }
 
         //TODO: pass min levels as a parameter?
-        if (levels < 2ul) {
+        if (levels <= 2ul) {
             return std::make_tuple(nullptr, nullptr);
         }
 
@@ -270,46 +272,51 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 } // namespace fq_decomposition
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
-    auto layer = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
-    if (!layer || !NetworkHelper::isQuantizeSupported(layer)) {
+    auto node = ov::as_type_ptr<opset1::FakeQuantize>(m.get_match_root());
+    if (!node || !NetworkHelper::isQuantizeSupported(node)) {
         return false;
     }
 
-    layer = NetworkHelper::fuseConvert(layer);
+    auto layer = NetworkHelper::fuseConvert(node);
+    bool rewritten = layer.get() != node.get();
+    if (rewritten) {
+        register_new_node(layer);
+    }
+
     if (NetworkHelper::isConstantPath(layer)) {
-        return false;
+        return rewritten;
     }
 
     auto attribute = getAttributeFromOutput<PrecisionsAttribute>(layer->output(0));
     if (attribute.empty() || (attribute.as<PrecisionsAttribute>().value().empty())) {
-        return false;
+        return rewritten;
     }
 
     const ngraph::element::Type outputPrecision = layer->get_output_element_type(0);
     if (DataPrecision::isSupported(outputPrecision)) {
         const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantizationBelow(layer);
         if (dequantization.empty()) {
-            return false;
+            return rewritten;
         }
 
         const DataPrecision expectedDataPrecision = fq_decomposition::getDataPrecisionByOutputPortAndFakeQuantize(layer);
         // TODO: need test to compose FakeQuantize
         if ((expectedDataPrecision.precision == element::undefined) || (expectedDataPrecision.precision == outputPrecision)) {
-            return false;
+            return rewritten;
         }
 
         layer = NetworkHelper::composeFakeQuantize(layer, defaultPrecisions);
         if (layer == nullptr) {
-            return false;
+            return rewritten;
         }
     }
 
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
-        return false;
+        return rewritten;
     }
 
     if (!QuantizationDetails::isSupportedLevel(layer->get_levels())) {
-        return false;
+        return rewritten;
     }
 
     DataPrecision dataPrecision = fq_decomposition::getDataPrecisionByOutputPort(layer);
@@ -341,7 +348,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
 
     // FakeQuantize operations are combined in supported cascade (per tensor quantization)
     if (!intervalsAlignment.empty() && (intervalsAlignment.as<IntervalsAlignmentAttribute>().value().minLevels <= 2ul)) {
-        return false;
+        return rewritten;
     }
 
     // if IntervalsAlignment attribute is defined then, the attribute defines decomposition parameters,
@@ -394,6 +401,8 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         }
     }
 
+    // clear the node that was produced by fuseConvert
+    clear_new_nodes();
     auto QDQ = fq_decomposition::decomposeFakeQuantize(
         this,
         layer,
@@ -405,7 +414,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     std::shared_ptr<ngraph::Node> dequantize = std::get<0>(QDQ);
     std::shared_ptr<ngraph::Node> newFakeQuantize = std::get<1>(QDQ);
     if (dequantize == nullptr || newFakeQuantize == nullptr) {
-        return false;
+        return rewritten;
     }
 
     updateOutput(context, dequantize, newFakeQuantize);

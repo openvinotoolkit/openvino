@@ -3,7 +3,7 @@
 //
 
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/single_layer/matrix_nms.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
@@ -325,7 +325,10 @@ void MatrixNmsLayerTest::SetUp() {
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
-    if (!m_outStaticShape) {
+
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        function = std::make_shared<Function>(nms, params, "MatrixNMS");
+    } else if (!m_outStaticShape) {
         auto result = std::make_shared<opset5::Result>(nms);
         function = std::make_shared<Function>(result, params, "MatrixNMS");
     } else {

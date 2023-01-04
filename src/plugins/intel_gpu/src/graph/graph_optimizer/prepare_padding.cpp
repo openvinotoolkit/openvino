@@ -12,7 +12,7 @@
 #include <algorithm>
 
 using namespace cldnn;
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
@@ -62,7 +62,7 @@ void prepare_padding::run(program& p) {
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
-                auto filter_size = prim_node.weights(0).get_output_layout().size;
+                auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
@@ -81,7 +81,7 @@ void prepare_padding::run(program& p) {
                 if (!prim->with_output_size)
                     continue;
 
-                auto filter_size = prim_node.weights(0).get_output_layout().size;
+                auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
@@ -111,7 +111,7 @@ void prepare_padding::run(program& p) {
                     needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                               prim->output_size,
                                                                               size,
-                                                                              ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
+                                                                              ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
                                                                               prim->stride,
                                                                               ov::Strides(prim->size.size(), 1),
                                                                               false,
@@ -140,6 +140,7 @@ void prepare_padding::run(program& p) {
             continue;
 
         auto conv = node.get_primitive();
+        if (node.is_dynamic()) continue;
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();
 
@@ -229,6 +230,7 @@ void prepare_padding::run(program& p) {
         if (node.get_dependencies().empty())
             continue;
 
+        if (node.is_dynamic()) continue;
         auto conv = node.get_primitive();
         auto& conv_input_node = node.get_dependency(0);
         auto conv_layout = node.get_output_layout();

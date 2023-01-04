@@ -12,10 +12,10 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Permutes data in the channel dimension of the input
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ShuffleChannels : public Op {
 public:
     OPENVINO_OP("ShuffleChannels", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     ShuffleChannels() = default;
     /// \brief Constructs a ShuffleChannels node.

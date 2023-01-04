@@ -1,13 +1,13 @@
-# Convert PyTorch* YOLACT Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
+# Converting a PyTorch YOLACT Model {#openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT}
 
 You Only Look At CoefficienTs (YOLACT) is a simple, fully convolutional model for real-time instance segmentation.
-The PyTorch\* implementation is publicly available in [this GitHub* repository](https://github.com/dbolya/yolact).
-The YOLACT++ model is not supported, because it uses deformable convolutional layers that cannot be represented in ONNX* format.
+The PyTorch implementation is publicly available in [this GitHub repository](https://github.com/dbolya/yolact).
+The YOLACT++ model is not supported, because it uses deformable convolutional layers that cannot be represented in ONNX format.
 
-## Create a Patch File <a name="patch-file"></a>
+## Creating a Patch File <a name="patch-file"></a>
 
 Before converting the model, create a patch file for the repository.
-The patch modifies the framework code by adding a special command-line argument to the framework options that enables inference graph dumping:
+The patch modifies the framework code by adding a special command-line argument to the framework options. The argument enables inference graph dumping:
 
 1. Go to a writable directory and create a `YOLACT_onnx_export.patch` file.
 2. Copy the following diff code to the file:
@@ -123,7 +123,7 @@ index d83703b..f8c787c 100644
 ```
 3. Save and close the file.
 
-## Convert YOLACT Model to the Intermediate Representation (IR) format
+## Converting a YOLACT Model to the OpenVINO IR format
 
 **Step 1**. Clone the GitHub repository and check out the commit:
 
@@ -138,16 +138,16 @@ git checkout 57b8f2d95e62e2e649b382f516ab41f949b57239
 
 3. Set up the environment as described in `README.md`.
 
-**Step 2**. Download a pre-trained model from the list attached in the `Evaluation` section of `README.md` document, for example `yolact_base_54_800000.pth`.
+**Step 2**. Download a pretrained model from the list attached in the `Evaluation` section of `README.md` document, for example `yolact_base_54_800000.pth`.
 
-**Step 3**. Export the model to ONNX* format.
+**Step 3**. Export the model to ONNX format.
 
 1. Apply the `YOLACT_onnx_export.patch` patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
 ```sh
 git apply /path/to/patch/YOLACT_onnx_export.patch
 ```
 
-2. Evaluate the YOLACT model to export it to ONNX* format:
+2. Evaluate the YOLACT model to export it to ONNX format:
 
 ```sh
 python3 eval.py \
@@ -178,7 +178,7 @@ mo \
     --scale_values "[58.40, 57.12, 57.38]"
 ```
 
-* If the backbone of the model is Darknet53-FPN, use the following command line:
+* If the backbone of the model is Darknet53-FPN, use the following MO command line:
 ```sh
 mo \
     --input_model /path/to/yolact.onnx \

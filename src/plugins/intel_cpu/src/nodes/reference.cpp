@@ -9,7 +9,7 @@
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache,
+Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache,
                                          const std::string& errorMessage) :
-        Node(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
+        Node(op, eng, cache, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }
@@ -57,7 +57,7 @@ void Reference::initSupportedPrimitiveDescriptors() {
 
 void Reference::createPrimitive() {}
 
-void Reference::execute(mkldnn::stream strm) {
+void Reference::execute(dnnl::stream strm) {
     ov::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
@@ -77,11 +77,7 @@ void Reference::execute(mkldnn::stream strm) {
     }
 }
 
-std::vector<VectorDims> Reference::shapeInfer() const {
-    return Node::shapeInferGeneric(0xFFFFFFFF);
-}
-
-void Reference::executeDynamicImpl(mkldnn::stream strm) {
+void Reference::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

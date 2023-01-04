@@ -18,8 +18,6 @@
 
 namespace py = pybind11;
 
-static const char* CAPSULE_NAME = "ngraph_partial_shape";
-
 void regclass_graph_PartialShape(py::module m) {
     py::class_<ov::PartialShape, std::shared_ptr<ov::PartialShape>> shape(m, "PartialShape");
     shape.doc() = "openvino.runtime.PartialShape wraps ov::PartialShape";
@@ -32,9 +30,7 @@ void regclass_graph_PartialShape(py::module m) {
     shape.def(py::init([](py::tuple& shape) {
         return Common::partial_shape_from_list(shape.cast<py::list>());
     }));
-    shape.def(py::init([](const std::string& shape) {
-        return Common::partial_shape_from_str(shape);
-    }));
+    shape.def(py::init<const std::string&>(), py::arg("shape"));
 
     shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
 
@@ -194,17 +190,16 @@ void regclass_graph_PartialShape(py::module m) {
         return "<PartialShape: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
 
-    shape.def_static("from_capsule", [](py::object* capsule) {
-        // get the underlying PyObject* which is a PyCapsule pointer
-        auto* pybind_capsule_ptr = capsule->ptr();
-        // extract the pointer stored in the PyCapsule under the name CAPSULE_NAME
-        auto* capsule_ptr = PyCapsule_GetPointer(pybind_capsule_ptr, CAPSULE_NAME);
-
-        auto* ngraph_pShape = static_cast<std::shared_ptr<ov::PartialShape>*>(capsule_ptr);
-        if (ngraph_pShape && *ngraph_pShape) {
-            return *ngraph_pShape;
-        } else {
-            throw std::runtime_error("The provided capsule does not contain an ov::PartialShape");
-        }
+    shape.def("__copy__", [](const ov::PartialShape& self) -> ov::PartialShape {
+        return ov::PartialShape(self);
     });
+
+    shape.def(
+        "__deepcopy__",
+        [](const ov::PartialShape& self, py::dict) -> ov::PartialShape {
+            return ov::PartialShape(self);
+        },
+        "memo");
+
+    shape.def("to_string", &ov::PartialShape::to_string);
 }

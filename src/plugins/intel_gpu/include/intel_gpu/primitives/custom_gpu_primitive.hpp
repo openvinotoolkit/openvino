@@ -49,16 +49,15 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @param gws Global work sizes
     /// @param lws Local work sizes
     custom_gpu_primitive(const primitive_id& id,
-                         const std::vector<primitive_id>& input,
+                         const std::vector<input_info>& inputs,
                          const std::vector<std::string>& kernels_code,
                          const std::string& kernel_entry_point,
                          const std::vector<arg_desc>& kernel_arguments,
                          const std::string& build_options,
                          const layout& output_layout,
                          const std::vector<size_t>& gws = {},
-                         const std::vector<size_t>& lws = {},
-                         const primitive_id& ext_prim_id = "")
-        : primitive_base(id, {input}, ext_prim_id, output_layout.data_padding),
+                         const std::vector<size_t>& lws = {})
+        : primitive_base(id, inputs, {output_layout.data_padding}),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
           build_options(build_options),

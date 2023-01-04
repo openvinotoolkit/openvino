@@ -35,14 +35,14 @@ NamedOutputs prior_box(const NodeContext& node) {
     PriorBox::Attributes attrs;
     attrs.min_size = node.get_attribute<std::vector<float>>("min_sizes", {});
     attrs.max_size = node.get_attribute<std::vector<float>>("max_sizes", {});
-    attrs.aspect_ratio = node.get_attribute<std::vector<float>>("aspect_ratios", {1.0});
+    attrs.aspect_ratio = node.get_attribute<std::vector<float>>("aspect_ratios", {1.0f});
     attrs.flip = node.get_attribute<bool>("flip", false);
     attrs.clip = node.get_attribute<bool>("clip", false);
-    attrs.step = node.get_attribute<float>("step_w", 0);
+    attrs.step = node.get_attribute<float>("step_w", 0.f);
     attrs.min_max_aspect_ratios_order = node.get_attribute<bool>("min_max_aspect_ratios_order", false);
 
-    attrs.offset = node.get_attribute<float>("offset", 0.5);
-    attrs.variance = node.get_attribute<std::vector<float>>("variances", {0.1, 0.1, 0.2, 0.2});
+    attrs.offset = node.get_attribute<float>("offset", 0.5f);
+    attrs.variance = node.get_attribute<std::vector<float>>("variances", {0.1f, 0.1f, 0.2f, 0.2f});
 
     const auto ov_prior_box_node = std::make_shared<PriorBox>(output_shape_slice, image_shape_slice, attrs);
 

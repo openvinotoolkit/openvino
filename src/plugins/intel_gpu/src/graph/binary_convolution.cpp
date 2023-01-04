@@ -12,19 +12,16 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id binary_convolution::type_id() {
-    static primitive_type_base<binary_convolution> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(binary_convolution)
 
-layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node) {
-    auto desc = node.get_primitive();
+layout binary_convolution_inst::calc_output_layout(binary_convolution_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<binary_convolution>();
 
-    auto output_type = *node.get_primitive()->output_data_type;
+    auto output_type = *desc->output_data_types[0];
     auto output_size = desc->output_size;
     auto layout = cldnn::layout{output_type, format::bfyx, output_size};
-    if (node.has_fused_primitives()) {
-        layout = node.get_fused_output_layout();
+    if (impl_param.has_fused_primitives()) {
+        layout = impl_param.get_fused_output_layout();
     }
 
     auto users = node.get_users();
@@ -51,7 +48,6 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
-
     json_composite conv_info;
     conv_info.add("stride", cldnn::to_string(strd));
     conv_info.add("pad", cldnn::to_string(desc->pad));
@@ -67,19 +63,19 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
 
 binary_convolution_inst::typed_primitive_inst(network& network, binary_convolution_node const& node)
     : parent(network, node) {
-    auto stride = argument.stride;
-    auto pad = argument.pad;
+    auto stride = argument->stride;
+    auto pad = argument->pad;
 
     auto input_layout = node.input().get_output_layout();
     auto output_layout = node.get_output_layout();
-    auto output_size = output_layout.size;
+    auto output_size = output_layout.get_tensor();
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Input number of dimensions",
-                          input_layout.size.raw.size(),
+                          input_layout.get_rank(),
                           "output number of dimensions",
-                          output_layout.size.raw.size(),
-                          "Input/output dims mismatch");
+                          output_layout.get_rank(),
+                          "Input/output rank mismatch");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Stride number of dimensions",
                           stride.size(),
@@ -97,13 +93,12 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
 
-        auto pad = argument.pad;
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights number of dimensions",
-                              filter_inst.size.raw.size(),
+                              filter_inst.get_rank(),
                               "output number of dimensions",
-                              output_layout.size.raw.size(),
+                              output_layout.get_rank(),
                               "Weights/output dims mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Convolution padding mode",
@@ -123,11 +118,11 @@ binary_convolution_inst::typed_primitive_inst(network& network, binary_convoluti
                               "expected output size",
                               1,
                               "Only one-dimensional batch size are supported");
-        CLDNN_ERROR_LESS_THAN(node.id(),
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights feature maps number",
-                              input_layout.size.feature[0],
+                              input_layout.feature(),
                               "input feature maps number",
-                              filter_inst.size.feature[0],
+                              filter_inst.feature(),
                               "Weights/ifm mismatch");
     }
 }

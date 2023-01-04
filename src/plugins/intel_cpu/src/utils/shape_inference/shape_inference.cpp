@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "shape_inference.hpp"
-
 #include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -13,12 +11,21 @@
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
+
 #include "assign_shape_inference.hpp"
+#include "augru_cell_shape_inference.hpp"
+#include "augru_sequence_shape_inference.hpp"
+#include "batch_to_space_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
+#include "concat_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "depth_to_space_shape_inference.hpp"
 #include "detection_output_shape_inference.hpp"
 #include "einsum_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
@@ -29,32 +36,19 @@
 #include "experimental_detectron_roi_feature_shape_inference.hpp"
 #include "experimental_detectron_topkrois_shape_inference.hpp"
 #include "extract_image_patches_shape_inference.hpp"
+#include "eye_shape_inference.hpp"
 #include "fake_quantize.hpp"
 #include "fft_base_shape_inference.hpp"
 #include "gather_elements_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
+#include "grid_sample_shape_inference.hpp"
+#include "gru_sequence_shape_inference.hpp"
+#include "gru_cell_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
+#include "matmul_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
-#include "read_value_shape_inference.hpp"
-#include "reduce_shape_inference.hpp"
-#include "reverse_sequence_shape_inference.hpp"
-#include "scatter_elements_update_shape_inference.hpp"
-#include "scatter_nd_base_shape_inference.hpp"
-#include "ctc_loss_shape_inference.hpp"
-#include "fft_base_shape_inference.hpp"
-#include "shape_inference.hpp"
-#include "shape_nodes.hpp"
-#include "fake_quantize.hpp"
-#include "batch_to_space_shape_inference.hpp"
-#include "depth_to_space_shape_inference.hpp"
-#include "space_to_batch_shape_inference.hpp"
-#include "space_to_depth_shape_inference.hpp"
-#include "experimental_detectron_detection_output_shape_inference.hpp"
-#include "bucketize_shape_inference.hpp"
-#include "embedding_segments_sum_shape_inference.hpp"
-#include "embeddingbag_offsets_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "range_shape_inference.hpp"
@@ -71,15 +65,18 @@
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
+#include "space_to_batch_shape_inference.hpp"
+#include "space_to_depth_shape_inference.hpp"
 #include "split_shape_inference.hpp"
-#include "broadcast_shape_inference.hpp"
+#include "squeeze_shape_inference.hpp"
 #include "static_shape.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "tile_shape_inference.hpp"
 #include "topk_shape_inference.hpp"
+#include "transpose_shape_inference.hpp"
+#include "unsqueeze_shape_inference.hpp"
 #include "utils.hpp"
 #include "variadic_split_shape_inference.hpp"
-#include "matmul_shape_inference.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -92,7 +89,7 @@ void shape_inference(ov::Node* op,
     output_shapes = shapeInfer->infer(input_shapes, constant_data);
 }
 
-class entryBase : public IShapeInfer {
+class entryBase : public IShapeInferCommon {
 public:
     entryBase(std::shared_ptr<ov::Node> node) : node(node) {
         for (size_t i = 0; i < node->get_input_size(); i++) {
@@ -402,7 +399,7 @@ std::shared_ptr<entryIO<OP>> make_shared_entryIO(std::shared_ptr<OP> node) {
     return std::make_shared<entryIO<OP>>(node);
 }
 
-std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::Node>& op) {
+std::shared_ptr<IShapeInferCommon> make_shape_inference(const std::shared_ptr<ngraph::Node>& op) {
     if (auto node = ov::as_type_ptr<ov::opset8::Convolution>(op)) {
         return std::make_shared<entryConv<ov::opset8::Convolution>>(node, false);
     } else if (auto node = ov::as_type_ptr<ov::opset8::GroupConvolution>(op)) {
@@ -416,13 +413,15 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
     } else if (auto node = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
         return make_shared_entryIOC(node);
     } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op) || ov::is_type<ov::opset1::Convert>(op) ||
-               ov::is_type<ov::opset1::Clamp>(op) || ov::is_type<ov::opset1::GRN>(op) || ov::is_type<ov::opset1::NormalizeL2>(op) ||
-               ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset4::Mish>(op) || ov::is_type<ov::opset2::MVN>(op) ||
-               ov::is_type<ov::opset1::Relu>(op) || ov::is_type<ov::opset1::Elu>(op) || ov::is_type<ov::opset1::Softmax>(op) ||
-               ov::is_type<ov::opset8::Softmax>(op) || ov::is_type<ov::opset5::Round>(op)) {
+            ov::is_type<ov::opset1::LogicalNot>(op) || ov::is_type<ov::opset2::MVN>(op) ||
+            ov::is_type<ov::opset1::Softmax>(op) || ov::is_type<ov::opset8::Softmax>(op)) {
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<ov::opset6::MVN>(op) || ov::is_type<ov::opset1::LRN>(op) ||
-               ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset4::Swish>(op)) {
+            ov::is_type<ov::opset1::HardSigmoid>(op) || ov::is_type<ov::opset1::Selu>(op) ||
+            ov::is_type<ov::opset1::PRelu>(op) || ov::is_type<ov::opset3::CumSum>(op) ||
+            ov::is_type<ov::opset1::BatchNormInference>(op) || ov::is_type<ov::opset5::BatchNormInference>(op) ||
+            ov::is_type<ov::opset4::Swish>(op) || ov::is_type<ov::opset1::NormalizeL2>(op) ||
+            ov::is_type<ov::opset3::ScatterUpdate>(op)) {
         return std::make_shared<entryFirstPassthrough>(op);
     } else if (ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<ov::op::util::BinaryElementwiseComparison>(op) ||
@@ -502,6 +501,16 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::GatherTree>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::GridSample>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset5::GRUSequence>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::internal::AUGRUSequence>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset3::GRUCell>(op)) {
+        return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::op::internal::AUGRUCell>(op)) {
+        return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::OneHot>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset4::CTCLoss>(op)) {
@@ -550,6 +559,8 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::Broadcast>(op)) {
         return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset9::Eye>(op)) {
+        return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::MaxPool>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::MaxPool>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v1::MaxPool>(op)) {
@@ -560,6 +571,10 @@ std::shared_ptr<IShapeInfer> make_shape_inference(const std::shared_ptr<ngraph::
         return std::make_shared<entryFallbackWithPadding<ov::op::v1::DeformableConvolution>>(node);
     } else if (auto node = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op)) {
         return std::make_shared<entryFallbackWithPadding<ov::op::v8::DeformableConvolution>>(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset8::Transpose>(op)) {
+        return make_shared_entryIOC(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::Concat>(op)) {
+        return make_shared_entryIO(node);
     } else {
         return std::make_shared<entryFallback>(op);
     }

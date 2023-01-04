@@ -13,10 +13,10 @@ namespace v4 {
 /// f(x) =  x / (1.0 + exp(-beta * x)) or
 /// f(x) = x * sigmoid(beta * x)
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Swish : public Op {
 public:
     OPENVINO_OP("Swish", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
     Swish() = default;
 
     /// \brief Constructs an Swish operation.

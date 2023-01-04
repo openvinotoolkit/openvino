@@ -27,6 +27,8 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u64, py::dtype("uint64")},
         {ov::element::boolean, py::dtype("bool")},
         {ov::element::u1, py::dtype("uint8")},
+        {ov::element::u4, py::dtype("uint8")},
+        {ov::element::i4, py::dtype("int8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -49,12 +51,12 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape) {
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
     bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+    auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
 
     if (is_contiguous) {
-        return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), {});
+        return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
     } else {
         throw ov::Exception("Tensor with shared memory must be C contiguous!");
     }
@@ -97,7 +99,7 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         if (py::isinstance<py::int_>(dim)) {
             pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
         } else if (py::isinstance<py::str>(dim)) {
-            pshape.insert(pshape.end(), Common::dimension_from_str(dim.cast<std::string>()));
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<std::string>()));
         } else if (py::isinstance<ov::Dimension>(dim)) {
             pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
         } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
@@ -121,75 +123,6 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
         }
     }
     return pshape;
-}
-
-bool check_all_digits(const std::string& value) {
-    auto val = ov::util::trim(value);
-    for (const auto& c : val) {
-        if (!std::isdigit(c) || c == '-') {
-            return false;
-        }
-    }
-    return true;
-}
-
-template <class T>
-T stringToType(const std::string& valStr) {
-    T ret{0};
-    std::istringstream ss(valStr);
-    if (!ss.eof()) {
-        ss >> ret;
-    }
-    return ret;
-}
-
-ov::Dimension dimension_from_str(const std::string& value) {
-    using value_type = ov::Dimension::value_type;
-    auto val = ov::util::trim(value);
-    if (val == "?" || val == "-1") {
-        return {-1};
-    }
-    if (val.find("..") == std::string::npos) {
-        OPENVINO_ASSERT(Common::check_all_digits(val), "Cannot parse dimension: \"", val, "\"");
-        return {Common::stringToType<value_type>(val)};
-    }
-
-    std::string min_value_str = val.substr(0, val.find(".."));
-    OPENVINO_ASSERT(Common::check_all_digits(min_value_str), "Cannot parse min bound: \"", min_value_str, "\"");
-
-    value_type min_value;
-    if (min_value_str.empty()) {
-        min_value = 0;
-    } else {
-        min_value = Common::stringToType<value_type>(min_value_str);
-    }
-
-    std::string max_value_str = val.substr(val.find("..") + 2);
-    value_type max_value;
-    if (max_value_str.empty()) {
-        max_value = -1;
-    } else {
-        max_value = Common::stringToType<value_type>(max_value_str);
-    }
-
-    OPENVINO_ASSERT(Common::check_all_digits(max_value_str), "Cannot parse max bound: \"", max_value_str, "\"");
-
-    return {min_value, max_value};
-}
-
-ov::PartialShape partial_shape_from_str(const std::string& value) {
-    auto val = ov::util::trim(value);
-    if (val == "...") {
-        return ov::PartialShape::dynamic();
-    }
-    ov::PartialShape res;
-    std::stringstream ss(val);
-    std::string field;
-    while (getline(ss, field, ',')) {
-        OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"", val, "\" is incorrect");
-        res.insert(res.end(), Common::dimension_from_str(field));
-    }
-    return res;
 }
 
 py::array as_contiguous(py::array& array, ov::element::Type type) {
@@ -293,138 +226,6 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
     }
 }
 
-PyAny from_ov_any(const ov::Any& any) {
-    // Check for py::object
-    if (any.is<py::object>()) {
-        return any.as<py::object>();
-    }
-    // Check for std::string
-    else if (any.is<std::string>()) {
-        return PyUnicode_FromString(any.as<std::string>().c_str());
-    }
-    // Check for int
-    else if (any.is<int>()) {
-        auto val = any.as<int>();
-        return PyLong_FromLong((long)val);
-    } else if (any.is<int64_t>()) {
-        auto val = any.as<int64_t>();
-        return PyLong_FromLong((long)val);
-    }
-    // Check for unsinged int
-    else if (any.is<unsigned int>()) {
-        auto val = any.as<unsigned int>();
-        return PyLong_FromLong((unsigned long)val);
-    }
-    // Check for float
-    else if (any.is<float>()) {
-        auto val = any.as<float>();
-        return PyFloat_FromDouble((double)val);
-    } else if (any.is<double>()) {
-        auto val = any.as<double>();
-        return PyFloat_FromDouble(val);
-    }
-    // Check for bool
-    else if (any.is<bool>()) {
-        auto val = any.as<bool>();
-        return val ? Py_True : Py_False;
-    }
-    // Check for std::vector<std::string>
-    else if (any.is<std::vector<std::string>>()) {
-        auto val = any.as<std::vector<std::string>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyObject* str_val = PyUnicode_FromString(it.c_str());
-            PyList_Append(list, str_val);
-        }
-        return list;
-    }
-    // Check for std::vector<int>
-    else if (any.is<std::vector<int>>()) {
-        auto val = any.as<std::vector<int>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyLong_FromLong(it));
-        }
-        return list;
-    }
-    // Check for std::vector<int64_t>
-    else if (any.is<std::vector<int64_t>>()) {
-        auto val = any.as<std::vector<int64_t>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyLong_FromLong(it));
-        }
-        return list;
-    }
-    // Check for std::vector<unsigned int>
-    else if (any.is<std::vector<unsigned int>>()) {
-        auto val = any.as<std::vector<unsigned int>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyLong_FromLong(it));
-        }
-        return list;
-    }
-    // Check for std::vector<float>
-    else if (any.is<std::vector<float>>()) {
-        auto val = any.as<std::vector<float>>();
-        PyObject* list = PyList_New(0);
-        for (const auto& it : val) {
-            PyList_Append(list, PyFloat_FromDouble((double)it));
-        }
-        return list;
-    }
-    // Check for std::tuple<unsigned int, unsigned int>
-    else if (any.is<std::tuple<unsigned int, unsigned int>>()) {
-        auto val = any.as<std::tuple<unsigned int, unsigned int>>();
-        PyObject* tuple = PyTuple_New(2);
-        PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
-        PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
-        return tuple;
-    }
-    // Check for std::tuple<unsigned int, unsigned int, unsigned int>
-    else if (any.is<std::tuple<unsigned int, unsigned int, unsigned int>>()) {
-        auto val = any.as<std::tuple<unsigned int, unsigned int, unsigned int>>();
-        PyObject* tuple = PyTuple_New(3);
-        PyTuple_SetItem(tuple, 0, PyLong_FromUnsignedLong((unsigned long)std::get<0>(val)));
-        PyTuple_SetItem(tuple, 1, PyLong_FromUnsignedLong((unsigned long)std::get<1>(val)));
-        PyTuple_SetItem(tuple, 2, PyLong_FromUnsignedLong((unsigned long)std::get<2>(val)));
-        return tuple;
-    }
-    // Check for std::map<std::string, std::string>
-    else if (any.is<std::map<std::string, std::string>>()) {
-        auto val = any.as<std::map<std::string, std::string>>();
-        PyObject* dict = PyDict_New();
-        for (const auto& it : val) {
-            PyDict_SetItemString(dict, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
-        }
-        return dict;
-    }
-    // Check for std::map<std::string, int>
-    else if (any.is<std::map<std::string, int>>()) {
-        auto val = any.as<std::map<std::string, int>>();
-        PyObject* dict = PyDict_New();
-        for (const auto& it : val) {
-            PyDict_SetItemString(dict, it.first.c_str(), PyLong_FromLong((long)it.second));
-        }
-        return dict;
-    }
-    // Check for std::vector<ov::PropertyName>
-    else if (any.is<std::vector<ov::PropertyName>>()) {
-        auto val = any.as<std::vector<ov::PropertyName>>();
-        PyObject* dict = PyDict_New();
-        for (const auto& it : val) {
-            std::string property_name = it;
-            std::string mutability = it.is_mutable() ? "RW" : "RO";
-            PyDict_SetItemString(dict, property_name.c_str(), PyUnicode_FromString(mutability.c_str()));
-        }
-        return dict;
-    } else {
-        PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
-        return (PyObject*)NULL;
-    }
-}
-
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
         auto supported_properties = actual.get_property(ov::supported_properties);
@@ -432,11 +233,13 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
             supported_properties.end()) {
             return actual.get_property(ov::optimal_number_of_infer_requests);
         } else {
-            IE_THROW() << "Can't load network: " << ov::optimal_number_of_infer_requests.name() << " is not supported!"
-                       << " Please specify number of infer requests directly!";
+            throw ov::Exception("Can't load network: " + std::string(ov::optimal_number_of_infer_requests.name()) +
+                                " is not supported!"
+                                " Please specify number of infer requests directly!");
         }
     } catch (const std::exception& ex) {
-        IE_THROW() << "Can't load network: " << ex.what() << " Please specify number of infer requests directly!";
+        throw ov::Exception("Can't load network: " + std::string(ex.what()) +
+                            " Please specify number of infer requests directly!");
     }
 }
 
@@ -503,6 +306,22 @@ py::dict outputs_to_dict(const std::vector<ov::Output<const ov::Node>>& outputs,
         }
     }
     return res;
+}
+
+ov::pass::Serialize::Version convert_to_version(const std::string& version) {
+    using Version = ov::pass::Serialize::Version;
+
+    if (version == "UNSPECIFIED") {
+        return Version::UNSPECIFIED;
+    }
+    if (version == "IR_V10") {
+        return Version::IR_V10;
+    }
+    if (version == "IR_V11") {
+        return Version::IR_V11;
+    }
+    throw ov::Exception("Invoked with wrong version argument: '" + version +
+                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
 };  // namespace Common

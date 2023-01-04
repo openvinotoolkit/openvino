@@ -64,7 +64,9 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
         const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
-        return std::make_shared<PlaceOp>(onnx_editor::EditorNode{node_index}, m_editor);
+        onnx_editor::EditorNode node{node_index};
+        node.m_node_name = operation_name;
+        return std::make_shared<PlaceOp>(node, m_editor);
     }
     return nullptr;
 }
@@ -189,6 +191,33 @@ void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const n
     std::map<std::string, ngraph::element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
+}
+
+ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
+    OPENVINO_ASSERT(place, "Cannot return a type for nullptr Place.");
+    std::string tensor_name;
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
+    const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
+    if (input_edge) {
+        const auto tensor_names = input_edge->get_source_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve source tensor name for this InputEdge and thus its element type.");
+        tensor_name = tensor_names[0];
+    } else if (output_edge) {
+        const auto tensor_names = output_edge->get_target_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve target tensor name for this OutputEdge and thus its element type.");
+        tensor_name = tensor_names[0];
+    } else {
+        OPENVINO_ASSERT(place->get_names().size() > 0, "Place must have its name.");
+        tensor_name = place->get_names().at(0);
+    }
+
+    if (place->is_input()) {
+        return m_editor->get_input_type(tensor_name);
+    }
+    // now we can return the concrete element type only for model inputs
+    return element::undefined;
 }
 
 std::shared_ptr<Model> InputModel::decode() {
@@ -391,6 +420,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
     onnx_inputs.reserve(inputs.size());
     for (const auto& input : inputs) {
         if (const auto input_port = std::dynamic_pointer_cast<PlaceInputEdge>(input)) {
+            input_port->check_if_valid();
             onnx_inputs.push_back(input_port->get_input_edge());
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(input)) {
             const auto name = tensor->get_names().at(0);
@@ -402,6 +432,7 @@ std::vector<onnx_editor::InputEdge> InputModel::convert_place_to_input_edge(
                                return edge;
                            });
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(input)) {
+            op->check_if_valid();
             const auto editor_node = op->get_editor_node();
             const auto op_inputs = m_editor->get_input_ports(editor_node);
             int node_idx = m_editor->get_node_index(editor_node);
@@ -424,6 +455,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
     onnx_outputs.reserve(outputs.size());
     for (const auto& output : outputs) {
         if (const auto output_port = std::dynamic_pointer_cast<PlaceOutputEdge>(output)) {
+            output_port->check_if_valid();
             onnx_outputs.push_back(output_port->get_output_edge());
         } else if (const auto tensor = std::dynamic_pointer_cast<PlaceTensor>(output)) {
             const auto output_port = tensor->get_producing_port();
@@ -431,6 +463,7 @@ std::vector<onnx_editor::OutputEdge> InputModel::convert_place_to_output_edge(
             NGRAPH_CHECK(onnx_output_edge, "Non-onnx output place was passed as extraction subgraph argument");
             onnx_outputs.push_back(onnx_output_edge->get_output_edge());
         } else if (const auto op = std::dynamic_pointer_cast<PlaceOp>(output)) {
+            op->check_if_valid();
             const auto editor_node = op->get_editor_node();
             const auto op_outputs = m_editor->get_output_ports(editor_node);
             int node_idx = m_editor->get_node_index(editor_node);
@@ -478,9 +511,11 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     // assure that names actually refer to model's inputs
     std::map<std::string, ov::PartialShape> actual_inputs_to_reshape;
     for (const auto& in : m_inputs_to_reshape)
-        if (is_input_name(in.first))
+        if (is_input_name(in.first)) {
             actual_inputs_to_reshape.insert(in);
+        }
 
-    if (!actual_inputs_to_reshape.empty())
+    if (!actual_inputs_to_reshape.empty()) {
         model->reshape(actual_inputs_to_reshape);
+    }
 }

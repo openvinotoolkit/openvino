@@ -5,6 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include "openvino/op/broadcast.hpp"
+
 #include "primitive.hpp"
 #include <vector>
 
@@ -72,15 +74,62 @@ struct broadcast : public primitive_base<broadcast> {
     ///                        dimension values.
     /// @param output_padding  Optional padding for output from primitive.
     broadcast(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& broadcast_sizes,
               const std::vector<uint16_t>& broadcast_axes = {},
-              const primitive_id& ext_prim_id = "",
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           broadcast_sizes(broadcast_sizes),
           broadcast_axes(broadcast_axes) {}
 
+    /// @brief Constructs broadcast primitive / layer with static target_shape.
+    ///
+    /// @param id             An identifier of new primitive.
+    /// @param input          An identifier of primitive which is an input for newly created
+    ///                       broadcast primitive.
+    /// @param target_shape   The shape of the output tensor.
+    /// @param axes_mapping   The axis positions (0-based) in the result that correspond
+    ///                       to input axes. 'Arg' tensor is broadcast along the
+    ///                       remaining axes.
+    ///                       E.g., Input Shape - [3, 4], Target Shape - [3, 5, 4, 4]
+    ///                       axes_mapping - [0, 2] => Broadcast along axes 1 and 3.
+    ///                       axes_mapping - [0, 3] => Broadcast along axes 1 and 2.
+    /// @param broadcast_spec Broadcast specification to use for determining broadcast
+    ///                       axes. 'axes_mapping' should not be provided if mode other
+    ///                       than explicit (none) is used.
+    broadcast(const primitive_id& id,
+              const input_info& input,
+              const ov::Shape& target_shape,
+              const ngraph::AxisSet& axes_mapping,
+              const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
+              const padding& output_padding = padding())
+        : primitive_base(id, {input}, {output_padding}),
+          target_shape(target_shape),
+          axes_mapping(axes_mapping),
+          broadcast_mode(broadcast_spec),
+          broadcast_sizes(target_shape.empty() ? tensor(1) : tensor(0)),
+          broadcast_axes({}) {}
+
+    /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
+    broadcast(const primitive_id& id,
+          const input_info& input,
+          const input_info& target_shape_id,
+          const ngraph::AxisSet& axes_mapping,
+          const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
+          const padding& output_padding = padding())
+    : primitive_base(id, {input, target_shape_id}, {output_padding}),
+      target_shape({}),
+      axes_mapping(axes_mapping),
+      broadcast_mode(broadcast_spec),
+      broadcast_sizes({}),
+      broadcast_axes({}) {}
+
+    /// @brief The shape of the output tensor.
+    ov::Shape target_shape;
+    /// @brief The axis positions (0-based) in the result that correspond to input axes.
+    ov::AxisSet axes_mapping;
+    /// @brief Broadcast mode to use for determining broadcast axes.
+    ov::op::BroadcastModeSpec broadcast_mode;
     /// @brief Expected sizes of output from broadcast primitive.
     tensor broadcast_sizes;
     /// @brief Array of axes positions from output shape (0-based, from left to right)

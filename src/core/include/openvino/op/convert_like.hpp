@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise type conversion operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ConvertLike : public Op {
 public:
     OPENVINO_OP("ConvertLike", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     ConvertLike() = default;

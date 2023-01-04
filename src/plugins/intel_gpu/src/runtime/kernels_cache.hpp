@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
 
@@ -16,6 +17,8 @@
 #include <set>
 
 #include <threading/ie_cpu_streams_executor.hpp>
+#include "kernels_factory.hpp"
+#include "ocl/ocl_engine.hpp"
 
 namespace cldnn {
 class kernels_cache {
@@ -75,6 +78,7 @@ private:
     engine& _engine;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
+    size_t _kernel_idx = 0;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
     std::vector<std::string> batch_header_str;
@@ -94,9 +98,20 @@ public:
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
         batch_header_str = std::move(batch_headers);
     }
+
+    bool validate_simple_kernel_execution(kernel::ptr kernel);
+
     // forces compilation of all pending kernels/programs
     void build_all();
     void reset();
+    void remove_kernel(kernel_id id) {
+        _kernels.erase(id);
+    }
+    std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+    void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
+    void compile();
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
 };
 
 }  // namespace cldnn

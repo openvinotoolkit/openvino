@@ -6,18 +6,19 @@
 
 #include <memory>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(UnrollTensorIterator);
     for (const auto& op : f->get_ops()) {
-        auto sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(op);
+        auto sub_graph_op = std::dynamic_pointer_cast<op::util::SubGraphOp>(op);
         if (!sub_graph_op || transformation_callback(sub_graph_op)) {
             continue;
         }
@@ -34,7 +35,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
         // Assign names to the created layers.
         std::vector<std::shared_ptr<ngraph::Function>> body_functions(num_iter);
         for (int64_t idx = 0; idx < num_iter; ++idx) {
-            body_functions[idx] = clone_function(*function);
+            body_functions[idx] = ngraph::clone_function(*function);
             for (auto& node : body_functions[idx]->get_ops()) {
                 node->set_friendly_name(sub_graph_op->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" +
                                         node->get_friendly_name());
@@ -45,7 +46,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
         // Port map : inputs and back edges
         for (const auto& desc : sub_graph_op->get_input_descriptions()) {
             if (const auto& input_desc =
-                    std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::SliceInputDescription>(desc)) {
+                    std::dynamic_pointer_cast<opset6::TensorIterator::SliceInputDescription>(desc)) {
                 // Connect the sliced input (layer before the input) to the Split layer and connect
                 // the corresponding Split output to the corresponding copy of the body.
                 // If the number of iterations is 1, then the Split is not needed.
@@ -54,7 +55,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                 const auto const_axis = opset6::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
 
                 if (num_iter > 1) {
-                    auto split = std::make_shared<ngraph::opset6::Split>(in_data, const_axis, num_iter);
+                    auto split = std::make_shared<opset6::Split>(in_data, const_axis, num_iter);
                     copy_runtime_info(sub_graph_op, split);
                     auto stride = input_desc->m_stride;
                     // connect to the body
@@ -73,7 +74,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     }
                 }
             } else if (const auto& merged_desc =
-                           std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::MergedInputDescription>(desc)) {
+                           std::dynamic_pointer_cast<opset6::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
@@ -90,7 +91,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     }
                 }
             } else if (const auto& invariant_desc =
-                           std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::InvariantInputDescription>(desc)) {
+                           std::dynamic_pointer_cast<opset6::TensorIterator::InvariantInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
                 auto in_data = sub_graph_op->input_values()[invariant_desc->m_input_index];
                 for (int64_t j = 0; j < num_iter; j++) {
@@ -107,8 +108,23 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
 
         // Port map: outputs
         for (const auto& desc : sub_graph_op->get_output_descriptions()) {
+            //  we need to insert tensor_name to the outputs of TensorIterator if they directly connected to
+            // Results ops. It's necessary to save original TensorIterator name when we use CNNNetwork.
+            auto insert_tensor_name = [&](const ov::Output<ov::Node>& ti_output, const ov::Output<Node>& insert_to) {
+                auto target_inputs = ti_output.get_target_inputs();
+                if (target_inputs.empty() ||
+                    std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
+                        return ov::as_type<opset8::Result>(target_inp.get_node()) != nullptr;
+                    })) {
+                    NGRAPH_SUPPRESS_DEPRECATED_START
+                    ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
+                                                              ngraph::op::util::create_ie_output_name(ti_output));
+                    NGRAPH_SUPPRESS_DEPRECATED_END
+                }
+            };
+
             if (const auto& concat_desc =
-                    std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::ConcatOutputDescription>(desc)) {
+                    std::dynamic_pointer_cast<opset6::TensorIterator::ConcatOutputDescription>(desc)) {
                 if (!concat_desc) {
                     return false;
                 }
@@ -129,14 +145,12 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                         auto input_to_res = result->get_input_source_output(0);
                         to_concat[j] = input_to_res;
                     }
-                    auto concat = std::make_shared<ngraph::opset6::Concat>(to_concat, concat_desc->m_axis);
+                    auto concat = std::make_shared<opset6::Concat>(to_concat, concat_desc->m_axis);
                     copy_runtime_info(sub_graph_op, concat);
 
                     // set output name to Tensor to store it for ngraph to cnn conversion
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    concat->output(0).get_tensor().set_name(
-                        op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), concat->output(0));
+
                     // connect the Concat layer to the corresponding TI outputs
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(concat);
@@ -147,16 +161,14 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                         body_functions[0]->get_results().at(concat_desc->m_body_value_index);
                     const auto& input_to_res = result->get_input_source_output(0);
                     // set output name to Tensor to store it for ngraph to cnn conversion
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    input_to_res.get_tensor().set_name(
-                        op::util::create_ie_output_name(sub_graph_op->output(concat_desc->m_output_index)));
-                    NGRAPH_SUPPRESS_DEPRECATED_END
+                    insert_tensor_name(sub_graph_op->output(concat_desc->m_output_index), input_to_res);
+
                     for (auto& input : sub_graph_op->output(concat_desc->m_output_index).get_target_inputs()) {
                         input.replace_source_output(input_to_res);
                     }
                 }
             } else if (const auto& output_desc =
-                           std::dynamic_pointer_cast<ngraph::opset6::TensorIterator::BodyOutputDescription>(desc)) {
+                           std::dynamic_pointer_cast<opset6::TensorIterator::BodyOutputDescription>(desc)) {
                 // Connect outputs of the bodies to the corresponding TI outputs
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0 ? iter : num_iter - 1;
@@ -164,11 +176,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
                     body_functions[iter]->get_results()[output_desc->m_body_value_index];
                 const auto& in_value = result->input_value(0);
 
-                // set output name to Tensor to store it for ngraph to cnn conversion
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                in_value.get_tensor().set_name(
-                    op::util::create_ie_output_name(sub_graph_op->output(output_desc->m_output_index)));
-                NGRAPH_SUPPRESS_DEPRECATED_END
+                insert_tensor_name(sub_graph_op->output(output_desc->m_output_index), in_value);
                 for (const auto& input : sub_graph_op->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
                 }
@@ -184,7 +192,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngra
 
         // the current iteration Parameter in Loop body can be disconnected
         // we are replacing it with a Constant (value = current iteration idx)
-        const auto& loop = std::dynamic_pointer_cast<ngraph::opset6::Loop>(sub_graph_op);
+        const auto& loop = std::dynamic_pointer_cast<opset6::Loop>(sub_graph_op);
         if (loop) {
             // 1. Check CurrentIteration Parameter is not connected to outer network
             bool need_to_remove_iteration_param = false;

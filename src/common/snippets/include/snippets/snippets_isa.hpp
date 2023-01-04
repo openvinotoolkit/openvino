@@ -7,21 +7,18 @@
 #include "ngraph/ops.hpp"
 #include <ngraph/opsets/opset1.hpp>
 
-#include "op/blockedload.hpp"
-#include "op/blockedparameter.hpp"
 #include "op/broadcastload.hpp"
 #include "op/broadcastmove.hpp"
+#include "op/convert_saturation.hpp"
+#include "op/convert_truncation.hpp"
 #include "op/kernel.hpp"
 #include "op/load.hpp"
 #include "op/nop.hpp"
 #include "op/scalar.hpp"
-#include "op/scalarload.hpp"
-#include "op/scalarstore.hpp"
 #include "op/powerstatic.hpp"
 #include "op/store.hpp"
 #include "op/tile.hpp"
-#include "op/vectorload.hpp"
-#include "op/vectorstore.hpp"
+#include "op/tile_scheduler.hpp"
 
 namespace ngraph {
 namespace snippets {

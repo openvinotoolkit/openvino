@@ -19,7 +19,7 @@ namespace ngraph {
  * not precision preserved.
  *
  * For more details about the attribute, refer to
- * [PrecisionPreservedAttribute](@ref openvino_docs_IE_DG_lpt_PrecisionPreserved) page in the Inference Engine Developer Guide.
+ * [PrecisionPreservedAttribute](@ref openvino_docs_OV_UG_lpt_PrecisionPreserved) page in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API PrecisionPreservedAttribute : public SharedAttribute<bool> {
 public:

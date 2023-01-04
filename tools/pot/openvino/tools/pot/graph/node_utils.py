@@ -140,9 +140,9 @@ def get_bias_for_node(node: Node):
     if len(node_outputs) == 1:
         potential_bias = node_outputs[0]
         if potential_bias.type == 'Add' and len(get_node_inputs(potential_bias)) > 1:
-            potential_bias_const = get_node_input(potential_bias, 1)
-            if potential_bias_const.type == 'Const':
-                return potential_bias_const
+            for potential_bias_const in get_node_inputs(potential_bias):
+                if potential_bias_const.type == 'Const':
+                    return potential_bias_const
     return None
 
 
@@ -191,9 +191,17 @@ def get_quantized_input_key(quantized_node):
     If input node of quantized node have one output port -> key is name of fq_input node.
     Otherwise, key is tuple (fq_input name, output port number)
     """
-    quantized_input = get_node_input(quantized_node, 0)
-    quantized_key = create_node_name(quantized_input)
-    return quantized_key
+    if quantized_node.type == 'Add':
+        for quantized_node_input in get_node_inputs(quantized_node):
+            if quantized_node_input.type != 'Const':
+                quantized_input = quantized_node_input
+    else:
+        quantized_input = get_node_input(quantized_node, 0)
+    key = quantized_input.fullname
+    if len(quantized_input.out_ports()) > 1:
+        port_number = quantized_node.in_port(0).get_source().out
+        key = (quantized_input.fullname, port_number)
+    return key
 
 
 def node_with_quantized_weights(node):
@@ -204,6 +212,20 @@ def node_with_quantized_weights(node):
     """
     weights_input = get_node_input(node, 1)
     if weights_input.type == 'FakeQuantize' and get_node_input(weights_input, 0).type == 'Const':
+        return True
+
+    return False
+
+
+def node_with_quantized_input_and_bias(node):
+    """
+    Check that node havs two quantized input (inputs on port 0 and 1).
+    :param node: operation node
+    :return: True if node has quantized inputs and False instead
+    """
+    input_node = get_node_input(node, 0)
+    bias_node = get_node_input(node, 1)
+    if input_node is not None and input_node.type == 'FakeQuantize' and bias_node is not None and bias_node.type == 'FakeQuantize':
         return True
 
     return False
@@ -266,7 +288,8 @@ def create_node_name(input_node, mode=tuple):
 
 
 def get_node_data_type(node, port_id=0):
-    if node.type != 'Const' and node.in_port(port_id).get_source() is not None \
+    if node.type != 'Const' and port_id in node.in_ports() \
+            and node.in_port(port_id).get_source() is not None \
             and node.in_port(port_id).get_source().is_data_type_defined():
         return node.in_port(port_id).get_source().get_data_type()
     return None

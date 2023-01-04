@@ -1,4 +1,4 @@
-## If <a name="If"></a> {#openvino_docs_ops_infrastructure_If_8}
+## If {#openvino_docs_ops_infrastructure_If_8}
 
 **Versioned name**: *If-8*
 

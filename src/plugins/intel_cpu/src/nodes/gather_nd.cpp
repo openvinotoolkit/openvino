@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "gather_nd.h"
 #include <ngraph/opsets/opset8.hpp>
@@ -34,8 +34,8 @@ bool GatherND::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+GatherND::GatherND(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -104,13 +104,13 @@ void GatherND::prepareParams() {
 }
 
 GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : dataSize(attrs.dataSize), sliceRank(attrs.sliceRank) {
-    batchSize = std::accumulate(attrs.srcDims.begin(), attrs.srcDims.begin() + attrs.batchDims, 1lu, std::multiplies<size_t>());
-    dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims, attrs.srcDims.end(), 1lu,
+    batchSize = std::accumulate(attrs.srcDims.begin(), attrs.srcDims.begin() + attrs.batchDims, size_t(1), std::multiplies<size_t>());
+    dataLength = std::accumulate(attrs.srcDims.begin() + sliceRank + attrs.batchDims, attrs.srcDims.end(), size_t(1),
                                  std::multiplies<size_t>());
     cycles = attrs.dstElementCount / (dataLength * batchSize);
     workAmount = batchSize * cycles;
 
-    srcBatchStride = std::accumulate(attrs.srcDims.begin() + attrs.batchDims, attrs.srcDims.end(), 1lu,
+    srcBatchStride = std::accumulate(attrs.srcDims.begin() + attrs.batchDims, attrs.srcDims.end(), size_t(1),
                                      std::multiplies<size_t>());
     idxBatchStride = cycles * sliceRank;
     dstBatchStride = cycles * dataLength;
@@ -127,7 +127,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs) : 
     }
 }
 
-void GatherND::execute(mkldnn::stream strm) {
+void GatherND::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
@@ -222,7 +222,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr, c
     });
 }
 
-void GatherND::executeDynamicImpl(mkldnn::stream strm) {
+void GatherND::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

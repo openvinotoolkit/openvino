@@ -205,7 +205,7 @@ enum colorformat_e {
 
 ​    RGB,         ///< RGB color format
 
-​    BGR,         ///< BGR color format, default in DLDT
+​    BGR,         ///< BGR color format, default in OpenVINO
 
 ​    RGBX,        ///< RGBX color format with X ignored during inference
 

@@ -23,7 +23,7 @@ addIeTarget(
             openvino::runtime::dev
         PRIVATE
             ngraphFunctions
-            pugixml::static
+            openvino::pugixml
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>

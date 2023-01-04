@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pyopenvino/frontend/frontend.hpp"
+
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -11,6 +13,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "pyopenvino/graph/model.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -22,15 +25,16 @@ void regclass_frontend_FrontEnd(py::module m) {
 
     fem.def(
         "load",
-        [](FrontEnd& self, const std::string& s) {
-            return self.load(s);
+        [](FrontEnd& self, const py::object& path) {
+            std::string model_path = Common::utils::convert_path_to_string(path);
+            return self.load(model_path);
         },
         py::arg("path"),
         R"(
                 Loads an input model by specified model file path.
 
                 :param path: Main model file path.
-                :type path: str
+                :type path: Union[str, pathlib.Path]
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
              )");

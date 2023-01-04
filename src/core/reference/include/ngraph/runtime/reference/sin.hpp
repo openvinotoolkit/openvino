@@ -13,7 +13,7 @@ namespace reference {
 template <typename T>
 void sin(const T* arg, T* out, size_t count) {
     for (size_t i = 0; i < count; i++) {
-        out[i] = std::sin(arg[i]);
+        out[i] = static_cast<T>(std::sin(arg[i]));
     }
 }
 }  // namespace reference

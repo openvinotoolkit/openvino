@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from openvino.tools.mo.ops.activation_ops import Elu, SoftPlus, Mish, Swish
+from openvino.tools.mo.ops.activation_ops import Elu, SoftPlus, Mish, Swish, SoftSign
 from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
@@ -140,6 +140,36 @@ class TestActivationOp(unittest.TestCase):
         res_shape = graph.node['node_3']['shape']
         res_value = graph.node['node_3']['value']
         exp_value = np.array([-0.26894142, 0.0, 0.73105858, 19.99999996])
+        for i, value in enumerate(exp_shape):
+            self.assertEqual(res_shape[i], value)
+        for i, value in enumerate(exp_value):
+            self.assertAlmostEqual(res_value[i], value)
+
+    def test_activation_softsign_infer(self):
+        graph = build_graph(self.nodes_attributes,
+                            edges=[
+                                ('node_1', 'activation_node'),
+                                ('activation_node', 'node_3')
+                            ],
+                            update_attributes={
+                                'node_1': {
+                                    'value': np.array([1.0, -1.0, 3.5, -5.8])
+                                },
+                                'activation_node': {
+                                    'op': 'SoftSign',
+                                    'operation': SoftSign.operation
+                                },
+                                'node_3': {
+                                    'value': None
+                                }
+                            })
+        graph.graph['layout'] = 'NCHW'
+        activation_node = Node(graph, 'activation_node')
+        SoftSign.infer(activation_node)
+        exp_shape = np.array([4])
+        res_shape = graph.nodes['node_3']['shape']
+        res_value = graph.nodes['node_3']['value']
+        exp_value = np.array([0.5, -0.5, 0.7777777777777, -0.85294117647])
         for i, value in enumerate(exp_shape):
             self.assertEqual(res_shape[i], value)
         for i, value in enumerate(exp_value):

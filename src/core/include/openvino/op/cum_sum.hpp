@@ -14,10 +14,10 @@ namespace v0 {
 ///
 /// Compute the cumulative sum of the input tensor along the axis specified.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CumSum : public Op {
 public:
     OPENVINO_OP("CumSum", "opset3");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a cumulative summation operation.
     CumSum() = default;
@@ -37,6 +37,9 @@ public:
     CumSum(const Output<Node>& arg, const bool exclusive = false, const bool reverse = false);
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

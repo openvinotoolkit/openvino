@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -129,7 +130,7 @@ def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
-def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
+def mish(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which performs Mish.
 
     :param data: Tensor with input data floating point type.
@@ -139,7 +140,7 @@ def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
 
 
 @nameable_op
-def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
+def hswish(data: NodeInput, name: Optional[str] = None) -> Node:
     """Return a node which performs HSwish (hard version of Swish).
 
     :param data: Tensor with input data floating point type.
@@ -172,7 +173,7 @@ def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arccosh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Acosh", [node])
+    return _get_node_factory_opset4().create("Acosh", as_nodes(node))
 
 
 @nameable_op
@@ -183,7 +184,7 @@ def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arcsinh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Asinh", [node])
+    return _get_node_factory_opset4().create("Asinh", as_nodes(node))
 
 
 @nameable_op
@@ -194,16 +195,16 @@ def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arctanh operation applied on it.
     """
-    return _get_node_factory_opset4().create("Atanh", [node])
+    return _get_node_factory_opset4().create("Atanh", as_nodes(node))
 
 
 @nameable_op
 def proposal(
-        class_probs: Node,
-        bbox_deltas: Node,
-        image_shape: NodeInput,
-        attrs: dict,
-        name: Optional[str] = None,
+    class_probs: Node,
+    bbox_deltas: Node,
+    image_shape: NodeInput,
+    attrs: dict,
+    name: Optional[str] = None,
 ) -> Node:
     """Filter bounding boxes and outputs only those with the highest prediction confidence.
 
@@ -212,6 +213,7 @@ def proposal(
     :param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
     :param  attrs:              The dictionary containing key, value pairs for attributes.
     :param  name:               Optional name for the output node.
+
     * base_size     The size of the anchor to which scale and ratio attributes are applied.
                     Range of values: a positive unsigned integer number
                     Default value: None
@@ -272,6 +274,7 @@ def proposal(
                     Range of values: "" (empty string) - calculate box coordinates like in Caffe*
                                      tensorflow - calculate box coordinates like in the TensorFlow*
                                                   Object Detection API models
+
                     Default value: "" (empty string)
                     Required: no
 
@@ -314,13 +317,18 @@ def proposal(
     check_valid_attributes("Proposal", attrs, requirements)
 
     return _get_node_factory_opset4().create(
-        "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
+        "Proposal",
+        [class_probs, bbox_deltas, as_node(image_shape)],
+        attrs,
     )
 
 
 @nameable_op
 def reduce_l1(
-    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
+    node: NodeInput,
+    reduction_axes: NodeInput,
+    keep_dims: bool = False,
+    name: Optional[str] = None,
 ) -> Node:
     """L1-reduction operation on input tensor, eliminating the specified reduction axes.
 
@@ -331,13 +339,18 @@ def reduce_l1(
     :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
-        "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+        "ReduceL1",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
 @nameable_op
 def reduce_l2(
-    node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
+    node: NodeInput,
+    reduction_axes: NodeInput,
+    keep_dims: bool = False,
+    name: Optional[str] = None,
 ) -> Node:
     """L2-reduction operation on input tensor, eliminating the specified reduction axes.
 
@@ -348,7 +361,9 @@ def reduce_l2(
     :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
-        "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
+        "ReduceL2",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -361,9 +376,9 @@ def lstm_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: List[str] = None,
-    activations_alpha: List[float] = None,
-    activations_beta: List[float] = None,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:

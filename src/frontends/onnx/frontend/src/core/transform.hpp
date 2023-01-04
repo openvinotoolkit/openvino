@@ -10,18 +10,13 @@ namespace ngraph {
 namespace onnx_import {
 namespace transform {
 
-/// \brief Replace external_data path in tensors with full path to data file.
-///
-/// Paths to external data files are stored as relative to model path.
-/// This transformation replaces them with a full filesystem path.
-/// As a result in further processing data from external files can be read directly.
-///
-/// \param model_proto Protobuf message with ONNX model to transform.
-/// \param model_path Filesystem path to the ONNX model file.
-void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& model_path);
-
-static const std::vector<std::string> onnx_functions_to_expand =
-    {"Bernoulli", "Celu", "GreaterOrEqual", "LessOrEqual", "NegativeLogLikelihoodLoss", "SoftmaxCrossEntropyLoss"};
+static const std::vector<std::string> onnx_functions_to_expand = {"Bernoulli",
+                                                                  "Celu",
+                                                                  "GreaterOrEqual",
+                                                                  "LessOrEqual",
+                                                                  "NegativeLogLikelihoodLoss",
+                                                                  "SoftmaxCrossEntropyLoss",
+                                                                  "LayerNormalization"};
 
 /// \brief Replace nodes with expanded body of ONNX functions
 ///
@@ -42,6 +37,7 @@ static const std::vector<std::string> legacy_ops_to_fixup = {"DeformableConv2D",
                                                              "ExperimentalDetectronROIFeatureExtractor",
                                                              "ExperimentalDetectronTopKROIs",
                                                              "FakeQuantize",
+                                                             "GenerateProposals",
                                                              "GroupNorm",
                                                              "Normalize",
                                                              "PriorBox",

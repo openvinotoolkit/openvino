@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v7 {
 /// \brief Tensor roll operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Roll : public Op {
 public:
     OPENVINO_OP("Roll", "opset7", op::Op, 7);
-    BWDCMP_RTTI_DECLARATION;
 
     Roll() = default;
 

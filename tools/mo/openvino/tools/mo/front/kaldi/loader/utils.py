@@ -44,6 +44,7 @@ supported_components = [
     'pnormcomponent',
     'rectifiedlinearcomponent',
     'rescale',
+    'restrictedattentioncomponent',
     'sigmoid',
     'sigmoidcomponent',
     'softmax',
@@ -257,7 +258,7 @@ def read_token_value(file_desc: io.BufferedReader, token: bytes = b'', value_typ
     getters = {
         np.uint32: read_binary_integer32_token,
         np.uint64: read_binary_integer64_token,
-        np.bool: read_binary_bool_token
+        bool: read_binary_bool_token
     }
     current_token = collect_until_whitespace(file_desc)
     if token != b'' and token != current_token:
@@ -313,7 +314,7 @@ def collect_until_token_and_read(file_desc: io.BufferedReader, token, value_type
     getters = {
         np.uint32: read_binary_integer32_token,
         np.uint64: read_binary_integer64_token,
-        np.bool: read_binary_bool_token,
+        bool: read_binary_bool_token,
         np.string_: read_string
     }
     collect_until_token(file_desc, token)

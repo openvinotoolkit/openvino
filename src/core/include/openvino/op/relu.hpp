@@ -13,10 +13,10 @@ namespace op {
 namespace v0 {
 /// \brief Elementwise Relu operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Relu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Relu", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     Relu() = default;
     /// \brief Constructs a Relu operation.
     ///

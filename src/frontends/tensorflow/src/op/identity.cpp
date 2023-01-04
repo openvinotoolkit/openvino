@@ -26,6 +26,20 @@ OutputVector translate_identity_op(const NodeContext& node) {
     return {input};
 }
 
+OutputVector translate_identity_n_op(const NodeContext& node) {
+    auto input_size = node.get_input_size();
+    auto node_name = node.get_name();
+
+    OutputVector result;
+    for (int input_idx = 0; input_idx < input_size; ++input_idx) {
+        auto input = node.get_input(input_idx);
+        set_out_name(node_name + ":" + std::to_string(input_idx), input);
+        result.push_back(input);
+    }
+
+    return result;
+}
+
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend

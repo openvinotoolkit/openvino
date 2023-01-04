@@ -9,21 +9,20 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id roi_pooling::type_id() {
-    static primitive_type_base<roi_pooling> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_pooling)
 
-layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout roi_pooling_inst::calc_output_layout(roi_pooling_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for roi_pooling_node!");
-    auto desc = node.get_primitive();
-    layout data_layout = node.input().get_output_layout();
-    layout rois_layout = node.rois().get_output_layout();
-    int num_rois = rois_layout.size.batch[0];
-    int out_fm = desc->position_sensitive ? desc->output_dim : data_layout.size.feature[0];
+    auto desc = impl_param.typed_desc<roi_pooling>();
+    layout data_layout = impl_param.get_input_layout(0);
+    layout rois_layout = impl_param.get_input_layout(1);
+    int num_rois = rois_layout.batch();
+    int out_fm = desc->position_sensitive ? desc->output_dim : data_layout.feature();
 
-    return layout(data_layout.data_type, format::bfyx, {num_rois, out_fm, desc->pooled_width, desc->pooled_height});
+    return layout(data_layout.data_type,
+                  data_layout.format,
+                  {num_rois, out_fm, desc->pooled_width, desc->pooled_height});
 }
 
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node) {

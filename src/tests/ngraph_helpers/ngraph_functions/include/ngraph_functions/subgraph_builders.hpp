@@ -196,13 +196,13 @@ inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t>
 
 inline std::shared_ptr<ngraph::Function> makeKSOFunction(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                          ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape, inputShape});
 
     auto shapeOf = std::make_shared<ngraph::opset4::ShapeOf>(params[0]);
     auto convert = std::make_shared<ngraph::opset4::Convert>(shapeOf, ngPrc);
     auto newShape = ngraph::builder::makeConstant<int64_t>(ngraph::element::i64, {4}, {1, 4, 1, 1});
     auto reshape = std::make_shared<ngraph::opset4::Reshape>(convert, newShape, false);
-    auto conv1 = ngraph::builder::makeConvolution(params[0], ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+    auto conv1 = ngraph::builder::makeConvolution(params[1], ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 4);
     auto relu1 = std::make_shared<ngraph::opset4::Relu>(conv1);
     auto add = std::make_shared<ngraph::opset4::Add>(relu1, reshape);
@@ -329,23 +329,29 @@ inline std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
     return fn_ptr;
 }
 
-inline std::shared_ptr<ngraph::Function> makeEltwisePlusDetectionOutput(std::vector<std::vector<size_t>> inShapes =
-        {{1, 60}, {1, 165}, {1, 1, 75}},
-                                                                         ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
-    // adding Eltwise so that we can tests Auto-Batching's HETERO code-path that splits the DetectionOutput and the rest of the network
-    auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-    ngraph::OutputVector outs;
-    for (size_t i = 0; i < inShapes.size(); i++) {
-        auto shape = inShapes[i];
-        auto p = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{shape});
-        auto add = ngraph::builder::makeEltwise(paramOuts[i], p, ngraph::helpers::EltwiseTypes::ADD);
-        params.push_back(p);
-        outs.push_back(add->output(0));
-    }
+inline std::shared_ptr<ngraph::Function> makeDetectionOutput(ngraph::element::Type_t type = ngraph::element::Type_t::f32) {
+    const auto& data = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape{1, 4, 10, 10});
+
+    const auto& constant_0 = std::make_shared<ngraph::opset1::Constant>(type, ngraph::Shape{1, 1, 1, 1});
+    const auto& mul_0 = std::make_shared<ngraph::opset1::Multiply>(data, constant_0);
+
+    const auto& filters = std::make_shared<ngraph::opset1::Constant>(type, ngraph::Shape{1, 4, 1, 1});
+    const auto& conv = std::make_shared<ngraph::opset1::Convolution>(
+            mul_0, filters, ngraph::Strides{1, 1}, ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{1, 1});
+
+    const auto& box_logits_reshape = std::make_shared<ngraph::opset1::Constant>(
+            ngraph::element::i64, ngraph::Shape{2}, std::vector<int64_t>{0, -1});
+    const auto& box_logits = std::make_shared<ngraph::opset1::Reshape>(conv, box_logits_reshape, true);
+
+    const auto& four_times = std::make_shared<ngraph::opset1::Tile>(box_logits, std::make_shared<ngraph::opset1::Constant>(
+            ngraph::element::i64, ngraph::Shape{2}, std::vector<int64_t>{1, 4}));
+
+    const auto& third_input_reshape = std::make_shared<ngraph::opset1::Constant>(
+            ngraph::element::i64, ngraph::Shape{3}, std::vector<int64_t>{0, 1, -1});
+    const auto& third_input = std::make_shared<ngraph::opset1::Reshape>(four_times, third_input_reshape, true);
+
     ngraph::op::DetectionOutput::Attributes attr;
-    attr.num_classes = 11;
+    attr.num_classes = 4;
     attr.background_label_id = 0;
     attr.top_k = 75;
     attr.variance_encoded_in_target = true;
@@ -357,14 +363,14 @@ inline std::shared_ptr<ngraph::Function> makeEltwisePlusDetectionOutput(std::vec
     attr.clip_after_nms = false;
     attr.clip_before_nms = false;
     attr.decrease_label_id = false;
-    attr.normalized = false;
+    attr.normalized = true;
     attr.input_height = 1;
     attr.input_width = 1;
     attr.objectness_score = 0.4f;
+    const auto& detection = std::make_shared<ngraph::opset1::DetectionOutput>(four_times, four_times, third_input, attr);
+    const auto& convert = std::make_shared<ngraph::opset1::Convert>(detection, type);
 
-    auto detOut = ngraph::builder::makeDetectionOutput(outs, attr);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
-    return std::make_shared<ngraph::Function>(results, params, "EltWiseWithDetectionOutput");
+    return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{data}, "SplitableDetectionOutput");
 }
 
 inline std::shared_ptr<ngraph::Function> makeMultiSingleConv(std::vector<size_t> inputShape = {1, 3, 24, 24},
@@ -684,7 +690,7 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
                                                                    ngraph::element::Type type = ngraph::element::Type_t::f32) {
     auto parameter =  ngraph::builder::makeParams(type, {inputShape});
     parameter[0]->set_friendly_name("parameter");
-    auto init_const = ngraph::op::Constant::create(element::f32, Shape{1, 1, 2, 2}, {0, 0, 0, 0});
+    auto init_const = ngraph::op::Constant::create(type, inputShape, {0});
     auto read = std::make_shared<ngraph::opset5::ReadValue>(init_const, "v0");
     read->set_friendly_name("read");
     std::vector<std::shared_ptr<ngraph::Node>> args = {parameter[0], read};
@@ -694,11 +700,10 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     res->set_friendly_name("result");
     const auto axis = ngraph::op::Constant::create(element::i64, Shape{}, {3});
     axis->set_friendly_name("axis");
-    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 3);
-    crop->set_friendly_name("crop");
+    auto crop = std::make_shared<ngraph::op::v1::Split>(conc, axis, 2);
+    crop->set_friendly_name("split");
     auto assign = std::make_shared<ngraph::opset5::Assign>(crop, "v0");
     assign->set_friendly_name("assign");
-
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector({res}),
                                                                                   ngraph::SinkVector({assign}),
                                                                                   ngraph::ParameterVector{parameter});
@@ -720,6 +725,26 @@ inline std::shared_ptr<ngraph::Function> makeMatMulBias(std::vector<size_t> inpu
     result->set_friendly_name("result");
     std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ parameter });
     fn_ptr->set_friendly_name("MatMulBias");
+    return fn_ptr;
+}
+
+inline std::shared_ptr<ngraph::Function> makeConvertTranspose(std::vector<size_t> inputShape = { 1, 3, 24, 24 },
+                                                        std::vector<size_t> inputOrder = { 0, 1, 2, 3 },
+                                                        ngraph::element::Type type = ngraph::element::Type_t::f32) {
+    auto params = ngraph::builder::makeParams(type, {inputShape});
+    params.front()->set_friendly_name("Param_1");
+    params.front()->output(0).get_tensor().set_names({"data"});
+    const auto order = ngraph::op::Constant::create(element::i32, {inputOrder.size()}, inputOrder);
+
+    auto convert = std::make_shared<opset1::Convert>(params.front(), type);
+    convert->set_friendly_name("convert");
+    auto transpose = std::make_shared<opset1::Transpose>(convert, order);
+    transpose->set_friendly_name("transpose");
+    auto result = std::make_shared<ngraph::opset1::Result>(transpose);
+    result->set_friendly_name("result");
+
+    std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ params });
+    fn_ptr->set_friendly_name("ConvertTranspose");
     return fn_ptr;
 }
 }  // namespace subgraph

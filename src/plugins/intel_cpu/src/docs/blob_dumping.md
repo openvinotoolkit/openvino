@@ -23,14 +23,14 @@ or for shell session (bash example):
 ```sh
     OV_CPU_BLOB_DUMP_DIR=<directory-name> binary ...
 ```
-Default is *mkldnn_dump*
+Default is *cpu_dump*
 ## Specify dump format
 ```sh
     OV_CPU_BLOB_DUMP_FORMAT=<format> binary ...
 ```
 Options are:
-* BIN (default)
-* TEXT
+* BIN
+* TEXT (default)
 
 ## Filter input / output blobs
 To dump only input / output blobs:

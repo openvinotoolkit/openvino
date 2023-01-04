@@ -13,12 +13,12 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
 #include "rt_info/shared_value_attribute.hpp"
 #include "rt_info/precisions_attribute.hpp"
-#include "rt_info/per_tensor_quantization_attribute.hpp"
+#include "rt_info/quantization_granularity_attribute.hpp"
 #include "rt_info/intervals_alignment_attribute.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
@@ -128,6 +128,10 @@ public:
         const element::Type deqPrecision = element::f32,
         std::shared_ptr<ngraph::Node> input = nullptr);
 
+    static std::shared_ptr<ngraph::Node> makeDequantizationSubtract(
+        const ngraph::Output<ngraph::Node>& parent,
+        const ngraph::Output<ngraph::Node>& subtract_constant);
+
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
         element::Type precision,
@@ -156,7 +160,7 @@ public:
 
     static std::shared_ptr<opset1::Constant> normalizeDequantizationShape(
             const std::shared_ptr<Node>& eltwise,
-            const bool convertIsExpected = false);
+            const bool convertIsExpected = true);
 
     // 1. remove Convert if possible
     // 2. optimize Constant if possible
@@ -252,6 +256,8 @@ public:
         float& dequantizationSub,
         float& updatedOutputLowValue,
         float& updatedOutputHighValue);
+
+    static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

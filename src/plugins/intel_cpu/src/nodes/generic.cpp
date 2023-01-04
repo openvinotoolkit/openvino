@@ -11,14 +11,40 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache), ngraphOp(op) {
+namespace {
+/**
+ * Dummy Shape Inference while Generic op doesn't support Dynamism
+ *
+ */
+class GenericShapeInfer : public ShapeInferEmptyPads {
+public:
+    GenericShapeInfer() = default;
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        IE_THROW(Unexpected) << "Generic operations doesn't support shape inference.";
+        return {};
+    }
+
+    port_mask_t get_port_mask() const override { return EMPTY_PORT_MASK; }
+};
+
+class GenericShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<GenericShapeInfer>();
+    }
+};
+} // namespace
+
+Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+    : Node(op, eng, cache, GenericShapeInferFactory()), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {
@@ -87,7 +113,7 @@ void Generic::initSupportedPrimitiveDescriptors() {
 void Generic::createPrimitive() {
 }
 
-void Generic::execute(mkldnn::stream strm) {
+void Generic::execute(dnnl::stream strm) {
     if (!impls.empty()) {
         execLayer();
     } else {

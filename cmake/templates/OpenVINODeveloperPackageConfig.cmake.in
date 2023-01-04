@@ -10,22 +10,32 @@ set_and_check(OpenVINO_SOURCE_DIR "@OpenVINO_SOURCE_DIR@")
 
 # Variables to export in plugin's projects
 
-set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
-list(APPEND ie_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+set(ov_options "@IE_OPTIONS@")
+list(APPEND ov_options CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER
+                       CMAKE_CXX_LINKER_LAUNCHER CMAKE_C_LINKER_LAUNCHER
+                       CMAKE_BUILD_TYPE CMAKE_SKIP_RPATH CMAKE_INSTALL_PREFIX
+                       CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 message(STATUS "The following CMake options are exported from OpenVINO Developer package")
-message("")
-foreach(option IN LISTS ie_options)
+message(" ")
+foreach(option IN LISTS ov_options)
     if(NOT DEFINED "${option}")
         load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
     endif()
     message("    ${option}: ${${option}}")
 endforeach()
-message("")
+message(" ")
 
 # for samples in 3rd party projects
-set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+if(ENABLE_SAMPLES)
+    set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # Disable warning as error for private components
+    set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+endif()
 
 #
 # Content
@@ -41,20 +51,69 @@ find_dependency(OpenVINO
                 NO_CMAKE_FIND_ROOT_PATH
                 NO_DEFAULT_PATH)
 
+_ov_find_tbb()
+
 foreach(component @openvino_export_components@)
-    string(FIND "${component}" "_legacy" index)
-    if (index EQUAL -1)
-        include("${CMAKE_CURRENT_LIST_DIR}/ov_${component}_dev_targets.cmake")
-    endif()
+    # TODO: remove legacy targets from some tests
+    # string(FIND "${component}" "_legacy" index)
+    # if (index EQUAL -1)
+    include("${CMAKE_CURRENT_LIST_DIR}/ov_${component}_dev_targets.cmake")
+    # endif()
 endforeach()
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_dependency(PugiXML)
-    set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
-    add_library(IE::pugixml ALIAS pugixml)
+    set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+    set(_ov_pugixml_cmake_interface "@PugiXML_FOUND@")
+    if(_ov_pugixml_pkgconfig_interface)
+        find_dependency(PkgConfig)
+    elseif(_ov_pugixml_cmake_interface)
+        find_dependency(PugiXML)
+    endif()
+    if(PugiXML_FOUND)
+        set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+        add_library(openvino::pugixml ALIAS pugixml)
+    elseif(PkgConfig_FOUND)
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+            set(pkg_config_quiet_arg QUIET)
+        endif()
+        if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+            set(pkg_config_required_arg REQUIRED)
+        endif()
+
+        pkg_search_module(pugixml
+                          ${pkg_config_quiet_arg}
+                          ${pkg_config_required_arg}
+                          IMPORTED_TARGET GLOBAL
+                          pugixml)
+
+        unset(pkg_config_quiet_arg)
+        unset(pkg_config_required_arg)
+
+        if(pugixml_FOUND)
+            add_library(openvino::pugixml ALIAS PkgConfig::pugixml)
+
+            # PATCH: on Ubuntu 18.04 pugixml.pc contains incorrect include directories
+            get_target_property(interface_include_dir PkgConfig::pugixml INTERFACE_INCLUDE_DIRECTORIES)
+            if(interface_include_dir AND NOT EXISTS "${interface_include_dir}")
+                set_target_properties(PkgConfig::pugixml PROPERTIES
+                    INTERFACE_INCLUDE_DIRECTORIES "")
+            endif()
+        endif()
+    endif()
+
+    # debian 9 case: no cmake, no pkg-config files
+    if(NOT TARGET openvino::pugixml)
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
+            add_library(openvino::pugixml INTERFACE IMPORTED GLOBAL)
+            set_target_properties(openvino::pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+        else()
+            message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
+        endif()
+    endif()
 endif()
 
-# inherit OpenCV from main IE project if enabled
+# inherit OpenCV from main OpenVINO project if enabled
 if ("@OpenCV_FOUND@")
     load_cache("${cache_path}" READ_WITH_PREFIX "" OpenCV_DIR)
     find_dependency(OpenCV)
@@ -64,13 +123,11 @@ endif()
 # Extra Compile Flags
 #
 
-if(NOT MSVC)
+if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-error=unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
-        if(SUGGEST_OVERRIDE_SUPPORTED)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-        endif()
+    ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
 endif()
 

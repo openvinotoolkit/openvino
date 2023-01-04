@@ -2,89 +2,201 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(set_ie_threading_interface_for TARGET_NAME)
-    macro(ext_message TRACE_LEVEL)
-         if (TRACE_LEVEL STREQUAL FATAL_ERROR)
-             if(InferenceEngine_FIND_REQUIRED)
-                 message(FATAL_ERROR "${ARGN}")
-             elseif(NOT InferenceEngine_FIND_QUIETLY)
-                 message(WARNING "${ARGN}")
-             endif()
-             return()
-         elseif(NOT InferenceEngine_FIND_QUIETLY)
-             message(${TRACE_LEVEL} "${ARGN}")
-         endif ()
-    endmacro()
+function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
+    if(NOT TBB_FOUND)
+        return()
+    endif()
 
-    if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        if(IEDevScripts_DIR)
-            find_package(TBB COMPONENTS tbb tbbmalloc
-                         PATHS IEDevScripts_DIR
-                         NO_CMAKE_FIND_ROOT_PATH
-                         NO_DEFAULT_PATH)
-        else()
-            find_dependency(TBB COMPONENTS tbb tbbmalloc)
+    foreach(property INTERFACE_LINK_LIBRARIES
+                     IMPORTED_LOCATION_RELEASE
+                     IMPORTED_LOCATION_RELWITHDEBINFO
+                     IMPORTED_LOCATION_NONE
+                     IMPORTED_LOCATION)
+        get_target_property(_tbb_lib_location ${tbb_target} ${property})
+        if(_tbb_lib_location)
+            if(property STREQUAL INTERFACE_LINK_LIBRARIES)
+                # pkg-config can set multiple libraries as interface, need to filter out
+                foreach(tbb_lib IN LISTS _tbb_lib_location)
+                    if(tbb_lib MATCHES "${CMAKE_SHARED_LIBRARY_PREFIX}tbb${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                        set(${_tbb_lib_location_var} "${tbb_lib}" PARENT_SCOPE)
+                        return()
+                    endif()
+                endforeach()
+            else()
+                set(${_tbb_lib_location_var} "${_tbb_lib_location}" PARENT_SCOPE)
+                return()
+            endif()
         endif()
-        # oneTBB does not define TBB_IMPORTED_TARGETS
+    endforeach()
+
+   message(FATAL_ERROR "Failed to detect TBB library location")
+endfunction()
+
+macro(ov_find_package_tbb)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        set(_ov_minimal_tbb_version 2017.0)
+
+        if(NOT ENABLE_SYSTEM_TBB)
+            if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+                set(_no_cmake_install_prefix NO_CMAKE_INSTALL_PREFIX)
+            endif()
+
+            # Note, we explicitly:
+            # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
+            # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
+            set(_find_package_no_args NO_PACKAGE_ROOT_PATH
+                                      NO_SYSTEM_ENVIRONMENT_PATH
+                                      NO_CMAKE_PACKAGE_REGISTRY
+                                      NO_CMAKE_SYSTEM_PATH
+                                      ${_no_cmake_install_prefix}
+                                      NO_CMAKE_SYSTEM_PACKAGE_REGISTRY)
+
+            unset(_no_cmake_install_prefix)
+        endif()
+
+        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
+                     ${_find_package_no_args})
+
+        if(NOT TBB_FOUND)
+            # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
+            unset(TBB_DIR CACHE)
+            unset(TBB_DIR)
+
+            # try tbb.pc from system
+            if(NOT ANDROID AND ENABLE_SYSTEM_TBB)
+                find_package(PkgConfig QUIET)
+                if(PkgConfig_FOUND)
+                    macro(_ov_pkg_config_tbb_unset)
+                        # unset since it affects OpenVINOConfig.cmake.in
+                        unset(tbb_FOUND)
+                        unset(tbb_FOUND CACHE)
+                    endmacro()
+                    pkg_search_module(tbb QUIET
+                                      IMPORTED_TARGET GLOBAL
+                                      tbb)
+                    if(tbb_FOUND)
+                        # parse version
+                        string(REGEX REPLACE "~.*" "" tbb_VERSION_PATCHED "${tbb_VERSION}")
+                        if(tbb_VERSION_PATCHED AND tbb_VERSION_PATCHED VERSION_LESS _ov_minimal_tbb_version)
+                            _ov_pkg_config_tbb_unset()
+                            message(WARNING "Found TBB ${tbb_VERSION} via ${PKG_CONFIG_EXECUTABLE} while OpenVINO requies ${_ov_minimal_tbb_version} at least")
+                        elseif(TARGET PkgConfig::tbb)
+                            add_library(TBB::tbb ALIAS PkgConfig::tbb)
+                            set(TBB_VERSION ${tbb_VERSION})
+                            set(TBB_FOUND ${tbb_FOUND})
+
+                            # note: for python wheels we need to find and install tbbmalloc as well
+                            _ov_get_tbb_location(PkgConfig::tbb tbb_loc)
+                            string(REPLACE "tbb" "tbbmalloc" tbbmalloc_loc "${tbb_loc}")
+                            if(EXISTS "${tbbmalloc_loc}")
+                                add_library(TBB::tbbmalloc SHARED IMPORTED)
+                                set_target_properties(TBB::tbbmalloc PROPERTIES IMPORTED_LOCATION ${tbbmalloc_loc})
+                            endif()
+
+                            message(STATUS "${PKG_CONFIG_EXECUTABLE}: tbb (${tbb_VERSION}) is found at ${tbb_PREFIX}")
+                        else()
+                            _ov_pkg_config_tbb_unset()
+
+                            if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
+                                # package managers require system TBB
+                                set(message_type FATAL_ERROR)
+                            else()
+                                set(message_type WARNING)
+                            endif()
+                            message(${message_type} "cmake v${CMAKE_VERSION} contains bug in function 'pkg_search_module', need to update to at least v3.16.0 version")
+                        endif()
+                    endif()
+                endif()
+            endif()
+
+            if(NOT TBB_FOUND)
+                # system TBB failed to be found
+                set(ENABLE_SYSTEM_TBB OFF CACHE BOOL "" FORCE)
+
+                # TBB on system is not found, download prebuilt one
+                # if TBBROOT env variable is not defined
+                ov_download_tbb()
+
+                # fallback variant for TBB 2018 and older where TBB have not had cmake interface
+                if(DEFINED TBBROOT OR DEFINED ENV{TBBROOT})
+                    # note: if TBB older than 2017.0 is passed, cmake will skip it and THREADING=SEQ will be used
+                    set(_tbb_paths PATHS "${IEDevScripts_DIR}/tbb")
+                endif()
+
+                # try to find one more time
+                find_package(TBB QUIET COMPONENTS tbb tbbmalloc
+                             # TBB_DIR can be provided by ov_download_tbb
+                             HINTS ${TBB_DIR}
+                             ${_tbb_paths}
+                             ${_find_package_no_args}
+                             NO_CMAKE_PATH
+                             NO_CMAKE_ENVIRONMENT_PATH)
+            endif()
+        endif()
+
+        # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
         if(TBB_FOUND AND NOT TBB_IMPORTED_TARGETS)
-            foreach(target TBB::tbb TBB::tbbmalloc)
+            foreach(target TBB::tbb TBB::tbbmalloc TBB::tbbbind_2_5)
                 if(TARGET ${target})
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()
             endforeach()
         endif()
+
+        if(NOT TBB_FOUND)
+            set(THREADING "SEQ")
+            set(ENABLE_TBBBIND_2_5 OFF)
+            message(WARNING "TBB was not found by the configured TBB_DIR / TBBROOT path.\
+                             SEQ method will be used.")
+        else()
+            message(STATUS "TBB (${TBB_VERSION}) is found at ${TBB_DIR}")
+        endif()
+
+        unset(_find_package_no_args)
+    endif()
+endmacro()
+
+function(set_ie_threading_interface_for TARGET_NAME)
+    if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
+        # find TBB
+        ov_find_package_tbb()
+
+        # set variables to parent scope to prevent multiple invocations of find_package(TBB)
+        # at the same CMakeLists.txt; invocations in different directories are allowed
+        set(THREADING ${THREADING} PARENT_SCOPE)
         set(TBB_FOUND ${TBB_FOUND} PARENT_SCOPE)
         set(TBB_IMPORTED_TARGETS ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set(TBB_VERSION ${TBB_VERSION} PARENT_SCOPE)
-        if (NOT TBB_FOUND)
-            set(THREADING "SEQ" PARENT_SCOPE)
-            ext_message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
-                                SEQ method will be used.")
-        endif ()
+        set(TBB_DIR ${TBB_DIR} PARENT_SCOPE)
+        set(ENABLE_SYSTEM_TBB ${ENABLE_SYSTEM_TBB} PARENT_SCOPE)
+        set(ENABLE_TBBBIND_2_5 ${ENABLE_TBBBIND_2_5} PARENT_SCOPE)
     endif()
 
     get_target_property(target_type ${TARGET_NAME} TYPE)
 
     if(target_type STREQUAL "INTERFACE_LIBRARY")
         set(LINK_TYPE "INTERFACE")
+        set(COMPILE_DEF_TYPE "INTERFACE")
     elseif(target_type STREQUAL "EXECUTABLE" OR target_type STREQUAL "OBJECT_LIBRARY" OR
            target_type STREQUAL "MODULE_LIBRARY")
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
         # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
         # Affected libraries: inference_engine only
         # TODO: why TBB propogates its headers to inference_engine?
         set(LINK_TYPE "PRIVATE")
+        set(COMPILE_DEF_TYPE "PUBLIC")
     else()
-        ext_message(WARNING "Unknown target type")
+        message(WARNING "Unknown target type")
     endif()
 
     function(ie_target_link_libraries TARGET_NAME LINK_TYPE)
-        if(CMAKE_VERSION VERSION_LESS "3.12.0")
-            if(NOT target_type STREQUAL "OBJECT_LIBRARY")
-                target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
-            else()
-                # Object library may not link to anything.
-                # To add interface include definitions and compile options explicitly.
-                foreach(ITEM IN LISTS ARGN)
-                    if(TARGET ${ITEM})
-                        get_target_property(compile_options ${ITEM} INTERFACE_COMPILE_OPTIONS)
-                        if (compile_options)
-                            target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${compile_options})
-                        endif()
-                        get_target_property(compile_definitions ${ITEM} INTERFACE_COMPILE_DEFINITIONS)
-                        if (compile_definitions)
-                            target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} ${compile_definitions})
-                        endif()
-                    endif()
-                endforeach()
-            endif()
-        else()
-            target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
-        endif()
+        target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${ARGN})
 
         # include directories as SYSTEM
         foreach(library IN LISTS ARGN)
@@ -92,24 +204,38 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 get_target_property(include_directories ${library} INTERFACE_INCLUDE_DIRECTORIES)
                 if(include_directories)
                     foreach(include_directory IN LISTS include_directories)
-                        target_include_directories(${TARGET_NAME} SYSTEM BEFORE
-                            ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                        # cannot include /usr/include headers as SYSTEM
+                        if(NOT "${include_directory}" MATCHES "^/usr.*$")
+                            target_include_directories(${TARGET_NAME} SYSTEM BEFORE
+                                ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
+                        else()
+                            set(_system_library ON)
+                        endif()
                     endforeach()
                 endif()
             endif()
         endforeach()
+
+        if(_system_library)
+            # if we deal with system library (e.i. having /usr/include as header paths)
+            # we cannot use SYSTEM key word for such library
+            set_target_properties(${TARGET_NAME} PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+        endif()
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
+    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
-            ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${TBB_IMPORTED_TARGETS})
+            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
+            ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
+            target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
             set(THREADING "SEQ" PARENT_SCOPE)
-            ext_message(WARNING "TBB was not found by the configured TBB_DIR path.\
-                                 SEQ method will be used for ${TARGET_NAME}")
+            message(WARNING "TBB was not found by the configured TBB_DIR path.\
+                             SEQ method will be used for ${TARGET_NAME}")
         endif ()
     elseif (THREADING STREQUAL "OMP")
         if (WIN32)
@@ -133,22 +259,23 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
         if (NOT OMP_LIBRARIES_RELEASE)
             find_library(OMP_LIBRARIES_RELEASE ${omp_lib_name} ${lib_rel_path} NO_DEFAULT_PATH)
-            ext_message(STATUS "OMP Release lib: ${OMP_LIBRARIES_RELEASE}")
+            message(STATUS "OMP Release lib: ${OMP_LIBRARIES_RELEASE}")
             if (NOT LINUX)
                 find_library(OMP_LIBRARIES_DEBUG ${omp_lib_name} ${lib_dbg_path} NO_DEFAULT_PATH)
                 if (OMP_LIBRARIES_DEBUG)
-                    ext_message(STATUS "OMP Debug lib: ${OMP_LIBRARIES_DEBUG}")
+                    message(STATUS "OMP Debug lib: ${OMP_LIBRARIES_DEBUG}")
                 else ()
-                    ext_message(WARNING "OMP Debug binaries are missed.")
+                    message(WARNING "OMP Debug binaries are missed.")
                 endif ()
             endif ()
         endif ()
 
         if (NOT OMP_LIBRARIES_RELEASE)
-            ext_message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
+            message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
+            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
@@ -174,10 +301,10 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_RELEASE})
             endif ()
         endif ()
-
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)

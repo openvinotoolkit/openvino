@@ -3,15 +3,10 @@
 //
 
 /**
- *  @defgroup ie_cpp_api Inference Engine C++ API
- *  Inference Engine C++ API
- */
-
-/**
  * @brief The macro defines a symbol import/export mechanism essential for Microsoft Windows(R) OS.
- *
  * @file ie_api.h
  */
+
 #pragma once
 
 #if defined(OPENVINO_STATIC_LIBRARY) || defined(USE_STATIC_IE) || (defined(__GNUC__) && (__GNUC__ < 4))
@@ -38,12 +33,24 @@
 
 #if defined(_WIN32)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __declspec(deprecated(msg))
+#    if __cplusplus >= 201402L
+#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) [[deprecated(msg)]]
+#    else
+#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
+#    endif
 #elif defined __INTEL_COMPILER
-#    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#    define INFERENCE_ENGINE_DEPRECATED(msg)      __attribute__((deprecated(msg)))
+#    define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) INFERENCE_ENGINE_DEPRECATED(msg)
 #elif defined(__GNUC__)
 #    define INFERENCE_ENGINE_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#    if __GNUC__ < 6 && !defined(__clang__)
+#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
+#    else
+#        define INFERENCE_ENGINE_ENUM_DEPRECATED(msg) INFERENCE_ENGINE_DEPRECATED(msg)
+#    endif
 #else
 #    define INFERENCE_ENGINE_DEPRECATED(msg)
+#    define INFERENCE_ENGINE_ENUM_DEPRECATED(msg)
 #endif
 
 // Suppress warning "-Wdeprecated-declarations" / C4996

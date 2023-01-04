@@ -36,7 +36,7 @@ if( PYTHONINTERP_FOUND )
   file(TO_CMAKE_PATH "$ENV{HOME}" ENV_HOME)
   find_host_program( CYTHON_EXECUTABLE
     NAMES cython cython.bat cython3
-    HINTS ${_python_path} ${ENV_HOME}/.local/bin
+    HINTS ${_python_path} ${ENV_HOME}/.local/bin $ENV{HOMEBREW_OPT}/cython/bin
     )
 else()
   find_host_program( CYTHON_EXECUTABLE

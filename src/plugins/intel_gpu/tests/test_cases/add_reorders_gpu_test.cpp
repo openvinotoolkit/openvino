@@ -40,17 +40,17 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     topology.add(data("weights1", weights1));
     topology.add(data("weights2", weights2));
 
-    topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }));
-    topology.add(cldnn::reorder("reorder", "input", cldnn::layout(data_types::f32, format::byxf, tensor(4))));
-    topology.add(cldnn::convolution("conv2", { "reorder" }, { "weights2" }));
+    topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights1" }));
+    topology.add(cldnn::reorder("reorder", input_info("input"), cldnn::layout(data_types::f32, format::byxf, tensor(4))));
+    topology.add(cldnn::convolution("conv2", { input_info("reorder") }, { "weights2" }));
 
-    topology.add(cldnn::concatenation("concat", { "conv1", "conv2" }, 1));
+    topology.add(cldnn::concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1));
 
     network network(engine, topology, build_opt);
     network.set_input_data("input", input);
 
     //concatenation accepts inputs in different formats, so no reorders should be added here
-    EXPECT_EQ(network.get_all_primitive_org_ids().size(), size_t(7));
+    ASSERT_EQ(network.get_all_primitive_org_ids().size(), size_t(7));
     auto outputs = network.execute();
 
     float expected_out[] = { 6.34f, 1.34f, 6.86f, 1.46f };
@@ -59,21 +59,29 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     for (auto& it : outputs) {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (size_t cntr = 0; cntr < 2 * 2; cntr++) {
-            EXPECT_NEAR(expected_out[cntr], output[cntr], epsilon);
+            ASSERT_NEAR(expected_out[cntr], output[cntr], epsilon);
         }
     }
 }
 
 template<typename data_t>
-void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis, int num_tiles) {
-    auto get_sizes = [](const tensor& size, tile::tile_axis axis) -> std::pair<int, int> {
+void tile_ref(const memory::ptr input, memory::ptr output, int64_t axis, int num_tiles) {
+    auto get_sizes = [](const layout& l, int64_t axis, size_t rank) -> std::pair<int, int> {
         switch (axis) {
-        case tile::along_b: return std::make_pair(1, size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
-        case tile::along_f: return std::make_pair(size.batch[0], size.feature[0] * size.spatial[2] * size.spatial[1] * size.spatial[0]);
-        case tile::along_z: return std::make_pair(size.batch[0] * size.feature[0], size.spatial[2] * size.spatial[1] * size.spatial[0]);
-        case tile::along_y: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[2], size.spatial[1] * size.spatial[0]);
-        case tile::along_x: return std::make_pair(size.batch[0] * size.feature[0] * size.spatial[2] * size.spatial[1], size.spatial[0]);
-        default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
+            case 0: return std::make_pair(1, l.batch() * l.feature() * l.spatial(2) * l.spatial(1) * l.spatial(0));
+            case 1: return std::make_pair(l.batch(), l.feature() * l.spatial(2) * l.spatial(1) * l.spatial(0));
+            case 2:
+                if (rank > 4)
+                    return std::make_pair(l.batch() * l.feature(), l.spatial(2) * l.spatial(1) * l.spatial(0));
+                else
+                    return std::make_pair(l.batch() * l.feature() * l.spatial(2), l.spatial(1) * l.spatial(0));
+            case 3:
+                if (rank > 4)
+                    return std::make_pair(l.batch() * l.feature() * l.spatial(2), l.spatial(1) * l.spatial(0));
+                else
+                    return std::make_pair(l.batch() * l.feature() * l.spatial(2) * l.spatial(1), l.spatial(0));
+            case 4: return std::make_pair(l.batch() * l.feature() * l.spatial(2) * l.spatial(1), l.spatial(0));
+            default: throw std::invalid_argument("Invalid axis(" + std::to_string(static_cast<int>(axis)) + ") in tile ref version");
         }
     };
 
@@ -82,8 +90,9 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
 
     const data_t* psrc = src.data();
     data_t* pdst = dst.data();
+    const auto& input_layout = input->get_layout();
 
-    auto sizes = get_sizes(input->get_layout().size, axis);
+    auto sizes = get_sizes(input_layout, axis, input_layout.get_rank());
     int outer_dim = sizes.first;
     int inner_dim = sizes.second;
 
@@ -98,7 +107,8 @@ void tile_ref(const memory::ptr input, memory::ptr output, tile::tile_axis axis,
     }
 }
 
-TEST(add_reorders_gpu, basic_reshape_and_tile) {
+template <typename T>
+void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
@@ -106,25 +116,51 @@ TEST(add_reorders_gpu, basic_reshape_and_tile) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", "input", tensor(2, 1, 2, 1)));
-    topology.add(tile("tile", "reshape", tensor(2, 1, 2, 4)));
+    topology.add(reshape("reshape", input_info("input"), tensor(2, 1, 2, 1)));
+    topology.add(tile("tile", input_info("reshape"), std::vector<int64_t>{ 1, 1, 4, 1 }));
 
-    std::vector<float> input_vec = { 1.f, 0.f, 5.f, 1.5f };
+    std::vector<T> input_vec = { 1.f, 0.f, 5.f, 1.5f };
     set_values(input, input_vec);
-    tile_ref<float>(input, output_ref, tile::along_y, 4);
+    tile_ref<T>(input, output_ref, 2, 4);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network;
+
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
 
     //reorder is required as tile accepts only bfyx format
-    EXPECT_EQ(network.get_all_primitive_org_ids().size(), size_t(4));
-    auto outputs = network.execute();
+    ASSERT_EQ(network->get_all_primitive_org_ids().size(), size_t(4));
+    auto outputs = network->execute();
 
     auto output = outputs.at("tile").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ref_ptr(output_ref, get_test_stream());
 
     for (unsigned int i = 0; i < output_ref->count(); ++i) {
-        EXPECT_EQ(output_ptr[i], output_ref_ptr[i]);
+        ASSERT_EQ(output_ptr[i], output_ref_ptr[i]);
     }
+}
+
+TEST(add_reorders_gpu, basic_reshape_and_tile) {
+    test_add_reorders_gpu_basic_reshape_and_tile<float>(false);
+}
+
+TEST(export_import_add_reorders_gpu, basic_reshape_and_tile) {
+    test_add_reorders_gpu_basic_reshape_and_tile<float>(true);
 }

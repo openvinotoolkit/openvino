@@ -6,10 +6,9 @@
 #include "ie_parallel.hpp"
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <math.h>
-#include <mkldnn.hpp>
+#include <onednn/dnnl.h>
 #include <dnnl_extension_utils.h>
 #include <selective_build.h>
-#include <mkldnn_types.h>
 #include <ngraph/opsets/opset8.hpp>
 #include <string>
 #include <utils/bfloat16.hpp>
@@ -17,12 +16,63 @@
 #include <vector>
 
 using namespace InferenceEngine;
-using namespace mkldnn;
-using namespace mkldnn::impl::cpu::x64;
+using namespace dnnl;
+using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+namespace {
+/**
+ * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C] dimensions and
+ * the [D_out, H_out, W_out] dimensions, which are placed in the second input parameter.
+ * 
+ */
+class AdaptivePoolingShapeInfer : public ShapeInferEmptyPads {
+public:
+    explicit AdaptivePoolingShapeInfer(size_t outputs_count) : m_outputs_count(outputs_count) {}
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto& inputDims = input_shapes[0].get();
+        const auto& spatialDims = input_shapes[1].get();
+        const auto inputRank = inputDims.size();
+        const auto spatialDimsSize = spatialDims[0];
+
+        VectorDims outputDims(inputRank);
+        outputDims[0] = inputDims[0];
+        outputDims[1] = inputDims[1];
+        auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr());
+        for (size_t i = 0; i < spatialDimsSize; i++) {
+            outputDims[i + 2] = newSpatialDimsPtr[i];
+        }
+
+        std::vector<VectorDims> result(m_outputs_count, outputDims);
+        return result;
+    }
+
+    port_mask_t get_port_mask() const override {
+        return PortMask(1);
+    }
+
+private:
+    size_t m_outputs_count;
+};
+
+class AdaptivePoolingShapeInferFactory : public ShapeInferFactory {
+public:
+    AdaptivePoolingShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        size_t outputs_count = m_op->get_output_size();
+        return std::make_shared<AdaptivePoolingShapeInfer>(outputs_count);
+    }
+
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
+} // namespace
 
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -48,8 +98,8 @@ bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                           WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                           WeightsSharing::Ptr &cache) : Node(op, eng, cache, AdaptivePoolingShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
       errorPrefix = "Adaptive Pooling layer with name '" + getName() + "' ";
@@ -91,29 +141,14 @@ void AdaptivePooling::getSupportedDescriptors() {
 bool AdaptivePooling::needShapeInfer() const {
     const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
     for (size_t i = 0; i < spatialDimsCount; i++) {
-        if (spatialDimsValue[i] != newSpatialDimsPtr[i])
+        if (spatialDimsValue[i] != newSpatialDimsPtr[i]) {
+            for (size_t j = 0; j < spatialDimsValue.size(); j++) {
+                spatialDimsValue[j] = newSpatialDimsPtr[j];
+            }
             return true;
+        }
     }
     return Node::needShapeInfer();
-}
-
-std::vector<VectorDims> AdaptivePooling::shapeInfer() const {
-    const auto inputDims = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims();
-    const auto spatialDims = getParentEdgesAtPort(1)[0]->getMemory().GetShape().getStaticDims();
-    const auto inputRank = inputDims.size();
-    const auto spatialDimsSize = spatialDims[0];
-
-    VectorDims outputDims(inputRank);
-    outputDims[0] = inputDims[0];
-    outputDims[1] = inputDims[1];
-    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
-    for (size_t i = 0; i < spatialDimsSize; i++) {
-        outputDims[i + 2] = newSpatialDimsPtr[i];
-        spatialDimsValue[i] = newSpatialDimsPtr[i];
-    }
-
-    std::vector<VectorDims> result(outputShapes.size(), outputDims);
-    return result;
 }
 
 void AdaptivePooling::initSupportedPrimitiveDescriptors() {
@@ -148,14 +183,14 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void AdaptivePooling::executeDynamicImpl(mkldnn::stream strm) {
+void AdaptivePooling::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void AdaptivePooling::execute(mkldnn::stream strm) {
+void AdaptivePooling::execute(dnnl::stream strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
-    if (!(inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32))
+    if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32))
         IE_THROW() << errorPrefix << "doesn't support demanded precisions";
 
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();

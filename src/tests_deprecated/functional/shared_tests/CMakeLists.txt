@@ -37,7 +37,7 @@ ie_faster_build(${TARGET_NAME}
 )
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS core imgproc QUIET)
+find_package(OpenCV QUIET COMPONENTS core imgproc)
 if(OpenCV_FOUND)
     target_compile_definitions(${TARGET_NAME} PUBLIC USE_OPENCV)
 else()

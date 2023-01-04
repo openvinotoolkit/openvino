@@ -20,6 +20,7 @@
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
 
+#include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
 #include "eltwise_inst.h"
@@ -31,7 +32,6 @@
 #include "reshape_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
-#include "scale_inst.h"
 #include "depth_to_space_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
@@ -39,12 +39,16 @@
 #include "data_inst.h"
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
+#include "generate_proposals_inst.h"
+#include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "input_layout_inst.h"
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
+#include "dft_inst.h"
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
+#include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
 #include "border_inst.h"
@@ -55,10 +59,12 @@
 #include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
+#include "adaptive_pooling_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "loop_inst.h"
+#include "reverse_inst.h"
 #include "to_string_utils.h"
 #include "runtime/cldnn_itt.hpp"
 #include "runtime/kernels_cache.hpp"
@@ -90,7 +96,7 @@
 #include <sys/resource.h>
 #endif
 
-using namespace ov::runtime::intel_gpu;
+using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -103,14 +109,18 @@ program::program(engine& engine_ref,
       options(options),
       processing_order(),
       tuning_cache(nullptr),
-      is_body_program(is_body_program) {
+      is_body_program(is_body_program),
+      is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
+    query_local_block_io_supported();
+
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     program_node::reset_unique_id();
+
     if (no_optimizations) {
         init_graph();
     } else {
@@ -123,11 +133,15 @@ program::program(engine& engine_ref,
                  build_options const& options,
                  bool is_internal)
     : _engine(engine_ref),
+      _stream(_engine.create_stream()),
       options(options),
       processing_order(),
-      tuning_cache(nullptr) {
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) {
     init_primitives();
     set_options();
+    query_local_block_io_supported();
+
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
                                                                       kernel_selector::KernelBase::get_db().get_batch_header_str()));
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
@@ -135,7 +149,15 @@ program::program(engine& engine_ref,
     build_program(is_internal);
 }
 
+program::program(engine& engine)
+    : _engine(engine),
+      _stream(_engine.create_stream()),
+      options(build_options()),
+      processing_order(),
+      tuning_cache(nullptr),
+      is_subgroup_local_block_io_supported(-1) { }
 program::~program() {
+    query_local_block_io_supported();
 }
 
 void program::init_primitives() {
@@ -152,18 +174,23 @@ void program::init_primitives() {
 }
 
 void program::compile() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
     _kernels_cache->build_all();
 }
 
 void program::init_kernels() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
     for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl())
-            n->get_selected_impl()->init_kernels();
+        if (n->get_selected_impl()) {
+            n->get_selected_impl()->init_kernels(*_kernels_cache);
+            n->get_selected_impl()->reset_kernels_source();
+        }
     }
 }
 
 void program::load_tuning_cache() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
     try {
         tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
     } catch (...) {
@@ -177,6 +204,10 @@ kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring)
 
 kernel::ptr program::get_kernel(kernel_id id) {
     return _kernels_cache->get_kernel(id);
+}
+
+kernels_cache& program::get_kernels_cache() const {
+    return *_kernels_cache;
 }
 
 program::ptr program::build_program(engine& engine,
@@ -213,6 +244,7 @@ program_node const& program::get_node(primitive_id const& id) const {
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("analyze_output_size_handling_need");
     bool handling_needed = false;
 
     // Calculate output size and compare with specified.
@@ -228,9 +260,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto inputSize = prim_node.input().get_output_layout().size;
+            auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(inputSize,
                                                                  filter_size,
@@ -250,9 +282,9 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
                 calc_sliding_window_output_range<swor_mode::all>(primInputSize,
                                                                  filter_size,
@@ -261,7 +293,6 @@ bool program::analyze_output_size_handling_need() {
                                                                  prim->dilation,
                                                                  true,
                                                                  1);
-
             if (specified_output_range != calc_output_range)
                 handling_needed = true;
         } else if (node->is_type<deconvolution>()) {
@@ -275,14 +306,14 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().size;
+            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
                                                                             prim->stride,
-                                                                            {1, 1, 1, 1},
+                                                                            ov::Strides(prim->stride.size(), 1),
                                                                             true,
                                                                             1);
 
@@ -304,11 +335,11 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = prim->size[prim->size.size() - i - 1];
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().size;
+            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
-                ov::CoordinateDiff(prim->pad.begin(), prim->pad.end()),
+                ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
                 prim->stride,
                 ov::Strides(prim->stride.size(), 1),
                 true,
@@ -380,11 +411,11 @@ void program::add_node_dependencies(program_node* node) {
     // add pointers to node's dependencies
     for (auto& dep : deps) {
         try {
-            auto dep_node = nodes_map.at(dep);
-            node->dependencies.push_back(dep_node.get());
+            auto dep_node = nodes_map.at(dep.pid);
+            node->dependencies.push_back({dep_node.get(), dep.idx});
             dep_node->users.push_back(node);
         } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + dep +
+            throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
         }
     }
@@ -402,15 +433,15 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
     // add pointers to node's dependencies
     for (auto& src_dep : src_deps) {
         // do not copy dependencies to nodes which does not belong to the new (subgraph) topology
-        if (nodes_map.find(src_dep->get_primitive()->id) == nodes_map.end())
+        if (nodes_map.find(src_dep.first->get_primitive()->id) == nodes_map.end())
             continue;
 
         try {
-            auto dest_dep = nodes_map.at(src_dep->get_primitive()->id);
-            dest_node->dependencies.push_back(dest_dep.get());
+            auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
+            dest_node->dependencies.push_back({dest_dep.get(), src_dep.second});
             dest_dep->users.push_back(dest_node);
         } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + src_dep->get_primitive()->id +
+            throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
                                      " that is input to: " + src_node->get_primitive()->id);
         }
     }
@@ -434,6 +465,59 @@ void program::set_options() {
 
     if (!options.get<build_option_type::force_implementations>()->forcing.empty()) {
         options.set_option(build_option::optimize_data(true));
+    }
+}
+
+bool program::is_local_block_io_supported() const {
+    if (is_subgroup_local_block_io_supported == -1)
+        throw std::invalid_argument("subgroup_local_block_io_supported has NOT been initialized!");
+
+    return  static_cast<bool>(is_subgroup_local_block_io_supported);
+}
+
+void program::query_local_block_io_supported() {
+    auto& device = _engine.get_device();
+    auto device_info = device->get_info();
+    if (device_info.supports_local_block_io == false)
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+
+    if (is_subgroup_local_block_io_supported != -1)
+        return;
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    std::string kernel_code =
+        "__attribute__((intel_reqd_sub_group_size(8)))"
+        "__attribute__((reqd_work_group_size(8, 1, 1)))"
+        "void kernel is_local_block_io_supported(global uchar* dst) {"
+        "    uint lid = get_sub_group_local_id();"
+        "    uchar val = (uchar)lid * 2;"
+        "    __local uchar tmp_slm[8];"
+        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+        "    barrier(CLK_LOCAL_MEM_FENCE);"
+        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+        "    dst[lid] = read.s0 + 1;"
+        "}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->batch_compilation = true;
+
+    try {
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
+                                                                    kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
+        _kernels_cache_device_query->build_all();
+
+        auto kernel = _kernels_cache_device_query->get_kernel(id);
+        bool is_valid = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(is_valid);
+
+        _kernels_cache_device_query->remove_kernel(id);
+        return;
+    } catch (...) {
+        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
+        return;
     }
 }
 
@@ -497,7 +581,7 @@ void program::pre_optimize_graph(bool is_internal) {
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
-            node->get_output_layout();
+            node->get_output_layouts();
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled()) {
@@ -509,9 +593,13 @@ void program::pre_optimize_graph(bool is_internal) {
 
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
+        apply_opt_pass<prepare_primitive_fusing_through>();
+
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
+
+        apply_opt_pass<select_preferred_formats>(lo);
 
         apply_opt_pass<reorder_inputs>(lo, rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
@@ -578,7 +666,7 @@ void program::post_optimize_graph(bool is_internal) {
     }
 
     if (options.get<build_option_type::optimize_data>()->enabled())
-        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
+        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update loop input/output primitive mappings
     apply_opt_pass<update_loop_primitive_map>();
@@ -586,12 +674,13 @@ void program::post_optimize_graph(bool is_internal) {
 
 // mark if the node is constant assuming that all dependencies are marked properly
 void program::mark_if_constant(program_node& node) {
-    if (node.get_dependencies().empty() || node.is_type<prior_box>()) {
+    if (node.get_dependencies().empty() || node.is_type<prior_box>() ||
+        node.is_type<assign>() || node.is_type<read_value>()) {
         return;
     }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->is_constant()) {
+        if (!dep.first->is_constant()) {
             node.constant = false;
             return;
         }
@@ -617,6 +706,7 @@ void program::mark_if_data_flow(program_node& node) {
 }
 
 void program::transfer_memory_to_device() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
@@ -629,24 +719,19 @@ void program::transfer_memory_to_device() {
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
 
-            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+            if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
             }
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -656,6 +741,7 @@ void program::transfer_memory_to_device() {
 }
 
 void program::cleanup() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
 
@@ -669,6 +755,8 @@ void program::cleanup() {
             }
         }
     }
+
+    _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {
@@ -679,7 +767,7 @@ void program::add_split_outputs() {
 
         if (node->is_type<split>()) {
             auto split_prim = node->as<split>().typed_desc();
-            primitive_id input_id = split_prim->input[0];
+            input_info input(split_prim->input[0]);
             auto split_num = split_prim->output_offsets.size();
 
             // create crop for each split output provided
@@ -688,7 +776,7 @@ void program::add_split_outputs() {
 
                 // create dummy crop primitive and add it to nodes map
                 auto crop_prim =
-                    std::make_shared<crop>(output_id, input_id, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
+                    std::make_shared<crop>(output_id, input, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
                 get_or_create(crop_prim);
             }
         }
@@ -829,23 +917,27 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back(&prev);
+    next.dependencies.push_back({&prev, 0});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
     prev.users.remove(&next);
-    next.dependencies.erase(std::remove(next.dependencies.begin(), next.dependencies.end(), &prev),
-                            next.dependencies.end());
+    next.dependencies.erase(std::remove_if(next.dependencies.begin(), next.dependencies.end(),
+    [&](const std::pair<program_node*, int32_t>& dep) {
+        return &prev == dep.first;
+    }), next.dependencies.end());
 }
 
 void program::remove_all_connections(program_node& node) {
     // since the graph is not topological sorted, we need to remove the node from both dependencies and users
     for (auto& e : node.users) {
-        e->dependencies.erase(std::remove(e->dependencies.begin(), e->dependencies.end(), &node),
-                              e->dependencies.end());
+        e->dependencies.erase(std::remove_if(e->dependencies.begin(), e->dependencies.end(),
+        [&](const std::pair<program_node*, int32_t>& dep) {
+            return &node == dep.first;
+        }), e->dependencies.end());
     }
     for (auto& e : node.dependencies) {
-        e->users.remove(&node);
+        e.first->users.remove(&node);
     }
     node.dependencies.clear();
     node.users.clear();
@@ -877,13 +969,13 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(_extract_id(node1), _extract_id(node2));
 }
 
-void program::replace_all_usages(program_node& old_node, program_node& new_node) {
+void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     // We need a copy of users of old_node because old_node may be removed when doing replace_dependency()
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
         auto user = *(itr++);
-        user->replace_dependency(old_node, new_node);
+        user->replace_dependency(old_node, new_node, remove_if_dangling);
     }
 }
 
@@ -896,12 +988,12 @@ void program::replace(program_node& old_node, program_node& new_node) {
             "Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
 
     auto id = old_node.id();
-    new_node.output_layout = old_node.get_output_layout();
-    new_node.valid_output_layout = old_node.valid_output_layout;
+    new_node.output_layouts = old_node.get_output_layouts();
+    new_node.valid_output_layouts = old_node.valid_output_layouts;
 
     // copy old's dependencies
     while (!old_node.dependencies.empty()) {
-        auto& dep = old_node.dependencies.front();
+        auto& dep = old_node.dependencies.front().first;
         add_connection(*dep, new_node);
         remove_connection(*dep, old_node);
     }
@@ -910,8 +1002,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     for (auto& user : old_node.users) {
         new_node.users.push_back(user);
         for (auto& users_dep : user->dependencies) {
-            if (users_dep == &old_node) {
-                users_dep = &new_node;
+            if (users_dep.first == &old_node) {
+                users_dep.first = &new_node;
                 break;
             }
         }
@@ -934,7 +1026,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<primitive_id&>(new_node.desc->ext_prim_id) = old_node.desc->ext_prim_id;
+    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
+    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())
@@ -967,7 +1060,7 @@ bool program::remove_if_dangling(program_node& node) {
     return true;
 }
 
-bool program::extract_and_remove(program_node& node) {
+bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
@@ -996,8 +1089,8 @@ bool program::extract_and_remove(program_node& node) {
         }
 
         for (auto& dep : node.dependencies) {
-            if (dep->is_type<loop>()) {
-                loop_node& loop = *dep;
+            if (dep.first->is_type<loop>()) {
+                loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
             }
         }
@@ -1006,22 +1099,42 @@ bool program::extract_and_remove(program_node& node) {
     node.dependencies.clear();
 
     if (!node.is_endpoint())
-        replace_all_usages(node, input);
-    else
-        remove_if_dangling(node);
+        replace_all_usages(node, input, false);
+
+    if (std::find(processing_order.begin(), processing_order.end(), &node) != processing_order.end())
+        processing_order.erase(&node);
 
     return true;
 }
 
+bool program::extract_and_remove(program_node& node) {
+    if (extract(node)) {
+        return remove_if_dangling(node);
+    }
+
+    return false;
+}
+
+bool program::move_node(program_node& node,
+                        program_node& new_prev,
+                        program_node& new_next) {
+    if (extract(node)) {
+        add_intermediate(node, new_next, new_prev);
+        return true;
+    }
+
+    return false;
+}
 
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
     auto peer_layout = peer_node.get_output_layout();
-    fused_primitive_desc local_desc;
-    local_desc.node = get_node_ptr(peer_node.id());
+    fused_primitive_desc local_desc(peer_node.get_primitive());
+    local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
+    local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
     if (!peer_node.get_fused_activations_funcs().empty()) {
@@ -1075,7 +1188,7 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back(&dep);
+        fused_node.dependencies.push_back({&dep, 0});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
@@ -1091,7 +1204,7 @@ void program::fuse_nodes(program_node &fused_node,
     for (auto& user : peer_node.users) {
         size_t dep_idx = 0;
         for (auto& dep : user->dependencies) {
-            if (dep->id() == peer_node.id())
+            if (dep.first->id() == peer_node.id())
                 break;
             dep_idx++;
         }
@@ -1117,12 +1230,14 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
             get_inputs().remove(node);
         } else {
             for (auto& dep : node->dependencies) {
-                dep->users.remove(node);
+                dep.first->users.remove(node);
             }
         }
         for (auto& user : node->users) {
-            user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
-                                     user->dependencies.end());
+            user->dependencies.erase(std::remove_if(user->dependencies.begin(), user->dependencies.end(),
+            [&](const std::pair<program_node*, int32_t>& dep) {
+                return node == dep.first;
+            }), user->dependencies.end());
         }
         get_processing_order().erase(node);
         optimized_out.push_back(node->id());
@@ -1159,8 +1274,8 @@ data_types program::get_inference_precision(const program_node& node) const {
     }
     std::vector<data_types> input_dts;
     for (auto& dep : node.get_dependencies()) {
-        if (dep->is_valid_output_layout())
-            input_dts.push_back(dep->get_output_layout().data_type);
+        if (dep.first->is_valid_output_layout())
+            input_dts.push_back(dep.first->get_output_layout().data_type);
     }
 
     // Return f32 data_type as default inference precision if any layout is invalid
@@ -1220,7 +1335,7 @@ program::primitives_info program::get_current_stage_info() const {
         }
         std::vector<primitive_id> dependencies;
         for (auto& a : p->dependencies) {
-            dependencies.push_back(a->id());
+            dependencies.push_back(a.first->id());
         }
 
         std::vector<primitive_id> fused;
@@ -1299,6 +1414,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
+    size_t opt_deconv_layers_b_fs_yx_fsv16 = 0;
     size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
@@ -1314,18 +1430,21 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            auto input_size = node->get_dependency(0).get_output_layout().size;
-            auto ifm = static_cast<uint32_t>(input_size.feature[0]);
-            if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
-                total_dw_conv_layers++;
-            else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
-                total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16 heuristics
-            else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
-                total_grouped_conv_layers++;
+            if (!conv.is_dynamic()) {
+                // In dynamic shape, conv is fixed as a predefined format b_fs_yx_fsv16
+                auto input_size = node->get_dependency(0).get_output_layout().get_tensor();
+                auto ifm = static_cast<uint32_t>(input_size.feature[0]);
+                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
+                    total_dw_conv_layers++;
+                else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
+                    total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
+                                                      // heuristics
+                else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
+                    total_grouped_conv_layers++;
 
-            if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
-                total_1x1_fm_conv_layers++;
-
+                if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
+                    total_1x1_fm_conv_layers++;
+            }
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1334,6 +1453,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         if (prim.type() == cldnn::deconvolution::type_id()) {
             if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
+            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+                opt_deconv_layers_b_fs_yx_fsv16 += 1;
         }
 
         // list of layers that do not support yxfb or perform worse than bfyx
@@ -1363,7 +1484,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
@@ -1371,13 +1491,39 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
+            prim.type() != cldnn::dft::type_id() &&
+            prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
-            prim.type() != cldnn::gather::type_id()) {
+            prim.type() != cldnn::gather::type_id() &&
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::multiclass_nms::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() &&
+            prim.type() != cldnn::tile::type_id() &&
+            prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::gather_tree::type_id() &&
+            prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
+            prim.type() != cldnn::convert_color::type_id() &&
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
         }
 
@@ -1399,19 +1545,48 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reshape::type_id() &&
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::scale::type_id() &&
+            prim.type() != cldnn::dft::type_id() &&
+            prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::fully_connected::type_id() &&
             prim.type() != cldnn::generic_layer::type_id() &&
-            prim.type() != cldnn::quantize::type_id())
+            prim.type() != cldnn::scatter_nd_update::type_id() &&
+            prim.type() != cldnn::broadcast::type_id() &&
+            prim.type() != cldnn::quantize::type_id() &&
+            prim.type() != cldnn::ctc_loss::type_id() &&
+            prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::roi_align::type_id() &&
+            prim.type() != cldnn::matrix_nms::type_id() &&
+            prim.type() != cldnn::adaptive_pooling::type_id() &&
+            prim.type() != cldnn::bucketize::type_id() &&
+            prim.type() != cldnn::roll::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::roi_pooling::type_id() &&
+            prim.type() != cldnn::eye::type_id() &&
+            prim.type() != cldnn::generate_proposals::type_id() &&
+            prim.type() != cldnn::reverse::type_id() &&
+            prim.type() != cldnn::reorg_yolo::type_id() &&
+            prim.type() != cldnn::gemm::type_id() &&
+            prim.type() != cldnn::tile::type_id() &&
+            prim.type() != cldnn::scatter_elements_update::type_id() &&
+            prim.type() != cldnn::gather_tree::type_id() &&
+            prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::multiclass_nms::type_id() &&
+            prim.type() != cldnn::normalize::type_id() &&
+            prim.type() != cldnn::deconvolution::type_id() &&
+            prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
+        }
     }
-
 
     size_t total_conv_layers = lo.get_total_conv_count();
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // b_fs_yx_fsv16 deconv is faster than bfyx deconv with winograd convolution together,
+    // whole topology switch will be perform if at lease one layer can use b_fs_yx_fsv16.
     // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
     // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
@@ -1420,7 +1595,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
-                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
+                                          (num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f || opt_deconv_layers_b_fs_yx_fsv16 >= 1) &&
                                           num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
@@ -1453,7 +1628,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = get_engine();
-    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+    if (engine.get_device_info().supports_immad &&
+        engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
+        engine.configuration().queue_type == queue_types::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }
@@ -1482,7 +1659,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               });
     auto& engine = get_engine();
     int64_t host_alloc = 0;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
@@ -1502,10 +1678,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
         if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                    << cur_vmem << ")" << std::endl;
-            }
+            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                           << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
         #endif
@@ -1522,9 +1696,13 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->is_type<mutable_data>() && node->get_dependencies().empty()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, false));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(engine, pool, *node, *node->get_kernel_impl_params(), 0, false));
         }
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
+}
+
+void program::remove_kernel(kernel_id id) {
+    _kernels_cache->remove_kernel(id);
 }

@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v4 {
 /// \brief Range operation, analogous to `arange()` in Numpy.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an unitialized range operation.
     Range() = default;
 
@@ -53,10 +53,10 @@ private:
 }  // namespace v4
 namespace v0 {
 /// \brief Range operation, analogous to `range()` in Python.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;

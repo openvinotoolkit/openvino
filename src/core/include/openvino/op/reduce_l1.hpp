@@ -13,10 +13,10 @@ namespace v4 {
 /// specified for the normalisation.
 ///
 /// Reduces the tensor, eliminating the specified reduction axes by taking the L1-norm.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceL1 : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceL1", "opset4", util::ArithmeticReductionKeepDims, 4);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a reducet L1-norm operation.
     ReduceL1() = default;
     /// \brief Constructs a reduce L1-norm operation.

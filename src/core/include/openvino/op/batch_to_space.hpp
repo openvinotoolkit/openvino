@@ -20,10 +20,10 @@ namespace v1 {
 ///         D_2 * block_shape[2] - crops_begin[2] - crops_end[2], ...,
 ///         D_{N - 1} * block_shape[N - 1] - crops_begin[N - 1] - crops_end[N - 1]`
 ///         of the same type as `data` input.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchToSpace : public Op {
 public:
     OPENVINO_OP("BatchToSpace", "opset2", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
     BatchToSpace() = default;
     /// \brief Constructs a BatchToSpace operation.
     ///

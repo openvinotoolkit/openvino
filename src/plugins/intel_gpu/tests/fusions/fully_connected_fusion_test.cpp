@@ -19,13 +19,9 @@ using namespace ::tests;
 
 namespace {
 struct fully_connected_test_params {
-    tensor in_shape;
-    tensor out_shape;
-    tensor kernel;
-    tensor stride;
-    tensor pad;
-    tensor dilation;
-    uint32_t groups;
+    ov::PartialShape in_shape;
+    ov::PartialShape out_shape;
+    ov::PartialShape weights_shape;
     data_types data_type;
     format input_format;
     data_types weights_type;
@@ -39,7 +35,9 @@ struct fully_connected_test_params {
 class FullyConnectedFusingTest : public ::BaseFusingTest<fully_connected_test_params> {
 public:
 
-    void execute(fully_connected_test_params& p) {
+    void execute(fully_connected_test_params& p, bool is_dynamic = false) {
+        bo_not_fused.set_option(build_option::allow_new_shape_infer(is_dynamic));
+        bo_fused.set_option(build_option::allow_new_shape_infer(is_dynamic));
         auto input_prim = this->get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, this->bo_not_fused);
         network network_fused(this->engine, this->topology_fused, this->bo_fused);
@@ -50,45 +48,24 @@ public:
     }
 
     layout get_input_layout(fully_connected_test_params& p) {
-        auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
-        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+        return layout{ p.in_shape, p.data_type, p.input_format,};
     }
 
     layout get_per_channel_layout(fully_connected_test_params& p) {
-        return layout{ p.default_type, p.default_format, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
+        return layout{ ov::PartialShape{1, p.out_shape[1]}, p.default_type, p.default_format };
     }
 
     size_t get_output_dim_size(fully_connected_test_params& p) {
-        size_t size = 2;
-        for (auto i : p.out_shape.spatial) {
-            if (i > 1)
-                size++;
-        }
-        return size;
+        return p.out_shape.size();
     }
 
     layout get_weights_layout(fully_connected_test_params& p) {
-        cldnn::tensor weights_tensor;
-        if (p.out_shape.spatial[1] > 1) {
-            // 3d case
-            weights_tensor = cldnn::tensor(p.kernel.batch[0], p.kernel.feature[0], 1, 1);
-        }
-        else {
-            weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]),
-                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
-        }
-        return layout{ p.weights_type, p.weights_format, weights_tensor };
+        return layout{ p.weights_shape, p.weights_type, p.weights_format };
     }
 
     layout get_bias_layout(fully_connected_test_params& p) {
-        if (p.out_shape.spatial[1] > 1) {
-            // 3d case
-            return layout{ p.default_type, format::bfyx, tensor{ 1, 1, 1, p.out_shape.spatial[1] } };
-        }
-        else {
-            return layout{ p.default_type, format::bfyx, tensor{ 1, p.out_shape.feature[0], 1, 1 } };
-        }
+        auto bias_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, 1, p.out_shape[2]} : ov::PartialShape{1, p.out_shape[1]};
+        return layout{ bias_shape, p.default_type, p.default_format };
     }
 };
 
@@ -98,7 +75,7 @@ class FullyConnectedFusingTestOneDNN : public BaseFusingTest<fully_connected_tes
 public:
     void execute(fully_connected_test_params& p) {
         // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_imad)
+        if (!engine.get_device_info().supports_immad)
             return;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
@@ -107,14 +84,12 @@ public:
         const auto& impl_forcing = impl_forcing_bo->forcing;
 
         auto forcing_format = p.input_format;
-        for (auto& forcing : impl_forcing) {
-            if (forcing.first == "conv_prim") {
+        for (auto& forcing : impl_forcing)
+            if (forcing.first == "fc_prim")
                 forcing_format = forcing.second.output_format;
-            }
-        }
 
         implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        bo_fused.set_option(build_option::force_implementations({ { "fc_prim", conv_impl } }));
 
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
@@ -122,56 +97,56 @@ public:
         network_not_fused.set_input_data("input", input_prim);
 
         compare(network_not_fused, network_fused, p);
-        auto find_conv = [](primitive_info& p) -> bool {
-            if (p.original_id == "conv_prim")
-                return true;
-            return false;
-        };
-
-        auto pi_fused = network_fused.get_primitives_info();
-        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
-        if (info_fused != pi_fused.end())
-            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
     }
 
     layout get_input_layout(fully_connected_test_params& p) {
-        auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
-        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+        return layout{ p.in_shape, p.data_type, p.input_format,};
     }
 
     layout get_per_channel_layout(fully_connected_test_params& p) {
-        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+        return layout{ ov::PartialShape{1, p.out_shape[1]}, p.default_type, p.default_format };
     }
 
     size_t get_output_dim_size(fully_connected_test_params& p) {
-        size_t size = 2;
-        for (auto i : p.out_shape.spatial) {
-            if (i > 1)
-                size++;
-        }
-        return size;
+        return p.out_shape.size();
+    }
+
+    layout get_weights_layout(fully_connected_test_params& p) {
+        return layout{ p.weights_shape, p.weights_type, p.weights_format };
+    }
+
+    layout get_bias_layout(fully_connected_test_params& p) {
+        auto bias_shape = p.out_shape.size() == 3 ? ov::PartialShape{1, 1, p.out_shape[2]} : ov::PartialShape{1, p.out_shape[1]};
+        return layout{ bias_shape, p.default_type, p.default_format };
+    }
+
+    layout get_output_layout(fully_connected_test_params& p) {
+        return layout{ p.out_shape, p.data_type, p.input_format };
     }
 };
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 }  // namespace
 
-// in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
-#define CASE_FC_FP32_1 { 1, 1, 3, 1 }, { 1, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_2 { 2, 1, 3, 1 }, { 2, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3 { 2, 32, 1, 1 }, { 2, 16, 1, 1 }, { 16, 32, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_1 { 5, 3, 1, 3 }, { 5, 3, 1, 5 }, { 5, 3, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_2 { 2, 1, 1, 1 }, { 2, 1, 1, 32 }, { 32, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_FC_FP32_3D_3 { 2, 32, 1, 32 }, { 2, 32, 1, 16 }, { 16, 32, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+// in_shape; out_shape; kernel;  data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_FC_FP32_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP32_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
 
-#define CASE_FC_U8S8_1 { 1, 1, 3, 1 }, { 1, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_2 { 2, 1, 3, 1 }, { 2, 4, 1, 1 }, { 4, 1, 3, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3 { 2, 32, 1, 1 }, { 2, 16, 1, 1 }, { 16, 32, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_1 { 2, 32, 1, 3 }, { 2, 32, 1, 16 }, { 16, 3, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_2 { 1, 1, 1, 3 }, { 1, 1, 1, 32 }, { 32, 3, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_3 { 2, 3, 1, 1 }, { 2, 3, 1, 15 }, { 15, 1, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
-#define CASE_FC_U8S8_3D_4 { 1, 512, 1, 1024 }, { 1, 384, 1, 1024 }, { 1024, 1024, 1, 1 }, tensor{ 1 }, tensor{ 0 }, tensor{ 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_1 { 5, 3, 3 }, { 5, 3, 5 }, { 5, 3 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_2 { 2, 1, 1 }, { 2, 1, 32 }, { 32, 1 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define DYN_CASE_FC_FP32_3D_3 { 2, 32, 32 }, { 2, 32, 16 }, { 16, 32 }, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+
+#define CASE_FC_U8S8_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_3D_1 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_3D_2 { 1, 1, 3 }, { 1, 1, 32 }, { 32, 3, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_3D_3 { 2, 3, 1 }, { 2, 3, 15 }, { 15, 1, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_FC_U8S8_3D_4 { 1, 512, 1024 }, { 1, 384, 1024 }, { 1024, 1024, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
@@ -183,9 +158,9 @@ TEST_P(fc_fp32_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "bias", "", padding(), get_output_dim_size(p)),
-        activation("activation", "fc_prim", activation_func::abs),
-        reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        activation("activation", input_info("fc_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -200,6 +175,32 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation, ::testing::ValuesIn(st
     fully_connected_test_params{ CASE_FC_FP32_3D_3, 2, 3 },
 }));
 
+class fc_fp32_activation_dynamic : public FullyConnectedFusingTest {};
+TEST_P(fc_fp32_activation_dynamic, basic) {
+    auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_rank()), test_input_layout.data_type, test_input_layout.format};
+    create_topologies(
+        input_layout("input", dynamic_input_layout),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        activation("activation", input_info("fc_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p, true);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_1, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_2, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_3, 2, 3 },
+}));
+
 class fc_fp32_bias : public FullyConnectedFusingTest {};
 TEST_P(fc_fp32_bias, basic) {
     auto p = GetParam();
@@ -207,9 +208,9 @@ TEST_P(fc_fp32_bias, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", "input", "weights", "", "", padding(), get_output_dim_size(p)),
-        eltwise("bias_add", { "fc_prim", "bias" }, eltwise_mode::sum),
-        reorder("reorder_bfyx", "bias_add", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p)),
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -225,46 +226,31 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_bias, ::testing::ValuesIn(std::vec
     fully_connected_test_params{ CASE_FC_FP32_3D_3, 2, 3 },
 }));
 
-class fc_int8_scale : public FullyConnectedFusingTest {};
-TEST_P(fc_int8_scale, basic) {
+class fc_fp32_bias_dynamic : public FullyConnectedFusingTest {};
+TEST_P(fc_fp32_bias_dynamic, basic) {
     auto p = GetParam();
+    auto test_input_layout = get_input_layout(p);
+    auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
     create_topologies(
-        input_layout("input", get_input_layout(p)),
+        input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data"),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p)),
+        eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
-    execute(p);
+    execute(p, true);
 }
 
-TEST_P(fc_int8_scale, fp16_scale_out) {
-    auto p = GetParam();
-    create_topologies(
-        input_layout("input", get_input_layout(p)),
-        data("weights", get_mem(get_weights_layout(p))),
-        data("bias", get_mem(get_bias_layout(p))),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data", optional_data_type{ data_types::f16 }),
-        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
-    );
-
-    tolerance = 1e-5f;
-    execute(p);
-}
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
-    fully_connected_test_params{ CASE_FC_U8S8_1, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_2, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 3 },
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_bias_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_2, 2, 3 },
+    fully_connected_test_params{ CASE_FC_FP32_3, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_1, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_2, 2, 3 },
+    fully_connected_test_params{ DYN_CASE_FC_FP32_3D_3, 2, 3 },
 }));
 
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};
@@ -278,9 +264,10 @@ TEST_P(fc_int8_quantize_u8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        quantize("quantize", "fc_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
+        quantize("quantize", input_info("fc_prim"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -296,8 +283,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu_fc, fc_int8_quantize_u8, ::testing::ValuesI
     fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 3 },
 }));
 
-class fc_int8_scale_quantize_i8 : public FullyConnectedFusingTest {};
-TEST_P(fc_int8_scale_quantize_i8, basic) {
+class fc_int8_eltwise_quantize_i8 : public FullyConnectedFusingTest {};
+TEST_P(fc_int8_eltwise_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -307,18 +294,19 @@ TEST_P(fc_int8_scale_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data"),
-        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_quantize_i8, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_quantize_i8, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_U8S8_1, 2, 4 },
     fully_connected_test_params{ CASE_FC_U8S8_2, 2, 4 },
     fully_connected_test_params{ CASE_FC_U8S8_3, 2, 4 },
@@ -327,8 +315,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_quantize_i8, ::testing::Valu
     fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 4 },
 }));
 
-class fc_int8_scale_activation_quantize_i8 : public FullyConnectedFusingTest {};
-TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
+class fc_int8_eltwise_activation_quantize_i8 : public FullyConnectedFusingTest {};
+TEST_P(fc_int8_eltwise_activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -338,19 +326,20 @@ TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
-        fully_connected("fc_prim", "input", "weights", "bias", data_types::f32, "", padding(), get_output_dim_size(p)),
-        scale("scale", "fc_prim", "scale_data"),
-        activation("activation_scale", "scale", activation_func::exp),
-        quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+        data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p)),
+        eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation_eltwise", input_info("eltwise"), activation_func::exp),
+        quantize("quantize", input_info("activation_eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise_activation_quantize_i8, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_U8S8_1, 2, 5 },
     fully_connected_test_params{ CASE_FC_U8S8_2, 2, 5 },
     fully_connected_test_params{ CASE_FC_U8S8_3, 2, 5 },
@@ -370,20 +359,20 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8, ::te
 class fc_int8_inputs_fused_fp32_sum : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_int8_inputs_fused_fp32_sum, basic) {
     auto p = GetParam();
-    auto shift_layout = layout{ p.default_type, p.default_format, tensor{ 1, 1, 1, p.kernel.batch[0] } };
+    auto shift_layout = layout{ ov::PartialShape{p.weights_shape[0]}, p.default_type, p.default_format };
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("shift_data", get_mem(shift_layout, 1)),
-        fully_connected("fc_prim", "input", "weights", "bias", cldnn::data_types::f32, "", padding(), get_output_dim_size(p)),
-        eltwise("shift", { "fc_prim", "shift_data" }, eltwise_mode::sum, cldnn::data_types::f32),
-        crop("crop", "shift", get_output_layout(p).size, { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p)),
+        eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
+        crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
+        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.f;
     execute(p);
 }
 

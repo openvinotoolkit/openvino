@@ -111,13 +111,14 @@ TEST_P(eltwise_quantize, u8) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
         data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("out", "quantize", p.default_format, data_types::f32)
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("out", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -129,13 +130,14 @@ TEST_P(eltwise_quantize, i8_per_channel) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -128)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
-        reorder("out", "quantize", p.default_format, data_types::f32)
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::i8),
+        reorder("out", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -182,11 +184,14 @@ TEST_P(eltwise_const_path, not_fuse_to_const_eltwise) {
         data("const1", get_mem(get_input_layout2(p), -10, 10)),
         data("const2", get_mem(get_input_layout2(p), -10, 10)),
         input_layout("input", get_input_layout2(p)),
-        eltwise("eltwise", { "const1", "const2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "input" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("const1"), input_info("const2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("input") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     tolerance = 1e-5f;
     execute(p);
@@ -208,11 +213,14 @@ TEST_P(eltwise_fp32_fsv16, add) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -227,11 +235,38 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_input_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
+
+    implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(eltwise_fp32_fsv16, add_broadcast) {
+    auto p = GetParam();
+    auto eltwise2_layout = layout{ p.default_type, p.default_format, tensor{ 1, 1, get_input_layout(p).spatial(0), 1 } };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("input2", get_input_layout2(p)),
+        data("add_data", get_mem(eltwise2_layout, -10, 10)),
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
+    );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -252,11 +287,14 @@ TEST_P(eltwise_fp32_fsv32, add) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -271,11 +309,14 @@ TEST_P(eltwise_fp32_fsv32, add_per_element) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_input_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::fs_b_yx_fsv32, "eltwise_fs_b_yx_fsv32" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -297,11 +338,14 @@ TEST_P(eltwise_fp32_fsv4, add) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -316,11 +360,14 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_input_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -343,10 +390,10 @@ TEST_P(eltwise_fp32_fused_prims, scale_activation) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        scale("scale", "eltwise", "scale_data"),
-        activation("activation", "scale", activation_func::abs),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("scale", { input_info("eltwise"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::abs),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -359,10 +406,10 @@ TEST_P(eltwise_fp32_fused_prims, eltwise_activation) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("eltwise_data", get_mem(get_input_layout2(p), -10, 10)),
-        eltwise("eltwise1", { "input", "input2" }, p.mode, data_types::f32),
-        eltwise("eltwise2", { "eltwise1", "eltwise_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "eltwise2", activation_func::abs),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise1", { input_info("input"), input_info("input2") }, p.mode, data_types::f32),
+        eltwise("eltwise2", { input_info("eltwise1"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("eltwise2"), activation_func::abs),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -375,10 +422,10 @@ TEST_P(eltwise_fp32_fused_prims, eltwise_activation_with_broadcast) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("eltwise_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise1", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("eltwise2", { "eltwise1", "eltwise_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "eltwise2", activation_func::abs),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise1", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("eltwise2", { input_info("eltwise1"), input_info("eltwise_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("eltwise2"), activation_func::abs),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -424,9 +471,9 @@ TEST_P(eltwise_fp32_scale, 6d) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        scale("scale", "eltwise", "scale_data"),
-        reorder("out", "scale", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("scale", { input_info("eltwise"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -444,11 +491,14 @@ TEST_P(eltwise_fp16_byxf, add) {
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
         data("add_data", get_mem(get_per_channel_layout(p), -10, 10)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        eltwise("add", { "eltwise", "add_data" }, eltwise_mode::sum),
-        activation("activation", "add", activation_func::negative),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        eltwise("add", { input_info("eltwise"), input_info("add_data") }, eltwise_mode::sum),
+        activation("activation", input_info("add"), activation_func::negative),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
+    // Activation won't be fused because onednn doesn't support negative activation
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives++;
 
     implementation_desc eltw_impl = { format::byxf, "generic_eltwise_ref" };
     bo_fused.set_option(build_option::force_implementations({ { "eltwise", eltw_impl } }));
@@ -467,13 +517,14 @@ TEST_P(eltwise_no_pitches_same_dims_quantize, quantize_f32_output) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -128)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, p.input_type),
-        reorder("out", "quantize", p.default_format, data_types::f32)
+        quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, p.input_type),
+        reorder("out", input_info("quantize"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -495,9 +546,9 @@ TEST_P(eltwise_activation, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, p.default_type),
-        activation("activation", "eltwise", activation_func::relu, { 6.0f, 0.0f }),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, p.default_type),
+        activation("activation", input_info("eltwise"), activation_func::relu, { 6.0f, 0.0f }),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;
@@ -509,9 +560,9 @@ TEST_P(eltwise_activation, fp16_out) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         input_layout("input2", get_input_layout2(p)),
-        eltwise("eltwise", { "input", "input2" }, p.mode, data_types::f16),
-        activation("activation", "eltwise", activation_func::relu, { 6.0f, 0.0f }),
-        reorder("out", "activation", p.default_format, data_types::f32)
+        eltwise("eltwise", { input_info("input"), input_info("input2") }, p.mode, data_types::f16),
+        activation("activation", input_info("eltwise"), activation_func::relu, { 6.0f, 0.0f }),
+        reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
     tolerance = 1e-5f;

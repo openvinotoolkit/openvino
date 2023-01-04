@@ -6,15 +6,15 @@ include_guard(GLOBAL)
 
 set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "e65fcc1c6b0f3e9d814e53022c212ec0a2b83197a9df38badb298fb85ccf3acf"
-    "b11368fec2036d96fb703d2a40b171184fefe89f27e74a988ef1ca34260a2bc5")
+    "1ca3566d294c8d269f3a0ad2f5699e9dbb2679a24a455b2cc343612303d867bd"
+    "5667eb028290fbec92220031590ba5f87774a7b638b13178e0dcf8447a4ee8ca")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1875)
-set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
+set(FIRMWARE_PACKAGE_VERSION 20221129_35)
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-22.08.1")
 
 #
 # CMake variables to override default firmware files
@@ -34,16 +34,17 @@ foreach(idx RANGE 0 ${num_firmwares})
     reset_deps_cache(VPU_FIRMWARE_${firmware_name_upper}_FILE)
 
     RESOLVE_DEPENDENCY(VPU_FIRMWARE_${firmware_name_upper}
-        ARCHIVE_UNIFIED VPU/${firmware_name}/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
+        ARCHIVE_UNIFIED myriad/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
         TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
         ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
         FOLDER
-        SHA256 ${hash})
+        SHA256 ${hash}
+        USE_NEW_LOCATION TRUE)
     debug_message(STATUS "${firmware_name}=" ${VPU_FIRMWARE_${firmware_name_upper}})
 
     update_deps_cache(
         VPU_FIRMWARE_${firmware_name_upper}_FILE
-        "${VPU_FIRMWARE_${firmware_name_upper}}/mvnc/${firmware_name_full}"
+        "${VPU_FIRMWARE_${firmware_name_upper}}/${firmware_name_full}"
         "[VPU] ${firmware_name_full} firmware")
 
     find_file(
@@ -80,7 +81,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT myriad)
 
     if(ENABLE_INTEL_MYRIAD AND ENABLE_BEH_TESTS)
@@ -115,10 +116,7 @@ endif()
 # OpenCL compiler
 #
 
-if(LINUX AND NOT ARM
-         AND NOT AARCH64
-         AND LINUX_OS_NAME MATCHES "Ubuntu")
-
+if(LINUX AND HOST_X86_64 AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.27)
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
         set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -137,7 +135,7 @@ if(LINUX AND NOT ARM
             ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
             TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
             ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND"
-            SHA256 "0a864bd0e11cee2d85ac7e451dddae19216c8bc9bb50e1a8e0151ab97d5e3c8d")
+            SHA256 "ad0bc3d94e2c85d8501a4bf2f0c7c75b82244fcadbb69b83369412c75fafaa57")
         debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
 
         update_deps_cache(

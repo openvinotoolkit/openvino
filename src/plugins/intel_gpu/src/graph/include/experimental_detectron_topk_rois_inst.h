@@ -10,23 +10,15 @@
 
 namespace cldnn {
 
-template<>
-struct typed_program_node<experimental_detectron_topk_rois> : public typed_program_node_base<experimental_detectron_topk_rois> {
-    using parent = typed_program_node_base<experimental_detectron_topk_rois>;
-public:
-    using parent::parent;
-
-    const program_node &input(std::size_t index = 0) const { return get_dependency(index); }
-};
-
 using experimental_detectron_topk_rois_node = typed_program_node<experimental_detectron_topk_rois>;
 
 template<>
 class typed_primitive_inst<experimental_detectron_topk_rois> : public typed_primitive_inst_base<experimental_detectron_topk_rois> {
     using parent = typed_primitive_inst_base<experimental_detectron_topk_rois>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(experimental_detectron_topk_rois_node const &node);
+    static layout calc_output_layout(experimental_detectron_topk_rois_node const &node, kernel_impl_params const& impl_param);
 
     static std::string to_string(experimental_detectron_topk_rois_node const &node);
 

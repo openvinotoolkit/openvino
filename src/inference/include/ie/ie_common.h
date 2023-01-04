@@ -142,11 +142,15 @@ inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
 enum ColorFormat : uint32_t {
     RAW = 0u,  ///< Plain blob (default), no extra color processing required
     RGB,       ///< RGB color format
-    BGR,       ///< BGR color format, default in DLDT
+    BGR,       ///< BGR color format, default in OpenVINO
     RGBX,      ///< RGBX color format with X ignored during inference
     BGRX,      ///< BGRX color format with X ignored during inference
-    NV12,      ///< NV12 color format represented as compound Y+UV blob
-    I420,      ///< I420 color format represented as compound Y+U+V blob
+    NV12 INFERENCE_ENGINE_ENUM_DEPRECATED(
+        "This type is deprecated and will be removed in 2023.1 release"),  ///< NV12 color format represented as
+                                                                           ///< compound Y+UV blob
+    I420 INFERENCE_ENGINE_ENUM_DEPRECATED(
+        "This type is deprecated and will be removed in 2023.1 release"),  ///< I420 color format represented as
+                                                                           ///< compound Y+U+V blob
 };
 
 /**
@@ -167,8 +171,10 @@ inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
         PRINT_COLOR_FORMAT(BGR);
         PRINT_COLOR_FORMAT(RGBX);
         PRINT_COLOR_FORMAT(BGRX);
+        IE_SUPPRESS_DEPRECATED_START
         PRINT_COLOR_FORMAT(NV12);
         PRINT_COLOR_FORMAT(I420);
+        IE_SUPPRESS_DEPRECATED_END
 #undef PRINT_COLOR_FORMAT
 
     default:

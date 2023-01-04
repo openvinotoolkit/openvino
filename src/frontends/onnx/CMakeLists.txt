@@ -4,3 +4,7 @@
 
 add_subdirectory(onnx_common)
 add_subdirectory(frontend)
+
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()

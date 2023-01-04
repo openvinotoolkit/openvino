@@ -18,6 +18,7 @@
 #include "low_precision/network_helper.hpp"
 
 #include "ngraph/opsets/opset6.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -41,6 +42,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 } // namespace mvn
 
 MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(MVNTransformation);
     auto matcher = std::make_shared<pattern::op::Or>(OutputVector{
         pattern::wrap_type<ngraph::op::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>() }),
         pattern::wrap_type<ngraph::opset6::MVN>({ pattern::wrap_type<ngraph::opset1::Multiply>(), pattern::wrap_type<ngraph::opset1::Constant>() })
@@ -54,7 +56,7 @@ MVNTransformation::MVNTransformation(const Params& params) : LayerTransformation
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MVNTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -80,28 +82,40 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     if (ov::is_type<op::MVN>(mvn)) {
         reduction_axes = ov::as_type_ptr<op::MVN>(mvn)->get_reduction_axes();
     } else {
-        reduction_axes = ov::as_type_ptr<opset1::Constant>(mvn->get_input_node_shared_ptr(1))->get_axis_set_val();
-    }
+        // MVN-6 allows negative values in reduction axes: [-r, r-1]
+        // given static rank of input data of MVN node, we can recover the exact axis number
+        auto axis_set = ov::as_type_ptr<opset1::Constant>(mvn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
 
-    if (reduction_axes.count(1) == 0) {
-        return true;
-    }
+        Dimension::value_type ndims = 0;
+        if (std::any_of(axis_set.begin(), axis_set.end(), [](int64_t v) { return v < 0; })) {
+            const auto rank = mvn->get_input_partial_shape(0).rank();
+            // we need ndims to deduce exact axis if there are negative values
+            if (rank.is_dynamic()) {
+                return false;
+            }
+            ndims = rank.get_length();
+        }
 
-    bool perTensor = true;
-    const auto rank = mvn->get_input_partial_shape(0).rank();
-    if (rank.is_dynamic()) {
-        return false;
-    }
-
-    for (int i = 2; i < rank.get_length(); ++i) {
-        if (reduction_axes.count(i) == 0) {
-            perTensor = false;
-            break;
+        for (auto& axis : axis_set) {
+            reduction_axes.insert(axis >= 0 ? axis : axis + ndims);
         }
     }
 
-    bool isScalarScales = NetworkHelper::isScalarLike(dequantization.multiplyConstant);
-    return perTensor && isScalarScales;
+    // scale-only-dequantization maybe per-channel or per-tensor
+    // and it can be pushed-through MVN node only if there is one consistent
+    // scale applied within a single normalization slice.
+    // per-tensor scale-only-dequantization can always satisfy that
+    if (NetworkHelper::isScalarLike(dequantization.multiplyConstant)) {
+        return true;
+    }
+
+    // per-channel scale-only-dequantization can be pushed through MVN only
+    // if the channel dimension is not among the reduction_axes (so a single
+    // scale is applied to the whole normalization slice)
+    if (reduction_axes.count(dequantization.channelDimIndex) == 0)
+        return true;
+
+    return false;
 }
 
 bool MVNTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {

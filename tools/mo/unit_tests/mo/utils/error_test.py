@@ -8,7 +8,7 @@ from openvino.tools.mo.utils.error import classify_error_type
 
 class TestingErrorClassifier(unittest.TestCase):
     def test_no_module(self):
-        message = "No module named 'openvino.offline_transformations.offline_transformations_api'"
+        message = "No module named 'openvino._offline_transformations.offline_transformations_api'"
         self.assertEqual(classify_error_type(message), message)
 
     def test_no_module_neg(self):

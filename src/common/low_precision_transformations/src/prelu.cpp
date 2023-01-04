@@ -12,12 +12,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 PReluTransformation::PReluTransformation(const Params& params) : LayerTransformation(params) {
+    MATCHER_SCOPE(PReluTransformation);
     auto matcher = pattern::wrap_type<opset1::PRelu>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -28,7 +30,7 @@ PReluTransformation::PReluTransformation(const Params& params) : LayerTransforma
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "PReluTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

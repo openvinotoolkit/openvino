@@ -10,15 +10,12 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id embedding_bag::type_id() {
-    static primitive_type_base<embedding_bag> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(embedding_bag)
 
-layout embedding_bag_inst::calc_output_layout(embedding_bag_node const& node) {
-    auto desc = node.get_primitive();
+layout embedding_bag_inst::calc_output_layout(embedding_bag_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<embedding_bag>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto output_format = input_layout.format;
 
     auto output_shape = desc->output_shape;

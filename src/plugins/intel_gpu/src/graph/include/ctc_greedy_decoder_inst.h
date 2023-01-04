@@ -30,9 +30,10 @@ using ctc_greedy_decoder_node = typed_program_node<ctc_greedy_decoder>;
 template <>
 class typed_primitive_inst<ctc_greedy_decoder> : public typed_primitive_inst_base<ctc_greedy_decoder> {
     using parent = typed_primitive_inst_base<ctc_greedy_decoder>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(ctc_greedy_decoder_node const& node);
+    static layout calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(ctc_greedy_decoder_node const& node);
 
 public:

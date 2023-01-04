@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
-
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+
 from unit_tests.utils.graph import build_graph
 
 
@@ -156,11 +156,11 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_fusable_precommit)
     @pytest.mark.precommit
     def test_NormalizeL2_fusable_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_new_frontend, api_2):
+                                           use_new_frontend, use_old_api):
         self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version,
                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_non_fusable_precommit = [
         pytest.param(dict(shape=[2, 3, 5], axes=[0, 1, 2], output_axes=[0, 1, 2]),
@@ -174,17 +174,17 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_non_fusable_precommit)
     @pytest.mark.precommit
     def test_NormalizeL2_non_fusable_precommit(self, params, ie_device, precision, ir_version,
-                                               temp_dir, use_new_frontend, api_2):
+                                               temp_dir, use_new_frontend, use_old_api):
         self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version,
                                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_fusable = [
         dict(shape=[5, 6], axes=[1], output_axes=[1]),
         dict(shape=[2, 3, 5], axes=[1], output_axes=[1]),
         dict(shape=[2, 3, 5], axes=[-2], output_axes=[1]),
-        dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]),
+        pytest.param(dict(shape=[2, 3, 5], axes=[1, -1], output_axes=[1, 2]), marks=pytest.mark.precommit_tf_fe),
         dict(shape=[2, 3, 5, 7], axes=[-1], output_axes=[1]),
         dict(shape=[2, 3, 5, 7], axes=[1, 2, 3], output_axes=[2, 3, 1]),
     ]
@@ -192,11 +192,11 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_fusable)
     @pytest.mark.nightly
     def test_NormalizeL2_fusable(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend, api_2):
+                                 use_new_frontend, use_old_api):
         self._test(*self.create_normalize_l2_net_fusable(**params, ir_version=ir_version,
                                                          use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_non_fusable = [
         dict(shape=[5], axes=[0], output_axes=[0]),
@@ -218,8 +218,8 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_non_fusable)
     @pytest.mark.nightly
     def test_NormalizeL2_non_fusable(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_new_frontend, api_2):
+                                     use_new_frontend, use_old_api):
         self._test(*self.create_normalize_l2_net_non_fusable(**params, ir_version=ir_version,
                                                              use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version,
-                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, api_2=api_2)
+                   temp_dir=temp_dir, use_new_frontend=use_new_frontend, use_old_api=use_old_api)

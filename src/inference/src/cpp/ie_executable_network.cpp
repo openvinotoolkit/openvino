@@ -96,11 +96,11 @@ void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), _so});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetConfig(name), {_so}});
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), _so});
+    EXEC_NET_CALL_STATEMENT(return {_impl->GetMetric(name), {_so}});
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
@@ -181,7 +181,7 @@ ov::Output<const ov::Node> CompiledModel::output() const {
     OV_EXEC_NET_CALL_STATEMENT({
         const auto outputs = _impl->getOutputs();
         if (outputs.size() != 1) {
-            throw ov::Exception("output() must be called on a function with exactly one parameter.");
+            throw ov::Exception("output() must be called on a function with exactly one result.");
         }
         return outputs.at(0);
     });
@@ -214,6 +214,9 @@ void CompiledModel::set_property(const AnyMap& config) {
 
 Any CompiledModel::get_property(const std::string& name) const {
     OV_EXEC_NET_CALL_STATEMENT({
+        if (ov::loaded_from_cache == name) {
+            return _impl->isLoadedFromCache();
+        }
         if (ov::supported_properties == name) {
             try {
                 auto supported_properties = _impl->GetMetric(name).as<std::vector<PropertyName>>();
@@ -239,19 +242,20 @@ Any CompiledModel::get_property(const std::string& name) const {
                     supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
+                supported_properties.emplace_back(ov::loaded_from_cache.name(), PropertyMutability::RO);
                 return supported_properties;
             }
         }
         try {
-            return {_impl->GetMetric(name), _so};
+            return {_impl->GetMetric(name), {_so}};
         } catch (ie::Exception&) {
-            return {_impl->GetConfig(name), _so};
+            return {_impl->GetConfig(name), {_so}};
         }
     });
 }
 
 RemoteContext CompiledModel::get_context() const {
-    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), _so});
+    OV_EXEC_NET_CALL_STATEMENT(return {_impl->GetContext(), {_so}});
 }
 
 bool CompiledModel::operator!() const noexcept {

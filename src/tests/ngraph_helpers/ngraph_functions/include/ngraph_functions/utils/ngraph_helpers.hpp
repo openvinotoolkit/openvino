@@ -123,7 +123,8 @@ enum ActivationTypes {
     RoundHalfToEven,
     RoundHalfAwayFromZero,
     GeluErf,
-    GeluTanh
+    GeluTanh,
+    SoftSign
 };
 
 enum EltwiseTypes {
@@ -141,6 +142,9 @@ enum EltwiseTypes {
 enum ComparisonTypes {
     EQUAL,
     NOT_EQUAL,
+    IS_FINITE,
+    IS_INF,
+    IS_NAN,
     LESS,
     LESS_EQUAL,
     GREATER,
@@ -318,7 +322,9 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type);
 
 std::ostream& operator<<(std::ostream & os, MemoryTransformation type);
 
-std::ostream& operator<<(std::ostream & os, op::util::NmsBase::SortResultType type);
+std::ostream& operator<<(std::ostream & os, op::util::MulticlassNmsBase::SortResultType type);
+
+std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::SortResultType type);
 
 std::ostream& operator<<(std::ostream & os, op::v8::MatrixNms::DecayFunction type);
 

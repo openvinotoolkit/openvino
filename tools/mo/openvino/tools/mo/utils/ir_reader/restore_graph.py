@@ -5,6 +5,7 @@ import logging as log
 from copy import copy
 
 from openvino.tools.mo.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
+from openvino.tools.mo.back.ShapeOfConstFolding import ShapeOfConstFolding
 from openvino.tools.mo.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from openvino.tools.mo.back.PackBinaryWeights import PackBinaryWeights
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
@@ -41,7 +42,7 @@ def restore_graph_from_ir(path_to_xml: str, path_to_bin: str = None) -> (Graph, 
     return new_graph, copy(ir.meta_data)
 
 
-def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
+def save_restored_graph(graph: Graph, path: str, meta_data, name=None, rename_results=True):
     """
     Function to apply all necessary transforms from back stage to prepare and save restored graph and metadata.
     :param graph: Graph to save
@@ -72,6 +73,7 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     # List items order matters, do not change it.
     transformation_list = [
         ConvolutionWithGroupsResolver,
+        ShapeOfConstFolding,
         StridedSliceMasksNormalizer,
         PackBinaryWeights,
         BlobNormalizer,
@@ -86,4 +88,4 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 
-    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data)
+    prepare_emit_ir(graph, data_type, path, name, meta_info=meta_data, rename_results=rename_results)

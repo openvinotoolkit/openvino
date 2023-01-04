@@ -47,13 +47,13 @@ _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 
 @nameable_op
 def ctc_greedy_decoder_seq_len(
-        data: NodeInput,
-        sequence_length: NodeInput,
-        blank_index: Optional[NodeInput] = None,
-        merge_repeated: bool = True,
-        classes_index_type: str = "i32",
-        sequence_length_type: str = "i32",
-        name: Optional[str] = None,
+    data: NodeInput,
+    sequence_length: NodeInput,
+    blank_index: Optional[NodeInput] = None,
+    merge_repeated: bool = True,
+    classes_index_type: str = "i32",
+    sequence_length_type: str = "i32",
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs CTCGreedyDecoderSeqLen.
 
@@ -68,11 +68,7 @@ def ctc_greedy_decoder_seq_len(
     else:
         inputs = as_nodes(data, sequence_length)
 
-    attributes = {
-        "merge_repeated": merge_repeated,
-        "classes_index_type": classes_index_type,
-        "sequence_length_type": sequence_length_type
-    }
+    attributes = {"merge_repeated": merge_repeated, "classes_index_type": classes_index_type, "sequence_length_type": sequence_length_type}
 
     return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
 
@@ -93,9 +89,7 @@ def gather_elements(
     """
     inputs = as_nodes(data, indices)
 
-    attributes = {
-        "axis": axis
-    }
+    attributes = {"axis": axis}
 
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
 
@@ -122,11 +116,7 @@ def mvn(
     """
     inputs = as_nodes(data, axes)
 
-    attributes = {
-        "normalize_variance": normalize_variance,
-        "eps": eps,
-        "eps_mode": eps_mode
-    }
+    attributes = {"normalize_variance": normalize_variance, "eps": eps, "eps_mode": eps_mode}
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
@@ -140,11 +130,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param name:         Optional name for output node.
     :return: Assign node
     """
-    return _get_node_factory_opset6().create(
-        "Assign",
-        [as_node(new_value)],
-        {"variable_id": variable_id}
-    )
+    return _get_node_factory_opset6().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
 
 
 @nameable_op
@@ -156,8 +142,4 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _get_node_factory_opset6().create(
-        "ReadValue",
-        [as_node(init_value)],
-        {"variable_id": variable_id}
-    )
+    return _get_node_factory_opset6().create("ReadValue", [as_node(init_value)], {"variable_id": variable_id})

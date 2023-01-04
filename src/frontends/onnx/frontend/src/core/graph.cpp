@@ -9,6 +9,7 @@
 #include <numeric>
 #include <sstream>
 
+#include "core/transform.hpp"
 #include "core/value_info.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
@@ -17,24 +18,21 @@
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/frontend/onnx/extension/conversion.hpp"
+#include "openvino/frontend/onnx/node_context.hpp"
+#include "ops_bridge.hpp"
 #include "utils/common.hpp"
+#include "utils/legacy_conversion_extension.hpp"
 
 namespace ngraph {
 namespace onnx_import {
 namespace detail {
-static std::string to_string(
-    const std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>>& map) {
+std::string to_string(const std::map<std::string, std::reference_wrapper<const ONNX_NAMESPACE::NodeProto>>& map) {
     std::string result;
     for (auto it = std::begin(map); it != std::end(map); ++it) {
         result += (it != std::begin(map) ? ", " : "") + it->first;
     }
     return result;
-}
-
-inline std::string generate_result_name(const std::string& onnx_output_name,
-                                        const std::shared_ptr<ov::Node>& result_node) {
-    auto output_index = result_node->input(0).get_source_output().get_index();
-    return onnx_output_name + "/sink_port_" + std::to_string(output_index);
 }
 
 /// \brief      Gets the operator represented by provided node unique identificator.
@@ -51,23 +49,108 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     std::string domain = get_node_domain(node_proto);
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
+
+bool common_node_for_all_outputs(const OutputVector& outputs) {
+    const auto first_out_node = outputs.at(0).get_node();
+    bool ret = std::all_of(std::next(std::begin(outputs)),
+                           std::end(outputs),
+                           [first_out_node](const OutputVector::value_type& output) {
+                               return output.get_node() == first_out_node;
+                           });
+    return ret;
+};
+
+OperatorsBridge init_ops_bridge(const std::vector<ov::frontend::ConversionExtensionBase::Ptr>& conversions) {
+    OperatorsBridge bridge;
+    for (const auto& extension : conversions) {
+        if (const auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+            bridge.overwrite_operator(
+                common_conv_ext->get_op_type(),
+                "",
+                [common_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
+                    return common_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
+                });
+        } else if (const auto onnx_conv_ext =
+                       std::dynamic_pointer_cast<ov::frontend::onnx::ConversionExtension>(extension)) {
+            bridge.overwrite_operator(onnx_conv_ext->get_op_type(),
+                                      onnx_conv_ext->get_domain(),
+                                      [onnx_conv_ext](const ngraph::onnx_import::Node& node) -> OutputVector {
+                                          return onnx_conv_ext->get_converter()(ov::frontend::onnx::NodeContext(node));
+                                      });
+        } else if (const auto legacy_conv_extension = std::dynamic_pointer_cast<LegacyConversionExtension>(extension)) {
+            return legacy_conv_extension->ops_bridge();
+        }
+    }
+    return bridge;
+}
+
+Model::ModelOpSet build_model_opset(const ONNX_NAMESPACE::ModelProto& model_proto, const OperatorsBridge& ops_bridge) {
+    // copy the opset imports from the ONNX model and sort them by their version in ascending order
+    // this will make sure that multiple opset imports for the same domain will cause the largest
+    // version to be used for this model, for example:
+    // [{domain:"", version:11}, {domain:"", version:1} {domain:"", version:13}] ==> {domain:"", version:13}
+    auto opset_imports = model_proto.opset_import();
+    const auto sort_by_version_ascending = [](const ONNX_NAMESPACE::OperatorSetIdProto& lhs,
+                                              const ONNX_NAMESPACE::OperatorSetIdProto& rhs) {
+        return lhs.version() < rhs.version();
+    };
+    std::sort(std::begin(opset_imports), std::end(opset_imports), sort_by_version_ascending);
+
+    Model::ModelOpSet opset;
+    std::for_each(opset_imports.rbegin(),
+                  opset_imports.rend(),
+                  [&opset, &ops_bridge](const ONNX_NAMESPACE::OperatorSetIdProto& onnx_opset) {
+                      const auto domain =
+                          onnx_opset.has_domain() ? onnx_opset.domain() == "ai.onnx" ? "" : onnx_opset.domain() : "";
+                      if (opset.find(domain) == std::end(opset)) {
+                          opset[domain] = ops_bridge.get_operator_set(domain, onnx_opset.version());
+                      }
+                  });
+
+    // onnx.proto(.3): the empty string ("") for domain or absence of opset_import field
+    // implies the operator set that is defined as part of the ONNX specification.
+    const auto dm = opset.find("");
+    if (dm == std::end(opset)) {
+        opset[""] = ops_bridge.get_operator_set("", ONNX_OPSET_VERSION);
+    }
+
+    return opset;
+}
+
+/// Copies only the extensions required by the Subgraph class.
+/// The source is an extension holder retrieved from the parent graph object.
+ov::frontend::ExtensionHolder subgraph_required_extensions(
+    const ov::frontend::ExtensionHolder& parent_graph_extensions) {
+    ov::frontend::ExtensionHolder extensions;
+    extensions.telemetry = parent_graph_extensions.telemetry;
+    extensions.conversions = parent_graph_extensions.conversions;
+    return extensions;
+}
 }  // namespace detail
 
-Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, ov::frontend::ExtensionHolder extensions)
-    : Graph(model_proto, common::make_unique<GraphCache>(), std::move(extensions)) {}
+Graph::Graph(const std::string& model_dir,
+             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+             ov::frontend::ExtensionHolder extensions)
+    : Graph(model_dir, model_proto, common::make_unique<GraphCache>(), std::move(extensions)) {}
 
-Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
+Graph::Graph(const std::string& model_dir,
+             const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              ov::frontend::ExtensionHolder extensions)
-    : m_model{common::make_unique<Model>(model_proto)},
-      m_cache{std::move(cache)},
-      m_extensions{std::move(extensions)} {
+    : m_cache{std::move(cache)},
+      m_extensions{std::move(extensions)},
+      m_model_dir{model_dir} {
+    const auto ops_bridge = detail::init_ops_bridge(m_extensions.conversions);
+    m_model = common::make_unique<Model>(model_proto, detail::build_model_opset(*model_proto, ops_bridge));
+
+    transform::expand_onnx_functions(*model_proto);
+
     std::map<std::string, Tensor> initializers;
 
     // Process all initializers in the graph
     for (const auto& initializer_tensor : m_model->get_graph().initializer()) {
         if (initializer_tensor.has_name()) {
-            Tensor tensor = Tensor{initializer_tensor};
+            Tensor tensor = Tensor{initializer_tensor, m_model_dir};
             std::shared_ptr<default_opset::Constant> ng_constant;
             // For each initializer create a Constant node and store it in cache
             try {
@@ -106,15 +189,14 @@ Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
         }
         if (!m_model->is_operator_available(node_proto)) {
             unknown_operators.emplace(detail::get_op_domain_and_name(node_proto), node_proto);
-            // If a node from an unregistered domain is detected, try registering that
-            // domain
-            m_model->enable_opset_domain(get_node_domain(node_proto));
+            // If a node from an unregistered domain is detected, try registering that domain
+            m_model->enable_opset_domain(get_node_domain(node_proto), ops_bridge);
         }
     }
 
     if (m_extensions.telemetry) {
         for (const auto& op : op_statistics) {
-            m_extensions.telemetry->send_event("op_count", "onnx_" + op.first, op.second);
+            m_extensions.telemetry->send_event("op_count", "onnx_" + op.first, static_cast<int>(op.second));
         }
     }
 
@@ -148,7 +230,7 @@ void Graph::convert_to_ngraph_nodes() {
         }
         OutputVector ng_nodes{make_ng_nodes(node)};
         ++completed;
-        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
+        m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
 }
 
@@ -180,10 +262,21 @@ void Graph::remove_dangling_parameters() {
     }
 }
 
+void Graph::set_metadata(std::shared_ptr<ov::Model>& model) const {
+    const std::string framework_section = "framework";
+    const auto metadata = m_model->get_metadata();
+
+    for (const auto& pair : metadata) {
+        model->set_rt_info(pair.second, framework_section, pair.first);
+    }
+}
+
 std::shared_ptr<Function> Graph::convert() {
     convert_to_ngraph_nodes();
     remove_dangling_parameters();
-    return create_function();
+    auto function = create_function();
+    set_metadata(function);
+    return function;
 }
 
 OutputVector Graph::make_framework_nodes(const Node& onnx_node) {
@@ -223,10 +316,10 @@ void Graph::decode_to_framework_nodes() {
         // Some of them may be optional and trimmed. See:
         // https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
         for (std::size_t i{0}; i < node.get_outputs_size(); ++i) {
-            m_cache->emplace_node(node.output(i), std::move(ng_nodes.at(i)));
+            m_cache->emplace_node(node.output(static_cast<int>(i)), std::move(ng_nodes.at(i)));
         }
         ++completed;
-        m_extensions.progress_reporter->report_progress(completed / total, total, completed);
+        m_extensions.progress_reporter->report_progress(completed / total, static_cast<unsigned int>(total), completed);
     }
 }
 
@@ -234,9 +327,11 @@ std::shared_ptr<Function> Graph::create_function() {
     auto function = std::make_shared<Function>(get_ng_outputs(), m_parameters, get_name());
     const auto& onnx_outputs = m_model->get_graph().output();
     for (std::size_t i{0}; i < function->get_output_size(); ++i) {
-        // the suffix makes the Result's name unique in case the nodes in the model don't have a name
-        auto ov_result = function->get_output_op(i);
-        ov_result->set_friendly_name(detail::generate_result_name(onnx_outputs.Get(i).name(), ov_result));
+        const auto& result_node = function->get_output_op(i);
+        const std::string onnx_output_name = onnx_outputs.Get(i).name();
+        result_node->set_friendly_name(onnx_output_name + "/sink_port_0");
+        const auto& previous_operation = result_node->get_input_node_shared_ptr(0);
+        previous_operation->set_friendly_name(onnx_output_name);
     }
     return function;
 }
@@ -289,24 +384,41 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) {
         std::rethrow_exception(std::current_exception());
     }
 
+    const size_t outputs_size = std::accumulate(std::begin(ng_subgraph_outputs),
+                                                std::end(ng_subgraph_outputs),
+                                                0,
+                                                [](const size_t lhs, const Output<ov::Node>& rhs) {
+                                                    return lhs + rhs.get_node()->get_output_size();
+                                                });
+    NGRAPH_CHECK(onnx_node.get_outputs_size() <= outputs_size,
+                 "Expected output number of ",
+                 onnx_node.op_type(),
+                 " node is ",
+                 onnx_node.get_outputs_size(),
+                 " while the implementation provides ",
+                 outputs_size,
+                 " outputs");
+
     set_friendly_names(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
         auto ng_node_output = ng_subgraph_outputs.at(i);
-        m_cache->emplace_node(onnx_node.output(i), std::move(ng_node_output));
+        m_cache->emplace_node(onnx_node.output(static_cast<int>(i)), std::move(ng_node_output));
     }
 
     return ng_subgraph_outputs;
 }
 
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
-    if (onnx_node.op_type() == "Identity") {
+    if (std::all_of(std::begin(ng_subgraph_outputs), std::end(ng_subgraph_outputs), common::is_optimized_out)) {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
-            ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
-            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(i));
+            ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(static_cast<int>(i))});
+            ng_subgraph_outputs[i].get_node_shared_ptr()->set_friendly_name(onnx_node.output(static_cast<int>(i)));
         }
         return;
     }
+
+    const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
 
     for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
@@ -315,13 +427,27 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             break;
         }
 
-        ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        const auto& onnx_node_name = onnx_node.get_name();
+        if (onnx_node_name.empty()) {
+            // for multioutput nodes, their friendly name is always set to the last ONNX output's name
+            // this is because this setter is called in a loop and the last call is ultimate for a given node
+            ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.output(i));
+        } else {
+            if (common_node) {
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name());
+            } else {
+                // if different outputs are produced by different nodes, then those nodes need to be given
+                // unique friendly names
+                ng_subgraph_outputs[i].get_node()->set_friendly_name(onnx_node.get_name() + "_" + onnx_node.output(i));
+            }
+        }
 
         // null node does not have tensor
         if (!ngraph::op::is_null(ng_subgraph_outputs[i])) {
-            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(static_cast<int>(i))});
             NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
+            ov::descriptor::set_ov_tensor_legacy_name(ng_subgraph_outputs[i].get_tensor(),
+                                                      onnx_node.output(static_cast<int>(i)));
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
     }
@@ -331,13 +457,12 @@ const OpsetImports& Graph::get_opset_imports() const {
     return m_model->get_opset_imports();
 }
 
-Subgraph::Subgraph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, const Graph* parent_graph)
-    : Graph(model_proto, common::make_unique<GraphCache>()),
-      m_parent_graph(parent_graph) {
-    // do not copy a pre-configured progress reporter extension to the subgraph, copy just the telemetry
-    // (do not report subgraph conversion progress)
-    m_extensions.telemetry = parent_graph->get_extensions().telemetry;
-}
+Subgraph::Subgraph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto, const Graph* parent_graph)
+    : Graph(parent_graph->model_dir(),
+            model_proto,
+            common::make_unique<GraphCache>(),
+            detail::subgraph_required_extensions(parent_graph->get_extensions())),
+      m_parent_graph(parent_graph) {}
 
 bool Subgraph::is_ng_node_in_cache(const std::string& name) const {
     if (m_cache->contains(name)) {
@@ -387,7 +512,7 @@ OutputVector Subgraph::make_framework_nodes(const Node& onnx_node) {
 
 void Subgraph::replace_input_from_parent_scope_with_parameter(const Node& onnx_node) {
     for (std::size_t i = 0; i < onnx_node.get_inputs_size(); ++i) {
-        const auto& in_name = onnx_node.input(i);
+        const auto& in_name = onnx_node.input(static_cast<int>(i));
         if (m_parent_graph->is_ng_node_in_cache(in_name) &&
             std::find(m_inputs_from_parent.begin(), m_inputs_from_parent.end(), in_name) ==
                 m_inputs_from_parent.end()) {

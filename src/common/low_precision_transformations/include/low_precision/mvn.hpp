@@ -15,7 +15,7 @@ namespace low_precision {
  * @brief MVNTransformation propagates dequantization operations through MVN operation.
  *
  * For more details about the transformation, refer to
- * [MVNTransformation](@ref openvino_docs_IE_DG_lpt_MVNTransformation) page
+ * [MVNTransformation](@ref openvino_docs_OV_UG_lpt_MVNTransformation) page
  * in the Inference Engine Developer Guide.
  */
 class LP_TRANSFORMATIONS_API MVNTransformation : public LayerTransformation {

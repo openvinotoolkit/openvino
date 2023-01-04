@@ -11,10 +11,10 @@ namespace op {
 namespace v6 {
 /// \brief Operator performing CTCGreedyDecoder
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API CTCGreedyDecoderSeqLen : public Op {
 public:
     OPENVINO_OP("CTCGreedyDecoderSeqLen", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
     CTCGreedyDecoderSeqLen() = default;
     /// \brief Constructs a CTCGreedyDecoderSeqLen operation
     ///

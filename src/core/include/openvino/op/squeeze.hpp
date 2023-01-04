@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief Squeeze operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public Op {
 public:
     OPENVINO_OP("Squeeze", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Squeeze();
     Squeeze(const Output<Node>& data, const Output<Node>& axes);

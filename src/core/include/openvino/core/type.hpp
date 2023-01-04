@@ -13,18 +13,21 @@
 #include <utility>
 #include <vector>
 
-#include "ngraph/compatibility.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/deprecated.hpp"
 
 namespace ov {
 
-/// Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
-/// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
-/// Type must have a static type_info member and a virtual get_type_info() member that
-/// returns a reference to its type_info member.
-
-/// Type information for a type system without inheritance; instances have exactly one type not
-/// related to any other type.
+/**
+ * @brief Type information for a type system without inheritance; instances have exactly one type not
+ * related to any other type.
+ *
+ * Supports three functions, ov::is_type<Type>, ov::as_type<Type>, and ov::as_type_ptr<Type> for type-safe
+ * dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
+ * Type must have a static type_info member and a virtual get_type_info() member that
+ * returns a reference to its type_info member.
+ * @ingroup ov_model_cpp_api
+ */
 struct OPENVINO_API DiscreteTypeInfo {
     const char* name;
     OPENVINO_DEPRECATED("This member was deprecated. Please use version_id instead.")
@@ -34,8 +37,8 @@ struct OPENVINO_API DiscreteTypeInfo {
     // exact type identification
     const DiscreteTypeInfo* parent;
 
-    DiscreteTypeInfo() = default;
     OPENVINO_SUPPRESS_DEPRECATED_START
+    DiscreteTypeInfo() = default;
     DiscreteTypeInfo(const DiscreteTypeInfo&) = default;
     DiscreteTypeInfo(DiscreteTypeInfo&&) = default;
     DiscreteTypeInfo& operator=(const DiscreteTypeInfo&) = default;
@@ -93,26 +96,14 @@ std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info);
 
 /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
 /// Type*/shared_ptr<Type>
-OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename Type, typename Value>
 typename std::enable_if<
-    ngraph::HasTypeInfoMember<Type>::value &&
-        std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::type_info)), bool>::value,
-    bool>::type
-is_type(Value value) {
-    return value->get_type_info().is_castable(Type::type_info);
-}
-
-template <typename Type, typename Value>
-typename std::enable_if<
-    !ngraph::HasTypeInfoMember<Type>::value &&
-        std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
-                            bool>::value,
+    std::is_convertible<decltype(std::declval<Value>()->get_type_info().is_castable(Type::get_type_info_static())),
+                        bool>::value,
     bool>::type
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::get_type_info_static());
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>

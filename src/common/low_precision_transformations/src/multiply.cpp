@@ -16,12 +16,14 @@
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
+#include "itt.hpp"
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
+    MATCHER_SCOPE(MultiplyTransformation);
     auto matcher = pattern::wrap_type<opset1::Multiply>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
@@ -32,7 +34,7 @@ MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBa
         return transform(*context, m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MultiplyTransformation");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, matcher_name);
     this->register_matcher(m, callback);
 }
 

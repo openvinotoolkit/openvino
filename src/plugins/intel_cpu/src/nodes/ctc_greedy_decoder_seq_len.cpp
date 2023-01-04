@@ -28,8 +28,8 @@ bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -74,7 +74,7 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void CTCGreedyDecoderSeqLen::execute(mkldnn::stream strm) {
+void CTCGreedyDecoderSeqLen::execute(dnnl::stream strm) {
     const float* probabilities = reinterpret_cast<const float *>(getParentEdgeAt(DATA_INDEX)->getMemoryPtr()->GetPtr());
     const int* sequenceLengths = reinterpret_cast<const int *>(getParentEdgeAt(SEQUENCE_LENGTH_INDEX)->getMemoryPtr()->GetPtr());
     int* decodedClasses =  reinterpret_cast<int *>(getChildEdgesAtPort(DECODED_CLASSES_INDEX)[0]->getMemoryPtr()->GetPtr());
@@ -171,7 +171,7 @@ bool CTCGreedyDecoderSeqLen::created() const {
     return getType() == Type::CTCGreedyDecoderSeqLen;
 }
 
-void CTCGreedyDecoderSeqLen::executeDynamicImpl(mkldnn::stream strm) {
+void CTCGreedyDecoderSeqLen::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 

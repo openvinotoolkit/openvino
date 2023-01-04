@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils/summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 
 namespace ov {
 namespace test {
@@ -55,7 +55,8 @@ protected:
     constexpr static const double disable_threshold = std::numeric_limits<double>::max();
     double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
 
-    LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
+    ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
+    bool is_report_stages = false;
 
     virtual std::vector<ov::Tensor> calculate_refs();
     virtual std::vector<ov::Tensor> get_plugin_outputs();

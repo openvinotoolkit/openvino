@@ -13,6 +13,7 @@
 #include "ie_parallel.hpp"
 #include "ngraph/opsets/opset8.hpp"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -20,7 +21,7 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
+using ngNmsSortResultType = ngraph::op::v8::MatrixNms::SortResultType;
 using ngNmseDcayFunction = ngraph::op::v8::MatrixNms::DecayFunction;
 
 bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -47,8 +48,8 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
+    : Node(op, eng, cache, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -65,11 +66,11 @@ MatrixNms::MatrixNms(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engi
     const auto matrix_nms = std::dynamic_pointer_cast<const ngraph::op::v8::MatrixNms>(op);
 
     auto& attrs = matrix_nms->get_attrs();
-    if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::CLASSID)
+    if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::CLASSID)
         m_sortResultType = MatrixNmsSortResultType::CLASSID;
-    else if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::SCORE)
+    else if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::SCORE)
         m_sortResultType = MatrixNmsSortResultType::SCORE;
-    else if (attrs.sort_result_type == ngraph::op::util::NmsBase::SortResultType::NONE)
+    else if (attrs.sort_result_type == ngraph::op::v8::MatrixNms::SortResultType::NONE)
         m_sortResultType = MatrixNmsSortResultType::NONE;
 
     if (attrs.decay_function == ngraph::op::v8::MatrixNms::DecayFunction::GAUSSIAN)
@@ -288,7 +289,7 @@ bool MatrixNms::isExecutable() const {
     return isDynamicNode() || Node::isExecutable();
 }
 
-void MatrixNms::executeDynamicImpl(mkldnn::stream strm) {
+void MatrixNms::executeDynamicImpl(dnnl::stream strm) {
     if (hasEmptyInputTensors()) {
         redefineOutputMemory({{0, 6}, {0, 1}, {0}});
         return;
@@ -296,7 +297,7 @@ void MatrixNms::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
-void MatrixNms::execute(mkldnn::stream strm) {
+void MatrixNms::execute(dnnl::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
@@ -317,7 +318,7 @@ void MatrixNms::execute(mkldnn::stream strm) {
         size_t batchOffset = batchIdx * m_realNumClasses * m_realNumBoxes;
         BoxInfo* batchFilteredBox = m_filteredBoxes.data() + batchOffset;
         auto& numPerClass = m_numPerBatchClass[batchIdx];
-        auto numDet = std::accumulate(numPerClass.begin(), numPerClass.end(), 0);
+        auto numDet = std::accumulate(numPerClass.begin(), numPerClass.end(), int64_t(0));
         auto start_offset = numPerClass[0];
 
         for (size_t i = 1; i < numPerClass.size(); i++) {
@@ -372,13 +373,14 @@ void MatrixNms::execute(mkldnn::stream strm) {
 
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (isDynamicNode()) {
-        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), 0);
+        size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
     float* selectedOutputs = reinterpret_cast<float*>(selectedOutputsMemPtr->GetPtr());
     int* selectedIndices = reinterpret_cast<int*>(selectedIndicesMemPtr->GetPtr());
     int* validOutputs = reinterpret_cast<int*>(validOutputsMemPtr->GetPtr());
-    std::copy(m_numPerBatch.begin(), m_numPerBatch.end(), validOutputs);
+    for (size_t i = 0; i < m_numPerBatch.size(); i++)
+        validOutputs[i] = static_cast<int>(m_numPerBatch[i]);
 
     int64_t outputOffset = 0;
     int64_t originalOffset = 0;
@@ -397,7 +399,7 @@ void MatrixNms::execute(mkldnn::stream strm) {
         }
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         if (!isDynamicNode()) {
-            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1);
+            std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1.f);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);
             outputOffset += m_maxBoxesPerBatch;
             originalOffset += real_boxes;

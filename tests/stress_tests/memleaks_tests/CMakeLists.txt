@@ -13,5 +13,5 @@ add_executable(${TARGET_NAME} ${HDR} ${SRC})
 target_link_libraries(${TARGET_NAME} PRIVATE StressTestsCommon)
 
 install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+        RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 

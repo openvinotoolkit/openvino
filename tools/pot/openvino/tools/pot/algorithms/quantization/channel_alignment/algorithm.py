@@ -29,10 +29,13 @@ class ActivationChannelAlignment(Algorithm):
             self._config.get(
                 'stat_subset_size', len(self._engine.data_loader)),
             len(self._engine.data_loader))
+        stat_batch_size = min(
+            self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
         self.total_exec_steps = stat_subset_size
         shuffle_data = self._config.get('shuffle_data', False)
         seed = self._config.get('seed', 0)
-        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed)
+        self._sampler = create_sampler(
+            engine, stat_subset_size, shuffle_data, seed, stat_batch_size)
 
     @property
     def change_original_model(self):
@@ -108,7 +111,7 @@ class ActivationChannelAlignment(Algorithm):
         weight_in_type = weight_in_value.dtype
         weight_in_shape = weight_in_value.shape
         if weight_in_shape[0] == scale_factor.shape[0]:
-            scale_in_shape = np.ones(len(weight_in_shape), dtype=np.int)
+            scale_in_shape = np.ones(len(weight_in_shape), dtype=int)
             scale_in_shape[0] = scale_factor.shape[0]
             weight_in_value = weight_in_value / scale_factor.reshape(scale_in_shape)
             nu.set_node_value(weight_in, weight_in_value.astype(weight_in_type))
@@ -122,7 +125,7 @@ class ActivationChannelAlignment(Algorithm):
 
             weight_out_value = nu.get_node_value(weight_out)
             weight_out_type = weight_out_value.dtype
-            scale_out_shape = np.ones(len(weight_out_value.shape), dtype=np.int)
+            scale_out_shape = np.ones(len(weight_out_value.shape), dtype=int)
             scale_out_shape[1] = scale_factor.shape[0]
             weight_out_value = weight_out_value * scale_factor.reshape(scale_out_shape)
             nu.set_node_value(weight_out, weight_out_value.astype(weight_out_type))

@@ -9,13 +9,6 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
-template <>
-struct typed_program_node<experimental_detectron_roi_feature_extractor> : public typed_program_node_base<experimental_detectron_roi_feature_extractor> {
-    using parent = typed_program_node_base<experimental_detectron_roi_feature_extractor>;
-    using parent::parent;
-
-    program_node& input(size_t index = 0) const { return get_dependency(index); }
-};
 
 using experimental_detectron_roi_feature_extractor_node = typed_program_node<experimental_detectron_roi_feature_extractor>;
 
@@ -28,7 +21,7 @@ public:
     size_t inputs_memory_count() const;
     void copy_rois_input_to_second_output() const;
 
-    static layout calc_output_layout(experimental_detectron_roi_feature_extractor_node const& node);
+    static layout calc_output_layout(experimental_detectron_roi_feature_extractor_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(experimental_detectron_roi_feature_extractor_node const& node);
 
 private:

@@ -33,12 +33,14 @@ class FastBiasCorrection(Algorithm):
             self._config.get(
                 'stat_subset_size', len(self._engine.data_loader)),
             len(self._engine.data_loader))
+        stat_batch_size = min(
+            self._config.get('stat_batch_size', 1), len(self._engine.data_loader))
         self.total_exec_steps = stat_subset_size
         self._threshold = float(self._config.get('threshold', 2.0))
         self._apply_for_all_nodes = self._config.get('apply_for_all_nodes', False)
         shuffle_data = self._config.get('shuffle_data', False)
         seed = self._config.get('seed', 0)
-        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed)
+        self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed, stat_batch_size)
         self._channel_axis = {}
 
     @property
@@ -94,7 +96,7 @@ class FastBiasCorrection(Algorithm):
             # Reshaped since bias are broadcasted
             after_biased_conv_node_name = get_quantized_input_key(after_biased_conv)
             add_out_shape = get_input_shape_for_bias(activations_statistics, after_biased_conv_node_name)
-            bias_shape = np.ones(len(add_out_shape), dtype=np.int)
+            bias_shape = np.ones(len(add_out_shape), dtype=int)
             axis_channel = self.get_channel_axis(input_node_name)
             bias_shape[axis_channel] = add_out_shape[axis_channel]
 
@@ -109,6 +111,7 @@ class FastBiasCorrection(Algorithm):
                 continue
 
             if bias_shift_magnitude < self._threshold:
+                logger.debug('Setting bias for %s. Magnitude: %f', op_node.fullname, bias_shift_magnitude)
                 op_node['original_bias'] = current_bias_value
                 nu.set_node_value(bias_node, bias_shift)
             else:
@@ -146,12 +149,14 @@ class FastBiasCorrection(Algorithm):
                     inputs_outputs_layout[op_output_name] = {
                         "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                                 granularity='perchannel', type='mean',
+                                                                graph_depth=op_output_name.count('|'),
                                                                 channel=self._channel_axis)}
 
                 input_name = get_quantized_input_key(quantized_node)
                 inputs_outputs_layout[input_name] = {
                     "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                             granularity='perchannel', type='mean',
+                                                            graph_depth=op_output_name.count('|'),
                                                             channel=self._channel_axis)}
                 inputs_outputs_layout[input_name]["shape"] = TensorStatistic(func=lambda x, **kwargs: x.shape,
                                                                              shape_for_inference=True)
@@ -159,8 +164,8 @@ class FastBiasCorrection(Algorithm):
                     bias = nu.get_bias_for_node(op_node)
                     after_biased_conv = nu.get_node_output(bias, 0)[0]
                     after_biased_conv_name = get_quantized_input_key(after_biased_conv)
-                inputs_outputs_layout[after_biased_conv_name] = \
-                    {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
+                    inputs_outputs_layout[after_biased_conv_name] = \
+                        {"shape": TensorStatistic(func=lambda x, **kwargs: x.shape, shape_for_inference=True)}
 
         return inputs_outputs_layout
 

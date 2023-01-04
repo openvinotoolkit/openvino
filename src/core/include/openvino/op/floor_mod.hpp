@@ -11,10 +11,10 @@ namespace op {
 namespace v1 {
 /// \brief Elementwise FloorMod operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API FloorMod : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("FloorMod", "opset1", op::util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
     FloorMod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

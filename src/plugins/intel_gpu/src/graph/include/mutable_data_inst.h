@@ -33,13 +33,23 @@ using mutable_data_node = typed_program_node<mutable_data>;
 template <>
 class typed_primitive_inst<mutable_data> : public typed_primitive_inst_base<mutable_data> {
     using parent = typed_primitive_inst_base<mutable_data>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(mutable_data_node const& node) { return node.get_attached_memory().get_layout(); }
+    static layout calc_output_layout(mutable_data_node const& node, kernel_impl_params const& impl_param) {
+        return node.get_attached_memory().get_layout();
+    }
+
     static std::string to_string(mutable_data_node const& node);
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
-    void set_output_memory(memory::ptr mem, bool check = true) override;
+    void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
+
+private:
+    std::list<primitive_id> _user_ids;
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;

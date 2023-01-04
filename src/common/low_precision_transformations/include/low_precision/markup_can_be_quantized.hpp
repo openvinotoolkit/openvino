@@ -25,7 +25,7 @@ class LP_TRANSFORMATIONS_API MarkupCanBeQuantized;
  * is created with empty precisions.
  *
  * For more details about the transformation, refer to
- * [MarkupCanBeQuantized](@ref openvino_docs_IE_DG_lpt_MarkupCanBeQuantized) page
+ * [MarkupCanBeQuantized](@ref openvino_docs_OV_UG_lpt_MarkupCanBeQuantized) page
  * in the Inference Engine Developer Guide.
  */
 class ngraph::pass::low_precision::MarkupCanBeQuantized : public ngraph::pass::FunctionPass {

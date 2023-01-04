@@ -4,9 +4,10 @@
 
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
 
 #include "itt.hpp"
 
@@ -24,8 +25,7 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
     // to Broadcast operation as a output shape target. In this case we can eliminate
     // Broadcast since eltwise_input will broadcast another eltwise input automatically.
     auto broadcast_input = broadcast.get_node()->get_input_node_shared_ptr(1);
-    if ((ov::is_type<ngraph::opset5::ShapeOf>(broadcast_input) ||
-         ov::is_type<ngraph::opset1::ShapeOf>(broadcast_input)) &&
+    if ((ov::is_type<ov::opset5::ShapeOf>(broadcast_input) || ov::is_type<ov::opset1::ShapeOf>(broadcast_input)) &&
         broadcast_input->input_value(0) == eltwise_input) {
         return true;
     }
@@ -69,15 +69,15 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
 
 }  // namespace
 
-ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
+ov::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);
     auto broadcast_input = pattern::any_input();
-    auto broadcast = pattern::wrap_type<ngraph::opset5::Broadcast>({broadcast_input, pattern::any_input()},
-                                                                   pattern::consumers_count(1));
+    auto broadcast =
+        pattern::wrap_type<ov::opset5::Broadcast>({broadcast_input, pattern::any_input()}, pattern::consumers_count(1));
     auto eltwise_input = pattern::any_input();
     auto eltwise = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>({eltwise_input, broadcast});
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_value = m.get_pattern_value_map();
 
         const auto& m_eltwise_input = pattern_value.at(eltwise_input);

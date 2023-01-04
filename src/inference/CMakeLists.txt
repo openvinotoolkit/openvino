@@ -4,6 +4,11 @@
 
 set (TARGET_NAME "inference_engine")
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # TODO: Add IMPLEMENT_OPENVINO_API to inference_engine_obj
+    ie_add_compiler_flags(/wd4273)
+endif()
+
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
@@ -39,22 +44,20 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
       )
 
-if (LINUX)
-    file (GLOB LIBRARY_SRC
-          ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-         ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-endif()
-
-if (WIN32)
+if(WIN32)
     file (GLOB LIBRARY_SRC
          ${LIBRARY_SRC}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+elseif(NOT APPLE)
+    file (GLOB LIBRARY_SRC
+          ${LIBRARY_SRC}
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
+    file (GLOB LIBRARY_HEADERS
+         ${LIBRARY_HEADERS}
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
 endif()
 
 if(ENABLE_SSE42)
@@ -101,7 +104,7 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
 target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE openvino::pugixml openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
 
@@ -119,28 +122,38 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
 ie_faster_build(${TARGET_NAME}_obj
     UNITY PCH PRIVATE "src/precomp.hpp"
 )
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                      $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE
+    IMPLEMENT_INFERENCE_ENGINE_API
+    $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
+    $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
+    $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
+    $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
-                                                      "${CMAKE_CURRENT_BINARY_DIR}" # for static ie_plugins.hpp
-                                                      $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>> # for ie_ir_version.hpp
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME}_obj PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    # for static ie_plugins.hpp
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    # for ie_ir_version.hpp
+    $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
+    $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util ov_core_dev)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt openvino::util openvino::core::dev)
+ie_mark_target_as_cc(${TARGET_NAME}_obj)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
@@ -178,7 +191,7 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:${TARGET_NAME}_legacy,SOURCE_DIR>/src>)
 
@@ -187,7 +200,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_common::static openvino_gapi_preproc_s inference_engine_transformations pugixml::static)
+    frontend_common::static inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
@@ -204,9 +217,14 @@ set_target_properties(${TARGET_NAME}_obj
 
 openvino_developer_export_targets(COMPONENT core_legacy TARGETS ${TARGET_NAME}_plugin_api)
 
-install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
-        COMPONENT core_dev)
-
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 
-ov_install_static_lib(${TARGET_NAME}_plugin_api core)
+ov_install_static_lib(${TARGET_NAME}_plugin_api ${OV_CPACK_COMP_CORE})
+
+install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
+        DESTINATION ${OV_CPACK_INCLUDEDIR}
+        COMPONENT ${OV_CPACK_COMP_CORE_DEV})
+
+if(ENABLE_TESTS)
+add_subdirectory(tests)
+endif()

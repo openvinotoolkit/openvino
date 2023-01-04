@@ -10,11 +10,11 @@ add_library(${TARGET_NAME} STATIC ${XLINK_SOURCES})
 
 if(NOT WIN32)
     target_include_directories(${TARGET_NAME}
-            PRIVATE
+        PRIVATE
             "${LIBUSB_INCLUDE_DIR}")
 
     target_link_libraries(${TARGET_NAME}
-            PUBLIC
+        PRIVATE
             Threads::Threads
             ${LIBUSB_LIBRARY})
 endif()
@@ -25,7 +25,7 @@ foreach(dir IN LISTS XLINK_INCLUDE)
 endforeach()
 
 target_compile_definitions(${TARGET_NAME}
-        PRIVATE
+    PRIVATE
         __PC__
         HAVE_STRUCT_TIMESPEC
         _CRT_SECURE_NO_WARNINGS
@@ -34,7 +34,7 @@ target_compile_definitions(${TARGET_NAME}
 
 if (ENABLE_MYRIAD_NO_BOOT)
     target_compile_definitions(${TARGET_NAME}
-            PRIVATE
+        PRIVATE
             NO_BOOT)
 endif()
 

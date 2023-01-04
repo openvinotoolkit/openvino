@@ -39,7 +39,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
 
     if (rfft_kind == RFFTKind::Forward) {
         NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<int64_t>(axes_shape[0].get_length()),
+                              input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
                               "The input rank must be greater than or equal to the number of RDFT op axes. "
                               "Got input rank: ",
                               input_rank,
@@ -47,7 +47,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
                               axes_shape[0].get_length());
     } else {
         NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<int64_t>(axes_shape[0].get_length() + 1),
+                              input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
                               "The input rank must be greater than number of IRDFT op axes. Got "
                               "input rank: ",
                               input_rank,
@@ -78,8 +78,26 @@ void validate_axes(const ov::op::util::FFTBase* op,
     // according to the RDFT operation specification, axes should be integers from -r to (r - 1)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
     const int64_t axis_correction = (rfft_kind == RFFTKind::Forward) ? input_rank : (input_rank - 1);
+    auto axis_min_value = -static_cast<int64_t>(input_rank);
+    auto axis_max_value = static_cast<int64_t>(input_rank) - 1;
+
+    // RDFT op axes can contain the last axis
+    if (rfft_kind == RFFTKind::Forward) {
+        --axis_min_value;
+        ++axis_max_value;
+    }
+
     ov::AxisSet axes_set;
     for (int64_t& axis : axes) {
+        NODE_VALIDATION_CHECK(op,
+                              axis_min_value < axis && axis < axis_max_value,
+                              "(I)RDFT op axis ",
+                              axis,
+                              " must be in the input rank range (",
+                              axis_min_value,
+                              ", ",
+                              axis_max_value,
+                              ").");
         if (axis < 0) {
             axis += axis_correction;
         }
@@ -87,18 +105,10 @@ void validate_axes(const ov::op::util::FFTBase* op,
     }
 
     NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "(I)RDFT op axes must be unique.");
-
-    if (rfft_kind == RFFTKind::Inverse) {
-        NODE_VALIDATION_CHECK(op,
-                              std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
-                              "IRDFT op axes cannot contain the last axis.");
-    }
 }
 
 template <class T>
-void validate_signal_size(const ov::op::util::FFTBase* op,
-                          const T& axes_shape,
-                          const T& signal_size_shape) {
+void validate_signal_size(const ov::op::util::FFTBase* op, const T& axes_shape, const T& signal_size_shape) {
     NODE_VALIDATION_CHECK(op,
                           signal_size_shape.rank().compatible(1),
                           "(I)RDFT op signal size input must be 1D tensor. Got signal: ",
@@ -137,7 +147,7 @@ void shape_validation(const ov::op::util::FFTBase* op,
         validate_signal_size(op, axes_shape, signal_size_shape);
     }
 }
-}  // rfft_common_validation
+}  // namespace rfft_common_validation
 }  // namespace util
 }  // namespace op
 }  // namespace ov

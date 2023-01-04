@@ -5,7 +5,6 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
-#include "pyopenvino/graph/passes/manager.hpp"
 
 namespace py = pybind11;
 

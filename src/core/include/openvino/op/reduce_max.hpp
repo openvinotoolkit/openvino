@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief ReduceMax operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceMax : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMax", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a summation operation.
     ReduceMax() = default;
     /// \brief Constructs a summation operation.

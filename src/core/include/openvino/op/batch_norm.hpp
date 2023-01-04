@@ -11,10 +11,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief BatchNormInference operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]
@@ -52,10 +54,12 @@ private:
 };
 }  // namespace v0
 namespace v5 {
+/// \brief BatchNormInference operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API BatchNormInference : public Op {
 public:
     OPENVINO_OP("BatchNormInference", "opset5", op::Op, 5);
-    BWDCMP_RTTI_DECLARATION;
     BatchNormInference() = default;
     /// \param input [., C, ...]
     /// \param gamma gamma scaling for normalized value. [C]

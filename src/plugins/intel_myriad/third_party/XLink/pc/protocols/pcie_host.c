@@ -452,7 +452,10 @@ pcieHostError_t pcie_find_device_port(
         if (strncmp(entry->d_name, "mxlk", 4) == 0)
         {
             // Save name
-            snprintf(found_device, name_length, "/dev/%s", entry->d_name);
+            int ret = snprintf(found_device, name_length, "/dev/%s", entry->d_name);
+            if (ret < 0)
+                return PCIE_HOST_ERROR;   // Cannot set device name
+
             // Get state of device
             if (pcie_get_device_state(found_device, &platformState) != 0) {
                 closedir(dp);

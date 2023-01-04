@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "openvino/openvino.hpp"
+
+#include "samples/slog.hpp"
 // clang-format on
 
 /**
@@ -49,7 +51,7 @@ ov::element::Type getPrecision2(const std::string& value);
 
 template <class T>
 void printInputAndOutputsInfoShort(const T& network) {
-    std::cout << "Network inputs:" << std::endl;
+    slog::info << "Network inputs:" << slog::endl;
     for (auto&& input : network.inputs()) {
         std::string in_name;
         std::string node_name;
@@ -60,9 +62,9 @@ void printInputAndOutputsInfoShort(const T& network) {
                 in_name += name + " , ";
             }
             in_name = in_name.substr(0, in_name.size() - 3);
-
         } catch (const ov::Exception&) {
         }
+
         try {
             node_name = input.get_node()->get_friendly_name();
         } catch (const ov::Exception&) {
@@ -75,11 +77,11 @@ void printInputAndOutputsInfoShort(const T& network) {
             node_name = "***NO_NAME***";
         }
 
-        std::cout << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
-                  << ov::layout::get_layout(input).to_string() << std::endl;
+        slog::info << "    " << in_name << " (node: " << node_name << ") : " << input.get_element_type() << " / "
+                   << ov::layout::get_layout(input).to_string() << " / " << input.get_partial_shape() << slog::endl;
     }
 
-    std::cout << "Network outputs:" << std::endl;
+    slog::info << "Network outputs:" << slog::endl;
     for (auto&& output : network.outputs()) {
         std::string out_name;
         std::string node_name;
@@ -104,7 +106,7 @@ void printInputAndOutputsInfoShort(const T& network) {
             node_name = "***NO_NAME***";
         }
 
-        std::cout << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
-                  << ov::layout::get_layout(output).to_string() << std::endl;
+        slog::info << "    " << out_name << " (node: " << node_name << ") : " << output.get_element_type() << " / "
+                   << ov::layout::get_layout(output).to_string() << " / " << output.get_partial_shape() << slog::endl;
     }
 }

@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise not-equal operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API NotEqual : public util::BinaryElementwiseComparison {
 public:
     OPENVINO_OP("NotEqual", "opset1", op::util::BinaryElementwiseComparison, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a not-equal operation.
     NotEqual() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a not-equal operation.

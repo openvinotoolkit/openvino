@@ -82,7 +82,7 @@ struct reg_traits_by_size<64> {
     using type = Xbyak::Zmm;
     constexpr static size_t size = 64;          // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::avx512_common;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::avx512_core;
 };
 
 template<typename T>
@@ -127,7 +127,7 @@ struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx2> {
 };
 
 template<>
-struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx512_common> {
+struct isa_traits<dnnl::impl::cpu::x64::cpu_isa_t::avx512_core> {
     struct reg {
         using type = Xbyak::Zmm;
         constexpr static size_t size = 16 * 4;  // in bytes
@@ -634,7 +634,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         return { *this, internal::make_shared(res, *this) };
     }
 
-    jit_kernel();
+    jit_kernel(const char *name);
 
     template<typename RegType>
     const RegType & reserve();
@@ -697,11 +697,8 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
 private:
     reg_indices _free_x64regs;
     reg_indices _free_rmmregs;
-    bool _is_load_emitter_used = false;
-    bool _is_store_emitter_used = false;
-    jit_load_emitter _load_emitter;
-    jit_store_emitter _store_emitter;
     internal::consts_table _consts;
+    std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
 };
 
 template<typename T>
@@ -746,17 +743,18 @@ void jit_kernel::load(const variable<DstT[N]> & dst, const variable<SrcT> & src,
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
 
-    _load_emitter.emit_code(
+    const auto src_prc = internal::type2precision<src_type>();
+    const auto dst_prc = internal::type2precision<dst_type>();
+
+    const auto key = load_emitter_params(src_prc, dst_prc, length).hash();
+    if (!_emitters[key]) {
+        _emitters[key].reset(new jit_load_emitter(this, internal::get_current_isa(), src_prc, dst_prc, length));
+    }
+    _emitters[key]->emit_code(
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx()) },
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx()) },
-        std::make_shared<load_emitter_context>(
-            internal::type2precision<src_type>(),
-            internal::type2precision<dst_type>(),
-            static_cast<int>(length)),
         pool_vec_idxs,
         pool_gpr_idxs);
-
-    _is_load_emitter_used = true;
 }
 
 template<typename DstT, size_t N, typename SrcT>
@@ -788,17 +786,18 @@ void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT[N]> & src
     const std::vector<size_t> pool_vec_idxs(_free_rmmregs.begin(), _free_rmmregs.end());
     const std::vector<size_t> pool_gpr_idxs(_free_x64regs.begin(), _free_x64regs.end());
 
-    _store_emitter.emit_code(
+    const auto src_prc = internal::type2precision<src_type>();
+    const auto dst_prc = internal::type2precision<dst_type>();
+
+    const auto key = store_emitter_params(src_prc, dst_prc, length).hash();
+    if (!_emitters[key]) {
+        _emitters[key].reset(new jit_store_emitter(this, internal::get_current_isa(), src_prc, dst_prc, length));
+    }
+    _emitters[key]->emit_code(
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(src).getIdx()) },
         { static_cast<size_t>(static_cast<const Xbyak::Operand&>(dst).getIdx()) },
-        std::make_shared<store_emitter_context>(
-            internal::type2precision<src_type>(),
-            internal::type2precision<dst_type>(),
-            static_cast<int>(length)),
         pool_vec_idxs,
         pool_gpr_idxs);
-
-    _is_store_emitter_used = true;
 }
 
 template<typename DstT, typename SrcT, size_t N>

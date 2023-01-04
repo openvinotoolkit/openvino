@@ -5,12 +5,10 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/pass.hpp>
-#include <ngraph/util.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvStridesPropagation;
@@ -19,7 +17,7 @@ class TRANSFORMATIONS_API UnsupportedNodesStridesPropagation;
 class TRANSFORMATIONS_API StridesOptimization;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -27,7 +25,7 @@ class TRANSFORMATIONS_API StridesOptimization;
  * or inserts pooling between current node and its consumers if the consumers have different StridesProp attributes.
  * Strides can be propagated if Convolution kernel is {1, 1, ...}
  */
-class ngraph::pass::ConvStridesPropagation : public ngraph::pass::MatcherPass {
+class ov::pass::ConvStridesPropagation : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvStridesPropagation", "0");
     ConvStridesPropagation();
@@ -39,7 +37,7 @@ public:
  * graph or inserts pooling between current node and its consumers if the consumers have different StridesProp
  * attributes.
  */
-class ngraph::pass::SupportedNodesStridesPropagation : public ngraph::pass::MatcherPass {
+class ov::pass::SupportedNodesStridesPropagation : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SupportedNodesStridesPropagation", "0");
     SupportedNodesStridesPropagation();
@@ -50,7 +48,7 @@ public:
  * @brief UnsupportedNodesStridesPropagation inserts pooling between current node and its consumers
  * if the consumers have different StridesProp attributes.
  */
-class ngraph::pass::UnsupportedNodesStridesPropagation : public ngraph::pass::MatcherPass {
+class ov::pass::UnsupportedNodesStridesPropagation : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("UnsupportedNodesStridesPropagation", "0");
     UnsupportedNodesStridesPropagation();
@@ -61,12 +59,17 @@ public:
  * @brief StridesOptimization transformation works backward on function and propagates strides up through the graph if
  * possible
  */
-class ngraph::pass::StridesOptimization : public ngraph::pass::BackwardGraphRewrite {
+class ov::pass::StridesOptimization : public ov::pass::BackwardGraphRewrite {
 public:
     OPENVINO_RTTI("StridesOptimization", "0");
-    StridesOptimization() {
-        add_matcher<ngraph::pass::ConvStridesPropagation>();
-        add_matcher<ngraph::pass::SupportedNodesStridesPropagation>();
-        add_matcher<ngraph::pass::UnsupportedNodesStridesPropagation>();
-    }
+    StridesOptimization();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvStridesPropagation;
+using ov::pass::StridesOptimization;
+using ov::pass::SupportedNodesStridesPropagation;
+using ov::pass::UnsupportedNodesStridesPropagation;
+}  // namespace pass
+}  // namespace ngraph

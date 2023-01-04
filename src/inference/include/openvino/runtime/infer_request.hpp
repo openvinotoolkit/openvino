@@ -29,6 +29,7 @@ class CompiledModel;
 
 /**
  * @brief This is a class of infer request that can be run in asynchronous or synchronous manners.
+ * @ingroup ov_runtime_cpp_api
  */
 class OPENVINO_RUNTIME_API InferRequest {
     std::shared_ptr<InferenceEngine::IInferRequestInternal> _impl;

@@ -166,13 +166,16 @@ int main(int argc, char* argv[]) {
         size_t cur_iteration = 0;
         std::condition_variable condVar;
         std::mutex mutex;
-
+        std::exception_ptr exception_var;
         // -------- Step 10. Do asynchronous inference --------
         infer_request.set_callback([&](std::exception_ptr ex) {
-            if (ex)
-                throw ex;
-
             std::lock_guard<std::mutex> l(mutex);
+            if (ex) {
+                exception_var = ex;
+                condVar.notify_all();
+                return;
+            }
+
             cur_iteration++;
             slog::info << "Completed " << cur_iteration << " async request execution" << slog::endl;
             if (cur_iteration < num_iterations) {
@@ -193,6 +196,10 @@ int main(int argc, char* argv[]) {
         // Wait all iterations of the async request
         std::unique_lock<std::mutex> lock(mutex);
         condVar.wait(lock, [&] {
+            if (exception_var) {
+                std::rethrow_exception(exception_var);
+            }
+
             return cur_iteration == num_iterations;
         });
 

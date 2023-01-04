@@ -20,14 +20,14 @@ std::pair<std::string, std::string> plugins[] = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP,
-                         OVClassImportExportTestP,
+                         OVClassExecutableNetworkImportExportTestP,
                          ::testing::Values(std::string(CommonTestUtils::DEVICE_MYRIAD),
                                            "HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD)));
 
 #if defined(ENABLE_INTEL_CPU) && ENABLE_INTEL_CPU
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassImportExportTestP_HETERO_CPU,
-                         OVClassImportExportTestP,
+                         OVClassExecutableNetworkImportExportTestP,
                          ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD) + ",CPU"));
 #endif
 

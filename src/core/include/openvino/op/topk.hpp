@@ -14,10 +14,10 @@ namespace op {
 namespace v1 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public Op {
 public:
     OPENVINO_OP("TopK", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -64,6 +64,7 @@ public:
         return m_axis;
     }
     void set_axis(const int64_t axis);
+    void set_axis(const Rank& input_rank, const int64_t axis);
     Mode get_mode() const {
         return m_mode;
     }
@@ -111,17 +112,16 @@ protected:
     Shape compute_output_shape(const std::string& node_description,
                                const PartialShape input_partial_shape,
                                const int64_t k) const;
-    void set_axis(const Rank input_rank, const int64_t axis);
 };
 }  // namespace v1
 
 namespace v3 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public v1::TopK {
 public:
     OPENVINO_OP("TopK", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.

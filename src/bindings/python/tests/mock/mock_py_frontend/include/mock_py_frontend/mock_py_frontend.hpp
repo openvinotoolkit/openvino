@@ -8,11 +8,10 @@
 #include "openvino/frontend/manager.hpp"
 #include "visibility.hpp"
 
-// OK to have 'using' in mock header
-using namespace ngraph;
-using namespace ov::frontend;
-
 ////////////////////////////////
+
+namespace ov {
+namespace frontend {
 
 struct MOCK_API PlaceStat {
     int m_get_names = 0;
@@ -91,210 +90,72 @@ class MOCK_API PlaceMockPy : public Place {
     static PlaceStat m_stat;
 
 public:
-    std::vector<std::string> get_names() const override {
-        m_stat.m_get_names++;
-        return {};
-    }
+    std::vector<std::string> get_names() const override;
 
-    std::vector<Place::Ptr> get_consuming_operations() const override {
-        m_stat.m_get_consuming_operations++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = "";
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_consuming_operations() const override;
 
-    std::vector<Place::Ptr> get_consuming_operations(int outputPortIndex) const override {
-        m_stat.m_get_consuming_operations++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        m_stat.m_lastArgString = "";
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_consuming_operations(int outputPortIndex) const override;
 
-    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName) const override {
-        m_stat.m_get_consuming_operations++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = outputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName) const override;
 
-    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName,
-                                                     int outputPortIndex) const override {
-        m_stat.m_get_consuming_operations++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        m_stat.m_lastArgString = outputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_consuming_operations(const std::string& outputName, int outputPortIndex) const override;
 
-    Place::Ptr get_target_tensor() const override {
-        m_stat.m_get_target_tensor++;
-        m_stat.m_lastArgInt = -1;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_target_tensor() const override;
 
-    Place::Ptr get_target_tensor(int outputPortIndex) const override {
-        m_stat.m_get_target_tensor++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_target_tensor(int outputPortIndex) const override;
 
-    Place::Ptr get_target_tensor(const std::string& outputName) const override {
-        m_stat.m_get_target_tensor++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = outputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_target_tensor(const std::string& outputName) const override;
 
-    Place::Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override {
-        m_stat.m_get_target_tensor++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        m_stat.m_lastArgString = outputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_target_tensor(const std::string& outputName, int outputPortIndex) const override;
 
-    Place::Ptr get_producing_operation() const override {
-        m_stat.m_get_producing_operation++;
-        m_stat.m_lastArgInt = -1;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_producing_operation() const override;
 
-    Place::Ptr get_producing_operation(int inputPortIndex) const override {
-        m_stat.m_get_producing_operation++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_producing_operation(int inputPortIndex) const override;
 
-    Place::Ptr get_producing_operation(const std::string& inputName) const override {
-        m_stat.m_get_producing_operation++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = inputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_producing_operation(const std::string& inputName) const override;
 
-    Place::Ptr get_producing_operation(const std::string& inputName, int inputPortIndex) const override {
-        m_stat.m_get_producing_operation++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        m_stat.m_lastArgString = inputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_producing_operation(const std::string& inputName, int inputPortIndex) const override;
 
-    Place::Ptr get_producing_port() const override {
-        m_stat.m_get_producing_port++;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_producing_port() const override;
 
-    Place::Ptr get_input_port() const override {
-        m_stat.m_get_input_port++;
-        m_stat.m_lastArgInt = -1;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_input_port() const override;
 
-    Place::Ptr get_input_port(int inputPortIndex) const override {
-        m_stat.m_get_input_port++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_input_port(int inputPortIndex) const override;
 
-    Place::Ptr get_input_port(const std::string& inputName) const override {
-        m_stat.m_get_input_port++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = inputName;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_input_port(const std::string& inputName) const override;
 
-    Place::Ptr get_input_port(const std::string& inputName, int inputPortIndex) const override {
-        m_stat.m_get_input_port++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        m_stat.m_lastArgString = inputName;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_input_port(const std::string& inputName, int inputPortIndex) const override;
 
-    Place::Ptr get_output_port() const override {
-        m_stat.m_get_output_port++;
-        m_stat.m_lastArgInt = -1;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_output_port() const override;
 
-    Place::Ptr get_output_port(int outputPortIndex) const override {
-        m_stat.m_get_output_port++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_output_port(int outputPortIndex) const override;
 
-    Place::Ptr get_output_port(const std::string& outputName) const override {
-        m_stat.m_get_output_port++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = outputName;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_output_port(const std::string& outputName) const override;
 
-    Place::Ptr get_output_port(const std::string& outputName, int outputPortIndex) const override {
-        m_stat.m_get_output_port++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        m_stat.m_lastArgString = outputName;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_output_port(const std::string& outputName, int outputPortIndex) const override;
 
-    std::vector<Place::Ptr> get_consuming_ports() const override {
-        m_stat.m_get_consuming_ports++;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_consuming_ports() const override;
 
-    bool is_input() const override {
-        m_stat.m_is_input++;
-        return false;
-    }
+    bool is_input() const override;
 
-    bool is_output() const override {
-        m_stat.m_is_output++;
-        return false;
-    }
+    bool is_output() const override;
 
-    bool is_equal(const Ptr& another) const override {
-        m_stat.m_is_equal++;
-        m_stat.m_lastArgPlace = another;
-        return false;
-    }
+    bool is_equal(const Ptr& another) const override;
 
-    bool is_equal_data(const Ptr& another) const override {
-        m_stat.m_is_equal_data++;
-        m_stat.m_lastArgPlace = another;
-        return false;
-    }
+    bool is_equal_data(const Ptr& another) const override;
 
-    Place::Ptr get_source_tensor(int inputPortIndex) const override {
-        m_stat.m_get_source_tensor++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_source_tensor(int inputPortIndex) const override;
 
-    Place::Ptr get_source_tensor() const override {
-        m_stat.m_get_source_tensor++;
-        m_stat.m_lastArgInt = -1;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_source_tensor() const override;
 
-    Place::Ptr get_source_tensor(const std::string& inputName) const override {
-        m_stat.m_get_source_tensor++;
-        m_stat.m_lastArgInt = -1;
-        m_stat.m_lastArgString = inputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_source_tensor(const std::string& inputName) const override;
 
-    Place::Ptr get_source_tensor(const std::string& inputName, int inputPortIndex) const override {
-        m_stat.m_get_source_tensor++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        m_stat.m_lastArgString = inputName;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    Place::Ptr get_source_tensor(const std::string& inputName, int inputPortIndex) const override;
 
     //---------------Stat--------------------
-    static PlaceStat get_stat() {
-        return m_stat;
-    }
+    static PlaceStat get_stat();
 
-    static void clear_stat() {
-        m_stat = {};
-    }
+    static void clear_stat();
 };
 
 ////////////////////////////////
@@ -330,8 +191,8 @@ struct MOCK_API ModelStat {
     Place::Ptr m_lastArgPlace = nullptr;
     std::vector<Place::Ptr> m_lastArgInputPlaces;
     std::vector<Place::Ptr> m_lastArgOutputPlaces;
-    ngraph::element::Type m_lastArgElementType;
-    ngraph::PartialShape m_lastArgPartialShape;
+    element::Type m_lastArgElementType;
+    PartialShape m_lastArgPartialShape;
 
     // Getters
     int get_inputs() const {
@@ -417,10 +278,10 @@ struct MOCK_API ModelStat {
     std::vector<Place::Ptr> get_lastArgOutputPlaces() const {
         return m_lastArgOutputPlaces;
     }
-    ngraph::element::Type get_lastArgElementType() const {
+    element::Type get_lastArgElementType() const {
         return m_lastArgElementType;
     }
-    ngraph::PartialShape get_lastArgPartialShape() const {
+    PartialShape get_lastArgPartialShape() const {
         return m_lastArgPartialShape;
     }
 };
@@ -429,151 +290,63 @@ class MOCK_API InputModelMockPy : public InputModel {
     static ModelStat m_stat;
 
 public:
-    std::vector<Place::Ptr> get_inputs() const override {
-        m_stat.m_get_inputs++;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_inputs() const override;
 
-    std::vector<Place::Ptr> get_outputs() const override {
-        m_stat.m_get_outputs++;
-        return {std::make_shared<PlaceMockPy>()};
-    }
+    std::vector<Place::Ptr> get_outputs() const override;
 
-    Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override {
-        m_stat.m_get_place_by_tensor_name++;
-        m_stat.m_lastArgString = tensorName;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
 
-    Place::Ptr get_place_by_operation_name(const std::string& operationName) const override {
-        m_stat.m_get_place_by_operation_name++;
-        m_stat.m_lastArgString = operationName;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr get_place_by_operation_name(const std::string& operationName) const override;
 
     Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operationName,
-                                                          int inputPortIndex) override {
-        m_stat.m_get_place_by_operation_and_input_port++;
-        m_stat.m_lastArgInt = inputPortIndex;
-        m_stat.m_lastArgString = operationName;
-        return std::make_shared<PlaceMockPy>();
-    }
+                                                          int inputPortIndex) override;
 
     Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operationName,
-                                                           int outputPortIndex) override {
-        m_stat.m_get_place_by_operation_and_output_port++;
-        m_stat.m_lastArgInt = outputPortIndex;
-        m_stat.m_lastArgString = operationName;
-        return std::make_shared<PlaceMockPy>();
-    }
+                                                           int outputPortIndex) override;
 
-    void set_name_for_tensor(const Place::Ptr& tensor, const std::string& newName) override {
-        m_stat.m_set_name_for_tensor++;
-        m_stat.m_lastArgPlace = tensor;
-        m_stat.m_lastArgString = newName;
-    }
+    void set_name_for_tensor(const Place::Ptr& tensor, const std::string& newName) override;
 
-    void add_name_for_tensor(const Place::Ptr& tensor, const std::string& newName) override {
-        m_stat.m_add_name_for_tensor++;
-        m_stat.m_lastArgPlace = tensor;
-        m_stat.m_lastArgString = newName;
-    }
+    void add_name_for_tensor(const Place::Ptr& tensor, const std::string& newName) override;
 
-    void set_name_for_operation(const Place::Ptr& operation, const std::string& newName) override {
-        m_stat.m_set_name_for_operation++;
-        m_stat.m_lastArgPlace = operation;
-        m_stat.m_lastArgString = newName;
-    }
+    void set_name_for_operation(const Place::Ptr& operation, const std::string& newName) override;
 
-    void free_name_for_tensor(const std::string& name) override {
-        m_stat.m_free_name_for_tensor++;
-        m_stat.m_lastArgString = name;
-    }
+    void free_name_for_tensor(const std::string& name) override;
 
-    void free_name_for_operation(const std::string& name) override {
-        m_stat.m_free_name_for_operation++;
-        m_stat.m_lastArgString = name;
-    }
+    void free_name_for_operation(const std::string& name) override;
 
-    void set_name_for_dimension(const Place::Ptr& place, size_t shapeDimIndex, const std::string& dimName) override {
-        m_stat.m_set_name_for_dimension++;
-        m_stat.m_lastArgPlace = place;
-        m_stat.m_lastArgInt = static_cast<int>(shapeDimIndex);
-        m_stat.m_lastArgString = dimName;
-    }
+    void set_name_for_dimension(const Place::Ptr& place, size_t shapeDimIndex, const std::string& dimName) override;
 
-    void cut_and_add_new_input(const Place::Ptr& place, const std::string& newNameOptional) override {
-        m_stat.m_cut_and_add_new_input++;
-        m_stat.m_lastArgPlace = place;
-        m_stat.m_lastArgString = newNameOptional;
-    }
+    void cut_and_add_new_input(const Place::Ptr& place, const std::string& newNameOptional) override;
 
-    void cut_and_add_new_output(const Place::Ptr& place, const std::string& newNameOptional) override {
-        m_stat.m_cut_and_add_new_output++;
-        m_stat.m_lastArgPlace = place;
-        m_stat.m_lastArgString = newNameOptional;
-    }
+    void cut_and_add_new_output(const Place::Ptr& place, const std::string& newNameOptional) override;
 
-    Place::Ptr add_output(const Place::Ptr& place) override {
-        m_stat.m_add_output++;
-        m_stat.m_lastArgPlace = place;
-        return std::make_shared<PlaceMockPy>();
-    }
+    Place::Ptr add_output(const Place::Ptr& place) override;
 
-    void remove_output(const Place::Ptr& place) override {
-        m_stat.m_remove_output++;
-        m_stat.m_lastArgPlace = place;
-    }
+    void remove_output(const Place::Ptr& place) override;
 
-    void override_all_outputs(const std::vector<Place::Ptr>& outputs) override {
-        m_stat.m_override_all_outputs++;
-        m_stat.m_lastArgOutputPlaces = outputs;
-    }
+    void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
 
-    void override_all_inputs(const std::vector<Place::Ptr>& inputs) override {
-        m_stat.m_override_all_inputs++;
-        m_stat.m_lastArgInputPlaces = inputs;
-    }
+    void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
 
-    void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override {
-        m_stat.m_extract_subgraph++;
-        m_stat.m_lastArgInputPlaces = inputs;
-        m_stat.m_lastArgOutputPlaces = outputs;
-    }
+    void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
 
     // Setting tensor properties
-    void set_partial_shape(const Place::Ptr& place, const ngraph::PartialShape& shape) override {
-        m_stat.m_set_partial_shape++;
-        m_stat.m_lastArgPlace = place;
-        m_stat.m_lastArgPartialShape = shape;
-    }
+    void set_partial_shape(const Place::Ptr& place, const PartialShape& shape) override;
 
-    ngraph::PartialShape get_partial_shape(const Place::Ptr& place) const override {
-        m_stat.m_get_partial_shape++;
-        m_stat.m_lastArgPlace = place;
-        return {};
-    }
+    PartialShape get_partial_shape(const Place::Ptr& place) const override;
 
-    void set_element_type(const Place::Ptr& place, const ngraph::element::Type& type) override {
-        m_stat.m_set_element_type++;
-        m_stat.m_lastArgPlace = place;
-        m_stat.m_lastArgElementType = type;
-    }
+    void set_element_type(const Place::Ptr& place, const element::Type& type) override;
 
     //---------------Stat--------------------
-    static ModelStat get_stat() {
-        return m_stat;
-    }
+    static ModelStat get_stat();
 
-    static void clear_stat() {
-        m_stat = {};
-    }
+    static void clear_stat();
 };
 
 /////////////////////////////////////////////////////////
 
 struct MOCK_API FeStat {
-    std::vector<std::string> m_load_paths;
+    std::vector<std::string> m_load_paths{};
     int m_convert_model = 0;
     int m_convert = 0;
     int m_convert_partially = 0;
@@ -616,67 +389,26 @@ class MOCK_API FrontEndMockPy : public FrontEnd {
 public:
     FrontEndMockPy() = default;
 
-    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override {
-        if (m_telemetry) {
-            m_telemetry->send_event("load_impl", "label", 42);
-            m_telemetry->send_error("load_impl_error");
-            m_telemetry->send_stack_trace("mock_stack_trace");
-        }
-        if (!params.empty() && params[0].is<std::string>())
-            m_stat.m_load_paths.push_back(params[0].as<std::string>());
-        return std::make_shared<InputModelMockPy>();
-    }
+    InputModel::Ptr load_impl(const std::vector<ov::Any>& params) const override;
 
-    bool supported_impl(const std::vector<ov::Any>& params) const override {
-        m_stat.m_supported++;
-        if (!params.empty() && params[0].is<std::string>()) {
-            auto path = params[0].as<std::string>();
-            if (path.find(".test_mock_py_mdl") != std::string::npos) {
-                return true;
-            }
-        }
-        return false;
-    }
+    bool supported_impl(const std::vector<ov::Any>& params) const override;
 
-    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override {
-        m_stat.m_convert_model++;
-        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
-    }
+    std::shared_ptr<ov::Model> convert(const InputModel::Ptr& model) const override;
 
-    void convert(const std::shared_ptr<ov::Model>& func) const override {
-        m_stat.m_convert++;
-    }
+    void convert(const std::shared_ptr<ov::Model>& func) const override;
 
-    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override {
-        m_stat.m_convert_partially++;
-        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
-    }
+    std::shared_ptr<ov::Model> convert_partially(const InputModel::Ptr& model) const override;
 
-    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override {
-        m_stat.m_decode++;
-        return std::make_shared<ov::Model>(ov::NodeVector{}, ov::ParameterVector{});
-    }
+    std::shared_ptr<ov::Model> decode(const InputModel::Ptr& model) const override;
 
-    void normalize(const std::shared_ptr<ov::Model>& function) const override {
-        m_stat.m_normalize++;
-    }
+    void normalize(const std::shared_ptr<ov::Model>& function) const override;
 
-    std::string get_name() const override {
-        m_stat.m_get_name++;
-        return "mock_py";
-    }
+    std::string get_name() const override;
 
-    void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
-        if (auto p = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
-            m_telemetry = p;
-        }
-    }
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
-    static FeStat get_stat() {
-        return m_stat;
-    }
-
-    static void clear_stat() {
-        m_stat = {};
-    }
+    static FeStat get_stat();
+    static void clear_stat();
 };
+}  // namespace frontend
+}  // namespace ov

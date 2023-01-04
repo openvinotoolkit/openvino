@@ -20,7 +20,7 @@ inline size_t window_start(size_t idx, size_t arg_shape, size_t out_shape) {
     return idx * arg_shape / out_shape;
 }
 inline size_t window_end(size_t idx, size_t arg_shape, size_t out_shape) {
-    return ceil(static_cast<double>((idx + 1) * arg_shape) / out_shape);
+    return static_cast<size_t>(ceil(static_cast<double>((idx + 1) * arg_shape) / out_shape));
 }
 template <typename T>
 T avg_div(const T sum, size_t n) {
@@ -29,7 +29,7 @@ T avg_div(const T sum, size_t n) {
     if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value) {
         return static_cast<T>(std::nearbyint(static_cast<float>(sum) / n));
     } else {
-        return sum / n;
+        return static_cast<T>(sum / n);
     }
 }
 

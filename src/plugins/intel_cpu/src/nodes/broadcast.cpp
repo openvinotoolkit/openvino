@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "ie_parallel.hpp"
 #include "utils/bfloat16.hpp"
 #include <selective_build.h>
@@ -49,8 +49,8 @@ bool Broadcast::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
     return true;
 }
 
-Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -184,19 +184,15 @@ bool Broadcast::needShapeInfer() const {
     return false;
 }
 
-std::vector<VectorDims> Broadcast::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(TARGET_SHAPE_IDX, AXES_MAPPING_IDX));
-}
-
 bool Broadcast::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
 }
 
-void Broadcast::executeDynamicImpl(mkldnn::stream strm) {
+void Broadcast::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Broadcast::execute(mkldnn::stream strm) {
+void Broadcast::execute(dnnl::stream strm) {
     if (optimizedCase) {
         optimizedExecute(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
@@ -204,7 +200,7 @@ void Broadcast::execute(mkldnn::stream strm) {
     }
 }
 
-void Broadcast::plainExecute(mkldnn::stream strm) {
+void Broadcast::plainExecute(dnnl::stream strm) {
     VectorDims srcDims = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto& dataSrcRank = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetShape().getRank();

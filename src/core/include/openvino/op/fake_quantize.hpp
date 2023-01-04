@@ -23,10 +23,10 @@ namespace v0 {
 ///                 (levels-1) * (output_high - output_low) + output_low
 ///
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API FakeQuantize : public Op {
 public:
     OPENVINO_OP("FakeQuantize", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     FakeQuantize();
     ///

@@ -16,10 +16,10 @@ namespace op {
 namespace v6 {
 /// \brief An operation ExperimentalDetectronPriorGridGenerator generates prior
 /// grids of specified sizes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronPriorGridGenerator : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronPriorGridGenerator", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

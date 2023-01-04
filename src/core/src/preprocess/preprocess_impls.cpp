@@ -359,20 +359,33 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
         node = std::get<0>(action_result);
         post_processing_applied = true;
     }
-    node.get_node_shared_ptr()->set_friendly_name(
-        result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
+    // Restore tensor names
+    node.get_tensor().set_names(start_out_node_names);
+    auto orig_parent = result->get_input_source_output(0).get_node_shared_ptr();
+    bool reset_orig_friendly_name = false;
+    if (!post_processing_applied) {
+        return;
+    }
+    if (orig_parent->get_output_size() == 1) {
+        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name());
+        reset_orig_friendly_name = true;
+    } else if (node.get_node_shared_ptr() != orig_parent) {
+        // Result node is changed - add ".<idx>" suffix
+        node.get_node_shared_ptr()->set_friendly_name(orig_parent->get_friendly_name() + "." +
+                                                      std::to_string(result->get_input_source_output(0).get_index()));
+    }
 
     // Reset friendly name of input node to avoid names collision
     // when there is at a new node inserted by post-processing steps
     // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
     // as it's required for old API correct work
-    if (post_processing_applied)
+    if (reset_orig_friendly_name) {
         result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
+    }
 
     // Create result
     auto new_result = std::make_shared<opset8::Result>(node);
     new_result->set_friendly_name(result->get_friendly_name());
-    node.get_tensor().set_names(start_out_node_names);
 
     // Preserve runtime info of original result
     new_result->get_rt_info() = result->get_rt_info();
@@ -462,6 +475,7 @@ void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
 
     str << "    User's output tensor: ";
     dump_tensor(str, node.get_partial_shape(), context.layout(), node.get_element_type());
+    str << std::endl;
 }
 }  // namespace preprocess
 }  // namespace ov

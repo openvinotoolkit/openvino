@@ -86,7 +86,7 @@ TEST(type_info, find_in_map) {
     test_map[b] = 1;
     test_map[c] = 1;
 
-    const auto& opset = ov::get_opset8();
+    const auto& opset = ov::get_opset9();
     // Reserve memory to avoid reallocation and copy of strings
     // because type info uses pointers from the original memory
     vector_names.reserve(opset.size() * 3);

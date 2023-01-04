@@ -61,7 +61,7 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     std::shared_ptr<IInferRequestInternal> asyncRequestImpl;
     try {
         asyncRequestImpl = CreateInferRequestImpl(_parameters, _results);
-    } catch (const NotImplemented&) {
+    } catch (const InferenceEngine::NotImplemented&) {
     }
     if (!asyncRequestImpl)
         asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
@@ -91,6 +91,10 @@ void IExecutableNetworkInternal::SetPointerToPlugin(const std::shared_ptr<IInfer
     _plugin = plugin;
 }
 
+std::shared_ptr<void> IExecutableNetworkInternal::GetPointerToSo() {
+    return _so;
+}
+
 void IExecutableNetworkInternal::SetConfig(const std::map<std::string, Parameter>&) {
     IE_THROW(NotImplemented);
 }
@@ -111,6 +115,14 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     InputsDataMap networkInputs,
     OutputsDataMap networkOutputs) {
     IE_THROW(NotImplemented);
+}
+
+void IExecutableNetworkInternal::loadedFromCache() {
+    _loadedFromCache = true;
+}
+
+bool IExecutableNetworkInternal::isLoadedFromCache() const {
+    return _loadedFromCache;
 }
 
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(

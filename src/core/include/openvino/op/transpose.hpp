@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Tensor transpose operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Transpose : public Op {
 public:
     OPENVINO_OP("Transpose", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     Transpose() = default;
     ///
@@ -34,8 +34,17 @@ public:
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    bool evaluate_upper(const HostTensorVector& output_values) const override;
+    bool evaluate_lower(const HostTensorVector& output_values) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+
     bool has_evaluate() const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
+
+    /// \brief Inputs indexes and count.
+    enum Ins : size_t { ARG, ORDER, IN_COUNT };
+    /// \brief Outputs indexes and count.
+    enum Outs : size_t { ARG_T, OUT_COUNT };
 };
 }  // namespace v1
 }  // namespace op

@@ -11,33 +11,24 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<custom_gpu_primitive> : public typed_program_node_base<custom_gpu_primitive> {
-    using parent = typed_program_node_base<custom_gpu_primitive>;
-
-public:
-    using parent::parent;
-
-    program_node& input(size_t idx = 0) const { return get_dependency(idx); }
-};
-
 using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;
 
 template <>
 class typed_primitive_inst<custom_gpu_primitive> : public typed_primitive_inst_base<custom_gpu_primitive> {
     using parent = typed_primitive_inst_base<custom_gpu_primitive>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(custom_gpu_primitive_node const& node) {
-        assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+    static layout calc_output_layout(custom_gpu_primitive_node const& node, kernel_impl_params const& impl_param) {
+        assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
                "Output data type forcing is not supported for "
                "custom_gpu_primitive_node!");
-        layout output_layout = node.get_primitive()->output_layout;
+        layout output_layout = impl_param.typed_desc<custom_gpu_primitive>()->output_layout;
 
         // if the output layout format was set to any, it means the layer output format will be the same as the first
         // input
         if (output_layout.format == format::any) {
-            output_layout.format = node.get_dependency(0).get_output_layout().format;
+            output_layout.format = impl_param.get_input_layout().format;
         }
         return output_layout;
     }

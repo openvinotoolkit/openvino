@@ -10,6 +10,7 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
+#include "compare.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
@@ -23,6 +24,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "sequnce_generator.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
@@ -848,28 +850,40 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
     return dim;
 }
 
+namespace {
+const auto normalize_axis_to = [](const int64_t& tensor_rank) {
+    return [&tensor_rank](int64_t& axis) {
+        if (axis < 0) {
+            axis += tensor_rank;
+        }
+    };
+};
+
+std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, const int64_t& upper) {
+    return std::string(" Parameter axis ")
+        .append(to_string(axis))
+        .append(" out of the tensor rank range [")
+        .append(to_string(lower))
+        .append(", ")
+        .append(to_string(upper))
+        .append("].");
+}
+}  // namespace
+
 void ov::normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    const auto& min_value = -tensor_rank;
-    const auto& max_value = tensor_rank ? (tensor_rank - 1) : 0;
-    transform(axes.begin(), axes.end(), axes.begin(), [=](int64_t& axis) {
-        NODE_VALIDATION_CHECK(node,
-                              ((axis >= min_value) && (axis <= max_value)),
-                              " Parameter axis ",
-                              axis,
-                              " out of the tensor rank range [",
-                              min_value,
-                              ", ",
-                              max_value,
-                              "].");
-        return axis < 0 ? axis + tensor_rank : axis;
-    });
+    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
+    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
+    NODE_VALIDATION_CHECK(node,
+                          invalid_axis == axes.cend(),
+                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
+    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
 }
 
 std::vector<size_t> ov::normalize_axes(const std::string& node_description,
                                        const std::vector<int64_t>& axes,
                                        const Rank& tensor_rank) {
     std::vector<size_t> new_axes;
-
+    new_axes.reserve(axes.size());
     for (const auto& axis : axes) {
         new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
     }
@@ -906,7 +920,7 @@ int64_t ov::normalize_axis(const Node* node,
                            std::uint64_t tensor_rank,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max) {
-    return ngraph::normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
+    return normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
 }
 
 int64_t ov::normalize_axis(const std::string& node_description,
@@ -915,21 +929,11 @@ int64_t ov::normalize_axis(const std::string& node_description,
                            std::int64_t axis_range_min,
                            std::int64_t axis_range_max) {
     // Accepted range of value for axis is [axis_range_min, axis_range_max].
-    NGRAPH_CHECK(((axis >= axis_range_min) && (axis <= axis_range_max)),
-                 node_description,
-                 " Parameter axis ",
-                 axis,
-                 " out of the tensor rank range [",
-                 axis_range_min,
-                 ", ",
-                 axis_range_max,
-                 "].");
-
-    if (axis < 0) {
-        axis = axis + tensor_rank;
-    }
-
-    return int64_t(axis);
+    OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
+                    node_description,
+                    normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
+    normalize_axis_to(tensor_rank)(axis);
+    return axis;
 }
 
 void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,
@@ -952,10 +956,10 @@ void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_sh
     pads_end = CoordinateDiff(num_spatial_dims);
 
     for (uint64_t i = 0; i < num_spatial_dims; ++i) {
-        int total_padding =
-            std::max<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
-                              output_shape[i] + output_padding[i],
-                          0);
+        int total_padding = std::max<int>(
+            static_cast<int>(strides[i] * (input_data_shape[i] - 1) + dilations[i] * (filters_shape[i] - 1) + 1 -
+                             output_shape[i] + output_padding[i]),
+            0);
         if (auto_pad_type != op::PadType::SAME_UPPER) {
             pads_begin[i] = total_padding / 2;
             pads_end[i] = total_padding - pads_begin[i];
@@ -1203,8 +1207,13 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
             for (auto& in : output.get_target_inputs()) {
                 if (stop_nodes.count(in.get_node()))
                     continue;
-                auto consumer = in.get_node()->shared_from_this();
-                copy_runtime_info({curr_node, consumer}, consumer);
+                try {
+                    auto consumer = in.get_node()->shared_from_this();
+                    copy_runtime_info({curr_node, consumer}, consumer);
+                } catch (const std::bad_weak_ptr&) {
+                    // Exception can be thrown, if `shared_from_this()` was called during node creation.
+                    // Continue propagation for other nodes.
+                }
             }
         }
     }
@@ -1317,7 +1326,7 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
         vector<Dimension> resulting_pshape(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             auto low = lower_bound[i], up = upper_bound[i];
-            NGRAPH_CHECK(low >= 0 && up >= 0);
+            NGRAPH_CHECK(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
             if (output.get_element_type() == element::i32 && low != up) {
                 if (up == std::numeric_limits<std::int32_t>::max())
                     up = std::numeric_limits<std::int64_t>::max();
@@ -1335,26 +1344,21 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    NGRAPH_CHECK(node->outputs().size() == 1);
-
     const auto& input_values = node->input_values();
-    TensorLabel input_labels;
 
     HostTensorVector input_tensors(input_values.size());
     for (size_t i = 0; i < input_values.size(); ++i) {
         const auto& input = input_values[i];
-        if (i != 0)
+        if (i != 0) {
             if (input.get_tensor().has_and_set_bound())
                 input_tensors[i] = input.get_tensor().get_lower_value();
             else
                 return false;
-        else {
-            input_labels = input.get_tensor().get_value_label();
-            bool no_labels = std::all_of(input_labels.begin(), input_labels.end(), [](const size_t& l) {
-                return l == 0;
-            });
-            if (input_labels.empty() || no_labels)
+        } else {
+            const auto& input_labels = input.get_tensor().get_value_label();
+            if (has_no_labels(input_labels)) {
                 return false;
+            }
 
             auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
             auto idxs_htp = std::make_shared<HostTensor>(labels_constant);
@@ -1362,12 +1366,22 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
         }
     }
 
-    // inputs are finalized
-    const auto& output = std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(0));
-    if (!node->evaluate({output}, input_tensors))
-        return false;
-    output_labels[0] = std::make_shared<op::v0::Constant>(output)->cast_vector<size_t>();
-    return true;
+    HostTensorVector output_tensors;
+    output_tensors.reserve(node->get_output_size());
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        output_tensors.push_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(i)));
+    }
+
+    if (node->evaluate(output_tensors, input_tensors)) {
+        std::transform(output_tensors.cbegin(),
+                       output_tensors.cend(),
+                       output_labels.begin(),
+                       [](const HostTensorPtr& tensor) {
+                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<size_t>();
+                       });
+        return true;
+    }
+    return false;
 }
 
 inline bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
@@ -1631,9 +1645,35 @@ shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
-    if (tensor_vector.size() != size)
-        return false;
-    return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
-        return t != nullptr;
+    return (tensor_vector.size() == size) &&
+           std::none_of(tensor_vector.cbegin(), tensor_vector.cend(), ov::cmp::Equal<HostTensorPtr>(nullptr));
+}
+
+bool ov::has_no_labels(const ov::TensorLabel& labels) {
+    return std::all_of(labels.cbegin(), labels.cend(), cmp::Equal<size_t>(no_label));
+}
+
+void ov::generate_transpose_default_order(std::vector<int64_t>& axes_order, const size_t length) {
+    axes_order.reserve(length);
+    std::generate_n(std::back_inserter(axes_order), length, ov::SeqGen<size_t, ov::Direction::BACKWARD>(length - 1));
+}
+
+bool ov::is_valid_axes_order(const std::vector<int64_t>& axes_order, const size_t size) {
+    return (std::unordered_set<size_t>(axes_order.cbegin(), axes_order.cend()).size() == size) &&
+           std::all_of(axes_order.cbegin(), axes_order.cend(), ov::cmp::Between<int64_t, ov::cmp::LOWER>(0, size));
+}
+
+std::vector<PartialShape> ov::get_node_input_partial_shapes(const ov::Node& node) {
+    std::vector<PartialShape> out;
+    out.reserve(node.get_input_size());
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        out.push_back(node.get_input_partial_shape(i));
+    }
+    return out;
+}
+
+bool ov::is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<Rank>& ranks) {
+    return std::any_of(ranks.cbegin(), ranks.cend(), [&rank](const Rank& r) {
+        return rank.compatible(r);
     });
 }

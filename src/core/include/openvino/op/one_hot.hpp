@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v1 {
+/// \brief OneHot operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API OneHot : public Op {
 public:
     OPENVINO_OP("OneHot", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a one-hot operation.
     OneHot() = default;

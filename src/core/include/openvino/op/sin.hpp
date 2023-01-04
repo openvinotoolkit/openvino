@@ -23,11 +23,11 @@ namespace v0 {
 /// | Type                   | Description                                                                          |
 /// | ---------------------- | ------------------------------------------------------------------------------------ |
 /// | \f$N[d_1,\dots,d_n]\f$ | The tensor \f$T\f$, where \f$T[i_1,\dots,i_n] = \sin(\texttt{arg}[i_1,\dots,i_n])\f$ |
+/// \ingroup ov_ops_cpp_api
 // clang-format on
 class OPENVINO_API Sin : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sin", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a sine operation.
     ///
     /// \param arg Node that produces the input tensor.

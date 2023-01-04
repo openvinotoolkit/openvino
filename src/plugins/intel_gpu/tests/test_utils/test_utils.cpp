@@ -8,6 +8,11 @@
 #include "float16.h"
 #include <iostream>
 
+
+namespace cldnn {
+const cldnn::data_types type_to_data_type<FLOAT16>::value;
+}  // namespace cldnn
+
 using namespace cldnn;
 
 namespace tests {
@@ -37,7 +42,7 @@ void generic_test::run_single_test() {
                 tests::set_random_values<FLOAT16>(input_mems[i], true, 5, 10);
             }
         } else {
-            size_t size = generic_params->input_layouts[i].size.batch[0] * generic_params->input_layouts[i].size.feature[0];
+            size_t size = generic_params->input_layouts[i].batch() * generic_params->input_layouts[i].feature();
 
             if (generic_params->data_type == data_types::f32) {
                 std::vector<float> values;
@@ -78,12 +83,12 @@ void generic_test::run_single_test() {
 
     if (generic_params->network_build_options.get<cldnn::build_option_type::optimize_data>()->enabled()) {
         // Add reorder after the first input in case of optimize data flag since it might change the input layout.
-        topology.add(reorder("input0", "input0_init", input_mems[0]->get_layout()));
+        topology.add(reorder("input0", input_info("input0_init"), input_mems[0]->get_layout()));
     }
 
-    if (layer_params->input[0] == "reorder0") {
+    if (layer_params->input[0].pid == "reorder0") {
         // Add reorder layer with output padding as input to the tested layer.
-        topology.add(reorder("reorder0", "input0", input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
+        topology.add(reorder("reorder0", input_info("input0"), input_mems[0]->get_layout().with_padding(padding{ { 0, 0, 1, 3 },{ 0, 0, 5, 2 } })));
     }
 
     prepare_input_for_test(input_mems);
@@ -95,7 +100,7 @@ void generic_test::run_single_test() {
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
 
@@ -113,18 +118,16 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
     auto out_layout = out->get_layout();
     auto ref_layout = ref->get_layout();
 
-    EXPECT_EQ(out_layout.size, ref_layout.size);
-    EXPECT_EQ(out_layout.data_type, ref_layout.data_type);
-    EXPECT_EQ(get_expected_output_tensor(), out_layout.size);
-    EXPECT_EQ(out_layout.get_linear_size(), ref_layout.get_linear_size());
-    EXPECT_EQ(out_layout.data_padding, ref_layout.data_padding);
+    ASSERT_EQ(out_layout.get_tensor(), ref_layout.get_tensor());
+    ASSERT_EQ(out_layout.data_type, ref_layout.data_type);
+    ASSERT_EQ(get_expected_output_tensor(), out_layout.get_tensor());
+    ASSERT_EQ(out_layout.get_linear_size(), ref_layout.get_linear_size());
+    ASSERT_EQ(out_layout.data_padding, ref_layout.data_padding);
 
-    auto output_size = out_layout.size;
-
-    int batch_size = output_size.batch[0];
-    int feature_size = output_size.feature[0];
-    int y_size = output_size.spatial[1];
-    int x_size = output_size.spatial[0];
+    int batch_size = out_layout.batch();
+    int feature_size = out_layout.feature();
+    int y_size = out_layout.spatial(1);
+    int x_size = out_layout.spatial(0);
 
     mem_lock<Type> res_data(out, get_test_stream());
     mem_lock<Type> ref_data(ref, get_test_stream());
@@ -139,7 +142,7 @@ void generic_test::compare_buffers(const memory::ptr out, const memory::ptr ref)
                     size_t res_index = get_linear_index(out_layout, b, f, y, x, out_desc);
                     size_t ref_index = get_linear_index(ref_layout, b, f, y, x, ref_desc);
 
-                    EXPECT_TRUE(floating_point_equal(res_data[res_index], ref_data[ref_index], max_ulps_diff_allowed))
+                    ASSERT_TRUE(floating_point_equal(res_data[res_index], ref_data[ref_index], max_ulps_diff_allowed))
                         << "Expected " << (float)res_data[res_index] << " to be almost equal (within "
                         << max_ulps_diff_allowed << " ULP's) to " << (float)ref_data[ref_index]
                         << " (ref index = " << ref_index << ", B " << b << ", F "<< f << ", Y " << y << ", X " << x << ")!";
@@ -244,16 +247,16 @@ size_t generic_test::get_linear_index_with_broadcast(const layout& in_layout, si
 {
     return
         desc.offset +
-        (b % in_layout.size.batch[0]) * desc.pitch.b +
-        (f % in_layout.size.feature[0]) * desc.pitch.f +
-        (y % in_layout.size.spatial[1]) * desc.pitch.y +
-        (x % in_layout.size.spatial[0]) * desc.pitch.x;
+        (b % in_layout.batch()) * desc.pitch.b +
+        (f % in_layout.feature()) * desc.pitch.f +
+        (y % in_layout.spatial(1)) * desc.pitch.y +
+        (x % in_layout.spatial(0)) * desc.pitch.x;
 }
 
 //Default implementation. Should be overridden in derived class otherwise.
 cldnn::tensor generic_test::get_expected_output_tensor()
 {
-    return generic_params->input_layouts[0].size;
+    return generic_params->input_layouts[0].get_tensor();
 }
 
 std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params)
@@ -285,7 +288,7 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
     return all_generic_params;
 }
 
-cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
+static cldnn::engine_configuration get_test_engine_config(cldnn::queue_types queue_type) {
     const bool enable_profiling = false;
     std::string sources_dumps_dir = "";
     priority_mode_types priority_mode = priority_mode_types::disabled;
@@ -307,6 +310,14 @@ cldnn::engine& get_test_engine() {
     return *test_engine;
 }
 
+cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration) {
+   static std::shared_ptr<cldnn::engine> test_engine = nullptr;
+   if (!test_engine) {
+       test_engine = cldnn::engine::create(engine_types::ocl, runtime_types::ocl, configuration);
+   }
+   return *test_engine;
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 cldnn::engine& get_onednn_test_engine() {
     static std::shared_ptr<cldnn::engine> test_engine = nullptr;
@@ -317,11 +328,15 @@ cldnn::engine& get_onednn_test_engine() {
 }
 #endif
 
-cldnn::stream& get_test_stream() {
+cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
     if (!test_stream)
         test_stream = get_test_engine().create_stream();
-    return *test_stream;
+    return test_stream;
+}
+
+cldnn::stream& get_test_stream() {
+    return *get_test_stream_ptr();
 }
 
 const std::string test_dump::name() const {
@@ -353,7 +368,7 @@ std::string test_params::print() {
     str << "Data type: " << data_type_traits::name(data_type) << std::endl;
 
     for (int j = 0 ; j < (int)input_layouts.size(); j++) {
-        const cldnn::tensor& t = input_layouts[j].size;
+        const cldnn::tensor& t = input_layouts[j].get_tensor();
 
         str << "Input " << j << ": " << print_tensor(t) << std::endl;
     }
@@ -368,6 +383,52 @@ std::vector<cldnn::data_types> generic_test::test_data_types() {
         result.push_back(cldnn::data_types::f16);
     }
     return result;
+}
+
+double default_tolerance(data_types dt) {
+    switch (dt) {
+    case data_types::f16:
+        return 1e-3;
+    case data_types::f32:
+        return 1e-5;
+    case data_types::i8:
+    case data_types::u8:
+        return 1.5;
+    default:
+        IE_THROW() << "Unknown";
+    }
+    IE_THROW() << "Unknown";
+}
+
+cldnn::format generic_test::get_plain_format_for(const cldnn::format input) {
+    cldnn::format fmt{format::bfzyx};
+    switch (input) {
+    case format::b_fs_zyx_fsv16:
+    case format::b_fs_zyx_fsv32:
+    case format::bs_fs_zyx_bsv16_fsv32:
+    case format::bs_fs_zyx_bsv16_fsv16:
+    case format::bs_fs_zyx_bsv32_fsv32:
+    case format::bs_fs_zyx_bsv32_fsv16:
+        fmt = format::bfzyx;
+        break;
+
+    case format::b_fs_yx_fsv16:
+    case format::b_fs_yx_fsv32:
+    case format::bs_fs_yx_bsv16_fsv16:
+    case format::bs_fs_yx_bsv32_fsv16:
+    case format::bs_fs_yx_bsv32_fsv32:
+        fmt = format::bfyx;
+        break;
+    case format::bfyx:
+    case format::bfzyx:
+    case format::bfwzyx:
+        fmt = input;
+        break;
+    default:
+        throw std::runtime_error(std::string("Unsupported format::" + format(input).to_string()));
+        break;
+    }
+    return fmt;
 }
 
 std::vector<cldnn::format> generic_test::test_input_formats = { cldnn::format::bfyx , cldnn::format::yxfb, cldnn::format::fyxb, cldnn::format::byxf };

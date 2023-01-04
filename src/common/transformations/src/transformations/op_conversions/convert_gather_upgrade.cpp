@@ -4,16 +4,16 @@
 
 #include "transformations/op_conversions/convert_gather_upgrade.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 pass::ConvertGather1ToGather7::ConvertGather1ToGather7() {
     MATCHER_SCOPE(ConvertGather1ToGather7);

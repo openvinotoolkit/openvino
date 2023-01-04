@@ -13,7 +13,6 @@ namespace util {
 class OPENVINO_API GatherBase : public Op {
 public:
     OPENVINO_OP("GatherBase", "util");
-    BWDCMP_RTTI_DECLARATION;
     GatherBase() = default;
 
     /// \param data The tensor from which slices are gathered
@@ -38,6 +37,7 @@ public:
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
     const int64_t& get_batch_dims() const;
+    void set_batch_dims(int64_t batch_dims);
 
 protected:
     int64_t m_batch_dims = 0;

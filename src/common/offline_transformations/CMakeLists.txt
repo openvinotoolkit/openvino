@@ -19,14 +19,18 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime::dev
-                                     PRIVATE openvino::itt pugixml::static openvino::runtime ngraph::reference
-                                             nlohmann_json_schema_validator nlohmann_json)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev openvino::itt openvino::pugixml ngraph::reference
+                                             openvino::runtime)
+
+set_source_files_properties(src/generate_mapping_file.cpp INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
                                           PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 # developer package
 

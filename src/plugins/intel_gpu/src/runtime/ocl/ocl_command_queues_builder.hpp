@@ -26,8 +26,11 @@ private:
     bool _supports_queue_families;
     priority_mode_types _priority_mode;
     throttle_mode_types _throttle_mode;
-
+#if CL_TARGET_OPENCL_VERSION >= 200
     std::vector<cl_queue_properties> get_properties(const cl::Device& device, uint16_t stream_id = 0);
+#else
+    cl_command_queue_properties get_properties(const cl::Device& device, uint16_t stream_id = 0);
+#endif
 };
 
 }  // namespace ocl

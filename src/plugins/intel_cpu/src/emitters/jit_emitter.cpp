@@ -6,19 +6,19 @@
 #include "utils/general_utils.h"
 #include <vector>
 
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl;
+using namespace dnnl::impl::cpu;
+using namespace dnnl::impl;
 using namespace Xbyak;
 
 namespace ov {
 namespace intel_cpu {
 
 size_t jit_emitter::get_max_vecs_count() const {
-    return one_of(host_isa_, cpu::x64::avx512_common, cpu::x64::avx512_core) ? 32 : 16;
+    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 32 : 16;
 }
 
 size_t jit_emitter::get_vec_length() const {
-    return one_of(host_isa_, cpu::x64::avx512_common, cpu::x64::avx512_core) ? 64 :
+    return one_of(host_isa_, cpu::x64::avx512_core, cpu::x64::avx512_core) ? 64 :
            one_of(host_isa_, cpu::x64::avx2) ? 32 : 16;
 }
 
@@ -44,6 +44,10 @@ void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address &addr) const {
 
 size_t jit_emitter::aux_vecs_count() const {
     return 0;
+}
+
+emitter_in_out_map jit_emitter::get_in_out_type() const {
+    return in_out_type_;
 }
 
 size_t jit_emitter::aux_gprs_count() const {

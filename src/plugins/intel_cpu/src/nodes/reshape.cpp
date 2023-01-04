@@ -4,7 +4,7 @@
 
 #include "reshape.h"
 #include <string>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
@@ -13,7 +13,7 @@
 
 #include "common/cpu_memcpy.h"
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -34,8 +34,8 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
+        Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -68,27 +68,20 @@ bool Reshape::needShapeInfer() const {
     if (inputShapesModified()) {
         return true;
     }
-    if (lastSecondInputValues.empty())
-        return true;
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(1)[0]->getMemory().GetPtr());
+    const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
+    if (lastSecondInputValues.empty()) {
+        lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
+    }
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.GetPtr());
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
-        if (lastSecondInputValues[i] != sndInput[i])
+        if (lastSecondInputValues[i] != sndInput[i]) {
+            for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
+                lastSecondInputValues[i] = sndInput[i];
+            }
             return true;
+        }
     }
     return false;
-}
-
-std::vector<VectorDims> Reshape::shapeInfer() const {
-    const auto &memPtr = getParentEdgesAtPort(1)[0]->getMemory();
-
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(memPtr.GetPtr());
-    if (lastSecondInputValues.empty())
-        lastSecondInputValues.resize(memPtr.getStaticDims()[0]);
-    for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
-        lastSecondInputValues[i] = sndInput[i];
-    }
-
-    return shapeInferGeneric(PortMask(1));
 }
 
 void Reshape::getSupportedDescriptors() {
@@ -111,6 +104,12 @@ void Reshape::initSupportedPrimitiveDescriptors() {
     if (inPrec != outPrec)
         inPrec = outPrec;
 
+    bool canBeInPlace = true;
+
+    // CVS-81059 : disable inPlace in following case since it won't be satisfied by framework
+    if (!isConstant() && getParentEdgeAt(0)->getParent()->isConstant())
+        canBeInPlace = false;
+
     NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
@@ -121,14 +120,32 @@ void Reshape::initSupportedPrimitiveDescriptors() {
         config.inConfs[i].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i)));
     }
     config.outConfs.resize(1);
-    config.outConfs[0].inPlace(0);
+    config.outConfs[0].inPlace(canBeInPlace ? 0 : -1);
     config.outConfs[0].constant(false);
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0)));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
-void Reshape::executeDynamicImpl(mkldnn::stream strm) {
+void Reshape::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
+}
+
+void Reshape::execute(dnnl::stream strm) {
+    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+
+    auto srcPtr = static_cast<uint8_t*>(srcMemPtr->GetPtr());
+    auto dstPtr = static_cast<uint8_t*>(dstMemPtr->GetPtr());
+
+    if (dstPtr != srcPtr) {
+        cpu_memcpy(dstPtr, srcPtr, dstMemPtr->GetSize());
+    }
+}
+
+bool Reshape::isExecutable() const {
+    bool inPlaceEnabled =
+        getSelectedPrimitiveDescriptor() && getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].inPlace() >= 0;
+    return !inPlaceEnabled;
 }
 
 bool Reshape::created() const {

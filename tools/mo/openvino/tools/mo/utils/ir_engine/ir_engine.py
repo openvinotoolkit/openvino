@@ -25,6 +25,20 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=
 # in a safe manner without including unsafe xml.etree.ElementTree
 ElementTree = defuse_stdlib()[ET].ElementTree
 
+
+def read_rt_info_attr(elem):
+    if len(elem) == 0:
+        if 'value' not in elem.attrib:
+            return None
+        value = elem.attrib['value']
+        return value
+    val_dict = {}
+    for child in elem:
+        child_val = read_rt_info_attr(child)
+        val_dict[child.tag] = child_val
+    return val_dict
+
+
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
         if not xml_tree and not os.path.exists(path_to_xml):
@@ -88,17 +102,11 @@ class IREngine(object):
                 layers = child.findall('layer')
                 for layer in layers:
                     statistics[layer.find('name').text] = {'min': layer.find('min').text, 'max': layer.find('max').text}
-            elif child.tag == 'meta_data':
+            elif child.tag == 'rt_info':
                 for elem in child:
-                    if elem.tag == 'cli_parameters':
-                        for det in elem:
-                            if det.tag != 'unset':
-                                value = det.attrib['value']
-                                if value in ['True', 'False']:
-                                    value = False if value == 'False' else True
-                                self.meta_data[det.tag] = value
-                            else:
-                                self.meta_data[det.tag] = det.attrib['unset_cli_parameters'].split(',_')
+                    self.meta_data[elem.tag] = read_rt_info_attr(elem)
+
+            # TODO: Remove this part when POT updates to using of rt_info
             elif child.tag == 'quantization_parameters':
                 # Section with Post Optimization Toolkit parameters
                 self.meta_data['quantization_parameters'] = dict()
@@ -328,6 +336,7 @@ class IREngine(object):
         if precision is None:
             precision = xml_layer.attrib['precision']
         precision_map = {
+            'FP64': (8, np.float64),
             'FP32': (4, np.float32),
             'FP16': (2, np.float16),
             'I64': (8, np.int64),
@@ -337,7 +346,7 @@ class IREngine(object):
             'U1': (1, np.uint8),
             'U4': (1, np.uint8),
             'I4': (1, np.uint8),
-            'BOOL': (1, np.bool),
+            'BOOL': (1, bool),
             'BIN': (1, np.uint8),
             'U64': (8, np.uint64)
         }

@@ -13,14 +13,14 @@
 #include "intel_gpu/primitives/crop.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::StridedSlice>& op) {
-    p.ValidateInputs(op, {4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {4});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
+    auto output_pshape = op->get_output_partial_shape(0);
     do {
         auto data_output = op->input_value(0);
         auto begin_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
@@ -33,8 +33,13 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             break;
         }
 
-        auto input_shape = op->get_input_shape(0);
-        auto output_shape = op->get_output_shape(0);
+        auto input_pshape = op->get_input_partial_shape(0);
+
+        if (input_pshape.is_dynamic() || output_pshape.is_dynamic())
+            return;
+
+        auto input_shape = input_pshape.to_shape();
+        auto output_shape = output_pshape.to_shape();
 
         auto begin = begin_node->cast_vector<int64_t>();
         auto end = end_node->cast_vector<int64_t>();
@@ -186,15 +191,14 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             break;
         }
 
-        auto inPrimitive = inputPrimitives[0];
+        auto inPrimitive = inputs[0];
         // Reshape in case of new axis
         if (!new_axis_mask.empty()) {
             auto targetShape = tensor_from_dims(reshape_pattern);
             auto reshapeInName = op->get_friendly_name() + "/Reshape_before";
-            auto reshapePrim = cldnn::reshape(reshapeInName, inputPrimitives[0], targetShape, op->get_friendly_name());
-            p.AddPrimitive(reshapePrim);
-            p.AddInnerPrimitiveToProfiler(reshapeInName, layerName, op);
-            inPrimitive = reshapeInName;
+            auto reshapePrim = cldnn::reshape(reshapeInName, inputs[0], targetShape);
+            p.add_primitive(*op, reshapePrim);
+            inPrimitive = cldnn::input_info(reshapeInName);
         }
 
         auto data_node_shape = data_output.get_shape();
@@ -217,58 +221,46 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
         cldnn::tensor offSize = tensor_from_dims(offset, 0);
 
 
-        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
-        p.AddPrimitive(cropPrim);
+        auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize);
+        p.add_primitive(*op, cropPrim);
         auto last_layer_primitive = layerName;
 
         // Reshape in case of deleting of axis
         if (!shrink_axis_mask.empty()) {
-            auto targetShape = tensor_from_dims(output_shape);
+            std::vector<int64_t> output_pattern(output_shape.size());
+            auto out_p = output_pattern.begin();
+            for (auto s = output_shape.begin(); s != output_shape.end() && out_p != output_pattern.end(); s++, out_p++) {
+                *out_p = *s;
+            }
+
             auto reshapeOutName = op->get_friendly_name() + "/Crop";
-            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
-            p.AddPrimitive(reshapePrim);
-            p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
+            auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, false, output_pattern, output_pshape);
+            p.add_primitive(*op, reshapePrim);
             last_layer_primitive = reshapeOutName;
         }
-        p.AddPrimitiveToProfiler(op, last_layer_primitive);
         return;
     } while (false);
 
-    auto end_mask_ = op->get_end_mask();
-    auto begin_mask_ = op->get_begin_mask();
-    auto new_axis_mask_ = op->get_new_axis_mask();
-    auto shrink_axis_mask_ = op->get_shrink_axis_mask();
-    std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
-    std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
-    std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
-    std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
-
-    // Plugin requires inverted mask values. Consider changing primitive impl to be aligned with the spec.
-    for (auto& b : begin_mask) {
-        b = 1 - b;
-    }
-    for (auto& e : end_mask) {
-        e = 1 - e;
-    }
+    // In case of dynamic shapes pass dummy shape value to strided_slice primitive
+    // To be removed once we enable internal shape infer for all operations
+    auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
     auto stridedSlicePrim = cldnn::strided_slice(layerName,
-                                                 inputPrimitives[0],
-                                                 inputPrimitives[1],
-                                                 inputPrimitives[2],
-                                                 inputPrimitives[3],
-                                                 begin_mask,
-                                                 end_mask,
-                                                 new_axis_mask,
-                                                 shrink_axis_mask,
-                                                 op->get_output_shape(0),
-                                                 op->get_friendly_name());
+                                                 inputs[0],
+                                                 inputs[1],
+                                                 inputs[2],
+                                                 inputs[3],
+                                                 op->get_begin_mask(),
+                                                 op->get_end_mask(),
+                                                 op->get_new_axis_mask(),
+                                                 op->get_shrink_axis_mask(),
+                                                 op->get_ellipsis_mask(),
+                                                 output_shape);
 
-    p.AddPrimitive(stridedSlicePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, stridedSlicePrim);
 }
 
 REGISTER_FACTORY_IMPL(v1, StridedSlice);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

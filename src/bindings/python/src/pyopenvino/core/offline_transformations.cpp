@@ -13,42 +13,36 @@
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
-#include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
+#include <transformations/common_optimizations/fused_names_cleanup.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
-#include <transformations/serialize.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 
-using Version = ov::pass::Serialize::Version;
-
-inline Version convert_to_version(const std::string& version) {
-    if (version == "UNSPECIFIED")
-        return Version::UNSPECIFIED;
-    if (version == "IR_V10")
-        return Version::IR_V10;
-    if (version == "IR_V11")
-        return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
-}
-
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
-    py::module m_offline_transformations = m.def_submodule("offline_transformations", "Offline transformations module");
-    m_offline_transformations.doc() = "openvino.offline_transformations module contains different offline passes.";
+    py::module m_offline_transformations =
+        m.def_submodule("_offline_transformations", "Offline transformations module");
+    m_offline_transformations.doc() =
+        "openvino._offline_transformations is a private module contains different offline passes.";
 
     m_offline_transformations.def(
         "apply_moc_transformations",
-        [](std::shared_ptr<ov::Model> model, bool cf) {
+        [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape) {
             ov::pass::Manager manager;
+            if (smart_reshape)
+                manager.register_pass<ngraph::pass::SmartReshape>();
             manager.register_pass<ngraph::pass::MOCTransformations>(cf);
             manager.run_passes(model);
         },
         py::arg("model"),
-        py::arg("cf"));
+        py::arg("cf"),
+        py::arg("smart_reshape") = false);
 
     m_offline_transformations.def(
         "apply_moc_legacy_transformations",
@@ -114,7 +108,7 @@ void regmodule_offline_transformations(py::module m) {
         "compress_model_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+            manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
             manager.run_passes(model);
         },
@@ -130,62 +124,21 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("model"));
 
-    // todo: remove as serialize as part of passManager api will be merged
     m_offline_transformations.def(
-        "serialize",
-        [](std::shared_ptr<ov::Model> model,
-           const std::string& path_to_xml,
-           const std::string& path_to_bin,
-           const std::string& version) {
+        "convert_sequence_to_tensor_iterator_transformation",
+        [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin, convert_to_version(version));
+            manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
             manager.run_passes(model);
         },
-        py::arg("model"),
-        py::arg("model_path"),
-        py::arg("weights_path"),
-        py::arg("version") = "UNSPECIFIED",
-        R"(
-            Serialize given model into IR. The generated .xml and .bin files will be saved
-            into provided paths.
+        py::arg("model"));
 
-            :param model: model which will be converted to IR representation
-            :type model: openvino.runtime.Model
-            :param xml_path: path where .xml file will be saved
-            :type xml_path: str
-            :param bin_path: path where .bin file will be saved
-            :type bin_path: str
-            :param version: sets the version of the IR which will be generated.
-            Supported versions are:
-            - "UNSPECIFIED" (default) : Use the latest or model version
-            - "IR_V10" : v10 IR
-            - "IR_V11" : v11 IR
-    
-            :Examples:
-            
-            1. Default IR version:
-            
-            .. code-block:: python
-                
-                shape = [2, 2]
-                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
-                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
-                model = (parameter_a + parameter_b) * parameter_c
-                func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-                # IR generated with default version 
-                serialize(func, model_path="./serialized.xml", weights_path="./serialized.bin")
-
-            2. IR version 11:
-            
-            .. code-block:: python
-
-                parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
-                parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-                parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
-                model = (parameter_a + parameter_b) * parameter_c
-                func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
-                # IR generated with default version 
-                serialize(func, model_path="./serialized.xml", "./serialized.bin", version="IR_V11")
-        )");
+    m_offline_transformations.def(
+        "apply_fused_names_cleanup",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::FusedNamesCleanup>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
 }

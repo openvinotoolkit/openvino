@@ -13,10 +13,10 @@ namespace v1 {
 ///
 /// The reduction is performed over slices of the first input. The slices shape depends
 /// on the values passed to the second input - the axes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ReduceLogicalAnd : public util::LogicalReductionKeepDims {
 public:
     OPENVINO_OP("ReduceLogicalAnd", "opset1", util::LogicalReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     ReduceLogicalAnd() = default;
     /// \brief Constructs a ReduceLogicalAnd node.
     ///

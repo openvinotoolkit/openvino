@@ -20,7 +20,6 @@ OutputVector image_scaler(const Node& node) {
                  "ImageScaler expects a 4D tensor with NCHW format. Got: ",
                  data_shape);
 
-    const auto scale = node.get_attribute_value<float>("scale", 1.0);
     const auto bias = node.get_attribute_value<std::vector<float>>("bias");
 
     NGRAPH_CHECK(data_shape[1].same_scheme(bias.size()),
@@ -29,7 +28,7 @@ OutputVector image_scaler(const Node& node) {
                  " does not match the channel dimension: ",
                  data_shape[1].get_length());
 
-    const auto scale_const = default_opset::Constant::create(data.get_element_type(), Shape{}, {scale});
+    const auto scale_const = node.get_attribute_as_constant<float>("scale", 1.0, data.get_element_type());
 
     const auto bias_const = default_opset::Constant::create(data.get_element_type(), {1, bias.size(), 1, 1}, bias);
 

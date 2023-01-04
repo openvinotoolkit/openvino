@@ -14,50 +14,88 @@
 
 using namespace cldnn;
 
+namespace {
+template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
+std::vector<T>& pad_vector_to_size(std::vector<T>& data, size_t size, DT value) {
+    for (size_t i = data.size(); i < size; ++i) {
+        data.push_back(static_cast<T>(value));
+    }
+    return data;
+}
+
+template <typename T, typename MT>
+std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const T& src, const std::vector<MT>& mask) {
+    for (size_t i = 0; i < dst.size(); ++i) {
+        if (!mask[i])
+            dst[i] = src;
+    }
+    return dst;
+}
+
+template <typename T, typename MT>
+std::vector<T>& vector_assign_if_not_mask(std::vector<T>& dst, const std::vector<T>& src, const std::vector<MT>& mask) {
+    for (size_t i = 0; i < dst.size(); ++i) {
+        if (!mask[i])
+            dst[i] = src[i];
+    }
+    return dst;
+}
+}  // namespace
+
 namespace cldnn {
 namespace ocl {
 
 struct strided_slice_impl : typed_primitive_impl_ocl<strided_slice> {
     using parent = typed_primitive_impl_ocl<strided_slice>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::strided_slice_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::strided_slice_params, kernel_selector::strided_slice_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<strided_slice_impl>(*this);
     }
 
 public:
-    static primitive_impl* create(const strided_slice_node& arg) {
-        auto params = get_default_params<kernel_selector::strided_slice_params>(arg);
-        auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(arg.get_program());
+    static std::unique_ptr<primitive_impl> create(const strided_slice_node& arg, const kernel_impl_params& impl_param) {
+        const auto& prim = impl_param.typed_desc<strided_slice>();
+        auto params = get_default_params<kernel_selector::strided_slice_params>(impl_param);
+        auto op_params = get_default_optional_params<kernel_selector::strided_slice_optional_params>(impl_param.get_program());
         const size_t dims_num = params.inputs[0].Dimentions();
 
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         for (size_t i = 1; i < arg.get_dependencies().size(); ++i) {
-            auto& input = arg.get_dependency(i).as<data>();
-            auto mem = input.get_attached_memory_ptr();
-            std::vector<int32_t> sizes;
-            if (input.get_output_layout().data_type == cldnn::data_types::i64) {
-                mem_lock<int64_t> lock{mem, arg.get_program().get_stream()};
-                int64_t* data = lock.data();
-                std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + input.get_output_layout().count());
-                sizes.resize(sizes_i64.size());
-                for (size_t j = 0; j < sizes.size(); j++)
-                    sizes[j] = static_cast<int32_t>(sizes_i64[j]);
-            } else {
-                mem_lock<int32_t> lock{mem, arg.get_program().get_stream()};
-                int32_t* data = lock.data();
-                sizes = std::vector<int32_t>(data, data + input.get_output_layout().count());
-            }
+            OPENVINO_ASSERT(impl_param.memory_deps.count(i) > 0, "[GPU] Can't find StridedSlice memory dependency");
+            auto mem = impl_param.memory_deps.at(i);
+            std::vector<int32_t> sizes = read_vector<int32_t>(mem, impl_param.prog->get_stream());
             pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
             params.striding_params.push_back(sizes);
         }
 
-        params.end_mask = arg.get_primitive()->end_mask;
+        auto begin_mask_ = prim->begin_mask;
+        auto end_mask_ = prim->end_mask;
+        auto new_axis_mask_ = prim->new_axis_mask;
+        auto shrink_axis_mask_ = prim->shrink_axis_mask;
+
+        std::vector<uint8_t> begin_mask(begin_mask_.begin(), begin_mask_.end());
+        std::vector<uint8_t> end_mask(end_mask_.begin(), end_mask_.end());
+        std::vector<uint8_t> new_axis_mask(new_axis_mask_.begin(), new_axis_mask_.end());
+        std::vector<uint8_t> shrink_axis_mask(shrink_axis_mask_.begin(), shrink_axis_mask_.end());
+        // Plugin requires inverted mask values. Consider changing primitive impl to be aligned with the spec.
+        for (auto& b : begin_mask) {
+            b = 1 - b;
+        }
+        for (auto& e : end_mask) {
+            e = 1 - e;
+        }
+        params.end_mask = end_mask;
         pad_vector_to_size(params.end_mask, dims_num, 1);
-        params.begin_mask = arg.get_primitive()->begin_mask;
+        params.begin_mask = begin_mask;
         pad_vector_to_size(params.begin_mask, dims_num, 1);
-        params.new_axis_mask = arg.get_primitive()->new_axis_mask;
-        params.shrink_axis_mask = arg.get_primitive()->shrink_axis_mask;
+
+        params.new_axis_mask = new_axis_mask;
+        params.shrink_axis_mask = shrink_axis_mask;
         pad_vector_to_size(params.shrink_axis_mask, dims_num, 0);
 
         std::vector<size_t> logical_dims = params.inputs[0].LogicalDims();
@@ -97,16 +135,9 @@ public:
         }
 
         auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(params, op_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto strided_slice = new strided_slice_impl(arg, best_kernels[0]);
-
-        return strided_slice;
+        return make_unique<strided_slice_impl>(arg, best_kernel);
     }
 };
 
@@ -133,3 +164,5 @@ attach_strided_slice_impl::attach_strided_slice_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::strided_slice_impl)

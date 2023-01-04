@@ -31,62 +31,61 @@
 #include "intel_gpu/primitives/reshape.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    auto outRank = op->get_output_shape(0).size();
-    for (size_t i = 0; i < inputPrimitives.size(); ++i) {
-        auto inputShape = op->get_input_shape(i);
-        auto inputRank = inputShape.size();
-        if (inputRank != outRank) {
-            // Add reorder if changing number of dimensions requires changing format
-            auto targetFormat = DefaultFormatForDims(outRank);
-            if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
-                auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
-                auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName,
-                                                  inputPrimitives[i],
-                                                  targetFormat,
-                                                  targetDatatype,
-                                                  std::vector<float>(),
-                                                  cldnn::reorder_mean_mode::subtract,
-                                                  op->get_friendly_name());
+    auto out_pshape = op->get_output_partial_shape(0);
+    auto out_rank = out_pshape.size();
+    // New shape infer is supposed to work w/o extra reshapes/reorders
+    // So the code below must be removed once new shape infer is enabled
+    if (out_pshape.is_static()) {
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            auto input_pshape = op->get_input_partial_shape(i);
+            auto input_rank = input_pshape.size();
+            if (input_rank != out_rank && input_pshape.is_static()) {
+                // Add reorder if changing number of dimensions requires changing format
+                auto targetFormat = cldnn::format::get_default_format(out_rank);
+                if (targetFormat.value != cldnn::format::get_default_format(input_rank).value) {
+                    auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                    auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
+                    auto reorderPrim = cldnn::reorder(reorderName,
+                                                    inputs[i],
+                                                    targetFormat,
+                                                    targetDatatype,
+                                                    std::vector<float>(),
+                                                    cldnn::reorder_mean_mode::subtract);
 
-                p.AddPrimitive(reorderPrim);
-                p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
+                    p.add_primitive(*op, reorderPrim);
+                    inputs[i] = cldnn::input_info(reorderName);
+                }
 
-                inputPrimitives[i] = reorderName;
+                auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
+
+                // Extend input dimensions by prepending ones
+                input_pshape.insert(input_pshape.begin(), out_rank - input_rank, 1ul);
+
+                auto targetShape = tensor_from_dims(input_pshape.to_shape());
+
+                auto reshapePrim = cldnn::reshape(reshapeName, inputs[i], targetShape);
+                p.add_primitive(*op, reshapePrim);
+
+                inputs[i] = cldnn::input_info(reshapeName);
             }
-
-            auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
-
-            // Extend input dimensions by prepending ones
-            inputShape.insert(inputShape.begin(), outRank - inputRank, 1ul);
-
-            auto targetShape = tensor_from_dims(inputShape);
-
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
-            p.AddPrimitive(reshapePrim);
-            p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
-
-            inputPrimitives[i] = reshapeName;
         }
     }
 
-    auto out_dt = DataTypeFromPrecision(op->get_output_element_type(0));
+    auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto eltwisePrim = cldnn::eltwise(layerName,
-                                      inputPrimitives,
+                                      inputs,
                                       mode,
                                       {},
                                       out_dt,
-                                      op->get_friendly_name());
+                                      op->get_autob());
 
-    p.AddPrimitive(eltwisePrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, eltwisePrim);
 }
 
 static void CreateAddOp(Program& p, const std::shared_ptr<ngraph::op::v1::Add>& op) {
@@ -154,7 +153,7 @@ static void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::op::v1:
 }
 
 static void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op) {
-    p.ValidateInputs(op, {2});
+    validate_inputs_count(op, {2});
     auto power_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (power_node) {
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
@@ -197,5 +196,4 @@ REGISTER_FACTORY_IMPL(v1, FloorMod);
 REGISTER_FACTORY_IMPL(v1, Mod);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

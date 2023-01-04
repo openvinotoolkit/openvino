@@ -23,6 +23,8 @@ enum class LSTMWeightsFormat {
     IOFC,  // ONNX
 };
 
+ov::op::util::LSTMWeightsFormat convert_lstm_weights_enums(LSTMWeightsFormat format);
+
 namespace v0 {
 ///
 /// \brief      Class for single lstm cell node.
@@ -50,10 +52,10 @@ namespace v0 {
 ///
 /// \sa         LSTMSequence, RNNCell, GRUCell
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset1", op::util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///
@@ -273,10 +275,10 @@ namespace v4 {
 ///
 /// \sa         LSTMSequence, RNNCell, GRUCell
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API LSTMCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("LSTMCell", "opset4", op::util::RNNCellBase, 4);
-    BWDCMP_RTTI_DECLARATION;
 
     LSTMCell();
     ///
@@ -395,7 +397,6 @@ public:
     AttributeAdapter(op::LSTMWeightsFormat& value) : EnumAttributeAdapterBase<op::LSTMWeightsFormat>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::LSTMWeightsFormat>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

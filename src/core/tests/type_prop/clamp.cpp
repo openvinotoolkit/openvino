@@ -49,6 +49,19 @@ TEST(type_prop, clamp_shape_dynamic) {
     ASSERT_EQ(clamp->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
+TEST(type_prop, clamp_evaluate_bounds) {
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto gather = make_shared<op::v1::Gather>(shape_of,
+                                              op::Constant::create(element::i64, {3}, {2, 1, 0}),
+                                              op::Constant::create(element::i64, {}, {0}));
+    auto clamp = make_shared<op::Clamp>(gather, 0, 5);
+    auto r = make_shared<op::v1::Reshape>(param, clamp, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({3, 2, Dimension(1, 5)}));
+}
+
 TEST(type_prop, clamp_invalid_element_type) {
     auto data = make_shared<op::Parameter>(element::boolean, Shape{2, 2});
 

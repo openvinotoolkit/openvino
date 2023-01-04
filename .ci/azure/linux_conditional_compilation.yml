@@ -1,16 +1,45 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
     exclude:
-    - docs/*
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+pr:
+  drafts: 'false'
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+resources:
+  repositories:
+  - repository: testdata
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/testdata
 
 jobs:
 - job: LinCC
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -21,7 +50,6 @@ jobs:
     VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
-    OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
@@ -55,15 +83,14 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
-      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements.txt
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
@@ -71,28 +98,69 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+  - checkout: testdata
+    clean: 'true'
+    fetchDepth: '1'
+    lfs: 'true'
+    path: testdata
+
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_PROFILING_ITT=ON
         -DSELECTIVE_BUILD=COLLECT
+        -DENABLE_INTEL_GPU=OFF
+        -DENABLE_MULTI=OFF
+        -DENABLE_AUTO=OFF
+        -DENABLE_AUTO_BATCH=OFF
+        -DENABLE_HETERO=OFF
+        -DENABLE_TEMPLATE=OFF
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF
+        -DENABLE_OV_ONNX_FRONTEND=OFF
+        -DENABLE_OV_PADDLE_FRONTEND=OFF
+        -DENABLE_OV_TF_FRONTEND=OFF
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
-  - script: ninja
+  - script: |
+      ninja
+      cmake --build . --target sea_itt_lib
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build LinCC'
+    displayName: 'Build LinCC COLLECT'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Install'
+  - script: |
+      python3 thirdparty/itt_collector/runtool/sea_runtool.py \
+          --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+          -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Code usage analysis'
 
-  - script: ls -alR $(INSTALL_DIR)
-    displayName: 'List install files'
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        -DSELECTIVE_BUILD=ON
+        -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)/*.csv
+        $(REPO_DIR)
+      workingDirectory: $(BUILD_DIR)
+
+  - script: cmake --build $(BUILD_DIR)
+    displayName: 'Build LinCC ON'
+
+  - script: ls -alR $(REPO_DIR)/bin/
+    displayName: 'List bin files ON'
+
+  - script: |
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+        -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Use OpenVINO after CC'

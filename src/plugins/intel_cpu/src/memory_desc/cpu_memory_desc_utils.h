@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "mkldnn/ie_mkldnn.h"
+#include <onednn/dnnl.h>
 #include "cpu_types.h"
+#include "cpu_shape.h"
 
 #include <ie_layouts.h>
 #include <ie_blob.h>
@@ -67,6 +68,13 @@ public:
     static InferenceEngine::Blob::Ptr interpretAsBlob(const Memory& mem);
 
     /**
+     * @brief Creates InferenceEngine::TensorDesc from Memory with the memory reuse
+     * @param desc Memory from which will be created InferenceEngine::Blob
+     * @return InferenceEngine::TensorDesc
+     */
+    static InferenceEngine::TensorDesc interpretAsBlobDesc(const Memory& mem);
+
+    /**
      * @brief Converts MemoryDesc to InferenceEngine::TensorDesc
      * @param desc MemoryDesc to be converted
      * @return converted InferenceEngine::TensorDesc
@@ -85,11 +93,19 @@ public:
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
-    * @param shape a shape from which the new static shape is generated
+    * @param shape a Shape object from which the new static shape is generated
     * @param dummyVal Dim value to replace undefined dimensions
     * @return a new Shape with dummy values instead of undefined dims
     */
     static Shape makeDummyShape(const Shape& shape, Dim dummyVal = DEFAULT_DUMMY_VAL);
+
+    /**
+    * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
+    * @param shape a Shape object from which the new static shape is generated
+    * @param dummyVals vector of values to replace undefined dimensions
+    * @return a new Shape with dummy values instead of undefined dims
+    */
+    static Shape makeDummyShape(const Shape& shape, const VectorDims& dummyVals);
 
     /**
      * @brief Converts dim to string, undefined dim represented as ?

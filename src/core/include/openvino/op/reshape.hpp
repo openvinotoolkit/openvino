@@ -14,10 +14,10 @@ namespace v1 {
 /// "Converts" an input tensor into a new shape with the same number of elements.
 /// This op does not touch the actual data. If needed, use Transpose for that purpose.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Reshape : public Op {
 public:
     OPENVINO_OP("Reshape", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
     Reshape() = default;
     /// \brief Constructs a dynamic reshape operation. This operation does not perform
     ///        transpose.

@@ -9,10 +9,12 @@
 namespace ov {
 namespace op {
 namespace v0 {
+/// \brief ROIPooling operation.
+///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ROIPooling : public Op {
 public:
     OPENVINO_OP("ROIPooling", "opset2");
-    BWDCMP_RTTI_DECLARATION;
 
     ROIPooling() = default;
     /// \brief Constructs a ROIPooling operation

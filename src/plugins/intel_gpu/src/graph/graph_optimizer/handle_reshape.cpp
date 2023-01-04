@@ -37,15 +37,14 @@ void handle_reshape::run(program& p) {
                 node.has_fused_primitives())
                 return;
 
-            auto are_layouts_identical = program_helpers::are_layouts_identical(input_lay, output_lay);
-            if (are_layouts_identical.first) {
+            if (input_lay.identical(output_lay)) {
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
-            } else if (are_layouts_identical.second && input_node.is_type<data>()) {
+            } else if (input_lay.compatible(output_lay) && input_node.is_type<data>()) {
                 input_node.set_output_layout(output_lay, false);
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
-            } else if (are_layouts_identical.second) {
+            } else if (input_lay.compatible(output_lay)) {
                 p.add_optimized_primitive_info(node.id());
                 node.can_be_optimized(true);
             }
@@ -146,14 +145,16 @@ void handle_reshape::run(program& p) {
             }
 
             auto reshape_layout = node->get_output_layout();
-            if (!(node->is_output()) && (reshape_layout.format != cldnn::format::bfyx)) {
-                auto bfyx_layout = layout({reshape_layout.data_type, cldnn::format::bfyx, reshape_layout.size});
+            auto target_format = format::get_default_format(reshape_layout.get_rank());
+
+            if (!(node->is_output()) && (reshape_layout.format != target_format)) {
+                auto target_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, target_format});
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
-                if (!program_helpers::are_layouts_identical(reshape_layout, bfyx_layout).second) {
+                if (!reshape_layout.compatible(target_layout)) {
                     auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
                                                                    input_node.id(),
-                                                                   cldnn::format::bfyx,
+                                                                   target_format,
                                                                    reshape_layout.data_type);
                     auto& reshape_input_node = p.get_or_create(reshape_input);
                     p.add_intermediate(reshape_input_node, *node, 0, reshape_input_node.get_dependencies().empty());

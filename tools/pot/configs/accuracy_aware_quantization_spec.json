@@ -60,7 +60,7 @@
     "compression": {
         "target_device": "ANY", // Target device, the specificity of which will be taken
                                 // into account during optimization
-        "inplace_statistic": true, // An optional parameter, change method collect statistics,
+        "inplace_statistics": true,   // An optional parameter, change method collect statistics,
                                       // reduces the amount of memory consumed,
                                       // but increases the calibration time
                                       // the default value is true        

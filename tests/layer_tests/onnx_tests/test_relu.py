@@ -3,12 +3,12 @@
 
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestRelu(Caffe2OnnxLayerTest):
+class TestRelu(OnnxRuntimeLayerTest):
     def create_net(self, shape, ir_version):
         """
             ONNX net                    IR net
@@ -93,7 +93,7 @@ class TestRelu(Caffe2OnnxLayerTest):
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
         const_number = np.prod(shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
         constant = np.reshape(constant, shape)
 
         node_const_def = onnx.helper.make_node(
@@ -172,13 +172,13 @@ class TestRelu(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_relu(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_relu_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_relu_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, precision=precision, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

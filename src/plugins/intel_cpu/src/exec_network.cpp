@@ -42,10 +42,7 @@ namespace intel_cpu {
 InferenceEngine::IInferRequestInternal::Ptr
 ExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
-    if (!this->_plugin)
-        return nullptr;
-    const auto& core = _plugin->GetCore();
-    if (!core || !core->isNewAPI())
+    if (!this->_plugin || !_plugin->IsNewAPI())
         return nullptr;
     return std::make_shared<InferRequest>(inputs, outputs, std::static_pointer_cast<ExecNetwork>(shared_from_this()));
 }
@@ -67,13 +64,11 @@ struct ImmediateSerialExecutor : public ITaskExecutor {
 ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
                          const Config &cfg,
                          const ExtensionManager::Ptr& extMgr,
-                         NumaNodesWeights &numaNodesWeights,
                          const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()},
-    _numaNodesWeights(numaNodesWeights),
     _network(network) {
     SetPointerToPlugin(plugin);
     auto function = network.getFunction();
@@ -83,6 +78,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
     _cfg.isNewApi = !isLegacyAPI();
+    _mutex = std::make_shared<std::mutex>();
 
     // WA for inference dynamic batch cases in new API
     if (_cfg.isNewApi) {
@@ -104,6 +100,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
+        _cfg.streamExecutorConfig._threads = streamsExecutorConfig._threads;
 #if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
@@ -126,12 +123,19 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
     if (_cfg.streamExecutorConfig._streams != 0) {
-        for (auto&& task : tasks) {
-            task = [this] {
-                ExecNetwork::GetGraph();
-            };
-        }
-        _taskExecutor->runAndWait(tasks);
+        auto all_graphs_ready = [&] {
+            return std::all_of(_graphs.begin(), _graphs.end(), [&] (Graph& graph) {
+                return graph.IsReady();
+            });
+        };
+        do {
+            for (auto&& task : tasks) {
+                task = [this] {
+                    ExecNetwork::GetGraph();
+                };
+            }
+            _taskExecutor->runAndWait(tasks);
+        } while (!all_graphs_ready());
     } else {
         ExecNetwork::GetGraph();
     }
@@ -174,10 +178,10 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         auto makeGraph = [&] {
             try {
                 {
-                    std::lock_guard<std::mutex> lock{_cfgMutex};
+                    std::lock_guard<std::mutex> lock{*_mutex.get()};
                     graphLock._graph.setConfig(_cfg);
                 }
-                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId]);
+                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], _mutex);
             } catch(...) {
                 exception = std::current_exception();
             }
@@ -196,7 +200,7 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
 
 void ExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
     {
-        std::lock_guard<std::mutex> lock{_cfgMutex};
+        std::lock_guard<std::mutex> lock{*_mutex.get()};
         _cfg.readProperties(properties);
     }
     for (auto& g : _graphs) {
@@ -308,6 +312,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::hint::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
             RO_property(ov::hint::num_requests.name()),
+            RO_property(ov::execution_devices.name()),
         };
     }
 
@@ -350,6 +355,8 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{_plugin->GetName()};
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

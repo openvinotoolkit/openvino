@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "convolution_shape_inference.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -129,4 +130,18 @@ TEST(type_prop, conv_v1_partial_data_shape_dynamic) {
               PartialShape({Dimension::dynamic(), 1, Dimension::dynamic(), Dimension::dynamic()}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 0}));
+}
+
+TEST(type_prop, convolution_default_constructed) {
+    auto conv = make_shared<op::v1::Convolution>();
+    conv->set_auto_pad(op::PadType::SAME_LOWER);
+
+    const auto &input_shape = ov::PartialShape::dynamic(), filters_shape = ov::PartialShape{1, 1, 3, 3};
+    const auto& input_shapes = std::vector<ov::PartialShape>{input_shape, filters_shape};
+    std::vector<ov::PartialShape> output_shapes(1);
+    auto pad_begin = CoordinateDiff{}, pad_end = CoordinateDiff{};
+
+    int64_t num_spatial = calculate_num_spatial(conv.get(), input_shape, filters_shape, 2, 2);
+    update_and_validate_attributes(conv.get(), num_spatial);
+    EXPECT_NO_THROW(shape_infer(conv.get(), pad_begin, pad_end, input_shapes, output_shapes));
 }

@@ -16,35 +16,31 @@ namespace ocl {
 struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
     using parent = typed_primitive_impl_ocl<random_uniform>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::random_uniform_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::random_uniform_params, kernel_selector::random_uniform_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<random_uniform_impl>(*this);
     }
 
-    static primitive_impl *create(const random_uniform_node &arg) {
-        auto params = get_default_params<kernel_selector::random_uniform_params>(
-                arg);
-        auto &random_uniform_kernel_selector =
-                kernel_selector::random_uniform_kernel_selector::Instance();
-        const auto &primitive = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<random_uniform>();
+        auto params = get_default_params<kernel_selector::random_uniform_params>(impl_param);
         params.global_seed = primitive->global_seed;
         params.op_seed = primitive->op_seed;
-        params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
-        params.inputs.push_back(convert_data_tensor(arg.input(2).get_output_layout()));
-        auto best_kernels = random_uniform_kernel_selector.GetBestKernels(params,
-                                                                          kernel_selector::random_uniform_optional_params());
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-        return new random_uniform_impl(arg, best_kernels[0]);
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
+
+        return {params, {}};
     }
 };
 
 namespace detail {
 
 attach_random_uniform_impl::attach_random_uniform_impl() {
-    implementation_map<random_uniform>::add(impl_types::ocl, random_uniform_impl::create, {
+    implementation_map<random_uniform>::add(impl_types::ocl, typed_primitive_impl_ocl<random_uniform>::create<random_uniform_impl>, {
             std::make_tuple(data_types::f16, format::bfyx),
             std::make_tuple(data_types::f16, format::bfzyx),
             std::make_tuple(data_types::f16, format::bfwzyx),
@@ -64,3 +60,5 @@ attach_random_uniform_impl::attach_random_uniform_impl() {
 
 } // namespace ocl
 } // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl)

@@ -19,10 +19,10 @@ namespace ov {
 namespace op {
 namespace v0 {
 /// \brief Class for constants.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Constant : public Op {
 public:
     OPENVINO_OP("Constant", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Constant() = default;
 
@@ -504,6 +504,34 @@ private:
                                           Type != element::Type_t::i4,
                                       bool>::type = true>
     void fill_data(const T& value) {
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#endif
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4018)
+#    pragma warning(disable : 4804)
+#endif
+        if (!std::is_same<T, StorageDataType>::value) {
+            OPENVINO_ASSERT(!std::numeric_limits<T>::is_signed ||
+                            std::numeric_limits<StorageDataType>::lowest() <= value);
+            OPENVINO_ASSERT(value <= std::numeric_limits<StorageDataType>::max());
+        }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
+#ifdef __clang__
+#    pragma GangC diagnostic pop
+#endif
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
+
         const auto size = shape_size(m_shape);
         const auto v = static_cast<StorageDataType>(value);
         std::fill_n(get_data_ptr_nc<Type>(), size, v);

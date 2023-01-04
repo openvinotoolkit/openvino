@@ -13,9 +13,8 @@
 #include "itt.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-bool ngraph::pass::FixRtInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    // TODO: enable conditional compile
-    // RUN_ON_FUNCTION_SCOPE(FixRtInfo);
+bool ov::pass::FixRtInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+    RUN_ON_FUNCTION_SCOPE(FixRtInfo);
 
     for (auto& node : f->get_ops()) {
         // Recursively apply transformation for sub-graph based operations

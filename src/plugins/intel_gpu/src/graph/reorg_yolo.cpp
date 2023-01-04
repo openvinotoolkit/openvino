@@ -8,25 +8,22 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id reorg_yolo::type_id() {
-    static primitive_type_base<reorg_yolo> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reorg_yolo)
 
-layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout reorg_yolo_inst::calc_output_layout(reorg_yolo_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "reorg_yolo_node!");
-    auto input_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    auto input_layout = impl_param.get_input_layout();
+    auto desc = impl_param.typed_desc<reorg_yolo>();
     auto stride = desc->stride;
 
     cldnn::layout layoutTemp = cldnn::layout(input_layout.data_type,
                                              input_layout.format,
-                                             tensor(input_layout.size.batch[0],
-                                                    input_layout.size.feature[0] * stride * stride,
-                                                    input_layout.size.spatial[0] / stride,
-                                                    input_layout.size.spatial[1] / stride));
+                                             tensor(input_layout.batch(),
+                                                    input_layout.feature() * stride * stride,
+                                                    input_layout.spatial(0) / stride,
+                                                    input_layout.spatial(1) / stride));
     return layoutTemp;
 }
 

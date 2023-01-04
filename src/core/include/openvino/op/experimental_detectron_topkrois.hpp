@@ -16,10 +16,10 @@ namespace op {
 namespace v6 {
 /// \brief An operation ExperimentalDetectronTopKROIs, according to the repository
 /// is TopK operation applied to probabilities of input ROIs.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API ExperimentalDetectronTopKROIs : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronTopKROIs", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     ExperimentalDetectronTopKROIs() = default;
     /// \brief Constructs a ExperimentalDetectronTopKROIs operation.

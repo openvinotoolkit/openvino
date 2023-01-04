@@ -14,8 +14,9 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_unpack_op(const NodeContext& node) {
+    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() > 0, "Unpack must have at least one input.");
     auto input = node.get_input(0);
-    auto axis = node.get_attribute<int64_t>("axis");
+    auto axis = node.get_attribute<int64_t>("axis", 0);
     auto num = node.get_attribute<int64_t>("num");
 
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);

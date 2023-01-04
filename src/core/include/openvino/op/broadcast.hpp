@@ -14,10 +14,10 @@ namespace op {
 namespace v3 {
 /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
 ///        input as needed along the new axes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -78,10 +78,10 @@ private:
 namespace v1 {
 /// \brief Operation which "adds" axes to an input tensor, replicating elements from the
 ///        input as needed along the new axes.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
     OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;

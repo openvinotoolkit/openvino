@@ -13,10 +13,10 @@ namespace op {
 namespace v1 {
 /// \brief Elementwise addition operation.
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Add : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Add", "opset1", util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
     Add() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

@@ -4,12 +4,12 @@
 import numpy as np
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 from unit_tests.utils.graph import build_graph
 
 
-class TestScatters(Caffe2OnnxLayerTest):
+class TestScatters(OnnxRuntimeLayerTest):
     op = None
 
     def create_net(self, input_shape, indices_shape, updates_shape, output_shape,
@@ -113,10 +113,10 @@ class TestScatter(TestScatters):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_scatter(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)
 
 
 class TestScatterElements(TestScatters):
@@ -124,7 +124,7 @@ class TestScatterElements(TestScatters):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_scatter_elements(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

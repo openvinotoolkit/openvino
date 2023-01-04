@@ -29,6 +29,8 @@ struct ScoreErrorT {
     float maxRelError;
     float sumRelError;
     float sumSquaredRelError;
+    float maxAbsRefScore;
+    float sumAbsRefScore;
 };
 
 /**
@@ -98,6 +100,8 @@ void clear_score_error(ScoreErrorT* error) {
     error->maxRelError = 0.0;
     error->sumRelError = 0.0;
     error->sumSquaredRelError = 0.0;
+    error->maxAbsRefScore = 0.0;
+    error->sumAbsRefScore = 0.0;
 }
 
 /**
@@ -111,9 +115,13 @@ void update_score_error(ScoreErrorT* error, ScoreErrorT* totalError) {
     totalError->numScores += error->numScores;
     totalError->sumRmsError += error->rmsError;
     totalError->sumError += error->sumError;
+    totalError->sumAbsRefScore += error->sumAbsRefScore;
     totalError->sumSquaredError += error->sumSquaredError;
     if (error->maxError > totalError->maxError) {
         totalError->maxError = error->maxError;
+    }
+    if (error->maxAbsRefScore > totalError->maxAbsRefScore) {
+        totalError->maxAbsRefScore = error->maxAbsRefScore;
     }
     totalError->sumRelError += error->sumRelError;
     totalError->sumSquaredRelError += error->sumSquaredRelError;
@@ -147,13 +155,18 @@ void compare_scores(float* ptrScoreArray,
             float score = A[i * numColumns + j];
             // std::cout << "score" << score << std::endl;
             float refscore = B[i * numColumns + j];
+            float abs_refscore = fabs(refscore);
             float error = fabs(refscore - score);
-            float rel_error = error / (static_cast<float>(fabs(refscore)) + 1e-20f);
+            float rel_error = error / (static_cast<float>(abs_refscore) + 1e-20f);
             float squared_error = error * error;
             float squared_rel_error = rel_error * rel_error;
             scoreError->numScores++;
             scoreError->sumError += error;
+            scoreError->sumAbsRefScore += abs_refscore;
             scoreError->sumSquaredError += squared_error;
+            if (abs_refscore > scoreError->maxAbsRefScore) {
+                scoreError->maxAbsRefScore = abs_refscore;
+            }
             if (error > scoreError->maxError) {
                 scoreError->maxError = error;
             }
@@ -183,82 +196,6 @@ float std_dev_error(ScoreErrorT error) {
                  (error.sumError / error.numScores) * (error.sumError / error.numScores)));
 }
 
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#    ifdef _WIN32
-#        include <intrin.h>
-#        include <windows.h>
-#    else
-
-#        include <cpuid.h>
-
-#    endif
-
-inline void native_cpuid(unsigned int* eax, unsigned int* ebx, unsigned int* ecx, unsigned int* edx) {
-    size_t level = *eax;
-#    ifdef _WIN32
-    int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
-    __cpuid(regs, level);
-    *eax = static_cast<uint32_t>(regs[0]);
-    *ebx = static_cast<uint32_t>(regs[1]);
-    *ecx = static_cast<uint32_t>(regs[2]);
-    *edx = static_cast<uint32_t>(regs[3]);
-#    else
-    __get_cpuid(level, eax, ebx, ecx, edx);
-#    endif
-}
-
-/**
- * @brief Get GNA module frequency
- * @return GNA module frequency in MHz
- */
-float get_gna_frequency_mhz() {
-    uint32_t eax = 1;
-    uint32_t ebx = 0;
-    uint32_t ecx = 0;
-    uint32_t edx = 0;
-    uint32_t family = 0;
-    uint32_t model = 0;
-    const uint8_t sixth_family = 6;
-    const uint8_t cannon_lake_model = 102;
-    const uint8_t gemini_lake_model = 122;
-    const uint8_t ice_lake_model = 126;
-    const uint8_t tgl_model = 140;
-    const uint8_t adl_s_model = 151;
-    const uint8_t adl_p_model = 154;
-
-    native_cpuid(&eax, &ebx, &ecx, &edx);
-    family = (eax >> 8) & 0xF;
-
-    // model is the concatenation of two fields
-    // | extended model | model |
-    // copy extended model data
-    model = (eax >> 16) & 0xF;
-    // shift
-    model <<= 4;
-    // copy model data
-    model += (eax >> 4) & 0xF;
-
-    if (family == sixth_family) {
-        switch (model) {
-        case cannon_lake_model:
-        case ice_lake_model:
-        case tgl_model:
-        case adl_s_model:
-        case adl_p_model:
-            return 400;
-        case gemini_lake_model:
-            return 200;
-        default:
-            return 1;
-        }
-    } else {
-        // counters not supported and we returns just default value
-        return 1;
-    }
-}
-
-#endif  // if not ARM
-
 /**
  * @brief Print a report on the statistical score error
  * @param totalError reference to a total score error struct
@@ -267,6 +204,8 @@ float get_gna_frequency_mhz() {
  * @return none.
  */
 void print_reference_compare_results(ScoreErrorT const& totalError, size_t framesNum, std::ostream& stream) {
+    stream << " max abs ref score: " << totalError.maxAbsRefScore << std::endl;
+    stream << " avg abs ref score: " << totalError.sumAbsRefScore / totalError.numScores << std::endl;
     stream << "         max error: " << totalError.maxError << std::endl;
     stream << "         avg error: " << totalError.sumError / totalError.numScores << std::endl;
     stream << "     avg rms error: " << totalError.sumRmsError / framesNum << std::endl;
@@ -303,11 +242,9 @@ void print_performance_counters(std::map<std::string, ov::ProfilingInfo> const& 
     stream << std::setw(24) << "(us per call)";
     stream << std::endl;
     // if GNA HW counters
-    // get frequency of GNA module
-    float freq = get_gna_frequency_mhz();
     for (const auto& it : utterancePerfMap) {
         std::string const& counter_name = it.first;
-        float current_units_us = static_cast<float>(it.second.real_time.count()) / freq;
+        float current_units_us = static_cast<float>(it.second.real_time.count());
         float call_units_us = 0;
         if (numberOfFrames == 0) {
             throw std::logic_error("Number off frames = 0,  division by zero.");
@@ -432,7 +369,7 @@ bool check_name(const ov::OutputVector& nodes, const std::string& node_name) {
 
 /**
  * @brief Parse scale factors per input
- * Format : <input_name1>:<sf1>,<input2>:<sf2> or just <sf>
+ * Format : <input_name1>=<sf1>,<input2>=<sf2> or just <sf>
  * @param inputs model inputs
  * @param values_string values_string input string
  * @return map of scale factors per input
@@ -454,11 +391,11 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
     std::map<std::string, float> result;
     auto scale_factor_strings = split(values_string, ',');
     for (auto& scale_factor_string : scale_factor_strings) {
-        auto values = split(scale_factor_string, ':');
+        auto values = split(scale_factor_string, '=');
         if (values.size() == 1) {
             if (scale_factor_strings.size() != 1) {
                 throw std::logic_error("Unrecognized scale factor format! "
-                                       "Please specify <input_name1>:<sf1>,<input_name2>:<sf2> or "
+                                       "Please specify <input_name1>=<sf1>,<input_name2>=<sf2> or "
                                        "just <sf> to be applied to all inputs");
             }
             auto scale_factor = get_sf(values.at(0));
@@ -468,8 +405,7 @@ std::map<std::string, float> parse_scale_factors(const ov::OutputVector& inputs,
         } else if (values.size() > 0) {
             auto sf_sting = values.back();
             values.pop_back();
-            // input name can contain port, concat back
-            auto input_name = concat(values, ':');
+            auto input_name = values.back();
             check_name(inputs, input_name);
             result[input_name] = get_sf(sf_sting, input_name);
         }
@@ -534,4 +470,64 @@ std::map<std::string, std::string> parse_input_layouts(const std::string& layout
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + layout_string);
     return return_value;
+}
+
+/**
+ * @brief Parse parameters for inputs/outputs/reference like as "<name1>=<file1.ark/.npz>,<name2>=<file2.ark/.npz>" or
+ * "<file.ark/.npz>" in case of one input/output/reference.
+ * @note Examplary result for given data: {"<file1.ark/.npz>,<file2.ark/.npz>",{"<name1>","<name2>"}}
+ * @param file_paths_string input/output path
+ * @return pair of filename and vector of layers names
+ */
+std::pair<std::string, std::vector<std::string>> parse_parameters(const std::string& file_paths_string) {
+    auto search_string = file_paths_string;
+    char comma_delim = ',';
+    char equal_delim = '=';
+    std::string filename = "";
+    std::vector<std::string> layers_names;
+    std::vector<std::string> filenames;
+    if (!std::count(search_string.begin(), search_string.end(), comma_delim) &&
+        !std::count(search_string.begin(), search_string.end(), equal_delim)) {
+        return {search_string, layers_names};
+    }
+    search_string += comma_delim;
+    std::vector<std::string> splitted = split(search_string, comma_delim);
+    for (size_t j = 0; j < splitted.size(); j++) {
+        auto equal_delim_pos = splitted[j].find_first_of(equal_delim);
+        if (equal_delim_pos != std::string::npos) {
+            layers_names.push_back(splitted[j].substr(0, equal_delim_pos));
+            filenames.push_back(splitted[j].substr(equal_delim_pos + 1, std::string::npos));
+        }
+    }
+    for (std::vector<std::string>::const_iterator name = filenames.begin(); name != filenames.end(); ++name) {
+        filename += *name;
+        if (name != filenames.end() - 1)
+            filename += comma_delim;
+    }
+    return {filename, layers_names};
+}
+
+std::vector<std::pair<std::string, size_t>> parse_to_extract_port(const std::vector<std::string>& full_names) {
+    std::vector<std::pair<std::string, size_t>> result;
+    for (const auto& full_name : full_names) {
+        auto pos_layer = full_name.rfind(":");
+        if (pos_layer == std::string::npos) {
+            throw std::logic_error("Output " + full_name + " doesn't have a port");
+        }
+        const auto name = full_name.substr(0, pos_layer);
+        try {
+            const size_t port = std::stoul(full_name.substr(pos_layer + 1));
+            result.push_back({name, port});
+        } catch (const std::exception&) {
+            throw std::logic_error("Ports should have integer type");
+        }
+    }
+    return result;
+}
+
+const std::vector<std::string>& get_first_non_empty(const std::vector<std::string>& first,
+                                                    const std::vector<std::string>& second) {
+    if (!first.empty())
+        return first;
+    return second;
 }

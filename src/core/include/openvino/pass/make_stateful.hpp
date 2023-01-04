@@ -15,6 +15,7 @@ namespace pass {
 /**
  * @brief The transformation replaces the provided pairs Parameter and Result with ngraph Memory layers
  * ReadValue and Assign
+ * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API MakeStateful : public ModelPass {
 public:

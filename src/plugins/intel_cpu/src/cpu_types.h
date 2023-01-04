@@ -22,6 +22,7 @@ enum class Type {
     Reorder,
     Input,
     Output,
+    Eye,
     Convolution,
     Deconvolution,
     Lrn,
@@ -71,6 +72,7 @@ enum class Type {
     Gather,
     GatherElements,
     GatherND,
+    GridSample,
     OneHot,
     RegionYolo,
     Select,
@@ -78,6 +80,7 @@ enum class Type {
     Reference,
     ShuffleChannels,
     DFT,
+    RDFT,
     Math,
     CTCLoss,
     Bucketize,
@@ -98,6 +101,7 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
+    GenerateProposals,
     ExtractImagePatches,
     NonMaxSuppression,
     MatrixNms,
@@ -105,6 +109,9 @@ enum class Type {
     Subgraph,
     PriorBox,
     PriorBoxClustered,
+    Interaction,
+    MHA,
+    Unique
 };
 
 enum class Algorithm {
@@ -128,6 +135,9 @@ enum class Algorithm {
 
     // Elementwise algorithms
     EltwiseAdd,
+    EltwiseIsFinite,
+    EltwiseIsInf,
+    EltwiseIsNaN,
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
@@ -167,11 +177,13 @@ enum class Algorithm {
     EltwiseRoundHalfToEven,
     EltwiseRoundHalfAwayFromZero,
     EltwiseErf,
+    EltwiseSoftSign,
 
     // FakeQuantize algorithms
     FQCommon,
     FQQuantization,
     FQBinarization,
+    FQRequantization,
 
     // ROIPooling algorithms
     ROIPoolingMax,

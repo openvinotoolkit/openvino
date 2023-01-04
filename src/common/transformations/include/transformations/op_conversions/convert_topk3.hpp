@@ -5,20 +5,26 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertTopK3;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertTopK3 : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertTopK3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertTopK3", "0");
     ConvertTopK3();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertTopK3;
+}  // namespace pass
+}  // namespace ngraph

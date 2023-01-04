@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -31,8 +32,8 @@ def import_and_compute_matmul(input_left, input_right):
     input_data_right = np.array(input_right).astype(np.float32)
     onnx_model = make_onnx_model_for_matmul_op(input_data_left, input_data_right)
     transformer = get_runtime()
-    ng_model_function = import_onnx_model(onnx_model)
-    computation = transformer.computation(ng_model_function)
+    model = import_onnx_model(onnx_model)
+    computation = transformer.computation(model)
     return computation(input_data_left, input_data_right)[0]
 
 
@@ -88,13 +89,13 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
 
     onnx_model = make_onnx_model_for_gemm_op(input_a, input_b, input_c, **kwargs)
     transformer = get_runtime()
-    ng_model_function = import_onnx_model(onnx_model)
-    computation = transformer.computation(ng_model_function)
+    model = import_onnx_model(onnx_model)
+    computation = transformer.computation(model)
     return computation(input_a, input_b, input_c)[0]
 
 
 @pytest.mark.parametrize(
-    "data, description",
+    ("data", "description"),
     [
         pytest.param(([1, 2], [1, 3]), "vector and vector 1"),
         (([1, 2, 3], [[4], [5], [6]]), "vector and vector 2"),
@@ -103,7 +104,7 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
         (([[1, 2, 3], [4, 5, 6]], [[7], [8], [9]]), "matrix and vector"),
         (([[1, 2], [3, 4]], [[5, 6], [7, 8]]), "matrix and matrix 1"),
         (([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]]), "matrix and matrix 2"),
-        (([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]]), "matrix and matrix 3")
+        (([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]]), "matrix and matrix 3"),
     ],
 )
 def test_op_matmul(data, description):
@@ -120,7 +121,7 @@ def test_op_matmul_3d():
 
 
 @pytest.mark.parametrize(
-    "data, kwargs, description",
+    ("data", "kwargs", "description"),
     [
         pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors"),
         pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar"),
@@ -128,7 +129,7 @@ def test_op_matmul_3d():
         pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7.0, "beta": 9.0},
                      "vectors with alpha and beta"),
         pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7.0, "beta": 9.0},
-                     "longer vectors with alpha and beta")
+                     "longer vectors with alpha and beta"),
     ],
 )
 def test_gemm(data, kwargs, description):
@@ -136,7 +137,7 @@ def test_gemm(data, kwargs, description):
 
 
 @pytest.mark.parametrize(
-    "data, kwargs, description",
+    ("data", "kwargs", "description"),
     [
         pytest.param(([1, 2], [1, 3], [1, 4]), {"trans_a": True, "trans_b": True},
                      "vectors with trans_a/trans_b"),
@@ -154,7 +155,7 @@ def test_gemm_transpositions(data, kwargs, description):
 
 
 def test_gemm_flatten():
-    # input_a.shape is (4,1)
+    # input_a has a shape of (4, 1)
     data = ([[1], [2], [3], [4]], [1, 3, 5, 7], [1, 4])
     kwargs = {"alpha": 7.0, "beta": 9.0, "trans_a": True}
     assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))

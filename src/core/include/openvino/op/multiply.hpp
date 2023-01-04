@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v1 {
 /// \brief Elementwise multiplication operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API Multiply : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Multiply", "opset1", util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a multiplication operation.
     Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

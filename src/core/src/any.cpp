@@ -63,7 +63,8 @@ void Any::Base::read_to(Base& other) const {
     if (other.is<std::string>()) {
         *static_cast<std::string*>(other.addressof()) = strm.str();
     } else {
-        other.read(strm);
+        if (!strm.str().empty())
+            other.read(strm);
     }
 }
 
@@ -72,7 +73,7 @@ Any::~Any() {
     _impl = {};
 }
 
-Any::Any(const Any& other, const std::shared_ptr<void>& so) : _impl{other._impl}, _so{so} {}
+Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _impl{other._impl}, _so{so} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 

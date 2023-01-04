@@ -23,8 +23,6 @@ NGRAPH_API EnumNames<ngraph::op::PadMode>& EnumNames<ngraph::op::PadMode>::get()
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::PadMode>);
-
 template <>
 NGRAPH_API EnumNames<ngraph::op::PadType>& EnumNames<ngraph::op::PadType>::get() {
     static auto enum_names = EnumNames<ngraph::op::PadType>("ngraph::op::PadType",
@@ -35,8 +33,6 @@ NGRAPH_API EnumNames<ngraph::op::PadType>& EnumNames<ngraph::op::PadType>::get()
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::PadType>);
-
 template <>
 NGRAPH_API EnumNames<ngraph::op::RoundingType>& EnumNames<ngraph::op::RoundingType>::get() {
     static auto enum_names = EnumNames<ngraph::op::RoundingType>(
@@ -44,8 +40,6 @@ NGRAPH_API EnumNames<ngraph::op::RoundingType>& EnumNames<ngraph::op::RoundingTy
         {{"floor", ngraph::op::RoundingType::FLOOR}, {"ceil", ngraph::op::RoundingType::CEIL}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::RoundingType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoBroadcastType>::get() {
@@ -57,21 +51,19 @@ NGRAPH_API EnumNames<ngraph::op::AutoBroadcastType>& EnumNames<ngraph::op::AutoB
                                                   {"pdpd", ngraph::op::AutoBroadcastType::PDPD}});
     return enum_names;
 }
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastType>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::BroadcastType>& EnumNames<ngraph::op::BroadcastType>::get() {
     static auto enum_names =
         EnumNames<ngraph::op::BroadcastType>("ngraph::op::BroadcastType",
-                                             {{"none", ngraph::op::BroadcastType::NONE},
+                                             {{"explicit", ngraph::op::BroadcastType::EXPLICIT},
+                                              {"none", ngraph::op::BroadcastType::NONE},
                                               {"numpy", ngraph::op::BroadcastType::NUMPY},
-                                              {"explicit", ngraph::op::BroadcastType::EXPLICIT},
                                               {"pdpd", ngraph::op::BroadcastType::PDPD},
                                               {"bidirectional", ngraph::op::BroadcastType::BIDIRECTIONAL}});
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::BroadcastType>);
 template <>
 NGRAPH_API EnumNames<ngraph::op::EpsMode>& EnumNames<ngraph::op::EpsMode>::get() {
     static auto enum_names =
@@ -79,8 +71,6 @@ NGRAPH_API EnumNames<ngraph::op::EpsMode>& EnumNames<ngraph::op::EpsMode>::get()
                                        {{"add", ngraph::op::EpsMode::ADD}, {"max", ngraph::op::EpsMode::MAX}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::EpsMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::TopKSortType>& EnumNames<ngraph::op::TopKSortType>::get() {
@@ -98,9 +88,6 @@ NGRAPH_API EnumNames<ngraph::op::TopKMode>& EnumNames<ngraph::op::TopKMode>::get
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::TopKSortType>);
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::TopKMode>);
-
 bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
     std::string name = visitor.finish_structure();
@@ -111,8 +98,6 @@ bool AttributeAdapter<ngraph::op::AutoBroadcastSpec>::visit_attributes(Attribute
     }
     return true;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::AutoBroadcastSpec>);
 
 bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(AttributeVisitor& visitor) {
     // Maintain back-compatibility
@@ -127,9 +112,6 @@ bool AttributeAdapter<ngraph::op::BroadcastModeSpec>::visit_attributes(Attribute
     return true;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::BroadcastModeSpec>);
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::RecurrentSequenceDirection>);
 template <>
 NGRAPH_API EnumNames<ngraph::op::RecurrentSequenceDirection>& EnumNames<ngraph::op::RecurrentSequenceDirection>::get() {
     static auto enum_names = EnumNames<ngraph::op::RecurrentSequenceDirection>(

@@ -5,7 +5,7 @@
 set(TARGET_NAME ieUnitTests)
 
 # Find OpenCV components if exist
-find_package(OpenCV COMPONENTS core QUIET)
+find_package(OpenCV QUIET COMPONENTS core)
 if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} needs OpenCV for its build")
 else()
@@ -24,6 +24,7 @@ addIeTargetTest(
             mock_engine
         LABELS
             IE
+            OV
 )
 
 if(SUGGEST_OVERRIDE_SUPPORTED)

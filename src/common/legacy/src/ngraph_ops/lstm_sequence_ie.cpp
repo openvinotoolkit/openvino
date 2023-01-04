@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::LSTMSequenceIE);
-
 op::LSTMSequenceIE::LSTMSequenceIE(const Output<Node> &X,
                                    const Output<Node> &H_t,
                                    const Output<Node> &C_t,

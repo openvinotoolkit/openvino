@@ -122,7 +122,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, output_shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, concat_output_shape)
 
-        constant = np.random.randn(*shape).astype(np.float)
+        constant = np.random.randn(*shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
@@ -221,38 +221,38 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
     def test_reduce_lp_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
-                                 ir_version, temp_dir, api_2):
+                                 ir_version, temp_dir, use_old_api):
         self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
                                           ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.nightly
     def test_reduce_lp(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
-                       temp_dir, api_2):
+                       temp_dir, use_old_api):
         self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
                                           ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.precommit
     def test_reduce_lp_const_precommit(self, params, keep_dims, reduce_p, ie_device, precision,
-                                       ir_version, temp_dir, api_2):
+                                       ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p,
                                          ir_version=ir_version),
-            ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.nightly
     def test_reduce_lp_const(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
-                             temp_dir, api_2):
+                             temp_dir, use_old_api):
         self._test(*self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p,
                                                 ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)

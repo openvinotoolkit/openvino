@@ -2,96 +2,126 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <set>
+
 #include "resample_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "kernel_selector/core/actual_kernels/resample/resample_kernel_selector.h"
-#include "kernel_selector/core/actual_kernels/resample/resample_kernel_base.h"
+#include "kernel_selector/kernels/resample/resample_kernel_selector.h"
+#include "kernel_selector/kernels/resample/resample_kernel_base.h"
+#include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
 namespace ocl {
 
 namespace {
-inline kernel_selector::sample_type convert_to_sample_type(resample_type type) {
+inline kernel_selector::sample_type convert_to_sample_type(resample::InterpolateOp::InterpolateMode type) {
     switch (type) {
-        case resample_type::nearest:
+        case resample::InterpolateOp::InterpolateMode::NEAREST:
             return kernel_selector::sample_type::NEAREST_NEIGHBOR;
-        case resample_type::caffe_bilinear:
+        case resample::InterpolateOp::InterpolateMode::LINEAR:
             return kernel_selector::sample_type::CAFFE_BILINEAR_INTERP;
-        case resample_type::bilinear:
-            return kernel_selector::sample_type::BILINEAR_INTERP;
-        case resample_type::cubic:
+        case resample::InterpolateOp::InterpolateMode::CUBIC:
             return kernel_selector::sample_type::CUBIC;
-        case resample_type::linear_onnx:
+        case resample::InterpolateOp::InterpolateMode::LINEAR_ONNX:
             return kernel_selector::sample_type::LINEAR_ONNX;
         default:
             return kernel_selector::sample_type::NEAREST_NEIGHBOR;
     }
 }
 
-inline kernel_selector::coordinate_transformation_mode convert_to_coord_transform_mode(coordinate_transformation_mode mode) {
+inline kernel_selector::coordinate_transformation_mode convert_to_coord_transform_mode(resample::InterpolateOp::CoordinateTransformMode mode) {
     switch (mode) {
-        case coordinate_transformation_mode::half_pixel:
+        case resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL:
             return kernel_selector::coordinate_transformation_mode::HALF_PIXEL;
-        case coordinate_transformation_mode::pytorch_half_pixel:
+        case resample::InterpolateOp::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
             return kernel_selector::coordinate_transformation_mode::PYTORCH_HALF_PIXEL;
-        case coordinate_transformation_mode::asymmetric:
+        case resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC:
             return kernel_selector::coordinate_transformation_mode::ASYMMETRIC;
-        case coordinate_transformation_mode::tf_half_pixel_for_nn:
+        case resample::InterpolateOp::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
             return kernel_selector::coordinate_transformation_mode::TF_HALF_PIXEL_FOR_NN;
-        case coordinate_transformation_mode::align_corners:
+        case resample::InterpolateOp::CoordinateTransformMode::ALIGN_CORNERS:
             return kernel_selector::coordinate_transformation_mode::ALIGN_CORNERS;
         default:
             return kernel_selector::coordinate_transformation_mode::HALF_PIXEL;
     }
 }
 
-inline kernel_selector::nearest_mode convert_to_nearest_mode(nearest_mode mode) {
+inline kernel_selector::nearest_mode convert_to_nearest_mode(resample::InterpolateOp::NearestMode mode) {
     switch (mode) {
-        case nearest_mode::round_prefer_floor:
+        case resample::InterpolateOp::NearestMode::ROUND_PREFER_FLOOR:
             return kernel_selector::nearest_mode::ROUND_PREFER_FLOOR;
-        case nearest_mode::round_prefer_ceil:
+        case resample::InterpolateOp::NearestMode::ROUND_PREFER_CEIL:
             return kernel_selector::nearest_mode::ROUND_PREFER_CEIL;
-        case nearest_mode::floor:
+        case resample::InterpolateOp::NearestMode::FLOOR:
             return kernel_selector::nearest_mode::FLOOR;
-        case nearest_mode::ceil:
+        case resample::InterpolateOp::NearestMode::CEIL:
             return kernel_selector::nearest_mode::CEIL;
-        case nearest_mode::simple:
+        case resample::InterpolateOp::NearestMode::SIMPLE:
             return kernel_selector::nearest_mode::SIMPLE;
         default:
             return kernel_selector::nearest_mode::ROUND_PREFER_FLOOR;
     }
 }
 
-inline kernel_selector::shape_calculation_mode convert_to_shape_calculation_mode(shape_calculation_mode mode) {
+inline kernel_selector::shape_calculation_mode convert_to_shape_calculation_mode(resample::InterpolateOp::ShapeCalcMode mode) {
     switch (mode) {
-        case shape_calculation_mode::sizes:
+        case resample::InterpolateOp::ShapeCalcMode::SIZES:
             return kernel_selector::shape_calculation_mode::SIZES;
-        case shape_calculation_mode::scales:
+        case resample::InterpolateOp::ShapeCalcMode::SCALES:
             return kernel_selector::shape_calculation_mode::SCALES;
         default:
             return kernel_selector::shape_calculation_mode::SIZES;
     }
 }
 
-inline kernel_selector::interpolate_axis convert_axis(resample::resample_axis axis) {
+inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t rank) {
+    std::vector<int32_t> new_pad;
+
+    if (pad.empty()) {
+        new_pad = std::vector<int32_t>(rank, 0);
+    } else {
+        new_pad = std::vector<int32_t>(pad.begin(), pad.end());
+        if (new_pad.size() > 2)
+            std::reverse(new_pad.begin() + 2, new_pad.end());
+        for (size_t i = new_pad.size(); i < rank || i < 4; ++i)
+            new_pad.push_back(0);
+    }
+
+    return new_pad;
+}
+
+inline kernel_selector::interpolate_axis convert_axis(int64_t axis, size_t rank) {
     switch (axis) {
-        case resample::along_x:
-            return kernel_selector::interpolate_axis::X;
-        case resample::along_y:
-            return kernel_selector::interpolate_axis::Y;
-        case resample::along_z:
-            return kernel_selector::interpolate_axis::Z;
-        case resample::along_w:
-            return kernel_selector::interpolate_axis::W;
-        case resample::along_f:
+        case 0:
+            return kernel_selector::interpolate_axis::BATCH;
+        case 1:
             return kernel_selector::interpolate_axis::FEATURE;
-        case resample::along_b:
-            return kernel_selector::interpolate_axis::BATCH;
+        case 2:
+            if (rank == 6)
+                return kernel_selector::interpolate_axis::W;
+            else if (rank == 5)
+                return kernel_selector::interpolate_axis::Z;
+            else
+                return kernel_selector::interpolate_axis::Y;
+        case 3:
+            if (rank == 6)
+                return kernel_selector::interpolate_axis::Z;
+            else if (rank == 5)
+                return kernel_selector::interpolate_axis::Y;
+            else
+                return kernel_selector::interpolate_axis::X;
+        case 4:
+            if (rank == 6)
+                return kernel_selector::interpolate_axis::Y;
+            else
+                return kernel_selector::interpolate_axis::X;
+        case 5:
+            return kernel_selector::interpolate_axis::X;
         default:
-            return kernel_selector::interpolate_axis::BATCH;
+            throw std::runtime_error("Unsupported axis for interpolate (" + std::to_string(axis) + ")");
     }
 }
 }  // namespace
@@ -99,97 +129,83 @@ inline kernel_selector::interpolate_axis convert_axis(resample::resample_axis ax
 struct resample_impl : typed_primitive_impl_ocl<resample> {
     using parent = typed_primitive_impl_ocl<resample>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::resample_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::resample_params, kernel_selector::resample_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<resample_impl>(*this);
     }
 
-    static primitive_impl* create(const resample_node& arg) {
-        auto us_params = get_default_params<kernel_selector::resample_params>(arg);
-        auto us_optional_params =
-            get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<resample>();
+        auto params = get_default_params<kernel_selector::resample_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::resample_optional_params>(impl_param.get_program());
 
-        const auto& primitive = arg.get_primitive();
-        size_t dimsNum = arg.get_output_layout().format.dimension();
-        us_params.resampleType = convert_to_sample_type(primitive->operation_type);
-        us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
-        us_params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
-        us_params.shapeCalculationMode = convert_to_shape_calculation_mode(primitive->shape_calc_mode);
-        us_params.antialias = primitive->antialias;
-        us_params.cube_coeff = primitive->cube_coeff;
-        us_params.pads_begin = primitive->pads_begin.empty() ? std::vector<int32_t>(dimsNum, 0) : primitive->pads_begin;
-        us_params.pads_end = primitive->pads_end.empty() ? std::vector<int32_t>(dimsNum, 0) : primitive->pads_end;
-        for (const auto& it : primitive->axesAndScales) {
-            us_params.axesAndScales[convert_axis(it.first)] = it.second;
+        size_t dimsNum = impl_param.get_output_layout().get_rank();
+        params.resampleType = convert_to_sample_type(primitive->operation_type);
+        params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
+        params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
+        params.shapeCalculationMode = convert_to_shape_calculation_mode(primitive->shape_calc_mode);
+        params.antialias = primitive->antialias;
+        params.cube_coeff = primitive->cube_coeff;
+
+        params.pads_begin = convert_pads(primitive->pads_begin, dimsNum);
+        params.pads_end = convert_pads(primitive->pads_end, dimsNum);
+
+        auto scales = primitive->scales;
+        bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
+        if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
+            auto mem = impl_param.memory_deps.at(2);
+            scales = read_vector<float>(mem, impl_param.prog->get_stream());
         }
 
-        if (primitive->operation_type == resample_type::bilinear) {
-            us_params.align_corners = primitive->align_corners;
+        for (size_t i = 0; i < scales.size(); ++i) {
+            params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
         }
 
-        auto& kernel_selector = kernel_selector::resample_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(us_params, us_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto resample = new resample_impl(arg, best_kernels[0]);
-
-        return resample;
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_resample_impl::attach_resample_impl() {
-    implementation_map<resample>::add(impl_types::ocl, resample_impl::create, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
+    std::set<implementation_map<resample>::key_type> keys;
 
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
+    const auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32};
+    const auto formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32,
 
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+    };
+    for (const auto type : types) {
+        for (const auto format : formats) {
+            keys.emplace(type, format);
+        }
+    }
 
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-        std::make_tuple(data_types::i8, format::bfzyx),
+    keys.emplace(data_types::f32, format::yxfb);
+    keys.emplace(data_types::f16, format::yxfb);
+    keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
 
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
-
-        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
-    });
+    implementation_map<resample>::add(impl_types::ocl, typed_primitive_impl_ocl<resample>::create<resample_impl>, keys);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)

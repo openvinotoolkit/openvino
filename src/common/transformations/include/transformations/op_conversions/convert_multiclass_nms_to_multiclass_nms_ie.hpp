@@ -4,22 +4,25 @@
 
 #pragma once
 
-#include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
-#include <utility>
-#include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertMulticlassNmsToMulticlassNmsIE;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertMulticlassNmsToMulticlassNmsIE : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("public", "0");
     ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type = true);
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertMulticlassNmsToMulticlassNmsIE;
+}  // namespace pass
+}  // namespace ngraph

@@ -27,6 +27,7 @@ using proposal_node = typed_program_node<proposal>;
 template <>
 class typed_primitive_inst<proposal> : public typed_primitive_inst_base<proposal> {
     using parent = typed_primitive_inst_base<proposal>;
+    using parent::parent;
 
 public:
     struct anchor {
@@ -63,7 +64,7 @@ public:
         image_info_scale_depth_index,
     };
 
-    static layout calc_output_layout(proposal_node const& node);
+    static layout calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(proposal_node const& node);
 
 public:

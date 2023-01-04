@@ -37,15 +37,15 @@ class TestGemm(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shapeB)), shapeB], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shapeA[-2], shapeB[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shapeA)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
         _shapeB = shapeB.copy()
         if trans_b:
             _shapeB.reverse()
-        const1 = np.random.ranf(_shapeB).astype(np.float)
-        const2 = np.random.ranf(shapeC).astype(np.float)
+        const1 = np.random.ranf(_shapeB).astype(float)
+        const2 = np.random.ranf(shapeC).astype(float)
 
         nodes = list()
         node_const1_def = onnx.helper.make_node(
@@ -157,12 +157,12 @@ class TestGemm(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shapeB)), shapeB], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shapeA[-2], shapeB[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input1 = helper.make_tensor_value_info('input1', TensorProto.FLOAT, _shapeA)
         input2 = helper.make_tensor_value_info('input2', TensorProto.FLOAT, _shapeB)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        const = np.random.ranf(shapeC).astype(np.float)
+        const = np.random.ranf(shapeC).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
@@ -226,13 +226,13 @@ class TestGemm(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gemm(self, params, alpha, beta, trans_a, trans_b, ie_device, precision, opset,
-                  ir_version, temp_dir, api_2):
+                  ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_net(params['shapeA'], params['shapeB'], params['shapeC'], alpha, beta,
                              trans_a,
                              trans_b, precision, opset, ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_bc)
     @pytest.mark.parametrize("alpha", [None, 0.1, 2.0])
@@ -243,13 +243,13 @@ class TestGemm(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gemm_bc(self, params, alpha, beta, trans_a, trans_b, ie_device, precision, opset,
-                     ir_version, temp_dir, api_2):
+                     ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_net(params['shapeA'], params['shapeB'], params['shapeC'], alpha, beta,
                              trans_a,
                              trans_b, precision, opset, ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.parametrize("alpha", [None, 0.1, 2.0])
@@ -259,13 +259,13 @@ class TestGemm(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gemm_double(self, params, alpha, beta, trans_a, trans_b, ie_device, precision,
-                         ir_version, temp_dir, api_2):
+                         ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_net_double(params['shapeA'], params['shapeB'], params['shapeC'], alpha,
                                     beta,
                                     trans_a, trans_b, precision, ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_bc)
     @pytest.mark.parametrize("alpha", [None, 0.1, 2.0])
@@ -275,13 +275,13 @@ class TestGemm(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_gemm_double_bc(self, params, alpha, beta, trans_a, trans_b, ie_device, precision,
-                            ir_version, temp_dir, api_2):
+                            ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_net_double(params['shapeA'], params['shapeB'], params['shapeC'], alpha,
                                     beta,
                                     trans_a, trans_b, precision, ir_version), ie_device, precision,
             ir_version,
-            temp_dir=temp_dir, api_2=api_2)
+            temp_dir=temp_dir, use_old_api=use_old_api)
 
 
 class PytorchLayerTest(CommonLayerTest):
@@ -334,7 +334,7 @@ class TestPytorchMM(PytorchLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_pytorch_mm(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_pytorch_mm(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(precision, **params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, api_2=api_2)
+                   temp_dir=temp_dir, use_old_api=use_old_api)

@@ -12,126 +12,105 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
-namespace runtime {
 namespace intel_gpu {
 
-static cldnn::arg_max_min::axis_name GetAxis(int32_t axis, size_t in_rank) {
-    if (in_rank == 5) {
-        if (-5 <= axis && axis <= -1)
-            axis += 5;
-
-        switch (axis) {
-            case 0: return cldnn::arg_max_min::axis_name::batch;
-            case 1: return cldnn::arg_max_min::axis_name::feature;
-            case 2: return cldnn::arg_max_min::axis_name::z;
-            case 3: return cldnn::arg_max_min::axis_name::y;
-            case 4: return cldnn::arg_max_min::axis_name::x;
-        }
-    } else {
-        if (-static_cast<int32_t>(in_rank) <= axis && axis <= -1)
-            axis += in_rank;
-
-        switch (axis) {
-            case 0: return cldnn::arg_max_min::axis_name::batch;
-            case 1: return cldnn::arg_max_min::axis_name::feature;
-            case 2: return cldnn::arg_max_min::axis_name::y;
-            case 3: return cldnn::arg_max_min::axis_name::x;
-        }
-    }
-
-    return cldnn::arg_max_min::axis_name::batch;
-}
-
 static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>& op) {
-    p.ValidateInputs(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {2});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    cldnn::arg_max_min::out_type otype;
-    cldnn::arg_max_min::sort_type stype;
-
-    if (op->get_mode() == ngraph::op::v1::TopK::Mode::MAX)
-        otype = cldnn::arg_max_min::out_type::max;
-    else
-        otype = cldnn::arg_max_min::out_type::min;
-
-    if (op->get_sort_type() == ngraph::op::v1::TopK::SortType::SORT_VALUES)
-        stype = cldnn::arg_max_min::sort_type::sort_by_values;
-    else
-        stype = cldnn::arg_max_min::sort_type::sort_by_indices;
+    ov::op::TopKMode mode = op->get_mode();
+    ov::op::TopKSortType stype = op->get_sort_type();
 
     uint32_t top_k = op->get_k();
-    cldnn::arg_max_min::axis_name chosen_axis = GetAxis(static_cast<int32_t>(op->get_axis()),
-                                                        op->get_input_shape(0).size());
+    uint64_t chosen_axis = op->get_axis();
 
-    if (op->get_output_size() == 2) {
-        auto mutable_precision = op->get_output_element_type(1);
-        if (mutable_precision == ngraph::element::i64) {
-            mutable_precision = ngraph::element::i32;
-        }
-
-        cldnn::layout mutableLayout = cldnn::layout(DataTypeFromPrecision(mutable_precision),
-                                                    DefaultFormatForDims(op->get_output_shape(1).size()),
-                                                    tensor_from_dims(op->get_output_shape(1)));
-
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-        }
-        auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
-
-        cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
-        auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,
-                                                       shared_memory,
-                                                       op->get_friendly_name());
-        p.primitiveIDs[argmax_mutable_id_w] = argmax_mutable_id_w;
-        p.AddPrimitive(argmax_mutable_prim);
-        inputPrimitives.push_back(argmax_mutable_id_w);
-
-        std::string ArgMaxLayerName = layerName + ".0";
-        auto argmaxPrim = cldnn::arg_max_min(ArgMaxLayerName,
-                                             inputPrimitives,
-                                             otype,
-                                             top_k,
-                                             chosen_axis,
-                                             stype,
-                                             true,
-                                             op->get_friendly_name(),
-                                             cldnn::padding({0, 0, 0, 0}, 0),
-                                             DataTypeFromPrecision(op->get_output_element_type(0)));
-
-        p.AddPrimitive(argmaxPrim);
-
-        cldnn::primitive_id argmax_mutable_id_r = layerName + ".1";
-        auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r,
-                                                         { ArgMaxLayerName },
-                                                         shared_memory,
-                                                         op->get_friendly_name());
-        p.primitiveIDs[argmax_mutable_id_r] = argmax_mutable_id_r;
-        p.AddPrimitive(argmax_mutable_prim_r);
-        p.InitProfileInfo(ArgMaxLayerName, layer_type_lower(op));
-        p.AddPrimitiveToProfiler(ArgMaxLayerName, op);
-    } else if (op->get_output_size() == 1) {
+    if (p.use_new_shape_infer()) {
+        size_t num_outputs = op->get_output_size();
+        auto get_output_paddings = [&]() {
+            std::vector<cldnn::padding> output_paddings;
+            for (size_t i = 0; i < num_outputs; i++)
+                output_paddings.push_back(cldnn::padding());
+            return output_paddings;
+        };
+        auto get_output_data_types = [&]() {
+            std::vector<cldnn::optional_data_type> output_data_types;
+            for (size_t i = 0; i < num_outputs; i++) {
+                auto type = op->get_output_element_type(i);
+                output_data_types.push_back(cldnn::element_type_to_data_type(type));
+            }
+            return output_data_types;
+        };
         auto argmaxPrim = cldnn::arg_max_min(layerName,
-                                             inputPrimitives,
-                                             otype,
+                                             inputs,
+                                             mode,
                                              top_k,
                                              chosen_axis,
                                              stype,
                                              true,
-                                             op->get_friendly_name(),
                                              cldnn::padding({0, 0, 0, 0}, 0),
-                                             DataTypeFromPrecision(op->get_output_element_type(0)));
-
-        p.AddPrimitive(argmaxPrim);
-        p.AddPrimitiveToProfiler(op);
+                                             cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                             num_outputs);
+        argmaxPrim.output_paddings = get_output_paddings();
+        argmaxPrim.output_data_types = get_output_data_types();
+        p.add_primitive(*op, argmaxPrim);
     } else {
-        IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
+        if (op->get_output_size() == 2) {
+            auto mutable_precision = op->get_output_element_type(1);
+            if (mutable_precision == ngraph::element::i64) {
+                mutable_precision = ngraph::element::i32;
+            }
+
+            cldnn::layout mutableLayout = cldnn::layout(cldnn::element_type_to_data_type(mutable_precision),
+                                                        cldnn::format::get_default_format(op->get_output_shape(1).size()),
+                                                        tensor_from_dims(op->get_output_shape(1)));
+
+            GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
+            auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
+
+            cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
+            auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,
+                                                           shared_memory);
+            p.add_primitive(*op, argmax_mutable_prim);
+            inputs.push_back(cldnn::input_info(argmax_mutable_id_w));
+
+            std::string ArgMaxLayerName = layerName + ".out0";
+            auto argmaxPrim = cldnn::arg_max_min(ArgMaxLayerName,
+                                                 inputs,
+                                                 mode,
+                                                 top_k,
+                                                 chosen_axis,
+                                                 stype,
+                                                 true,
+                                                 cldnn::padding({0, 0, 0, 0}, 0),
+                                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+
+            p.add_primitive(*op, argmaxPrim);
+
+            cldnn::primitive_id argmax_mutable_id_r = layerName + ".out1";
+            auto argmax_mutable_prim_r = cldnn::mutable_data(argmax_mutable_id_r,
+                                                             { cldnn::input_info(ArgMaxLayerName) },
+                                                             shared_memory);
+            p.add_primitive(*op, argmax_mutable_prim_r);
+        } else if (op->get_output_size() == 1) {
+            auto argmaxPrim = cldnn::arg_max_min(layerName,
+                                                 inputs,
+                                                 mode,
+                                                 top_k,
+                                                 chosen_axis,
+                                                 stype,
+                                                 true,
+                                                 cldnn::padding({0, 0, 0, 0}, 0),
+                                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+
+            p.add_primitive(*op, argmaxPrim);
+        } else {
+            IE_THROW() << op->get_friendly_name() << " Incorrect TopK outputs number";
+        }
     }
 }
 
 REGISTER_FACTORY_IMPL(v1, TopK);
 
 }  // namespace intel_gpu
-}  // namespace runtime
 }  // namespace ov

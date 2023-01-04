@@ -33,12 +33,11 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     /// @param block_size Block size.
     /// @param mode Depth division mode.
     depth_to_space(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    const size_t block_size,
                    const depth_to_space_mode mode,
-                   const primitive_id& ext_prim_id = "",
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding)
+        : primitive_base(id, {input}, {output_padding})
         , block_size(block_size)
         , mode(mode) {}
 

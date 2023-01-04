@@ -16,13 +16,50 @@
 #include <memory>
 #include <set>
 #include <stdexcept>
+#include <algorithm>
+
+#if defined(_WIN32) && !defined(__GNUC__)
+#include <windows.h>
+
+static size_t get_cpu_ram_size() {
+    MEMORYSTATUSEX s {};
+    s.dwLength = sizeof(s);
+    GlobalMemoryStatusEx(&s);
+    return s.ullTotalPhys;
+}
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__QNXNTO__)
+#include <unistd.h>
+#include <sys/sysctl.h>
+
+static size_t get_cpu_ram_size() {
+#ifdef __APPLE__
+    int query_ram[] = {CTL_HW, HW_MEMSIZE};
+#else
+    int query_ram[] = {CTL_HW, HW_PHYSMEM};
+#endif
+    int query_ram_len = sizeof(query_ram) / sizeof(*query_ram);
+    size_t totalram = 0;
+    size_t length = sizeof(totalram);
+
+    sysctl(query_ram, query_ram_len, &totalram, &length, NULL, 0);
+    return totalram;
+}
+#else
+#include <sys/sysinfo.h>
+
+static size_t get_cpu_ram_size() {
+    struct sysinfo s {};
+    sysinfo(&s);
+    return s.totalram;
+}
+#endif
 
 namespace cldnn {
 
 engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
-: _device(device)
-, _configuration(configuration)
-, _task_executor(task_executor) {}
+: _task_executor(task_executor)
+, _device(device)
+, _configuration(configuration) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -43,6 +80,11 @@ bool engine::use_unified_shared_memory() const {
     return false;
 }
 
+uint64_t engine::get_max_memory_size() const {
+    static uint64_t max_device_mem = (std::max)(get_device_info().max_global_mem_size, static_cast<uint64_t>(get_cpu_ram_size()));
+    return max_device_mem;
+}
+
 bool engine::supports_allocation(allocation_type type) const {
     if (memory_capabilities::is_usm_type(type) && !use_unified_shared_memory())
         return false;
@@ -51,7 +93,7 @@ bool engine::supports_allocation(allocation_type type) const {
     return _device->get_mem_caps().support_allocation_type(type);
 }
 
-allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_image_layout) const {
+allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout)
         return get_default_allocation_type();
 
@@ -69,7 +111,21 @@ allocation_type engine::get_lockable_preffered_memory_allocation_type(bool is_im
     if (support_usm_host)
         return allocation_type::usm_host;
 
-    throw std::runtime_error("[clDNN internal error] Could not find proper allocation type!");
+    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
+}
+
+allocation_type engine::get_preferred_memory_allocation_type(bool is_image_layout) const {
+    if (!use_unified_shared_memory() || is_image_layout)
+        return get_default_allocation_type();
+
+    if (supports_allocation(allocation_type::usm_device))
+        return allocation_type::usm_device;
+
+    // Fallback to host allocations in case if device ones are not supported for some reason
+    if (supports_allocation(allocation_type::usm_host))
+        return allocation_type::usm_host;
+
+    OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_preferred_memory_allocation_type method");
 }
 
 memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
@@ -77,7 +133,7 @@ memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
 }
 
 memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
-    allocation_type type = get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    allocation_type type = get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
     return allocate_memory(layout, type, reset);
 }
 
@@ -170,7 +226,7 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     return statistics;
 }
 
-void engine::add_memory_used(size_t bytes, allocation_type type) {
+void engine::add_memory_used(uint64_t bytes, allocation_type type) {
     std::lock_guard<std::mutex> guard(_mutex);
     if (!_memory_usage_map.count(type) && !_peak_memory_usage_map.count(type)) {
         _memory_usage_map[type] = 0;
@@ -182,7 +238,7 @@ void engine::add_memory_used(size_t bytes, allocation_type type) {
     }
 }
 
-void engine::subtract_memory_used(size_t bytes, allocation_type type) {
+void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
     std::lock_guard<std::mutex> guard(_mutex);
     auto iter = _memory_usage_map.find(type);
     if (iter != _memory_usage_map.end()) {
@@ -201,10 +257,17 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const device::ptr device,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
-        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
-        default: throw std::runtime_error("Invalid engine type");
+    case engine_types::ocl:
+        ret = ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
+        break;
+    default:
+        throw std::runtime_error("Invalid engine type");
     }
+    const auto& info = device->get_info();
+    GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
+    return ret;
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
@@ -212,9 +275,12 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const engine_configuration& configuration,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
-    device::ptr default_device = query.get_available_devices().begin()->second;
+    auto devices = query.get_available_devices();
 
-    return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
+    auto iter = devices.find(std::to_string(device_query::device_id));
+    auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
+
+    return engine::create(engine_type, runtime_type, device, configuration, task_executor);
 }
 
 }  // namespace cldnn

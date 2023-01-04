@@ -4,28 +4,27 @@
 
 #include "detection_output_inst.h"
 #include "primitive_type_base.h"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id detection_output::type_id() {
-    static primitive_type_base<detection_output> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
-layout detection_output_inst::calc_output_layout(detection_output_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
+layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "detection_output_node!");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
+    auto desc = impl_param.typed_desc<detection_output>();
+    CLDNN_ERROR_NOT_EQUAL(desc->id,
                           "Detection output layer input number",
-                          node.get_dependencies().size(),
+                          impl_param.input_layouts.size(),
                           "expected number of inputs",
                           static_cast<size_t>(3),
                           "");
 
-    auto input_layout = node.location().get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
 
     // Batch size and feature size are 1.
     // Number of bounding boxes to be kept is set to keep_top_k*batch size.
@@ -33,16 +32,16 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
     // Each row is a 7 dimension vector, which stores:
     // [image_id, label, confidence, xmin, ymin, xmax, ymax]
     int output_size = static_cast<int>(input_layout.get_linear_size()) / PRIOR_BOX_SIZE;
-    int num_classes = node.get_primitive()->num_classes;
+    int num_classes = desc->num_classes;
 
-    if (node.get_primitive()->share_location) {
-        num_classes = (node.get_primitive()->background_label_id == 0) ? node.get_primitive()->num_classes - 1
-                                                                       : node.get_primitive()->num_classes;
+    if (desc->share_location) {
+        num_classes = (desc->background_label_id == 0) ? desc->num_classes - 1
+                                                       : desc->num_classes;
         output_size *= num_classes;
     }
 
-    if (node.get_primitive()->top_k != -1) {
-        int top_k = node.get_primitive()->top_k * num_classes * input_layout.size.batch[0];
+    if (desc->top_k != -1) {
+        int top_k = desc->top_k * num_classes * input_layout.batch();
         if (top_k < output_size) {
             output_size = top_k;
         }
@@ -50,10 +49,10 @@ layout detection_output_inst::calc_output_layout(detection_output_node const& no
 
     output_size *= DETECTION_OUTPUT_ROW_SIZE;
     // Add space for number of output results per image - needed in the next detection output step
-    output_size += ((input_layout.size.batch[0] + 15) / 16) * 16;
+    output_size += ((input_layout.batch() + 15) / 16) * 16;
 
     return {input_layout.data_type, cldnn::format::bfyx,
-            cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, node.get_primitive()->keep_top_k * input_layout.size.batch[0])};
+            cldnn::tensor(1, 1, DETECTION_OUTPUT_ROW_SIZE, desc->keep_top_k * input_layout.batch())};
 }
 
 std::string detection_output_inst::to_string(detection_output_node const& node) {
@@ -138,36 +137,33 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
                                   "expected bfyx input format",
                                   format::bfyx);
 
-    tensor location_size = location_layout.size;
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Location input dimensions",
-                          (location_size.feature[0] * location_size.batch[0]),
+                          (location_layout.feature() * location_layout.batch()),
                           "detection output layer dimensions",
                           static_cast<int>(location_layout.count()),
                           "Location input/ detection output dims mismatch");
 
-    tensor confidence_size = confidence_layout.size;
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Confidence input dimensions",
-                          (confidence_size.feature[0] * confidence_size.batch[0]),
+                          (confidence_layout.feature() * confidence_layout.batch()),
                           "detection output layer dimensions",
                           static_cast<int>(confidence_layout.count()),
                           "Confidence input/detection output dims mistmach");
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Confidence batch size",
-                          confidence_size.batch[0],
+                          confidence_layout.batch(),
                           "location input batch size",
-                          location_size.batch[0],
+                          location_layout.batch(),
                           "Batch sizes mismatch.");
 
     auto desc = node.get_primitive();
     int prior_feature_size = desc->variance_encoded_in_target ? 1 : 2;
-    tensor prior_box_size = prior_box_layout.size;
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Prior box spatial X", prior_box_size.spatial[0], "expected value", 1, "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Prior box spatial X", prior_box_layout.spatial(0), "expected value", 1, "");
     CLDNN_ERROR_NOT_EQUAL(node.id(),
                           "Prior box feature size",
-                          prior_box_size.feature[0],
+                          prior_box_layout.feature(),
                           "expected value",
                           prior_feature_size,
                           "");
@@ -182,4 +178,92 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
                      "Detection output layer doesn't support input padding in Prior-Box input");
 }
 
+void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    // argument (struct detection_output)
+    ob << argument->id;
+    ob << argument->input[0].pid;
+    ob << argument->input[1].pid;
+    ob << argument->input[2].pid;
+    ob << make_data(&argument->output_paddings[0], sizeof(argument->output_paddings[0]));
+    ob << argument->num_classes;
+    ob << argument->keep_top_k;
+    ob << argument->share_location;
+    ob << argument->background_label_id;
+    ob << argument->nms_threshold;
+    ob << argument->top_k;
+    ob << argument->eta;
+    ob << make_data(&argument->code_type, sizeof(argument->code_type));
+    ob << argument->variance_encoded_in_target;
+    ob << argument->confidence_threshold;
+    ob << argument->prior_info_size;
+    ob << argument->prior_coordinates_offset;
+    ob << argument->prior_is_normalized;
+    ob << argument->input_width;
+    ob << argument->input_height;
+    ob << argument->decrease_label_id;
+    ob << argument->clip_before_nms;
+    ob << argument->clip_after_nms;
+}
+
+void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    primitive_id id;
+    primitive_id input_location;
+    primitive_id input_confidence;
+    primitive_id input_prior_box;
+    uint32_t num_classes;
+    uint32_t keep_top_k;
+    bool share_location;
+    int background_label_id;
+    float nms_threshold;
+    int top_k;
+    float eta;
+    prior_box_code_type code_type;
+    bool variance_encoded_in_target;
+    float confidence_threshold;
+    int32_t prior_info_size;
+    int32_t prior_coordinates_offset;
+    bool prior_is_normalized;
+    int32_t input_width;
+    int32_t input_height;
+    bool decrease_label_id;
+    bool clip_before_nms;
+    bool clip_after_nms;
+    // primitive_id ext_prim_id;
+    padding output_padding;
+
+    ib >> id;
+    ib >> input_location;
+    ib >> input_confidence;
+    ib >> input_prior_box;
+    ib >> make_data(&output_padding, sizeof(output_padding));
+    ib >> num_classes;
+    ib >> keep_top_k;
+    ib >> share_location;
+    ib >> background_label_id;
+    ib >> nms_threshold;
+    ib >> top_k;
+    ib >> eta;
+    ib >> make_data(&code_type, sizeof(code_type));
+    ib >> variance_encoded_in_target;
+    ib >> confidence_threshold;
+    ib >> prior_info_size;
+    ib >> prior_coordinates_offset;
+    ib >> prior_is_normalized;
+    ib >> input_width;
+    ib >> input_height;
+    ib >> decrease_label_id;
+    ib >> clip_before_nms;
+    ib >> clip_after_nms;
+
+    argument = std::make_shared<detection_output>(
+        id, input_info(input_location), input_info(input_confidence), input_info(input_prior_box),
+        num_classes, keep_top_k, share_location, background_label_id, nms_threshold, top_k, eta, code_type,
+        variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
+        prior_is_normalized, input_width, input_height, decrease_label_id, clip_before_nms, clip_after_nms,
+        output_padding);
+}
 }  // namespace cldnn

@@ -9,11 +9,6 @@
 
 #include <fstream>
 
-namespace cldnn
-{
-template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
-}
-
 using namespace cldnn;
 using namespace ::tests;
 using namespace std;
@@ -88,7 +83,6 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
                                         post_nms_topn,
                                         ratios,
                                         scales,
-                                        "",
                                         padding())
 {
     _topology.add(input_layout(cls_scores_name, _cls_scores_layout));
@@ -135,7 +129,7 @@ TEST(proposal, basic) {
     cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
     }
 }
 
@@ -152,7 +146,7 @@ TEST(proposal, fp16) {
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
-        EXPECT_NEAR((float)d[i], (float)ref, epsilon_fp16);
+        ASSERT_NEAR((float)d[i], (float)ref, epsilon_fp16);
     }
 }
 
@@ -169,7 +163,7 @@ TEST(proposal, scores_fp16_im_info_fp32) {
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         FLOAT16 ref(proposal_ref[i]);
-        EXPECT_NEAR((float)d[i], (float)ref, epsilon_fp16);
+        ASSERT_NEAR((float)d[i], (float)ref, epsilon_fp16);
     }
 }
 
@@ -186,7 +180,7 @@ TEST(proposal, scores_fp32_im_info_fp16) {
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
         float ref(proposal_ref[i]);
-        EXPECT_NEAR((float)d[i], (float)ref, epsilon);
+        ASSERT_NEAR((float)d[i], (float)ref, epsilon);
     }
 }
 
@@ -202,7 +196,7 @@ TEST(proposal, img_info_batched) {
     cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
     }
 }
 
@@ -218,6 +212,6 @@ TEST(proposal, img_info_batch_only) {
     cldnn::mem_lock<float> f(output, get_test_stream());
 
     for (size_t i = 0; i < proposal_ref_size; i++) {
-        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+        ASSERT_NEAR(f[i], proposal_ref[i], epsilon);
     }
 }

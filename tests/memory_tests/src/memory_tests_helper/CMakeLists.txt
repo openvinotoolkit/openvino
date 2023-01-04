@@ -12,4 +12,4 @@ add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
                  ${CMAKE_CURRENT_BINARY_DIR}/gflags_build
                  EXCLUDE_FROM_ALL)
 
-target_link_libraries(${TARGET_NAME} PUBLIC gflags)
+target_link_libraries(${TARGET_NAME} PUBLIC gflags tests_shared_lib)

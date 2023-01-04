@@ -8,7 +8,7 @@
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -60,7 +60,9 @@ std::shared_ptr<Node> makeDequantization(
         if (dequantizationOperations.subtract.addConvert) {
             std::shared_ptr<Node> subtractConstConvert = std::make_shared<ngraph::opset1::Convert>(
                 subtractConst,
-                dequantizationOperations.subtract.outPrecision);
+                dequantizationOperations.subtract.outPrecision == element::undefined ?
+                    parent.get_element_type() :
+                    dequantizationOperations.subtract.outPrecision);
 
             auto& rt = subtractConstConvert->get_rt_info();
             for (const auto& attribute : dequantizationOperations.subtract.convertAttributes) {

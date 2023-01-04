@@ -23,8 +23,8 @@ enum ReduceLayoutType {
 struct jit_reduce_config_params {
     ReduceLayoutType layout;
     Algorithm reduce_mode;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    dnnl::memory::data_type src_dt;
+    dnnl::memory::data_type dst_dt;
     int src_data_size;
     int dst_data_size;
 };
@@ -74,27 +74,27 @@ struct jit_uni_reduce_post_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_reduce_post_kernel(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_reduce_post_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_reduce_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    const dnnl_primitive_attr &attr_;
 };
 
 class Reduce : public Node {
 public:
-    Reduce(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache);
+    Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
-    void execute(mkldnn::stream strm) override;
-    std::vector<VectorDims> shapeInfer() const override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+    int getFusingAxis() const override;
     bool canFuse(const NodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
@@ -113,6 +113,7 @@ private:
     inline void reduce_kernel_post_process(uint8_t *out_ptr);
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
     inline void create_working_memory();
+    inline void create_DH_working_memory();
     inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const InferenceEngine::SizeVector &dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
@@ -120,13 +121,14 @@ private:
     inline void reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
     void nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
     void blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
-    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights = false);
     void setJITBeyond5D();
     std::vector<int> update_src_dims();
     bool canApplyJIT(const InferenceEngine::Precision &input_prec, const InferenceEngine::Precision &output_prec) const;
 
     size_t blk_size;
     size_t dst_size;
+    size_t prc_size;
     static const size_t REDUCE_DATA = 0;
     static const size_t REDUCE_INDEXES = 1;
     bool jit_beyond_5D = false;
@@ -134,10 +136,13 @@ private:
     bool keep_dims = true;
     bool is_hybrid_layout = false;
     bool compile_post_kernel = true;
+    bool support_split = false;
+    bool ReduceDH_opt = false;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
     size_t OB, OC, OD, OH, OW;
-    size_t src_data_size, dst_data_size;
+    size_t PD, PW;
+    size_t src_data_size, dst_data_size, prc_data_size;
     size_t reduce_stride;
     ReduceLayoutType layout;
     InferenceEngine::Precision input_prec, output_prec;
@@ -148,11 +153,12 @@ private:
 
     jit_reduce_config_params jcp;
 
-    mkldnn::primitive_attr attr;
+    dnnl::primitive_attr attr;
 
     std::vector<const void*> postOpsDataPtrs;
 
-    std::shared_ptr<mkldnn::memory> prc_mem;
+    std::shared_ptr<dnnl::memory> prc_mem;
+    std::vector<uint8_t> vec_reduceDH_prc;
 
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;

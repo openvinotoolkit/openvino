@@ -10,25 +10,18 @@
 #include <memory>
 
 namespace cldnn {
-template <>
-struct typed_program_node<gather_tree> : typed_program_node_base<gather_tree> {
-private:
-    using parent = typed_program_node_base<gather_tree>;
-public:
-    using parent::parent;
-    typed_program_node(const std::shared_ptr<gather_tree> prim, program& prog) : parent(prim, prog) {
-    }
-    program_node& input() const { return get_dependency(0); }
-};
 
 using gather_tree_node = typed_program_node<gather_tree>;
 
 template <>
 class typed_primitive_inst<gather_tree> : public typed_primitive_inst_base<gather_tree> {
     using parent = typed_primitive_inst_base<gather_tree>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(gather_tree_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gather_tree_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(gather_tree_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_tree_node const& node);
     typed_primitive_inst(network& network, gather_tree_node const& node);
 };

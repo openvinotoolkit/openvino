@@ -3,7 +3,7 @@
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 test_data_3D = [
     dict(input_shape=[1, 50, 50], output_shapes=[[1, 50, 25], [1, 50, 25]], axis=2),
@@ -102,7 +102,7 @@ test_multiple_out_with_identity = [
 ]
 
 
-class TestSplitConcat(Caffe2OnnxLayerTest):
+class TestSplitConcat(OnnxRuntimeLayerTest):
     # TODO Add test with default values (axis=0)
     def create_split_concat_net(self, input_shape, output_shapes, axis, ir_version):
         """
@@ -191,7 +191,7 @@ class TestSplitConcat(Caffe2OnnxLayerTest):
         concat_output_shape[concat_axis] *= 2
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
 
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, input_shape)
         outputs, split = [], []
@@ -261,45 +261,45 @@ class TestSplitConcat(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_concat_net(**params, ir_version=ir_version), ie_device,
-                   precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+                   precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_split_3D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_3D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_split_4D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_4D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_split_5D_const(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_5D_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(
             *self.create_split_concat_net_const(**params, ir_version=ir_version), ie_device,
-            precision, ir_version, temp_dir=temp_dir, api_2=api_2)
+            precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
 
-class TestSplit(Caffe2OnnxLayerTest):
+class TestSplit(OnnxRuntimeLayerTest):
     # TODO Add test with default values (axis=0)
     def create_split_net(self, input_shape, output_shapes, axis, ir_version):
         """
@@ -543,35 +543,35 @@ class TestSplit(Caffe2OnnxLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net(**params, ir_version=ir_version), ie_device, precision,
-                   ir_version, temp_dir=temp_dir, api_2=api_2)
+                   ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_multiple_out)
-    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir, api_2):
+    def test_split_outputs_order(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_split_net_ordered_outputs(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'], api_2=api_2)
+                   output_names=params['output_names'], use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_multiple_out_with_add)
     def test_split_outputs_order_multiple_connection_before_result_case(self, params, ie_device,
                                                                         precision, ir_version,
-                                                                        temp_dir, api_2):
+                                                                        temp_dir, use_old_api):
         self._test(*self.create_split_net_ordered_outputs_with_add(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'], api_2=api_2)
+                   output_names=params['output_names'], use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_multiple_out_with_identity)
     def test_split_outputs_order_multiple_tensors_before_result_case(self,
@@ -579,8 +579,8 @@ class TestSplit(Caffe2OnnxLayerTest):
                                                                      ie_device,
                                                                      precision,
                                                                      ir_version,
-                                                                     temp_dir, api_2):
+                                                                     temp_dir, use_old_api):
         self._test(*self.create_split_net_ordered_outputs_multiple_tensor_names(**params,
                                                                                 ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   output_names=params['output_names'], api_2=api_2)
+                   output_names=params['output_names'], use_old_api=use_old_api)

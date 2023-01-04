@@ -10,13 +10,10 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id convert_color::type_id() {
-    static primitive_type_base<convert_color> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(convert_color)
 
-layout convert_color_inst::calc_output_layout(convert_color_node const& node) {
-    auto desc = node.get_primitive();
+layout convert_color_inst::calc_output_layout(convert_color_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<convert_color>();
     return desc->output_layout;
 }
 

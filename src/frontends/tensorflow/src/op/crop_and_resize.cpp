@@ -67,10 +67,10 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     } else {
         for (int i = 0; i < box_ind.size(); i++) {
             int y1, x1, y2, x2;
-            y1 = boxes.at(0 + i * 4) * (image_height - 1.);
-            x1 = boxes.at(1 + i * 4) * (image_width - 1.);
-            y2 = boxes.at(2 + i * 4) * (image_height - 1.);
-            x2 = boxes.at(3 + i * 4) * (image_width - 1.);
+            y1 = static_cast<int>(boxes.at(0 + i * 4) * (image_height - 1.));
+            x1 = static_cast<int>(boxes.at(1 + i * 4) * (image_width - 1.));
+            y2 = static_cast<int>(boxes.at(2 + i * 4) * (image_height - 1.));
+            x2 = static_cast<int>(boxes.at(3 + i * 4) * (image_width - 1.));
 
             int crop_height = abs(y2 - y1);
             int crop_width = abs(x2 - x1);
@@ -78,13 +78,13 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
             // account for flip crops when y1>y2 or x1>x2 with negative striding
             int stride_height = 1, stride_width = 1;
             if (y1 > y2) {
-                y1 = y1 - image_height;
-                y2 = y2 - image_height - 2;
+                y1 = y1 - static_cast<int>(image_height);
+                y2 = y2 - static_cast<int>(image_height) - 2;
                 stride_height = -1;
             }
             if (x1 > x2) {
-                x1 = x1 - image_height;
-                x2 = x2 - image_height - 2;
+                x1 = x1 - static_cast<int>(image_height);
+                x2 = x2 - static_cast<int>(image_height) - 2;
                 stride_width = -1;
             }
 
@@ -123,10 +123,10 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
                 interpolate_attrs.mode = Interpolate::InterpolateMode::NEAREST;
             }
 
-            transpose<0, 3, 1, 2>(ng_crop);
+            ng_crop = make_transpose(ng_crop, {0, 3, 1, 2});
             auto ng_output =
                 make_shared<Interpolate>(ng_crop, ng_size, ng_scales, ng_axes, interpolate_attrs)->output(0);
-            transpose<0, 2, 3, 1>(ng_output);
+            ng_output = make_transpose(ng_output, {0, 2, 3, 1});
             ng_crop_outputs.at(i) = ng_output;
         }
 

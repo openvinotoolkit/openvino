@@ -155,7 +155,7 @@ public:
      * @brief Returns the original nGraph op
      * @return A smart pointer to nGraph op
      */
-    std::shared_ptr<ngraph::Node> getNode() {
+    std::shared_ptr<ngraph::Node> getNode() const {
         return node;
     }
 
@@ -486,7 +486,7 @@ public:
     /**
      * @brief A convolution paddings end array [X, Y, Z, ...]
      */
-    PropertyVector<unsigned int> _pads_end;
+    DEFINE_PROP(_pads_end);
     /**
      * @brief A convolution strides array [X, Y, Z, ...]
      */

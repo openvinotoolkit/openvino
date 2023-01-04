@@ -40,8 +40,11 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
-    event::ptr copy_from(stream& stream, const memory& other) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking) override;
+
+    event::ptr copy_to(stream& stream, void* other , bool blocking) override;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
 #endif
@@ -64,8 +67,11 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
-    event::ptr copy_from(stream& /* stream */, const memory& /* other */) override;
-    event::ptr copy_from(stream& /* stream */, const void* /* other */) override;
+    event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override;
+    event::ptr copy_from(stream& /* stream */, const void* /* other */, bool /* blocking */) override;
+
+    event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override;
+    event::ptr copy_to(stream& /* stream */, void* /* other */, bool /* blocking */) override;
 
 protected:
     cl::Image2D _buffer;
@@ -107,23 +113,27 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     void unlock(const stream& stream) override;
     const cl::UsmMemory& get_buffer() const { return _buffer; }
     cl::UsmMemory& get_buffer() { return _buffer; }
+    void* buffer_ptr() const override { return _buffer.get(); }
 
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;
     shared_mem_params get_internal_params() const override;
 
-    event::ptr copy_from(stream& stream, const memory& other) override;
-    event::ptr copy_from(stream& stream, const void* host_ptr) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* host_ptr, bool blocking) override;
 
+    event::ptr copy_to(stream& stream, void* host_ptr, bool blocking) override;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::memory get_onednn_memory(dnnl::memory::desc /* desc */, int64_t offset = 0) override;
 #endif
+
+    static allocation_type detect_allocation_type(const ocl_engine* engine, const void* mem_ptr);
 
 protected:
     cl::UsmMemory _buffer;
     cl::UsmMemory _host_buffer;
 
-    static allocation_type detect_allocation_type(ocl_engine* engine, const cl::UsmMemory& buffer);
+    static allocation_type detect_allocation_type(const ocl_engine* engine, const cl::UsmMemory& buffer);
 };
 
 struct ocl_surfaces_lock : public surfaces_lock {

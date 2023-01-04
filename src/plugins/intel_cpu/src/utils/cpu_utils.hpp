@@ -10,9 +10,22 @@
 
 #include "ie_common.h"
 #include "ie_layouts.h"
+#include "general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
+
+// helper struct to tell wheter type T is any of given types U...
+// termination case when U... is empty -> return std::false_type
+template <class T, class... U>
+struct is_any_of : public std::false_type {};
+
+// helper struct to tell whether type is any of given types (U, Rest...)
+// recurrence case when at least one type U is present -> returns std::true_type if std::same<T, U>::value is true,
+// otherwise call is_any_of<T, Rest...> recurrently
+template <class T, class U, class... Rest>
+struct is_any_of<T, U, Rest...>
+        : public std::conditional<std::is_same<T, U>::value, std::true_type, is_any_of<T, Rest...>>::type {};
 
 /**
 * @brief Returns normalized by size dims where missing dimensions are filled with units from the beginning
@@ -46,19 +59,26 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 */
 inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
                                                  const InferenceEngine::SizeVector& secondInputDims,
-                                                 size_t channelAxis,
+                                                 int channelAxis,
                                                  bool weakComparison = false) {
     bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :
                                                          static_cast<bool (*)(size_t, size_t)>(dimsEqualStrong);
     if (secondInputDims.size() > firstInputDims.size())
         return false;
-    if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
+    if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), size_t(1), std::multiplies<size_t>()) == 1)
         return true;
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
-    for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == channelAxis && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[i])) || (i != channelAxis && normalizedSecondInputDims[i] != 1))
-            return false;
+    if (channelAxis >= 0) {
+        for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
+            if ((i == channelAxis && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[i])) || (i != channelAxis && normalizedSecondInputDims[i] != 1))
+                return false;
+        }
+    } else {
+        for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
+            if (normalizedSecondInputDims[i] != 1)
+                return false;
+        }
     }
     return true;
 }

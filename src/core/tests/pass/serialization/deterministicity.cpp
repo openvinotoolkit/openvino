@@ -6,10 +6,10 @@
 
 #include <fstream>
 
+#include "common_test_utils/file_utils.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_common.hpp"
 
 class SerializationDeterministicityTest : public ov::test::TestsCommon {
@@ -50,7 +50,8 @@ protected:
 #ifdef ENABLE_OV_ONNX_FRONTEND
 
 TEST_F(SerializationDeterministicityTest, BasicModel) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -66,7 +67,8 @@ TEST_F(SerializationDeterministicityTest, BasicModel) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
 
     auto expected = ov::test::readModel(model, "");
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -84,8 +86,10 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
 #endif
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"});
-    const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.xml"}));
+    const std::string weights =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/split_equal_parts_2d.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);
@@ -101,8 +105,10 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
 }
 
 TEST_F(SerializationDeterministicityTest, ModelWithConstants) {
-    const std::string model = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"});
-    const std::string weights = ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"});
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.xml"}));
+    const std::string weights =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/add_abc_initializers.bin"}));
 
     auto expected = ov::test::readModel(model, weights);
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(expected);

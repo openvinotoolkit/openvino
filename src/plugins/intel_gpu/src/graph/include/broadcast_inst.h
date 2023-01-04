@@ -24,6 +24,7 @@ public:
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };
 
 using broadcast_node = typed_program_node<broadcast>;
@@ -31,9 +32,12 @@ using broadcast_node = typed_program_node<broadcast>;
 template <>
 class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadcast> {
     using parent = typed_primitive_inst_base<broadcast>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(broadcast_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(broadcast_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(broadcast_node const& node);
     typed_primitive_inst(network& network, broadcast_node const& node);
 };

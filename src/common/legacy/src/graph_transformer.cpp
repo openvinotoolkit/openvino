@@ -24,12 +24,14 @@ using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
 
-inline bool isForFakeQuantize(const CNNLayer& layer) {
+inline bool isForLayers(const CNNLayer& layer, const std::vector<std::string>& types) {
     for (const DataPtr & data : layer.outData) {
         for (const auto & it : getInputTo(data)) {
             const CNNLayerPtr childLayer = it.second;
-            if (childLayer->type == "FakeQuantize" || childLayer->type == "Quantize") {
-                return true;
+            for (const auto& type : types) {
+                if (childLayer->type.compare(type) == 0) {
+                    return true;
+                }
             }
         }
     }
@@ -96,7 +98,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
             }
             layer->insData.clear();
 
-            if (constLayers.at(layer->name)) {
+            if (constLayers.at(layer->name) || isForLayers(*layer, {"Pwl"})) {
                 for (const auto& outData : layer->outData) {
                     for (const auto& inputTo : getInputTo(outData)) {
                         CNNLayerPtr inputToLayer;
@@ -214,15 +216,17 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
 static std::vector<std::string> skipConstInfer = {
     "FakeQuantize",
     "Quantize",
-    "CumSum",     // Const inference function for CumSum is not implemented
-    "Convolution", // Const inference function for Convolution is not implemented
-    "Eltwise",  // Const inference function for Eltwise is not implemented
+    "CumSum",       // Const inference function for CumSum is not implemented
+    "Convolution",  // Const inference function for Convolution is not implemented
+    "Eltwise",      // Const inference function for Eltwise is not implemented
+    "Copy",
     "FullyConnected",
     "Squeeze",
+    "Split",
     "TensorIterator",
     "LSTMSequence",
-    "MVN"
-};
+    "Range",
+    "MVN"};
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
     std::map<std::string, bool> mapConstLayers;
@@ -232,7 +236,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         if (layer->type == "Shape" || layer->type == "Const") {
             mapConstLayers[layer->name] = false;
         } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() &&
-                   !isForFakeQuantize(*layer)) {
+                   !isForLayers(*layer, {"FakeQuantize", "Quantize"})) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
                 auto creator = getCreatorLayer(data.lock()).lock();
@@ -471,6 +475,22 @@ void ConstTransformer::fullTrim() {
     std::lock_guard<std::mutex> lock(lockFullTrim);
     auto sortedLayers = details::CNNSubnetSortTopologically({inputs, outputs});
     auto constMapLayers = getConstLayers(sortedLayers);
+
+    for (const auto& layer : sortedLayers) {
+        [&] {
+            if (layer->type == "Const") {
+                for (const auto& out : outputs) {
+                    for (const auto& out_const : layer->outData) {
+                        if (out_const == out) {
+                            constMapLayers.erase(layer->name);
+                            return;
+                        }
+                    }
+                }
+            }
+        }();
+    }
+
     auto constData = getConstData(constMapLayers, sortedLayers);
     auto constLayers = foldConstSubgraphsInternal(constMapLayers, constData, sortedLayers);
     trimShapeInputs(constLayers, sortedLayers);

@@ -28,20 +28,22 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
     {{10, 16, 12, 15}, {{{2, 2, 2}, {0, 1, 2, 3}}, {{2, 4}, {0, 1, 2, 3}}, {{8}, {0, 1, 2, 3}}}},
     {{10, 9, 10, 9, 10}, {{{8}, {0, 1, 2, 3, 4}}, {{4, 2}, {0, 1, 2, 3, 4}}}},
     {{10, 9, 10, 9, 10, 12}, {{{8}, {0, 1, 2, 3, 4, 5}}}},
+    {{10, 16, 12, 15}, {{{2, 4}, {0, 1, 2, 3}}, {{8}, {-1, -2, -3, -4}}}},
+    {{10, 9, 10, 9, 10}, {{{8}, {-3, -1, 0, 2, 4}}, {{4, 2}, {-2, 2}}}},
 };
 //indices should not be random value
 const std::vector<std::vector<int64_t>> idxValue = {
         {0, 2, 4, 6, 1, 3, 5, 7}
 };
 
-const auto ScatterUpdateCase = ::testing::Combine(
-        ::testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
-        ::testing::ValuesIn(idxValue),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate, ScatterUpdateLayerTest, ScatterUpdateCase, ScatterUpdateLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterUpdate,
+    ScatterUpdateLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ScatterUpdateLayerTest::combineShapes(axesShapeInShape)),
+                       ::testing::ValuesIn(idxValue),
+                       ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(idxPrecisions),
+                       ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+    ScatterUpdateLayerTest::getTestCaseName);
 
 }  // namespace

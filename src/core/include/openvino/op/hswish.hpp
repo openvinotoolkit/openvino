@@ -14,10 +14,10 @@ namespace v4 {
 /// f(x) =  x * min(max(x + 3, 0), 6) / 6 or
 /// f(x) = x * min(ReLU(x + 3), 6) / 6
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API HSwish : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("HSwish", "opset4", op::util::UnaryElementwiseArithmetic, 4);
-    BWDCMP_RTTI_DECLARATION;
     HSwish() = default;
 
     /// \brief Constructs a HSwish (hard version of Swish) operation.

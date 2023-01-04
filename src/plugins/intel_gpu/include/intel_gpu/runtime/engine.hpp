@@ -83,7 +83,10 @@ public:
     virtual allocation_type get_default_allocation_type() const = 0;
 
     /// Returns preferred allocation type which can be mapped to host ptr
-    allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
+    allocation_type get_lockable_preferred_memory_allocation_type(bool is_image_layout = false) const;
+
+    /// Returns preferred device allocation type which may be not lockable
+    allocation_type get_preferred_memory_allocation_type(bool is_image_layout = false) const;
 
     /// Checks if the current engine supports speicied allocation @p type
     bool supports_allocation(allocation_type type) const;
@@ -122,6 +125,9 @@ public:
     /// Returns true if USM is enabled in engine config and device/driver supports required features
     bool use_unified_shared_memory() const;
 
+    /// Returns the size of the larger of the GPU memory and CPU memory.
+    uint64_t get_max_memory_size() const;
+
     /// Create stream object for current engine
     virtual stream_ptr create_stream() const = 0;
 
@@ -130,6 +136,8 @@ public:
 
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
+
+    virtual allocation_type detect_usm_allocation_type(const void* memory) const = 0;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     /// Returns onednn engine object which shares device and context with current engine

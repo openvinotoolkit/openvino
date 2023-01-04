@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 #include "ie_parallel.hpp"
 #include "bucketize.h"
 
@@ -29,8 +30,8 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
     return true;
 }
 
-Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -76,7 +77,7 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void Bucketize::execute(mkldnn::stream strm) {
+void Bucketize::execute(dnnl::stream strm) {
     auto precision_mask = getPrecisionMask(input_precision, boundaries_precision, output_precision);
 
     switch (precision_mask) {
@@ -208,10 +209,6 @@ void Bucketize::prepareParams() {
 
 bool Bucketize::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
-}
-
-std::vector<VectorDims> Bucketize::shapeInfer() const {
-    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>

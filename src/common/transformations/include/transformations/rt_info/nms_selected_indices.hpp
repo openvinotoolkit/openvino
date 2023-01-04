@@ -8,12 +8,11 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include <set>
 #include <string>
 #include <transformations_visibility.hpp>
 
+#include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace ov {

@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; i++) {
         argv_vector.push_back(argv[i]);
     }
-    argc = argv_vector.size();
+    argc = static_cast<int>(argv_vector.size());
     ::testing::InitGoogleTest(&argc, argv_vector.data());
     for (int i = 1; i < argc; i++) {
         if (cpath_flag == argv[i] && (++i) < argc) {

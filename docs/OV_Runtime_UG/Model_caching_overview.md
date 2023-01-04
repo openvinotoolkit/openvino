@@ -1,6 +1,4 @@
-# Model Caching Overview {#openvino_docs_IE_DG_Model_caching_overview}
-
-## Introduction
+# Model Caching Overview {#openvino_docs_OV_UG_Model_caching_overview}
 
 As described in the [Integrate OpenVINO™ with Your Application](integrate_with_your_application.md), a common application flow consists of the following steps:
 
@@ -114,7 +112,8 @@ To check in advance if a particular device supports model caching, your applicat
 
 @endsphinxdirective
 
-> **NOTE**: The GPU plugin does not have the EXPORT_IMPORT capability, and does not support model caching yet. However, the GPU plugin supports caching kernels (see the [GPU plugin documentation](supported_plugins/GPU.md)). Kernel caching for the GPU plugin can be accessed the same way as model caching: by setting the `CACHE_DIR` configuration key to a folder where the cache should be stored.
+> **NOTE**: For GPU, model caching is currently implemented as a preview feature. Before it is fully supported, kernel caching can be used in the same manner: by setting the CACHE_DIR configuration key to a folder where the cache should be stored (see the [GPU plugin documentation](supported_plugins/GPU.md)).
+> To activate the preview feature of model caching, set the OV_GPU_CACHE_MODEL environment variable to 1.
 
 
 [caching_enabled]: ../img/caching_enabled.png

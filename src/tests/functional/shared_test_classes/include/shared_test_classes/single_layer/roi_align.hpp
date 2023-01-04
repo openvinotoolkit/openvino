@@ -37,4 +37,32 @@ private:
     std::string poolingMode;
 };
 
+using roialignV9Params = std::tuple<std::vector<size_t>,             // feature map shape
+                                    std::vector<size_t>,             // proposal coords shape
+                                    int,                             // bin's row count
+                                    int,                             // bin's column count
+                                    float,                           // spatial scale
+                                    int,                             // pooling ratio
+                                    std::string,                     // pooling mode
+                                    std::string,                     // roi aligned mode
+                                    InferenceEngine::Precision,      // net precision
+                                    LayerTestsUtils::TargetDevice>;  // device name
+
+class ROIAlignV9LayerTest : public testing::WithParamInterface<roialignV9Params>,
+                            virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<roialignV9Params>& obj);
+
+protected:
+    void SetUp() override;
+
+private:
+    int pooledH;
+    int pooledW;
+    float spatialScale;
+    int poolingRatio;
+    std::string poolingMode;
+    std::string roiAlignedMode;
+};
+
 }  // namespace LayerTestsDefinitions

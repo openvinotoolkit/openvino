@@ -22,7 +22,8 @@ public:
 
     DynamicShapeResolver(const Output<Node>& tensorWithData,
                          const Output<Node>& tensorWithDims,
-                         const DynamicShapeResolverMode& mode = DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE);
+                         const DynamicShapeResolverMode& mode = DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE,
+                         const ngraph::PartialShape& output_partial_shape = ngraph::PartialShape{});
 
     void validate_and_infer_types() override;
 
@@ -34,11 +35,16 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    // Deprecated. Left for compatibility with tests
     void setMode(DynamicShapeResolverMode mode) { m_mode = mode; }
-    DynamicShapeResolverMode getMode() { return m_mode; }
+    DynamicShapeResolverMode getMode() const { return m_mode; }
+
+    void setOutputPartialShape(const ngraph::PartialShape& output_partial_shape) { m_output_partial_shape = output_partial_shape; }
+    const ngraph::PartialShape& getOutputPartialShape() const { return m_output_partial_shape; }
 
 private:
     DynamicShapeResolverMode m_mode;
+    ngraph::PartialShape m_output_partial_shape;
 };
 
 }  // namespace op

@@ -3,7 +3,8 @@
 //
 
 #include "ngraph_functions/builders.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
+#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/single_layer/experimental_detectron_roifeatureextractor.hpp"
 
 namespace ov {
@@ -46,6 +47,10 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
+    // TODO: Remove it after fixing issue 69529
+    // w/a for myriad (cann't store 2 caches simultaneously)
+    PluginCache::get().reset();
+
     std::vector<InputShape> inputShapes;
     int64_t outputSize, samplingRatio;
     std::vector<int64_t> pyramidScales;

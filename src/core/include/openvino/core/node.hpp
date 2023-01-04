@@ -110,9 +110,12 @@ std::string node_validation_failure_loc_string(const Node* node);
 
 class NodeAccessor;
 
-/// Nodes are the backbone of the graph of Value dataflow. Every node has
-/// zero or more nodes as arguments and one value, which is either a tensor
-/// or a (possibly empty) tuple of values.
+/**
+ * @brief Nodes are the backbone of the graph of Value dataflow. Every node has
+ * zero or more nodes as arguments and one value, which is either a tensor
+ * or a (possibly empty) tuple of values.
+ * @ingroup ov_model_cpp_api
+ */
 class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     // For access to m_outputs.
     friend class descriptor::Input;
@@ -134,7 +137,7 @@ protected:
     descriptor::Output& get_output_descriptor(size_t position);
 
     /// \brief Construct an uninitialized Node
-    Node() = default;
+    Node();
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
@@ -191,9 +194,7 @@ public:
 
     virtual ~Node();
 
-    virtual bool visit_attributes(AttributeVisitor&) {
-        return false;
-    }
+    virtual bool visit_attributes(AttributeVisitor&);
     /// \returns the autobroadcasr spec
     virtual const ov::op::AutoBroadcastSpec& get_autob() const;
 
@@ -372,10 +373,6 @@ public:
     descriptor::Tensor& get_output_tensor(size_t i) const;
     descriptor::Tensor& get_input_tensor(size_t i) const;
 
-    /// Returns the tensor name for output i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
-    const std::string& get_output_tensor_name(size_t i) const;
-
     std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
     /// Returns the number of inputs for the op
@@ -392,10 +389,6 @@ public:
     /// Returns the partial shape of input i
     // TODO: deprecate in favor of node->get_input_partial_shape(i)
     const PartialShape& get_input_partial_shape(size_t i) const;
-
-    /// Returns the tensor name for input i
-    OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
-    const std::string& get_input_tensor_name(size_t i) const;
 
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
@@ -490,6 +483,12 @@ public:
                              const Output<Node>& graph_value);
 
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
+
+protected:
+    /// \brief Check constant folding disabled attribute.
+    ///
+    /// \return true if constant folding disabled otherwise false.
+    bool is_const_fold_disabled() const;
 
 private:
     friend class ov::NodeAccessor;
@@ -594,7 +593,6 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Node>>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     std::shared_ptr<ov::Node>& m_ref;
@@ -608,7 +606,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<NodeVector>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::NodeVector& m_ref;

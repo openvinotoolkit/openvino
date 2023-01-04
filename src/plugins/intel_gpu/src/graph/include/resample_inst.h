@@ -23,6 +23,8 @@ public:
 
     program_node& input() const { return get_dependency(0); }
     program_node& input2() const { return get_dependency(1); }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2}; }
 };
 
 using resample_node = typed_program_node<resample>;
@@ -30,9 +32,12 @@ using resample_node = typed_program_node<resample>;
 template <>
 class typed_primitive_inst<resample> : public typed_primitive_inst_base<resample> {
     using parent = typed_primitive_inst_base<resample>;
+    using parent::parent;
 
 public:
-    static layout calc_output_layout(resample_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(resample_node const& node);
 
 public:

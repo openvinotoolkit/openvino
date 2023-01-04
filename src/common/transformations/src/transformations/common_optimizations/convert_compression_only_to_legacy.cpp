@@ -7,7 +7,9 @@
 #include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/convert_precision.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -29,13 +31,15 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 }
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr<ov::Model>& f) {
+    RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
     if (ngraph::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
 
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
-        manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
-        manager.register_pass<ov::pass::ConstantFolding>();
+        using namespace ov::pass;
+        REGISTER_PASS(manager, EnableDecompressionConvertConstantFolding)
+        REGISTER_PASS(manager, ConstantFolding)
 
         manager.run_passes(f);
     }

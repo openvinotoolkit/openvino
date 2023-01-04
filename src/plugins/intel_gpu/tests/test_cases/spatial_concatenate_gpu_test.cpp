@@ -36,7 +36,7 @@ TEST(spatial_concatenate_f32_gpu, test01) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 3));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -48,10 +48,10 @@ TEST(spatial_concatenate_f32_gpu, test01) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0] + input2->get_layout().size.spatial[0]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0) + input2->get_layout().spatial(0));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -60,7 +60,7 @@ TEST(spatial_concatenate_f32_gpu, test01) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -91,7 +91,7 @@ TEST(spatial_concatenate_f32_gpu, test02) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 2));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -103,10 +103,10 @@ TEST(spatial_concatenate_f32_gpu, test02) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1] + input2->get_layout().size.spatial[1]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1) + input2->get_layout().spatial(1));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -115,7 +115,7 @@ TEST(spatial_concatenate_f32_gpu, test02) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -148,7 +148,7 @@ TEST(spatial_concatenate_f32_gpu, test03) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 2, "", padding({ 0, 0, 1, 1 }, 0.0f)));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2, padding({ 0, 0, 1, 1 }, 0.0f)));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -160,10 +160,10 @@ TEST(spatial_concatenate_f32_gpu, test03) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1] + input2->get_layout().size.spatial[1]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1) + input2->get_layout().spatial(1));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -172,7 +172,7 @@ TEST(spatial_concatenate_f32_gpu, test03) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -203,7 +203,7 @@ TEST(spatial_concatenate_f32_gpu, test04) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 3, "", padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3, padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -215,10 +215,10 @@ TEST(spatial_concatenate_f32_gpu, test04) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0] + input2->get_layout().size.spatial[0]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0) + input2->get_layout().spatial(0));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -227,7 +227,7 @@ TEST(spatial_concatenate_f32_gpu, test04) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -263,7 +263,7 @@ TEST(spatial_concatenate_f32_gpu, inputs_3) {
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
     tpl.add(input_layout("in3", input3->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2", "in3" }, 3));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2"), input_info("in3") }, 3));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -276,10 +276,10 @@ TEST(spatial_concatenate_f32_gpu, inputs_3) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0] + input2->get_layout().size.spatial[0] + input3->get_layout().size.spatial[0]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0) + input2->get_layout().spatial(0) + input3->get_layout().spatial(0));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -288,7 +288,7 @@ TEST(spatial_concatenate_f32_gpu, inputs_3) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -351,7 +351,7 @@ TEST(spatial_concatenate_f32_gpu, inputs_3_uneven_axis_b) {
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
     tpl.add(input_layout("in3", input3->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2", "in3" }, 0));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2"), input_info("in3") }, 0));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -364,10 +364,10 @@ TEST(spatial_concatenate_f32_gpu, inputs_3_uneven_axis_b) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0] + input2->get_layout().size.batch[0] + input3->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch() + input2->get_layout().batch() + input3->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -376,7 +376,7 @@ TEST(spatial_concatenate_f32_gpu, inputs_3_uneven_axis_b) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -411,7 +411,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 4));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 4));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -423,11 +423,11 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0] + input2->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[2], input1->get_layout().size.spatial[2]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0) + input2->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(2), input1->get_layout().spatial(2));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -436,7 +436,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_x) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -475,7 +475,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_y) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 3));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -487,11 +487,11 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_y) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1] + input2->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[2], input1->get_layout().size.spatial[2]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1) + input2->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(2), input1->get_layout().spatial(2));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -500,7 +500,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_y) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -539,7 +539,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_z) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 2));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -551,11 +551,11 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_z) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[2], input1->get_layout().size.spatial[2] + input2->get_layout().size.spatial[2]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(2), input1->get_layout().spatial(2) + input2->get_layout().spatial(2));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -564,7 +564,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_z) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -614,7 +614,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
     topology tpl;
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2" }, 0));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 0));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -626,11 +626,11 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0] + input2->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[2], input1->get_layout().size.spatial[2]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch() + input2->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(2), input1->get_layout().spatial(2));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -639,7 +639,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_axis_b) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }
@@ -744,7 +744,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_3_uneven_axis_b) {
     tpl.add(input_layout("in1", input1->get_layout()));
     tpl.add(input_layout("in2", input2->get_layout()));
     tpl.add(input_layout("in3", input3->get_layout()));
-    tpl.add(concatenation("conc", { "in1", "in2", "in3" }, 0));
+    tpl.add(concatenation("conc", { input_info("in1"), input_info("in2"), input_info("in3") }, 0));
 
     network net(engine, tpl);
     net.set_input_data("in1", input1);
@@ -757,11 +757,11 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_3_uneven_axis_b) {
     auto output_mem = outputs.at("conc").get_memory();
     auto output_layout = output_mem->get_layout();
 
-    ASSERT_EQ(output_layout.size.batch[0], input1->get_layout().size.batch[0] + input2->get_layout().size.batch[0] + input3->get_layout().size.batch[0]);
-    ASSERT_EQ(output_layout.size.feature[0], input1->get_layout().size.feature[0]);
-    ASSERT_EQ(output_layout.size.spatial[0], input1->get_layout().size.spatial[0]);
-    ASSERT_EQ(output_layout.size.spatial[1], input1->get_layout().size.spatial[1]);
-    ASSERT_EQ(output_layout.size.spatial[2], input1->get_layout().size.spatial[2]);
+    ASSERT_EQ(output_layout.batch(), input1->get_layout().batch() + input2->get_layout().batch() + input3->get_layout().batch());
+    ASSERT_EQ(output_layout.feature(), input1->get_layout().feature());
+    ASSERT_EQ(output_layout.spatial(0), input1->get_layout().spatial(0));
+    ASSERT_EQ(output_layout.spatial(1), input1->get_layout().spatial(1));
+    ASSERT_EQ(output_layout.spatial(2), input1->get_layout().spatial(2));
 
     ASSERT_EQ(output_mem->get_layout().get_linear_size(), expected_output.size());
     {
@@ -770,7 +770,7 @@ TEST(spatial_concatenate_f32_gpu, inputs3d_3_uneven_axis_b) {
         size_t idx = 0;
         for (auto const& value : out_ptr)
         {
-            EXPECT_FLOAT_EQ(value, expected_output[idx++]);
+            ASSERT_FLOAT_EQ(value, expected_output[idx++]);
         }
     }
 }

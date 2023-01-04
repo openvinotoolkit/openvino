@@ -42,8 +42,8 @@ target_link_libraries(${TARGET_NAME}
         mvnc inference_engine_legacy vpu_graph_transformer)
 
 # MyriadPlugin is not safe to unload it at runtime
-if((LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
-   OR ARM)
+# see https://github.com/openvinotoolkit/openvino/pull/4807
+if(LINUX AND OV_GLIBC_VERSION VERSION_GREATER_EQUAL 2.24)
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
 endif()
 
@@ -54,8 +54,9 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install
-if (LINUX)
-    install(FILES ${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/third_party/mvnc/src/97-myriad-usbboot.rules
-        DESTINATION runtime/3rdparty
-        COMPONENT myriad)
+
+if(LINUX AND NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
+    install(FILES ${mvnc_SOURCE_DIR}/src/97-myriad-usbboot.rules
+            DESTINATION install_dependencies
+            COMPONENT myriad)
 endif()

@@ -10,19 +10,16 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_nd::type_id() {
-    static primitive_type_base<gather_nd> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
 
-layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
-    auto op = node.get_primitive();
+layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param) {
+    auto op = impl_param.typed_desc<gather_nd>();
 
-    auto input_layout_origin = node.input(0).get_output_layout();
-    auto indices_layout_origin = node.input(1).get_output_layout();
+    auto input_layout_origin = impl_param.get_input_layout(0);
+    auto indices_layout_origin = impl_param.get_input_layout(1);
 
-    auto input_layout = input_layout_origin.size.sizes(input_layout_origin.format);
-    auto indices_layout = indices_layout_origin.size.sizes(indices_layout_origin.format);
+    auto input_layout = input_layout_origin.get_tensor().sizes(input_layout_origin.format);
+    auto indices_layout = indices_layout_origin.get_tensor().sizes(indices_layout_origin.format);
 
     const auto input_rank = static_cast<size_t>(op->input_rank);
     const auto indices_rank = op->indices_rank;
@@ -73,10 +70,10 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
     }
 
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
-    auto padding = op->output_padding;
+    auto padding = op->output_paddings[0];
 
-    if (node.has_fused_primitives()) {
-        input_layout_origin.data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        input_layout_origin.data_type = impl_param.get_fused_output_layout().data_type;
     }
 
     return layout(input_layout_origin.data_type, output_format, output_sizes_tensor, padding);
@@ -91,11 +88,8 @@ std::string gather_nd_inst::to_string(gather_nd_node const& node) {
 
     json_composite gather_nd_info;
     gather_nd_info.add("input id", input.id());
-    gather_nd_info.add("input shape", node.input(0).get_output_layout().size.to_string());
-    gather_nd_info.add("indices shape", node.input(1).get_output_layout().size.to_string());
     gather_nd_info.add("indices rank", desc->indices_rank);
     gather_nd_info.add("batch dims", desc->batch_dims);
-    gather_nd_info.add("output shape", calc_output_layout(node).size.to_string());
 
     node_info->add("gather_nd info", gather_nd_info);
     node_info->dump(primitive_description);

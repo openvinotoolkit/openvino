@@ -14,8 +14,8 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    foreach(var CI_BUILD_NUMBER IE_VERSION IE_VERSION_BUILD
-                IE_VERSION_MAJOR IE_VERSION_MINOR IE_VERSION_PATCH)
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX OpenVINO_VERSION_BUILD
+                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
         if(NOT DEFINED ${var})
             message(FATAL_ERROR "${var} version component is not defined")
         endif()
@@ -23,10 +23,10 @@ function(set_ci_build_number)
     endforeach()
 endfunction()
 
-set_ci_build_number()
-
 include(features)
 include(message)
+
+set_ci_build_number()
 
 #
 # Detect target
@@ -34,15 +34,17 @@ include(message)
 
 include(target_flags)
 
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
 elseif(X86)
     set(ARCH_FOLDER ia32)
 elseif(MSVC AND ARM)
     set(ARCH_FOLDER arm)
-elseif(MSVC AND AARCH64)
+elseif((MSVC OR APPLE) AND AARCH64)
     set(ARCH_FOLDER arm64)
+elseif(UNIVERSAL2)
+    set(ARCH_FOLDER universal2)
 endif()
 
 #
@@ -77,6 +79,11 @@ if(NOT COMMAND find_host_package)
         find_package(${ARGN})
     endmacro()
 endif()
+if(NOT COMMAND find_host_library)
+    macro(find_host_library)
+        find_library(${ARGN})
+    endmacro()
+endif()
 if(NOT COMMAND find_host_program)
     macro(find_host_program)
         find_program(${ARGN})
@@ -87,7 +94,6 @@ endif()
 # Common scripts
 #
 
-include(packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
@@ -164,19 +170,34 @@ macro(ov_set_if_not_defined var value)
     endif()
 endmacro()
 
-if(NOT UNIX)
-    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-else()
-    ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-    ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-endif()
+ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+    # to make sure that lib/<multiarch-tuple> is created on Debian
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
+endif()
+
+include(packaging/packaging)
+
+set(CMAKE_SKIP_INSTALL_RPATH ON)
+
 if(APPLE)
-    set(CMAKE_MACOSX_RPATH ON)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+
+    if(DEFINED OV_CPACK_LIBRARYDIR)
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
+    else()
+        message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
+    endif()
+
+    if(CPACK_GENERATOR STREQUAL "BREW")
+        set(CMAKE_SKIP_INSTALL_RPATH OFF)
+    endif()
+
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
@@ -186,8 +207,18 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+# CMake 3.0+: Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
+# CMake 3.0+: MACOSX_RPATH is enabled by default.
+set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
+# CMake 3.0+ (2.8.12): MacOS "@rpath" in target's install name
+set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+# CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
+set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+# CMake 3.13+: option() honors normal variables.
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
+set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
@@ -217,7 +248,7 @@ macro(ov_install_static_lib target comp)
             set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
         endif()
         install(TARGETS ${target} EXPORT OpenVINOTargets
-                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp} ${ARGN})
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
     endif()
 endmacro()
 
@@ -246,6 +277,8 @@ if(ENABLE_FUZZING)
     enable_fuzzing()
 endif()
 
+get_linux_name(LINUX_OS_NAME)
+
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)
@@ -271,46 +304,7 @@ function(ov_mark_target_as_cc)
     ie_mark_target_as_cc(${ARGN})
 endfunction()
 
-# check python package
-
-function(ie_check_pip_package full_name message_type)
-    find_package(PythonInterp 3 REQUIRED)
-
-    get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-
-    # extract version if any
-    if(full_name MATCHES "^([a-z_]+)[~=<>!]*(.*)$")
-        set(name ${CMAKE_MATCH_1})
-        set(req_version ${CMAKE_MATCH_2})
-    else()
-        set(name ${full_name})
-    endif()
-
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -m pip show ${name}
-        WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
-        RESULT_VARIABLE PIP_EXIT_CODE
-        OUTPUT_VARIABLE output)
-
-    if(NOT PIP_EXIT_CODE EQUAL 0)
-        set(${name}_FOUND OFF PARENT_SCOPE)
-        message(${message_type} "${name} package is not installed. Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
-    else()
-        if(req_version)
-            string(REGEX MATCH "Version: ([0-9]+\.?[0-9]*\.?[0-9]*)\n" installed_version "${output}")
-            if(installed_version)
-                set(installed_version "${CMAKE_MATCH_1}")
-            endif()
-
-            if(NOT req_version STREQUAL installed_version)
-                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
-            endif()
-        else()
-            set(${name}_FOUND ON PARENT_SCOPE)
-        endif()
-    endif()
-endfunction()
+include(python_requirements)
 
 # Code style utils
 

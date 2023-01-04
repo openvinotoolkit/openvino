@@ -23,7 +23,7 @@ void normalize_l2(const T* data,
         // When axes is an empty list, then each `data` element is divided by itself
         // resulting value 1 for all non-zero elements
         for (size_t i = 0; i < shape_size(data_shape); ++i) {
-            out[i] = data[i] == 0 ? 0 : 1;
+            out[i] = data[i] == 0 ? T(0) : T(1);
         }
         return;
     }
@@ -47,8 +47,9 @@ void normalize_l2(const T* data,
                         reduce_shape,
                         op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY),
                         [&eps, &eps_mode](T x, T y) -> T {
-                            T arg = (eps_mode == op::EpsMode::ADD) ? y + eps : std::max(y, static_cast<T>(eps));
-                            return x / std::sqrt(arg);
+                            T arg = (eps_mode == op::EpsMode::ADD) ? y + static_cast<T>(eps)
+                                                                   : std::max(y, static_cast<T>(eps));
+                            return x / static_cast<T>(std::sqrt(arg));
                         });
 }
 }  // namespace reference

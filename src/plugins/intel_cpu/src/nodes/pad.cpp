@@ -5,7 +5,7 @@
 #include "pad.h"
 #include <string>
 #include <cmath>
-#include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
 #include <limits>
 #include "ie_parallel.hpp"
@@ -14,7 +14,7 @@
 #include <selective_build.h>
 #include <ngraph/opsets/opset1.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 #define THROW_ERROR IE_THROW() << "Pad layer with name '" << getName() << "' "
@@ -60,8 +60,8 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -323,19 +323,15 @@ void Pad::PadExecutor::exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
     }
 }
 
-void Pad::execute(mkldnn::stream strm) {
+void Pad::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
     execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
 }
 
-void Pad::executeDynamicImpl(mkldnn::stream strm) {
+void Pad::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
-}
-
-std::vector<VectorDims> Pad::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(PADS_BEGIN_ID, PADS_END_ID));
 }
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {

@@ -9,8 +9,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <utils/ngraph_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
-using namespace mkldnn;
+using namespace dnnl;
 using namespace InferenceEngine;
 
 namespace ov {
@@ -30,8 +31,8 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
+        : Node(op, eng, cache, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
@@ -43,12 +44,8 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& 
     origPrc = details::convertPrecision(convert->get_destination_type());
 }
 
-std::vector<VectorDims> Convert::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
-}
-
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, const mkldnn::engine& eng, WeightsSharing::Ptr &cache)
+                 const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
         : Node("Convert", nodeName, eng, cache)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
@@ -57,6 +54,9 @@ Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, co
     addOriginalOutputPrecision(outPrc);
 
     isDynamic = shape.isDynamic();
+    if (isDynamicNode()) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     errorPrefix = "Convert node with name '" + getName() + "'";
 }
@@ -132,11 +132,11 @@ void Convert::initSupportedPrimitiveDescriptors() {
     }
 }
 
-void Convert::executeDynamicImpl(mkldnn::stream strm) {
+void Convert::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-void Convert::execute(mkldnn::stream strm) {
+void Convert::execute(dnnl::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
 

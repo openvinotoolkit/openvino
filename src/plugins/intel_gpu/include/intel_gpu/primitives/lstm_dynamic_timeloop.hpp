@@ -38,7 +38,7 @@ struct lstm_dynamic_timeloop
     /// @param clip Clip threshold. Provide 0 if using lstm without activations clip threshold.
     /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
     lstm_dynamic_timeloop(const primitive_id& id,
-                          const primitive_id& input,
+                          const input_info& input,
                           const primitive_id& dyn_length,
                           const primitive_id& recurrent,
                           const primitive_id& last_hidden_state = "",
@@ -47,9 +47,8 @@ struct lstm_dynamic_timeloop
                           const primitive_id& initial_cell = "",
                           const float clip = 0.0f,
                           const bool input_forget = 0,
-                          const primitive_id& ext_prim_id = "",
                           const padding& output_padding = padding())
-        : primitive_base(id, {input}, ext_prim_id, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           dyn_length(dyn_length),
           recurrent(recurrent),
           last_hidden_state(last_hidden_state),

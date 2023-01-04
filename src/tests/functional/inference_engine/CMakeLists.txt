@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -15,9 +15,8 @@ set(LINK_LIBRARIES
     openvino::util
     openvino::conditional_compilation
     sharedTestClasses
-    inference_engine_snippets
     offline_transformations
-    pugixml::static
+    openvino::pugixml
     openvino::runtime::dev
 )
 
@@ -32,10 +31,6 @@ set(DEPENDENCIES
 
 if(ENABLE_OV_IR_FRONTEND)
     list(APPEND DEPENDENCIES openvino_ir_frontend)
-endif()
-
-if(ENABLE_IR_V7_READER)
-    list(APPEND DEPENDENCIES inference_engine_ir_v7_reader)
 endif()
 
 if(ENABLE_HETERO)
@@ -68,20 +63,25 @@ addIeTargetTest(
         DEPENDENCIES ${DEPENDENCIES}
         LABELS
         IE
+        OV
 )
+
+target_compile_definitions(${TARGET_NAME} PRIVATE $<$<BOOL:${BUILD_SHARED_LIBS}>:"BUILD_SHARED_LIBS">)
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
 if(ENABLE_OV_ONNX_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         ENABLE_OV_ONNX_FRONTEND
-        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
+        ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/"
+        TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx")
     add_dependencies(${TARGET_NAME} openvino_onnx_frontend)
 endif()
 
 if(ENABLE_OV_PADDLE_FRONTEND)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-            PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
+        PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/"
+        TEST_PADDLE_MODELS_DIRNAME="${TEST_MODEL_ZOO}/paddle_test_models")
     add_dependencies(${TARGET_NAME} openvino_paddle_frontend)
 endif()
 
@@ -93,7 +93,6 @@ ie_faster_build(${TARGET_NAME}
 
 file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/transformations/legacy/*.cpp" # CVS-55385
-    "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
     )
 
@@ -160,7 +159,14 @@ function(ie_headers_compilation_with_custom_flags)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/dx.hpp")
         endif()
-        if(NOT LIBVA_FOUND)
+        # try to find VA libraries
+        if(NOT ANDROID)
+            find_host_package(PkgConfig QUIET)
+            if(PkgConfig_FOUND)
+                pkg_search_module(libva QUIET IMPORTED_TARGET libva)
+            endif()
+        endif()
+        if(NOT libva_FOUND)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
                                                 "openvino/runtime/intel_gpu/ocl/va.hpp")
         endif()
@@ -185,6 +191,11 @@ function(ie_headers_compilation_with_custom_flags)
         endif()
         set(content "#include <${header_file}>\n${content}")
     endforeach()
+
+    if (OPENCL_HEADERS_DIR)
+        set(content "#define OV_GPU_USE_OPENCL_HPP\n${content}")
+    endif()
+
     set(source_file "${CMAKE_CURRENT_BINARY_DIR}/modern_flags_${IE_TEST_TEST_SUFFIX}.cpp")
     file(REMOVE ${source_file})
     file(GENERATE OUTPUT ${source_file} CONTENT ${content})
@@ -196,9 +207,9 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml::static, openvino::itt, openvino_gapi_preproc headers
+        # ngraph, openvino::pugixml, openvino::itt, openvino_gapi_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
-            $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -283,8 +294,14 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
                                          CXX_STANDARD 17 PLUGIN_API)
 
 if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    if(TBB_VERSION VERSION_EQUAL 2021.2.2)
+        # TBB 2021.2.2 has a bug in headers with CXX_STANDARD 20
+        # see https://github.com/oneapi-src/oneTBB/issues/379
+        set(skip_headers_list HEADERS_TO_SKIP "threading/ie_thread_local.hpp")
+    endif()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx20
-                                            CXX_STANDARD 20 PLUGIN_API)
+                                             ${skip_headers_list}
+                                             CXX_STANDARD 20 PLUGIN_API)
 endif()
 
 if(UNIX)

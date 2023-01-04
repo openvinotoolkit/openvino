@@ -484,7 +484,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                 for (int64_t i = 0; i < points_in_neighbor; ++i) {
                     int64_t offset = 0;
                     for (int64_t j = 0; j < spatial_rank; ++j) {
-                        if (i & (1 << (spatial_rank - 1 - j))) {
+                        if (i & (static_cast<int64_t>(1) << (spatial_rank - 1 - j))) {
                             offset += in1[j] * input_index_multipliers[j];
                         } else {
                             offset += in2[j] * input_index_multipliers[j];
@@ -498,9 +498,9 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                 for (int64_t i = 0; i < points_in_neighbor; ++i) {
                     float coeff = 1.0f;
                     for (int64_t j = 0; j < spatial_rank; ++j) {
-                        coeff *= (i & (1 << (spatial_rank - 1 - j))) ? d1[j] : d2[j];
+                        coeff *= (i & (static_cast<int64_t>(1) << (spatial_rank - 1 - j))) ? d1[j] : d2[j];
                     }
-                    sum += coeff * values_of_input_points[points_in_neighbor - 1 - i];
+                    sum += coeff * static_cast<float>(values_of_input_points[points_in_neighbor - 1 - i]);
                 }
 
                 // 6. Store result.
@@ -533,7 +533,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
             int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
             base_coords[axis] = in_coord_int;
             auto s = static_cast<float>(in_coord - in_coord_int);
-            cubic_coeffs[axis] = helper.get_cubic_coeff(s, m_cube_coeff);
+            cubic_coeffs[axis] = helper.get_cubic_coeff(s, static_cast<float>(m_cube_coeff));
         }
 
         float summa = 0.0f;
@@ -553,7 +553,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
                 coeffs_prod *= cubic_coeffs[axis][idx[i]];
             }
 
-            summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
+            summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
         }
 
         out[output_transform.index(output_coord)] = static_cast<T>(summa);

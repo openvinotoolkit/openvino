@@ -44,9 +44,9 @@ struct detection_output : public primitive_base<detection_output> {
     /// @param variance_encoded_in_target If true, variance is encoded in target; otherwise we need to adjust the predicted offset accordingly.
     /// @param confidence_threshold Only keep detections with confidences larger than this threshold.
     detection_output(const primitive_id& id,
-                     const primitive_id& input_location,
-                     const primitive_id& input_confidence,
-                     const primitive_id& input_prior_box,
+                     const input_info& input_location,
+                     const input_info& input_confidence,
+                     const input_info& input_prior_box,
                      const uint32_t num_classes,
                      const uint32_t keep_top_k,
                      const bool share_location = true,
@@ -65,9 +65,8 @@ struct detection_output : public primitive_base<detection_output> {
                      const bool decrease_label_id = false,
                      const bool clip_before_nms = false,
                      const bool clip_after_nms = false,
-                     const primitive_id& ext_prim_id = "",
                      const padding& output_padding = padding())
-        : primitive_base(id, {input_location, input_confidence, input_prior_box}, ext_prim_id, output_padding),
+        : primitive_base(id, {input_location, input_confidence, input_prior_box}, {output_padding}),
           num_classes(num_classes),
           keep_top_k(keep_top_k),
           share_location(share_location),

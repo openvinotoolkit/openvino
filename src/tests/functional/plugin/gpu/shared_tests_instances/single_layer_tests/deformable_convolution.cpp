@@ -134,6 +134,102 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_DeformableConvolution2D_MultipleGroups, DeformableConvolutionLayerTest,
         ::testing::Combine(
                 ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{1, 16, 2, 2}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 2, 2, 2}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({1, 4, 3, 3})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_Batch2, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 16, 2, 2}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 2, 2, 2}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({2, 4, 3, 3})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_Batch3, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{3, 16, 2, 2}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 2, 2, 2}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({3, 4, 3, 3})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_Batch4, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 16, 2, 2}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 2, 2, 2}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({4, 4, 3, 3})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_2, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
                         ::testing::ValuesIn(std::vector<std::vector<size_t>> {{1, 18, 66, 66}}),  // offsets
                         ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
                         ::testing::ValuesIn(stride_values),
@@ -152,6 +248,174 @@ INSTANTIATE_TEST_SUITE_P(
                         ::testing::Values(InferenceEngine::Layout::ANY),
                         ::testing::Values(InferenceEngine::Layout::ANY),
                         ::testing::Values(std::vector<size_t>({1, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_2_Batch2, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 18, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({2, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_2_Batch3, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{3, 18, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({3, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_2_Batch4, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 18, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {1}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({4, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_3, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{1, 36, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({1, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_3_Batch2, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{2, 36, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({2, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_3_Batch3, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{3, 36, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({3, 8, 68, 68})),
+                        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        DeformableConvolutionLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+        smoke_DeformableConvolution2D_MultipleGroups_3_Batch4, DeformableConvolutionLayerTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 36, 66, 66}}),  // offsets
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>> {{4, 2, 3, 3}}),  // ker.
+                        ::testing::ValuesIn(stride_values),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
+                        ::testing::ValuesIn(dilation_values),
+                        ::testing::ValuesIn(std::vector<size_t> {4}),  // gr.
+                        ::testing::ValuesIn(std::vector<size_t> {2}),  // def. gr.
+                        ::testing::ValuesIn(num_out_channels),
+                        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                        ::testing::ValuesIn(with_bilinear_interpolation_pad),
+                        ::testing::ValuesIn(with_modulated_scalar)),
+                        ::testing::ValuesIn(netPrecisions),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(InferenceEngine::Layout::ANY),
+                        ::testing::Values(std::vector<size_t>({4, 8, 68, 68})),
                         ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         DeformableConvolutionLayerTest::getTestCaseName);
 }  // namespace

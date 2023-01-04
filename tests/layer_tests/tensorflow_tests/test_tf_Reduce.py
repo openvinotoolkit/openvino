@@ -37,7 +37,7 @@ class TestReduceOps(CommonTFLayerTest):
     for operation in ['sum', 'max', 'prod', 'min', 'mean']:
         test_data.extend([
             dict(shape=[2, 3], operation=operation, axis=1),
-            dict(shape=[2, 3, 5], operation=operation, axis=-2),
+            pytest.param(dict(shape=[2, 3, 5], operation=operation, axis=-2), marks=pytest.mark.precommit_tf_fe),
             dict(shape=[2, 3, 5, 7], operation=operation, axis=2),
             dict(shape=[2, 3, 5, 7, 9], operation=operation, axis=[2, -1]),
         ])
@@ -46,11 +46,11 @@ class TestReduceOps(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.nightly
     def test_reduce(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend, api_2):
+                    use_new_frontend, use_old_api):
         self._test(*self.create_reduce_net(**params, keep_dims=keep_dims, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
 
     test_data_pre_commit = []
     for operation in ['sum', 'max', 'prod', 'min', 'mean']:
@@ -61,8 +61,8 @@ class TestReduceOps(CommonTFLayerTest):
     @pytest.mark.parametrize("keep_dims", [False])
     @pytest.mark.precommit
     def test_reduce_precommit(self, params, keep_dims, ie_device, precision, ir_version, temp_dir,
-                              use_new_frontend, api_2):
+                              use_new_frontend, use_old_api):
         self._test(*self.create_reduce_net(**params, keep_dims=keep_dims, ir_version=ir_version,
                                            use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, api_2=api_2)
+                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)

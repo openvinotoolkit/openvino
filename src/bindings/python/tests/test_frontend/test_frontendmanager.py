@@ -1,7 +1,10 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pickle
+import os
+from pathlib import Path
 
 from openvino.runtime import PartialShape
 from openvino.frontend import FrontEndManager, InitializationFailure, TelemetryExtension
@@ -13,18 +16,26 @@ import pytest
 
 mock_available = True
 try:
-    from pybind_mock_frontend import get_fe_stat, clear_fe_stat,\
-        get_mdl_stat, clear_mdl_stat, get_place_stat, clear_place_stat
+    from pybind_mock_frontend import (
+        get_fe_stat,
+        clear_fe_stat,
+        get_mdl_stat,
+        clear_mdl_stat,
+        get_place_stat,
+        clear_place_stat,
+    )
 except Exception:
-    print("No mock frontend available")
     mock_available = False
 
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
 
-mock_needed = pytest.mark.skipif(not mock_available,
-                                 reason="mock fe is not available")
+mock_needed = pytest.mark.skipif(not mock_available, reason="Mock frontend is not available. Check paths in:"
+                                                            f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
+                                                            f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
+
+MOCK_PY_FRONTEND_NAME = "mock_py"
 
 
 def clear_all_stat():
@@ -39,12 +50,12 @@ def test_pickle():
 
 
 def test_load_by_unknown_framework():
-    frontEnds = fem.get_available_front_ends()
-    assert not ("UnknownFramework" in frontEnds)
+    frontends = fem.get_available_front_ends()
+    assert not ("UnknownFramework" in frontends)
     try:
         fem.load_by_framework("UnknownFramework")
     except InitializationFailure as exc:
-        print(exc)
+        print(exc)  # noqa: T201
     else:
         raise AssertionError("Unexpected exception.")
 
@@ -52,7 +63,7 @@ def test_load_by_unknown_framework():
 @mock_needed
 def test_load():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load("abc.bin")
     assert model is not None
@@ -61,11 +72,43 @@ def test_load():
 
 
 @mock_needed
+def test_load_str():
+    clear_all_stat()
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
+    assert fe is not None
+    model = fe.load(Path("abc.bin"))
+    assert model is not None
+
+
+@mock_needed
+def test_load_pathlib():
+    clear_all_stat()
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
+    assert fe is not None
+    model = fe.load(Path("abc.bin"))
+    assert model is not None
+
+
+@mock_needed
+def test_load_wrong_path():
+    clear_all_stat()
+
+    class TestClass:
+        def __str__(self):
+            return "test class"
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
+    assert fe is not None
+    with pytest.raises(RuntimeError) as e:
+        fe.load(TestClass())
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
+
+
+@mock_needed
 def test_load_by_model():
     clear_all_stat()
     fe = fem.load_by_model(model_path="abc.test_mock_py_mdl")
     assert fe is not None
-    assert fe.get_name() == "mock_py"
+    assert fe.get_name() == MOCK_PY_FRONTEND_NAME
     stat = get_fe_stat()
     assert stat.get_name == 1
     assert stat.supported == 1
@@ -74,7 +117,7 @@ def test_load_by_model():
 @mock_needed
 def test_convert_model():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(path="")
     func = fe.convert(model=model)
@@ -86,7 +129,7 @@ def test_convert_model():
 @mock_needed
 def test_convert_partially():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(path="")
     func = fe.convert_partially(model=model)
@@ -100,7 +143,7 @@ def test_convert_partially():
 @mock_needed
 def test_decode_and_normalize():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     model = fe.load(path="")
     func = fe.decode(model=model)
@@ -115,10 +158,10 @@ def test_decode_and_normalize():
 @mock_needed
 def test_get_name():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     assert fe is not None
     name = fe.get_name()
-    assert name == "mock_py"
+    assert name == MOCK_PY_FRONTEND_NAME
     stat = get_fe_stat()
     assert stat.get_name == 1
 
@@ -127,7 +170,7 @@ def test_get_name():
 @mock_needed
 def init_model():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     model = fe.load(path="")
     return model
 
@@ -414,7 +457,7 @@ def test_model_telemetry():
 
     clear_all_stat()
     tel_stat = {}
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     # Ensure that MockTelemetry object is alive and can receive events (due to callbacks hold the object)
     add_ext(fe, tel_stat)
     model = fe.load(path="")
@@ -428,7 +471,7 @@ def test_model_telemetry():
 @mock_needed
 def init_place():
     clear_all_stat()
-    fe = fem.load_by_framework(framework="mock_py")
+    fe = fem.load_by_framework(framework=MOCK_PY_FRONTEND_NAME)
     model = fe.load(path="")
     place = model.get_place_by_tensor_name(tensor_name="")
     return model, place
@@ -494,7 +537,7 @@ def test_place_get_consuming_operations():
     assert stat.get_consuming_operations == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_consuming_operations(output_name="3", output_port_index=33) is not None
+    assert (place.get_consuming_operations(output_name="3", output_port_index=33) is not None)
     stat = get_place_stat()
     assert stat.get_consuming_operations == 4
     assert stat.lastArgInt == 33
@@ -540,7 +583,7 @@ def test_place_get_producing_operation():
     assert stat.get_producing_operation == 3
     assert stat.lastArgInt == -1
     assert stat.lastArgString == "2"
-    assert place.get_producing_operation(input_name="3", input_port_index=33) is not None
+    assert (place.get_producing_operation(input_name="3", input_port_index=33) is not None)
     stat = get_place_stat()
     assert stat.get_producing_operation == 4
     assert stat.lastArgInt == 33

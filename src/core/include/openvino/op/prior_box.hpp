@@ -11,10 +11,10 @@ namespace op {
 namespace v0 {
 /// \brief Layer which generates prior boxes of specified sizes
 /// normalized to input image size
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API PriorBox : public Op {
 public:
     OPENVINO_OP("PriorBox", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // min_size         Desired min_size of prior boxes
         // max_size         Desired max_size of prior boxes
@@ -70,10 +70,10 @@ private:
 namespace v8 {
 /// \brief Layer which generates prior boxes of specified sizes
 /// normalized to input image size
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API PriorBox : public Op {
 public:
     OPENVINO_OP("PriorBox", "opset8");
-    BWDCMP_RTTI_DECLARATION;
     struct Attributes {
         // min_size                    Desired min_size of prior boxes
         // max_size                    Desired max_size of prior boxes

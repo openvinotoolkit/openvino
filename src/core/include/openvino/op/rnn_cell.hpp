@@ -34,10 +34,10 @@ namespace v0 {
 ///
 /// \sa         LSTMSequence, LSTMCell, GRUCell
 ///
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API RNNCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("RNNCell", "opset1", util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     RNNCell();
     ///

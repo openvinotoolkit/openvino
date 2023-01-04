@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <google/protobuf/stubs/logging.h>
+
 #include <fstream>
 #include <input_model.hpp>
 #include <onnx_import/onnx.hpp>
@@ -14,6 +16,7 @@
 #include <sstream>
 #include <utils/onnx_internal.hpp>
 
+#include "legacy_op_extension.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "ops_bridge.hpp"
@@ -32,6 +35,10 @@ ONNX_FRONTEND_C_API void* GetFrontEndData() {
     res->m_creator = []() {
         return std::make_shared<FrontEnd>();
     };
+#ifndef OPENVINO_DEBUG_ENABLE
+    // disable protobuf logging
+    google::protobuf::SetLogHandler(nullptr);
+#endif
     return res;
 }
 
@@ -160,36 +167,15 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         add_extension(so_ext->extension());
         m_other_extensions.push_back(so_ext);
     } else if (auto common_conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
-        m_conversion_extensions.push_back(common_conv_ext);
-        for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
-            ngraph::onnx_import::register_operator(common_conv_ext->get_op_type(),
-                                                   i,
-                                                   "",
-                                                   [=](const ngraph::onnx_import::Node& context) -> OutputVector {
-                                                       return common_conv_ext->get_converter()(NodeContext(context));
-                                                   });
-    } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
-        m_conversion_extensions.push_back(onnx_conv_ext);
-        for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i)
-            ngraph::onnx_import::register_operator(onnx_conv_ext->get_op_type(),
-                                                   i,
-                                                   "",
-                                                   [=](const ngraph::onnx_import::Node& context) -> OutputVector {
-                                                       return onnx_conv_ext->get_converter()(NodeContext(context));
-                                                   });
+        m_extensions.conversions.push_back(common_conv_ext);
+    } else if (const auto onnx_conv_ext = std::dynamic_pointer_cast<onnx::ConversionExtension>(extension)) {
+        m_extensions.conversions.push_back(onnx_conv_ext);
     } else if (auto progress_reporter = std::dynamic_pointer_cast<ProgressReporterExtension>(extension)) {
         m_extensions.progress_reporter = progress_reporter;
+    } else if (const auto& legacy_ext = std::dynamic_pointer_cast<ov::LegacyOpExtension>(extension)) {
+        m_other_extensions.push_back(legacy_ext);
+        std::call_once(has_legacy_extension, [this] {
+            m_extensions.conversions.push_back(ngraph::onnx_import::detail::get_legacy_conversion_extension());
+        });
     }
-}
-
-FrontEnd::~FrontEnd() {
-    // We should remove new added operations manually due to deadlock in python GIL (pybind11/gil.h)
-    // It looks like the issue occurs when we use static c++ objects to store wrapped objects,
-    // in our case OperatorsBridge is static (singleton), and it stores ConvertionExtension.
-    for (const auto& conv_ext : m_conversion_extensions) {
-        for (int i = 1; i < ngraph::onnx_import::OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION; ++i) {
-            ngraph::onnx_import::unregister_operator(conv_ext->get_op_type(), i, "");
-        }
-    }
-    ngraph::onnx_import::OperatorsBridge::load_initial_state();
 }

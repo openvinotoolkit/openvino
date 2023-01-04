@@ -10,10 +10,10 @@ namespace ov {
 namespace op {
 namespace v8 {
 /// \brief Tensor RandomUniform operation.
+/// \ingroup ov_ops_cpp_api
 class OPENVINO_API RandomUniform : public Op {
 public:
     OPENVINO_OP("RandomUniform", "opset8");
-    BWDCMP_RTTI_DECLARATION;
 
     RandomUniform() = default;
 

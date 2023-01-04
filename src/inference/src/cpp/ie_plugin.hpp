@@ -78,7 +78,11 @@ struct InferencePlugin {
     }
 
     ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
+        ov::SoPtr<IExecutableNetworkInternal> res;
+        PLUGIN_CALL_STATEMENT(res = _ptr->LoadNetwork(modelPath, config));
+        if (!res._so)
+            res._so = _so;
+        return res;
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
@@ -106,19 +110,19 @@ struct InferencePlugin {
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), _so});
+        PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), {_so}});
     }
 
     ov::SoPtr<RemoteContext> CreateContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
+        PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), {_so}});
     }
 
     ov::SoPtr<RemoteContext> GetDefaultContext(const ParamMap& params) {
-        PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), _so});
+        PLUGIN_CALL_STATEMENT(return {_ptr->GetDefaultContext(params), {_so}});
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
+        PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), {_so}});
     }
 };
 }  // namespace InferenceEngine
@@ -180,7 +184,12 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    void set_properties(const ov::AnyMap& config) {
+        OV_PLUGIN_CALL_STATEMENT(_ptr->SetProperties(config));
+    }
+
+    SoPtr<ie::IExecutableNetworkInternal> compile_model(const ie::CNNNetwork& network,
+                                                        const std::map<std::string, std::string>& config) {
         OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(network, config), _so});
     }
 
@@ -191,7 +200,11 @@ public:
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
+        SoPtr<ie::IExecutableNetworkInternal> res;
+        OV_PLUGIN_CALL_STATEMENT(res = _ptr->LoadNetwork(modelPath, config));
+        if (!res._so)
+            res._so = _so;
+        return res;
     }
 
     ie::QueryNetworkResult query_model(const ie::CNNNetwork& network,
@@ -219,7 +232,7 @@ public:
     }
 
     Any get_metric(const std::string& name, const AnyMap& options) const {
-        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), _so});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetMetric(name, options), {_so}});
     }
 
     SoPtr<ie::RemoteContext> create_context(const AnyMap& params) {
@@ -231,14 +244,14 @@ public:
     }
 
     Any get_config(const std::string& name, const AnyMap& options) const {
-        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), _so});
+        OV_PLUGIN_CALL_STATEMENT(return {_ptr->GetConfig(name, options), {_so}});
     }
 
     Any get_property(const std::string& name, const AnyMap& arguments) const {
         OV_PLUGIN_CALL_STATEMENT({
             if (ov::supported_properties == name) {
                 try {
-                    return {_ptr->GetMetric(name, arguments), _so};
+                    return {_ptr->GetMetric(name, arguments), {_so}};
                 } catch (ie::Exception&) {
                     std::vector<ov::PropertyName> supported_properties;
                     try {
@@ -263,9 +276,9 @@ public:
                 }
             }
             try {
-                return {_ptr->GetMetric(name, arguments), _so};
+                return {_ptr->GetMetric(name, arguments), {_so}};
             } catch (ie::Exception&) {
-                return {_ptr->GetConfig(name, arguments), _so};
+                return {_ptr->GetConfig(name, arguments), {_so}};
             }
         });
     }

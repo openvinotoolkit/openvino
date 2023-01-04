@@ -18,17 +18,6 @@
 #include "ie_parameter.hpp"
 #include "ngraph/opsets/opset.hpp"
 
-namespace ExecGraphInfoSerialization {
-//
-// exec_graph_info.hpp
-//
-constexpr ngraph::NodeTypeInfo ExecutionNode::type_info;
-
-const ngraph::NodeTypeInfo& ExecutionNode::get_type_info() const {
-    return type_info;
-}
-}  // namespace ExecGraphInfoSerialization
-
 namespace InferenceEngine {
 
 //
@@ -45,31 +34,31 @@ namespace details {
 void Rethrow() {
     try {
         throw;
-    } catch (const GeneralError& e) {
+    } catch (const InferenceEngine::GeneralError& e) {
         throw e;
-    } catch (const NotImplemented& e) {
+    } catch (const InferenceEngine::NotImplemented& e) {
         throw e;
-    } catch (const NetworkNotLoaded& e) {
+    } catch (const InferenceEngine::NetworkNotLoaded& e) {
         throw e;
-    } catch (const ParameterMismatch& e) {
+    } catch (const InferenceEngine::ParameterMismatch& e) {
         throw e;
-    } catch (const NotFound& e) {
+    } catch (const InferenceEngine::NotFound& e) {
         throw e;
-    } catch (const OutOfBounds& e) {
+    } catch (const InferenceEngine::OutOfBounds& e) {
         throw e;
-    } catch (const Unexpected& e) {
+    } catch (const InferenceEngine::Unexpected& e) {
         throw e;
-    } catch (const RequestBusy& e) {
+    } catch (const InferenceEngine::RequestBusy& e) {
         throw e;
-    } catch (const ResultNotReady& e) {
+    } catch (const InferenceEngine::ResultNotReady& e) {
         throw e;
-    } catch (const NotAllocated& e) {
+    } catch (const InferenceEngine::NotAllocated& e) {
         throw e;
-    } catch (const InferNotStarted& e) {
+    } catch (const InferenceEngine::InferNotStarted& e) {
         throw e;
-    } catch (const NetworkNotRead& e) {
+    } catch (const InferenceEngine::NetworkNotRead& e) {
         throw e;
-    } catch (const InferCancelled& e) {
+    } catch (const InferenceEngine::InferCancelled& e) {
         throw e;
     } catch (const std::exception& e) {
         IE_THROW() << e.what();

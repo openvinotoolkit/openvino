@@ -5,13 +5,13 @@
 #include <memory>
 #include <util/type_prop.hpp>
 
+#include "common_test_utils/graph_comparator.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset5.hpp"
 #include "ngraph/opsets/opset7.hpp"
-#include "util/graph_comparator.hpp"
 #include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START

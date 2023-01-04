@@ -28,6 +28,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 // TODO [mandrono]: move current test case inside CPU plug-in and return the original tests
 namespace ov {
@@ -42,18 +43,16 @@ using OVInferRequestDynamicParams = std::tuple<
 >;
 
 class OVInferRequestDynamicTests : public testing::WithParamInterface<OVInferRequestDynamicParams>,
-                                   public CommonTestUtils::TestsCommon {
+                                   public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<OVInferRequestDynamicParams> obj);
 
 protected:
     void SetUp() override;
-
-    void TearDown() override;
+    bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
-    std::string targetDevice;
     ov::AnyMap configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
 };

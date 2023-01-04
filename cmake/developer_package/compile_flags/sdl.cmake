@@ -14,6 +14,7 @@ if(UNIX)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(IE_LINKER_FLAGS "${IE_LINKER_FLAGS} -z noexecstack -z relro -z now")
+        set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
         if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
             set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -fstack-protector-all")
         else()
