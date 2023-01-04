@@ -1388,7 +1388,7 @@ public:
                 NGRAPH_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
                 return false;
             }
-            if (input_mask->size() != m_output.get_partial_shape().rank().get_length()) {
+            if (input_mask->size() != (size_t)m_output.get_partial_shape().rank().get_length()) {
                 NGRAPH_DEBUG << "Transpose which change tensor rank is not supported yet.";
                 return false;
             }
@@ -1454,7 +1454,7 @@ static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr inpu
             }
             for (size_t j = 0; j < output_mask_raw->size(); j++) {
                 const auto& dim_mask = output_mask_raw->at(j);
-                if (j == axis) {
+                if (j == (size_t)axis) {
                     for (auto d : dim_mask)
                         cur_mask->at(j).insert(d + split_start);
                 } else {
@@ -1502,7 +1502,7 @@ public:
             // split_lengths can contain -1 value
             int minus_one_length_idx = -1;
             int64_t total_lengths = 0;
-            for (int i = 0; i < split_lengths.size(); i++) {
+            for (size_t i = 0; i < split_lengths.size(); i++) {
                 if (split_lengths[i] == -1) {
                     minus_one_length_idx = i;
                     continue;
