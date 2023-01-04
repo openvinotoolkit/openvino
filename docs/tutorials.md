@@ -200,6 +200,16 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `223-gpt2-text-prediction <notebooks/223-gpt2-text-prediction-with-output.html>`__                                            | Use GPT-2 to perform text prediction on an input sequence                                                                                  | |n223-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `224-3D-segmentation-point-clouds <notebooks/224-3D-segmentation-point-clouds-with-output.html>`__                            | Process point cloud data and run 3D Part Segmentation with OpenVINO                                                                        | |n224-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `225-stable-diffusion-text-to-image <notebooks/225-stable-diffusion-text-to-image-with-output.html>`__                        | Text-to-image generation with Stable Diffusion method                                                                                      | |n225-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `226-yolov7-optimization <notebooks/226-yolov7-optimization-with-output.html>`__                                              | Optimize YOLOv7 using NNCF PTQ API                                                                                                         | |n226-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `227-whisper-subtitles-generation <notebooks/227-whisper-subtitles-generation-with-output.html>`__                            | Generate subtitles for video with OpenAI Whisper and OpenVINO                                                                              | |n227-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `228-clip-zero-shot-image-classification <notebooks/228-clip-zero-shot-image-classification-with-output.html>`__              | Perform Zero-shot Image Classification with CLIP and OpenVINO                                                                              | |n228-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
 .. raw:: html
@@ -389,6 +399,16 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/18904157/166343139-c6568e50-b856-4066-baef-5cdbd4e8bc18.png
 .. |n223-img1| image:: https://user-images.githubusercontent.com/91228207/185105225-0f996b0b-0a3b-4486-872d-364ac6fab68b.png
    :target: https://user-images.githubusercontent.com/91228207/185105225-0f996b0b-0a3b-4486-872d-364ac6fab68b.png
+.. |n224-img1| image:: https://user-images.githubusercontent.com/91237924/185752178-3882902c-907b-4614-b0e6-ea1de08bf3ef.png
+   :target: https://user-images.githubusercontent.com/91237924/185752178-3882902c-907b-4614-b0e6-ea1de08bf3ef.png
+.. |n225-img1| image:: https://user-images.githubusercontent.com/15709723/200945747-1c584e5c-b3f2-4e43-b1c1-e35fd6edc2c3.png
+   :target: https://user-images.githubusercontent.com/15709723/200945747-1c584e5c-b3f2-4e43-b1c1-e35fd6edc2c3.png
+.. |n226-img1| image:: https://raw.githubusercontent.com/WongKinYiu/yolov7/main/figure/horses_prediction.jpg
+   :target: https://raw.githubusercontent.com/WongKinYiu/yolov7/main/figure/horses_prediction.jpg
+.. |n227-img1| image:: https://user-images.githubusercontent.com/29454499/204548693-1304ef33-c790-490d-8a8b-d5766acb6254.png
+   :target: https://user-images.githubusercontent.com/29454499/204548693-1304ef33-c790-490d-8a8b-d5766acb6254.png
+.. |n228-img1| image:: https://user-images.githubusercontent.com/29454499/207795060-437b42f9-e801-4332-a91f-cc26471e5ba2.png
+   :target: https://user-images.githubusercontent.com/29454499/207795060-437b42f9-e801-4332-a91f-cc26471e5ba2.png
 .. |n301-img1| image:: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
    :target: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
 .. |n401-img1| image:: https://user-images.githubusercontent.com/4547501/141471665-82b28c86-cf64-4bfe-98b3-c314658f2d96.gif
