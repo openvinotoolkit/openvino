@@ -19,7 +19,14 @@ ParamsKey FullyConnected_fb_io_b8_f8::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_fb_io_b8_f8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 

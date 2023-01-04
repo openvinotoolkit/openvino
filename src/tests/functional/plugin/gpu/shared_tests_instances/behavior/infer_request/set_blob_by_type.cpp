@@ -17,31 +17,36 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
     FuncTestUtils::BlobType::NV12
 };
 
-const std::map<std::string, std::string> gpuConfig{}; //nothing special
-const std::map<std::string, std::string> multiConfig{{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_GPU}};
-const std::map<std::string, std::string> heteroConfig{{ "TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU }};
+auto gpuConfig = []() {
+    return std::map<std::string, std::string>{};
+};  // nothing special
+auto multiConfig = []() {
+    return std::map<std::string, std::string>{{MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_GPU}};
+};
+auto heteroConfig = []() {
+    return std::map<std::string, std::string>{{"TARGET_FALLBACK", CommonTestUtils::DEVICE_GPU}};
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
                        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                       ::testing::Values(gpuConfig)),
+                       ::testing::Values(gpuConfig())),
     InferRequestSetBlobByType::getTestCaseName);
-
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Multi, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
                        ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                       ::testing::Values(multiConfig)),
+                       ::testing::Values(multiConfig())),
     InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Auto, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
                        ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                       ::testing::Values(multiConfig)),
+                       ::testing::Values(multiConfig())),
     InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,
     ::testing::Combine(::testing::ValuesIn(BlobTypes),
                        ::testing::Values(CommonTestUtils::DEVICE_HETERO),
-                       ::testing::Values(heteroConfig)),
+                       ::testing::Values(heteroConfig())),
     InferRequestSetBlobByType::getTestCaseName);

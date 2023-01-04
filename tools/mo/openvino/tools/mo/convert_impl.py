@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 
@@ -236,18 +237,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
-    if is_caffe and argv.mean_file and argv.mean_values:
-        raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
-                    refer_to_faq_msg(17))
-    elif is_caffe and argv.mean_file and argv.mean_file_offsets:
-        values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
-        mean_file_offsets = mo_array([int(x) for x in values[0].split(',')])
-        if not all([offset >= 0 for offset in mean_file_offsets]):
-            raise Error("Negative value specified for --mean_file_offsets option. "
-                        "Please specify positive integer values in format '(x,y)'. " +
-                        refer_to_faq_msg(18))
-        argv.mean_file_offsets = mean_file_offsets
-
     if argv.scale and argv.scale_values:
         raise Error(
             'Both --scale and --scale_values are defined. Specify either scale factor or scale values per input ' +
@@ -412,15 +401,16 @@ def prepare_ir(argv: argparse.Namespace):
     return graph, ngraph_function
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
+def read_model(fem: FrontEndManager, path_to_xml: str):
     # We have to separate fe object lifetime from fem to
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
-    def read_model(path_to_xml):
-        fe = fem.load_by_framework(framework="ir")
-        function = fe.convert(fe.load(path_to_xml))
-        return function
+    fe = fem.load_by_framework(framework="ir")
+    function = fe.convert(fe.load(path_to_xml))
+    return function
 
+
+def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
@@ -431,23 +421,36 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
-    prepare_emit_ir(graph=graph,
-                    data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=argv.output_dir,
-                    output_model_name=argv.model_name,
-                    mean_data=mean_data,
-                    input_names=input_names,
-                    meta_info=non_default_params,
-                    use_temporary_path=True)
-
-    # This graph cleanup is required to avoid double memory consumption
-    graph.clear()
-
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-    fem = FrontEndManager()
-    func = read_model(orig_model_name + "_tmp.xml")
+    def clear_tmp_ir_files():
+        for suf in [".xml", ".bin", ".mapping"]:
+            # remove existing files
+            path_to_file = orig_model_name + "_tmp" + suf
+            if os.path.exists(path_to_file):
+                os.remove(path_to_file)
+
+    try:
+        prepare_emit_ir(graph=graph,
+                        data_type=graph.graph['cmd_params'].data_type,
+                        output_dir=argv.output_dir,
+                        output_model_name=argv.model_name,
+                        mean_data=mean_data,
+                        input_names=input_names,
+                        meta_info=non_default_params,
+                        use_temporary_path=True)
+
+        fem = FrontEndManager()
+        func = read_model(fem, orig_model_name + "_tmp.xml")
+    except Exception as err:
+        raise Error('Exception occurred while serialization or reading of the temporary IR: {}'.format(
+            str(err),
+        )) from err
+    finally:
+        # This graph cleanup is required to avoid double memory consumption
+        graph.clear()
+        clear_tmp_ir_files()
 
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
@@ -471,12 +474,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         }))
         t = tm.Telemetry()
         t.send_event('mo', 'offline_transformations_status', message)
-
-        for suf in [".xml", ".bin", ".mapping"]:
-            # remove existing files
-            path_to_file = orig_model_name + "_tmp" + suf
-            if os.path.exists(path_to_file):
-                os.remove(path_to_file)
 
         if return_code != 0:
             raise Error("offline transformations step has failed.")
@@ -831,7 +828,7 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv['input_model'], str):
+    if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
         return False
@@ -876,7 +873,6 @@ def _convert(**args):
                                                      opset_version,
                                                      example_inputs,
                                                      out_dir)
-
 
                 args['input_model'] = model_onnx
                 if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):

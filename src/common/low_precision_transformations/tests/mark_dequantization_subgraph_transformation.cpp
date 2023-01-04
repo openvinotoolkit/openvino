@@ -3,13 +3,11 @@
 //
 
 #include <openvino/opsets/opset10.hpp>
-
+#include <openvino/pass/constant_folding.hpp>
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
-#include <openvino/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-
 
 using namespace ov;
 
@@ -42,11 +40,13 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
-        std::shared_ptr<Node> activations = std::make_shared<opset10::FakeQuantize>(parameter,
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {20}),
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {254}), 255);
+        std::shared_ptr<Node> activations =
+            std::make_shared<opset10::FakeQuantize>(parameter,
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {20}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {254}),
+                                                    255);
         {
             auto first_convert = std::make_shared<opset10::Convert>(activations, element::u8);
             auto second_convert = std::make_shared<opset10::Convert>(first_convert, element::f32);
@@ -69,7 +69,12 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
             weights = multiply;
         }
 
-        auto conv = std::make_shared<opset10::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset10::Convolution>(activations,
+                                                           weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         function = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
@@ -78,11 +83,13 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
-        std::shared_ptr<Node> activations = std::make_shared<opset10::FakeQuantize>(parameter,
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {20}),
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {254}), 255);
+        std::shared_ptr<Node> activations =
+            std::make_shared<opset10::FakeQuantize>(parameter,
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {20}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {254}),
+                                                    255);
         {
             auto first_convert = std::make_shared<opset10::Convert>(activations, element::u8);
             auto second_convert = std::make_shared<opset10::Convert>(first_convert, element::f32);
@@ -112,7 +119,12 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformation) {
             weights = multiply;
         }
 
-        auto conv = std::make_shared<opset10::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset10::Convolution>(activations,
+                                                           weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
@@ -146,11 +158,13 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
-        std::shared_ptr<Node> activations = std::make_shared<opset10::FakeQuantize>(parameter,
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {20}),
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {254}), 255);
+        std::shared_ptr<Node> activations =
+            std::make_shared<opset10::FakeQuantize>(parameter,
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {20}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {254}),
+                                                    255);
         {
             auto first_convert = std::make_shared<opset10::Convert>(activations, element::u8);
             auto second_convert = std::make_shared<opset10::Convert>(first_convert, element::f32);
@@ -167,7 +181,12 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
             weights = multiply;
         }
 
-        auto conv = std::make_shared<opset10::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset10::Convolution>(activations,
+                                                           weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         function = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 
@@ -176,11 +195,13 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
 
     {
         auto parameter = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 16, 14, 14});
-        std::shared_ptr<Node> activations = std::make_shared<opset10::FakeQuantize>(parameter,
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {20}),
-                opset10::Constant::create(element::f32, Shape{}, {0}),
-                opset10::Constant::create(element::f32, Shape{}, {254}), 255);
+        std::shared_ptr<Node> activations =
+            std::make_shared<opset10::FakeQuantize>(parameter,
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {20}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {0}),
+                                                    opset10::Constant::create(element::f32, Shape{}, {254}),
+                                                    255);
         {
             auto first_convert = std::make_shared<opset10::Convert>(activations, element::u8);
             auto second_convert = std::make_shared<opset10::Convert>(first_convert, element::f32);
@@ -200,7 +221,12 @@ TEST_F(TransformationTestsF, MarkDequantizationSubgraphTransformationNoZeroPoint
             weights = multiply;
         }
 
-        auto conv = std::make_shared<opset10::Convolution>(activations, weights, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+        auto conv = std::make_shared<opset10::Convolution>(activations,
+                                                           weights,
+                                                           Strides{1, 1},
+                                                           CoordinateDiff{0, 0},
+                                                           CoordinateDiff{0, 0},
+                                                           Strides{1, 1});
         function_ref = std::make_shared<Model>(conv, ParameterVector{parameter});
     }
 

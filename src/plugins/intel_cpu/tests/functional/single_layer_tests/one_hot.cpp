@@ -158,8 +158,6 @@ protected:
 };
 
 TEST_P(OneHotLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "OneHot");
 }

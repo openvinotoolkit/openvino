@@ -21,6 +21,7 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+using CachedBodyModelsType = std::unordered_map<std::string, std::shared_ptr<const ov::Model>>;
 
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -71,7 +72,8 @@ protected:
                          const std::string& model_name,
                          bool fail_fast,
                          bool no_conversion,
-                         std::shared_ptr<ov::Model>& ng_function) const;
+                         std::shared_ptr<ov::Model>& ov_model,
+                         const std::shared_ptr<CachedBodyModelsType>& cached_body_models) const;
 
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;

@@ -27,6 +27,7 @@ OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
+OP_CONVERTER(translate_assert_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
@@ -63,6 +64,8 @@ OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
+OP_CONVERTER(translate_input_arg_op);
+OP_CONVERTER(translate_output_arg_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_is_inf_op);
@@ -204,6 +207,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AddN", translate_add_n_op},
         {"ArgMax", translate_arg_max_op},
         {"ArgMin", translate_arg_min_op},
+        {"Assert", translate_assert_op},
         {"AvgPool", translate_avg_pool_op},
         {"AvgPool3D", translate_avg_pool_op},
         {"BatchMatMul", translate_batch_mat_mul_op},
@@ -244,6 +248,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
+        {"input_arg", translate_input_arg_op},
+        {"output_arg", translate_output_arg_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},

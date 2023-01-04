@@ -53,7 +53,8 @@ void Any::Base::read_to(Base& other) const {
     if (other.is<std::string>()) {
         *static_cast<std::string*>(other.addressof()) = strm.str();
     } else {
-        other.read(strm);
+        if (!strm.str().empty())
+            other.read(strm);
     }
 }
 

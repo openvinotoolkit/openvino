@@ -50,32 +50,32 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 
 std::map<std::string, std::string> additional_config = {};
 
-const auto LogicalTestParams = ::testing::Combine(
-        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapes)),
-        ::testing::ValuesIn(logicalOpTypes),
-        ::testing::ValuesIn(secondInputTypes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(inputsPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(additional_config));
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
+                         LogicalLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapes)),
+                                            ::testing::ValuesIn(logicalOpTypes),
+                                            ::testing::ValuesIn(secondInputTypes),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(inputsPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         LogicalLayerTest::getTestCaseName);
 
-const auto LogicalTestParamsNot = ::testing::Combine(
-        ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
-        ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(inputsPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(additional_config));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs, LogicalLayerTest, LogicalTestParams, LogicalLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNot, LogicalLayerTest, LogicalTestParamsNot, LogicalLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNot,
+                         LogicalLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
+                                            ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
+                                            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::ValuesIn(inputsPrecisions),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(InferenceEngine::Layout::ANY),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         LogicalLayerTest::getTestCaseName);
 
 }  // namespace

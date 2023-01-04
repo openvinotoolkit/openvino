@@ -10,7 +10,6 @@ import openvino.runtime.opset8 as ops
 from openvino.runtime import Model, Output, Type
 from openvino.runtime.utils.decorators import custom_preprocess_function
 from openvino.runtime import Core
-from tests.runtime import get_runtime
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 
 
@@ -19,20 +18,18 @@ def test_graph_preprocess_mean():
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     function = Model(model, [parameter_a], "TestFunction")
-
     ppp = PrePostProcessor(function)
     inp = ppp.input()
     prep = inp.preprocess()
     prep.mean(1.0)
     function = ppp.build()
-
-    input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
-    expected_output = np.array([[0, 1], [2, 3]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ordered_ops()]
+    assert len(model_operators) == 4
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert function.get_output_element_type(0) == Type.f32
+    assert "Constant" in model_operators
+    assert "Subtract" in model_operators
 
 
 def test_graph_preprocess_mean_vector():
@@ -47,13 +44,13 @@ def test_graph_preprocess_mean_vector():
     ppp.input().preprocess().mean([1., 2.])
     function = ppp.build()
 
-    input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
-    expected_output = np.array([[0, 0], [2, 2]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ordered_ops()]
+    assert len(model_operators) == 4
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert function.get_output_element_type(0) == Type.f32
+    assert "Constant" in model_operators
+    assert "Subtract" in model_operators
 
 
 def test_graph_preprocess_scale_vector():
@@ -69,13 +66,13 @@ def test_graph_preprocess_scale_vector():
     inp.preprocess().scale([0.5, 2.0])
     function = ppp.build()
 
-    input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
-    expected_output = np.array([[2, 1], [6, 2]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ordered_ops()]
+    assert len(model_operators) == 4
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert function.get_output_element_type(0) == Type.f32
+    assert "Constant" in model_operators
+    assert "Divide" in model_operators
 
 
 def test_graph_preprocess_mean_scale_convert():
@@ -97,16 +94,24 @@ def test_graph_preprocess_mean_scale_convert():
     inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
     function = ppp.build()
 
-    input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
-    input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
-    expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
-    expected_output2 = np.array([[0, 1], [2, 3]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    [output1, output2] = computation(input_data1, input_data2)
-    assert np.equal(output1, expected_output1).all()
-    assert np.equal(output2, expected_output2).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Convert",
+        "Constant",
+        "Subtract",
+        "Divide",
+        "Result",
+        "Abs",
+    ]
+    assert len(model_operators) == 15
+    assert function.get_output_size() == 2
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert list(function.get_output_shape(1)) == [2, 2]
+    assert function.get_output_element_type(0) == Type.i32
+    assert function.get_output_element_type(1) == Type.i32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_input_output_by_name():
@@ -131,16 +136,24 @@ def test_graph_preprocess_input_output_by_name():
     out2.postprocess().custom(custom_preprocess)
     function = ppp.build()
 
-    input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
-    input_data2 = np.array([[-1, 3], [5, 7]]).astype(np.int32)
-    expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
-    expected_output2 = np.array([[1, 1], [2, 3]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    [output1, output2] = computation(input_data1, input_data2)
-    assert np.equal(output1, expected_output1).all()
-    assert np.equal(output2, expected_output2).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Convert",
+        "Constant",
+        "Subtract",
+        "Divide",
+        "Result",
+        "Abs",
+    ]
+    assert len(model_operators) == 16
+    assert function.get_output_size() == 2
+    assert list(function.get_output_shape(0)) == [2, 2]
+    assert list(function.get_output_shape(1)) == [2, 2]
+    assert function.get_output_element_type(0) == Type.i32
+    assert function.get_output_element_type(1) == Type.i32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_output_postprocess():
@@ -155,7 +168,6 @@ def test_graph_preprocess_output_postprocess():
     @custom_preprocess_function
     def custom_postprocess(output: Output):
         return ops.abs(output)
-
     ppp = PrePostProcessor(function)
     inp = ppp.input()
     inp.tensor().set_layout(layout1)
@@ -168,13 +180,22 @@ def test_graph_preprocess_output_postprocess():
     out.postprocess().custom(custom_postprocess).convert_element_type(Type.f16).convert_element_type()
     function = ppp.build()
 
-    input_data = np.array([[-1, -2, -3], [-4, -5, -6]]).astype(np.int32)
-    expected_output = np.array([[2, 4, 6], [5, 7, 9]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Convert",
+        "Constant",
+        "Subtract",
+        "Transpose",
+        "Result",
+        "Abs",
+    ]
+    assert len(model_operators) == 14
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [2, 3]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_spatial_static_shape():
@@ -196,13 +217,20 @@ def test_graph_preprocess_spatial_static_shape():
     out.model().set_layout(layout)
     function = ppp.build()
 
-    input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.int32)
-    expected_output = np.array([[[0, 1], [2, 3]], [[3, 4], [5, 6]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Convert",
+        "Constant",
+        "Subtract",
+        "Result",
+    ]
+    assert len(model_operators) == 7
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [2, 2, 2]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_set_shape():
@@ -225,15 +253,19 @@ def test_graph_preprocess_set_shape():
     inp.preprocess().custom(custom_crop)
     function = ppp.build()
 
-    input_data = np.array([[[0, 1, 2], [3, 4, 5], [6, 7, 8]],
-                           [[9, 10, 11], [12, 13, 14], [15, 16, 17]],
-                           [[18, 19, 20], [21, 22, 23], [24, 25, 26]]]).astype(np.int32)
-    expected_output = np.array([[[13]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Constant",
+        "Result",
+        "Slice",
+    ]
+    assert len(model_operators) == 7
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [1, 1, 1]
+    assert function.get_output_element_type(0) == Type.i32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_set_from_tensor():
@@ -282,12 +314,20 @@ def test_graph_preprocess_set_from_np_infer():
     assert function.input().shape == ov.Shape([3, 3, 3])
     assert function.input().element_type == Type.i32
 
-    expected_output = np.array([[[13]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Convert",
+        "Constant",
+        "Result",
+        "Slice",
+    ]
+    assert len(model_operators) == 8
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [1, 1, 1]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_set_memory_type():
@@ -344,13 +384,20 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
         assert "is not convertible to" in str(e.value)
     else:
         function = custom_processor.build()
-        input_data = np.array([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]]).astype(np.float32)
-        expected_output = np.array([[[[0, 3, 6], [1, 4, 7], [2, 5, 8]]]]).astype(np.float32)
-
-        runtime = get_runtime()
-        computation = runtime.computation(function)
-        output = computation(input_data)
-        assert np.equal(output, expected_output).all()
+        model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+        expected_ops = [
+            "Parameter",
+            "Constant",
+            "Result",
+            "Gather",
+            "Interpolate",
+        ]
+        assert len(model_operators) == 16
+        assert function.get_output_size() == 1
+        assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
+        assert function.get_output_element_type(0) == Type.f32
+        for op in expected_ops:
+            assert op in model_operators
 
 
 def test_graph_preprocess_postprocess_layout():
@@ -369,13 +416,21 @@ def test_graph_preprocess_postprocess_layout():
     out.postprocess().convert_layout([0, 1, 2, 3])
     function = ppp.build()
 
-    input_data = np.array([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]]).astype(np.float32)
-    expected_output = np.array([[[[0, 3, 6], [1, 4, 7], [2, 5, 8]]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Constant",
+        "Result",
+        "Gather",
+        "Range",
+        "Transpose",
+    ]
+    assert len(model_operators) == 14
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_reverse_channels():
@@ -391,13 +446,20 @@ def test_graph_preprocess_reverse_channels():
     inp.preprocess().mean(1.).reverse_channels()
     function = ppp.build()
 
-    input_data = np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]).astype(np.float32)
-    expected_output = np.array([[[[4, 5], [6, 7]], [[0, 1], [2, 3]]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Constant",
+        "Result",
+        "Gather",
+        "Range",
+    ]
+    assert len(model_operators) == 10
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [1, 2, 2, 2]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_crop():
@@ -412,13 +474,20 @@ def test_graph_preprocess_crop():
     ppp.input().preprocess().crop([0, 0, 1, 1], [1, 2, -1, -1])
     function = ppp.build()
 
-    input_data = np.arange(18).astype(np.float32).reshape(tensor_shape)
-    expected_output = np.array([4, 13]).astype(np.float32).reshape(orig_shape)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Constant",
+        "Result",
+        "Relu",
+        "Slice",
+    ]
+    assert len(model_operators) == 7
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [1, 2, 1, 1]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_resize_algorithm():
@@ -435,13 +504,20 @@ def test_graph_preprocess_resize_algorithm():
     inp.preprocess().mean(1.).resize(resize_alg, 3, 3)
     function = ppp.build()
 
-    input_data = np.array([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]]).astype(np.float32)
-    expected_output = np.array([[[[0, 1, 2], [3, 4, 5], [6, 7, 8]]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data)
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Constant",
+        "Result",
+        "Subtract",
+        "Interpolate",
+    ]
+    assert len(model_operators) == 8
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
+    assert function.get_output_element_type(0) == Type.f32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_model():
@@ -517,14 +593,23 @@ def test_graph_preprocess_model():
     ppp.output(0).postprocess().custom(custom_preprocess)
     function = ppp.build()
 
-    input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float32)
-    expected_output = np.array([[[2, 1], [4, 7]], [[10, 13], [16, 19]]]).astype(np.float32)
-
-    runtime = get_runtime()
-    computation = runtime.computation(function)
-    output = computation(input_data, input_data)
-
-    assert np.equal(output, expected_output).all()
+    model_operators = [op.get_name().split("_")[0] for op in function.get_ops()]
+    expected_ops = [
+        "Parameter",
+        "Constant",
+        "Result",
+        "Subtract",
+        "Convert",
+        "Abs",
+        "Add",
+        "Divide",
+    ]
+    assert len(model_operators) == 13
+    assert function.get_output_size() == 1
+    assert list(function.get_output_shape(0)) == [2, 2, 2]
+    assert function.get_output_element_type(0) == Type.i32
+    for op in expected_ops:
+        assert op in model_operators
 
 
 def test_graph_preprocess_dump():

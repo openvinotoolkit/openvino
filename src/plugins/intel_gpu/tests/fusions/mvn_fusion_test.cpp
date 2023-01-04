@@ -28,12 +28,15 @@ struct mvn_test_params {
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
+    size_t expected_fused_primitives_onednn;
     size_t expected_not_fused_primitives;
 };
 
 class MVNFusingTest : public ::BaseFusingTest<mvn_test_params> {
 public:
     void execute(mvn_test_params& p) {
+        if (engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         auto input_prim = get_mem(get_input_layout(p));
 
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
@@ -109,26 +112,26 @@ TEST_P(mvn_activation, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_activation, ::testing::ValuesIn(std::vector<mvn_test_params>{
-    mvn_test_params{ CASE_MVN_F32_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_F32_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_F32_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_F32_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_F16_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_F16_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_F16_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_F16_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_I8_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_I8_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_I8_3, 2, 3 },
-    mvn_test_params{ CASE_MVN_I8_4, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_3, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_4, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3 },
+    mvn_test_params{ CASE_MVN_F32_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F32_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_F32_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_F32_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F16_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_F16_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_F16_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_F16_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_I8_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_I8_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_I8_3, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_I8_4, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_U8_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_U8_2, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_U8_3, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_U8_4, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3, 3 },
 }));
 
 class mvn_scale_quantize_i8 : public MVNFusingTest {};
@@ -162,18 +165,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_quantize_i8, ::testing::ValuesIn
     // mvn_test_params{ CASE_MVN_F16_2, 2, 4 },
     // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 4 },
     // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 4 },
-    mvn_test_params{ CASE_MVN_I8_1, 2, 4 },
-    mvn_test_params{ CASE_MVN_I8_2, 2, 4 },
-    mvn_test_params{ CASE_MVN_I8_3, 2, 4 },
-    mvn_test_params{ CASE_MVN_I8_4, 2, 4 },
-    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 4 },
-    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 4 },
-    mvn_test_params{ CASE_MVN_U8_1, 2, 4 },
-    mvn_test_params{ CASE_MVN_U8_2, 2, 4 },
-    mvn_test_params{ CASE_MVN_U8_3, 2, 4 },
-    mvn_test_params{ CASE_MVN_U8_4, 2, 4 },
-    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 4 },
-    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4 },
+    mvn_test_params{ CASE_MVN_I8_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_I8_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_I8_3, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_I8_4, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_U8_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_U8_2, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_U8_3, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_U8_4, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 2, 4 },
 }));
 
 class mvn_scale_activation_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
@@ -210,30 +213,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize
     // mvn_test_params{ CASE_MVN_F16_2, 2, 7 },
     // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 7 },
     // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 7 },
-    mvn_test_params{ CASE_MVN_I8_1, 2, 6 },
-    mvn_test_params{ CASE_MVN_I8_2, 2, 6 },
-    mvn_test_params{ CASE_MVN_I8_3, 2, 6 },
-    mvn_test_params{ CASE_MVN_I8_4, 2, 6 },
-    mvn_test_params{ CASE_MVN_I8_5, 2, 6 },
-    mvn_test_params{ CASE_MVN_I8_6, 2, 6 },
-    mvn_test_params{ CASE_MVN_I8_7, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_3, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_4, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_I8_5, 3, 6 },
-    mvn_test_params{ CASE_MVN_U8_1, 2, 6 },
-    mvn_test_params{ CASE_MVN_U8_2, 2, 6 },
-    mvn_test_params{ CASE_MVN_U8_3, 2, 6 },
-    mvn_test_params{ CASE_MVN_U8_4, 2, 6 },
-    mvn_test_params{ CASE_MVN_U8_5, 2, 6 },
-    mvn_test_params{ CASE_MVN_U8_6, 2, 6 },
-    mvn_test_params{ CASE_MVN_U8_7, 3, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_3, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_4, 2, 6 },
-    mvn_test_params{ CASE_MVN_3D_U8_5, 3, 6 },
+    mvn_test_params{ CASE_MVN_I8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_5, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_6, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_I8_7, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_I8_5, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_5, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_6, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_U8_7, 3, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_3, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_4, 2, 4, 6 },
+    mvn_test_params{ CASE_MVN_3D_U8_5, 3, 4, 6 },
 }));
 
 class mvn_eltwise : public MVNFusingTest {};
@@ -252,24 +255,24 @@ TEST_P(mvn_eltwise, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise, ::testing::ValuesIn(std::vector<mvn_test_params>{
-    mvn_test_params{ CASE_MVN_I8_5, 2, 3 },
-    mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
-    mvn_test_params{ CASE_MVN_I8_7, 3, 3 },
-    mvn_test_params{ CASE_MVN_3D_I8_3, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_I8_4, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_I8_5, 3, 3 },
-    mvn_test_params{ CASE_MVN_U8_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_3, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_4, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_5, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_6, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_7, 3, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_3, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_4, 2, 3 },
-    mvn_test_params{ CASE_MVN_3D_U8_5, 3, 3 },
+    mvn_test_params{ CASE_MVN_I8_5, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_I8_6, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_I8_7, 3, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_I8_3, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_3D_I8_4, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_3D_I8_5, 3, 3, 3 },
+    mvn_test_params{ CASE_MVN_U8_1, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_2, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_3, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_4, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_5, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_6, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_7, 3, 3, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_1, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_2, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_3, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_4, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_3D_U8_5, 3, 3, 3 },
 }));
 
 class mvn_eltwise_f16 : public MVNFusingTest {};
@@ -288,6 +291,6 @@ TEST_P(mvn_eltwise_f16, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::vector<mvn_test_params>{
-    mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
-    mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
+    mvn_test_params{ CASE_MVN_I8_6, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_U8_2, 2, 2, 3 },
 }));

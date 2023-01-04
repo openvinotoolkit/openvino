@@ -18,14 +18,27 @@ namespace {
             ngraph::element::u16,
     };
 
+    static const std::vector<ngraph::element::Type> floatPrecisionsGPU = {
+            ngraph::element::f32,
+            ngraph::element::f16
+    };
+
     static const std::vector<std::size_t> batchSizesGPU = {
             1, 2
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsGPU),
+                                    ::testing::ValuesIn(batchSizesGPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU_Float, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatPrecisionsGPU),
                                     ::testing::ValuesIn(batchSizesGPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);
@@ -37,18 +50,23 @@ namespace {
                             LoadNetworkCompiledKernelsCacheTest::getTestCaseName);
 
     typedef std::map<std::string, std::string> conftype;
-    std::vector<std::pair<conftype, std::string>> autoConfigs = {
-            std::make_pair(conftype{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}, "cl_cache"),
+    auto autoConfigs = []() {
+        return std::vector<std::pair<conftype, std::string>>{
             std::make_pair(conftype{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-            (std::string(CommonTestUtils::DEVICE_GPU) + "," + CommonTestUtils::DEVICE_CPU)}}, "blob,cl_cache"),
+                                     CommonTestUtils::DEVICE_GPU}},
+                           "cl_cache"),
             std::make_pair(conftype{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
-            (std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU)}}, "blob")
+                                     (std::string(CommonTestUtils::DEVICE_GPU) + "," + CommonTestUtils::DEVICE_CPU)}},
+                           "blob,cl_cache"),
+            std::make_pair(conftype{{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+                                     (std::string(CommonTestUtils::DEVICE_CPU) + "," + CommonTestUtils::DEVICE_GPU)}},
+                           "blob")};
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_KernelCachingSupportCase_GPU, LoadNetworkCompiledKernelsCacheTest,
                             ::testing::Combine(
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(autoConfigs)),
+                                    ::testing::ValuesIn(autoConfigs())),
                             LoadNetworkCompiledKernelsCacheTest::getTestCaseName);
 
 } // namespace
