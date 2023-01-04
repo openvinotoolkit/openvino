@@ -6,6 +6,7 @@
 #include <iterator>
 #include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <type_traits>
 
 #include "shape_infer_transformations.hpp"
 
@@ -138,6 +139,20 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
                        out_it,
                        std::forward<UnaryOperation>(func));
     } break;
+    case element::Type_t::f16: {
+        using dtype = fundamental_type_for<element::Type_t::f32>;
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
+    } break;
+    case element::Type_t::f32: {
+        using dtype = fundamental_type_for<element::Type_t::f32>;
+        std::transform(static_cast<const dtype*>(ptr),
+                       static_cast<const dtype*>(ptr) + size,
+                       out_it,
+                       std::forward<UnaryOperation>(func));
+    } break;
     default:
         OPENVINO_ASSERT(false, "Not supported element type ", et);
     };
@@ -248,10 +263,10 @@ template <class TShape,
           class TRes = std::vector<TData>,
           class UnaryOperation,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
-std::unique_ptr<std::vector<TData>> get_input_const_data_as(const ov::Node* op,
-                                                            size_t idx,
-                                                            const std::map<size_t, HostTensorPtr>& constant_data = {},
-                                                            UnaryOperation&& func = sh_infer::tr::Cast<TData>()) {
+std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
+                                              size_t idx,
+                                              const std::map<size_t, HostTensorPtr>& constant_data = {},
+                                              UnaryOperation&& func = sh_infer::tr::Cast<TData>()) {
     if (constant_data.count(idx)) {
         return std::unique_ptr<TRes>(
             new TRes(get_tensor_data_as<TData, TRes>(*constant_data.at(idx), std::forward<UnaryOperation>(func))));
@@ -307,86 +322,78 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(
 }  // namespace op
 }  // namespace ov
 
-template <class T>
-inline bool get_data_as_int64(
-    size_t idx,
-    const ov::Node* op,
-    std::vector<int64_t>& axes_value,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    if (constant_data.count(idx)) {
-        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
-    } else {
-        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
-        axes_value = constant->cast_vector<int64_t>();
-    }
-    return true;
-}
-
-template <>
-inline bool get_data_as_int64<ov::PartialShape>(
-    size_t idx,
-    const ov::Node* op,
-    std::vector<int64_t>& axes_value,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    if (constant_data.count(idx)) {
-        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
-    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
-        axes_value = constant->cast_vector<int64_t>();
+// Helper to reduce duplicates of code for get_data_as_... specific type functions.
+template <class TShape, class TData>
+inline bool get_data_as(const ov::Node* op,
+                        size_t idx,
+                        std::vector<TData>& data_out,
+                        const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
+    if (auto out =
+            ov::op::get_input_const_data_as<TShape, TData>(op, idx, constant_data, ov::sh_infer::tr::Cast<TData>())) {
+        data_out = std::move(*out);
+        return true;
     } else {
         return false;
     }
+}
+
+template <class TShape>
+inline bool get_data_as_int64(size_t idx,
+                              const ov::Node* op,
+                              std::vector<int64_t>& axes_value,
+                              const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
+    return get_data_as<TShape>(op, idx, axes_value, constant_data);
+}
+
+template <class TShape>
+inline bool get_data_as_float(size_t idx,
+                              const ov::Node* op,
+                              std::vector<float>& axes_value,
+                              const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
+    return get_data_as<TShape>(op, idx, axes_value, constant_data);
+}
+
+/**
+ * \brief Get the operator's constant data as shape of type T.
+ *
+ *  \note The constant data are get as size_t (Dimension value type for static shape). If pointed input is signed the
+ *  output shape dimension can be wrongly interpreted.
+ *
+ * \tparam TShape        Shape type.
+ *
+ * \param idx            Operator's input index.
+ * \param op             Pointer to operator.
+ * \param shape          Output shape made from constant data.
+ * \param constant_data  Map with constant tensors. Optional default empty.
+ *
+ * \return true If constant data acquired as shape otherwise throws NodeValidation exception.
+ */
+template <class TShape>
+inline bool get_data_as_shape(size_t idx,
+                              const ov::Node* op,
+                              TShape& shape,
+                              const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
+    using TDimValue = typename TShape::value_type::value_type;
+    shape = std::move(
+        *ov::op::get_input_const_data_as_shape<TShape>(op, idx, constant_data, ov::sh_infer::tr::Cast<TDimValue>()));
     return true;
 }
 
-template <class T>
-inline bool get_data_as_float(
-    size_t idx,
-    const ov::Node* op,
-    std::vector<float>& axes_value,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    if (constant_data.count(idx)) {
-        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<float>();
-    } else {
-        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
-        axes_value = constant->cast_vector<float>();
-    }
-    return true;
-}
-
-template <>
-inline bool get_data_as_float<ov::PartialShape>(
-    size_t idx,
-    const ov::Node* op,
-    std::vector<float>& axes_value,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    if (constant_data.count(idx)) {
-        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<float>();
-    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
-        axes_value = constant->cast_vector<float>();
-    } else {
-        return false;
-    }
-    return true;
-}
-
-template <class T>
-inline bool get_data_as_shape(
-    size_t idx,
-    const ov::Node* op,
-    T& shape,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    if (constant_data.count(idx)) {
-        shape = T(ov::opset1::Constant(constant_data.at(idx)).cast_vector<size_t>());
-    } else {
-        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
-        shape = T(constant->cast_vector<size_t>());
-    }
-    return true;
-}
-
+/**
+ * \brief Get the operator's constant data as ov::PartialShape.
+ *
+ * If data not get as constant then try evaluate this input as partial shape from input's bounds  and labels.
+ *
+ *  \note The constant data are get as int64_t. If pointed input is unsigned then output shape
+ *  dimension can be wrongly interpreted.
+ *
+ * \param idx            Operator's input index.
+ * \param op             Pointer to operator.
+ * \param shape          Output shape made from constant data.
+ * \param constant_data  Map with constant tensors. Optional default empty.
+ *
+ * \return true If constant data acquired as shape otherwise throws NodeValidation exception.
+ */
 template <>
 inline bool get_data_as_shape<ov::PartialShape>(
     size_t idx,
