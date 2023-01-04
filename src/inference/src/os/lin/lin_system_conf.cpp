@@ -268,8 +268,10 @@ int getThreadStep(const cpu_core_type_of_processor core_type) {
 }
 
 void setCpuUsed(std::vector<int> cpu_ids, int used) {
-    for (auto i = 0; i < cpu_ids.size(); i++) {
-        if (cpu_ids[i] < static_cast<int>(cpu._cpu_mapping_table.size())) {
+    const auto cpu_size = static_cast<int>(cpu_ids.size());
+    const auto cpu_mapping_size = static_cast<int>(cpu._cpu_mapping_table.size());
+    for (auto i = 0; i < cpu_size; i++) {
+        if (cpu_ids[i] < cpu_mapping_size) {
             cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
         }
     }

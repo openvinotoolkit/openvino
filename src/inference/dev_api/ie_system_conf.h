@@ -156,7 +156,7 @@ typedef enum {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     HYPER_THREADING_PROC = 2,  //!< Processor based on logical core of Intel Performance-cores
-    EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Performance-cores
+    EFFICIENT_CORE_PROC = 3    //!< Processor based on Intel Efficient-cores
 } cpu_core_type_of_processor;
 
 /**
@@ -179,19 +179,24 @@ INFERENCE_ENGINE_API_CPP(int) getThreadStep(const cpu_core_type_of_processor cor
  * @enum column_of_cpu_mapping_table
  * @brief This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
+ * GROUP_ID is generated according to the following rules.
+ *  1. If one MAIN_CORE_PROC and one HYPER_THREADING_PROC are based on same Performance-cores, they are in one group.
+ *  2. If some EFFICIENT_CORE_PROC share one L2 cachle, they are in one group.
+ *  3. There are no duplicate group IDs in the system
+ *
  * Below is the example of CPU mapping table.
  *  1. Four processors of two Pcore
  *  2. Four processors of four Ecores shared L2 cache
  *
  *  PROCESSOR_ID | SOCKET_ID | CORE_ID | CORE_TYPE | GROUP_ID | Used
- *    	  0        	   0	      0          2           0        0
- *    	  1        	   0	      0          1           0        0
- *    	  2        	   0	      1          2           1        0
- *    	  3        	   0	      1          1           1        0
- *    	  4        	   0	      2          3           2        0
- *    	  5        	   0	      3          3           2        0
- *    	  6        	   0	      4          3           2        0
- *    	  7        	   0	      5          3           2        0
+ *       0             0          0          2          0        0
+ *       1             0          0          1          0        0
+ *       2             0          1          2          1        0
+ *       3             0          1          1          1        0
+ *       4             0          2          3          2        0
+ *       5             0          3          3          2        0
+ *       6             0          4          3          2        0
+ *       7             0          5          3          2        0
  */
 typedef enum {
     CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor

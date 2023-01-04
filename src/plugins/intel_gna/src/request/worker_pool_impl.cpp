@@ -7,7 +7,8 @@
 #include "log/debug.hpp"
 #include "worker.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 void WorkerPoolImpl::addModelWorker(std::shared_ptr<Worker> worker) {
@@ -81,4 +82,5 @@ void WorkerPoolImpl::checkWorkerNotEmpty() const {
 }
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov
