@@ -195,7 +195,7 @@ public:
                                   uint64_t split_end) {
         if (size() < mask->size())
             resize(mask->size());
-        for (size_t i = 0; i < size(); i++) {
+        for (int64_t i = 0; i < size(); i++) {
             if (i == axis) {
                 std::set<uint64_t> dst_set;
                 const auto& src_set = mask->at(i);
