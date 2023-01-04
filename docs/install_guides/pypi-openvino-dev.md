@@ -15,8 +15,6 @@ Before you start the installation, check the supported operating systems and req
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
 
-> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
-
 ## Install the OpenVINO™ Development Tools Package
 
 There are two options to install OpenVINO Development Tools: installation into an existing environment with a deep learning framework used for model training or creation;
@@ -94,6 +92,8 @@ For example, to install and configure the components for working with TensorFlow
    pip install openvino-dev[tensorflow2,onnx]
    ```
 > **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
+
+> **NOTE**: On macOS, you may need to enclose the package name in quotes: `pip install "openvino-dev[extras]"`.
 
 ## How to Verify that the Package Is Installed
 
