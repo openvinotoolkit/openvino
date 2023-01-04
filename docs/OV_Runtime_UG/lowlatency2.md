@@ -10,7 +10,7 @@ The LowLatency2 transformation changes the structure of the network containing [
 
 ## Example of Applying the Transformation:<a name="example-of-applying-lowlatency2-transformation"></a>
 
-![applying_low_latency_2_example](./img/applying_low_latency_2.png)
+![](img/applying_low_latency_2.svg)
 
 After applying the transformation, the `ReadValue` operations can receive other operations as an input, as shown in the picture above. These inputs should set the initial value for initialization of the `ReadValue` operations. However, such initialization is not supported in the current State API implementation. Input values are ignored and the initial values for the `ReadValue` operations are set to 0 unless otherwise specified by the user via [State API](@ref openvino-state-api).
 
@@ -49,7 +49,7 @@ After applying the transformation, the `ReadValue` operations can receive other 
    ```cpp
    InferenceEngine::lowLatency2(cnnNetwork, false);
    ```
-   ![use_const_initializer_example](./img/llt2_use_const_initializer.png)
+   ![](img/llt2_use_const_initializer.svg)
 
    **State naming rule**: A name of a state is a concatenation of names: original `TensorIterator` operation, parameter of the body, and additional suffix `variable_` + `id` (0-base indexing, new indexing for each `TensorIterator`). Use these rules to predict the name of the inserted state after the transformation is applied. For example:
 
@@ -86,7 +86,12 @@ After applying the transformation, the `ReadValue` operations can receive other 
 
 	The only way to change the number iterations of `TensorIterator`/`Loop` layer is to use the `Reshape` feature. However, networks can be non-reshapable. The most common reason is that the value of shapes is hardcoded in a constant somewhere in the network. 
 
-	![low_latency_limitation_2](./img/low_latency_limitation_2.png)
+	@sphinxdirective
+
+	.. image:: _static/images/low_latency_limitation_2.svg
+	   :scale: 70 %
+
+	@endsphinxdirective
 
 	**Current solution:** 
    
