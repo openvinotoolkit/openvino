@@ -8,8 +8,8 @@
 #include <cstdint>
 #include <ngraph/node.hpp>
 
-#include "backend/dnn_types.h"
-#include "backend/gna_types.h"
+#include "backend/dnn_types.hpp"
+#include "backend/gna_types.hpp"
 
 #define SIGMOID_NUM_SEGMENTS 65
 #define SIGMOID_DOMAIN 10.0f // portion of input to be approximated (-10,10)

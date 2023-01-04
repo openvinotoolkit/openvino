@@ -13,8 +13,6 @@ namespace ov {
 namespace intel_gna {
 namespace frontend {
 
-using namespace GNAPluginNS;
-
 /**
  * @brief Returns layer's target input precision
  * @return layer's target input precision
