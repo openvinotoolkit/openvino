@@ -49,6 +49,31 @@ def getParams():
     return args, presetCfgData, customCfgPath
 
 
+def getBlobDiff(file1, file2):
+    with open(file1) as file:
+        content = file.readlines()
+    with open(file2) as sampleFile:
+        sampleContent = sampleFile.readlines()
+    # ignore first line with memory address
+    i = -1
+    curMaxDiff = 0
+    for sampleLine in sampleContent:
+        i = i + 1
+        if i >= len(sampleContent):
+            break
+        line = content[i]
+        sampleVal = 0
+        val = 0
+        try:
+            sampleVal = float(sampleLine)
+            val = float(line)
+        except ValueError:
+            continue
+        if val != sampleVal:
+            curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
+    return curMaxDiff
+
+
 def absolutizePaths(cfg):
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
@@ -90,8 +115,12 @@ def checkArgAndGetCommits(commArg, cfgData):
             return outList
 
 
-def runCommandList(commit, cfgData):
-    skipCleanInterval = cfgData["trySkipClean"]
+def runCommandList(commit, cfgData, enforceClean=False):
+    skipCleanInterval = False
+    if "trySkipClean" not in cfgData:
+        skipCleanInterval = not enforceClean
+    else:
+        skipCleanInterval = cfgData["trySkipClean"] and not enforceClean
     commitLogger = getCommitLogger(cfgData, commit)
     commandList = cfgData["commandList"]
     gitPath = cfgData["gitPath"]
@@ -246,6 +275,10 @@ class CmdError(Exception):
 
 
 class NoCleanFailedError(Exception):
+    pass
+
+
+class RepoError(Exception):
     pass
 
 

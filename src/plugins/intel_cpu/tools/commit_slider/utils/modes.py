@@ -1,7 +1,7 @@
 import os
 from utils.helpers import fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfilCommitTail
-from utils.helpers import handleCommit, runCommandList
+from utils.helpers import handleCommit, runCommandList, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError, CmdError
 import re
 import shutil
@@ -13,13 +13,26 @@ class CheckOutputMode(Mode):
         super().__init__(cfg)
         self.createCash()
 
-    def prepareRun(self, i1, i2, list, cfg):
-        super().prepareRun(i1, i2, list, cfg)
-
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
         if not ("stopPattern" in cfg["runConfig"]):
             raise CfgError("stopPattern is not configured")
+
+    def checkIfBordersDiffer(self, i1, i2, list, cfg):
+        isLeftBorderFailed = False
+        if i1 != 0 or cfg["checkIfBordersDiffer"]:
+            isLeftBorderFailed = self.isBadVersion(list[i1], cfg)
+
+        isRightBorderGood = not self.isBadVersion(list[i2], cfg)
+        rightCommit = list[i2]
+        rightCommit = rightCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, rightCommit)
+        commitLogger.info(
+            "Commit {c} is {status}".format(
+                status=("good" if isRightBorderGood else "bad"),
+                c=list[i2])
+        )
+        return isLeftBorderFailed == isRightBorderGood
 
     def isBadVersion(self, commit, cfg):
         commit = commit.replace('"', "")
@@ -48,6 +61,7 @@ class BenchmarkAppPerformanceMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
         self.outPattern = "Throughput:\s*([0-9]*[.][0-9]*)\s*FPS"
+        self.perfRel = 0
         self.createCash()
 
     def prepareRun(self, i1, i2, list, cfg):
@@ -58,7 +72,6 @@ class BenchmarkAppPerformanceMode(Mode):
             "Prepare sample commit - {commit}".format(commit=sampleCommit)
         )
         commitLogger = getCommitLogger(cfg, sampleCommit)
-        cfg["trySkipClean"] = False
         foundThroughput = 0
         isCommitCashed, cashedThroughput = self.getCommitIfCashed(sampleCommit)
         if isCommitCashed:
@@ -67,7 +80,7 @@ class BenchmarkAppPerformanceMode(Mode):
             commitLogger.info(logMsg)
             foundThroughput = cashedThroughput
         else:
-            runCommandList(sampleCommit, cfg)
+            runCommandList(sampleCommit, cfg, enforceClean=True)
             output = fetchAppOutput(cfg)
             commitLogger.info(output)
             foundThroughput = re.search(
@@ -83,7 +96,23 @@ class BenchmarkAppPerformanceMode(Mode):
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
 
-    def isBadVersion(self, commit, cfg):
+    def checkIfBordersDiffer(self, i1, i2, list, cfg):
+        leftThroughput = self.getThroughputByCommit(list[i1], cfg)
+        rightCommit = list[i2]
+        rightThroughput = self.getThroughputByCommit(rightCommit, cfg)
+        curRel = rightThroughput / leftThroughput
+        isBad = not (abs(1 - curRel) < self.apprDev)
+        if isBad:
+            self.perfRel = curRel
+        rightCommit = rightCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, rightCommit)
+        commitLogger.info("Performance relation is {rel}".format(rel=curRel))
+        commitLogger.info(
+            "Commit is {status}".format(status=("bad" if isBad else "good"))
+        )
+        return isBad
+
+    def getThroughputByCommit(self, commit, cfg):
         commit = commit.replace('"', "")
         curThroughput = 0
         commitLogger = getCommitLogger(cfg, commit)
@@ -105,64 +134,65 @@ class BenchmarkAppPerformanceMode(Mode):
             curThroughput = float(foundThroughput)
             commitLogger.info(output)
             self.setCommitCash(commit, curThroughput)
-        curRel = curThroughput / self.sampleThroughput
-        isBad = not (abs(1 - curRel) < self.apprDev)
-        commitLogger.info("Performance relation is {rel}".format(rel=curRel))
-        commitLogger.info(
-            "Commit is {status}".format(status=("bad" if isBad else "good"))
-        )
-        return not (abs(1 - curRel) < self.apprDev)
+        return curThroughput
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.perfRel = self.perfRel
+
+    def getResult(self):
+        for pathCommit in self.commitPath.getList():
+            print("Break commit: {c}, perf. ratio = {d}".format(
+                # todo: info to pathCommit
+                c=self.commitList[pathCommit.id],
+                d=pathCommit.perfRel)
+            )
 
 
 class CompareBlobsMode(Mode):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.sampleFileName = "undefined"
         self.createCash()
         self.maxDiff = 0
 
-    def prepareRun(self, i1, i2, list, cfg):
-        super().prepareRun(i1, i2, list, cfg)
-        sampleCommit = list[i1]
-        sampleCommit = sampleCommit.replace('"', "")
-        self.commonLogger.info(
-            "Prepare sample commit - {commit}".format(commit=sampleCommit)
-        )
-        commitLogger = getCommitLogger(cfg, sampleCommit)
-        cfg["trySkipClean"] = False
-        isCommitCashed, cachedfileName = self.getCommitIfCashed(sampleCommit)
+    def getOutNameByCommit(self, commit, cfg):
+        commit = commit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, commit)
+        filename = ''
+        isCommitCashed, cachedfileName = self.getCommitIfCashed(commit)
         if isCommitCashed:
-            logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
+            logMsg = "Cashed commit - {commit}".format(commit=commit)
             self.commonLogger.info(logMsg)
             commitLogger.info(logMsg)
-            self.sampleFileName = cachedfileName
+            filename = cachedfileName
         else:
-            runCommandList(sampleCommit, cfg)
+            self.commonLogger.info("New commit: {commit}".format(
+                commit=commit)
+            )
+            runCommandList(commit, cfg, enforceClean=True)
             output = fetchAppOutput(cfg)
             commitLogger.info(output)
-            self.sampleFileName = self.setCommitCash(sampleCommit, None)
+            filename = self.setCommitCash(commit, None)
+        return filename
 
-    # def checkBorders(self, i1, i2, list, cfg):
-    #     if not cfg['checkBorders']:
-    #         return
-    #     sampleCommit = list[i1]
-    #     sampleCommit = sampleCommit.replace('"', "")
-    #     self.commonLogger.info(
-    #         "Prepare sample commit - {commit}".format(commit=sampleCommit)
-    #     )
-    #     commitLogger = getCommitLogger(cfg, sampleCommit)
-    #     cfg["trySkipClean"] = False
-    #     isCommitCashed, cachedfileName = self.getCommitIfCashed(sampleCommit)
-    #     if isCommitCashed:
-    #         logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
-    #         self.commonLogger.info(logMsg)
-    #         commitLogger.info(logMsg)
-    #         self.sampleFileName = cachedfileName
-    #     else:
-    #         runCommandList(sampleCommit, cfg)
-    #         output = fetchAppOutput(cfg)
-    #         commitLogger.info(output)
-    #         self.sampleFileName = self.setCommitCash(sampleCommit, None)
+    def checkIfBordersDiffer(self, i1, i2, list, cfg):
+        leftBorderOutputName = self.getOutNameByCommit(list[i1], cfg)
+        rightBorderOutputName = self.getOutNameByCommit(list[i2], cfg)
+        fullLeftFileName = os.path.join(self.cachePath, leftBorderOutputName)
+        fullRightName = os.path.join(self.cachePath, rightBorderOutputName)
+        curMaxDiff = getBlobDiff(fullLeftFileName, fullRightName)
+        isDiff = True if curMaxDiff > self.limit else False
+        rightCommit = list[i2]
+        rightCommit = rightCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, rightCommit)
+        commitLogger.info(
+            "Commit {status} from {c}".format(
+                status=("differs" if isDiff else "doesn't differ"),
+                c=list[i2])
+        )
+        if isDiff:
+            self.maxDiff = curMaxDiff
+        commitLogger.info("Absolute difference is {d}".format(d=curMaxDiff))
+        return isDiff
 
     def checkCfg(self, cfg):
         super().checkCfg(cfg)
@@ -177,54 +207,6 @@ class CompareBlobsMode(Mode):
                 self.limit = float(cfg["runConfig"]["limit"])
             else:
                 self.limit = 0
-
-    def isBadVersion(self, commit, cfg):
-        commit = commit.replace('"', "")
-        commitLogger = getCommitLogger(cfg, commit)
-        isCommitCashed, fileName = self.getCommitIfCashed(commit)
-        if isCommitCashed:
-            logMsg = "Cashed commit - {commit}".format(commit=commit)
-            self.commonLogger.info(logMsg)
-            commitLogger.info(logMsg)
-        else:
-            self.commonLogger.info("New commit: {commit}".format(
-                commit=commit)
-            )
-            handleCommit(commit, cfg)
-            output = fetchAppOutput(cfg)
-            commitLogger.info(output)
-            fileName = self.setCommitCash(commit, None)
-        sampleFileName = self.sampleFileName
-        fullSampleFileName = os.path.join(self.cachePath, sampleFileName)
-        with open(fullSampleFileName) as sampleFile:
-            sampleContent = sampleFile.readlines()
-        fullFileName = os.path.join(self.cachePath, fileName)
-        with open(fullFileName) as file:
-            content = file.readlines()
-        # ignore first line with memory address
-        i = -1
-        curMaxDiff = 0
-        for sampleLine in sampleContent:
-            i = i + 1
-            if i >= len(sampleContent):
-                break
-            line = content[i]
-            sampleVal = 0
-            val = 0
-            try:
-                sampleVal = float(sampleLine)
-                val = float(line)
-            except ValueError:
-                continue
-            if val != sampleVal:
-                curMaxDiff = max(curMaxDiff, abs(val - sampleVal))
-        isBad = curMaxDiff > self.limit
-        commitLogger.info(
-            "Commit is {status}".format(status=("bad" if isBad else "good"))
-        )
-        self.maxDiff = max(curMaxDiff, self.maxDiff)
-        commitLogger.info("Absolute difference is {d}".format(d=curMaxDiff))
-        return isBad
 
     def setCommitCash(self, commit, valueToCache):
         isCommitCashed, _ = self.getCommitIfCashed(commit)

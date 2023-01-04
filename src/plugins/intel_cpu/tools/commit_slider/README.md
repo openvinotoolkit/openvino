@@ -30,7 +30,7 @@ ccache >= *3.0*
 5. Set up `runConfig` (mandatory):
 5.1. `getCommitListCmd` - *git* command, returning commit list *if you don't want to set commit intervals with command args*
 5.2. `mode` = `{checkOutput|bmPerfMode|compareBlobs|<to_extend>}` - cryterion of commit comparation
-5.3. `traversal` `{firstFailedVersion|firstFixedVersion|<to_extend>}` - traversal rule
+5.3. `traversal` `{firstFailedVersion|firstFixedVersion|allBreaks|<to_extend>}` - traversal rule
 5.4. `preprocess` if you need preparation before commit building `<add_details>`
 5.5. Other fields depend on mode, for example, `stopPattern` for  `checkOutput` is *RegEx* pattern for application failed output.
 6. Setup environment variables via *envVars* field in a format:
