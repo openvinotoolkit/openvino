@@ -19,10 +19,10 @@ Post-training model optimization is the process of applying special methods that
 
 8-bit integer quantization lowers the precision of weights and activations to 8 bits, which leads to almost 4x reduction in the model footprint and significant improvements in inference speed, mostly due to lower throughput required for the inference. This lowering step is done offline, before the actual inference, so that the model gets transformed into the quantized representation. The process does not require a training dataset or a training pipeline in the source DL framework. 
 
-![](../img/quantization_picture.png)
+![](../img/quantization_picture.svg)
 
-To apply post-training methods in OpenVINO&trade;, you need:
-* A floating-point precision model, FP32 or FP16, converted into the OpenVINO&trade; Intermediate Representation (IR) format that can be run on CPU.
+To apply post-training methods in OpenVINO, you need:
+* A floating-point precision model, FP32 or FP16, converted into the OpenVINO Intermediate Representation (IR) format that can be run on CPU.
 * A representative calibration dataset, representing a use case scenario, for example, of 300 samples.
 * In case of accuracy constraints, a validation dataset and accuracy metrics should be available.
 
