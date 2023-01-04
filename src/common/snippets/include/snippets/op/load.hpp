@@ -20,7 +20,7 @@ namespace op {
  */
 class Load : public MemoryAccess {
 public:
-    OPENVINO_OP("Load", "SnippetsOpset");
+    OPENVINO_OP("Load", "SnippetsOpset", MemoryAccess);
 
     Load(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Load() = default;

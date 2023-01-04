@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <vector>
-#include <cstdint>
 
 namespace ngraph {
 namespace snippets {

@@ -98,7 +98,6 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
                 broadcasted_inputs.push_back(values[i]);
             } else {
                 auto node = BroadcastNodeLastDim(values[i], bcast_shapes.first, bcast_shapes.second[i]);
-                ngraph::copy_runtime_info(root, node.get_node_shared_ptr());
                 broadcasted_inputs.push_back(node);
             }
         }
@@ -112,7 +111,7 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
 
     // only numpy broadcast type is supported currently
     auto any = std::make_shared<pattern::op::Label>(pattern::any_input(),
-        [](std::shared_ptr<Node> n) {
+        [](const std::shared_ptr<Node>& n) {
             // should add supports_auto_broadcast to SquaredDifference
             return ((ngraph::op::supports_auto_broadcast(n) || is_type<opset1::SquaredDifference>(n) || is_type<opset1::Mod>(n)) &&
                  n->get_autob().m_type == ngraph::op::AutoBroadcastType::NUMPY) || is_type<opset1::PRelu>(n); });

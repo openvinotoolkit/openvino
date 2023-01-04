@@ -61,6 +61,7 @@ void LoweringTests::SetUp() {
 }
 
 void LoweringTests::TearDown() {
+    ASSERT_TRUE(function);
     auto cloned_function = ngraph::clone_function(*function);
     if (!function_ref) {
         function_ref = cloned_function;

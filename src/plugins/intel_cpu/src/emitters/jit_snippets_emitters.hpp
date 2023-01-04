@@ -6,6 +6,7 @@
 
 #include <ngraph/rt_info.hpp>
 #include <ie_ngraph_utils.hpp>
+#include "snippets/lowered_expr.hpp"
 
 #include "jit_emitter.hpp"
 #include "jit_load_store_emitters.hpp"
@@ -50,8 +51,8 @@ protected:
     // maps gpr and vec abstract registers to physical ones. Physical reg indexes are taken from the provided pools
     // (the first 2 args). All the used gpr and vec registers are also stored in the provided sets (the second 2 args).
     void map_abstract_registers(mapping_info& gpr_map_pool,  mapping_info& vec_map_pool,
-                                std::vector<ngraph::snippets::AllocatedEmitter>& allocated_emitters) const;
-    std::vector<ngraph::snippets::AllocatedEmitter> body;
+                                ngraph::snippets::LoweredExprIR::container& expressions) const;
+    ngraph::snippets::LoweredExprIR body;
 };
 ///
 /// \brief    Kernel is the only entry point to Codogen Jit compilation. Kernel perform abstract-to-physical register
@@ -95,9 +96,9 @@ private:
     // Vector of indices (lenght = input tensor rank) per every input and output that describes in which order
     // corresponding tensor dimensions are accessed (default: consecutive dense, e.g. 0,1,2,3 for 4D tensor).
     // Needed to calc i/o offsets.
-    std::vector<std::vector<size_t>> data_layout;
+    std::vector<std::vector<size_t>> io_data_layouts;
     std::vector<std::vector<size_t>> io_shapes = {};
-    std::vector<size_t> io_data_size {};
+    std::vector<size_t> io_data_sizes {};
 
     // gpr's used to store data pointers, track them to apply offsets in Kernel
     std::vector<size_t> data_ptr_regs_idx;
@@ -123,7 +124,6 @@ private:
                    const std::vector<size_t>& out) const override;
 
     std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
-    size_t num_inputs = 0;
     bool evaluate_once = false;
     size_t work_amount = 0; // need to store work_amount explicitly, since two loops can work on the same dim (e.g. vector + scalar)
 };
@@ -151,18 +151,18 @@ private:
     size_t num_outputs = 0;
     // keep data_size int64_t to avoid conversion to size_t (and overflow) when multiplied by negative increments or offsets
     std::vector<int64_t> io_data_size {};
-    size_t wa_increment = 0;
-    size_t work_amount = 0;
+    int64_t wa_increment = 0;
+    int64_t work_amount = 0;
     bool evaluate_once = false;
     std::vector<int64_t> ptr_increments;
     std::vector<int64_t> finalization_offsets;
 };
 
-
 class NopEmitter : public jit_emitter {
 public:
     NopEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n)
     : jit_emitter(h, isa, n) {
+        in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -171,6 +171,20 @@ private:
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override {
     }
+};
+
+class ParameterEmitter : public NopEmitter {
+public:
+    ParameterEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                   const std::shared_ptr<ov::Node>& n);
+
+    size_t get_inputs_num() const override { return 0; }
+};
+
+class ResultEmitter : public NopEmitter {
+public:
+    ResultEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    size_t get_inputs_num() const override {return 1;}
 };
 
 class BroadcastMoveEmitter : public jit_emitter {

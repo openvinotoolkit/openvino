@@ -14,9 +14,9 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Select, Select,
         ::testing::Combine(
-                ::testing::ValuesIn({ov::Shape{1, 5, 5, 35}, ov::Shape{1}}),
-                ::testing::ValuesIn({ov::Shape{1, 5, 5, 35}, ov::Shape{1}}),
-                ::testing::ValuesIn({ov::Shape{1, 5, 5, 35}, ov::Shape{1}}),
+                ::testing::ValuesIn({ov::Shape{1, 5, 5, 35}, }),
+                ::testing::ValuesIn({ov::Shape{1, 5, 5, 35}, }),
+                ::testing::ValuesIn({ov::Shape{1}}),
                 ::testing::ValuesIn({ov::element::f32, ov::element::i8}),
                 ::testing::Values(1),
                 ::testing::Values(1),

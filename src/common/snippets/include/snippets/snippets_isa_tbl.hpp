@@ -60,6 +60,7 @@ NGRAPH_OP(Sinh, ngraph::op::v0)
 NGRAPH_OP(Sqrt, ngraph::op::v0)
 NGRAPH_OP(Tan, ngraph::op::v0)
 NGRAPH_OP(Tanh, ngraph::op::v0)
+NGRAPH_OP(Softmax, ngraph::snippets::op)
 
 // binary
 NGRAPH_OP(Add, ngraph::op::v1)

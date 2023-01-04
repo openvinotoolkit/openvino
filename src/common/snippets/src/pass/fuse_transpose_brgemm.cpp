@@ -51,9 +51,11 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "FuseTransposeBrgemm")
         auto set_layout_from_order = [](const std::shared_ptr<opset1::Transpose>& node, const ov::Output<Node>& port) {
             const auto& const_order = as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1));
+            const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(port);
+            const auto& tensor = td->get_tensor();
+            const auto& subtensor = td->get_subtensor();
             std::vector<size_t> layout = const_order->cast_vector<size_t>();
-            auto& rt_info = port.get_node_shared_ptr()->get_rt_info();
-            rt_info["Layout"] = layout;
+            ngraph::snippets::set_tensor_descriptor_ptr(port, std::make_shared<TensorDescriptor>(tensor, subtensor, layout));
         };
         auto brgemm = as_type_ptr<op::Brgemm>(m.get_match_root());
         // Transpose on the Brgemm's output

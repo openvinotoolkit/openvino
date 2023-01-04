@@ -23,8 +23,6 @@
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/softmax_decomposition.hpp"
 #include "snippets/pass/reset_buffer.hpp"
-#include "snippets/pass/insert_buffer.hpp"
-#include "snippets/pass/loop_fusion.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -34,14 +32,17 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include <openvino/pass/serialize.hpp>
+#include "snippets/tensor_descriptor.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <array>
 
 using namespace std;
-using namespace ngraph;
 using namespace ov::op::util;
+
+namespace ngraph {
+namespace snippets {
 
 void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Generator> generator) {
     m_generator = generator;
@@ -500,8 +501,10 @@ void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
             // Transpose and MatMul ops should have different memories on inputs and outputs to avoid data corruption,
             // so after them, we should allocate new memory. Other operations (Eltwises, Convert) can be executed inplace.
             const auto parent = buffer->get_input_node_shared_ptr(0);
-            if (ov::is_type<op::Brgemm>(parent) || is_transpose_loop(parent)) {
+//            if (ov::is_type<op::Brgemm>(parent) || is_transpose_loop(parent)) {
+            if (ov::is_type<op::Brgemm>(parent) || ov::is_type<opset1::Transpose>(parent)) {
                 offset = m_buffer_scratchpad;
+                buffer->set_offset(offset);
                 propagate_offset(buffer, offset);
                 m_buffer_scratchpad += buffer_size;
                 continue;
@@ -544,7 +547,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
-        manager.register_pass<snippets::pass::InsertBuffer>(allocationRank);
         manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, allocationRank);
         manager.register_pass<snippets::pass::TransposeDecomposition>();
     }
@@ -583,14 +585,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                     set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
             manager.get_pass_config()->
                     set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
-        }
-        // Note that InsertLoops requires validate_and_infer_types afterwards, so add it manually if
-        // automatic validation will be disabled in the pass manager
-        manager.register_pass<snippets::pass::InsertLoops>(master_shape, tileRank,
-            m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
-        if (config.m_has_domain_sensitive_ops) {
-            manager.register_pass<snippets::pass::LoopFusion>();
-            manager.register_pass<snippets::pass::ResetBufferState>();
         }
     }
     manager.run_passes(body_ptr());
@@ -644,18 +638,20 @@ snippets::Schedule snippets::op::Subgraph::generate(
     if (config.m_has_domain_sensitive_ops)
         initialize_buffer_scratchpad_size();
 
-    snippets::pass::AssignRegisters().run_on_model(body_ptr());
-
     const auto ops = body_ptr()->get_ops();
-    ngraph::snippets::Generator::GeneratorConfig generatorConfig;
-    generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
-    generatorConfig.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    generatorConfig.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
+    // actual code emission
+    LoweringConfig lowering_config;
+    lowering_config.m_save_lowered_code = config.m_has_domain_sensitive_ops;
+    lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
+    lowering_config.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
         return ov::is_type<ngraph::snippets::op::Buffer>(op);
     });
-
-    // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(body_ptr(), generatorConfig, compile_params);
+    lowering_config.m_loop_depth = tileRank;
+    lowering_config.m_master_shape = master_shape;
+    lowering_config.m_explicit_loop_insertion = config.m_explicit_loop_insertion;
+    const auto& lowering_result = m_generator->generate(body_ptr(), lowering_config, compile_params);
+    ngraph::snippets::code ptr = lowering_result.binary_code;
+    m_buffer_scratchpad = lowering_result.buffer_scratchpad_size;
 
     return {master_shape, false /*canBeLinearized*/, ptr};
 }
@@ -753,3 +749,6 @@ void snippets::op::Subgraph::serialize() const {
     auto m_model = xmlFile.str();
     std::cout << m_model << std::endl;
 }
+
+} // namespace snippets
+} // namespace ngraph

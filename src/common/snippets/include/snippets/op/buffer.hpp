@@ -32,6 +32,9 @@ public:
     int32_t get_allocation_rank() const { return m_allocation_rank; }
     void set_allocation_rank(int32_t rank) { m_allocation_rank = rank; }
 
+    int64_t get_offset() const { return m_offset; }
+    void set_offset(int64_t offset) { m_offset = offset; }
+
     size_t get_byte_size() const;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -39,6 +42,7 @@ public:
     void validate_and_infer_types() override;
 
 private:
+    int64_t m_offset = 0;
     int32_t m_allocation_rank = -1;
 };
 

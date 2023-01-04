@@ -43,13 +43,20 @@ void Brgemm::validate_and_infer_types() {
                           "Brgemm currently supports only static shapes.");
 
     std::vector<ov::PartialShape> planar_input_shapes;
-    for (const auto& in : input_values())
-        planar_input_shapes.emplace_back(utils::get_port_planar_shape(in));
+    for (const auto& in : input_values()) {
+        const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(in);
+        const auto& planar_shape = utils::get_reordered_planar_shape(ov::Shape{td->get_tensor()}, td->get_layout());
+        planar_input_shapes.emplace_back(planar_shape);
+    }
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     ov::op::v0::shape_infer(this, planar_input_shapes, output_shapes);
-    const auto& output_layout = utils::get_node_output_layout(this);
-        output_shapes[0] = utils::get_reordered_planar_shape(output_shapes[0], output_layout);
+    const auto& rt_info = get_rt_info();
+    auto it = rt_info.find(TensorDescriptorPtrVectorAttribute::get_type_info_static());
+    if (it != rt_info.end()) {
+        const auto& td = it->second.as<TensorDescriptorPtrVectorAttribute>().m_value[0];
+        output_shapes[0] = utils::get_reordered_planar_shape(output_shapes[0], td->get_layout());
+    }
     set_output_type(0, result_et, output_shapes[0]);
 }
 

@@ -156,7 +156,7 @@ auto collect_loop_outputs(const std::shared_ptr<ngraph::snippets::op::LoopEnd>& 
 
 } // namespace
 
-
+// todo: deprecate this pass, and rewrite it on linear IR
 bool ngraph::snippets::pass::LoopFusion::Merge(const std::shared_ptr<op::LoopBegin>& loop_begin_down) {
     if (!loop_begin_down) {
         return false;
@@ -225,7 +225,8 @@ bool ngraph::snippets::pass::LoopFusion::Merge(const std::shared_ptr<op::LoopBeg
         const auto data_output = loop_input.first;
         new_loop_begin_inputs.push_back(data_output);
     }
-    const auto new_loop_begin = std::make_shared<op::LoopBegin>(new_loop_begin_inputs);
+    // const auto new_loop_begin = std::make_shared<op::LoopBegin>(new_loop_begin_inputs);
+     const auto new_loop_begin = std::make_shared<op::LoopBegin>();
     NGRAPH_CHECK(new_loop_begin->get_input_size() == loop_inputs.size(), "New LoopBegin has incorrect count of inputs.");
 
     // Connect new LoopBegin to input edges

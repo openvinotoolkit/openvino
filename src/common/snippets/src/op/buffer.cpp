@@ -16,13 +16,15 @@ auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) : allocation_rank;
 }
 
-snippets::op::Buffer::Buffer(const Output<Node>& x, const int32_t allocation_rank) : Op({x}), m_allocation_rank(allocation_rank) {
+snippets::op::Buffer::Buffer(const Output<Node>& x, const int32_t allocation_rank)
+    : Op({x}), m_allocation_rank(allocation_rank), m_offset(0) {
     constructor_validate_and_infer_types();
 }
 
 bool snippets::op::Buffer::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(Buffer_visit_attributes);
     visitor.on_attribute("allocation_rank", m_allocation_rank);
+    visitor.on_attribute("offset", m_offset);
     return true;
 }
 
@@ -30,6 +32,7 @@ std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVe
     INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto new_buffer = std::make_shared<Buffer>(new_args.at(0), m_allocation_rank);
+    new_buffer->m_offset = m_offset;
     return new_buffer;
 }
 

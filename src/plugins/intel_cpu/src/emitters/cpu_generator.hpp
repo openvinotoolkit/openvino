@@ -7,6 +7,7 @@
 #include <transformations_visibility.hpp>
 #include <cpu/x64/jit_generator.hpp>
 
+#include "snippets/target_machine.hpp"
 #include "snippets/generator.hpp"
 
 namespace ov {

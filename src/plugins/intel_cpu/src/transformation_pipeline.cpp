@@ -643,6 +643,7 @@ void Transformations::MainSnippets(void) {
                 });
     }
     snippetsManager.run_passes(model);
+    ov::pass::Serialize("snsdebug_tokenized.xml", "snsdebug_tokenized.bin").run_on_model(model);
 }
 
 void Transformations::PostSnippets(void) {

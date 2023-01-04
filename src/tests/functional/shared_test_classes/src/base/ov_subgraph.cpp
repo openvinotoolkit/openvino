@@ -170,6 +170,15 @@ void SubgraphBaseTest::compare(const std::vector<ov::Tensor>& expected,
             }
             auto it = compareMap.find(inputNode->get_type_info());
             ASSERT_NE(it, compareMap.end());
+//            const auto& exp = expected[j];
+//            auto exp_data = exp.data<float>();
+//            const auto& act = actual[j];
+//            auto act_data = act.data<float>();
+//            std::cerr << "exp vs actual\n";
+//            for (int k = 0; k < std::min(exp.get_size(), 1024ul); k++) {
+//                std::string mark = abs(exp_data[k] - act_data[k]) > 1e-4 ? " ***" : "";
+//                std::cerr << k  << " : " << exp_data[k] << " : " << act_data[k] << mark << "\n";
+//            }
             it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
         }
     }

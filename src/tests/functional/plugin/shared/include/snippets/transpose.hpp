@@ -18,10 +18,28 @@ typedef std::tuple<
         std::string                  // Target Device
 > TransposeParams;
 
+typedef std::tuple<
+        ov::PartialShape,            // Input 0 Shape
+        ov::PartialShape,            // Input 1 Shape
+        std::vector<int>,            // Transpose order
+        size_t,                      // Expected num nodes
+        size_t,                      // Expected num subgraphs
+        std::string                  // Target Device
+> TransposeMulParams;
+
 class Transpose : public testing::WithParamInterface<ov::test::snippets::TransposeParams>,
             virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeParams> obj);
+
+protected:
+    void SetUp() override;
+};
+
+class TransposeMul : public testing::WithParamInterface<ov::test::snippets::TransposeMulParams>,
+                  virtual public ov::test::SnippetsTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMulParams> obj);
 
 protected:
     void SetUp() override;
