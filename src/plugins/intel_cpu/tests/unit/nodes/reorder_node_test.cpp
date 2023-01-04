@@ -110,23 +110,21 @@ public:
                     const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
         Config conf;
         conf.rtCacheCapacity = 100;
-        auto rtEnv = std::make_shared<GraphContext>(conf,
-                                                  nullptr,
-                                                  std::make_shared<WeightsSharing>(),
-                                                  std::make_shared<std::mutex>(),
-                                                  0,
-                                                  0);
-        const dnnl::engine cpuEngine = rtEnv->eng;
+        auto context = std::make_shared<GraphContext>(conf,
+                                                      nullptr,
+                                                      std::make_shared<WeightsSharing>(),
+                                                      std::make_shared<std::mutex>());
+        const dnnl::engine cpuEngine = context->getEngine();
 
         inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
                                                                       "Reorder_Input",
                                                                       "Parameter",
-                                                                      rtEnv);
-        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", rtEnv);
+                                                                      context);
+        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", context);
         outputNode = std::make_shared<ov::intel_cpu::node::Input>(outputDesc.clone(),
                                                                        "Reorder_Output",
                                                                        "Result",
-                                                                       rtEnv);
+                                                                       context);
 
         parentEdge = std::make_shared<ov::intel_cpu::Edge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
