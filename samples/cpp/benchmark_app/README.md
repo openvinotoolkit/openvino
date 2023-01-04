@@ -113,7 +113,7 @@ Running the application with the `-h` or `--help` option yields the following us
 benchmark_app [OPTION]
 Options:
 
-    -h, --help                Print a usage message
+    -h, --help                Print the usage message
     -m "<path>"               Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
                               In case of dynamic shapes models with several inputs provide the same number of files for each input (except cases with single file for any input):"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
@@ -142,7 +142,7 @@ Options:
   device-specific performance options:
     -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -pin ("YES"|"CORE")/"HYBRID_AWARE"/("NO"|"NONE")/"NUMA"   Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
+    -pin ("YES"|"CORE")/"HYBRID_AWARE"/("NO"|"NONE")/"NUMA"   Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):
                                 enabling threads->cores pinning("YES", which is already default for any conventional CPU),
                                 letting the runtime to decide on the threads->different core types("HYBRID_AWARE", which is default on the hybrid CPUs)
                                 threads->(NUMA)nodes("NUMA") or
@@ -180,7 +180,7 @@ Options:
                                             }
                                        }
 
-    -infer_precision "<element type>"Optional. Inference precision
+    -infer_precision        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
     -ip                       <value>     Optional. Specifies precision for all input layers of the model.
     -op                       <value>     Optional. Specifies precision for all output layers of the model.
     -iop                      "<value>"    Optional. Specifies precision for input and output layers by name.
