@@ -32,6 +32,9 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
   
   .. note::
     The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
+    
+  .. note::    
+    Macintosh* computers using the M1* processor can now install OpenVINO and use the OpenVINO ARM* Device Plug-in on OpenVINO 2022.3 LTS and later. This plugin is community supported; no support is provided by Intel and it doesn't fall under the LTS 2-year support policy. :doc:`Learn more <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`
 
 .. tab:: Software Requirements
 
