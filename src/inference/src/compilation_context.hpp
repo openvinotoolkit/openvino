@@ -9,6 +9,10 @@
 #include <ostream>
 #include <string>
 
+namespace ov {
+class Tensor;
+}  // namespace ov
+
 namespace InferenceEngine {
 
 class CNNNetwork;
@@ -21,8 +25,7 @@ struct NetworkCompilationContext final {
     static std::string computeHash(const std::string& modelName,
                                    const std::map<std::string, std::string>& compileOptions);
     static std::string computeHash(const std::string& modeStr,
-                                   const char* dataPtr,
-                                   const size_t dataCount,
+                                   const ov::Tensor& data,
                                    const std::map<std::string, std::string>& compileOptions);
 };
 

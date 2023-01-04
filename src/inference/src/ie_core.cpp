@@ -547,18 +547,12 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     }
 
     std::string CalculateMemoryHash(const std::string& modelStr,
-                                    const ie::Blob::CPtr& weights,
+                                    const ov::Tensor& weights,
                                     const std::string& deviceFamily,
                                     const ov::InferencePlugin& plugin,
                                     const std::map<std::string, std::string>& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
-        char* ptr = nullptr;
-        size_t count = 0;
-        if (weights) {
-            ptr = weights->cbuffer().as<char*>();
-            count = weights->byteSize();
-        }
-        return ie::NetworkCompilationContext::computeHash(modelStr, ptr, count, compileConfig);
+        return ie::NetworkCompilationContext::computeHash(modelStr, weights, compileConfig);
     }
 
 public:
@@ -915,7 +909,11 @@ public:
         auto cacheContent = CacheContent{cacheManager};
         if (cacheManager && DeviceSupportsImportExport(plugin)) {
             bool loadedFromCache = false;
-            cacheContent.blobId = CalculateMemoryHash(modelStr, weights, parsed._deviceName, plugin, parsed._config);
+            ov::Tensor tensor = ov::Tensor();
+            if (weights) {
+                tensor = ov::Tensor(element::u8, {1, weights->byteSize()}, weights->cbuffer().as<uint8_t*>());
+            }
+            cacheContent.blobId = CalculateMemoryHash(modelStr, tensor, parsed._deviceName, plugin, parsed._config);
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
             res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {

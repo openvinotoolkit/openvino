@@ -141,17 +141,16 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
 }
 
 std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
-                                                   const char* dataPtr,
-                                                   const size_t dataCount,
+                                                   const ov::Tensor& data,
                                                    const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);
 
-    // model weights data
-    std::string dataStr(dataPtr);
-    seed = hash_combine(seed, dataCount);
+    // tensor data
+    seed = hash_combine(seed, data.get_size());
+    std::string dataStr(static_cast<char*>(data.data()));
     seed = hash_combine(seed, dataStr);
 
     // compile options
