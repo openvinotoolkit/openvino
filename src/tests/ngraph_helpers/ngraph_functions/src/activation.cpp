@@ -11,6 +11,7 @@
 namespace ngraph {
 namespace builder {
 
+
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType,
