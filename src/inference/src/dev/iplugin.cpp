@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/iplugin.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 #include <cpp/ie_cnn_network.h>
 #include <ie_common.h>
@@ -29,7 +29,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/icompiled_model.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -70,7 +70,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
                                                                const ov::AnyMap& properties) {
     if (old_plugin) {
         auto exec_network =
-            old_plugin->LoadNetwork(ov::legacy_convert::create_cnnnetwork(model, is_new_api()), any_copy(properties));
+            old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
         auto compiled_model = std::make_shared<ov::ICompiledModel>(exec_network);
         return compiled_model;
     }
@@ -83,7 +83,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
     std::shared_ptr<ICompiledModel> compiled_model;
     if (old_plugin) {
         auto compiled_model = std::make_shared<ov::ICompiledModel>(
-            old_plugin->LoadNetwork(ov::legacy_convert::create_cnnnetwork(model, is_new_api()),
+            old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
                                     any_copy(properties),
                                     context._impl));
         return compiled_model;
@@ -308,7 +308,7 @@ ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Mod
                                              const ov::AnyMap& properties) const {
     if (old_plugin) {
         auto res =
-            old_plugin->QueryNetwork(ov::legacy_convert::create_cnnnetwork(model, is_new_api()), any_copy(properties));
+            old_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
         if (res.rc != InferenceEngine::OK) {
             throw ov::Exception(res.resp.msg);
         }

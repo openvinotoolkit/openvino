@@ -15,7 +15,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include "openvino/core/any.hpp"
-#include "openvino/icompiled_model.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"

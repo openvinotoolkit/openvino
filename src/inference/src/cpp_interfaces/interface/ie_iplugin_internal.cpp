@@ -13,6 +13,7 @@
 #include <istream>
 #include <map>
 #include <memory>
+#include <openvino/runtime/remote_context.hpp>
 #include <string>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <unordered_set>
@@ -527,6 +528,11 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);
+}
+
+std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from) {
+    std::shared_ptr<::ov::IPlugin> plugin(new ::ov::IPlugin(from));
+    return plugin;
 }
 
 }  //  namespace InferenceEngine

@@ -13,25 +13,33 @@
 #include <openvino/core/deprecated.hpp>
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
-#include "openvino/icompiled_model.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_executor_manager.hpp"
-
-namespace InferenceEngine {
-class IExtension;
-}  // namespace InferenceEngine
 
 namespace ov {
 
 class ICore;
+class IPlugin;
 class CoreImpl;
+class IInferencePluginWrapper;
+class ICompiledModel;
 
-class OPENVINO_RUNTIME_API IPlugin : public InferenceEngine::IInferencePlugin {
+}  // namespace ov
+
+namespace InferenceEngine {
+class IExtension;
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
+convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
+}  // namespace InferenceEngine
+
+namespace ov {
+
+class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin> {
 public:
     /**
      * @brief Sets a plugin version
@@ -177,8 +185,6 @@ public:
         "This method allows to load legacy InferenceEngine Extensions and will be removed in 2024.0 release")
     virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
-    OPENVINO_DEPRECATED("Constructor is deprecated. Please do not use or re-implement it")
-    IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
     ~IPlugin() = default;
 
 protected:
@@ -242,6 +248,12 @@ private:
     bool m_is_new_api;      //!< A flag which shows used API
     std::shared_ptr<InferenceEngine::IInferencePlugin> old_plugin;
     friend ::ov::CoreImpl;
+    friend ::ov::IInferencePluginWrapper;
+
+    friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
+        InferenceEngine::convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
+    OPENVINO_DEPRECATED("Constructor is deprecated. Please do not use or re-implement it")
+    IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
 };
 
 }  // namespace ov
@@ -259,19 +271,17 @@ private:
  * @brief Defines the exported `OV_CREATE_PLUGIN` function which is used to create a plugin instance
  * @ingroup ov_dev_api_plugin_api
  */
-#define OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
-    OPENVINO_PLUGIN_API void OV_CREATE_PLUGIN(                                                              \
-        ::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);                    \
-    void OV_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false) { \
-        try {                                                                                               \
-            std::shared_ptr<ov::IPlugin> ov_plugin = ::std::make_shared<PluginType>(__VA_ARGS__);           \
-            ov_plugin->set_version(version);                                                                \
-            plugin = ov_plugin;                                                                             \
-        } catch (const InferenceEngine::Exception&) {                                                       \
-            throw;                                                                                          \
-        } catch (const std::exception& ex) {                                                                \
-            IE_THROW() << ex.what();                                                                        \
-        } catch (...) {                                                                                     \
-            IE_THROW(Unexpected);                                                                           \
-        }                                                                                                   \
+#define OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                       \
+    OPENVINO_PLUGIN_API void OV_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false); \
+    void OV_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false) {                    \
+        try {                                                                                            \
+            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
+            plugin->set_version(version);                                                                \
+        } catch (const InferenceEngine::Exception&) {                                                    \
+            throw;                                                                                       \
+        } catch (const std::exception& ex) {                                                             \
+            IE_THROW() << ex.what();                                                                     \
+        } catch (...) {                                                                                  \
+            IE_THROW(Unexpected);                                                                        \
+        }                                                                                                \
     }

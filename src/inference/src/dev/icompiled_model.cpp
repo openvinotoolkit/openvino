@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/icompiled_model.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 
 #include <cpp/ie_executable_network.hpp>
 #include <ie_remote_context.hpp>
@@ -12,7 +12,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/iplugin.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace ov {
 
@@ -31,8 +31,7 @@ public:
             _networkOutputs[output_info->getName()] = output_info;
             _results.emplace_back(output.get_node_shared_ptr());
         }
-        _plugin = std::dynamic_pointer_cast<InferenceEngine::IInferencePlugin>(
-            std::const_pointer_cast<ov::IPlugin>(m_model->m_plugin));
+        _plugin = ov::legacy_convert::convert_plugin(std::const_pointer_cast<ov::IPlugin>(m_model->m_plugin));
     }
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal> CreateInferRequest() override {

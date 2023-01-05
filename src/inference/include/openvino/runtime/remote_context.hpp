@@ -15,6 +15,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
@@ -31,6 +32,7 @@ class ICompiledModel;
 class CompiledModel;
 class IPlugin;
 class ExecNetworkWrapper;
+class IInferencePluginWrapper;
 
 /**
  * @brief This class represents an abstraction
@@ -59,6 +61,7 @@ protected:
     friend class ov::CompiledModel;
     friend class ov::IPlugin;
     friend class ov::ExecNetworkWrapper;
+    friend class ov::IInferencePluginWrapper;
 
 public:
     /**

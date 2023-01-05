@@ -20,9 +20,9 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "file_utils.h"
 #include "ie_plugin_config.hpp"
-#include "openvino/icompiled_model.hpp"
-#include "openvino/iplugin.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "so_ptr.hpp"
 
 #if defined __GNUC__
@@ -164,16 +164,6 @@ public:
     }
 
     Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_ptr<void>& so) : m_ptr{ptr}, m_so{so} {
-        OV_PLUGIN_CALL_STATEMENT();
-    }
-
-    Plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr, const std::shared_ptr<void>& so) : m_so{so} {
-        if (ptr) {
-            if (auto iplugin_ptr = std::dynamic_pointer_cast<ov::IPlugin>(ptr))
-                m_ptr = iplugin_ptr;
-            else
-                m_ptr = std::make_shared<ov::IPlugin>(ptr);
-        }
         OV_PLUGIN_CALL_STATEMENT();
     }
 

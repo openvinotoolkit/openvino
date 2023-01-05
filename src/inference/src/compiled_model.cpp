@@ -7,7 +7,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/icompiled_model.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 
 #define OV_EXEC_OLD_NET_CALL_STATEMENT(...)                 \
     if (_old_impl) {                                        \

@@ -7,7 +7,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <ngraph/function.hpp>
 
-#include "openvino/icompiled_model.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "template_async_infer_request.hpp"
 #include "template_config.hpp"
 #include "template_infer_request.hpp"

@@ -7,8 +7,8 @@
 #include <mutex>
 
 #include "backend.hpp"
-#include "openvino/icompiled_model.hpp"
-#include "openvino/iplugin.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "template_config.hpp"
 #include "template_executable_network.hpp"
 

@@ -28,6 +28,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "dev/converter_utils.hpp"
 #include "file_utils.h"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
@@ -42,12 +43,12 @@
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/icompiled_model.hpp"
-#include "openvino/iplugin.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -734,34 +735,6 @@ public:
         return get_default_context(deviceName)._impl;
     }
 
-    std::shared_ptr<ov::Model> legacy_to_model(const ie::CNNNetwork& network) const {
-        if (isNewAPI())
-            return std::const_pointer_cast<ov::Model>(network.getFunction());
-
-        auto cloned_model = network.getFunction()->clone();
-        for (auto&& input : cloned_model->inputs()) {
-            auto param_name = input.get_node()->get_friendly_name();
-
-            OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
-
-            auto input_info = network.getInputsInfo().at(param_name);
-            auto& rt_info = input.get_rt_info();
-            rt_info["ie_legacy_preproc"] = input_info->getPreProcess();
-            rt_info["ie_legacy_td"] = input_info->getTensorDesc();
-        }
-        for (auto&& result : cloned_model->get_results()) {
-            auto output = result->input_value(0);
-            const auto& res_name = ov::op::util::create_ie_output_name(output);
-
-            OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
-            auto output_info = network.getOutputsInfo().at(res_name);
-
-            auto& rt_info = output.get_rt_info();
-            rt_info["ie_legacy_td"] = output_info->getTensorDesc();
-        }
-        return cloned_model;
-    }
-
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                 const ov::RemoteContext& context,
                                                 const ov::AnyMap& properties) override {
@@ -806,7 +779,8 @@ public:
                                                           const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
         ov::RemoteContext ctx{context, {nullptr}};
-        auto compiled_model = compile_model(legacy_to_model(network), ctx, any_copy(config));
+        auto compiled_model =
+            compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
         return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
     }
 
@@ -934,7 +908,8 @@ public:
                                                 const std::string& deviceNameOrig,
                                                 const std::map<std::string, std::string>& config) override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
-        auto compiled_model = compile_model(legacy_to_model(network), deviceNameOrig, any_copy(config));
+        auto compiled_model =
+            compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceNameOrig, any_copy(config));
         return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
     }
 
@@ -956,15 +931,23 @@ public:
             res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());
-                res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, parsed._config, {}, cacheContent);
+                res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                         plugin,
+                                         parsed._config,
+                                         {},
+                                         cacheContent);
             }
         } else if (cacheManager) {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
-            res = plugin.compile_model(legacy_to_model(cnnNetwork), parsed._config);
+            res = plugin.compile_model(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()), parsed._config);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
-            res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, parsed._config, {}, cacheContent);
+            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                     plugin,
+                                     parsed._config,
+                                     {},
+                                     cacheContent);
         }
         return {res._ptr, res._so};
     }
@@ -992,18 +975,26 @@ public:
                 if (val) {
                     val(cnnNetwork);
                 }
-                res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, {}, cacheContent);
+                res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                         plugin,
+                                         conf,
+                                         {},
+                                         cacheContent);
             }
         } else if (cacheManager) {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
-            res = plugin.compile_model(legacy_to_model(cnnNetwork), conf);
+            res = plugin.compile_model(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()), conf);
         } else {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(legacy_to_model(cnnNetwork), plugin, conf, {}, cacheContent);
+            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                     plugin,
+                                     conf,
+                                     {},
+                                     cacheContent);
         }
         return {convert_compiled_model_to_legacy(res._ptr), res._so};
     }
@@ -1308,12 +1299,12 @@ public:
             ov::Plugin plugin;
 
             if (desc.pluginCreateFunc) {  // static OpenVINO case
-                std::shared_ptr<InferenceEngine::IInferencePlugin> plugin_impl;
+                std::shared_ptr<ov::IPlugin> plugin_impl;
                 desc.pluginCreateFunc(plugin_impl);
                 plugin = Plugin{plugin_impl, {}};
             } else {
                 so = ov::util::load_shared_object(desc.libraryLocation.c_str());
-                std::shared_ptr<InferenceEngine::IInferencePlugin> plugin_impl;
+                std::shared_ptr<ov::IPlugin> plugin_impl;
                 reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
                     ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
                 plugin = Plugin{plugin_impl, so};
