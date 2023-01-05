@@ -99,14 +99,20 @@ static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto num_spatial = format::spatial_num(node.get_output_layout().format);
     auto dims = node.get_output_layout().format.dimension();
 
+    // Check if it reduces all spatial axes
+    bool feature_axis_is_only_remaining = true;
+    for (size_t idx_spatial = (dims - num_spatial); idx_spatial < dims; idx_spatial++) {
+        if (count(reduce_axes.begin(), reduce_axes.end(), idx_spatial) == 0) {
+            feature_axis_is_only_remaining = false;
+            break;
+        }
+    }
 
     if (input_layout.is_static() &&
         (count(reduce_axes.begin(), reduce_axes.end(), 1) > 0 ||
-        (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0 && input_layout.batch() > 1))) {
-        for (size_t idx_spatial = dims - num_spatial ; idx_spatial < dims ; idx_spatial++) {
-            if (count(reduce_axes.begin(), reduce_axes.end(), idx_spatial) == 0)
-                return true;
-        }
+        (count(reduce_axes.begin(), reduce_axes.end(), 0) > 0))) {
+        if (!feature_axis_is_only_remaining)
+            return true;
     }
 
     return false;
@@ -1868,7 +1874,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             }
 
             if (node.get_preferred_output_fmt() == format::any) {
-                for (size_t usr = 0 ; usr < node.get_users().size() ; usr++)
+                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
                     node.set_preferred_output_fmt(usr, dst_fmt);
             }
 
