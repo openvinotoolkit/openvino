@@ -92,7 +92,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                              | | If not specified, `AUTO` will be used as default,                  |
 | |                              | | and all devices will be "viewed" as candidates.                    |
 +--------------------------------+----------------------------------------------------------------------+
-| | `ov::device:priorities`      | | **Values**:                                                        |
+| | `ov::device::priorities`     | | **Values**:                                                        |
 | |                              | |       `<device names>` (comma-separated, no spaces)                |
 | |                              | |                                                                    |
 | |                              | | Specifies the devices for AUTO to select.                          |
@@ -130,7 +130,7 @@ The device candidate list enables you to customize the priority and limit the ch
 - If <device candidate list> is not specified, AUTO assumes all the devices present in the system can be used. 
 - If `AUTO` without any device names is specified, AUTO assumes all the devices present in the system can be used, and will load the network to all devices and run inference based on their default priorities, from high to low.
 
-To specify the priority of devices, enter the device names in the priority order (from high to low) in `AUTO: <device names>`, or use the `ov::device:priorities` property.
+To specify the priority of devices, enter the device names in the priority order (from high to low) in `AUTO: <device names>`, or use the `ov::device::priorities` property.
 
 See the following code for using AUTO and specifying devices: 
 
