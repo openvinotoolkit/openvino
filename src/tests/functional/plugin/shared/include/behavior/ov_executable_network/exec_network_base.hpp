@@ -131,6 +131,17 @@ TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNet) {
     EXPECT_NO_THROW(execNet.set_property(config));
 }
 
+TEST_P(OVExecutableNetworkBaseTest, AutoNotImplementedSetConfigToExecNet) {
+    if (target_device.find("AUTO") != std::string::npos) {
+        std::map<std::string, ov::Any> config;
+        for (const auto& confItem : configuration) {
+            config.emplace(confItem.first, confItem.second);
+        }
+        auto execNet = core->compile_model(function, target_device, config);
+        EXPECT_ANY_THROW(execNet.set_property(config));
+    }
+}
+
 TEST_P(OVExecutableNetworkBaseTest, CanSetConfigToExecNetWithIncorrectConfig) {
     auto execNet = core->compile_model(function, target_device);
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};

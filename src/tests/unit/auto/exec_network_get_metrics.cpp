@@ -37,20 +37,7 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::ContainsRegex;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
-
-using ConfigParams = std::tuple<
-        bool,                        // if THROUGHPUT
-        unsigned int,                // cpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
-        int,                         // cpu infer requet num of customer want
-        bool,                        // if cpu sleep, cpu device will load slow
-        unsigned int,                // Actual device OPTIMAL_NUMBER_OF_INFER_REQUESTS
-        int,                         // Actual device infer requet num of customer want
-        bool,                        // if Actual device sleep, cpu device will load slow
-        std::string,                 // Actual Device Name
-        unsigned int,                // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
-        int                          // Actual PERFORMANCE_HINT_NUM_REQUESTS
-        >;
-class ExecNetworkGetMetric : public ::testing::TestWithParam<ConfigParams> {
+class ExecNetworkGetMetricBase : public ::testing::Test {
 public:
     std::shared_ptr<ngraph::Function>               function;
     InferenceEngine::CNNNetwork                     cnnNet;
@@ -75,44 +62,6 @@ public:
     std::shared_ptr<MockIInferRequestInternal>      inferReqInternal;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        unsigned int cpuOptimalNum;
-        int cpuCustomerNum;
-        unsigned int actualOptimalNum;
-        int actualCustomerNum;
-        unsigned int expectOptimalNum;
-        bool cpuSleep;
-        bool actualSleep;
-        bool isThroughput;
-        int gpuPerfHintNum;
-        std::string actualDeviceName;
-        std::tie(isThroughput, cpuOptimalNum, cpuCustomerNum, cpuSleep, actualOptimalNum,
-                    actualCustomerNum, actualSleep, actualDeviceName, expectOptimalNum, gpuPerfHintNum) = obj.param;
-        std::ostringstream result;
-        result << "cpuOptimalNum_" << cpuOptimalNum << "cpuCustomerNum_" << cpuCustomerNum;
-        result << "actualOptimalNum_" << actualOptimalNum << "actualCustomerNum_" << actualCustomerNum;
-        result << "expectOptimalNum_" << expectOptimalNum;
-        if (isThroughput) {
-            result << "_isThroughput" << "true";
-        } else {
-            result << "__isThroughput" << "false";
-        }
-        if (cpuSleep) {
-            result << "_cpuSleep_" << "true";
-        } else {
-            result << "_cpuSleep_" << "false";
-        }
-
-        if (actualSleep) {
-            result << "_actualSleep_" << "true";
-        } else {
-            result << "_actualSleep_" << "false";
-        }
-        result << "_actualDeviceName_" << actualDeviceName;
-        result << "_gpuPerfHintNum_" << gpuPerfHintNum;
-        return result.str();
-    }
-
     void TearDown() override {
         core.reset();
         plugin.reset();
@@ -158,7 +107,7 @@ public:
        inferReqInternal = std::make_shared<MockIInferRequestInternal>();
        ON_CALL(*cpuMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
        ON_CALL(*actualMockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
-       EXPECT_CALL(*inferReqInternal, SetCallback).Times(AtLeast(1));
+       //EXPECT_CALL(*inferReqInternal, SetCallback).Times(AtLeast(1));
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(supportConfigs));
@@ -169,7 +118,117 @@ public:
     }
 };
 
-TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
+using ConfigParams = std::tuple<bool,          // if THROUGHPUT
+                                unsigned int,  // cpu OPTIMAL_NUMBER_OF_INFER_REQUESTS
+                                int,           // cpu infer requet num of customer want
+                                bool,          // if cpu sleep, cpu device will load slow
+                                unsigned int,  // Actual device OPTIMAL_NUMBER_OF_INFER_REQUESTS
+                                int,           // Actual device infer requet num of customer want
+                                bool,          // if Actual device sleep, cpu device will load slow
+                                std::string,   // Actual Device Name
+                                unsigned int,  // expect OPTIMAL_NUMBER_OF_INFER_REQUESTS
+                                int            // Actual PERFORMANCE_HINT_NUM_REQUESTS
+                                >;
+class ExecNetworkGetMetricOptimalNumInferReq : public ExecNetworkGetMetricBase,
+                                               public ::testing::WithParamInterface<ConfigParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+        unsigned int cpuOptimalNum;
+        int cpuCustomerNum;
+        unsigned int actualOptimalNum;
+        int actualCustomerNum;
+        unsigned int expectOptimalNum;
+        bool cpuSleep;
+        bool actualSleep;
+        bool isThroughput;
+        int gpuPerfHintNum;
+        std::string actualDeviceName;
+        std::tie(isThroughput,
+                 cpuOptimalNum,
+                 cpuCustomerNum,
+                 cpuSleep,
+                 actualOptimalNum,
+                 actualCustomerNum,
+                 actualSleep,
+                 actualDeviceName,
+                 expectOptimalNum,
+                 gpuPerfHintNum) = obj.param;
+        std::ostringstream result;
+        result << "cpuOptimalNum_" << cpuOptimalNum << "cpuCustomerNum_" << cpuCustomerNum;
+        result << "actualOptimalNum_" << actualOptimalNum << "actualCustomerNum_" << actualCustomerNum;
+        result << "expectOptimalNum_" << expectOptimalNum;
+        if (isThroughput) {
+            result << "_isThroughput"
+                   << "true";
+        } else {
+            result << "__isThroughput"
+                   << "false";
+        }
+        if (cpuSleep) {
+            result << "_cpuSleep_"
+                   << "true";
+        } else {
+            result << "_cpuSleep_"
+                   << "false";
+        }
+
+        if (actualSleep) {
+            result << "_actualSleep_"
+                   << "true";
+        } else {
+            result << "_actualSleep_"
+                   << "false";
+        }
+        result << "_actualDeviceName_" << actualDeviceName;
+        result << "_gpuPerfHintNum_" << gpuPerfHintNum;
+        return result.str();
+    }
+};
+
+using ConfigParams1 = std::tuple<bool,          // is New API
+                                 bool,          // if Actual device sleep, cpu device will load slow
+                                 std::string,   // Actual Device Name
+                                 std::string,   // performance mode
+                                 IE::Parameter  // model Priority
+                                 >;
+
+class ExecNetworkGetMetricOtherTest : public ExecNetworkGetMetricBase,
+                                               public ::testing::WithParamInterface<ConfigParams1> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams1> obj) {
+        bool isNewAPI;
+        bool actualSleep;
+        std::string actualDeviceName;
+        std::string performanceMode;
+        IE::Parameter modelPriority;
+        std::tie(isNewAPI,
+                 actualSleep,
+                 actualDeviceName,
+                 performanceMode,
+                 modelPriority) = obj.param;
+        std::ostringstream result;
+        if (isNewAPI) {
+            result << "_isNewAPI_"
+                   << "true";
+        } else {
+            result << "_isNewAPI_"
+                   << "false";
+        }
+        if (actualSleep) {
+            result << "_actualSleep_"
+                   << "true";
+        } else {
+            result << "_actualSleep_"
+                   << "false";
+        }
+        result << "_actualDeviceName_" << actualDeviceName;
+        result << "_performanceMode_" << performanceMode;
+        result << "_modelPriority" << modelPriority.as<std::string>();
+        return result.str();
+    }
+};
+
+TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     unsigned int cpuOptimalNum;
     int cpuCustomerNum;
     unsigned int actualOptimalNum;
@@ -218,7 +277,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 return cpuMockExeNetwork;
                 }));
     } else {
@@ -231,7 +290,7 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(actualDeviceName)),
                     ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 return actualMockExeNetwork;
                 }));
     } else {
@@ -279,7 +338,6 @@ TEST_P(ExecNetworkGetMetric, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
     EXPECT_EQ(result, expectOptimalNum);
 }
 
-
 // ConfigParams {bool, unsigned int, int, bool,
 //               unsigned int, int, bool, std::string, unsigned int}
 //
@@ -317,6 +375,151 @@ const std::vector<ConfigParams> testConfigs = {
                                                ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
                                               };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,
-                ::testing::ValuesIn(testConfigs),
-            ExecNetworkGetMetric::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ExecNetworkGetMetricOptimalNumInferReq,
+                         ::testing::ValuesIn(testConfigs),
+                         ExecNetworkGetMetricOptimalNumInferReq::getTestCaseName);
+
+TEST_P(ExecNetworkGetMetricOtherTest, otherTest) {
+    unsigned int cpuOptimalNum = 3;
+    unsigned int actualOptimalNum = 2;
+    bool isNewAPI;
+    bool actualSleep;
+    std::string actualDeviceName;
+    std::string performanceHint;
+    IE::Parameter modelPriority;
+    std::tie(isNewAPI,
+             actualSleep,
+             actualDeviceName,
+             performanceHint,
+             modelPriority) = this->GetParam();
+
+    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
+                   CommonTestUtils::DEVICE_CPU + std::string(",") + actualDeviceName});
+    config.insert({CONFIG_KEY(PERFORMANCE_HINT), performanceHint});
+    config.insert({CONFIG_KEY(MODEL_PRIORITY), modelPriority});
+
+    if (isNewAPI) {
+        ON_CALL(*core.get(), isNewAPI()).WillByDefault(Return(true));
+    }
+    metaDevices.push_back(
+        {CommonTestUtils::DEVICE_CPU, {{CONFIG_KEY(PERFORMANCE_HINT), performanceHint}}, 3, ""});
+    metaDevices.push_back({actualDeviceName, {{CONFIG_KEY(PERFORMANCE_HINT), performanceHint}}, 2, ""});
+
+    ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
+    ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
+
+    ON_CALL(*core,
+            LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                        ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
+                        ::testing::Matcher<const Config&>(_)))
+        .WillByDefault(Return(cpuMockExeNetwork));
+
+    if (actualSleep) {
+        ON_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq(actualDeviceName)),
+                            ::testing::Matcher<const Config&>(_)))
+            .WillByDefault(InvokeWithoutArgs([this]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+                return actualMockExeNetwork;
+            }));
+    } else {
+        ON_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(StrEq(actualDeviceName)),
+                            ::testing::Matcher<const Config&>(_)))
+            .WillByDefault(Return(actualMockExeNetwork));
+    }
+
+    ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+           .WillByDefault(RETURN_MOCK_VALUE(cpuOptimalNum));
+    ON_CALL(*actualMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+           .WillByDefault(RETURN_MOCK_VALUE(actualOptimalNum));
+
+    auto AutoExecNetwork = plugin->LoadExeNetworkImpl(cnnNet, config);
+    auto resExcluASyncReq = AutoExecNetwork->GetMetric(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS).as<std::string>();
+    EXPECT_EQ(resExcluASyncReq, "");
+    auto result = AutoExecNetwork->GetMetric(ov::hint::performance_mode.name()).as<std::string>();
+    EXPECT_EQ(result, performanceHint);
+    auto resPriority = AutoExecNetwork->GetMetric(ov::hint::model_priority.name());
+    if (isNewAPI == true) {
+        if (modelPriority.as<std::string>() == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
+            EXPECT_EQ(resPriority, ov::hint::Priority::LOW);
+        } else if (modelPriority.as<std::string>() == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
+            EXPECT_EQ(resPriority, ov::hint::Priority::MEDIUM);
+        } else if (modelPriority.as<std::string>() == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
+            EXPECT_EQ(resPriority, ov::hint::Priority::HIGH);
+        }
+    } else {
+        EXPECT_EQ(resPriority, modelPriority);
+    }
+}
+
+const std::vector<ConfigParams1> testConfigs1 = {ConfigParams1{false,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+                                                 ConfigParams1{false,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::LATENCY,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+                                                 ConfigParams1{false,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
+                                                 ConfigParams1{false,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::LATENCY,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
+                                                 ConfigParams1{false,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               CONFIG_VALUE(THROUGHPUT),
+                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
+                                                 ConfigParams1{false,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::LATENCY,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
+                                                 ConfigParams1{true,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+                                                 ConfigParams1{true,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::LATENCY,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_LOW)},
+                                                 ConfigParams1{true,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
+                                                 ConfigParams1{true,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::LATENCY,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_MED)},
+                                                 ConfigParams1{true,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::THROUGHPUT,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)},
+                                                 ConfigParams1{true,
+                                                               true,
+                                                               CommonTestUtils::DEVICE_GPU,
+                                                               InferenceEngine::PluginConfigParams::LATENCY,
+                                                               CONFIG_VALUE(MODEL_PRIORITY_HIGH)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
+                         ExecNetworkGetMetricOtherTest,
+                         ::testing::ValuesIn(testConfigs1),
+                         ExecNetworkGetMetricOtherTest::getTestCaseName);

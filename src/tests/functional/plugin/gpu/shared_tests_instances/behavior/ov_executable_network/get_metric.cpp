@@ -68,7 +68,15 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs())));
 
+const std::vector<ov::AnyMap> multiPerformanceHintConfigs = {
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)}};
 
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
+                         OVClassExecutableNetworkGetMetricTest_PERFORMANCE_HINT,
+                         ::testing::Combine(::testing::Values("AUTO:GPU", "AUTO:GPU,CPU", "AUTO:CPU,GPU"),
+                                            ::testing::ValuesIn(multiPerformanceHintConfigs)));
 //
 // Executable Network GetConfig / SetConfig
 //
