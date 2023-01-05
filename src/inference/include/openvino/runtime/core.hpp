@@ -550,6 +550,22 @@ public:
     /**
      * @brief Gets properties related to device behaviour.
      *
+     * The method is needed to request the property of specified device from meta plugins.
+     *
+     * @tparam T Type of a returned value.
+     * @tparam M Property mutability.
+     * @param deviceName  Name of a meta device.
+     * @param property  std::pair object consisted of device name and requested property object.
+     * @return Property value.
+     */
+    template <typename T, PropertyMutability M>
+    T get_property(const std::string& deviceName, const std::pair<std::string, ov::Property<T, M>>& property) const {
+        return get_property(deviceName, property.first, {{property.first, property.second.name()}}).template as<T>();
+    }
+
+    /**
+     * @brief Gets properties related to device behaviour.
+     *
      * The method is needed to request common device or system properties.
      * It can be device name, temperature, other devices-specific values.
      *

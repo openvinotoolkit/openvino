@@ -296,6 +296,22 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _pluginConfig.supportedConfigKeys(GetName()));
+    } else if (_pluginConfig._availableDevices.end() != std::find(_pluginConfig._availableDevices.begin(),
+                                                                  _pluginConfig._availableDevices.end(),
+                                                                  DeviceIDParser(name).getDeviceName())) {
+        auto item = _pluginConfig._keyConfigMap.find(name);
+        if (item == _pluginConfig._keyConfigMap.end())
+            IE_THROW() << " No properties setting for target device: " << name << " in " << GetName();
+
+        std::stringstream strm(item->second);
+        std::map<std::string, std::string> devices_property;
+        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+        auto property = devices_property.find(options.find(name)->second.as<std::string>());
+
+        if (property == devices_property.end())
+            IE_THROW() << " Not found the set metric key " << options.find(name)->second.as<std::string>()
+                       << " for target device: " << name << " in " << GetName();
+        return property->second;
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
