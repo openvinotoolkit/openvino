@@ -168,26 +168,24 @@ bool Memory::DnnlMemPrimHandle::isInit() const {
 dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
     std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
-        // OneDNN accepts not a const data, probably need to remove some level of constantness in a call stack
-
         if (!m_memObjPtr->getDesc().isDefined()) {
             IE_THROW() << "Can not create oneDNN memory from undefined memory descriptor";
         }
 
         // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
-        // but with ability to skipp pads zeroing.
+        // but with ability to skip pads zeroing.
         auto desc = MemoryDescUtils::convertToDnnlMemoryDesc(m_memObjPtr->getDescPtr());
         m_prim = memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
-        auto data = m_memObjPtr->GetData();
+        auto data = m_memObjPtr->getDataNoThrow();
         auto pads_zeroing = m_memObjPtr->padsZeroing;
         if (data != nullptr) {
             if (pads_zeroing)
-                m_prim.set_data_handle(const_cast<void*>(data));
+                m_prim.set_data_handle(data);
             else
-                m_prim.set_data_handle_no_pads_proc(const_cast<void*>(data));
+                m_prim.set_data_handle_no_pads_proc(data);
         }
     }
     return m_prim;

@@ -205,11 +205,11 @@ public:
      * @return
      */
     void* GetData() const {
-        void* data = mgrHandle->getRawPtr();
+        void* data = getDataNoThrow();
         if (data == nullptr &&
             pMemDesc->getShape().isStatic() &&
             pMemDesc->getShape().getElementsCount() != 0)
-            IE_THROW() << "Cannot get memory!";
+            IE_THROW() << "Memory has not been allocated";
         return data;
     }
 
@@ -283,6 +283,10 @@ private:
         mutable dnnl::memory m_prim;
         const Memory* m_memObjPtr;
     } dnnlMemHandle;
+
+    void* getDataNoThrow() const noexcept {
+        return mgrHandle->getRawPtr();
+    }
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;
