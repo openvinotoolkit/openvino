@@ -59,6 +59,24 @@ TEST(FrontEndConvertTrickyModels, undefined_input_shape) {
     }
 }
 
+TEST(FrontEndConvertTrickyModels, simple_wide_and_deep) {
+    shared_ptr<Model> model;
+    try {
+        model = convert_model("simple_wide_and_deep/simple_wide_and_deep.pb");
+    } catch (std::exception& ex) {
+        ASSERT_TRUE(false) << ex.what();
+    }
+
+    int num_emb_segment_sum = 0;
+    for (auto& node : model->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<EmbeddingSegmentsSum>(node)) {
+            ++num_emb_segment_sum;
+        }
+    }
+
+    ASSERT_EQ(num_emb_segment_sum, 1) << "The number of EmbeddingSegmentsSum nodes must be 1";
+}
+
 TEST(FrontEndConvertTrickyModels, model_with_output_shapes) {
     shared_ptr<Model> model;
     try {
