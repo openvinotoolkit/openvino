@@ -46,4 +46,7 @@ class ResultRename(BackReplacementPattern):
                     log.warning("Tensor name for Result node with name {} wasn't found. "
                                 "Default renaming was used: {}".format(node.soft_get('name', node.id),
                                                                        result_name))
+                for idx in range(len(graph.outputs_order)):
+                    if graph.outputs_order[idx] == node['name']:
+                        graph.outputs_order[idx] = result_name
                 node['name'] = result_name

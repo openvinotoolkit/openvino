@@ -45,11 +45,15 @@ class ResultRenameTest(unittest.TestCase):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1'),
                                     ('Op1_data', 'Op2'), ('Op2', 'Op2_data'),
                                     ('Op2_data', 'result2')])
+        graph.outputs_order = ['result1', 'result2']
+
         ResultRename().find_and_replace_pattern(graph)
         res1_node = Node(graph, 'result1')
         res2_node = Node(graph, 'result2')
         self.assertTrue(res1_node['name'] == 'Op1_tensor')
         self.assertTrue(res2_node['name'] == 'Op2_tensor')
+
+        self.assertTrue(graph.outputs_order == ['Op1_tensor', 'Op2_tensor'])
 
     def test_case5(self):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1'),
