@@ -118,15 +118,32 @@ div.highlight {
     border: none;
     border-radius: 0;
     font-weight: bold;
+    width: 100%;
+    margin-right: auto;
+    margin-left: auto;
 }
 
 .transition-banner > p {
     margin-bottom: 0;
 }
 
-.transition-banner .close {
+.transition-banner .close-banner {
+    position:absolute;
+    top:0;
+    right:0;
     padding: 0 1.25rem;
     color: #000;
+    background-color: transparent;
+    border: 0;
+    float: right;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 1px 0 #fff;
+    opacity: .5;
+}
+.hidden-banner {
+    display: none!important;
 }
 
 
