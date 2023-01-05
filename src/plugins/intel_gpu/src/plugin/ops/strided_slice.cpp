@@ -21,15 +21,17 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
     std::string layerName = layer_type_name_ID(op);
 
     auto output_pshape = op->get_output_partial_shape(0);
+    auto input_pshape = op->get_input_partial_shape(0);
+
+    auto begin_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
+    std::vector<int64_t> begin = begin_constant ? begin_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
+    auto end_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
+    std::vector<int64_t> end = end_constant ? end_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
+    auto stride_constant = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
+    std::vector<int64_t> strides = stride_constant ? stride_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
+
     do {
-        auto data_output = op->input_value(0);
-        auto begin_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
-        auto end_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
-        auto stride_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->input_value(3).get_node_shared_ptr());
-
-        auto partial_input_shape = op->get_input_partial_shape(0);
-
-        if (!begin_node || !end_node || !stride_node || partial_input_shape.is_dynamic()) {
+        if (!begin_constant || !end_constant || !stride_constant || input_pshape.is_dynamic()) {
             break;
         }
 
@@ -40,10 +42,6 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         auto input_shape = input_pshape.to_shape();
         auto output_shape = output_pshape.to_shape();
-
-        auto begin = begin_node->cast_vector<int64_t>();
-        auto end = end_node->cast_vector<int64_t>();
-        auto strides = stride_node->cast_vector<int64_t>();
 
         bool ones_stride = true;
         for (auto & s : strides) {
@@ -201,6 +199,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             inPrimitive = cldnn::input_info(reshapeInName);
         }
 
+        auto data_output = op->input_value(0);
         auto data_node_shape = data_output.get_shape();
 
         std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
@@ -245,18 +244,32 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
     // To be removed once we enable internal shape infer for all operations
     auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
-    auto stridedSlicePrim = cldnn::strided_slice(layerName,
-                                                 inputs[0],
-                                                 inputs[1],
-                                                 inputs[2],
-                                                 inputs[3],
-                                                 op->get_begin_mask(),
-                                                 op->get_end_mask(),
-                                                 op->get_new_axis_mask(),
-                                                 op->get_shrink_axis_mask(),
-                                                 op->get_ellipsis_mask(),
-                                                 output_shape);
-
+    std::shared_ptr<cldnn::strided_slice> stridedSlicePrim = nullptr;
+    if (begin_constant && end_constant && stride_constant) {
+        stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
+                                                                  inputs[0],
+                                                                  begin,
+                                                                  end,
+                                                                  strides,
+                                                                  op->get_begin_mask(),
+                                                                  op->get_end_mask(),
+                                                                  op->get_new_axis_mask(),
+                                                                  op->get_shrink_axis_mask(),
+                                                                  op->get_ellipsis_mask(),
+                                                                  output_shape);
+    } else {
+        stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
+                                                                  inputs[0],
+                                                                  inputs[1],
+                                                                  inputs[2],
+                                                                  inputs[3],
+                                                                  op->get_begin_mask(),
+                                                                  op->get_end_mask(),
+                                                                  op->get_new_axis_mask(),
+                                                                  op->get_shrink_axis_mask(),
+                                                                  op->get_ellipsis_mask(),
+                                                                  output_shape);
+    }
     p.add_primitive(*op, stridedSlicePrim);
 }
 
