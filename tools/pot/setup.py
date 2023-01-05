@@ -65,8 +65,7 @@ if '--install-dev-extras' in sys.argv:
     sys.argv.remove('--install-dev-extras')
 
 INSTALL_REQUIRES = [
-    "numpy>=1.16.6; python_version < '3.11'",
-    "numpy>=1.23.2; python_version >= '3.11'",
+    "numpy>=1.16.6",
     "scipy~=1.7; python_version == '3.7'",
     "scipy>=1.8; python_version >= '3.8'",
     "jstyleson>=0.0.2",
