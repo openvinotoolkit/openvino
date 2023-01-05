@@ -15,6 +15,7 @@ class ResultRename(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         op_names = set()
+        result_names_map = dict()
         for node in graph.get_op_nodes():
             if node.has_valid('name'):
                 op_names.add(node['name'])
@@ -46,7 +47,10 @@ class ResultRename(BackReplacementPattern):
                     log.warning("Tensor name for Result node with name {} wasn't found. "
                                 "Default renaming was used: {}".format(node.soft_get('name', node.id),
                                                                        result_name))
-                for idx in range(len(graph.outputs_order)):
-                    if graph.outputs_order[idx] == node['name']:
-                        graph.outputs_order[idx] = result_name
+                result_names_map[node['name']] = result_name
                 node['name'] = result_name
+
+        # Change names saved in graph.outputs_order
+        for i in range(len(graph.outputs_order)):
+            if graph.outputs_order[i] in result_names_map:
+                graph.outputs_order[i] = result_names_map[graph.outputs_order[i]]
