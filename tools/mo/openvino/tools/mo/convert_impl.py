@@ -216,6 +216,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
+    # when compress_to_fp16 argument was introduced data_type is always FP32
     argv.data_type = 'FP32'
     if 'compress_to_fp16' in argv and argv.compress_to_fp16 is True:
         argv.compress_fp16 = True
