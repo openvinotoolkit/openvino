@@ -27,7 +27,7 @@ pytest-metadata==1.11.0
 py>=1.9.0
 pytz==2021.1
 requests==2.25.1
-six==1.15.0
+six==1.16.0
 snowballstemmer==2.1.0
 soupsieve==2.2.1
 sphinx==4.5.0
