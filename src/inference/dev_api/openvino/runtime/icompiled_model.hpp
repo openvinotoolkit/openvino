@@ -56,9 +56,7 @@ public:
     virtual ov::RemoteContext get_context() const;
 
 protected:
-    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request_impl(
-        const std::vector<ov::Output<const ov::Node>>& inputs,
-        const std::vector<ov::Output<const ov::Node>>& outputs) const;
+    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request_impl() const;
 
 private:
     std::vector<ov::Output<const ov::Node>> m_inputs;

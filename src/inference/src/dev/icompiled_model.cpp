@@ -76,15 +76,16 @@ public:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> CreateInferRequestImpl(
         const std::vector<std::shared_ptr<const ov::Node>>& inputs,
         const std::vector<std::shared_ptr<const ov::Node>>& outputs) override {
-        std::vector<ov::Output<const ov::Node>> model_inputs, model_outputs;
-        for (const auto& input : inputs) {
-            model_inputs.emplace_back(ov::Output<const ov::Node>{input, 0});
-        }
-        for (const auto& output : outputs) {
-            ov::Output<ov::Node> in_value = output->input_value(0);
-            model_outputs.emplace_back(ov::Output<const ov::Node>{in_value.get_node(), 0});
-        }
-        return m_model->create_infer_request_impl(model_inputs, model_outputs);
+        // TODO: chect that inputs, outputs == m_inputs, m_outputs
+        // std::vector<ov::Output<const ov::Node>> model_inputs, model_outputs;
+        // for (const auto& input : inputs) {
+        //     model_inputs.emplace_back(ov::Output<const ov::Node>{input, 0});
+        // }
+        // for (const auto& output : outputs) {
+        //     ov::Output<ov::Node> in_value = output->input_value(0);
+        //     model_outputs.emplace_back(ov::Output<const ov::Node>{in_value.get_node(), 0});
+        // }
+        return m_model->create_infer_request_impl();
     }
 
 private:
@@ -123,8 +124,7 @@ std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::crea
     if (m_exec_network) {
         return m_exec_network->CreateInferRequest();
     }
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> asyncRequestImpl =
-        create_infer_request_impl(m_inputs, m_outputs);
+    std::shared_ptr<InferenceEngine::IInferRequestInternal> asyncRequestImpl = create_infer_request_impl();
     // asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return asyncRequestImpl;
 }
@@ -168,9 +168,7 @@ ov::RemoteContext ov::ICompiledModel::get_context() const {
         OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request_impl(
-    const std::vector<ov::Output<const ov::Node>>& inputs,
-    const std::vector<ov::Output<const ov::Node>>& outputs) const {
+std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request_impl() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
