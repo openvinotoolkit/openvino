@@ -147,7 +147,7 @@ public:
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return make_unique<non_max_suppression_impl>(arg, best_kernel);
+        return make_unique<non_max_suppression_impl>(best_kernel);
     }
 
 private:

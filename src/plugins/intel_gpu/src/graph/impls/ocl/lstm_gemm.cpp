@@ -85,7 +85,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_gemm_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_gemm_params, lstm_gemm_optional_params);
 
-        return make_unique<lstm_gemm_impl>(arg, best_kernel);
+        return make_unique<lstm_gemm_impl>(best_kernel);
     }
 };
 

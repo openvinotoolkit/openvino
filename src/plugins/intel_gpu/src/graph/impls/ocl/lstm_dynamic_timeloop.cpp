@@ -83,7 +83,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(dlstm_timeloop_params, dlstm_timeloop_optional_params);
 
-        return make_unique<lstm_dynamic_timeloop_impl>(arg, best_kernel);
+        return make_unique<lstm_dynamic_timeloop_impl>(best_kernel);
     }
 };
 

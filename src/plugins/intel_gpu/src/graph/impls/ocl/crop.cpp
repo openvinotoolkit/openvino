@@ -30,7 +30,7 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
     explicit crop_impl(const crop_impl& other) : parent(other),
         _can_be_optimized(other._can_be_optimized) {}
 
-    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+    crop_impl(const crop_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
         set_node_params(arg);
     }
 

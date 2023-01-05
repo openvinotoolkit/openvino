@@ -19,13 +19,10 @@ struct typed_program_node<binary_convolution> : public typed_program_node_base<b
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog), split(this->get_primitive()->split()), depthwise_sep_opt(false) {}
+        : parent(prim, prog), split(this->get_primitive()->split()) {}
 
     void set_split(int32_t node_split) { split = node_split; }
     int32_t get_split() const { return split; }
-
-    void set_depthwise_sep_opt(bool node_depthwise_sep_opt) { depthwise_sep_opt = node_depthwise_sep_opt; }
-    bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
 
     program_node& input() const { return get_dependency(0); }
 
@@ -49,7 +46,6 @@ public:
 
 private:
     int32_t split;
-    bool depthwise_sep_opt;
 };
 
 using binary_convolution_node = typed_program_node<binary_convolution>;

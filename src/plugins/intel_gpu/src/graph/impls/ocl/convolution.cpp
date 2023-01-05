@@ -33,10 +33,9 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
 
     explicit convolution_impl(const convolution_impl& other) : parent(other),
       _split(other._split),
-      _groups(other._groups),
-      _depthwise_sep_opt(other._depthwise_sep_opt) {}
+      _groups(other._groups) {}
 
-    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
         set_node_params(arg);
     }
 
@@ -45,7 +44,6 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
         const auto& node = arg.as<convolution>();
         _split = node.get_split();
         _groups = node.get_groups();
-        _depthwise_sep_opt = node.get_depthwise_sep_opt();
     }
 
 protected:
@@ -55,7 +53,7 @@ protected:
         auto data_type = instance.node->input().get_output_layout().data_type;
 
         // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(_node_id,
+        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(instance.id(),
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
@@ -79,21 +77,18 @@ protected:
 
     int32_t get_split() const override { return _split; }
     uint32_t get_groups() const override { return _groups; }
-    bool get_depthwise_sep_opt() const override { return _depthwise_sep_opt; }
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << _split;
         ob << _groups;
-        ob << _depthwise_sep_opt;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         ib >> _split;
         ib >> _groups;
-        ib >> _depthwise_sep_opt;
     }
 
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
@@ -233,13 +228,12 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        return make_unique<convolution_impl>(arg, best_kernel);
+        return make_unique<convolution_impl>(best_kernel);
     }
 
 private:
     int32_t _split;
     uint32_t _groups;
-    bool _depthwise_sep_opt;
 };
 
 namespace detail {

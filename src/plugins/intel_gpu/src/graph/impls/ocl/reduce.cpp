@@ -82,7 +82,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
 
     explicit reduce_impl(const reduce_impl& other) : parent(other) {}
 
-    reduce_impl(const reduce_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+    reduce_impl(const reduce_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
         this->can_reuse_memory = kd.can_reuse_memory;
     }
 

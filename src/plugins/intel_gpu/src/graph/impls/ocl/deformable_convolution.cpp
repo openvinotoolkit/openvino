@@ -33,7 +33,7 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         _split(other._split),
         _groups(other._groups) {}
 
-    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
         set_node_params(arg);
     }
 

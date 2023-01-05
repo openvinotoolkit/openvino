@@ -22,16 +22,12 @@ public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
           split(this->get_primitive()->split()),
-          depthwise_sep_opt(false),
           groups(this->get_primitive()->groups) {
         support_padding_all(true);
     }
 
     void set_split(int32_t node_split) { split = node_split; }
     int32_t get_split() const { return split; }
-
-    void set_depthwise_sep_opt(bool node_depthwise_sep_opt) { depthwise_sep_opt = node_depthwise_sep_opt; }
-    bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
 
     void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
@@ -85,7 +81,6 @@ public:
 
 private:
     int32_t split;
-    bool depthwise_sep_opt;
     uint32_t groups;
 };
 

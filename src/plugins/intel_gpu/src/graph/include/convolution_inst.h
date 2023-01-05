@@ -22,7 +22,6 @@ public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
           split(this->get_primitive()->split()),
-          depthwise_sep_opt(false),
           transposed(false),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
@@ -32,9 +31,6 @@ public:
 
     void set_split(int32_t node_split) { split = node_split; }
     int32_t get_split() const { return split; }
-
-    void set_depthwise_sep_opt(bool node_depthwise_sep_opt) { depthwise_sep_opt = node_depthwise_sep_opt; }
-    bool get_depthwise_sep_opt() const { return depthwise_sep_opt; }
 
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
@@ -137,7 +133,6 @@ public:
 
 private:
     int32_t split;
-    bool depthwise_sep_opt;
     bool transposed;
     uint32_t groups;
     uint32_t deformable_groups;

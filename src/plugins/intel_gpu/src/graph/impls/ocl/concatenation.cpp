@@ -62,7 +62,7 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
     explicit concatenation_impl(const concatenation_impl& other) : parent(other),
         _can_be_optimized(other._can_be_optimized) {}
 
-    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
         if (!arg.can_be_optimized()) {
             CLDNN_ERROR_NOT_EQUAL(arg.id(),
                                   "Input count",

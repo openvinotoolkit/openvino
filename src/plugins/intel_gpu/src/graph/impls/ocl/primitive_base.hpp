@@ -31,13 +31,12 @@ For example, all gpu convolution implementations should derive from typed_primit
 */
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
-    primitive_id _node_id;
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
     kernel_arguments_data_idx _kernel_args;
 
-    typed_primitive_impl_ocl() : _node_id(""), _kernel_data({}), _kernel_ids({}), _kernels({}) {
+    typed_primitive_impl_ocl() : _kernel_data({}), _kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
@@ -45,7 +44,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
-    , _node_id(other._node_id)
     , _kernel_data(other._kernel_data)
     , _kernel_ids(other._kernel_ids)
     , _kernels({}) {
@@ -55,9 +53,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         }
     }
 
-    typed_primitive_impl_ocl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
+    typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
-          _node_id(arg.id()),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -90,13 +87,13 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     template<typename ImplType>
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         if (arg.can_be_optimized()) {
-            return make_unique<ImplType>(arg, kernel_selector::kernel_data{});
+            return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(impl_param);
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
-        return make_unique<ImplType>(arg, best_kernel);
+        return make_unique<ImplType>(best_kernel);
     }
 
 protected:
@@ -157,7 +154,6 @@ protected:
 
     virtual int32_t get_split() const { return 1; }
     virtual uint32_t get_groups() const { return 1; }
-    virtual bool get_depthwise_sep_opt() const { return false; }
 
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
