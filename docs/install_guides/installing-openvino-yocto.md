@@ -100,7 +100,7 @@ openvino-model-optimizer-dev
 
 ## Additional Resources
 
-- [Troubleshooting Guide](openvino_docs_get_started_guide_troubleshooting_issues.html#yocto-install-issues)
+- [Troubleshooting Guide](@ref yocto-install-issues)
 - [Yocto Project](https://docs.yoctoproject.org/) - official documentation webpage
 - [BitBake Tool](https://docs.yoctoproject.org/bitbake/)
 - [Poky](https://git.yoctoproject.org/poky)

@@ -1,7 +1,7 @@
 # Quantizing Image Classification Model {#pot_example_classification_README}
 
 This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a classification model.
-The [MobilenetV2](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/mobilenet-v2-1.0-224/mobilenet-v2-1.0-224.md) model from TensorFlow* is used for this purpose.
+The [MobilenetV2](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-1.0-224) model from TensorFlow* is used for this purpose.
 A custom `DataLoader` is created to load the [ImageNet](http://www.image-net.org/) classification dataset and the implementation of Accuracy at top-1 metric is used for the model evaluation. The code of the example is available on [GitHub](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/classification).
 
 ## How to prepare the data

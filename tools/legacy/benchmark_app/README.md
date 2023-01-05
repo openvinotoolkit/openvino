@@ -53,7 +53,7 @@ Note that the benchmark_app usually produces optimal performance for any device 
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-It still may be sub-optimal for some cases, especially for very small networks. For all devices, including the [MULTI device](../../../docs/OV_Runtime_UG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model. If latency of the CPU inference on the multi-socket machines is of concern.
+It still may be sub-optimal for some cases, especially for very small networks. For all devices, including the [MULTI device](../../../docs/OV_Runtime_UG/multi_device.md) it is preferable to use the FP16 IR for the model. If latency of the CPU inference on the multi-socket machines is of concern.
 These, as well as other topics are explained in the [Performance Optimization Guide](../../../docs/optimization_guide/dldt_deployment_optimization_guide.md).
 
 Running the application with the `-h` option yields the following usage message:
