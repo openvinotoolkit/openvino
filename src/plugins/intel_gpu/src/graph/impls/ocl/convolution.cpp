@@ -166,6 +166,54 @@ public:
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
+        auto can_swap_xy = [&](kernel_selector::convolution_params& cp) -> bool {
+            if (cp.inputs[0].GetLayout() == kernel_selector::Tensor::DataLayout::bfyx
+                && cp.inputs[0].X().v == 1 && cp.inputs[0].Y().v > 1
+                && cp.inputs[0].X().pad.Total() == 0
+                && cp.outputs[0].GetLayout() == kernel_selector::Tensor::DataLayout::bfyx
+                && cp.outputs[0].X().v == 1 && cp.outputs[0].Y().v > 1
+                && cp.weights.X().v == 1 && cp.weights.Y().v > 1
+                && !((cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v && cp.split == 1)
+                    || (cp.split == cp.inputs[0].Feature().v && cp.groups == 1))) { // Don't swap if it is depthwise conv
+                auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
+                    auto x_channel_idx = kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
+                                                    kernel_selector::Tensor::DataChannelName::X);
+                    auto x_axis_dim = dt.GetDims()[x_channel_idx];
+                    return (x_axis_dim.pad.Total() == 0 && x_axis_dim.v == 1);
+                };
+
+                for (auto& desc : cp.fused_ops) {
+                    if (!can_swap(desc.output_tensor)) {
+                        return false;
+                    }
+                    for (size_t i = 0; i < desc.tensors.size(); i++) {
+                        if (!can_swap(desc.tensors[i])) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            return false;
+        };
+
+        // Swap XY axes
+        if (can_swap_xy(conv_params) && primitive->deformable_mode == false) {
+            conv_params.inputs[0].SwapXY();
+            conv_params.outputs[0].SwapXY();
+            conv_params.weights.SwapXY();
+            for (auto& desc : conv_params.fused_ops) {
+                desc.output_tensor.SwapXY();
+                for (size_t i = 0; i < desc.tensors.size(); i++) {
+                    desc.tensors[i].SwapXY();
+                }
+            }
+            conv_params.filterSize = { ky, kx, kz };
+            conv_params.padding = {pad_y, pad_x, pad_z};
+            conv_params.stride = {stride_y, stride_x, stride_z};
+            conv_params.dilation = {dilation_y, dilation_x, dilation_z};
+        }
+
         auto format = impl_param.get_output_layout().format;
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||

@@ -23,6 +23,8 @@
 #include <fstream>
 #include <tuple>
 
+#include "convolution_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -9318,4 +9320,87 @@ TEST(convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1) {
 
 TEST(export_import_convolution_f32_gpu, convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1) {
     test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1<FLOAT16>(true);
+}
+
+
+TEST(convolution_f32_fw_gpu, basic_convolution_no_bias_swap_xy) {
+    //  Filter : 2x2x1x3
+    //  Stride : 1x1
+    //  Input  : 1x2x1x5
+    //  Output : 1x2x1x3
+    //
+    //  Input:
+    //  1 1
+    //  2 2
+    //  3 3
+    //  4 4
+    //  5 5
+    //
+    //  Filter:
+    //  1 1 1 1
+    //  2 2 2 2
+    //  1 1 1 1
+    //
+    //  Output:
+    //  16 16
+    //  24 24
+    //  32 32
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 5 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 3 } });
+
+    set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f });
+    set_values(weights, { 1.0f, 2.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 2.0f, 1.0f, 1.0f, 2.0f, 1.0f});
+    VVVF<float> output_vec = {{{ 16.0f }, { 24.0f }, { 32.0f }}, {{ 16.0f }, { 24.0f }, { 32.0f }}};
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        convolution("conv", input_info("input"), { "weights" }, { 1, 1 }));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "conv");
+
+    const auto& const_net = network;
+    const auto conv_inst = const_net.get_primitive("conv");
+    ASSERT_TRUE(conv_inst != nullptr);
+
+    auto output_memory = outputs.at("conv").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(b_size, 1);
+
+    for (int f = 0; f < f_size; ++f) {
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_EQ(output_vec[f][y][x], output_ptr[f * y_size + y * x_size + x]);
+            }
+        }
+    }
+
+    auto inst = network.get_primitive("conv");
+    const auto& node = inst->get_node();
+    auto selected_impl = node.type()->choose_impl(node);
+    bool found_define = false;
+    for (auto& s : selected_impl->get_kernels_source()) {
+        if (s != nullptr && !s->get_str().empty()
+            && s->get_str().find("#define INPUT0_SIZE_X 5") != std::string::npos)
+            found_define = true;
+    }
+    EXPECT_TRUE(found_define);
 }

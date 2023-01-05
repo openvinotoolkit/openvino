@@ -892,6 +892,7 @@ kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_
         const auto d = t[tensor_index];
         vec[i] = static_cast<size_t>(d);
     }
+
     return kernel_selector::weights_tensor(vec, ks_type, ks_layout);
 }
 
