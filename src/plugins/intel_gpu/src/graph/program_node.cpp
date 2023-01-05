@@ -6,7 +6,6 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
-#include "strided_slice_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -348,16 +347,6 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    if (is_type<strided_slice>()) {
-        for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
-                return true;
-        }
-    }
     for (const auto& input : get_dependencies()) {
         if (input.first->is_dynamic_output_layout())
             return true;
@@ -371,17 +360,6 @@ bool program_node::is_dynamic() const {
 }
 
 bool program_node::is_dynamic() {
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    if (is_type<strided_slice>()) {
-        for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
-                return true;
-        }
-    }
-
     for (auto& input : get_dependencies()) {
         if (input.first->is_dynamic_output_layout())
             return true;
