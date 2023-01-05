@@ -20,7 +20,7 @@ foreach(rpm_file IN LISTS CPACK_PACKAGE_FILES)
         set(file_option --file "${rpmlint_overrides}")
     endif()
 
-    execute_process(COMMAND "${rpmlint_PROGRAM}" ${file_option} ${rpm_file}
+    execute_process(COMMAND "${rpmlint_PROGRAM}" --strict ${file_option} ${rpm_file}
                     RESULT_VARIABLE rpmlint_exit_code
                     OUTPUT_VARIABLE rpmlint_output)
 
@@ -29,6 +29,8 @@ foreach(rpm_file IN LISTS CPACK_PACKAGE_FILES)
         message("${rpmlint_output}")
         set(rpmlint_passed OFF)
     endif()
+
+    unset(file_option)
 endforeach()
 
 if(NOT rpmlint_passed)

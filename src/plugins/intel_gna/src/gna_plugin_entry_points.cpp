@@ -7,7 +7,6 @@
 
 using namespace InferenceEngine;
 using namespace std;
-using namespace GNAPluginNS;
 
 static const Version gnaPluginDescription = {
         {2, 1},

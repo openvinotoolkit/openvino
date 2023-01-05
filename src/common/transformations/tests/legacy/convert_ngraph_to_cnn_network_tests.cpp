@@ -2,28 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
-
 #include <cpp/ie_cnn_network.h>
-#include <legacy/cnn_network_impl.hpp>  // deprecated API
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/cnn_network_impl.hpp>  // deprecated API
+#include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
-#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
-#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_precision.hpp>
+#include <legacy/ngraph_ops/convolution_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <legacy/ngraph_ops/convolution_ie.hpp>
-#include <transformations/init_node_info.hpp>
-#include <legacy/convert_function_to_cnn_network.hpp>
-
 #include <ngraph/pass/manager.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/convert_precision.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -37,8 +34,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
         prelu->set_friendly_name("prelu");
         auto result = std::make_shared<ngraph::op::Result>(prelu);
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                               ngraph::ParameterVector{param1, param2});
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.run_passes(f);
@@ -47,8 +43,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
-    } catch (InferenceEngine::Exception &err) {
-        const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
+    } catch (InferenceEngine::Exception& err) {
+        const std::string ref_msg =
+            "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
         ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos) << resp_msg;
     }
@@ -59,17 +56,17 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
         auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1});
-        auto convolution = std::make_shared<ngraph::op::ConvolutionIE>(param1, param2,
-                                                                  ngraph::Strides{1, 1},
-                                                                  ngraph::Strides{1, 1},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::element::f32);
+        auto convolution = std::make_shared<ngraph::op::ConvolutionIE>(param1,
+                                                                       param2,
+                                                                       ngraph::Strides{1, 1},
+                                                                       ngraph::Strides{1, 1},
+                                                                       ngraph::CoordinateDiff{0, 0},
+                                                                       ngraph::CoordinateDiff{0, 0},
+                                                                       ngraph::element::f32);
         convolution->set_friendly_name("convolution");
         auto result = std::make_shared<ngraph::op::Result>(convolution);
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                               ngraph::ParameterVector{param1, param2});
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.run_passes(f);
@@ -78,34 +75,34 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
-    } catch (InferenceEngine::Exception &err) {
+    } catch (InferenceEngine::Exception& err) {
         FAIL() << err.what();
     }
 }
 
 TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
     ngraph::NodeVector should_converted_to_ie = {
-            std::make_shared<ngraph::opset4::Convolution>(),
-            std::make_shared<ngraph::opset4::GatherTree>(),
-            std::make_shared<ngraph::opset4::GroupConvolution>(),
-            std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
-            std::make_shared<ngraph::opset4::GRUCell>(),
-            // std::make_shared<ngraph::op::v5::GRUSequence>(), todo: enable after GRUSequence support
-            std::make_shared<ngraph::opset4::HardSigmoid>(),
-            std::make_shared<ngraph::opset4::LRN>(),
-            std::make_shared<ngraph::opset4::LSTMCell>(),
-            // std::make_shared<ngraph::op::v5::LSTMSequence>(), todo: enable after LSTMSequence support
-            std::make_shared<ngraph::opset4::NonMaxSuppression>(),
-            std::make_shared<ngraph::opset4::NormalizeL2>(),
-            std::make_shared<ngraph::opset4::RNNCell>(),
-            // std::make_shared<ngraph::op::v5::RNNSequence>(), todo: enable after RNNSequence support
-            std::make_shared<ngraph::opset4::OneHot>(),
-            std::make_shared<ngraph::opset4::Pad>(),
-            std::make_shared<ngraph::opset4::PriorBoxClustered>(),
-            std::make_shared<ngraph::opset4::PriorBox>(),
-            std::make_shared<ngraph::opset4::Proposal>(),
-            std::make_shared<ngraph::opset4::Selu>(),
-            std::make_shared<ngraph::opset4::Swish>(),
+        std::make_shared<ngraph::opset4::Convolution>(),
+        std::make_shared<ngraph::opset4::GatherTree>(),
+        std::make_shared<ngraph::opset4::GroupConvolution>(),
+        std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
+        std::make_shared<ngraph::opset4::GRUCell>(),
+        // std::make_shared<ngraph::op::v5::GRUSequence>(), todo: enable after GRUSequence support
+        std::make_shared<ngraph::opset4::HardSigmoid>(),
+        std::make_shared<ngraph::opset4::LRN>(),
+        std::make_shared<ngraph::opset4::LSTMCell>(),
+        // std::make_shared<ngraph::op::v5::LSTMSequence>(), todo: enable after LSTMSequence support
+        std::make_shared<ngraph::opset4::NonMaxSuppression>(),
+        std::make_shared<ngraph::opset4::NormalizeL2>(),
+        std::make_shared<ngraph::opset4::RNNCell>(),
+        // std::make_shared<ngraph::op::v5::RNNSequence>(), todo: enable after RNNSequence support
+        std::make_shared<ngraph::opset4::OneHot>(),
+        std::make_shared<ngraph::opset4::Pad>(),
+        std::make_shared<ngraph::opset4::PriorBoxClustered>(),
+        std::make_shared<ngraph::opset4::PriorBox>(),
+        std::make_shared<ngraph::opset4::Proposal>(),
+        std::make_shared<ngraph::opset4::Selu>(),
+        std::make_shared<ngraph::opset4::Swish>(),
     };
 
     // create simple ngraph function Parameter -> Result
@@ -122,31 +119,34 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
 
         EXPECT_THROW(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true),
                      InferenceEngine::Exception)
-                     << "failed node: " << ngraph_node->get_type_name() << std::endl;
+            << "failed node: " << ngraph_node->get_type_name() << std::endl;
         try {
             InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl, true);
-        } catch (InferenceEngine::Exception &err) {
+        } catch (InferenceEngine::Exception& err) {
             std::string type_name = ngraph_node->get_type_name();
 
-            std::map<std::string, std::string> exceptions = { {"Broadcast", "Tile"}, {"Interpolate", "Interp"},
-                                                              {"NormalizeL2", "NormalizeIE"},
-                                                              {"GroupConvolution", "ConvolutionIE"},
-                                                              {"ConvolutionBackpropData", "DeconvolutionIE"},
-                                                              {"GroupConvolutionBackpropData", "DeconvolutionIE"},
-                                                              };
+            std::map<std::string, std::string> exceptions = {
+                {"Broadcast", "Tile"},
+                {"Interpolate", "Interp"},
+                {"NormalizeL2", "NormalizeIE"},
+                {"GroupConvolution", "ConvolutionIE"},
+                {"ConvolutionBackpropData", "DeconvolutionIE"},
+                {"GroupConvolutionBackpropData", "DeconvolutionIE"},
+            };
             std::string type_name_ie = type_name + "IE";
             if (exceptions[type_name].empty()) {
                 type_name_ie = type_name + "IE";
             } else {
                 type_name_ie = exceptions[type_name];
             }
-            std::string expected_error_message = type_name + " operation has a form that is not supported. "
-                    + ngraph_node->get_friendly_name()  + " should be converted to " + type_name_ie + " operation.";
+            std::string expected_error_message = type_name + " operation has a form that is not supported. " +
+                                                 ngraph_node->get_friendly_name() + " should be converted to " +
+                                                 type_name_ie + " operation.";
             std::string real_message = err.what();
             bool is_messages_match = real_message.find(expected_error_message) != std::string::npos;
             EXPECT_TRUE(is_messages_match) << "failed node: " << type_name << std::endl
-                        << "Exception massage: " << err.what() << std::endl
-                        << "Expected message: " << expected_error_message << std:: endl;
+                                           << "Exception massage: " << err.what() << std::endl
+                                           << "Expected message: " << expected_error_message << std::endl;
         } catch (...) {
             FAIL() << "ERROR: Unexpected exception thrown: " << std::current_exception << std::endl;
         }
@@ -160,12 +160,15 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
         ngraph::Shape const_shape = {};
         std::vector<int64_t> val = {5};
         auto k = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, const_shape, val);
-        auto topK = std::make_shared<ngraph::opset4::TopK>(param, k, 2, ngraph::opset4::TopK::Mode::MAX, ngraph::opset4::TopK::SortType::SORT_VALUES);
+        auto topK = std::make_shared<ngraph::opset4::TopK>(param,
+                                                           k,
+                                                           2,
+                                                           ngraph::opset4::TopK::Mode::MAX,
+                                                           ngraph::opset4::TopK::SortType::SORT_VALUES);
         topK->set_friendly_name("topK");
         auto result = std::make_shared<ngraph::op::Result>(topK->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                               ngraph::ParameterVector{param});
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.run_passes(f);
@@ -177,18 +180,19 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-    static const precisions_array convert_precision_list {
-            {ngraph::element::i64, ngraph::element::i32},
-            {ngraph::element::u64, ngraph::element::i32},
-            {ngraph::element::u16, ngraph::element::i32},
-            {ngraph::element::u32, ngraph::element::i32},
-            {ngraph::element::f16, ngraph::element::f32},
-            {ngraph::element::boolean, ngraph::element::u8},
+    static const precisions_array convert_precision_list{
+        {ngraph::element::i64, ngraph::element::i32},
+        {ngraph::element::u64, ngraph::element::i32},
+        {ngraph::element::u16, ngraph::element::i32},
+        {ngraph::element::u32, ngraph::element::i32},
+        {ngraph::element::f16, ngraph::element::f32},
+        {ngraph::element::boolean, ngraph::element::u8},
     };
 
     manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<ngraph::pass::ConvertPrecision>(
+        precisions_array{{ngraph::element::i64, ngraph::element::i32}});
 
     manager.run_passes(f);
 
@@ -201,8 +205,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
         OutputsDataMap outputs = nGraphImpl.getOutputsInfo();
         ASSERT_EQ(outputs.size(), 1);
         ASSERT_EQ(outputs.begin()->first, "topK.1");
-    } catch (InferenceEngine::Exception &err) {
-        const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
+    } catch (InferenceEngine::Exception& err) {
+        const std::string ref_msg =
+            "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
         ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos) << resp_msg;
     }
@@ -220,20 +225,20 @@ TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
         auto result = std::make_shared<ngraph::op::Result>(non_zero->output(0));
         result->set_friendly_name("result");
 
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                               ngraph::ParameterVector{param});
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
         FAIL() << "InferenceEngine::Exception must be thrown";
-    } catch(InferenceEngine::Exception & e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Unsupported dynamic ops: \n"
-                                                             "v0::Parameter param () -> (f32[...])\n"
-                                                             "v0::Relu relu (param[0]:f32[...]) -> (f32[...])\n"
-                                                             "v3::NonZero non_zero (relu[0]:f32[...]) -> (i64[?,?])\n"
-                                                             "v0::Result result (non_zero[0]:i64[?,?]) -> (i64[?,?])")));
+    } catch (InferenceEngine::Exception& e) {
+        EXPECT_THAT(e.what(),
+                    testing::HasSubstr(std::string("Unsupported dynamic ops: \n"
+                                                   "v0::Parameter param () -> (f32[...])\n"
+                                                   "v0::Relu relu (param[0]:f32[...]) -> (f32[...])\n"
+                                                   "v3::NonZero non_zero (relu[0]:f32[...]) -> (i64[?,?])\n"
+                                                   "v0::Result result (non_zero[0]:i64[?,?]) -> (i64[?,?])")));
     }
 }
 
@@ -245,12 +250,12 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesAllInternal) {
         auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
         end->set_friendly_name(begin->get_name());
         auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(
-                input,
-                begin,
-                end,
-                stride,
-                std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
+                                                                 begin,
+                                                                 end,
+                                                                 stride,
+                                                                 std::vector<int64_t>{1, 1},
+                                                                 std::vector<int64_t>{1, 1});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{input});
     }
@@ -270,12 +275,12 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult1) {
         auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
         end->set_friendly_name(begin->get_name());
         auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(
-                input,
-                begin,
-                end,
-                stride,
-                std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
+                                                                 begin,
+                                                                 end,
+                                                                 stride,
+                                                                 std::vector<int64_t>{1, 1},
+                                                                 std::vector<int64_t>{1, 1});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin}, ngraph::ParameterVector{input});
     }
@@ -297,12 +302,12 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult2) {
         end->set_friendly_name("const");
         auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
         stride->set_friendly_name("const");
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(
-                input,
-                begin,
-                end,
-                stride,
-                std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
+                                                                 begin,
+                                                                 end,
+                                                                 stride,
+                                                                 std::vector<int64_t>{1, 1},
+                                                                 std::vector<int64_t>{1, 1});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin}, ngraph::ParameterVector{input});
     }
@@ -324,14 +329,16 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesHasResult3) {
         end->set_friendly_name("const");
         auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
         stride->set_friendly_name("const");
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(
-                input,
-                begin,
-                end,
-                stride,
-                std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
+                                                                 begin,
+                                                                 end,
+                                                                 stride,
+                                                                 std::vector<int64_t>{1, 1},
+                                                                 std::vector<int64_t>{1, 1});
         ss->set_friendly_name("node");
-        auto squeeze = std::make_shared<ngraph::opset1::Squeeze>(ss, ngraph::opset1::Constant::create(ngraph::element::i64, {1}, {0}));
+        auto squeeze =
+            std::make_shared<ngraph::opset1::Squeeze>(ss,
+                                                      ngraph::opset1::Constant::create(ngraph::element::i64, {1}, {0}));
         squeeze->set_friendly_name("node");
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{squeeze, begin}, ngraph::ParameterVector{input});
     }
@@ -355,12 +362,12 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesNegative) {
         auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
         end->set_friendly_name("const");
         auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(
-                input,
-                begin,
-                end,
-                stride,
-                std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
+        auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
+                                                                 begin,
+                                                                 end,
+                                                                 stride,
+                                                                 std::vector<int64_t>{1, 1},
+                                                                 std::vector<int64_t>{1, 1});
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss, begin, end}, ngraph::ParameterVector{input});
     }
@@ -375,12 +382,12 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
     auto begin = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
     auto end = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {0, 0});
     auto stride = ngraph::opset1::Constant::create(ngraph::element::i64, {2}, {1, 1});
-    auto ss = std::make_shared<ngraph::opset1::StridedSlice>(
-            input,
-            begin,
-            end,
-            stride,
-            std::vector<int64_t>{1, 1}, std::vector<int64_t>{1, 1});
+    auto ss = std::make_shared<ngraph::opset1::StridedSlice>(input,
+                                                             begin,
+                                                             end,
+                                                             stride,
+                                                             std::vector<int64_t>{1, 1},
+                                                             std::vector<int64_t>{1, 1});
     auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3});
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::NodeVector{ss, input2}, 0);
 
@@ -391,7 +398,7 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
         input2->set_friendly_name("param");
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
         FAIL() << "InferenceEngine::Exception must be thrown";
-    } catch(InferenceEngine::Exception & e) {
+    } catch (InferenceEngine::Exception& e) {
         EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
     }
 }
@@ -416,10 +423,13 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
         auto result = std::make_shared<ngraph::opset5::Result>(varConcat);
 
         auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat2 = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+        auto varConcat2 =
+            std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
 
         auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::SinkVector{assign}, ngraph::ParameterVector{param1, param2});
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
+                                               ngraph::SinkVector{assign},
+                                               ngraph::ParameterVector{param1, param2});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -450,10 +460,13 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers2) {
         auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
 
         auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat2 = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+        auto varConcat2 =
+            std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
 
         auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{}, ngraph::SinkVector{assign}, ngraph::ParameterVector{param2});
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{},
+                                               ngraph::SinkVector{assign},
+                                               ngraph::ParameterVector{param2});
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -467,5 +480,3 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers2) {
     IE_SUPPRESS_DEPRECATED_END
     ASSERT_EQ(2, memory_count);
 }
-
-

@@ -12,6 +12,8 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
+#include "fully_connected_inst.h"
+
 #include <cmath>
 
 using namespace cldnn;
@@ -81,30 +83,30 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("bias", bias),
-        fully_connected(out_id, "input", "weights", "bias")
+        fully_connected(out_id, input_info("input"), "weights", "bias")
     );
     if (relu)
     {
-        topology.add(activation("out", out_id, activation_func::relu, { slope, 0.0f }));
+        topology.add(activation("out", input_info(out_id), activation_func::relu, { slope, 0.0f }));
         out_id = "out";
     }
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, out_id);
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, out_id);
 
     auto output_memory = outputs.at(out_id).get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
 
-    //EXPECT_EQ(output_layout.format.value, test_input_fmt);
+    //ASSERT_EQ(output_layout.format.value, test_input_fmt);
     tensor output_tensor = output_layout.get_tensor();
     int b_size = output_tensor.batch[0];
     int x_size = output_tensor.feature[0];
-    EXPECT_EQ(b_size, input_b);
-    EXPECT_EQ(x_size, output_f);
+    ASSERT_EQ(b_size, input_b);
+    ASSERT_EQ(x_size, output_f);
     unsigned num_of_operations = f * x * y * 2;
     float ulp = (1.0f / 1024.0f) * num_of_operations;
     bool test_is_correct = true;
@@ -112,13 +114,13 @@ void generic_fully_connected_test(cldnn::format test_input_fmt, cldnn::format te
     VF<T> output_cpu_vec = flatten_4d<T>(layout_4d(output_layout.format), output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
         if (std::abs(float(output_cpu_vec[i]) - float(output_ptr[i])) > ulp) {
-            EXPECT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]); // to print the problematic values
+            ASSERT_FLOAT_EQ(output_cpu_vec[i], output_ptr[i]); // to print the problematic values
             test_is_correct = false;
             break;
         }
     }
 
-    EXPECT_EQ(test_is_correct, true) << std::endl
+    ASSERT_EQ(test_is_correct, true) << std::endl
         << "failing test parameters:" << std::endl
         << "test_input_fmt = " << format::traits(test_input_fmt).order << std::endl
         << "test_weights_fmt = " << format::traits(test_weights_fmt).order << std::endl
@@ -203,7 +205,7 @@ TEST(fully_connected_gpu, no_biases) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto fc = fully_connected("fc_prim", "input", "weights");
+    auto fc = fully_connected("fc_prim", input_info("input"), "weights");
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -213,17 +215,17 @@ TEST(fully_connected_gpu, no_biases) {
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "fc_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(1.5f, output_ptr[0]);
-    EXPECT_EQ(0.75f, output_ptr[1]);
-    EXPECT_EQ(-2.25f, output_ptr[2]);
-    EXPECT_EQ(3.0f, output_ptr[3]);
+    ASSERT_EQ(1.5f, output_ptr[0]);
+    ASSERT_EQ(0.75f, output_ptr[1]);
+    ASSERT_EQ(-2.25f, output_ptr[2]);
+    ASSERT_EQ(3.0f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, no_biases_int8) {
@@ -260,9 +262,9 @@ TEST(fully_connected_gpu, no_biases_int8) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } });
+    auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights");
+    auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -273,17 +275,17 @@ TEST(fully_connected_gpu, no_biases_int8) {
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_to_float");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_to_float");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(18.0f, output_ptr[0]);
-    EXPECT_EQ(-32.0f, output_ptr[1]);
-    EXPECT_EQ(12.0f, output_ptr[2]);
-    EXPECT_EQ(-52.0f, output_ptr[3]);
+    ASSERT_EQ(18.0f, output_ptr[0]);
+    ASSERT_EQ(-32.0f, output_ptr[1]);
+    ASSERT_EQ(12.0f, output_ptr[2]);
+    ASSERT_EQ(-52.0f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, xb_f32_batch_1) {
@@ -325,24 +327,24 @@ TEST(fully_connected_gpu, xb_f32_batch_1) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "fc_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.5f, output_ptr[0]);
-    EXPECT_EQ(2.75f, output_ptr[1]);
-    EXPECT_EQ(0.75f, output_ptr[2]);
-    EXPECT_EQ(7.0f, output_ptr[3]);
+    ASSERT_EQ(2.5f, output_ptr[0]);
+    ASSERT_EQ(2.75f, output_ptr[1]);
+    ASSERT_EQ(0.75f, output_ptr[2]);
+    ASSERT_EQ(7.0f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, xb_f32_batch_2) {
@@ -385,28 +387,28 @@ TEST(fully_connected_gpu, xb_f32_batch_2) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "fc_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.50f, output_ptr[0]);
-    EXPECT_EQ(4.00f, output_ptr[1]);
-    EXPECT_EQ(2.75f, output_ptr[2]);
-    EXPECT_EQ(1.00f, output_ptr[3]);
-    EXPECT_EQ(0.75f, output_ptr[4]);
-    EXPECT_EQ(2.75f, output_ptr[5]);
-    EXPECT_EQ(7.00f, output_ptr[6]);
-    EXPECT_EQ(5.00f, output_ptr[7]);
+    ASSERT_EQ(2.50f, output_ptr[0]);
+    ASSERT_EQ(4.00f, output_ptr[1]);
+    ASSERT_EQ(2.75f, output_ptr[2]);
+    ASSERT_EQ(1.00f, output_ptr[3]);
+    ASSERT_EQ(0.75f, output_ptr[4]);
+    ASSERT_EQ(2.75f, output_ptr[5]);
+    ASSERT_EQ(7.00f, output_ptr[6]);
+    ASSERT_EQ(5.00f, output_ptr[7]);
 }
 
 TEST(fully_connected_gpu, x_f32) {
@@ -447,24 +449,24 @@ TEST(fully_connected_gpu, x_f32) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias")
+        fully_connected("fc_prim", input_info("input"), "weights", "bias")
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "fc_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.50f, output_ptr[0]);
-    EXPECT_EQ(2.75f, output_ptr[1]);
-    EXPECT_EQ(0.75f, output_ptr[2]);
-    EXPECT_EQ(7.00f, output_ptr[3]);
+    ASSERT_EQ(2.50f, output_ptr[0]);
+    ASSERT_EQ(2.75f, output_ptr[1]);
+    ASSERT_EQ(0.75f, output_ptr[2]);
+    ASSERT_EQ(7.00f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
@@ -507,25 +509,25 @@ TEST(fully_connected_gpu, xb_f32_batch_1_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.50f, output_ptr[0]);
-    EXPECT_EQ(0.00f, output_ptr[1]);
-    EXPECT_EQ(0.75f, output_ptr[2]);
-    EXPECT_EQ(0.00f, output_ptr[3]);
+    ASSERT_EQ(2.50f, output_ptr[0]);
+    ASSERT_EQ(0.00f, output_ptr[1]);
+    ASSERT_EQ(0.75f, output_ptr[2]);
+    ASSERT_EQ(0.00f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
@@ -569,29 +571,29 @@ TEST(fully_connected_gpu, xb_f32_batch_2_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.50f, output_ptr[0]);
-    EXPECT_EQ(4.00f, output_ptr[1]);
-    EXPECT_EQ(0.00f, output_ptr[2]);
-    EXPECT_EQ(0.00f, output_ptr[3]);
-    EXPECT_EQ(0.75f, output_ptr[4]);
-    EXPECT_EQ(2.75f, output_ptr[5]);
-    EXPECT_EQ(0.00f, output_ptr[6]);
-    EXPECT_EQ(0.00f, output_ptr[7]);
+    ASSERT_EQ(2.50f, output_ptr[0]);
+    ASSERT_EQ(4.00f, output_ptr[1]);
+    ASSERT_EQ(0.00f, output_ptr[2]);
+    ASSERT_EQ(0.00f, output_ptr[3]);
+    ASSERT_EQ(0.75f, output_ptr[4]);
+    ASSERT_EQ(2.75f, output_ptr[5]);
+    ASSERT_EQ(0.00f, output_ptr[6]);
+    ASSERT_EQ(0.00f, output_ptr[7]);
 }
 
 TEST(fully_connected_gpu, x_f32_relu) {
@@ -632,25 +634,25 @@ TEST(fully_connected_gpu, x_f32_relu) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.50f, output_ptr[0]);
-    EXPECT_EQ(0.00f, output_ptr[1]);
-    EXPECT_EQ(0.75f, output_ptr[2]);
-    EXPECT_EQ(0.00f, output_ptr[3]);
+    ASSERT_EQ(2.50f, output_ptr[0]);
+    ASSERT_EQ(0.00f, output_ptr[1]);
+    ASSERT_EQ(0.75f, output_ptr[2]);
+    ASSERT_EQ(0.00f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
@@ -692,25 +694,25 @@ TEST(fully_connected_gpu, x_f32_relu_with_negative_slope) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        fully_connected("fc_prim", "input", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu_negative_slope, { 0.1f })
+        fully_connected("fc_prim", input_info("input"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu_negative_slope, { 0.1f })
     );
 
     network network(engine, topology);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.50f, output_ptr[0]);
-    EXPECT_EQ(-0.125f, output_ptr[1]);
-    EXPECT_EQ(0.75f, output_ptr[2]);
-    EXPECT_EQ(-0.1f, output_ptr[3]);
+    ASSERT_EQ(2.50f, output_ptr[0]);
+    ASSERT_EQ(-0.125f, output_ptr[1]);
+    ASSERT_EQ(0.75f, output_ptr[2]);
+    ASSERT_EQ(-0.1f, output_ptr[3]);
 }
 
 TEST(fully_connected_gpu, b_fs_yx_fsv4)
@@ -739,7 +741,7 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
 
     // Reorder
     topology.add(reorder("reorder_in",
-                         "input",
+                         input_info("input"),
                          layout(data_types::i8, format::b_fs_yx_fsv4, { in_B, in_F, in_X, in_Y })));
 
     // Weights
@@ -768,9 +770,9 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
 
     // Fully connected
     fully_connected fullc_gold(
-        "fullc_gold", "input", "weights_gold", "bias_gold");
+        "fullc_gold", input_info("input"), "weights_gold", "bias_gold");
     fully_connected fullc_imad(
-        "fullc_imad", "reorder_in", "weights_imad", "bias_imad");
+        "fullc_imad", input_info("reorder_in"), "weights_imad", "bias_imad");
     topology.add(fullc_gold, fullc_imad);
 
 
@@ -787,15 +789,15 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
         data("in_hi", input_high_mem),
         data("out_lo", output_low_mem),
         data("out_hi", output_high_mem),
-        quantize("quant_gold", "fullc_gold", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        quantize("quant_imad", "fullc_imad", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8)
+        quantize("quant_gold", input_info("fullc_gold"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        quantize("quant_imad", input_info("fullc_imad"), input_info("in_lo"), input_info("in_hi"), input_info("out_lo"), input_info("out_hi"), 255, data_types::i8)
     );
 
     // Output reorder
     auto reorder_gold =
-        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
+        reorder("reorder_gold", input_info("quant_gold"), layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
     auto reorder_imad =
-        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
+        reorder("reorder_imad", input_info("quant_imad"), layout(data_types::i8, format::bfyx, { in_B, W_B, 1, 1 }));
     topology.add(reorder_gold, reorder_imad);
 
     // Network build
@@ -827,7 +829,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
     if (!engine.get_device_info().supports_fp16)
     {
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        EXPECT_EQ(1, 1);
+        ASSERT_EQ(1, 1);
         return;
     }
     // Test parameters
@@ -862,9 +864,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc_prim", "input_fsv", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        reorder("input_fsv", input_info("input"), { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc_prim", input_info("input_fsv"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -887,7 +889,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
             auto val = output_ptr[bi * output_f + fi];
             auto equal = floating_point_equal(ref_val, val);
 
-            EXPECT_TRUE(equal);
+            ASSERT_TRUE(equal);
             if (!equal)
             {
                 std::cout << "At b = " << bi << ", f = " << fi << std::endl;
@@ -903,7 +905,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     if (!engine.get_device_info().supports_fp16)
     {
         std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
-        EXPECT_EQ(1, 1);
+        ASSERT_EQ(1, 1);
         return;
     }
     // Test parameters
@@ -938,9 +940,9 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
         data("bias", bias_prim),
-        reorder("input_fsv", "input", { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
-        fully_connected("fc_prim", "input_fsv", "weights", "bias"),
-        activation("out", "fc_prim", activation_func::relu)
+        reorder("input_fsv", input_info("input"), { data_types::f16, format::fs_b_yx_fsv32, { batch_num, input_f, input_y, input_x } }),
+        fully_connected("fc_prim", input_info("input_fsv"), "weights", "bias"),
+        activation("out", input_info("fc_prim"), activation_func::relu)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -963,7 +965,7 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
             auto val = output_ptr[bi * output_f + fi];
             auto equal = floating_point_equal(ref_val, val);
 
-            EXPECT_TRUE(equal);
+            ASSERT_TRUE(equal);
             if (!equal)
             {
                 std::cout << "At b = " << bi << ", f = " << fi << std::endl;
@@ -1373,8 +1375,8 @@ public:
         auto last_dim = std::find_if(input_sizes.rbegin(), input_sizes.rend(),
                                      [](tensor::value_type x) { return x != 1l; });
         size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
-        auto fc_prim = fully_connected("fc_prim", "input", "weights", "bias", cldnn::padding(), input_rank);
-        fc_prim.output_data_type = type_to_data_type<OutputT>::value;
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::padding(), input_rank);
+        fc_prim.output_data_types = {type_to_data_type<OutputT>::value};
         topo.add(fc_prim);
 
         topo.add(data("quant_input_low", quantization_input_low));
@@ -1382,16 +1384,16 @@ public:
         topo.add(data("quant_output_low", quantization_output_low));
         topo.add(data("quant_output_high", quantization_output_high));
         topo.add(quantize("quantization_prim",
-            "fc_prim",
-            "quant_input_low",
-            "quant_input_high",
-            "quant_output_low",
-            "quant_output_high",
+            input_info("fc_prim"),
+            input_info("quant_input_low"),
+            input_info("quant_input_high"),
+            input_info("quant_output_low"),
+            input_info("quant_output_high"),
             _quantization.levels,
             output_data_type()
             ));
 
-        topo.add(reorder("output", "quantization_prim", format::bfyx, output_data_type()));
+        topo.add(reorder("output", input_info("quantization_prim"), format::bfyx, output_data_type()));
 
         build_options build_opts;
         build_opts.set_option(build_option::optimize_data(true));
@@ -1405,7 +1407,7 @@ public:
 
         for (size_t bi = 0; bi < batch_num(); ++bi) {
             for (size_t fi = 0; fi < output_f(); ++fi) {
-                EXPECT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi;
+                ASSERT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi;
             }
         }
     }
@@ -1674,9 +1676,9 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights");
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { input_b, 4, 1, 1 } });
+    auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, 1 } });
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights");
+    auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, 4, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1692,17 +1694,17 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_to_float");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_to_float");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(18.0f, output_ptr[0]);
-    EXPECT_EQ(-32.0f, output_ptr[1]);
-    EXPECT_EQ(12.0f, output_ptr[2]);
-    EXPECT_EQ(-52.0f, output_ptr[3]);
+    ASSERT_EQ(18.0f, output_ptr[0]);
+    ASSERT_EQ(-32.0f, output_ptr[1]);
+    ASSERT_EQ(12.0f, output_ptr[2]);
+    ASSERT_EQ(-52.0f, output_ptr[3]);
 }
 
 TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
@@ -1715,6 +1717,8 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
                   output_b = 2, output_f = 4;
 
     auto& engine = get_onednn_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     auto input_prim = engine.allocate_memory({ data_types::f32, format::bfyx, { input_b, input_f, 1, input_y } });
     auto weights_prim = engine.allocate_memory({ data_types::i8, format::bfyx, { weight_o, weight_i, 1, 1 } });
@@ -1724,9 +1728,9 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
 
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
-    auto ri = reorder("reorder_to_int", "input", { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
-    auto fc = fully_connected("fc_prim", "reorder_to_int", "weights", "", padding(), 3);
-    auto rf = reorder("reorder_to_float", "fc_prim", { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
+    auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights", "", padding(), 3);
+    auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
     topology topology;
     topology.add(input);
     topology.add(w_data);
@@ -1742,18 +1746,18 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_to_float");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_to_float");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
     for (int b = 0; b < output_b; b++) {
-        EXPECT_EQ(18.0f, output_ptr[b * output_f + 0]);
-        EXPECT_EQ(-32.0f, output_ptr[b * output_f + 1]);
-        EXPECT_EQ(12.0f, output_ptr[b * output_f + 2]);
-        EXPECT_EQ(-52.0f, output_ptr[b * output_f + 3]);
+        ASSERT_EQ(18.0f, output_ptr[b * output_f + 0]);
+        ASSERT_EQ(-32.0f, output_ptr[b * output_f + 1]);
+        ASSERT_EQ(12.0f, output_ptr[b * output_f + 2]);
+        ASSERT_EQ(-52.0f, output_ptr[b * output_f + 3]);
     }
 }
 #endif
@@ -1773,7 +1777,7 @@ TEST(fully_connected_gpu, dynamic) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;
@@ -1823,7 +1827,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;
@@ -1903,13 +1907,18 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
     options.set_option(cldnn::build_option::allow_new_shape_infer(true));
     network network(engine, topology, options);
+
+    auto inst = network.get_primitive("fc");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
 
     {
         network.set_input_data("input", input_data1);
@@ -1988,7 +1997,7 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
     cldnn::topology topology{
         input_layout("input", input_dyn_layout),
         data("weights", weights_data),
-        fully_connected("fc", "input", "weights")
+        fully_connected("fc", input_info("input"), "weights")
     };
 
     build_options options;

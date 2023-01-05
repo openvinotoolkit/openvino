@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
-
-#define ALIGN_TO(val, multiple) (((val) + (multiple)-1) / (multiple) * (multiple))
 
 #define IN_VEC16 MAKE_VECTOR_TYPE(INPUT0_TYPE, 16)
 #define OUT_VEC16 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16)
@@ -28,7 +25,7 @@ inline int FUNC(apply_pooling)(int tmp, int in) {
     return tmp + in;
 #endif
 }
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
                                          __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -164,7 +161,6 @@ KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
 #endif
 }
 
-#undef ALIGN_TO
 #undef IN_VEC16
 #undef OUT_VEC16
 #undef CONVERT_OUT

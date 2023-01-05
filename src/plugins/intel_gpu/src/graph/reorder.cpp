@@ -21,15 +21,15 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
     auto ifmt = input_layout.format;
 
     auto desc = impl_param.typed_desc<reorder>();
-    auto odt = *desc->output_data_type;
+    auto odt = *desc->output_data_types[0];
     auto ofmt = desc->output_format;
-    auto op = desc->output_padding;
+    auto op = desc->output_paddings[0];
 
     if (ofmt == format::any) {
         ofmt = ifmt;
     }
 
-    if (ifmt.is_nv12()) {
+    if (ifmt.is_nv12() && !desc->has_surface_input()) {
         auto data_size = tensor{ input_layout.batch(), input_layout.feature() * 3,
                                  input_layout.spatial(0), input_layout.spatial(1) };
         if (ofmt != ifmt)
@@ -171,7 +171,7 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
     auto ifmt = input_layout.format;
     auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
 
-    return { layout(input_layout.get<ShapeType>(), desc->output_data_type.value(), ofmt, desc->output_padding) };
+    return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };
 }
 
 std::string reorder_inst::to_string(reorder_node const& node) {
@@ -182,9 +182,13 @@ std::string reorder_inst::to_string(reorder_node const& node) {
 
     std::stringstream primitive_description;
 
+    auto input_mem_type = desc->input_mem_type ==
+        reorder::memory_type::buffer ? "buffer" : "surface";
+
     json_composite reorder_info;
     reorder_info.add("input id", input.id());
     reorder_info.add("mean", mean);
+    reorder_info.add("input mem type", input_mem_type);
     if (desc->subtract_per_feature.size() > 0) {
         reorder_info.add("subtract per feature", desc->subtract_per_feature);
     }

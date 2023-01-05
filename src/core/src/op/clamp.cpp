@@ -99,8 +99,6 @@ bool op::v0::Clamp::has_evaluate() const {
     return false;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v0::Clamp);
-
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
     : util::UnaryElementwiseArithmetic(data),
       m_min{min},

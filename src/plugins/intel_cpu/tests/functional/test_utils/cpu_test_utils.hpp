@@ -136,11 +136,15 @@ public:
                                                          const std::shared_ptr<ngraph::Node> &lastNode,
                                                          std::string name);
 
+    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::set<std::string>& nodeType) const;
+    void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const;
 
+    static const char* any_type;
+
 protected:
-    virtual void CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const;
+    virtual void CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const;
     /**
      * @brief This function modifies the initial single layer test graph to add any necessary modifications that are specific to the cpu test scope.
      * @param ngPrc Graph precision.

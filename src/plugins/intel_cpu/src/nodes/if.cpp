@@ -8,6 +8,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 #include <string>
 #include <vector>
@@ -58,7 +59,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
 }
 
 If::If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ovOp(op) {
+        Node(op, eng, cache, InternalDynShapeInferFactory()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -12,8 +12,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::HardSigmoid);
-
 op::v0::HardSigmoid::HardSigmoid() : Op() {}
 
 op::v0::HardSigmoid::HardSigmoid(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& beta)

@@ -12,7 +12,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(normalize)
 
 layout normalize_inst::calc_output_layout(normalize_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for normalize_node!");
     auto input_node_layout = impl_param.get_non_padded_input_layout();
     auto output_type = input_node_layout.data_type;

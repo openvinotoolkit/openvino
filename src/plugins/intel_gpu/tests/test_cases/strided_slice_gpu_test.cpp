@@ -45,7 +45,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -53,8 +53,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -66,7 +66,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -102,7 +102,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -110,8 +110,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -123,7 +123,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -159,7 +159,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -167,8 +167,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -182,7 +182,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -218,7 +218,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -226,8 +226,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -241,7 +241,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -277,7 +277,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {1, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -285,8 +285,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -297,7 +297,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -333,7 +333,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {1, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -341,8 +341,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -353,7 +353,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -393,7 +393,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
 
     network network(engine, topology);
 
@@ -401,8 +401,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -416,7 +416,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -456,7 +456,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
 
     network network(engine, topology);
 
@@ -464,8 +464,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -479,7 +479,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -532,7 +532,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
 
     network network(engine, topology);
 
@@ -540,8 +540,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -562,7 +562,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -615,7 +615,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
 
     network network(engine, topology);
 
@@ -623,8 +623,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -645,7 +645,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -679,7 +679,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
     network network(engine, topology);
 
@@ -687,8 +687,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -701,7 +701,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -735,7 +735,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
     network network(engine, topology);
 
@@ -743,8 +743,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -757,7 +757,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -790,7 +790,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -798,8 +798,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -811,7 +811,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -844,7 +844,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -852,8 +852,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -865,7 +865,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -897,7 +897,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -905,8 +905,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -918,7 +918,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -950,7 +950,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -958,8 +958,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -971,7 +971,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1003,7 +1003,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
     network network(engine, topology);
 
@@ -1011,8 +1011,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1024,7 +1024,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1056,7 +1056,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
     network network(engine, topology);
 
@@ -1064,8 +1064,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1077,7 +1077,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1110,7 +1110,7 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
     network network(engine, topology);
 
@@ -1118,8 +1118,8 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1130,7 +1130,7 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1162,7 +1162,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1170,8 +1170,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1183,7 +1183,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1215,7 +1215,60 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 4.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu_f32_i32, test_1x1x1x8x1_new_axis_5d) {
+    // Input (BFYX): 1x8x1x1
+    // Output (BFZYX): 1x1x1x8x1
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
+    });
+    set_values(begin, {
+            0, 0, 0, 0, 0
+    });
+    set_values(end, {
+            0, 0, 0, 0, 0
+    });
+    set_values(strides, {
+            1, 1, 1, 1, 1
+    });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("input2", begin));
+    topology.add(data("input3", end));
+    topology.add(data("input4", strides));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0, 0, 1, 0}, {1, 0, 0, 1, 0}, {0, 1, 1, 0, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 8, 1}));
 
     network network(engine, topology);
 
@@ -1229,7 +1282,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
     auto output = outputs.at("strided_slice").get_memory();
 
     std::vector<float> answers = {
-            0.0f, 4.0f
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     };
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -1272,7 +1325,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -1280,8 +1333,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1293,7 +1346,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1329,7 +1382,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -1337,8 +1390,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1350,7 +1403,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1382,7 +1435,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1390,8 +1443,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1403,7 +1456,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1435,7 +1488,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1443,8 +1496,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1456,7 +1509,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1483,7 +1536,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
@@ -1493,8 +1546,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1506,7 +1559,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1527,7 +1580,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     topology.add(input_layout("input2", begin->get_layout()));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
     build_options bo;
     bo.set_option(build_option::allow_new_shape_infer(true));
@@ -1537,8 +1590,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1550,6 +1603,6 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }

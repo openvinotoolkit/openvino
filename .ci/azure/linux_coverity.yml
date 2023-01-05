@@ -12,7 +12,7 @@ variables:
 jobs:
 - job: Lin
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -79,20 +79,20 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
   - script: |
       set -e
-      $(REPO_DIR)/install_build_dependencies.sh
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
       sudo apt --assume-yes install openjdk-11-jdk
       # Speed up build
@@ -111,7 +111,6 @@ jobs:
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=OFF
         -DENABLE_STRICT_DEPENDENCIES=OFF
-        -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DBUILD_nvidia_plugin=OFF
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -133,7 +132,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
-  - script: | 
+  - script: |
         export CCACHE_DIR=$(CCACHE_DIR)
         export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
         export CCACHE_BASEDIR=$(Pipeline.Workspace)

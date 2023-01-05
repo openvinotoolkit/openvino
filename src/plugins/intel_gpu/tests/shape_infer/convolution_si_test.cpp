@@ -47,11 +47,11 @@ TEST_P(convolution_si_test, shape_infer) {
     auto weight_prim = std::make_shared<input_layout>("weight", weight_layout);
     std::shared_ptr<convolution> conv_prim = nullptr;
     if (p.with_output_size) {
-        conv_prim = std::make_shared<convolution>("conv", "data", weights, bias, p.groups,
+        conv_prim = std::make_shared<convolution>("conv", input_info("data"), weights, bias, p.groups,
                                                   p.stride, p.pad_above, p.dilation, p.output_size,
                                                   data_types::f32, p.weights_have_group_dim);
     } else {
-        conv_prim = std::make_shared<convolution>("conv", "data", weights, bias, p.groups, p.stride, p.pad_above, p.dilation, p.pad_above, p.pad_below);
+        conv_prim = std::make_shared<convolution>("conv", input_info("data"), weights, bias, p.groups, p.stride, p.pad_above, p.dilation, p.pad_above, p.pad_below);
     }
     
     cldnn::program prog(engine);

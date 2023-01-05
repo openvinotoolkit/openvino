@@ -1,28 +1,33 @@
 trigger:
   branches:
     include:
-    - master 
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 resources:
   repositories:
@@ -37,7 +42,7 @@ variables:
 jobs:
 - job: WinCC
   # About 150% of total time
-  timeoutInMinutes: 120
+  timeoutInMinutes: '120'
 
   pool:
     name: WIN_VMSS_VENV_F8S_WU2
@@ -90,9 +95,9 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
@@ -103,8 +108,9 @@ jobs:
     displayName: 'Install dependencies'
 
   - checkout: testdata
-    clean: true
-    lfs: true
+    clean: 'true'
+    lfs: 'true'
+    fetchDepth: '1'
     path: testdata
 
   - script: |
@@ -146,9 +152,13 @@ jobs:
     displayName: 'List bin files'
 
   - script: |
+      set path=%path%;$(REPO_DIR)\temp\tbb\bin
       call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
+
+  - script: dir $(BUILD_DIR)\*.csv /s /p
+    displayName: 'List csv files'
 
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
@@ -184,8 +194,11 @@ jobs:
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
 
-  # TODO: Enable after the fix on CPU side
-  # - script: |
-  #     $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
-  #   workingDirectory: $(REPO_DIR)
-  #   displayName: 'Use OpenVINO after CC'
+  - script: type $(BUILD_DIR_2)\src\common\conditional_compilation\conditional_compilation_gen.h
+    displayName: 'Check conditional_compilation_gen.h header'
+
+  - script: |
+      set path=%path%;$(REPO_DIR)\temp\tbb\bin
+      $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Use OpenVINO after CC'

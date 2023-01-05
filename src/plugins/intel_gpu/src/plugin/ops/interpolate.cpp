@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
     validate_inputs_count(op, {3, 4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     static const size_t SIZES_INDEX = 1;
@@ -83,37 +83,9 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
     if (p.use_new_shape_infer()) {
         if (sizes_constant && scales_constant) {
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputPrimitives[0],
+                                                             inputs[0],
                                                              sizes,
                                                              scales,
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             interpolateMode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
-        } else if (scales_constant) {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputPrimitives[0],
-                                                             inputPrimitives[SIZES_INDEX],
-                                                             scales,
-                                                             axes,
-                                                             attrs.pads_begin,
-                                                             attrs.pads_end,
-                                                             attrs.antialias,
-                                                             attrs.cube_coeff,
-                                                             interpolateMode,
-                                                             attrs.shape_calculation_mode,
-                                                             attrs.coordinate_transformation_mode,
-                                                             attrs.nearest_mode);
-        } else if (sizes_constant) {
-            resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputPrimitives[0],
-                                                             sizes,
-                                                             inputPrimitives[SCALES_INDEX],
                                                              axes,
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
@@ -124,15 +96,26 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                                              attrs.coordinate_transformation_mode,
                                                              attrs.nearest_mode);
         } else {
-            OPENVINO_ASSERT(false, "Scales and Sizes as parameters are not supported at the same time in ",
-                                    op->get_friendly_name(), " (", op->get_type_name(), ")");
+            resamplePrim = std::make_shared<cldnn::resample>(layerName,
+                                                             inputs[0],
+                                                             inputs[SIZES_INDEX],
+                                                             inputs[SCALES_INDEX],
+                                                             axes,
+                                                             attrs.pads_begin,
+                                                             attrs.pads_end,
+                                                             attrs.antialias,
+                                                             attrs.cube_coeff,
+                                                             interpolateMode,
+                                                             attrs.shape_calculation_mode,
+                                                             attrs.coordinate_transformation_mode,
+                                                             attrs.nearest_mode);
         }
     } else {
         auto outShape = op->get_output_shape(0);
         auto outputPattern = std::vector<int64_t>(outShape.begin(), outShape.end());
 
         resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                         inputPrimitives[0],
+                                                         inputs[0],
                                                          outputPattern,
                                                          scales,
                                                          axes,

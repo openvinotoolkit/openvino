@@ -21,6 +21,16 @@ except Exception:
     raise
 
 
+def create_function3(shape1=[2, 2]):
+    input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
+    input1.get_output_tensor(0).set_names({'a_input', 'b_input', 'c_input'})
+    relu1 = ops.relu(input1)
+    res1 = ops.result(relu1, "res")
+    res1.get_output_tensor(0).set_names({'res'})
+    function = Model(results=[res1], parameters=[input1], name="TestFunction")
+    return function
+
+
 def create_function2(shape1=[2, 2], shape2=[2, 2], dtype1=np.float32, dtype2=np.float32):
     input1 = ops.parameter(shape1, dtype=dtype1, name="input1")
     input1.get_output_tensor(0).set_names({'input1', 'input1a'})
@@ -656,3 +666,66 @@ class TestPreprocessingMOC(UnitTestWithMockedTelemetry):
         # Verify that layout (nchw) is appeared in input1
         self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
 
+    def test_sorting_tensor_names(self):
+        argv = Namespace(mean_scale_values={'c_input': {'mean': np.array([2., 4., 8.]), 'scale': None}},
+                         layout_values={'c_input': {'source_layout': 'nchw'}},
+                         scale=127.5)
+        function = create_function3(shape1=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=127.5, shape=[1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
+
+    def test_sorting_tensor_names_friendly_name_case(self):
+        argv = Namespace(mean_scale_values={'input1': {'mean': np.array([2., 4., 8.]), 'scale': None}},
+                         layout_values={'input1': {'source_layout': 'nchw'}},
+                         scale=127.5)
+        function = create_function3(shape1=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=127.5, shape=[1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
+
+    def test_sorting_tensor_names_unnamed_layout(self):
+        argv = Namespace(mean_scale_values={'input1': {'mean': np.array([2., 4., 8.]), 'scale': None}},
+                         layout_values={'': {'source_layout': 'nchw'}},
+                         scale=127.5)
+        function = create_function3(shape1=[1, 3, 224, 224])
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
+        self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        op_node = list(op_node.output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=127.5, shape=[1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
+
+    def test_sorting_tensor_names_unnamed_layout_list(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values=[{'source_layout': 'nchw', 'target_layout': 'nhwc'},
+                                        {'source_layout': 'nhwc', 'target_layout': 'nchw'}])
+
+        function = create_function2(shape1=[1, 3, 5, 5], shape2=[1, 5, 5, 3])
+        process_function(ov_function=function, argv=argv)
+        # Verify that reverse_channels are applied.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')

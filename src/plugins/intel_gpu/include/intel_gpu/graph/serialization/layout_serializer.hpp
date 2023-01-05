@@ -32,7 +32,7 @@ public:
         size_t num_dimensions;
         buffer >> num_dimensions;
         for (size_t i = 0; i < num_dimensions; i++) {
-            ov::Dimension::value_type min_val, max_val;
+            ov::Interval::value_type min_val, max_val;
             buffer >> min_val >> max_val;
             partial_shape.push_back(ov::Dimension(min_val, max_val));
         }

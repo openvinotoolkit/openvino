@@ -99,8 +99,8 @@ After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx
 **Step 6**. Run the conversion commands:
 
 ```sh
-mo --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157"
-mo --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
-mo --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
+mo --input_model rnnt_encoder.onnx --input "input[157,1,240],feature_length->157"
+mo --input_model rnnt_prediction.onnx --input "symbol[1,1],hidden_in_1[2,1,320],hidden_in_2[2,1,320]"
+mo --input_model rnnt_joint.onnx --input "0[1,1,1024],1[1,1,320]"
 ```
 > **NOTE**: The hardcoded value for sequence length = 157 was taken from the MLCommons, but conversion to IR preserves network [reshapeability](@ref openvino_docs_OV_UG_ShapeInference). Therefore, input shapes can be changed manually to any value during either conversion or inference.

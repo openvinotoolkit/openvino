@@ -19,7 +19,7 @@ namespace node {
 
 Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache,
                                          const std::string& errorMessage) :
-        Node(op, eng, cache), ngraphOp(op), additionalErrorMessage(errorMessage) {
+        Node(op, eng, cache, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }
@@ -75,10 +75,6 @@ void Reference::execute(dnnl::stream strm) {
     if (!ngraphOp->evaluate(outputs, inputs)) {
         IE_THROW() << "Evaluation failed on node of type: " << std::string(ngraphOp->get_type_name()) << " name: " << getName();
     }
-}
-
-std::vector<VectorDims> Reference::shapeInfer() const {
-    return Node::shapeInferGeneric(0xFFFFFFFF);
 }
 
 void Reference::executeDynamicImpl(dnnl::stream strm) {

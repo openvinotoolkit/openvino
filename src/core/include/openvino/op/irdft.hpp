@@ -14,7 +14,6 @@ namespace v9 {
 class OPENVINO_API IRDFT : public util::FFTBase {
 public:
     OPENVINO_OP("IRDFT", "opset9", util::FFTBase);
-    BWDCMP_RTTI_DECLARATION;
     IRDFT() = default;
 
     /// \brief Constructs a IRDFT operation. IRDFT is performed for full size axes.

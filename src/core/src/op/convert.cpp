@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Convert);
-
 op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg}),
       m_destination_type(destination_type) {

@@ -56,7 +56,14 @@ public:
 
 private:
     std::vector<::paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
-    std::shared_ptr<OpPlace> op_place;
+    std::weak_ptr<OpPlace> op_place;
+
+    const std::shared_ptr<OpPlace> get_place() const {
+        auto place = op_place.lock();
+        if (!place)
+            FRONT_END_THROW("This proto decoder contains empty op place.");
+        return place;
+    }
 };
 
 }  // namespace paddle

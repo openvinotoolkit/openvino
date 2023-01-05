@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(strided_slice_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
@@ -19,8 +18,8 @@ KERNEL(strided_slice_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYP
 #elif OUTPUT_LAYOUT_BFZYX
     const uint yx_input = (uint)get_global_id(2) % (INPUT0_SIZE_X * INPUT0_SIZE_Y);
     const uint z_input = (uint)get_global_id(2) / (INPUT0_SIZE_X * INPUT0_SIZE_Y);
-    const uint y_input = yx / INPUT0_SIZE_X;
-    const uint x_input = yx % INPUT0_SIZE_X;
+    const uint y_input = yx_input / INPUT0_SIZE_X;
+    const uint x_input = yx_input % INPUT0_SIZE_X;
 #endif
     const uint input_index = INPUT0_OFFSET +
         batch * INPUT0_BATCH_PITCH +

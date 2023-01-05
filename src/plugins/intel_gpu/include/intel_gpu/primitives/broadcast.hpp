@@ -74,11 +74,11 @@ struct broadcast : public primitive_base<broadcast> {
     ///                        dimension values.
     /// @param output_padding  Optional padding for output from primitive.
     broadcast(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const tensor& broadcast_sizes,
               const std::vector<uint16_t>& broadcast_axes = {},
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           broadcast_sizes(broadcast_sizes),
           broadcast_axes(broadcast_axes) {}
 
@@ -98,26 +98,26 @@ struct broadcast : public primitive_base<broadcast> {
     ///                       axes. 'axes_mapping' should not be provided if mode other
     ///                       than explicit (none) is used.
     broadcast(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const ov::Shape& target_shape,
               const ngraph::AxisSet& axes_mapping,
               const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           target_shape(target_shape),
           axes_mapping(axes_mapping),
           broadcast_mode(broadcast_spec),
-          broadcast_sizes({}),
+          broadcast_sizes(target_shape.empty() ? tensor(1) : tensor(0)),
           broadcast_axes({}) {}
 
     /// @brief Constructs broadcast primitive / layer with dynamic target_shape.
     broadcast(const primitive_id& id,
-          const primitive_id& input,
-          const primitive_id& target_shape_id,
+          const input_info& input,
+          const input_info& target_shape_id,
           const ngraph::AxisSet& axes_mapping,
           const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
           const padding& output_padding = padding())
-    : primitive_base(id, {input, target_shape_id}, output_padding),
+    : primitive_base(id, {input, target_shape_id}, {output_padding}),
       target_shape({}),
       axes_mapping(axes_mapping),
       broadcast_mode(broadcast_spec),

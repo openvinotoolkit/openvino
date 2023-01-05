@@ -4,12 +4,42 @@
 
 #include "shapeof.h"
 #include <ngraph/opsets/opset1.hpp>
+#include <utils/shape_inference/shape_inference_cpu.hpp>
 
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+namespace {
+/**
+ * Implements Shape Of shape inference algorithm. The output shape is simply a 1D tensor with the size of the input tensor
+ * rank.
+ *  
+ */
+class ShapeOfShapeInfer : public ShapeInferEmptyPads {
+public:
+    ShapeOfShapeInfer() = default;
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        IE_ASSERT(!input_shapes.empty());
+        return {VectorDims{input_shapes.front().get().size()}};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class ShapeOfShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<ShapeOfShapeInfer>();
+    }
+};
+} // namespace
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -26,7 +56,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";

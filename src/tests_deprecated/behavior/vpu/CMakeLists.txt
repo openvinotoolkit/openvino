@@ -23,12 +23,6 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
         list(APPEND TEST_SRC ${VPU_TESTS})
     endif()
 
-    # Tests for HDDL plugin
-    if (ENABLE_HDDL)
-        file(GLOB HDDL_TESTS hddl_tests/*.cpp)
-        list(APPEND TEST_SRC ${HDDL_TESTS})
-    endif()
-
     list(APPEND DEPENDENCIES
             ${PLUGIN_NAME}
             vpu_copy_firmware)

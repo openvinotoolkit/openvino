@@ -50,6 +50,7 @@ private:
 };
 
 class primitive_inst;
+class ICompilationContext;
 
 struct network {
 public:
@@ -185,6 +186,7 @@ public:
     void validate_primitives();
     void set_arguments();
     // Implementation specific calls
+    bool is_cpu_impl(const primitive_id& id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
@@ -192,7 +194,6 @@ public:
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
-    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<program_node*>& nodes);
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
@@ -232,6 +233,9 @@ public:
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
 
+    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
+
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
@@ -256,12 +260,15 @@ private:
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
+    mutable std::mutex _in_mem_cache_mutex;
+    std::unique_ptr<ICompilationContext> _compilation_context;
+
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id);
-    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id);
+    std::shared_ptr<primitive_inst> find_in_internal_networks(const primitive_id& id) const;
+    std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void check_names();
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
@@ -270,8 +277,7 @@ private:
     // Move from cldnn::program to cldnn::network for multi-threads issue.
     std::unique_ptr<ImplementationsCache> _impls_cache;
     std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
-    // TODO: initial version use unlimited caches. Need to adjust it once dynamic flow works on wide set of models.
-    const size_t _impls_cache_capacity = 0;
-    const size_t _in_mem_kernels_cache_capacity = 0;
+    const size_t _impls_cache_capacity = 10000;
+    const size_t _in_mem_kernels_cache_capacity = 10000;
 };
 }  // namespace cldnn

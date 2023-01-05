@@ -78,12 +78,20 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         return make_unique<reduce_impl>(*this);
     }
 
+    reduce_impl() : parent() {}
+
+    explicit reduce_impl(const reduce_impl& other) : parent(other) {}
+
+    reduce_impl(const reduce_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
+        this->can_reuse_memory = kd.can_reuse_memory;
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<reduce>();
         auto params = get_default_params<kernel_selector::reduce_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
 
-        params.reduceAxes = convert_axes(primitive->axes, impl_param.get_output_layout().get_rank());
+        params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
         params.keepDims = primitive->keep_dims;
         params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
 

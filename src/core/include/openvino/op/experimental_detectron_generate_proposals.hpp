@@ -20,7 +20,6 @@ namespace v6 {
 class OPENVINO_API ExperimentalDetectronGenerateProposalsSingleImage : public Op {
 public:
     OPENVINO_OP("ExperimentalDetectronGenerateProposalsSingleImage", "opset6", op::Op, 6);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Structure that specifies attributes of the operation
     struct Attributes {

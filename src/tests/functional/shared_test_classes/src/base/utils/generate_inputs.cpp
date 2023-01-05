@@ -550,6 +550,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
                              const ov::Shape& targetShape) {
     if (port == 1) {
         return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+    } else if (port == 2) {
+        ov::Tensor tensor = ov::Tensor(elemType, targetShape);
+
+        auto *dataPtr = tensor.data<float>();
+        dataPtr[0] = dataPtr[1] = 225.0f;
+        dataPtr[2] = 1.0f;
+        if (tensor.get_size() == 4)
+            dataPtr[3] = 1.0f;
+
+        return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }

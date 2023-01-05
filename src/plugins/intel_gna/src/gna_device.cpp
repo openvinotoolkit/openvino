@@ -45,6 +45,8 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
       isPerformanceMeasuring(isPerformanceMeasuring),
       nGnaDeviceIndex{selectGnaDevice()},
       useDeviceEmbeddedExport(deviceEmbedded) {
+    per_request_diagnostics = log::get_log_level() >= ov::log::Level::TRACE;
+    per_model_diagnostics = log::get_log_level() >= ov::log::Level::DEBUG;
     open();
     initGnaPerfCounters();
 
@@ -78,9 +80,9 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
     return static_cast<uint8_t *>(memPtr);
 }
 
-void GNADeviceHelper::tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion tag) {
+void GNADeviceHelper::tagMemoryRegion(void* memPtr, const memory::rRegion tag) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-    using GNAPluginNS::memory::rRegion;
+    using memory::rRegion;
     static const std::map<rRegion, Gna2MemoryTag> tagMap {
         {rRegion::REGION_INPUTS, Gna2MemoryTagInput},
         {rRegion::REGION_OUTPUTS, Gna2MemoryTagOutput},
@@ -134,10 +136,6 @@ std::string GNADeviceHelper::GetGnaLibraryVersion() {
     return gnaLibraryVersion;
 }
 
-void GNADeviceHelper::enableDiagnostics() {
-    debugLogEnabled = true;
-}
-
 void GNADeviceHelper::dumpAllAllocations(const uint64_t idx, const std::string& infix) const {
     for (auto&& a : allAllocations.GetAllocationsInExportOrder()) {
         const auto& name = a.GetTagName();
@@ -163,7 +161,7 @@ uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2Acc
     const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigID, gna2AccelerationMode);
     checkGna2Status(status1, "Gna2RequestConfigSetAccelerationMode");
 
-    if (debugLogEnabled) {
+    if (per_request_diagnostics) {
         dumpAllAllocations(debugLogIndexRequestEnqueue, "BeforeGna2RequestEnqueue");
         debugLogIndexRequestEnqueue++;
     }
@@ -194,7 +192,7 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
 void GNADeviceHelper::enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
         auto& op = gnaModel.Operations[i];
-        if (GNAPluginNS::backend::AMIntelDNN::isOperationCnnLegacySpecific(op)) {
+        if (backend::AMIntelDNN::isOperationCnnLegacySpecific(op)) {
             enforceLegacyCnn(op);
         }
     }
@@ -209,9 +207,9 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
     }
     enforceLegacyCnnsWhenNeeded(gnaModel);
 
-    GNAPluginNS::backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
+    backend::AMIntelDNN::updateNumberOfOutputsIfPoolingEnabled(gnaModel, legacyExecTarget);
 
-    if (debugLogEnabled) {
+    if (per_model_diagnostics) {
         std::string path =
 #ifdef _WIN32
             ".\\";
@@ -242,10 +240,10 @@ bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
 
 Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
     static const std::map<std::string, Gna2DeviceVersion> targetMap {
-        {GNAPluginNS::common::kGnaTarget2_0, Gna2DeviceVersion2_0},
-        {GNAPluginNS::common::kGnaTarget3_0, Gna2DeviceVersion3_0},
-        {GNAPluginNS::common::kGnaTarget3_5, Gna2DeviceVersion3_5},
-        {GNAPluginNS::common::kGnaTargetUnspecified, Gna2DeviceVersionSoftwareEmulation},
+        {common::kGnaTarget2_0, Gna2DeviceVersion2_0},
+        {common::kGnaTarget3_0, Gna2DeviceVersion3_0},
+        {common::kGnaTarget3_5, Gna2DeviceVersion3_5},
+        {common::kGnaTargetUnspecified, Gna2DeviceVersionSoftwareEmulation},
     };
     const auto f = targetMap.find(target);
     if (f != targetMap.end()) {
@@ -256,13 +254,13 @@ Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
 
 Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
     if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return Gna2DeviceVersion3_0;
+        return parseTarget(common::kGnaDefaultTarget);
     return detectedGnaDevVersion;
 }
 
 Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const {
     const auto declared = execTarget ? executionTarget : compileTarget;
-    if (declared == GNAPluginNS::common::kGnaTargetUnspecified) {
+    if (declared == common::kGnaTargetUnspecified) {
         return execTarget ? getDefaultTarget() : getTargetDevice(true);
     }
     return parseTarget(declared);
@@ -467,24 +465,27 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
             {{Gna2OperationTypeThreshold, 1}, "Output"}
 };
 
-GNAPluginNS::RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) {
+RequestStatus GNADeviceHelper::waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds) {
     std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2RequestWait(requestID, static_cast<uint32_t>(timeoutMilliseconds));
     if (status == Gna2StatusWarningDeviceBusy) {
-        return GNAPluginNS::RequestStatus::kPending;
+        return RequestStatus::kPending;
     }
     unwaitedRequestIds.erase(requestID);
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return GNAPluginNS::RequestStatus::kAborted;
+        return RequestStatus::kAborted;
     }
-    checkGna2Status(status, "Gna2RequestWait");
 
-    if (debugLogEnabled) {
+    if (per_request_diagnostics) {
         dumpAllAllocations(debugLogIndexRequestWait, "AfterGna2RequestWait");
         debugLogIndexRequestWait++;
     }
     updateGnaPerfCounters();
-    return GNAPluginNS::RequestStatus::kCompleted;
+
+    // handle error case after updating statistics data.
+    checkGna2Status(status, "Gna2RequestWait");
+
+    return RequestStatus::kCompleted;
 }
 
 GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
@@ -558,7 +559,7 @@ void GNADeviceHelper::close() {
 
     for (auto requestId : requestsToClose)
         try {
-            if (waitForRequest(requestId) == GNAPluginNS::RequestStatus::kPending)
+            if (waitForRequest(requestId) == RequestStatus::kPending)
                 log::warning() << "Request with Id " << requestId << " is still pending";
         } catch (...) {
             log::warning() << "Request with Id " << requestId << " was not awaited successfully";
@@ -597,10 +598,10 @@ void GNADeviceHelper::getGnaPerfCounters(std::map<std::string, InferenceEngine::
 
 std::string GNADeviceHelper::GetCompileTarget() const {
     static const std::map<Gna2DeviceVersion, std::string> targetMap = {
-        {Gna2DeviceVersion2_0, GNAPluginNS::common::kGnaTarget2_0},
-        {Gna2DeviceVersion3_0, GNAPluginNS::common::kGnaTarget3_0},
-        {Gna2DeviceVersion3_5, GNAPluginNS::common::kGnaTarget3_5},
-        {Gna2DeviceVersionEmbedded3_5, GNAPluginNS::common::kGnaTarget3_5},
+        {Gna2DeviceVersion2_0, common::kGnaTarget2_0},
+        {Gna2DeviceVersion3_0, common::kGnaTarget3_0},
+        {Gna2DeviceVersion3_5, common::kGnaTarget3_5},
+        {Gna2DeviceVersionEmbedded3_5, common::kGnaTarget3_5},
     };
     const auto target = getTargetDevice(false);
     auto found = targetMap.find(target);
@@ -615,7 +616,7 @@ uint32_t GNADeviceHelper::maxLayersCount() const {
 }
 
 uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
-    using namespace GNAPluginNS::GNALimitations;
+    using namespace limitations;
 
     switch (getTargetDevice(true)) {
     case Gna2DeviceVersion1_0:

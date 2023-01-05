@@ -4,10 +4,15 @@
 
 #include "include/batch_headers/common.cl"
 
-
-__attribute__((intel_reqd_sub_group_size(16)))
+#if !IS_DYNAMIC
+REQD_SUB_GROUP_SIZE(16)
+#endif
 KERNEL(softmax)(
+    OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE* input,
+#ifdef IS_DYNAMIC
+    __global ACCUMULATOR_TYPE* tmp_buffer,
+#endif
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
@@ -76,9 +81,16 @@ KERNEL(softmax)(
 #error Wrong axis
 #endif
 #endif
-    ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
-    ACCUMULATOR_TYPE data[INPUT0_CLASS_NUM];
 
+    const size_t class_num = INPUT0_CLASS_NUM;
+    ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
+#if IS_DYNAMIC
+    #define TMP_CLASS_PITCH INPUT0_CLASS_PITCH
+    __global ACCUMULATOR_TYPE* data = tmp_buffer + in_depth_offset;
+#else
+    #define TMP_CLASS_PITCH 1
+    ACCUMULATOR_TYPE data[INPUT0_CLASS_NUM];
+#endif
     for (cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
     {
 #if INPUT0_SIMPLE == 1
@@ -92,20 +104,19 @@ KERNEL(softmax)(
 #endif
         ACCUMULATOR_TYPE in = input[index];
         max_value = max(max_value, in);
-        data[cls] = in;
+        data[cls*TMP_CLASS_PITCH] = in;
     }
 
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
-    for (cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
-    {
-        data[cls] = native_exp(data[cls] - max_value);
-        denominator += data[cls];
+    for (cls = 0; cls < class_num; ++cls) {
+        ACCUMULATOR_TYPE t = native_exp(data[cls*TMP_CLASS_PITCH] - max_value);
+        denominator += t;
+        data[cls*TMP_CLASS_PITCH] = t;
     }
 
-    for (cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
-    {
-        const ACCUMULATOR_TYPE res = data[cls] / denominator;
+    for (cls = 0; cls < class_num; ++cls) {
+        const ACCUMULATOR_TYPE res = data[cls*TMP_CLASS_PITCH] / denominator;
 #if INPUT0_SIMPLE == 1
         const uint output_idx = out_depth_offset + cls*OUTPUT_CLASS_PITCH;
 #else

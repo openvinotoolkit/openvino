@@ -33,7 +33,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -52,7 +52,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -75,7 +75,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -94,7 +94,7 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -117,7 +117,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -136,7 +136,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_ax0_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -159,7 +159,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -178,7 +178,7 @@ TEST(shuffle_channels_fp32_gpu, d15_2_2_axm4_g5) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -198,7 +198,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -216,7 +216,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -236,7 +236,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -254,7 +254,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -274,7 +274,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -292,7 +292,7 @@ TEST(shuffle_channels_fp32_gpu, d2_2_6_axm2_g2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -312,7 +312,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -330,7 +330,7 @@ TEST(shuffle_channels_fp32_gpu, d2_6_2_axm3_g2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -348,7 +348,7 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
     topology topology;
     topology.add(input_layout("Input0", input0->get_layout()));
     topology.add(
-            shuffle_channels("shuffle_channels", "Input0", group, axis)
+            shuffle_channels("shuffle_channels", input_info("Input0"), group, axis)
     );
 
     network network(engine, topology);
@@ -365,6 +365,6 @@ TEST(shuffle_channels_fp32_gpu, d6_axm0_g2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }

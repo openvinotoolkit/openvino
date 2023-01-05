@@ -79,18 +79,18 @@ struct roi_align_test : public testing::Test {
         topology.add(input_layout("input", input->get_layout()));
         topology.add(input_layout("coords", coords->get_layout()));
         topology.add(input_layout("roi_ind", roi_ind->get_layout()));
-        topology.add(reorder("reorder_input", "input", blocked_format, device_data_type));
-        topology.add(reorder("reorder_coords", "coords", blocked_format, device_data_type));
-        topology.add(reorder("reorder_ind", "roi_ind", blocked_format, device_ind_type));
+        topology.add(reorder("reorder_input", input_info("input"), blocked_format, device_data_type));
+        topology.add(reorder("reorder_coords", input_info("coords"), blocked_format, device_data_type));
+        topology.add(reorder("reorder_ind", input_info("roi_ind"), blocked_format, device_ind_type));
         topology.add(roi_align("roi_align",
-                               {"reorder_input", "reorder_coords", "reorder_ind"},
+                               { input_info("reorder_input"), input_info("reorder_coords"), input_info("reorder_ind") },
                                pooled_h,
                                pooled_w,
                                sampling_ratio,
                                spatial_scale,
                                pooling_mode,
                                aligned_mode));
-        topology.add(reorder("out", "roi_align", plain_format, device_data_type));
+        topology.add(reorder("out", input_info("roi_align"), plain_format, device_data_type));
 
         network network(engine, topology);
         network.set_input_data("input", input);
@@ -104,7 +104,7 @@ struct roi_align_test : public testing::Test {
 
         ASSERT_EQ(output_ptr.size(), expected_output.size());
         for (uint32_t i = 0; i < expected_output.size(); ++i) {
-            EXPECT_NEAR(output_ptr[i], expected_output[i], 0.01);
+            ASSERT_NEAR(output_ptr[i], expected_output[i], 0.01);
         }
     }
 };

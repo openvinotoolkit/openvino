@@ -37,12 +37,12 @@
 
 ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     MATCHER_SCOPE(FakeQuantizeMulFusion);
-    const auto data_p = ngraph::pattern::any_input();
-    const auto fq_output_low_p = ngraph::pattern::any_input();
-    const auto fq_output_high_p = ngraph::pattern::any_input();
+    const auto data_p = pass::pattern::any_input();
+    const auto fq_output_low_p = pass::pattern::any_input();
+    const auto fq_output_high_p = pass::pattern::any_input();
 
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-        {data_p, ngraph::pattern::any_input(), ngraph::pattern::any_input(), fq_output_low_p, fq_output_high_p},
+        {data_p, pass::pattern::any_input(), pass::pattern::any_input(), fq_output_low_p, fq_output_high_p},
         pattern::consumers_count(1));
 
     const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();

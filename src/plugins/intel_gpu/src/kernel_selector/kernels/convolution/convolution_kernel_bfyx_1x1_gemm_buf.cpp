@@ -20,6 +20,13 @@ ParamsKey ConvolutionKernel_bfyx_1x1_gemm_buf::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_bfyx_1x1_gemm_buf::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefault(const convolution_params& params, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 

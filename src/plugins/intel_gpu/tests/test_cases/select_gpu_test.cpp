@@ -24,7 +24,7 @@ TEST(select_gpu_f32, select_basic) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -63,7 +63,7 @@ TEST(select_gpu_f32, select_basic) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -78,7 +78,7 @@ TEST(select_gpu_f32, select_basic_negative) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -117,7 +117,7 @@ TEST(select_gpu_f32, select_basic_negative) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -132,7 +132,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -203,7 +203,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -218,7 +218,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_1x1x1x1) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -279,7 +279,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_1x1x1x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -294,7 +294,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x2x2x1) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,   0.f,
@@ -359,7 +359,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x2x2x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -374,7 +374,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_2x2x1x2) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -445,7 +445,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_2x2x1x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -460,7 +460,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x2x1_bcast_in2_2x2x1
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -527,7 +527,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x2x1_bcast_in2_2x2x1
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -542,7 +542,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x1x2x2_in1_1x2x2x2_in
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -601,7 +601,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x1x2x2_in1_1x2x2x2_in
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -616,7 +616,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -677,7 +677,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -692,7 +692,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_1x1x1x1) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -753,7 +753,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_1x1x1x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -768,7 +768,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,   0.f,
@@ -833,7 +833,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -848,7 +848,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x1x2) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,
@@ -919,7 +919,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x1x2) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -934,7 +934,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_1x1x1x1) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f
@@ -995,7 +995,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_1x1x1x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1010,7 +1010,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -1075,7 +1075,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1090,7 +1090,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input1", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
     set_values(input1, {
         1.f,  0.f,
@@ -1155,7 +1155,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1170,7 +1170,7 @@ TEST(select_gpu_f32, select_basic_comma) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -1209,7 +1209,7 @@ TEST(select_gpu_f32, select_basic_comma) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1224,7 +1224,7 @@ TEST(select_gpu_f32, select_basic_error_input_sizes) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     EXPECT_ANY_THROW(network(engine, topology));
 }
@@ -1240,7 +1240,7 @@ TEST(select_gpu_f32, select_basic_error_mask_sizes) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     EXPECT_ANY_THROW(network(engine, topology));
 }
@@ -1256,7 +1256,7 @@ TEST(select_gpu_f32, select_basic_error_input_types) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
     EXPECT_ANY_THROW(network(engine, topology));
 }
 
@@ -1271,7 +1271,7 @@ TEST(select_gpu_f32, select_basic_error_input_formats) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     EXPECT_ANY_THROW(network(engine, topology));
 }
@@ -1287,7 +1287,7 @@ TEST(select_gpu_f32, select_basic_byxf) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -1326,7 +1326,7 @@ TEST(select_gpu_f32, select_basic_byxf) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1341,7 +1341,7 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -1380,7 +1380,7 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1395,7 +1395,7 @@ TEST(select_gpu_f32, select_basic_mask_i8) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -1434,7 +1434,7 @@ TEST(select_gpu_f32, select_basic_mask_i8) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1449,7 +1449,7 @@ TEST(select_gpu_f32, select_basic_mask_u8) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f, 5.f, 1.5f,
@@ -1488,7 +1488,7 @@ TEST(select_gpu_f32, select_basic_mask_u8) {
 
     for (int i = 0; i < 16; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1503,7 +1503,7 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,    0.f,    2.f,    0.f
@@ -1534,7 +1534,7 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1549,7 +1549,7 @@ TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f,
@@ -1584,7 +1584,7 @@ TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1599,7 +1599,7 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values(input, {
         1.f,   0.f,
@@ -1634,7 +1634,7 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1650,7 +1650,7 @@ TEST(select_gpu_f16, select_basic_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<uint16_t>(input, {
         1,   0,
@@ -1685,7 +1685,7 @@ TEST(select_gpu_f16, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1700,7 +1700,7 @@ TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<uint16_t>(input, {
         1,   0,
@@ -1735,7 +1735,7 @@ TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1750,7 +1750,7 @@ TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<uint16_t>(input, {
         1,   0,
@@ -1785,7 +1785,7 @@ TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1800,7 +1800,7 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<uint16_t>(input, {
         1,   0,
@@ -1835,7 +1835,7 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
@@ -1851,7 +1851,7 @@ TEST(select_gpu_i8, select_basic_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<char>(input, {
         1,   0,
@@ -1886,7 +1886,7 @@ TEST(select_gpu_i8, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1901,7 +1901,7 @@ TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<char>(input, {
         1,   0,
@@ -1936,7 +1936,7 @@ TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -1951,7 +1951,7 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<char>(input, {
         1,   0,
@@ -1986,7 +1986,7 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2001,7 +2001,7 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<char>(input, {
         1,   0,
@@ -2036,7 +2036,7 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2052,7 +2052,7 @@ TEST(select_gpu_u8, select_basic_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<unsigned char>(input, {
         128,   0,
@@ -2087,7 +2087,7 @@ TEST(select_gpu_u8, select_basic_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2102,7 +2102,7 @@ TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<unsigned char>(input, {
         128,   0,
@@ -2137,7 +2137,7 @@ TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2152,7 +2152,7 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<unsigned char>(input, {
         128,   0,
@@ -2187,7 +2187,7 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
 
@@ -2202,7 +2202,7 @@ TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", "mask", "input", "input2"));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
     set_values<unsigned char>(input, {
         128,   0,
@@ -2237,6 +2237,60 @@ TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
 
     for (int i = 0; i < 4; i++)
     {
-        EXPECT_EQ(answers[i], output_ptr[i]);
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 1 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 1, 1, 1 } });
+    auto mask = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 3, 1 } });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
+
+    set_values(input, {
+        1.f,    0.f,    2.f
+    });
+
+    set_values(input2, {
+        0.5f,    2.5f,    5.f
+    });
+
+    set_values<unsigned char>(mask, {
+        1,   0,   1
+    });
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    float answers[27] = {
+        1.f, 0.5f, 1.f,
+        0.f, 0.5f, 0.f,
+        2.f, 0.5f, 2.f,
+        1.f, 2.5f, 1.f,
+        0.f, 2.5f, 0.f,
+        2.f, 2.5f, 2.f,
+        1.f, 5.f, 1.f,
+        0.f, 5.f, 0.f,
+        2.f, 5.f, 2.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 27; i++)
+    {
+        ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
