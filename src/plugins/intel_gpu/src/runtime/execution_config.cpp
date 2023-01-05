@@ -22,6 +22,17 @@ public:
     }
 };
 
+class PerformanceModeValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        auto mode = v.as<ov::hint::PerformanceMode>();
+        return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
+               mode == ov::hint::PerformanceMode::THROUGHPUT ||
+               mode == ov::hint::PerformanceMode::LATENCY ||
+               mode == ov::hint::PerformanceMode::UNDEFINED;
+    }
+};
+
 void ExecutionConfig::set_default() {
     register_property<PropertyVisibility::PUBLIC>(
         std::make_tuple(ov::device::id, "0"),
@@ -31,7 +42,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
         std::make_tuple(ov::hint::inference_precision, ov::element::f16, InferencePrecisionValidator()),
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
-        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY),
+        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY, PerformanceModeValidator()),
         std::make_tuple(ov::hint::num_requests, 0),
 
         std::make_tuple(ov::intel_gpu::hint::host_task_priority, ov::hint::Priority::MEDIUM),
@@ -98,7 +109,7 @@ void ExecutionConfig::set_user_property(const AnyMap& config) {
         auto& val = kv.second;
         bool supported = is_supported(name) && supported_properties.at(name) == PropertyVisibility::PUBLIC;
         OPENVINO_ASSERT(supported, "[GPU] Attepmpt to set user property ", name, " (", val.as<std::string>(), ") which was not registered or internal!\n");
-        OPENVINO_ASSERT(property_validators.at(name)->is_valid(val), "[GPU] Invalid value for property ", name,  ": ", val.as<std::string>());
+        OPENVINO_ASSERT(property_validators.at(name)->is_valid(val), "[GPU] Invalid value for property ", name,  ": `", val.as<std::string>(), "`");
 
         user_properties[kv.first] = kv.second;
     }

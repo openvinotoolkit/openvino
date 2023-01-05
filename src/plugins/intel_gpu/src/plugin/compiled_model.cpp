@@ -466,12 +466,12 @@ std::shared_ptr<ngraph::Function> CompiledModel::GetExecGraphInfo() {
 
 InferenceEngine::Parameter CompiledModel::GetConfig(const std::string &name) const {
     auto actual_name = name;
-    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr}, _plugin->IsNewAPI())) {
         actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
     }
 
     auto val = m_config.get_property(actual_name);
-    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr}, _plugin->IsNewAPI())) {
         val = LegacyAPIHelper::convert_to_legacy_property({actual_name, val}).second;
     }
 

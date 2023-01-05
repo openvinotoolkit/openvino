@@ -21,27 +21,34 @@ bool LegacyAPIHelper::is_new_api_property(const std::pair<std::string, ov::Any>&
     return std::find(new_properties_list.begin(), new_properties_list.end(), property.first) != new_properties_list.end();
 }
 
-bool LegacyAPIHelper::is_legacy_property(const std::pair<std::string, ov::Any>& property) {
+bool LegacyAPIHelper::is_legacy_property(const std::pair<std::string, ov::Any>& property, bool is_new_api) {
     static const std::vector<std::string> legacy_properties_list = {
         InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-        InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
-        InferenceEngine::GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY,
         InferenceEngine::GPUConfigParams::KEY_GPU_MAX_NUM_THREADS,
         InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY,
         InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE,
     };
 
-    return std::find(legacy_properties_list.begin(), legacy_properties_list.end(), property.first) != legacy_properties_list.end();
+    static const std::vector<std::string> legacy_property_values_list = {
+        InferenceEngine::PluginConfigParams::KEY_MODEL_PRIORITY,
+        InferenceEngine::GPUConfigParams::KEY_GPU_HOST_TASK_PRIORITY,
+    };
+
+    bool legacy_property = std::find(legacy_properties_list.begin(), legacy_properties_list.end(), property.first) != legacy_properties_list.end();
+    bool need_value_conversion = !is_new_api &&
+        std::find(legacy_property_values_list.begin(), legacy_property_values_list.end(), property.first) != legacy_property_values_list.end();
+
+    return legacy_property || need_value_conversion;
 }
 
-ov::AnyMap LegacyAPIHelper::convert_legacy_properties(const std::map<std::string, std::string>& properties) {
-    return convert_legacy_properties(ov::AnyMap(properties.begin(), properties.end()));
+ov::AnyMap LegacyAPIHelper::convert_legacy_properties(const std::map<std::string, std::string>& properties, bool is_new_api) {
+    return convert_legacy_properties(ov::AnyMap(properties.begin(), properties.end()), is_new_api);
 }
 
-ov::AnyMap LegacyAPIHelper::convert_legacy_properties(const ov::AnyMap& properties) {
+ov::AnyMap LegacyAPIHelper::convert_legacy_properties(const ov::AnyMap& properties, bool is_new_api) {
     ov::AnyMap converted_properties;
     for (auto& property : properties) {
-        if (is_legacy_property(property)) {
+        if (is_legacy_property(property, is_new_api)) {
             auto new_property = convert_legacy_property(property);
             converted_properties[new_property.first] = new_property.second;
         } else {

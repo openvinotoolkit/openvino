@@ -71,7 +71,18 @@ void Plugin::register_primitives() {
 
 ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config) const {
     // We can skip this conversion for new API once all meta plugins don't try to use legacy configs/metrics for new API internally
-    return LegacyAPIHelper::convert_legacy_properties(orig_config);
+    auto config = LegacyAPIHelper::convert_legacy_properties(orig_config, IsNewAPI());
+
+    // Code below is WA for issue 100498
+    auto hint_it = std::find_if(orig_config.begin(), orig_config.end(), [](const std::pair<std::string, ov::Any>& kv) {
+        return kv.first == ov::hint::performance_mode.name();
+    });
+
+    if (hint_it != orig_config.end()) {
+        config[ov::hint::performance_mode.name()] = ov::util::from_string(hint_it->second, ov::hint::performance_mode);
+    }
+
+    return config;
 }
 
 std::string Plugin::get_device_id_from_config(const std::map<std::string, std::string>& config) const {
@@ -377,12 +388,12 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
 
     const auto& c = m_configs_map.at(device_id);
     auto actual_name = name;
-    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr}, IsNewAPI())) {
         actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
     }
 
     auto val = c.get_property(actual_name);
-    if (LegacyAPIHelper::is_legacy_property({name, nullptr})) {
+    if (LegacyAPIHelper::is_legacy_property({name, nullptr}, IsNewAPI())) {
         val = LegacyAPIHelper::convert_to_legacy_property({actual_name, val}).second;
     }
 
