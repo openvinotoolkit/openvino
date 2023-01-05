@@ -43,7 +43,7 @@ class OPENVINO_RUNTIME_API CompiledModel {
     /**
      * @brief Constructs CompiledModel from the initialized std::shared_ptr.
      * @param impl Initialized shared pointer.
-     * @param so Plugin to use. This parameter is required to ensure that CompiledModel can work properly even if a
+     * @param so Plugin to use. This parameter is required to ensure that CompiledModel can work properly even if a dfvjdfkvjdvlkdjvlkdjvlkjdvkdjf vjdflkvjdflvkf vifdjvldjfv vdfv dv d vdv fvd
      * plugin object is destroyed.
      */
     CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
