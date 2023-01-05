@@ -8,13 +8,13 @@
 #include <map>
 #include <string>
 
+#include "decoder_map.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino_conversions.hpp"
 #include "utils.hpp"
-#include "op_table.hpp"
-#include "decoder_map.hpp"
 
 namespace ov {
 namespace frontend {

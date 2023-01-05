@@ -40,8 +40,6 @@ if (tensorflow_FOUND)
     set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
 
     file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
-    file(GLOB_RECURSE TENSORFLOW_MODELS_PBTXT ${CMAKE_CURRENT_SOURCE_DIR}/test_models/models_pbtxt/*.pbtxt)
-    list (APPEND TENSORFLOW_GEN_SCRIPTS ${TENSORFLOW_MODELS_PBTXT})
     file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})
@@ -68,7 +66,7 @@ else()
     # Produce warning message at build time as well
     add_custom_command(OUTPUT unable_build_tensorflow_models.txt
             COMMAND ${CMAKE_COMMAND}
-            -E cmake_echo_color --red "Warning: Unable to generate tensorflow test models. Running '${TARGET_NAME}' will likely fail"
+            -E cmake_echo_color --red "Warning: Unable to generate tensorflow lite test models. Running '${TARGET_NAME}' will likely fail"
             )
     add_custom_target(tensorflow_lite_test_models DEPENDS unable_build_tensorflow_models.txt)
 endif()

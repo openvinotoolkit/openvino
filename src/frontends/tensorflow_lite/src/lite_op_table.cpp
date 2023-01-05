@@ -3,8 +3,8 @@
 //
 
 #include "lite_op_table.hpp"
-#include "decoder_map.hpp"
 
+#include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
@@ -21,6 +21,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"CONCATENATION", concatenation},
         {"RESHAPE", reshape},
         {"LOGISTIC", ov::frontend::tensorflow::op::translate_unary_op<opset10::Sigmoid>},
+        {"RELU", ov::frontend::tensorflow::op::translate_unary_op<opset10::Relu>},
         {"PAD", pad},
         {"ADD", ov::frontend::tensorflow::op::translate_binary_op<opset10::Add>},
         // AVERAGE_POOL_2D

@@ -5,36 +5,35 @@
 #include "op_extension.hpp"
 
 #include "openvino/frontend/extension/op.hpp"
-#include "openvino/frontend/tensorflow/extension/op.hpp"
-#include "openvino/frontend/tensorflow_lite/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "so_extension.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;
 
-using TFOpExtensionTest = FrontEndOpExtensionTest;
+using TFLiteOpExtensionTest = FrontEndOpExtensionTest;
 
 class Relu1 : public Relu {
 public:
     OPENVINO_OP("CustomRelu_1");
-    OPENVINO_FRAMEWORK_MAP(tensorflow)
+    OPENVINO_FRAMEWORK_MAP(tensorflow_lite)
 };
 
 class Relu2 : public Relu {
 public:
-    OPENVINO_FRAMEWORK_MAP(tensorflow, "CustomRelu_2")
+    OPENVINO_FRAMEWORK_MAP(tensorflow_lite, "CustomRelu_2")
 };
 
 class Relu3 : public Relu {
 public:
-    OPENVINO_FRAMEWORK_MAP(tensorflow,
+    OPENVINO_FRAMEWORK_MAP(tensorflow_lite,
                            "CustomRelu_3",
                            {{"ov_attribute_1", "fw_attribute_1"}, {"ov_attribute_2", "fw_attribute_2"}})
 };
 
 class Relu4 : public Relu {
 public:
-    OPENVINO_FRAMEWORK_MAP(tensorflow,
+    OPENVINO_FRAMEWORK_MAP(tensorflow_lite,
                            "CustomRelu_4",
                            {{"ov_attribute_1", "fw_attribute_1"}, {"ov_attribute_2", "fw_attribute_2"}},
                            {
@@ -53,7 +52,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaUserClass() {
     OpExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
     res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
-    res.m_modelName = "2in_2out/2in_2out.pb";
+    res.m_modelName = "2in_2out/2in_2out.tflite";
     // use core OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{std::make_shared<ov::OpExtension<Relu1>>(),
                                                                    std::make_shared<ov::OpExtension<Relu2>>(),
@@ -69,14 +68,14 @@ static OpExtensionFEParam getTestDataOpExtensionViaTFConstructor() {
     res.m_modelName = "2in_2out/2in_2out.pb";
     // use ov::frontend::tensorflow OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
-        std::make_shared<ov::frontend::tensorflow::OpExtension<>>("CustomRelu_5"),
-        std::make_shared<ov::frontend::tensorflow::OpExtension<>>("ov_CustomRelu_6", "fw_CustomRelu_6"),
-        std::make_shared<ov::frontend::tensorflow::OpExtension<>>(
+        std::make_shared<ov::frontend::tensorflow_lite::OpExtension<>>("CustomRelu_5"),
+        std::make_shared<ov::frontend::tensorflow_lite::OpExtension<>>("ov_CustomRelu_6", "fw_CustomRelu_6"),
+        std::make_shared<ov::frontend::tensorflow_lite::OpExtension<>>(
             "ov_CustomRelu_7",
             "fw_CustomRelu_7",
             std::map<std::string, std::string>{{"ov_attribute_1", "fw_attribute_1"},
                                                {"ov_attribute_2", "fw_attribute_2"}}),
-        std::make_shared<ov::frontend::tensorflow::OpExtension<>>(
+        std::make_shared<ov::frontend::tensorflow_lite::OpExtension<>>(
             "ov_CustomRelu_8",
             "fw_CustomRelu_8",
             std::map<std::string, std::string>{{"ov_attribute_1", "fw_attribute_1"},
@@ -98,7 +97,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
     OpExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
     res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
-    res.m_modelName = "2in_2out/2in_2out.pb";
+    res.m_modelName = "2in_2out/2in_2out.tflite";
     // use ov::frontend::OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
         std::make_shared<ov::frontend::OpExtension<>>("CustomRelu_9"),
@@ -126,18 +125,17 @@ static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
     return res;
 }
 
-// TODO: Uncomment when extensions supported
-//INSTANTIATE_TEST_SUITE_P(TFOpExtensionTestViaUserClass,
-//                         FrontEndOpExtensionTest,
-//                         ::testing::Values(getTestDataOpExtensionViaUserClass()),
-//                         FrontEndOpExtensionTest::getTestCaseName);
-//
-//INSTANTIATE_TEST_SUITE_P(TFOpExtensionViaTFConstructor,
-//                         FrontEndOpExtensionTest,
-//                         ::testing::Values(getTestDataOpExtensionViaTFConstructor()),
-//                         FrontEndOpExtensionTest::getTestCaseName);
-//
-//INSTANTIATE_TEST_SUITE_P(TFOpExtensionViaCommonConstructor,
-//                         FrontEndOpExtensionTest,
-//                         ::testing::Values(getTestDataOpExtensionViaCommonConstructor()),
-//                         FrontEndOpExtensionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(TFLiteOpExtensionTestViaUserClass,
+                         FrontEndOpExtensionTest,
+                         ::testing::Values(getTestDataOpExtensionViaUserClass()),
+                         FrontEndOpExtensionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(TFOpExtensionViaTFConstructor,
+                         FrontEndOpExtensionTest,
+                         ::testing::Values(getTestDataOpExtensionViaTFConstructor()),
+                         FrontEndOpExtensionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(TFOpExtensionViaCommonConstructor,
+                         FrontEndOpExtensionTest,
+                         ::testing::Values(getTestDataOpExtensionViaCommonConstructor()),
+                         FrontEndOpExtensionTest::getTestCaseName);

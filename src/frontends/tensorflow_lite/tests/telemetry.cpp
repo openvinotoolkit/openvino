@@ -8,7 +8,7 @@
 
 using namespace ov::frontend;
 
-using TFTelemetryTest = FrontEndTelemetryTest;
+using TFLiteTelemetryTest = FrontEndTelemetryTest;
 
 static TelemetryFEParam getTestData() {
     TelemetryFEParam res;
@@ -18,11 +18,14 @@ static TelemetryFEParam getTestData() {
     res.m_expected_events = {{std::make_tuple("mo", "op_count", "tflite_ADD", 1),
                               std::make_tuple("mo", "op_count", "tflite_CONCATENATION", 1),
                               std::make_tuple("mo", "op_count", "tflite_CONV_2D", 1),
-                              std::make_tuple("mo", "op_count", "tflite_LOGISTIC", 1)}};
+                              std::make_tuple("mo", "op_count", "tflite_DEPTHWISE_CONV_2D", 1),
+                              std::make_tuple("mo", "op_count", "tflite_LOGISTIC", 1),
+                              std::make_tuple("mo", "op_count", "tflite_RELU", 1),
+                              std::make_tuple("mo", "op_count", "tflite_PAD", 1)}};
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(TFTelemetryTest,
+INSTANTIATE_TEST_SUITE_P(TFLiteTelemetryTest,
                          FrontEndTelemetryTest,
                          ::testing::Values(getTestData()),
                          FrontEndTelemetryTest::getTestCaseName);

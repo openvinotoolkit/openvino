@@ -4,19 +4,19 @@
 
 #include "conversion_extension.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
-#include "openvino/frontend/tensorflow/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/frontend.hpp"
 #include "so_extension.hpp"
 #include "tf_utils.hpp"
 
 using namespace ov::frontend;
 
-using TFConversionExtensionTest = FrontEndConversionExtensionTest;
+using TFLiteConversionExtensionTest = FrontEndConversionExtensionTest;
 
-static const std::string translator_name = "Relu";
+static const std::string translator_name = "LOGISTIC";
 
-class TensorflowFrontendWrapper : public ov::frontend::tensorflow::FrontEnd {
+class TensorflowLiteFrontendWrapper : public ov::frontend::tensorflow_lite::FrontEnd {
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override {
-        ov::frontend::tensorflow::FrontEnd::add_extension(extension);
+        ov::frontend::tensorflow_lite::FrontEnd::add_extension(extension);
 
         if (auto conv_ext = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
             EXPECT_NE(std::find(m_conversion_extensions.begin(), m_conversion_extensions.end(), conv_ext),
@@ -41,14 +41,13 @@ static ConversionExtensionFEParam getTestData() {
     ConversionExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
     res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
-    res.m_modelName = "2in_2out/2in_2out.pb";
+    res.m_modelName = "2in_2out/2in_2out.tflite";
     res.m_translatorName = translator_name;
-    res.m_frontend = std::make_shared<TensorflowFrontendWrapper>();
+    res.m_frontend = std::make_shared<TensorflowLiteFrontendWrapper>();
     return res;
 }
 
-// TODO: Uncomment when extensions supported
-//INSTANTIATE_TEST_SUITE_P(TFConversionExtensionTest,
-//                         FrontEndConversionExtensionTest,
-//                         ::testing::Values(getTestData()),
-//                         FrontEndConversionExtensionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(TFLiteConversionExtensionTest,
+                         FrontEndConversionExtensionTest,
+                         ::testing::Values(getTestData()),
+                         FrontEndConversionExtensionTest::getTestCaseName);

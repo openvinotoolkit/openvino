@@ -3,9 +3,8 @@
 //
 
 #include "op_table.hpp"
-#include "utils.hpp"
 #include "op_translation_utils.hpp"
-
+#include "utils.hpp"
 
 using namespace std;
 
@@ -18,12 +17,19 @@ OutputVector reshape(const ov::frontend::tensorflow::NodeContext& node) {
     // convert native attributes to tf appropriate attribute
     const auto& decoder = node.get_decoder();
     size_t input_size = node.get_input_size();
-    FRONT_END_GENERAL_CHECK(input_size == 1 || input_size == 2, "Unexpected number of inputs -- ", input_size, ", for node ", decoder->get_op_type());
+    FRONT_END_GENERAL_CHECK(input_size == 1 || input_size == 2,
+                            "Unexpected number of inputs -- ",
+                            input_size,
+                            ", for node ",
+                            decoder->get_op_type());
 
     Output<Node> shape;
     if (input_size == 1) {
-        const auto* reshape_opts = decoder->get_attribute("ReshapeOptions").as<const tflite::ReshapeOptions*>();
-        const auto new_shape = std::vector<int64_t>(reshape_opts->new_shape()->begin(), reshape_opts->new_shape()->end());
+        const auto& flat_decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
+        FRONT_END_GENERAL_CHECK(flat_decoder != nullptr,
+                                "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+        auto reshape_new_shape = flat_decoder->get_attribute(&tflite::ReshapeOptions::new_shape);
+        const auto new_shape = std::vector<int64_t>(reshape_new_shape->begin(), reshape_new_shape->end());
         shape = opset10::Constant::create(element::i64, ov::Shape{new_shape.size()}, new_shape);
     } else {
         shape = node.get_input(1);
@@ -36,6 +42,3 @@ OutputVector reshape(const ov::frontend::tensorflow::NodeContext& node) {
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov
-
-
-

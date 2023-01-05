@@ -255,7 +255,7 @@ macro(ov_add_frontend)
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
+                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files})
 
     add_dependencies(ov_frontends ${TARGET_NAME})
 

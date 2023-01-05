@@ -30,7 +30,6 @@ std::shared_ptr<void> load_shared_object(const char* path) {
         if (auto error = dlerror()) {
             ss << ": " << error;
         }
-        std::cout << "Error: " << ss.str() << std::endl;
         throw std::runtime_error(ss.str());
     }
     return shared_object;

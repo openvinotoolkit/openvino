@@ -3,12 +3,12 @@
 //
 
 #pragma once
-#include "openvino/opsets/opset1.hpp"
+#include "graph_iterator_flatbuffer.hpp"
+#include "input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
-#include "input_model.hpp"
-#include "graph_iterator_flatbuffer.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "tensor_lite_place.hpp"
 
 namespace ov {
@@ -21,7 +21,7 @@ class InputModel : public ov::frontend::InputModel {
     std::shared_ptr<InputModelTFLiteImpl> _impl;
 
     std::vector<std::shared_ptr<ov::frontend::tensorflow::OpPlace>> get_op_places() const;
-    std::map<std::string, std::shared_ptr<ov::frontend::tensorflow::TensorPlace>> get_tensor_places() const;
+    std::map<std::string, std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
@@ -32,12 +32,6 @@ public:
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
-//    virtual Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const;
-//    virtual Place::Ptr get_place_by_operation_name(const std::string& operation_name) const;
-//    virtual Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
-//                                                                  int input_port_index);
-//    virtual Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
-//                                                                   int output_port_index);
 
     ///// Naming and annotation  /////
     void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) override;

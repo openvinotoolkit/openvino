@@ -10,6 +10,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/tensorflow/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/extension/conversion.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
@@ -20,7 +21,19 @@ public:
     FrontEnd();
     /// \brief Completely convert the model
     /// \return fully converted ov Model
-    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr &model) const override;
+    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr& model) const override;
+
+    /// \brief Completely convert the remaining, not converted part of a function.
+    /// \param partiallyConverted partially converted ov Model
+    void convert(const std::shared_ptr<Model>& partiallyConverted) const override;
+
+    /// \brief Convert only those parts of the model that can be converted leaving others
+    /// as-is. Converted parts are not normalized by additional transformations; normalize
+    /// function or another form of convert function should be called to finalize the
+    /// conversion process.
+    /// \param model Input model
+    /// \return partially converted ov Model
+    std::shared_ptr<Model> convert_partially(const ov::frontend::InputModel::Ptr& model) const override;
 
     /// \brief Convert operations with one-to-one mapping with decoding nodes.
     /// Each decoding node is an ov node representing a single TFLite operation node with
@@ -37,6 +50,7 @@ public:
     std::string get_name() const override {
         return "tflite";
     }
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
     /// \brief Check if FrontEndTensorflowLite can recognize model from given parts
@@ -44,10 +58,9 @@ protected:
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
-                         const std::string& model_name,
                          bool fail_fast,
                          bool no_conversion,
-                         std::shared_ptr<ov::Model>& ng_function) const override;
+                         std::shared_ptr<ov::Model>& ng_function) const;
 };
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
 }  // namespace tensorflow_lite

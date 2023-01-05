@@ -7,8 +7,8 @@
 #include <utility>
 
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,20 +16,30 @@ namespace tensorflow_lite {
 
 class TENSORFLOW_LITE_API DecoderMap : public ov::frontend::tensorflow::DecoderBase {
 public:
+    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder,
+               const std::map<std::string, ov::Any>& attrs,
+               bool empty_name = false)
+        : ov::frontend::tensorflow::DecoderBase(),
+          m_decoder(std::move(decoder)),
+          m_attrs(attrs),
+          m_empty_name(empty_name) {}
 
-    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder, const std::map<std::string, ov::Any>& attrs, bool empty_name=false) :
-            ov::frontend::tensorflow::DecoderBase(), m_decoder(std::move(decoder)), m_attrs(attrs), m_empty_name(empty_name) {}
-
-    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder, const std::map<std::string, ov::Any>& attrs, std::string type, bool empty_name=false) :
-            ov::frontend::tensorflow::DecoderBase(), m_decoder(std::move(decoder)), m_attrs(attrs), m_type(type), m_empty_name(empty_name) {}
+    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder,
+               const std::map<std::string, ov::Any>& attrs,
+               std::string type,
+               bool empty_name = false)
+        : ov::frontend::tensorflow::DecoderBase(),
+          m_decoder(std::move(decoder)),
+          m_attrs(attrs),
+          m_type(type),
+          m_empty_name(empty_name) {}
 
     /// \brief Get attribute value by name
     ///
     /// \param name Attribute name
     /// \return Shared pointer to appropriate value converted to openvino data type if it exists, 'nullptr' otherwise
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_GENERAL_CHECK(m_attrs.count(name),
-                                "DecoderMap was requested attribute that doesn't exist: ", name);
+        FRONT_END_GENERAL_CHECK(m_attrs.count(name), "DecoderMap was requested attribute that doesn't exist: ", name);
         return m_attrs.at(name);
     }
 

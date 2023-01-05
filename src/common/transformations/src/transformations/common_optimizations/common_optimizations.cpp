@@ -108,7 +108,6 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
-#include "openvino/pass/visualize_tree.hpp"
 
 bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
@@ -229,7 +228,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.register_pass<ngraph::pass::StridesOptimization>();
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
-    ov::pass::VisualizeTree("after_common.svg").run_on_model(f);
     // Returning value is false because pass::Manager always apply Validation pass
     // if function was changed. This helps to avoid excess Validations after applying
     // this pass. In future when we will return more meaningful status code it will be

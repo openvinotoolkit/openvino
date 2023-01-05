@@ -8,7 +8,7 @@
 
 using namespace ov::frontend;
 
-using TFLibraryExtensionTest = FrontendLibraryExtensionTest;
+using TFLiteLibraryExtensionTest = FrontendLibraryExtensionTest;
 
 static FrontendLibraryExtensionTestParams getTestData() {
     FrontendLibraryExtensionTestParams params;
@@ -18,8 +18,7 @@ static FrontendLibraryExtensionTestParams getTestData() {
     return params;
 }
 
-// TODO: Uncomment when extensions supported
-//INSTANTIATE_TEST_SUITE_P(TFLibraryExtensionTest,
-//                         FrontendLibraryExtensionTest,
-//                         ::testing::Values(getTestData()),
-//                         FrontendLibraryExtensionTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(TFLiteLibraryExtensionTest,
+                         FrontendLibraryExtensionTest,
+                         ::testing::Values(getTestData()),
+                         FrontendLibraryExtensionTest::getTestCaseName);

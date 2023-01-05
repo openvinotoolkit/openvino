@@ -9,13 +9,13 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-using TFConvertModelTest = FrontEndConvertModelTest;
+using TFLiteConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
     std::string("2in_2out/2in_2out.tflite"),
 };
 
-INSTANTIATE_TEST_SUITE_P(TFConvertModelTest,
+INSTANTIATE_TEST_SUITE_P(TFLiteConvertModelTest,
                          FrontEndConvertModelTest,
                          ::testing::Combine(::testing::Values(TF_LITE_FE),
                                             ::testing::Values(std::string(TEST_TENSORFLOW_MODELS_DIRNAME)),

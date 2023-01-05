@@ -19,8 +19,8 @@ namespace tensorflow {
 namespace op {
 #define OP_CONVERTER(op) OutputVector TENSORFLOW_API op(const NodeContext& node)
 #define OP_T_CONVERTER(op) \
-template <class T>     \
-OutputVector TENSORFLOW_API op(const NodeContext& node)
+    template <class T>     \
+    OutputVector TENSORFLOW_API op(const NodeContext& node)
 
 OP_T_CONVERTER(translate_unary_op);
 OP_T_CONVERTER(translate_binary_op);
@@ -138,7 +138,6 @@ OP_CONVERTER(translate_zeros_like_op);
 OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 OP_CONVERTER(translate_sparse_segment_sum_op);
 OP_CONVERTER(translate_unique_op);
-
 
 const std::map<std::string, CreatorFunction> get_supported_ops();
 }  // namespace op

@@ -6,13 +6,12 @@
 
 #include <fstream>
 
-#include "schema_generated.h"
 #include "decoder_flatbuffer.h"
 #include "flatbuffers/flatbuffers.h"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
-
+#include "schema_generated.h"
 
 using namespace tflite;
 
@@ -46,7 +45,7 @@ public:
         model_file.read(data, length);
         model_file.close();
 
-        m_model = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p){});
+        m_model = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p) {});
         const auto subgraphs = m_model->subgraphs();
         FRONT_END_GENERAL_CHECK(subgraphs->size() == 1,
                                 "Number of sub-graphs in the model is ",

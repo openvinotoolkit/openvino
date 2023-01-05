@@ -3,9 +3,9 @@
 //
 
 #pragma once
-#include "schema_generated.h"
-#include "place.hpp"
 #include "decoder_flatbuffer.h"
+#include "place.hpp"
+#include "schema_generated.h"
 
 namespace ov {
 namespace frontend {
@@ -18,12 +18,14 @@ ov::element::Type get_ov_type(const tflite::TensorType& tf_type);
 
 ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape);
 
-//ov::frontend::tensorflow_lite::Quantization get_quantization(const tflite::QuantizationParameters* tf_quantization);
-std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> get_quantization(const tflite::QuantizationParameters* tf_quantization);
+// ov::frontend::tensorflow_lite::Quantization get_quantization(const tflite::QuantizationParameters* tf_quantization);
+std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> get_quantization(
+    const tflite::QuantizationParameters* tf_quantization);
 
 ov::Output<Node> apply_quantization(ov::Output<ov::Node> output,
-                                    const std::shared_ptr<ov::frontend::tensorflow::TensorPlace>& tensor, bool is_input=false);
+                                    const std::shared_ptr<ov::frontend::tensorflow::TensorPlace>& tensor,
+                                    bool is_input = false);
 
-}
-}
-}
+}  // namespace tensorflow_lite
+}  // namespace frontend
+}  // namespace ov

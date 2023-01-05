@@ -6,8 +6,8 @@
 
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
@@ -16,7 +16,7 @@ namespace tensorflow_lite {
 
 class TENSORFLOW_LITE_API ConversionExtension : public ov::frontend::tensorflow::ConversionExtension {
 public:
-    using Ptr = std::shared_ptr<ConversionExtension>;
+    using Ptr = std::shared_ptr<ov::frontend::tensorflow_lite::ConversionExtension>;
 
     ConversionExtension() = delete;
     ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)

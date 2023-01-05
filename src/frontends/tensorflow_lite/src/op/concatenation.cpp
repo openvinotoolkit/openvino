@@ -3,9 +3,8 @@
 //
 
 #include "op_table.hpp"
-#include "utils.hpp"
 #include "op_translation_utils.hpp"
-
+#include "utils.hpp"
 
 using namespace std;
 
@@ -16,13 +15,17 @@ namespace op {
 
 OutputVector concatenation(const ov::frontend::tensorflow::NodeContext& node) {
     // convert native attributes to tf appropriate attribute
-    const auto& decoder = node.get_decoder();
-    const auto* concat_opts = decoder->get_attribute("ConcatenationOptions").as<const tflite::ConcatenationOptions*>();
-    const std::map<std::string, ov::Any> attrs {
-            {"axis", static_cast<int64_t>(concat_opts->axis())},
-            {"activation", EnumNameActivationFunctionType(concat_opts->fused_activation_function())},
+    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
+    FRONT_END_GENERAL_CHECK(decoder != nullptr,
+                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const std::map<std::string, ov::Any> attrs{
+        {"axis", static_cast<int64_t>(decoder->get_attribute(&tflite::ConcatenationOptions::axis))},
+        {"activation",
+         EnumNameActivationFunctionType(
+             decoder->get_attribute(&tflite::ConcatenationOptions::fused_activation_function))},
     };
-    auto decoder_for_tf_translator = std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(decoder, attrs, "tflite::CONCATENATION", true);
+    auto decoder_for_tf_translator =
+        std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(decoder, attrs, "tflite::CONCATENATION", true);
     ov::OutputVector inputs(node.get_input_size());
     for (auto i = 0; i < node.get_input_size(); ++i) {
         inputs[i] = node.get_input(i);
@@ -32,6 +35,7 @@ OutputVector concatenation(const ov::frontend::tensorflow::NodeContext& node) {
     del_output_names(output);
     get_activation(output, node, decoder_for_tf_translator);
     del_output_names(output);
+    // TODO: where should op name go?
     return output;
 }
 
@@ -39,6 +43,3 @@ OutputVector concatenation(const ov::frontend::tensorflow::NodeContext& node) {
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov
-
-
-
