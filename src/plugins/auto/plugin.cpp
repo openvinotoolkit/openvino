@@ -77,8 +77,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             return;
         }
 
-        auto isSetNumStreams = deviceConfig.find(ov::num_streams.name()) != deviceConfig.end();
         if (GetName() == "MULTI") {
+            auto isSetNumStreams = mergedConfig.find(ov::num_streams.name()) != mergedConfig.end();
             auto isSetAffinity = mergedConfig.find(ov::affinity.name()) != mergedConfig.end();
             auto isSetNumThreads = mergedConfig.find(ov::inference_num_threads.name()) != mergedConfig.end();
             if (!isSetPerHint && !isSetAffinity && !isSetNumThreads && !isSetDeviceProperties && !isSetNumStreams) {
