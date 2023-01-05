@@ -709,6 +709,25 @@ mo_convert_params = {
 }
 
 
+class DeprecatedStoreTrue(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        if 'fusing' in option_string:
+            dep_msg += 'Please use --finegrain_fusing cli option instead'
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
+
+
+class DeprecatedOptionCommon(argparse.Action):
+    def __call__(self, parser, args, values, option_string):
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(args, self.dest, values)
+
+
 class IgnoredAction(argparse.Action):
     def __init__(self, nargs=0, **kw):
         super().__init__(nargs=nargs, **kw)
@@ -796,6 +815,16 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
                     super().__call__(parser, namespace, values, option_string)
                 else:
                     setattr(namespace, self.dest, values)
+
+
+class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
+            option_string)
+        if 'tensorflow_use_custom_operations_config' in option_string:
+            dep_msg += 'Please use --transformations_config cli option instead'
+        log.error(dep_msg, extra={'is_warning': True})
+        super().__call__(parser, namespace, values, option_string)
 
 
 def readable_file(path: str):
@@ -1052,7 +1081,6 @@ def get_common_cli_options(model_name):
     d['scale_values'] = ['- Scale values', lambda x: x if x else 'Not specified']
     d['scale'] = ['- Scale factor', lambda x: x if x else 'Not specified']
     d['data_type'] = ['- Precision of IR', lambda x: 'FP32' if x == 'float' else 'FP16' if x == 'half' else x]
-    d['disable_fusing'] = ['- Enable fusing', lambda x: not x]
     d['transform'] = ['- User transformations', lambda x: x if x else 'Not specified']
     d['reverse_input_channels'] = '- Reverse input channels'
     d['static_shape'] = '- Enable IR generation for fixed input shape'
@@ -1072,7 +1100,6 @@ def get_caffe_cli_options():
         'input_proto': ['- Path to the Input prototxt', lambda x: x],
         'caffe_parser_path': ['- Path to Python Caffe* parser generated from caffe.proto', lambda x: x],
         'k': '- Path to CustomLayersMapping.xml',
-        'disable_resnet_optimization': ['- Enable resnet optimization', lambda x: not x],
     }
 
     return OrderedDict(sorted(d.items(), key=lambda t: t[0]))
