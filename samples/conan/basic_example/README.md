@@ -1,4 +1,4 @@
-# Conan basic example {#openvino_conan_samples_basic_example_README}
+# Conan basic example
 
 The sample demonstrates how to integrate OpenVINO with Conan package manager. 
 IR Models are only supported.
