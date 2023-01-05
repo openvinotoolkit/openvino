@@ -6,7 +6,7 @@
 #pragma once
 
 #include <gmock/gmock-matchers.h>
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "nnet_base_matcher.hpp"
 
 class InputDataMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t *> {
