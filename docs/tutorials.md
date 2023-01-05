@@ -253,11 +253,11 @@ Live inference demos that run on a webcam or video files.
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `403-action-recognition-webcam <notebooks/403-action-recognition-webcam-with-output.html>`__ |br| |n403|                      | Human action recognition with a webcam or video file.                                                                                      | |n403-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `404-style-transfer-webcam <notebooks/404-style-transfer-webcam-with-output.html>`__ |br| |n404|                              | Style Transfer with a webcam or video file                                                                                                 | |n404-img1|                               |
+| `404-style-transfer-webcam <notebooks/404-style-transfer-with-output.html>`__ |br| |n404|                                     | Style Transfer with a webcam or video file                                                                                                 | |n404-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `405-paddle-ocr-webcam <notebooks/405-paddle-ocr-webcam-with-output.html>`__ |br| |n405|                                      | OCR with a webcam or video file                                                                                                            | |n405-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-| `406-3D-pose-estimation-webcam <notebooks/406-3D-pose-estimation-webcam-with-output.html>`__ |br| |n406|                      | 3D display of human pose estimation with a webcam or video file                                                                            | |n406-img1|                               |
+| `406-3D-pose-estimation-webcam <notebooks/406-3D-pose-estimation-with-output.html>`__ |br| |n406|                             | 3D display of human pose estimation with a webcam or video file                                                                            | |n406-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
@@ -353,12 +353,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/36741649/132660640-da2211ec-c389-450e-8980-32a75ed14abb.png
 .. |n201-img1| image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :target: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-.. |n202i-img1| image:: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
+.. |n202i-img1| image:: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
    :width: 70
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
-.. |n202i-img2| image:: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
+   :target: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
+.. |n202i-img2| image:: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
    :width: 130
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
+   :target: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
 .. |n202v-img1| image:: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
    :target: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
    :width: 80
