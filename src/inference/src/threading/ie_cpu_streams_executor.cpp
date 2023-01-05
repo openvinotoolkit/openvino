@@ -120,12 +120,8 @@ struct CPUStreamsExecutor::Impl {
                                                       _impl->_config._small_core_streams > 1;
                     const auto thread_binding_step = getThreadStep(cpu_core_type);
                     const auto cpu_idx_offset = getCoreOffset(cpu_core_type);
-                    for (int i = 0; i < concurrency; i++) {
-                        _cpu_ids.push_back(cpu_idx_offset + thread_binding_step * i);
-                    }
-                    if (small_core_threads_3) {
-                        _cpu_ids.push_back(cpu_idx_offset + 3);
-                    }
+                    const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
+                    _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus);
                     setCpuUsed(_cpu_ids, 1);
                     CpuSet processMask;
                     int ncpus = 0;

@@ -70,6 +70,10 @@ int getThreadStep(const cpu_core_type_of_processor core_type) {
     return 0;
 }
 
+std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
+    return {};
+}
+
 void setCpuUsed(std::vector<int> cpu_ids, int used) {}
 
 }  // namespace InferenceEngine

@@ -244,7 +244,7 @@ int getCoreOffset(const cpu_core_type_of_processor core_type) {
             }
         }
     } else {
-        IE_THROW() << "Wrong value for cpu_col " << core_type;
+        IE_THROW() << "Wrong value for core_type " << core_type;
     }
     return offset;
 }
@@ -262,16 +262,33 @@ int getThreadStep(const cpu_core_type_of_processor core_type) {
             }
         }
     } else {
-        IE_THROW() << "Wrong value for cpu_col " << core_type;
+        IE_THROW() << "Wrong value for core_type " << core_type;
     }
     return proc_array.size() == 2 ? proc_array[1] - proc_array[0] : 1;
 }
 
+std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
+    std::vector<int> cpu_ids;
+    if (core_type <= EFFICIENT_CORE_PROC && core_type >= ALL_PROC) {
+        for (int i = 0; i < cpu._processors; i++) {
+            if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] <= 0) {
+                cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
+            }
+            if (static_cast<int>(cpu_ids.size()) == num_cpus) {
+                break;
+            }
+        }
+    } else {
+        IE_THROW() << "Wrong value for core_type " << core_type;
+    }
+    return cpu_ids;
+}
+
 void setCpuUsed(std::vector<int> cpu_ids, int used) {
     const auto cpu_size = static_cast<int>(cpu_ids.size());
-    const auto cpu_mapping_size = static_cast<int>(cpu._cpu_mapping_table.size());
-    for (auto i = 0; i < cpu_size; i++) {
-        if (cpu_ids[i] < cpu_mapping_size) {
+    for (int i = 0; i < cpu_size; i++) {
+        if (cpu_ids[i] < cpu._processors) {
             cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
         }
     }

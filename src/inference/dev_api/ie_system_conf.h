@@ -176,6 +176,16 @@ INFERENCE_ENGINE_API_CPP(int) getCoreOffset(const cpu_core_type_of_processor cor
 INFERENCE_ENGINE_API_CPP(int) getThreadStep(const cpu_core_type_of_processor core_type);
 
 /**
+ * @brief      Returns available cpu ids
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  core_type core type.
+ * @param[in]  num_cpus number of cpus.
+ * @return     Array of available cpu ids.
+ */
+INFERENCE_ENGINE_API_CPP(std::vector<int>)
+getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus);
+
+/**
  * @enum column_of_cpu_mapping_table
  * @brief This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
