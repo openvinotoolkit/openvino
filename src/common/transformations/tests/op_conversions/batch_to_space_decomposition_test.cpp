@@ -195,6 +195,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
             std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertBatchToSpace>(false);
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
