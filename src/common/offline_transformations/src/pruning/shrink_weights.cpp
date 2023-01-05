@@ -39,16 +39,6 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     const auto output_shape_const_op = get_constant_from_source(shape);
     if (!output_shape_const_op)
         return false;
-
-    const auto& input_shape = input.get_shape();
-    const auto output_shape = output_shape_const_op->cast_vector<int64_t>();
-    // below casts are needed due to VC warning C4244, literals are not enough in this case
-    const auto input_elems =
-        std::accumulate(input_shape.begin(), input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-    const auto output_elems =
-        std::accumulate(output_shape.begin(), output_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
-    if (output_elems <= 0 || input_elems == output_elems)
-        return false;
     return true;
 }
 
@@ -60,9 +50,19 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ngraph::
         return false;
     }
 
+    const auto output_shape = get_constant_from_source(shape)->cast_vector<int64_t>();
     auto sub_const_vector = std::vector<int64_t>();
-    for (auto& dim : *mask.get())
-        sub_const_vector.push_back(dim.size());
+    bool any_changes = false;
+    for (size_t axis = 0; axis < mask->size(); ++axis) {
+        auto value = (output_shape[axis] > 0)? mask->at(axis).size(): 0;
+        any_changes |= value;
+        sub_const_vector.push_back(value);
+    }
+    if (!any_changes) {
+        NGRAPH_DEBUG << "Adoptation for node " << reshape->get_friendly_name() << " is not needed";
+        NGRAPH_DEBUG << "OUTPUT_SHAPE:" << vec_to_str(output_shape) << " MASK:" << *mask.get();
+        return false;
+    }
 
     const auto sub_const = ngraph::opset6::Constant::create(shape.get_element_type(), {mask->size()}, sub_const_vector);
     const auto sub = std::make_shared<ngraph::opset6::Subtract>(shape, sub_const);
@@ -182,7 +182,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
         if (!mask && init_mask)
             NGRAPH_DEBUG << "Mask was ruined for node:" << node->get_friendly_name() << "\nInit mask: " << *init_mask;
 #endif
-        if (is_static_reshape_op(node) && not_empty_mask(mask))
+        if (not_empty_mask(mask) && is_static_reshape_op(node))
             if (!maybe_adopt_reshape_node(node, mask))
                 continue;
 
