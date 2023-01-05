@@ -42,15 +42,14 @@ public:
         return (status != Status::NotReady);
     }
 
-    void setProperty(const std::map<std::string, std::string> &properties);
     Config getProperty() const;
 
     template<typename NET>
-    void CreateGraph(NET &network, GraphContext::Ptr ctx);
+    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
-                     GraphContext::Ptr ctx,
+                     const GraphContext::CPtr ctx,
                      std::string name);
 
     bool hasMeanImageFor(const std::string& name) {
@@ -108,7 +107,7 @@ public:
         return context->getEngine();
     }
 
-    GraphContext::Ptr getGraphContext() const {
+    GraphContext::CPtr getGraphContext() const {
         return context;
     }
 
@@ -254,7 +253,7 @@ private:
 
     std::unordered_map<Node*, size_t> syncNodesInds;
 
-    GraphContext::Ptr context;
+    GraphContext::CPtr context;
 
     void EnforceBF16();
 };

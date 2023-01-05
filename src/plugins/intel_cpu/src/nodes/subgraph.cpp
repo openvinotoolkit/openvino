@@ -36,7 +36,7 @@ namespace intel_cpu {
 namespace node {
 
 
-Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;

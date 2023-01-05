@@ -28,7 +28,7 @@ bool CTCGreedyDecoderSeqLen::isSupportedOperation(const std::shared_ptr<const ng
     return true;
 }
 
-CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

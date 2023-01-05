@@ -16,7 +16,7 @@ namespace node {
 
 class Unique : public Node {
 public:
-    Unique(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context);
+    Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     void getSupportedDescriptors() override {};

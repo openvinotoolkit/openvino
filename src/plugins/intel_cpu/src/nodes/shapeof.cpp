@@ -55,7 +55,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {

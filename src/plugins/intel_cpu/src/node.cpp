@@ -78,7 +78,7 @@ Node::NodesFactory & Node::factory() {
 }
 
 Node::Node(const std::shared_ptr<ngraph::Node>& op,
-           const GraphContext::Ptr ctx,
+           const GraphContext::CPtr ctx,
            const ShapeInferFactory& shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
@@ -86,8 +86,6 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
       constant(ConstantType::Unknown),
       context(ctx),
       engine(ctx->getEngine()),
-      weightCache(ctx->getWeightsCache()),
-      isInQuantizedGraph(ctx->getGraphQuantizedFlag()),
       name(op->get_friendly_name()),
       typeStr(op->get_type_name()),
       type(TypeFromName(op->get_type_name())),
@@ -181,15 +179,13 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, GraphContext::Ptr ctx)
+Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
       temporary(false),
       constant(ConstantType::Unknown),
       context(ctx),
       engine(ctx->getEngine()),
-      weightCache(ctx->getWeightsCache()),
-      isInQuantizedGraph(ctx->getGraphQuantizedFlag()),
       fusingPort(-1),
       name(name),
       typeStr(type),
@@ -816,6 +812,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
         };
 
         MemoryPtr ptr;
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const uint64_t data_hash = weightCache->GetHashFunc().hash(
                     internalBlob->buffer(), internalBlob->byteSize());
@@ -1227,7 +1224,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:

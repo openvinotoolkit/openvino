@@ -16,7 +16,7 @@ namespace node {
 
 class Proposal : public Node {
 public:
-    Proposal(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    Proposal(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

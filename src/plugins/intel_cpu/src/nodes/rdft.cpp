@@ -76,7 +76,7 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) :
+RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
                Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

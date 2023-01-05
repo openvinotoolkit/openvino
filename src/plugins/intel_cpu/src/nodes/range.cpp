@@ -27,7 +27,7 @@ bool Range::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Range::Range(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+Range::Range(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

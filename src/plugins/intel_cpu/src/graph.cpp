@@ -72,7 +72,7 @@ Graph::~Graph() {
 }
 
 template<typename NET>
-void Graph::CreateGraph(NET &net, GraphContext::Ptr ctx) {
+void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
     if (IsReady())
@@ -89,7 +89,7 @@ void Graph::CreateGraph(NET &net, GraphContext::Ptr ctx) {
 
 void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
                               const std::vector<EdgePtr> &graphEdges,
-                              GraphContext::Ptr ctx,
+                              const GraphContext::CPtr ctx,
                               std::string name) {
     if (IsReady())
         ForgetGraphData();
@@ -115,15 +115,12 @@ void Graph::CreateGraph(const std::vector<NodePtr> &graphNodes,
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
-template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, GraphContext::Ptr);
-template void Graph::CreateGraph(const CNNNetwork&, GraphContext::Ptr);
+template void Graph::CreateGraph(const std::shared_ptr<const ngraph::Function>&, const GraphContext::CPtr);
+template void Graph::CreateGraph(const CNNNetwork&, const GraphContext::CPtr);
 
 void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
     this->_name = "subgraph";
     this->reuse_io_tensors = false;
-
-    context->setGraphQuantizedFlag((context->getConfig().lpTransformsMode == Config::On) &&
-                                   ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(subgraph));
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;
@@ -230,9 +227,6 @@ void Graph::Replicate(const CNNNetwork &network) {
     if (!func) {
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
-
-    context->setGraphQuantizedFlag((context->getConfig().lpTransformsMode == Config::On) &&
-                                   ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func));
 
     auto orderedOps = func->get_ordered_ops();
 
@@ -1292,10 +1286,6 @@ void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEnginePr
     }
 }
 
-void Graph::setProperty(const std::map<std::string, std::string>& properties) {
-    context->getConfig().readProperties(properties);
-}
-
 Config Graph::getProperty() const {
     return context->getConfig();
 }
@@ -1515,7 +1505,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 void Graph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (!implication(context->getGraphQuantizedFlag(), context->getConfig().manualEnforceBF16))
+    if (!implication(context->isGraphQuantized(), context->getConfig().manualEnforceBF16))
         return;
 
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;

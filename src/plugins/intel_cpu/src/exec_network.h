@@ -39,8 +39,6 @@ public:
                 const ExtensionManager::Ptr &extMgr,
                 const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
-    void setProperty(const std::map<std::string, std::string> &properties);
-
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;

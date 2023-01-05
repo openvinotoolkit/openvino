@@ -17,7 +17,7 @@ namespace node {
 
 class OneHot : public Node {
 public:
-    OneHot(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

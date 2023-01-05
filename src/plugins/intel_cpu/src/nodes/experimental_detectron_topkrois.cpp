@@ -31,7 +31,7 @@ bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<c
 }
 
 ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op,
-                                                             GraphContext::Ptr context)
+                                                             const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

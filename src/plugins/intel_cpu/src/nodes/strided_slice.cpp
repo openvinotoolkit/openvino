@@ -38,7 +38,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context) :
+StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3, 4))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

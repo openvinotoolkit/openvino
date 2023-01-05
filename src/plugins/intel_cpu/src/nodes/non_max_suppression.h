@@ -64,7 +64,7 @@ struct jit_uni_nms_kernel {
 
 class NonMaxSuppression : public Node {
 public:
-    NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

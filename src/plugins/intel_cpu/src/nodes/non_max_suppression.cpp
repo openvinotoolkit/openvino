@@ -575,7 +575,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()),
       isSoftSuppressedByIOU(false) {
     std::string errorMessage;

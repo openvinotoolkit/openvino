@@ -17,8 +17,8 @@ namespace node {
 
 class Reorder : public Node {
 public:
-    Reorder(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
-    Reorder(const std::string& name, GraphContext::Ptr context);
+    Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Reorder(const std::string& name, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

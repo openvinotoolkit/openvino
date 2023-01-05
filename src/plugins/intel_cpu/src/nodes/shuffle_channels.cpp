@@ -65,7 +65,7 @@ bool ShuffleChannels::isSupportedOperation(const std::shared_ptr<const ngraph::N
     return true;
 }
 
-ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+ShuffleChannels::ShuffleChannels(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -106,8 +106,8 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     }
 
     // use ncsp as default for non-quantized networks and nspc for quantized
-    auto firstCreatorType = isInQuantizedGraph ? LayoutType::nspc : LayoutType::ncsp;
-    auto secondCreatorType = isInQuantizedGraph ? LayoutType::ncsp : LayoutType::nspc;
+    auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
+    auto secondCreatorType = context->isGraphQuantized() ? LayoutType::ncsp : LayoutType::nspc;
 
     addSupportedPrimDesc({{firstCreatorType, precision}},
                          {{firstCreatorType, precision}},

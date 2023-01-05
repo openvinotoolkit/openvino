@@ -16,17 +16,18 @@ namespace intel_cpu {
 class GraphContext {
 public:
     typedef std::shared_ptr<GraphContext> Ptr;
+    typedef std::shared_ptr<const GraphContext> CPtr;
 
     GraphContext(const Config& config,
                  ExtensionManager::Ptr extensionManager,
                  WeightsSharing::Ptr w_cache,
-                 std::shared_ptr<std::mutex> sharedMutex)
+                 std::shared_ptr<std::mutex> sharedMutex,
+                 bool isGraphQuantized)
         : config(config),
           extensionManager(extensionManager),
-          sharedMutex(sharedMutex) {
-        // disable weights caching if graph was created only once
-        weightsCache = config.streamExecutorConfig._streams != 1 ? w_cache : nullptr;
-
+          weightsCache(w_cache),
+          sharedMutex(sharedMutex),
+          isGraphQuantizedFlag(isGraphQuantized) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
         rtScratchPad = std::make_shared<DnnlScratchPad>(eng);
     }
@@ -63,12 +64,8 @@ public:
         return eng;
     }
 
-    bool getGraphQuantizedFlag() const {
-        return isGraphQuantized;
-    }
-
-    void setGraphQuantizedFlag(bool on) {
-        isGraphQuantized = on;
+    bool isGraphQuantized() const {
+        return isGraphQuantizedFlag;
     }
 
 private:
@@ -81,7 +78,7 @@ private:
     MultiCachePtr rtParamsCache;     // primitive cache
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
 
-    bool isGraphQuantized = false;
+    bool isGraphQuantizedFlag = false;
     static dnnl::engine eng;  // onednn engine (singleton)
 };
 

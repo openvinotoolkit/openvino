@@ -13,7 +13,7 @@ namespace node {
 
 class CTCLoss : public Node {
 public:
-    CTCLoss(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    CTCLoss(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

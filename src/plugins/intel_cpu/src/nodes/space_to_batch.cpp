@@ -38,7 +38,7 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

@@ -17,7 +17,7 @@ namespace node {
 
 class MatMul : public Node {
 public:
-    MatMul(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,

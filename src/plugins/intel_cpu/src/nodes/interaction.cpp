@@ -155,7 +155,7 @@ private:
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
 };
 
-Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+Interaction::Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

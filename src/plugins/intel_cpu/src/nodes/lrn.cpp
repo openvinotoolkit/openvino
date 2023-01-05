@@ -106,7 +106,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context) :
+Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {

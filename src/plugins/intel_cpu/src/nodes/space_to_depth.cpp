@@ -72,7 +72,7 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+SpaceToDepth::SpaceToDepth(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

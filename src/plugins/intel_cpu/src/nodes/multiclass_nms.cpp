@@ -42,7 +42,7 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context)
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

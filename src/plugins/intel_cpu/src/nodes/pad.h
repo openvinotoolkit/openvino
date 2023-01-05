@@ -14,7 +14,7 @@ namespace node {
 
 class Pad : public Node {
 public:
-    Pad(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;

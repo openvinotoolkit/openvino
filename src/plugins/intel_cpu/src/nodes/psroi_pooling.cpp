@@ -57,7 +57,7 @@ bool PSROIPooling::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+PSROIPooling::PSROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

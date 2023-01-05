@@ -16,7 +16,7 @@ namespace node {
 
 class PriorBox : public Node {
 public:
-    PriorBox(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

@@ -289,7 +289,7 @@ bool GenerateProposals::isSupportedOperation
     return true;
 }
 
-GenerateProposals::GenerateProposals(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+GenerateProposals::GenerateProposals(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

@@ -15,7 +15,7 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context);
+    Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;

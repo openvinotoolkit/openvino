@@ -32,7 +32,7 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, GraphContext::Ptr context) :
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
         Node(op, context, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

@@ -5,6 +5,7 @@
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
 #include "exec_network.h"
+#include <low_precision/low_precision.hpp>
 
 #include "async_infer_request.h"
 #include "infer_request.h"
@@ -180,11 +181,14 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
                     // disable weights caching if graph was created only once
-                    auto weightsCache = _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
-                    ctx = std::make_shared<GraphContext>(_cfg,
-                                                         extensionManager,
-                                                         weightsCache,
-                                                         _mutex);
+                    auto weightsCache =
+                        _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
+
+                    auto isQuantizedFlag =
+                        (_cfg.lpTransformsMode == Config::On) &&
+                        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
+
+                    ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, _mutex, isQuantizedFlag);
                 }
                 graphLock._graph.CreateGraph(_network, ctx);
             } catch (...) {
@@ -201,19 +205,6 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         }
     }
     return graphLock;
-}
-
-void ExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
-    {
-        std::lock_guard<std::mutex> lock{*_mutex.get()};
-        _cfg.readProperties(properties);
-    }
-    for (auto& g : _graphs) {
-        auto graphLock = GraphGuard::Lock(g);
-        if (graphLock._graph.IsReady()) {
-            graphLock._graph.setProperty(properties);
-        }
-    }
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecNetwork::CreateInferRequest() {

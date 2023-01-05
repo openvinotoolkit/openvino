@@ -31,7 +31,7 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr context)
+Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
@@ -45,7 +45,7 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, GraphContext::Ptr cont
 }
 
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, GraphContext::Ptr context)
+                 const std::string &nodeName, const GraphContext::CPtr context)
         : Node("Convert", nodeName, context)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
