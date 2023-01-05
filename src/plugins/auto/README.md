@@ -1,15 +1,55 @@
-# OpenVINO AUTO Plugin
+# OpenVINO™ AUTO Plugin
 
-AUTO plugin for OpenVINO™ Runtime, uses a “virtual” or a “proxy” device, which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. It detects available devices, picks the best-suited for the task, and configures optimization settings. This way, developer can write the application once and deploy it anywhere. 
+The main responsibility of the AUTO plugin is to provide a unified device that enables developers to code deep learning applications once and deploy them anywhere. 
+
+Other capabilities of the AUTO plugin:
+* Static device selection intelligently loads a network to one device or multiple devices
+* CPU acceleration to start inferencing while the target device is still loading the network
+* Model priority support for loading multiple networks to multiple devices
+
+The component is written in `C++`. If you want to contribute to the AUTO plugin, follow [the common coding style rules](../../../docs/dev/coding_style.md).
+
+## Key contacts
+
+In case of any questions, review and merge requests, contact the [AUTO Plugin maintainer group](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-auto-multi-maintainers) group.
 
 ## Components
-Please see more detail features at [AUTO Plugin introduction](https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_AUTO.html).
 
-## Support
-Please report issues and suggestions [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
+AUTO plugin follow OpenVINO™ plugin architecture and consists of several main compoents:
+* Plugin class
+* Executable Network class
+* Inference Request class
+* Asynchronous Inference Request class
 
-## How to Contribute
-Please follow the [Guidance](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md) for code contribution.   
+Please find more details in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html).
 
-## Key Contacts
-[AUTO Plugin maintainer group](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-auto-multi-maintainers) will help in case of questions, and also review and merge PRs.
+`C++` tests are implemented for AUTO plugin. Read the [AUTO plugin tests](./docs/tests.md) page for more details. 
+
+## Architecture
+The diagram below shows an overview of the components responsible for the basic model importing flow:
+
+```mermaid
+flowchart TD
+
+    subgraph Application["Application"]
+    end
+
+    subgraph OpenVINO Runtime["OpenVINO Runtime"]
+        AUTO["AUTO Plugin"] --> CPU["CPU Plugin"]
+        AUTO["AUTO Plugin"] --> GPU["GPU Plugin"]
+    end
+
+    Application --> AUTO
+
+    style Application fill:#6c9f7f
+```
+Find more details in the [AUTO Plugin architecture](./docs/architecture.md) document.
+
+## Tutorials
+* [How AUTO Plugin is tested](./docs/tests.md)
+* [How to integrate the new hardware plugin with AUTO plugin](./docs/integration.md)
+
+## See also
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)
