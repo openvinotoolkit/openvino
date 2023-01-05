@@ -49,13 +49,13 @@ struct ScaleFactorUpdateResult {
 class ScaleFactorCalculator {
     using Cnt = std::vector<InferenceEngine::CNNLayerPtr>;
     Cnt net;
-    const GNAPluginNS::Config& gna_config;
+    const Config& gna_config;
     const bool fake_quantized;
     mutable Cnt::const_iterator idx;
     mutable bool needRestart = false;
     int infiniteLoopCount = 0;
 
-    std::vector<double> getPWLSlopes(const GNAPluginNS::LayerInfo& info) const;
+    std::vector<double> getPWLSlopes(const LayerInfo& info) const;
     static float selectBestOutputScaleFactors(float inScale,
                                               std::vector<float> outScales,
                                               const std::vector<double>& slopes);
@@ -71,35 +71,35 @@ class ScaleFactorCalculator {
                                 int infiniteLoopCount);
     float adjustScaleFactor(float sf,
                             InferenceEngine::CNNLayer const* cnnLayer,
-                            GNAPluginNS::LayerInfo const& layer,
+                            LayerInfo const& layer,
                             QuantizedLayerParams* quantizedParams) const;
     float getActivationScale(InferenceEngine::CNNLayer const* cnnLayer,
-                             GNAPluginNS::LayerInfo const& layer,
+                             LayerInfo const& layer,
                              int inputsSize,
                              const bool fakeQuantize) const;
     bool ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cnnLayer,
                                 ScaleFactorUpdateResult& result,
                                 int infiniteLoopCount,
-                                const GNAPluginNS::Config& gna_config) const;
+                                const Config& gna_config) const;
     bool ScaleFactorPerLayerConcat(InferenceEngine::ConcatLayer* concatLayer,
                                    ScaleFactorUpdateResult& result,
                                    int infiniteLoopCount,
-                                   const GNAPluginNS::Config& gna_config) const;
+                                   const Config& gna_config) const;
     bool ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseLayer* eltwiseLayer,
                                     ScaleFactorUpdateResult& result,
                                     int infiniteLoopCount,
-                                    const GNAPluginNS::Config& gna_config) const;
+                                    const Config& gna_config) const;
     bool ScaleFactorPerLayerGemm(InferenceEngine::GemmLayer* gemmLayer,
                                  ScaleFactorUpdateResult& result,
                                  int infiniteLoopCount,
-                                 const GNAPluginNS::Config& gna_config) const;
+                                 const Config& gna_config) const;
     bool ScaleFactorPerLayerWeightable(InferenceEngine::WeightableLayer* wl,
                                        ScaleFactorUpdateResult& result,
                                        int infiniteLoopCount,
-                                       const GNAPluginNS::Config& gna_config) const;
+                                       const Config& gna_config) const;
 
  public:
-    ScaleFactorCalculator(Cnt& net, const GNAPluginNS::Config& gna_config, const bool fake_quantized)
+    ScaleFactorCalculator(Cnt& net, const Config& gna_config, const bool fake_quantized)
         : net(net),
           gna_config(gna_config),
           fake_quantized(fake_quantized) {
@@ -120,7 +120,7 @@ class ScaleFactorCalculator {
     bool CalculateScaleFactor(InferenceEngine::CNNLayerPtr layer_ptr) const {
         ScaleFactorUpdateResult result;
         needRestart = false;
-        auto layer_info = GNAPluginNS::LayerInfo(layer_ptr);
+        auto layer_info = LayerInfo(layer_ptr);
 
         if (layer_info.isConcat()) {
             if (!ScaleFactorPerLayerConcat(dynamic_cast<InferenceEngine::ConcatLayer*>(layer_ptr.get()),
