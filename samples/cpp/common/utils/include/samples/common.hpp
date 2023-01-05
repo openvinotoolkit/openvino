@@ -1005,7 +1005,6 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
                                           int precision = 3) {
     std::chrono::microseconds totalTime = std::chrono::microseconds::zero();
     std::chrono::microseconds totalTimeCpu = std::chrono::microseconds::zero();
-
     // Print performance counts
     if (bshowHeader) {
         stream << std::endl << "Performance counts:" << std::endl << std::endl;
