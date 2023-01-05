@@ -20,7 +20,7 @@ The `plugins.xml` file with information about inference devices must also be tak
 
 The picture below presents dependencies between the OpenVINO Runtime core and pluggable libraries:
 
-![deployment_full]
+![](../../img/deployment_full.svg)
 
 ### Libraries for Compute Devices
 
@@ -160,5 +160,3 @@ In this example, the application is written in C++, performs inference with the 
 - `openvino_auto_plugin` is used to enable Automatic Device Selection.
 - `openvino_intel_hddl_plugin` and `openvino_intel_cpu_plugin` are used for inference. AUTO selects between CPU and HDDL devices according to their physical existence on the deployed machine.
 - No frontend library is needed because `ov::Model` is created in code.
-
-[deployment_full]: ../../img/deployment_full.png
