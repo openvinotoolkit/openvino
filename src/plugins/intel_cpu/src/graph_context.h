@@ -32,10 +32,6 @@ public:
         rtScratchPad = std::make_shared<DnnlScratchPad>(eng);
     }
 
-    Config& getConfig() {
-        return config;
-    }
-
     const Config& getConfig() const {
         return config;
     }

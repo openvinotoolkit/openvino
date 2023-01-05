@@ -193,7 +193,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         graphNodes.push_back(outNode);
     }
 
-    if (context->getConfig().enforceBF16)
+    if (getConfig().enforceBF16)
         EnforceBF16();
 }
 
@@ -209,12 +209,12 @@ void Graph::Replicate(const CNNNetwork &network) {
     // we perform model cloning and reshaping on Replicate stage to preserve input/output information
     // it help to perform a graph compilation like in static case
     // and handle dynamic batch case in inference stage with minimal code changes
-    if (context->getConfig().isNewApi && context->getConfig().batchLimit > 0) {
+    if (getConfig().isNewApi && getConfig().batchLimit > 0) {
         auto upperBoundModel = ngraph::clone_function(*network.getFunction());
         std::map<ov::Output<ov::Node>, ov::PartialShape> newInShape;
         for (const auto& in : upperBoundModel->get_parameters()) {
             auto newShape = in->get_output_partial_shape(0);
-            newShape[0] = context->getConfig().batchLimit;
+            newShape[0] = getConfig().batchLimit;
             newInShape[in] = newShape;
         }
         upperBoundModel->reshape(newInShape);
@@ -309,7 +309,7 @@ void Graph::Replicate(const CNNNetwork &network) {
         graphNodes.push_back(outNode);
     }
 
-    if (context->getConfig().enforceBF16)
+    if (getConfig().enforceBF16)
         EnforceBF16();
 
     auto hasSubgraphConsumers = [] (const NodePtr& node) -> bool {
@@ -908,7 +908,7 @@ void Graph::PushInputData(const std::string& name, const InferenceEngine::Blob::
             ext_mem.Create(ext_tdesc, ext_data_ptr, false);
 
             // branch for handling dynamic batch feature in new API
-            if (getProperty().isNewApi && getProperty().batchLimit > 0 && ext_mem.getStaticDims()[0] != childEdge->getMemory().getStaticDims()[0]) {
+            if (getConfig().isNewApi && getConfig().batchLimit > 0 && ext_mem.getStaticDims()[0] != childEdge->getMemory().getStaticDims()[0]) {
                 auto newDims = childEdge->getMemory().getStaticDims();
                 newDims[0] = ext_mem.getStaticDims()[0];
 
@@ -975,7 +975,7 @@ void Graph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == InferenceEngine::Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            if (getProperty().isNewApi && getProperty().batchLimit > 0) {
+            if (getConfig().isNewApi && getConfig().batchLimit > 0) {
                 outDims[0] = node->batchToProcess();
             }
             out[name]->setShape(outDims);
@@ -989,7 +989,7 @@ void Graph::PullOutputData(BlobMap &out) {
         auto srcPrec = actualDesc.getPrecision();
         auto dstPrec = expectedDesc.getPrecision();
 
-        if ((getProperty().isNewApi && !getProperty().batchLimit) && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
+        if ((getConfig().isNewApi && !getConfig().batchLimit) && srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
                 IE_THROW() << "Output blob byte size is not equal network output byte size ("
                                    << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
 
@@ -1009,7 +1009,7 @@ void Graph::PullOutputData(BlobMap &out) {
             outBloMem.Create(outBlobDesc, ext_blob_ptr, false);
 
             // branch for handling dynamic batch feature in new API
-            if (getProperty().isNewApi && getProperty().batchLimit > 0 && outBloMem.getStaticDims()[0] != intr_blob.getStaticDims()[0]) {
+            if (getConfig().isNewApi && getConfig().batchLimit > 0 && outBloMem.getStaticDims()[0] != intr_blob.getStaticDims()[0]) {
                 auto newDims = intr_blob.getStaticDims();
                 newDims[0] = outBloMem.getStaticDims()[0];
 
@@ -1025,8 +1025,8 @@ void Graph::PullOutputData(BlobMap &out) {
             size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
             // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
             // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
-            if (getProperty().batchLimit) {
-                if (node->isDynamicNode() && !getProperty().isNewApi) {
+            if (getConfig().batchLimit) {
+                if (node->isDynamicNode() && !getConfig().isNewApi) {
                     IE_THROW(NotImplemented) << "[DS] not implemented dynamic batch for node with dynamic shape";
                 }
                 int MB_to_process = node->batchToProcess();
@@ -1042,8 +1042,8 @@ void Graph::InferStatic(InferRequestBase* request) {
     dnnl::stream stream(getEngine());
 
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, context->getConfig().debugCaps.verbose);
-        PERF(node, context->getConfig().collectPerfCounters);
+        VERBOSE(node, getConfig().debugCaps.verbose);
+        PERF(node, getConfig().collectPerfCounters);
 
         if (request)
             request->ThrowIfCanceled();
@@ -1129,8 +1129,8 @@ void Graph::InferDynamic(InferRequestBase* request) {
         updateNodes(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
-            VERBOSE(node, context->getConfig().debugCaps.verbose);
-            PERF(node, context->getConfig().collectPerfCounters);
+            VERBOSE(node, getConfig().debugCaps.verbose);
+            PERF(node, getConfig().collectPerfCounters);
 
             if (request)
                 request->ThrowIfCanceled();
@@ -1140,7 +1140,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, context->getConfig().debugCaps, infer_count);
+    DUMP(node, getConfig().debugCaps, infer_count);
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
@@ -1284,10 +1284,6 @@ void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEnginePr
             continue;
         getPerfMapFor(perfMap, graphNodes[i]);
     }
-}
-
-Config Graph::getProperty() const {
-    return context->getConfig();
 }
 
 void Graph::RemoveEdge(EdgePtr& edge) {
@@ -1505,7 +1501,7 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
 void Graph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (!implication(context->isGraphQuantized(), context->getConfig().manualEnforceBF16))
+    if (!implication(context->isGraphQuantized(), getConfig().manualEnforceBF16))
         return;
 
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;

@@ -42,7 +42,9 @@ public:
         return (status != Status::NotReady);
     }
 
-    Config getProperty() const;
+    const Config & getConfig() const {
+        return context->getConfig();
+    }
 
     template<typename NET>
     void CreateGraph(NET &network, const GraphContext::CPtr ctx);

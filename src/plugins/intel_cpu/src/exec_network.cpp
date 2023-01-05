@@ -231,7 +231,7 @@ Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
         IE_THROW() << "No graph was found";
     /* legacy implementation return all the parameters which is actually not correct
      * since they are not reconfigurable. Fixed for new API */
-    Config engConfig = GetGraph()._graph.getProperty();
+    Config engConfig = GetGraph()._graph.getConfig();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
@@ -264,12 +264,12 @@ InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name,
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : graph.getProperty()._config) {
+        for (auto && key : graph.getConfig()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graph.getProperty();
+        Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
@@ -286,7 +286,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     // @todo Can't we just use local copy (_cfg) instead?
     auto graphLock = GetGraph();
     const auto& graph = graphLock._graph;
-    const auto& config = graph.getProperty();
+    const auto& config = graph.getConfig();
 
     if (isLegacyAPI()) {
         return GetMetricLegacy(name, graph);
