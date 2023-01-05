@@ -283,7 +283,6 @@ private:
         mutable dnnl::memory m_prim;
         const Memory* m_memObjPtr;
     } dnnlMemHandle;
-
 };
 
 using MemoryPtr = std::shared_ptr<Memory>;
