@@ -7,6 +7,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -66,6 +67,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -121,6 +123,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_with_reducemean) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -168,6 +171,7 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -232,6 +236,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -296,6 +301,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     //    ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -340,6 +346,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -384,6 +391,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -421,6 +429,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -481,6 +490,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
 
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
         manager.run_passes(model);
+        pass::VisualizeTree("after.svg").run_on_model(model);
     }
 
     {
@@ -500,7 +510,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         auto unsqueeze_1 = make_shared<opset8::Reshape>(mul_1, const_unsqueeze_1, false);
 
         auto const_unsqueeze_2 = opset8::Constant::create(element::i64, Shape{4}, {1, 3136, 1, 32});
-        auto unsqueeze_2 = make_shared<opset8::Reshape>(mul_2, const_unsqueeze_1, false);
+        auto unsqueeze_2 = make_shared<opset8::Reshape>(mul_2, const_unsqueeze_2, false);
         auto reduction_axes_1 = opset8::Constant::create(element::i64, Shape{1}, {1});
         auto reduce_sum_1 = make_shared<opset8::ReduceSum>(mul_2, reduction_axes_1, true);
         auto mul_3 = make_shared<opset8::Multiply>(reduce_sum_1, mul_1);
@@ -553,6 +563,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         disable_fp16_compression(factor_1);
         disable_fp16_compression(factor_2);
 
+        disable_fp16_compression(broadcast_to_shape);
+        disable_fp16_compression(tile_shape);
+        disable_fp16_compression(const_unsqueeze_1);
+        disable_fp16_compression(const_unsqueeze_2);
+        disable_fp16_compression(const_unsqueeze_3);
+
         // marking for Exp->ReduceSum path
         mark_reduceop_path(mul_1);
         mark_reduceop_path(mul_2);
@@ -573,10 +589,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         mark_reduceop_path(factor_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
+        pass::VisualizeTree("ref.svg").run_on_model(model_ref);
     }
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -587,7 +605,7 @@ TEST(TransformationTests, DivisionByZeroMinimalPattern) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
 
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.0e-12f;
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -615,6 +633,7 @@ TEST(TransformationTests, DivisionByZeroMinimalPattern) {
 
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -624,7 +643,7 @@ TEST(TransformationTests, DivisionByZeroMinimalPattern) {
 TEST(TransformationTests, PowWithNegativeExponent) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.0e-12f;
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -660,6 +679,7 @@ TEST(TransformationTests, PowWithNegativeExponent) {
     }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -670,7 +690,7 @@ TEST(TransformationTests, PowWithPositiveExponent) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     // graph should be left unchanged
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.0e-12f;
     {
         auto input_1 = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -699,6 +719,7 @@ TEST(TransformationTests, PowWithPositiveExponent) {
     }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -734,6 +755,7 @@ TEST(TransformationTests, DivisionByZeroMinimalPatternUnchanged) {
     }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -743,7 +765,7 @@ TEST(TransformationTests, DivisionByZeroMinimalPatternUnchanged) {
 TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
-    const float eps_value = 1.e-12;
+    const float eps_value = 1.0e-12f;
     {
         auto input = std::make_shared<opset8::Parameter>(element::f32, PartialShape::dynamic(3));
         auto exp = opset8::Constant::create(element::f32, Shape{}, {2.f});
@@ -790,6 +812,7 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
     }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);
@@ -846,6 +869,7 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
     }
     const FunctionsComparator func_comparator =
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
     result = func_comparator(model, model_ref);

@@ -50,9 +50,10 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision) {
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
                         .enable(FunctionsComparator::CONST_VALUES);
+
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
-    // need to compare twice ensure that there are no extra runtime keys in model_ref
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
@@ -91,9 +92,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithNegativeEx
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
                         .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
-    // need to compare twice ensure that there are no extra runtime keys in model_ref
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
@@ -132,9 +133,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveEx
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
                         .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
-    // need to compare twice ensure that there are no extra runtime keys in model_ref
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
@@ -169,9 +170,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
                         .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
-    // need to compare twice ensure that there are no extra runtime keys in model_ref
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
@@ -214,9 +215,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
                         .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
-    // need to compare twice ensure that there are no extra runtime keys in model_ref
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid);
 }
@@ -259,9 +260,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
                         .enable(FunctionsComparator::PRECISIONS)
                         .enable(FunctionsComparator::RUNTIME_KEYS)
                         .enable(FunctionsComparator::CONST_VALUES);
+    // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
-    // need to compare twice ensure that there are no extra runtime keys in model_ref
     result = fc(model, model_ref);
     ASSERT_TRUE(result.valid);
 }

@@ -17,6 +17,7 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/mark_div_with_eps_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/mark_exp_reduceop_to_keep_in_mixed_precision.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/reduceop_path.hpp"
@@ -150,13 +151,19 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
 
     Manager manager(get_pass_config());
+
+    // Mark root of Division with eps pattern to keep in FP32
+    REGISTER_PASS(manager, MarkDivWithEpsToKeepInMixedPrecision)
+
+    // is needed to mark only Exponents that go into ReduceSum/ReduceMean
     REGISTER_PASS(manager, MarkExpReduceOpToKeepInMixedPrecision)
     REGISTER_PASS(manager, InitMarkToKeepInMixedPrecision)
-    REGISTER_PASS(manager, MarkDivWithEpsToKeepInMixedPrecision)
     REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
-
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
+
+    // Mark nodes in ShapeOf subgraphs to keep in FP32
+    REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
 
     manager.run_passes(m);
 

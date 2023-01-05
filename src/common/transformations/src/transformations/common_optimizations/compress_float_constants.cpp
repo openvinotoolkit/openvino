@@ -7,10 +7,10 @@
 #include <iomanip>
 
 #include "itt.hpp"
-#include "ngraph/env_util.hpp"
 #include "ngraph/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/env_util.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
@@ -50,7 +50,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
 
     // thresholds in percents
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    auto keep_threshold = static_cast<float>(ngraph::getenv_int("KEEP_FP32_THRESHOLD", 75));
+    auto keep_threshold = static_cast<float>(ov::util::getenv_int("KEEP_FP32_THRESHOLD", 75));
     auto actual_out_of_range_in_percent = 100.0f * static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
     if (actual_out_of_range_in_percent > keep_threshold) {
