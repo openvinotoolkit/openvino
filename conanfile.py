@@ -25,6 +25,7 @@ class OpenvinoConan(ConanFile):
         "ngraph/*",
         "scripts/*",
         "src/*",
+        "samples/*",
         "thirdparty/CMakeLists.txt",
         "thirdparty/ade/*",
         "thirdparty/cnpy/*",
