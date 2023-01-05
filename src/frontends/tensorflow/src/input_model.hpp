@@ -8,6 +8,7 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "place.hpp"
+#include "translate_session.hpp"
 
 namespace ov {
 namespace frontend {
@@ -17,7 +18,7 @@ class OpPlace;
 class TensorPlace;
 
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
+    friend class TranslateSession;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
 

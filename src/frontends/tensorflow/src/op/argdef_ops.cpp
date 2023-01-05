@@ -23,7 +23,7 @@ OutputVector translate_input_arg_op(const NodeContext& node) {
 
 OutputVector translate_output_arg_op(const NodeContext& node) {
     default_op_checks(node, 1, {"output_arg"});
-    auto result = std::make_shared<Result>();
+    auto result = std::make_shared<Result>(node.get_input(0));
     set_node_name(node.get_name(), result);
     return result->outputs();
 }
