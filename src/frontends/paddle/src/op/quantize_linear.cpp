@@ -3,9 +3,9 @@
 //
 
 #include "default_opset.hpp"
-#include "openvino/opsets/opset6.hpp"
-#include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -37,7 +37,7 @@ NamedOutputs quantize_linear(const NodeContext& node) {
     // extract the ATTRIBUTES
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
     const auto range = (1 << (bit_length - 1)) - 1;
-    const auto round_mode = [&](){
+    const auto round_mode = [&]() {
         if (node.has_attribute("round_type")) {
             if (node.get_attribute<int32_t>("round_type")) {
                 return default_opset::Round::RoundMode::HALF_AWAY_FROM_ZERO;

@@ -274,7 +274,8 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
         /*
-            reference: https://github.com/PaddlePaddle/Paddle2ONNX/blob/c14446437041a0aa3572994d085b7a35c5b0985c/paddle2onnx/parser/parser.cc#L261
+            reference:
+           https://github.com/PaddlePaddle/Paddle2ONNX/blob/c14446437041a0aa3572994d085b7a35c5b0985c/paddle2onnx/parser/parser.cc#L261
             When deserialize the proto, the header of each weight
             [ 4 byte ]      -- version(not need)
             [   8 byte   ]  -- lod_level(not need)
@@ -285,7 +286,7 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
         */
         {
             const size_t header_size = 16;
-            std::vector<char> header(header_size);;
+            std::vector<char> header(header_size);
             weight_stream->read(&header[0], header_size);
         }
 
@@ -295,8 +296,8 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
         std::unique_ptr<char[]> buf(new char[size]);
         weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
 
-        std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc>
-            tensor_desc(new ::paddle::framework::proto::VarType_TensorDesc());
+        std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
+            new ::paddle::framework::proto::VarType_TensorDesc());
         tensor_desc->ParseFromArray(buf.get(), size);
         Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
         const auto& type = TYPE_MAP[tensor_desc->data_type()];

@@ -5,12 +5,12 @@
 #include "internal/pass/transform_fakequantize.hpp"
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
-#include <ngraph/op/util/op_types.hpp>
 
 #include "default_opset.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -94,7 +94,8 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         const auto input_high = std::make_shared<Constant>(element::f32, Shape{1}, scale_high);
         const auto output_low = std::make_shared<Constant>(element::f32, Shape{1}, scale_low);
         const auto output_high = std::make_shared<Constant>(element::f32, Shape{1}, scale_high);
-        auto fake_node = std::make_shared<FakeQuantize>(input_clamp, input_low, input_high, output_low, output_high, 256);
+        auto fake_node =
+            std::make_shared<FakeQuantize>(input_clamp, input_low, input_high, output_low, output_high, 256);
         fake_node->set_friendly_name(output_node->get_friendly_name());
         replace_node(output_node, fake_node);
         return true;

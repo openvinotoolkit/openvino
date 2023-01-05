@@ -23,7 +23,7 @@ def paddle_matmul(name, x1, x2, x_transpose=False, y_transpose=False):
         outs = exe.run(
             feed={'x1': x1, 'x2': x2},
             fetch_list=[result])
-        saveModel(name, exe, feedkeys=['x1', 'x2'], fetchlist=[result], inputs=[x1, x2], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feedkeys=[node_x1, node_x2], fetchlist=[result], inputs=[x1, x2], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
 
     return outs[0]
 

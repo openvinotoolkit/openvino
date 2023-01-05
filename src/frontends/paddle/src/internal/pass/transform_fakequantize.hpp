@@ -13,13 +13,14 @@ namespace paddle {
 namespace pass {
 
 class TransformFakeQuantize : public ov::pass::MatcherPass {
-    public:
-        OPENVINO_RTTI("ov::frontend::paddle::pass::TransformFakeQuantize");
-        TransformFakeQuantize();
-    private:
+public:
+    OPENVINO_RTTI("ov::frontend::paddle::pass::TransformFakeQuantize");
+    TransformFakeQuantize();
+
+private:
 };
 
-} // namespace pass
-} // namespace paddle
-} // namespace frontend
-} // namespace ov
+}  // namespace pass
+}  // namespace paddle
+}  // namespace frontend
+}  // namespace ov
