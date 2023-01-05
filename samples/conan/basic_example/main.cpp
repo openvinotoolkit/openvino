@@ -19,12 +19,11 @@ int main(int argc, char *argv[])
             return EXIT_FAILURE;
         }
 
-        const std::string model_path = std::string(argv[1]);
-
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
         ov::Core core;
 
         // -------- Step 2. Read model --------
+        const std::string model_path = std::string(argv[1]);
         auto model = core.read_model(model_path);
 
         std::cout << "model name:" << model->get_friendly_name() << std::endl;
