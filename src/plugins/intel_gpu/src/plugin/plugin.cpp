@@ -194,8 +194,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
 
     auto context = get_default_context(device_id);
 
-    if (m_configs_map.find(device_id) == m_configs_map.end())
-        IE_THROW() << "LoadNetwork not found device config\n";
+    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
@@ -216,9 +215,14 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    ExecutionConfig config{}; // Use default settings
+    auto context_impl = get_context_impl(context);
+    auto device_id = InferenceEngine::DeviceIDParser{context_impl->get_device_name()}.getDeviceID();
+
+    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
+
+    ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(preprocess_config(orig_config));
-    config.apply_user_properties(get_context_impl(context)->get_engine().get_device_info());
+    config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     auto transformedNetwork = clone_and_transform_model(network, config);
     return std::make_shared<CompiledModel>(transformedNetwork, context, config);
@@ -383,8 +387,7 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
         device_id = options.find(ov::device::id.name())->second.as<std::string>();
     }
 
-    if (m_configs_map.find(device_id) == m_configs_map.end())
-        IE_THROW() << "GetConfig not found device config\n";
+    OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] GetConfig: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
     auto actual_name = name;
