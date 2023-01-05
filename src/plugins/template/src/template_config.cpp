@@ -7,6 +7,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_plugin_config.hpp>
 
+#include "openvino/runtime/properties.hpp"
 #include "template/template_config.hpp"
 
 using namespace TemplatePlugin;
@@ -22,10 +23,10 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         const auto& value = c.second;
 
         if (TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) == key) {
-            _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value);
+            _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value.as<std::string>());
         } else if (streamExecutorConfigKeys.end() !=
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            _streamsExecutorConfig.SetConfig(key, value);
+            _streamsExecutorConfig.SetConfig(key, value.as<std::string>());
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
             deviceId = value.as<int>();
             if (deviceId > 0) {
@@ -34,7 +35,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = value.as<bool>();
         } else if (ov::hint::performance_mode == key) {
-            performance_mode = value;
+            performance_mode = value.as<ov::hint::PerformanceMode>();
         } else if (throwOnUnsupported) {
             IE_THROW(NotFound) << ": " << key;
         }

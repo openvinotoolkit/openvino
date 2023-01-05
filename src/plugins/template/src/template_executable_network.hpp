@@ -26,9 +26,9 @@ class ExecutableNetwork : public ov::ICompiledModel {
 public:
     ExecutableNetwork(const std::shared_ptr<ov::Model>& model,
                       const Configuration& cfg,
-                      const std::shared_ptr<Plugin>& plugin);
+                      const std::shared_ptr<const Plugin>& plugin);
 
-    ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<Plugin>& plugin);
+    ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<const Plugin>& plugin);
 
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
@@ -51,7 +51,7 @@ private:
 
     std::atomic<std::size_t> _requestId = {0};
     Configuration _cfg;
-    std::shared_ptr<Plugin> _plugin;
+    std::shared_ptr<const Plugin> _plugin;
     std::shared_ptr<ov::Model> m_model;
     std::map<std::string, std::size_t> _inputIndex;
     std::map<std::string, std::size_t> _outputIndex;

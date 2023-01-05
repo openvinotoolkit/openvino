@@ -67,7 +67,7 @@ const std::string& ov::IPlugin::get_name() const {
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                               const ov::AnyMap& properties) {
+                                                               const ov::AnyMap& properties) const {
     if (old_plugin) {
         auto exec_network =
             old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
@@ -79,7 +79,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
 
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                const ov::AnyMap& properties,
-                                                               const ov::RemoteContext& context) {
+                                                               const ov::RemoteContext& context) const {
     std::shared_ptr<ICompiledModel> compiled_model;
     if (old_plugin) {
         auto compiled_model = std::make_shared<ov::ICompiledModel>(
@@ -206,12 +206,12 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
 
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
                                                                     const ov::RemoteContext& context,
-                                                                    const ov::AnyMap& properties) {
+                                                                    const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                                    const ov::AnyMap& properties) {
+                                                                    const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -242,21 +242,21 @@ ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arg
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-ov::RemoteContext ov::IPlugin::create_context(const ov::AnyMap& remote_properties) {
+ov::RemoteContext ov::IPlugin::create_context(const ov::AnyMap& remote_properties) const {
     if (old_plugin) {
         return ov::RemoteContext{old_plugin->CreateContext(remote_properties), {nullptr}};
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_properties) {
+ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
     if (old_plugin) {
         return ov::RemoteContext{old_plugin->GetDefaultContext(remote_properties), {nullptr}};
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model, const ov::AnyMap& properties) {
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
     if (old_plugin) {
         return std::make_shared<ov::ICompiledModel>(old_plugin->ImportNetwork(model, any_copy(properties)));
     }
@@ -265,7 +265,7 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& mode
 
 std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(std::istream& model,
                                                               const ov::RemoteContext& context,
-                                                              const ov::AnyMap& properties) {
+                                                              const ov::AnyMap& properties) const {
     if (old_plugin) {
         return std::make_shared<ov::ICompiledModel>(
             old_plugin->ImportNetwork(model, context._impl, any_copy(properties)));

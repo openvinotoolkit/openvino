@@ -60,14 +60,14 @@ public:
      *
      * @param name Plugin name
      */
-    virtual void set_name(const std::string& name);
+    void set_name(const std::string& name);
 
     /**
      * @brief Provides a plugin name
      *
      * @return Plugin name
      */
-    virtual const std::string& get_name() const;
+    const std::string& get_name() const;
 
     /**
      * @brief Compiles model from ov::Model object
@@ -76,7 +76,7 @@ public:
      * @return Created Compiled Model object
      */
     std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties);
+                                                  const ov::AnyMap& properties) const;
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -88,7 +88,7 @@ public:
      */
     std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                   const ov::AnyMap& properties,
-                                                  const ov::RemoteContext& context);
+                                                  const ov::RemoteContext& context) const;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -112,7 +112,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual RemoteContext create_context(const ov::AnyMap& remote_properties);
+    virtual RemoteContext create_context(const ov::AnyMap& remote_properties) const;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -120,7 +120,7 @@ public:
      *
      * @return The default context.
      */
-    virtual RemoteContext get_default_context(const ov::AnyMap& remote_properties);
+    virtual RemoteContext get_default_context(const ov::AnyMap& remote_properties) const;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -129,7 +129,7 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties);
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -142,19 +142,19 @@ public:
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::RemoteContext& context,
-                                                             const ov::AnyMap& properties);
+                                                             const ov::AnyMap& properties) const;
 
     /**
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void set_core(std::weak_ptr<ov::ICore> core);
+    void set_core(std::weak_ptr<ov::ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual std::shared_ptr<ov::ICore> get_core() const;
+    std::shared_ptr<ov::ICore> get_core() const;
 
     /**
      * @brief Provides an information about used API
@@ -201,7 +201,7 @@ protected:
      * @return Shared pointer to the CompiledModel object
      */
     virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::AnyMap& properties);
+                                                               const ov::AnyMap& properties) const;
 
     /**
      * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
@@ -216,36 +216,15 @@ protected:
      */
     virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
                                                                const ov::RemoteContext& context,
-                                                               const ov::AnyMap& properties);
+                                                               const ov::AnyMap& properties) const;
 
-    /**
-     * @brief Set input and output information to executable network. This method is used to
-     * set addtional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
-     * @param exeNetwork An executable network object to set information to
-     * @param inputs An input information to set
-     * @param outputs An output information to set
-     * @param function Function with initial execution info
-     */
-    // void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-    //                        const ConstInputsDataMap& inputs,
-    //                        const ConstOutputsDataMap& outputs);
-
-    /**
-     * @brief Set input and output information to executable network. This method is used to
-     * set additional information to InferenceEngine::IExecutableNetworkInternal create by device plugin.
-     * @param function Function with initial execution info
-     */
-    // void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
-    //                        const std::shared_ptr<const ov::Model>& function);
-
+private:
     std::string m_plugin_name;                                             //!< A device name that plugins enables
     ov::AnyMap m_properties;                                               //!< A map config keys -> values
     std::weak_ptr<ov::ICore> m_core;                                       //!< A pointer to ICore interface
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
-
-private:
-    ov::Version m_version;  //!< Member contains plugin version
-    bool m_is_new_api;      //!< A flag which shows used API
+    ov::Version m_version;                                                 //!< Member contains plugin version
+    bool m_is_new_api;                                                     //!< A flag which shows used API
     std::shared_ptr<InferenceEngine::IInferencePlugin> old_plugin;
     friend ::ov::CoreImpl;
     friend ::ov::IInferencePluginWrapper;

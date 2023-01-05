@@ -26,7 +26,7 @@ using namespace TemplatePlugin;
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ov::Model>& model,
                                                      const Configuration& cfg,
-                                                     const std::shared_ptr<Plugin>& plugin)
+                                                     const std::shared_ptr<const Plugin>& plugin)
     : ov::ICompiledModel(model, plugin),  // Disable default threads creation
       _cfg(cfg),
       _plugin(plugin) {
@@ -49,7 +49,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ov::M
 // ! [executable_network:ctor_import_stream]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
                                                      const Configuration& cfg,
-                                                     const std::shared_ptr<Plugin>& plugin)
+                                                     const std::shared_ptr<const Plugin>& plugin)
     : ov::ICompiledModel(nullptr, plugin),
       _cfg(cfg),
       _plugin(plugin) {

@@ -38,8 +38,7 @@ using namespace TemplatePlugin;
 
 // ! [plugin:ctor]
 Plugin::Plugin() {
-    // TODO: fill with actual device name, backend engine
-    m_plugin_name = "TEMPLATE";
+    set_name("TEMPLATE");
 
     // create ngraph backend which performs inference using ngraph reference implementations
     _backend = ngraph::runtime::Backend::create();
@@ -105,22 +104,24 @@ Plugin::~Plugin() {
 
 // ! [plugin:load_exe_network_impl]
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::AnyMap& properties) {
+                                                               const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model_impl");
 
     auto fullConfig = Configuration{properties, _cfg};
-    return std::make_shared<ExecutableNetwork>(model, fullConfig, std::static_pointer_cast<Plugin>(shared_from_this()));
+    return std::make_shared<ExecutableNetwork>(model,
+                                               fullConfig,
+                                               std::static_pointer_cast<const Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network]
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& modelStream, const ov::AnyMap& config) {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& modelStream, const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{config, _cfg};
     auto exec = std::make_shared<ExecutableNetwork>(modelStream,
                                                     fullConfig,
-                                                    std::static_pointer_cast<Plugin>(shared_from_this()));
+                                                    std::static_pointer_cast<const Plugin>(shared_from_this()));
     // SetExeNetworkInfo(exec, exec->m_model);
     return exec;
 }
