@@ -8,7 +8,7 @@ import logging as log
 from argparse import ArgumentParser
 
 
-def getMeaningfilCommitTail(commit):
+def getMeaningfullCommitTail(commit):
     return commit[:7]
 
 

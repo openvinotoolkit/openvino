@@ -42,9 +42,62 @@ ccache >= *3.0*
 `-c` overrides `getCommitListCmd` in *cfg.json*
 
 #### Examples
+
+##### Command line
 `python3 commit_slider.py`
 `python3 commit_slider.py -c e29169d..e4cf8ae`
 `python3 commit_slider.py -c e29169d..e4cf8ae -cfg my_cfg.json`
+
+##### Custom configuration
+###### Performance task
+*custom_cfg.json*
+```{
+    "appCmd" : "./benchmark_app <params>",
+    "makeCmd" : "cmake <cmake_params> ..",
+    "runConfig" : {
+        "commitList" : {
+            "getCommitListCmd" : "git log c1..c2 --boundary --pretty=\"%h\""
+        },
+        "mode" : "bmPerf",
+        "traversal" : "firstFailedVersion",
+        "perfAppropriateDeviation" : 0.05
+    }
+}
+```
+###### Comparation of blobs
+*custom_cfg.json*
+```
+{
+    "appCmd" : "./benchmark_app <params>",
+    "makeCmd" : "cmake <cmake_params> ..",
+    "envVars" : [
+        {"name" : "OV_CPU_BLOB_DUMP", "val" : "Output"},
+        {"name" : "OV_CPU_BLOB_DUMP_FORMAT", "val" : "TEXT"},
+        {"name" : "OV_CPU_BLOB_DUMP_DIR", "val" : "<path_to_blobs>"}
+    ],
+    "runConfig" : {
+        "mode" : "compareBlobs",
+        "traversal" : "allBreaks",
+        "outputFileNamePattern" : "^sink_mask_0.ieb$",
+        "outputDirectory" : "<path_to_blobs>",
+        "limit" : 0.02
+    }
+}
+```
+
+###### Check output
+*custom_cfg.json*
+```
+{
+    "appCmd" : "<application>",
+    "makeCmd" : "cmake <cmake_params> ..",
+    "runConfig" :
+        "mode" : "checkOutput",
+        "traversal" : "firstFailedVersion",
+        "stopPattern" : "(.)*fail(.)*"
+    }
+}
+```
 
 ## Implementing custom mode
 `<todo>`

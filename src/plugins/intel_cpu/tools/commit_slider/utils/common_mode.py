@@ -3,7 +3,7 @@ import utils.helpers as util
 import json
 import os
 from enum import Enum
-
+import csv
 
 class Mode(ABC):
     @staticmethod
@@ -33,9 +33,7 @@ class Mode(ABC):
     def createCash(self):
         # In common case we use json.
         # Create cash is overrided if we need special algo for caching.
-        wp = self.cfg["workPath"]
-        cp = self.cfg["cachePath"]
-        cp = cp.format(workPath=wp)
+        cp = util.getActualPath("cachePath", self.cfg)
         if not os.path.exists(cp):
             os.makedirs(cp)
         self.cachePath = os.path.join(cp, "check_output_cache.json")
@@ -81,23 +79,42 @@ class Mode(ABC):
         if not ("traversal" in cfg["runConfig"]):
             raise util.CfgError("traversal is not configured")
 
-    def isBadVersion(commit, cfg):
-        raise NotImplementedError("isBadVersion() is not implemented")
-
     def prepareRun(self, i1, i2, list, cfg):
         cfg["serviceConfig"] = {}
         if cfg["checkIfBordersDiffer"] and not self.checkIfListBordersDiffer(
                 list, cfg):
             raise util.RepoError("Borders {i1} and {i2} doesn't differ".format(
                 i1=i1, i2=i2))
+        self.commitList = list
+
+    def postRun(self, list):
+        util.returnToActualVersion(self.cfg)
+        if "printCSV" in self.cfg and self.cfg["printCSV"]:
+            fields = ['linId', 'logId', 'hash', 'value'] 
+            rows = []
+            linearId = 0
+            logId = 0
+            for item in list:
+                item = item.replace('"', "")
+                isCommitCashed, value = self.getCommitIfCashed(item)
+                if isCommitCashed:
+                    row = [linearId, logId, item, value]
+                    rows.append(row)
+                    logId = logId + 1
+                linearId = linearId + 1
+            reportPath = util.getActualPath("logPath", self.cfg)
+            reportPath = os.path.join(reportPath, "report.csv")
+            with open(reportPath, 'w') as csvfile: 
+                csvwriter = csv.writer(csvfile)
+                csvwriter.writerow(fields)
+                csvwriter.writerows(rows)
 
     def run(self, i1, i2, list, cfg) -> int:
         self.prepareRun(i1, i2, list, cfg)
-        self.commitList = list
         self.traversal.bypass(
             i1, i2, list, cfg, self.commitPath
         )
-        util.returnToActualVersion(self.cfg)
+        self.postRun(list)
 
     def setOutputInfo(self, pathCommit):
         # override if you need more details in output representation

@@ -1,6 +1,6 @@
 import os
 from utils.helpers import fetchAppOutput, getActualPath
-from utils.helpers import getMeaningfilCommitTail
+from utils.helpers import getMeaningfullCommitTail
 from utils.helpers import handleCommit, runCommandList, getBlobDiff
 from utils.helpers import getCommitLogger, CashError, CfgError, CmdError
 import re
@@ -142,7 +142,6 @@ class BenchmarkAppPerformanceMode(Mode):
     def getResult(self):
         for pathCommit in self.commitPath.getList():
             print("Break commit: {c}, perf. ratio = {d}".format(
-                # todo: info to pathCommit
                 c=self.commitList[pathCommit.id],
                 d=pathCommit.perfRel)
             )
@@ -220,7 +219,7 @@ class CompareBlobsMode(Mode):
                 isDump = re.search(self.outFileNamePattern, filename)
                 if isDump:
                     newFileName = "{c}_{fn}".format(
-                        c=getMeaningfilCommitTail(commit), fn=filename
+                        c=getMeaningfullCommitTail(commit), fn=filename
                     )
                     shutil.copyfile(
                         os.path.join(self.outDir, filename),
@@ -240,7 +239,7 @@ class CompareBlobsMode(Mode):
 
     def getCommitIfCashed(self, commit):
         fileList = os.listdir(self.cachePath)
-        curCommitPattern = "{c}_(.)*".format(c=getMeaningfilCommitTail(commit))
+        curCommitPattern = "{c}_(.)*".format(c=getMeaningfullCommitTail(commit))
         for filename in fileList:
             isDump = re.search(curCommitPattern, filename)
             if isDump:
@@ -253,7 +252,6 @@ class CompareBlobsMode(Mode):
     def getResult(self):
         for pathcommit in self.commitPath.getList():
             print("Break commit: {c}, diff = {d}".format(
-                # todo: info to pathCommit
                 c=self.commitList[pathcommit.id],
                 d=pathcommit.diff)
             )
