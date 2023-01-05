@@ -316,7 +316,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Unsqueeze>(mvn_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
@@ -331,7 +331,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.e-8, op::MVNEpsMode::INSIDE_SQRT);
+        auto mvn_1 = make_shared<opset8::MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Unsqueeze>(mvn_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
@@ -361,7 +361,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Unsqueeze>(normalizel2_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
@@ -376,7 +376,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto addition_const = opset8::Constant::create(element::f32, Shape{1}, {0.1f});
         auto add_1 = make_shared<opset8::Unsqueeze>(normalizel2_1, addition_const);
         auto matmul_1 = make_shared<opset8::MatMul>(add_1, input_2);
@@ -406,7 +406,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto matmul_1 = make_shared<opset8::MatMul>(normalizel2_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -419,7 +419,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
         auto input_1 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto input_2 = make_shared<opset8::Parameter>(element::f32, Shape{1, 3, 224, 224});
         auto reduction_axes = opset8::Constant::create(element::i64, Shape{1}, {-1});
-        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.e-8, ov::op::EpsMode::MAX);
+        auto normalizel2_1 = make_shared<opset8::NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto matmul_1 = make_shared<opset8::MatMul>(normalizel2_1, input_2);
 
         disable_fp16_compression(normalizel2_1);
