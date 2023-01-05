@@ -35,8 +35,6 @@ OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal
 
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
-    using Ptr = std::shared_ptr<ICompiledModel>;
-
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
     ICompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& exec_network);
 
