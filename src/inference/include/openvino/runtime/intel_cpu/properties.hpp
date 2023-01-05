@@ -51,11 +51,11 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  * @brief This property defines threshold for sparse weights decompression feature activation
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
- * Sparse weights decompression feature allows to pack weights for Matrix Multiplication operations directly in the CPU plugin
- * at the model compilation stage and store non-zero values in a special packed format. Then, during the execution of the model,
- * the weights are unpacked and used in the computational kernel. Since the weights are loaded from DDR/L3 cache in the packed
- * format this significantly decreases memory consumption and as a consequence improve inference performance.
- * The following code allows to set the sparse rate value.
+ * Sparse weights decompression feature allows to pack weights for Matrix Multiplication operations directly in the CPU
+ * plugin at the model compilation stage and store non-zero values in a special packed format. Then, during the
+ * execution of the model, the weights are unpacked and used in the computational kernel. Since the weights are loaded
+ * from DDR/L3 cache in the packed format this significantly decreases memory consumption and as a consequence improve
+ * inference performance. The following code allows to set the sparse rate value.
  *
  * @code
  * core.set_property(ov::intel_cpu::sparse_weights_decompression_rate(0.8));
