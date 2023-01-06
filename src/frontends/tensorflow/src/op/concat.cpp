@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,20 +20,21 @@ OutputVector translate_concat_op(const NodeContext& node) {
     // axis is the first input for Concat
     // and is the last input to ConcatV2
     default_op_checks(node, 2, {"Concat", "ConcatV2"});
-    auto input_size = node.get_input_size();
+    auto input_size = static_cast<int>(node.get_input_size());
 
     int64_t axis;
     OutputVector inputs;
 
     if (node.get_op_type() == "Concat") {
         std::vector<int64_t> axis_vector;
+        // const auto start_const = get_constant_from_source(start);
         get_const_input(node, 0, &axis_vector);
         TENSORFLOW_OP_VALIDATION(
             node,
             axis_vector.size() == 1,
             "Input model is incorrect: axis input for Concat operation must have exactly one element.");
         axis = axis_vector[0];
-        for (size_t input_idx = 1; input_idx < input_size; ++input_idx) {
+        for (int input_idx = 1; input_idx < input_size; ++input_idx) {
             inputs.push_back(node.get_input(input_idx));
         }
     } else if (node.get_op_type() == "ConcatV2") {
@@ -44,7 +45,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
             axis_vector.size() == 1,
             "Input model is incorrect: axis input for Concat operation must have exactly one element.");
         axis = axis_vector[0];
-        for (size_t input_idx = 0; input_idx < input_size - 1; ++input_idx) {
+        for (int input_idx = 0; input_idx < input_size - 1; ++input_idx) {
             inputs.push_back(node.get_input(input_idx));
         }
     } else {
