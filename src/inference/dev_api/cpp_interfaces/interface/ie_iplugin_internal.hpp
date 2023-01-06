@@ -433,7 +433,7 @@ convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
     INFERENCE_PLUGIN_API(void)                                               \
-    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false)
+    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false)
 
 /**
  * @private
