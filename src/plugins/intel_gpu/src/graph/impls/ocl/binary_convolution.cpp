@@ -30,28 +30,6 @@ struct binary_convolution_impl : typed_primitive_impl_ocl<binary_convolution> {
     }
 
 protected:
-    bool validate_impl(const typed_primitive_inst<binary_convolution>& instance) const override {
-        bool res = true;
-
-        auto data_type = instance.node->input().get_output_layout().data_type;
-
-        // Check whether all memory elements use the same unit type (FP16 or FP32).
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(instance.id(),
-                                        "Input memory",
-                                        data_type,
-                                        "output memory",
-                                        instance.node->get_output_layout().data_type,
-                                        "");
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(instance.id(),
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory()->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
     kernel_arguments_data get_arguments(const typed_primitive_inst<binary_convolution>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 

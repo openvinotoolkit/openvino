@@ -29,23 +29,6 @@ protected:
         return make_unique<deconvolution_onednn>(*this);
     }
 
-    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
-        bool res = true;
-
-        auto outer_id = instance.id();
-        auto data_type = instance.node->input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory()->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
     std::unordered_map<int, dnnl::memory> get_arguments(deconvolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
         auto& engine = instance.get_network().get_engine();

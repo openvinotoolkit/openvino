@@ -27,20 +27,6 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     }
 
 protected:
-    // TODO: share it with convolution and fully connected
-    bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
-        bool res = true;
-
-        CLDNN_ERROR_NOT_EQUAL(instance.id(),
-                              "deconvolution filling value",
-                              instance.node->get_output_layout().data_padding.filling_value(),
-                              "padding mode",
-                              0.0f,
-                              "Unknown padding mode in deconvolution.");
-
-        return res;
-    }
-
     kernel_arguments_data get_arguments(const typed_primitive_inst<deconvolution>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 

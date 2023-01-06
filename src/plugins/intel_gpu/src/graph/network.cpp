@@ -530,8 +530,7 @@ network::ptr network::build_network(engine& engine,
 void network::validate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("validate_primitives");
     for (auto const& prim : _exec_order) {
-        bool valid = prim->validate();
-        CLDNN_ERROR_NOT_EQUAL(prim->id(), "validate", valid, "", true, "has not a valid instance.");
+        prim->validate();
     }
 }
 
