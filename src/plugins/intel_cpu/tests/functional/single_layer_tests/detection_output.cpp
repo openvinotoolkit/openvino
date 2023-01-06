@@ -8,15 +8,38 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include <dnnl.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ov;
 using namespace test;
+using namespace dnnl;
 
 namespace CPULayerTestsDefinitions {
 
 using namespace ov::test;
+
+unsigned get_cache_size(int level, bool per_core) {
+    if (per_core) {
+        return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
+    } else {
+        using namespace dnnl::impl::cpu::x64;
+        if (cpu().getDataCacheLevels() == 0) {
+            // this function can return stub values in case of unknown CPU type
+            return dnnl::impl::cpu::platform::get_per_core_cache_size(level);
+        }
+
+        if (level > 0 && (unsigned) level <= cpu().getDataCacheLevels()) {
+            unsigned l = level - 1;
+            return cpu().getDataCacheSize(l);
+        } else {
+            return 0U;
+        }
+    }
+    DNNL_THROW_ERROR(dnnl_unimplemented, "get_cache_size has no mode per_core == false");
+}
 
 enum {
     idxLocation,
@@ -56,6 +79,7 @@ using DetectionOutputAttributes = std::tuple<
 using DetectionOutputParamsDynamic = std::tuple<
     DetectionOutputAttributes,
     ParamsWhichSizeDependsDynamic,
+    bool,       // sparsity case
     size_t,     // Number of batch
     float,      // objectnessScore
     bool,       // replace dynamic shapes to intervals
@@ -68,11 +92,12 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParamsDynamic>& obj) {
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
+        bool sparsity;
         ngraph::op::DetectionOutputAttrs attrs;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
         std::string targetDevice;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = obj.param;
+        std::tie(commonAttrs, specificAttrs, sparsity, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = obj.param;
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
@@ -86,11 +111,12 @@ public:
             inShapes.resize(3);
         }
 
+        if (sparsity)
+            scale_input_shapes(inShapes);
+
         for (size_t i = 0; i < inShapes.size(); i++) {
             inShapes[i].first[0] = batch;
         }
-
-
 
         std::ostringstream result;
         result << "IS = { ";
@@ -103,12 +129,25 @@ public:
             result << "_ARM_CONF=" << inShapes[3] << "_";
             result << "ARM_LOC=" << inShapes[4] << " }_";
         }
+        result << "sparsity=" << (sparsity ? "true" : "false") << "_";
 
         using LayerTestsDefinitions::operator<<;
         result << attrs;
         result << "RDS=" << (replaceDynamicShapesToIntervals ? "true" : "false") << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();
+    }
+
+    static void scale_input_shapes(std::vector<ov::test::InputShape> &inShapes) {
+        const int cacheSizeL3 = get_cache_size(3, true);
+        auto confShapes = inShapes[idxConfidence].second;
+        for (size_t i = 0; i < confShapes.size(); i++) {
+            int scale = cacheSizeL3 / (confShapes[i][1] * sizeof(float) * 2) + 1;
+            for (size_t j = 0; j < inShapes.size(); j++) {
+                int pos = (j == idxPriors) ? 2 : 1;
+                inShapes[j].second[i][pos] *= scale;
+            }
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
@@ -171,9 +210,10 @@ public:
     void SetUp() override {
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
+        bool sparsity;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = this->GetParam();
+        std::tie(commonAttrs, specificAttrs, sparsity, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = this->GetParam();
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
@@ -185,6 +225,9 @@ public:
         if (inShapes[idxArmConfidence].first.rank().get_length() == 0) {
             inShapes.resize(3);
         }
+
+        if (sparsity)
+            scale_input_shapes(inShapes);
 
         if (replaceDynamicShapesToIntervals) {
             set_dimension_intervals(inShapes);
@@ -361,6 +404,7 @@ const std::vector<ParamsWhichSizeDependsDynamic> specificParams3InDynamic = {
 const auto params3InputsDynamic = ::testing::Combine(
         commonAttributes,
         ::testing::ValuesIn(specificParams3InDynamic),
+        ::testing::Values(false),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(0.0f),
         ::testing::Values(false, true),
@@ -371,6 +415,34 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUDetectionOutputDynamic3In,
         DetectionOutputLayerCPUTest,
         params3InputsDynamic,
+        DetectionOutputLayerCPUTest::getTestCaseName);
+
+//////////////////large tensor/////////////////
+const auto commonAttributesLargeTensor = ::testing::Combine(
+    ::testing::Values(numClasses),
+    ::testing::Values(backgroundLabelId),
+    ::testing::ValuesIn(topK),
+    ::testing::ValuesIn(keepTopK),
+    ::testing::ValuesIn(codeType),
+    ::testing::Values(nmsThreshold),
+    ::testing::Values(confidenceThreshold),
+    ::testing::ValuesIn(clipAfterNms),
+    ::testing::ValuesIn(clipBeforeNms),
+    ::testing::Values(false)
+);
+const auto params3InputsDynamicLargeTensor = ::testing::Combine(
+        commonAttributesLargeTensor,
+        ::testing::ValuesIn(specificParams3InDynamic),
+        ::testing::Values(true),
+        ::testing::ValuesIn(numberBatch),
+        ::testing::Values(0.0f),
+        ::testing::Values(false, true),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+INSTANTIATE_TEST_SUITE_P(
+        CPUDetectionOutputDynamic3InLargeTensor,
+        DetectionOutputLayerCPUTest,
+        params3InputsDynamicLargeTensor,
         DetectionOutputLayerCPUTest::getTestCaseName);
 
 /* =============== 5 inputs cases =============== */
@@ -447,6 +519,7 @@ const std::vector<ParamsWhichSizeDependsDynamic> specificParams5InDynamic = {
 const auto params5InputsDynamic = ::testing::Combine(
         commonAttributes,
         ::testing::ValuesIn(specificParams5InDynamic),
+        ::testing::Values(false),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
         ::testing::Values(false, true),
@@ -457,6 +530,23 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUDetectionOutputDynamic5In,
         DetectionOutputLayerCPUTest,
         params5InputsDynamic,
+        DetectionOutputLayerCPUTest::getTestCaseName);
+
+//////////////////large tensor/////////////////
+const auto params5InputsDynamicLargeTensor = ::testing::Combine(
+        commonAttributesLargeTensor,
+        ::testing::ValuesIn(specificParams5InDynamic),
+        ::testing::Values(true),
+        ::testing::ValuesIn(numberBatch),
+        ::testing::Values(objectnessScore),
+        ::testing::Values(false, true),
+        ::testing::Values(ov::test::utils::DEVICE_CPU)
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        CPUDetectionOutputDynamic5InLargeTensor,
+        DetectionOutputLayerCPUTest,
+        params5InputsDynamicLargeTensor,
         DetectionOutputLayerCPUTest::getTestCaseName);
 
 }  // namespace

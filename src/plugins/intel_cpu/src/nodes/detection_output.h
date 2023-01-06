@@ -60,6 +60,7 @@ private:
     int imgWidth = 0;
     int imgHeight = 0;
     int coordOffset = 0;
+    int cacheSizeL3 = 0;
 
     enum CodeType {
         CORNER = 1,

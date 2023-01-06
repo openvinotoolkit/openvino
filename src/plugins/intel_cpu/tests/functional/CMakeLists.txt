@@ -9,9 +9,12 @@ add_library(cpuSpecificRtInfo STATIC
     $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src/utils/rt_info/memory_formats_attribute.cpp)
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
+                                         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn
+                                         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/include
+                                         $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin template_extension)
-set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets snippetsNgraphFunctions)
+set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets snippetsNgraphFunctions dnnl)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
