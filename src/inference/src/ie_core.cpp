@@ -1650,6 +1650,7 @@ public:
 };
 
 Core::Core(const std::string& xmlConfigFile) {
+    OV_CORE_SCOPE(Core);
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -1660,32 +1661,38 @@ Core::Core(const std::string& xmlConfigFile) {
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
+    OV_CORE_SCOPE(GetVersions);
     return _impl->GetVersions(deviceName);
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 CNNNetwork Core::ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath) const {
+    OV_CORE_SCOPE(ReadNetwork);
     return ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath));
 }
 
 #endif
 
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
+    OV_CORE_SCOPE(ReadNetwork);
     return _impl->ReadNetwork(modelPath, binPath);
 }
 
 CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const {
+    OV_CORE_SCOPE(ReadNetwork);
     return _impl->ReadNetwork(model, weights);
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(LoadNetwork);
     return LoadNetwork(network, ov::DEFAULT_DEVICE_NAME, config);
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(LoadNetwork);
     auto valid = ov::CoreImpl::CheckStatic(network);
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
@@ -1698,6 +1705,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
                                     RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(LoadNetwork);
     auto valid = ov::CoreImpl::CheckStatic(network);
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::LoadNetwork doesn't support inputs having dynamic shapes. ",
@@ -1710,6 +1718,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network,
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
                                     const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(LoadNetwork);
     auto exec = _impl->LoadNetwork(modelPath, deviceName, config, [](const CNNNetwork& network) {
         auto valid = ov::CoreImpl::CheckStatic(network);
         OPENVINO_ASSERT(std::get<0>(valid),
@@ -1721,14 +1730,17 @@ ExecutableNetwork Core::LoadNetwork(const std::string& modelPath,
 }
 
 ExecutableNetwork Core::LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(LoadNetwork);
     return LoadNetwork(modelPath, ov::DEFAULT_DEVICE_NAME, config);
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
+    OV_CORE_SCOPE(CreateContext);
     return _impl->CreateContext(deviceName, params);
 }
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
+    OV_CORE_SCOPE(GetDefaultContext);
     if (deviceName.find("HETERO") == 0) {
         IE_THROW() << "HETERO device does not support remote context";
     }
@@ -1742,6 +1754,7 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
+    OV_CORE_SCOPE(AddExtension);
     if (deviceName_.find("HETERO") == 0) {
         IE_THROW() << "HETERO device does not support extensions. Please, set extensions directly to fallback devices";
     }
@@ -1756,12 +1769,14 @@ void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_)
 }
 
 void Core::AddExtension(const IExtensionPtr& extension) {
+    OV_CORE_SCOPE(AddExtension);
     _impl->AddExtension(extension);
 }
 
 ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(ImportNetwork);
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelFileName, parsed._config);
@@ -1771,12 +1786,14 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(ImportNetwork);
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto exec = _impl->ImportNetwork(networkModel, deviceName, config);
     return {exec._ptr, exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
+    OV_CORE_SCOPE(ImportNetwork);
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
 
     using ExportMagic = std::array<char, 4>;
@@ -1801,6 +1818,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
+    OV_CORE_SCOPE(ImportNetwork);
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
 
     if (context == nullptr) {
@@ -1820,6 +1838,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) const {
+    OV_CORE_SCOPE(QueryNetwork);
     auto valid = ov::CoreImpl::CheckStatic(network);
     OPENVINO_ASSERT(std::get<0>(valid),
                     "InferenceEngine::Core::QueryNetwork doesn't support inputs having dynamic shapes. ",
@@ -1830,6 +1849,7 @@ QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,
 }
 
 void Core::SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName) {
+    OV_CORE_SCOPE(SetConfig);
     // HETERO case
     if (deviceName.find("HETERO:") == 0) {
         IE_THROW() << "SetConfig is supported only for HETERO itself (without devices). "
@@ -1857,6 +1877,7 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
 }
 
 Parameter Core::GetConfig(const std::string& deviceName, const std::string& name) const {
+    OV_CORE_SCOPE(GetConfig);
     // HETERO case
     {
         if (deviceName.find("HETERO:") == 0) {
@@ -1889,22 +1910,27 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
+    OV_CORE_SCOPE(GetMetric);
     return _impl->GetMetric(deviceName, name, options);
 }
 
 std::vector<std::string> Core::GetAvailableDevices() const {
+    OV_CORE_SCOPE(GetAvailableDevices);
     return _impl->GetAvailableDevices();
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
+    OV_CORE_SCOPE(RegisterPlugin);
     _impl->RegisterPluginByName(pluginName, deviceName);
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
+    OV_CORE_SCOPE(RegisterPlugins);
     _impl->RegisterPluginsInRegistry(xmlConfigFile);
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
+    OV_CORE_SCOPE(UnregisterPlugin);
     DeviceIDParser parser(deviceName_);
     std::string deviceName = parser.getDeviceName();
 
