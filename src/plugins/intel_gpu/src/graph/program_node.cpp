@@ -439,7 +439,8 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     if (fmt == format::fs_b_yx_fsv32 && (axis == 0))
         return false;
 
-    for (const auto& block : fmt.block_sizes()) {
+    auto block_sizes_dims = format::per_axis_block_size(fmt);
+    for (const auto& block : block_sizes_dims) {
         size_t block_axis = block.first;
         int block_size = block.second;
 
