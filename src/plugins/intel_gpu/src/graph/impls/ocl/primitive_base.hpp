@@ -50,15 +50,18 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         for (size_t k = 0; k < other._kernels.size(); ++k) {
             _kernels.emplace_back(other._kernels[k]->clone());
         }
+        this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
-    typed_primitive_impl_ocl(const typed_program_node<PType>& /* arg */, const kernel_selector::kernel_data& kd)
+    typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
+
+        this->can_reuse_memory = _kernel_data.can_reuse_memory;
     }
 
     bool is_cpu() const override { return false; }
@@ -86,13 +89,13 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     template<typename ImplType>
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         if (arg.can_be_optimized()) {
-            return make_unique<ImplType>(arg, kernel_selector::kernel_data{});
+            return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(impl_param);
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
-        return make_unique<ImplType>(arg, best_kernel);
+        return make_unique<ImplType>(best_kernel);
     }
 
 protected:

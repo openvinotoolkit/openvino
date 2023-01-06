@@ -102,7 +102,7 @@ public:
         auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
 
-        return make_unique<arg_max_min_impl>(arg, best_kernel);
+        return make_unique<arg_max_min_impl>(best_kernel);
     }
 };
 

@@ -192,7 +192,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        return make_unique<convolution_impl>(arg, best_kernel);
+        return make_unique<convolution_impl>(best_kernel);
     }
 };
 

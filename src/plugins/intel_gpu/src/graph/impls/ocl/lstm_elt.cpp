@@ -82,7 +82,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_elt_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(lstm_elt_params, lstm_elt_optional_params);
 
-        return make_unique<lstm_elt_impl>(arg, best_kernel);
+        return make_unique<lstm_elt_impl>(best_kernel);
     }
 };
 
