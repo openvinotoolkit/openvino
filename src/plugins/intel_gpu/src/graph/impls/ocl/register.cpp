@@ -12,7 +12,6 @@ void register_implementations() {
     REGISTER_OCL(activation);
     REGISTER_OCL(adaptive_pooling);
     REGISTER_OCL(arg_max_min);
-    REGISTER_OCL(average_unpooling);
     REGISTER_OCL(binary_convolution);
     REGISTER_OCL(border);
     REGISTER_OCL(broadcast);

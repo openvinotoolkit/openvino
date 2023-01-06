@@ -206,7 +206,6 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         static std::map<std::string, std::string> type_n2l {
                 { "activation", "Activation" },
                 { "arg_max_min", "ArgMax" },
-                { "average_unpooling", "AverageUnpooling" },
                 { "batch_norm", "BatchNormalization" },
                 { "binary_convolution", "BinaryConvolution" },
                 { "border", "Pad" },
