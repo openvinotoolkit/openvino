@@ -56,7 +56,7 @@ namespace {
     }
 
     std::string GetDefinedLevelSizes(size_t levels_num) {
-        std::string result = "(size_t[]){INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
+        std::string result = "(__private size_t[]){INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
         std::string idx = "";
         for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);

@@ -91,8 +91,8 @@ std::vector<char> GetStringAsTlv(Gna2TlvType type, const std::string& s) {
 
 Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget) {
     static const std::map<std::string, Gna2DeviceVersion> targetMap = {
-        {GNAPluginNS::common::kGnaTarget3_1, Gna2DeviceVersionEmbedded3_1},
-        {GNAPluginNS::common::kGnaTarget3_5, Gna2DeviceVersionEmbedded3_5},
+        {common::kGnaTarget3_1, Gna2DeviceVersionEmbedded3_1},
+        {common::kGnaTarget3_5, Gna2DeviceVersionEmbedded3_5},
     };
     auto found = targetMap.find(compileTarget);
     if (found == targetMap.end()) {

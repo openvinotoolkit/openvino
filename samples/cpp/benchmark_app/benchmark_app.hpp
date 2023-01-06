@@ -24,7 +24,7 @@
 #endif
 
 /// @brief message for help argument
-static const char help_message[] = "Print a usage message";
+static const char help_message[] = "Print the usage message";
 
 /// @brief message for images argument
 static const char input_message[] =
@@ -121,7 +121,7 @@ static const char batch_size_message[] =
 
 // @brief message for CPU threads pinning option
 static const char infer_threads_pinning_message[] =
-    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):\n"
+    "Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):\n"
     "\t\t\t\tenabling threads->cores pinning(\"YES\", which is already default for any conventional CPU), \n"
     "\t\t\t\tletting the runtime to decide on the threads->different core types(\"HYBRID_AWARE\", which is default on "
     "the hybrid CPUs) \n"
@@ -226,7 +226,9 @@ static const char load_from_file_message[] = "Optional. Loads model from file di
                                              " All CNNNetwork options (like re-shape) will be ignored";
 
 // @brief message for inference_precision
-static const char inference_precision_message[] = "Optional. Inference precision";
+static const char inference_precision_message[] =
+    "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
+    "CPU:bf16,GPU:f32'";
 
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
@@ -402,48 +404,48 @@ static void show_usage() {
     std::cout << "benchmark_app [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h, --help                " << help_message << std::endl;
-    std::cout << "    -m \"<path>\"               " << model_message << std::endl;
-    std::cout << "    -i \"<path>\"               " << input_message << std::endl;
-    std::cout << "    -d \"<device>\"             " << target_device_message << std::endl;
-    std::cout << "    -extensions \"<absolute_path>\" " << custom_extensions_library_message << std::endl;
-    std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -hint \"performance hint (latency or throughput or cumulative_throughput or none)\"   "
+    std::cout << "    -h, --help                    " << help_message << std::endl;
+    std::cout << "    -m  <path>                    " << model_message << std::endl;
+    std::cout << "    -i  <path>                    " << input_message << std::endl;
+    std::cout << "    -d  <device>                  " << target_device_message << std::endl;
+    std::cout << "    -extensions  <absolute_path>  " << custom_extensions_library_message << std::endl;
+    std::cout << "    -c  <absolute_path>           " << custom_cldnn_message << std::endl;
+    std::cout << "    -hint  <performance hint> (latency or throughput or cumulative_throughput or none)   "
               << hint_message << std::endl;
-    std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
-    std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
-    std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
-    std::cout << "    -b \"<integer>\"            " << batch_size_message << std::endl;
-    std::cout << "    -t                        " << execution_time_message << std::endl;
-    std::cout << "    -shape                    " << shape_message << std::endl;
-    std::cout << "    -data_shape               " << data_shape_message << std::endl;
-    std::cout << "    -layout                   " << layout_message << std::endl;
-    std::cout << "    -cache_dir \"<path>\"       " << cache_dir_message << std::endl;
-    std::cout << "    -load_from_file           " << load_from_file_message << std::endl;
-    std::cout << "    -latency_percentile       " << infer_latency_percentile_message << std::endl;
+    std::cout << "    -api <sync/async>             " << api_message << std::endl;
+    std::cout << "    -niter  <integer>             " << iterations_count_message << std::endl;
+    std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
+    std::cout << "    -b  <integer>                 " << batch_size_message << std::endl;
+    std::cout << "    -t                            " << execution_time_message << std::endl;
+    std::cout << "    -shape                        " << shape_message << std::endl;
+    std::cout << "    -data_shape                   " << data_shape_message << std::endl;
+    std::cout << "    -layout                       " << layout_message << std::endl;
+    std::cout << "    -cache_dir  <path>            " << cache_dir_message << std::endl;
+    std::cout << "    -load_from_file               " << load_from_file_message << std::endl;
+    std::cout << "    -latency_percentile           " << infer_latency_percentile_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
-    std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
-    std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin (\"YES\"|\"CORE\")/\"HYBRID_AWARE\"/(\"NO\"|\"NONE\")/\"NUMA\"   "
+    std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
+    std::cout << "    -nthreads  <integer>          " << infer_num_threads_message << std::endl;
+    std::cout << "    -pin  <string>  (\"YES\"|\"CORE\") / \"HYBRID_AWARE\" / (\"NO\"|\"NONE\") / \"NUMA\"  "
               << infer_threads_pinning_message << std::endl;
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     std::cout << "    -use_device_mem           " << use_device_mem_message << std::endl;
 #endif
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
-    std::cout << "    -report_type \"<type>\"   " << report_type_message << std::endl;
-    std::cout << "    -report_folder            " << report_folder_message << std::endl;
-    std::cout << "    -json_stats               " << json_stats_message << std::endl;
-    std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
-    std::cout << "    -pc                       " << pc_message << std::endl;
-    std::cout << "    -pcsort                   " << pc_sort_message << std::endl;
-    std::cout << "    -pcseq                    " << pcseq_message << std::endl;
-    std::cout << "    -dump_config              " << dump_config_message << std::endl;
-    std::cout << "    -load_config              " << load_config_message << std::endl;
-    std::cout << "    -infer_precision \"<element type>\"" << inference_precision_message << std::endl;
-    std::cout << "    -ip                       <value>     " << inputs_precision_message << std::endl;
-    std::cout << "    -op                       <value>     " << outputs_precision_message << std::endl;
-    std::cout << "    -iop                      \"<value>\"    " << iop_message << std::endl;
-    std::cout << "    -mean_values [R,G,B]      " << mean_values_message << std::endl;
-    std::cout << "    -scale_values [R,G,B]     " << scale_values_message << std::endl;
-    std::cout << "    -inference_only           " << inference_only_message << std::endl;
+    std::cout << "    -report_type  <type>    " << report_type_message << std::endl;
+    std::cout << "    -report_folder          " << report_folder_message << std::endl;
+    std::cout << "    -json_stats             " << json_stats_message << std::endl;
+    std::cout << "    -exec_graph_path        " << exec_graph_path_message << std::endl;
+    std::cout << "    -pc                     " << pc_message << std::endl;
+    std::cout << "    -pcsort                 " << pc_sort_message << std::endl;
+    std::cout << "    -pcseq                  " << pcseq_message << std::endl;
+    std::cout << "    -dump_config            " << dump_config_message << std::endl;
+    std::cout << "    -load_config            " << load_config_message << std::endl;
+    std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
+    std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
+    std::cout << "    -op   <value>           " << outputs_precision_message << std::endl;
+    std::cout << "    -iop  <value>           " << iop_message << std::endl;
+    std::cout << "    -mean_values   [R,G,B]  " << mean_values_message << std::endl;
+    std::cout << "    -scale_values  [R,G,B]  " << scale_values_message << std::endl;
+    std::cout << "    -inference_only         " << inference_only_message << std::endl;
 }

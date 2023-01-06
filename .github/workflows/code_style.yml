@@ -1,10 +1,5 @@
 name: Code Style
-on:
-  pull_request:
-  push:
-    branches:
-      - 'master'
-      - 'releases/**'
+on: [pull_request]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +8,8 @@ concurrency:
 jobs:
   clang-format:
     runs-on: ubuntu-20.04
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -34,33 +31,23 @@ jobs:
 
       # Run cmake with -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT in order to enable codestyle check for ITT collector
       - name: CMake configure
-        run: |
-          cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -B build
-
-      - name: Check code style
-        run: cmake --build build --target clang_format_check_all -j8
+        run: cmake -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT -B build
 
       - name: Create code style diff
-        if: failure()
-        run: |
-          cmake --build build --target clang_format_fix_all -j8
-          git diff > code_style_diff.diff
+        run: cmake --build build --target clang_format_fix_all -j8
 
       - name: suggester / clang-format
-        if: failure() && startsWith(github.event_name, 'pull_request')
+        if: startsWith(github.event_name, 'pull_request')
         uses: reviewdog/action-suggester@v1
         with:
-          level: error
-          tool_name: clang-format
-
-      - uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: code_style_diff
-          path: code_style_diff.diff
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          level: warning
+          fail_on_error: true
 
   ShellCheck:
     runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -74,8 +61,21 @@ jobs:
       - name: CMake configure
         run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
 
-      - name: ShellCheck
+      - name: Shellcheck cmake target
         run: cmake --build build --target ie_shellcheck -j8
+
+      # always provide suggestions even for skipped scripts in ie_shellcheck tagret
+      - name: ShellCheck action
+        if: always()
+        uses: reviewdog/action-shellcheck@v1
+        with:
+          level: style
+          reporter: github-pr-review
+          check_all_files_with_shebangs: true
+          fail_on_error: true
+          exclude: |
+              "*/thirdparty/*"
+              "./temp/*"
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04

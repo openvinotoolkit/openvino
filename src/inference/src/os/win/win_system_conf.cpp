@@ -18,12 +18,20 @@
 namespace InferenceEngine {
 
 struct CPU {
+
+    int _processors = 0;
+    int _sockets = 0;
+    int _cores = 0;
+
+    std::vector<int> _proc_type_table;
+    std::vector<std::vector<int>> _cpu_mapping_table;
+    
     int _node = 0;
     int _p_cores = 0;
     int _e_cores = 0;
     int _phy_cores = 0;
     int _proc = 0;
-    std::vector<std::vector<int>> _cpu_mapping;
+ 
 
     CPU() {
         /**
