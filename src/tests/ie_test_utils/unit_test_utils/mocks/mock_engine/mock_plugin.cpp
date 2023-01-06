@@ -133,10 +133,10 @@ std::string MockPlugin::GetName() const noexcept {
 
 InferenceEngine::IInferencePlugin *__target = nullptr;
 
-OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
-    IInferencePlugin *p = nullptr;
+OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin) {
+    IInferencePlugin* p = nullptr;
     std::swap(__target, p);
-    plugin = std::make_shared<MockPlugin>(p);
+    plugin = convert_plugin(std::make_shared<MockPlugin>(p));
 }
 
 OPENVINO_PLUGIN_API InferenceEngine::IInferencePlugin*
