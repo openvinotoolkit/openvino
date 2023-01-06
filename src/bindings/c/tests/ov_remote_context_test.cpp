@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef HAVE_OCL_SUPPORT
-#    include <CL/cl2.hpp>
-#endif
+#include <CL/cl2.hpp>
 
 #include "ov_test.hpp"
 
@@ -32,7 +30,7 @@ protected:
             GTEST_SKIP();
         }
         ov_free(info);
-#ifdef HAVE_OCL_SUPPORT
+
         const unsigned int refVendorID = 0x8086;
         cl_uint n = 0;
         cl_int err = clGetPlatformIDs(0, NULL, &n);
@@ -60,7 +58,6 @@ protected:
         cl::size_type size = 224 * 224 * 3;
         cl_buffer = cl::Buffer(cl_context, CL_MEM_READ_WRITE, size, NULL, &err);
         EXPECT_EQ(err, 0);
-#endif
     }
 
     void TearDown() override {
@@ -132,13 +129,11 @@ public:
     ov_tensor_t* remote_tensor;
     char* in_tensor_name;
     char* out_tensor_name;
-#ifdef HAVE_OCL_SUPPORT
     cl::Context cl_context;
     cl::Device cl_device;
     cl::CommandQueue cl_queue;
     cl_platform_id cl_platform;
     cl::Buffer cl_buffer;
-#endif
 };
 
 INSTANTIATE_TEST_SUITE_P(intel_gpu, ov_remote_context_ocl, ::testing::Values("GPU"));
@@ -148,7 +143,6 @@ TEST_P(ov_remote_context_ocl, get_default_context) {
     EXPECT_NE(nullptr, context);
 }
 
-#ifdef HAVE_OCL_SUPPORT
 TEST_P(ov_remote_context_ocl, create_ocl_context_by_command_queue) {
     const char* context_type = "OCL";
     OV_EXPECT_OK(ov_core_create_context(core,
@@ -634,4 +628,3 @@ TEST_P(ov_remote_context_ocl, remote_tensor_nv12_inference) {
     ov_shape_free(&shape_y);
     ov_shape_free(&shape_uv);
 }
-#endif

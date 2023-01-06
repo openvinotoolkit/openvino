@@ -44,18 +44,6 @@ set(TARGET_NAME "ov_capi_test")
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ov_*.cpp)
 file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
-target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
-    commonTestUtils gtest_main)
-
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
-
-target_compile_definitions(${TARGET_NAME}
-    PRIVATE
-    DATA_PATH=\"${DATA_PATH}\"
-    MODELS_PATH=\"${MODELS_PATH}\")
-
 find_package(OpenCL QUIET)
 
 if(NOT OpenCL_FOUND)
@@ -91,10 +79,26 @@ else()
     MESSAGE(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
 endif()
 
+if(NOT OpenCL_FOUND OR NOT OpenCL_HEADERS)
+    list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
+endif()
+list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
+
+add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util
+    commonTestUtils gtest_main)
+
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${OPENVINO_API_SOURCE_DIR}/include>)
+
+target_compile_definitions(${TARGET_NAME}
+    PRIVATE
+    DATA_PATH=\"${DATA_PATH}\"
+    MODELS_PATH=\"${MODELS_PATH}\")
+
 if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
     target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
-    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_OCL_SUPPORT)
 endif()
 
 if(ENABLE_AUTO OR ENABLE_MULTI)
