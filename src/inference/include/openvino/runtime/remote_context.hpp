@@ -15,7 +15,6 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 

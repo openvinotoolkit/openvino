@@ -104,7 +104,7 @@ void ov::IInferRequest::start_async() {
 void ov::IInferRequest::wait() {
     OPENVINO_NOT_IMPLEMENTED;
 }
-bool ov::IInferRequest::wait_for(const std::chrono::milliseconds timeout) {
+bool ov::IInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 

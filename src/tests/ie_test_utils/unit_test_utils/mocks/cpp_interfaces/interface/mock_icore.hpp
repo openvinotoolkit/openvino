@@ -10,7 +10,6 @@
 
 #include "ie_icore.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/icompiled_model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "so_ptr.hpp"
 

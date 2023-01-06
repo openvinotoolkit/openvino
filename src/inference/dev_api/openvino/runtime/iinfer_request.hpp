@@ -29,7 +29,7 @@ public:
     virtual void start_async();
 
     virtual void wait();
-    virtual bool wait_for(const std::chrono::milliseconds timeout);
+    virtual bool wait_for(const std::chrono::milliseconds& timeout);
 
     virtual void cancel();
 
