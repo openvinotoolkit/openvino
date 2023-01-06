@@ -28,7 +28,7 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance) const override {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {

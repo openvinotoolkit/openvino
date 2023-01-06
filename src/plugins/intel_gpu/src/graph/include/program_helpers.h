@@ -119,7 +119,6 @@ struct program_helpers {
             }
         }
     }
-    static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
 };
 
 struct onednn_add_fusing_helpers {

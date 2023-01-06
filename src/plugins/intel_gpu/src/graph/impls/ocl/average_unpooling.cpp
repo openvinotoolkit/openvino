@@ -26,8 +26,8 @@ struct average_unpooling_impl : typed_primitive_impl_ocl<average_unpooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<average_unpooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<average_unpooling>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 

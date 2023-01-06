@@ -30,7 +30,6 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSplitSupport();
     k.EnableBatching();
     return k;
 }

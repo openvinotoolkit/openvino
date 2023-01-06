@@ -26,7 +26,7 @@ bool can_shuffle_features(program_node& node, stream& stream) {
         auto& conv_node = node.as<convolution>();
         auto& wei_node = conv_node.weights();
 
-        return conv_node.get_groups() == 1 && conv_node.get_split() == 1 &&
+        return conv_node.get_groups() == 1 &&
             conv_node.get_deformable_groups() == 1 && !conv_node.get_transposed() &&
             !conv_node.activations_zero_points_term() &&
             wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();

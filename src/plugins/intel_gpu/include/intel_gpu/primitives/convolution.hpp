@@ -770,9 +770,6 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
-
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size() + bias.size() + weights_zero_points.size() +
@@ -862,9 +859,6 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     const primitive_id_arr weights;
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
-
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

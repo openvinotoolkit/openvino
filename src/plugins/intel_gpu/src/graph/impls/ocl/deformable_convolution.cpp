@@ -30,7 +30,6 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     deformable_conv_impl() : parent() {}
 
     explicit deformable_conv_impl(const deformable_conv_impl& other) : parent(other),
-        _split(other._split),
         _groups(other._groups) {}
 
     deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
@@ -40,52 +39,42 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     void set_node_params(const program_node& arg) override {
         IE_ASSERT(arg.is_type<deformable_conv>());
         const auto& node = arg.as<deformable_conv>();
-        _split = node.get_split();
         _groups = node.get_groups();
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << _split;
         ob << _groups;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        ib >> _split;
         ib >> _groups;
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<deformable_conv>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<deformable_conv>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-        args.weights = instance.weights_memory(split);
-        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         return args;
     }
-
-    int32_t get_split() const override { return _split; }
 
     uint32_t get_groups() const override { return _groups; }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<deformable_conv>();
-        const auto& split = primitive->split();
         const auto& groups = primitive->groups;
 
-        auto params = get_weights_bias_default_params<kernel_selector::convolution_params>(
-            impl_param,
-            groups > 1 ? groups : split,
-            groups);
+        auto params = get_weights_bias_default_params<kernel_selector::convolution_params>(impl_param);
         auto optional_params = get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         const auto weight_idx = 1 + 0;
         const auto& weights_layout = impl_param.input_layouts[weight_idx].convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
 
-        params.split = split;
         params.groups = groups;
         params.filterSize = {
             (uint32_t)weights_size.spatial[0],
@@ -97,7 +86,6 @@ public:
     }
 
 private:
-    int32_t _split;
     uint32_t _groups;
 };
 
@@ -114,8 +102,6 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     }
 
 protected:
-    int32_t get_split() const override { return 1; }
-
     uint32_t get_groups() const override { return 1; }
 
 public:
@@ -130,10 +116,9 @@ public:
         auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
-        const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
 
-        auto params = get_default_params<kernel_selector::convolution_params>(impl_param, groups);
+        auto params = get_default_params<kernel_selector::convolution_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         // It's not really needed, just initialize fields of params

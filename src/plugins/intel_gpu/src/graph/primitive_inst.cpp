@@ -1140,8 +1140,6 @@ void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_argu
             args_idx.fused_op_inputs[idx] = get_index_in_deps(args.fused_op_inputs[idx]);
         }
     }
-
-    args_idx.split = args.split;
 }
 
 int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {

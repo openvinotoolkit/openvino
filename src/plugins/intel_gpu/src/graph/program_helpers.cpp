@@ -75,18 +75,6 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     }
 }
 
-// helper function for getting target layout used in depthwise sep optimization
-layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split) {
-    auto mem_layout = data_node.get_output_layout();
-
-    return layout(mem_layout.data_type,
-                  mem_layout.format,
-                  {split * mem_layout.batch(),
-                   mem_layout.feature(),
-                   mem_layout.spatial(0),
-                   mem_layout.spatial(1)});
-}
-
 bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
     if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
         || l.batch() > 1) {

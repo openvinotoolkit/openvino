@@ -99,7 +99,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
-    virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
+    virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -122,7 +122,7 @@ protected:
         return args;
     }
 
-    kernel_arguments_data get_arguments_by_idx(const typed_primitive_inst<PType>& instance, int32_t /*split*/) const {
+    kernel_arguments_data get_arguments_by_idx(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
 
         for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
@@ -152,7 +152,6 @@ protected:
         return args;
     }
 
-    virtual int32_t get_split() const { return 1; }
     virtual uint32_t get_groups() const { return 1; }
     virtual bool get_depthwise_sep_opt() const { return false; }
 
@@ -206,30 +205,24 @@ protected:
             return;
         }
 
-        auto split = get_split();
-
         stream& stream = instance.get_network().get_stream();
 
-        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
         for (size_t k = 0; k < _kernels.size(); ++k) {
-            for (decltype(split) i = 0; i < split; i++) {
-                kernel_arguments_data args;
+            kernel_arguments_data args;
 
-                if (_kernel_args.inputs.size() > 0) {
-                    args = get_arguments_by_idx(instance, i);
-                } else {
-                    args = get_arguments(instance, i);
-                }
-
-                for (const auto& m : instance.get_intermediates_memories()) {
-                    args.intermediates.push_back(m);
-                }
-
-                args.scalars = &_kernel_data.kernels[k].params.scalars;
-                args.split = i;
-
-                stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
+            if (_kernel_args.inputs.size() > 0) {
+                args = get_arguments_by_idx(instance);
+            } else {
+                args = get_arguments(instance);
             }
+
+            for (const auto& m : instance.get_intermediates_memories()) {
+                args.intermediates.push_back(m);
+            }
+
+            args.scalars = &_kernel_data.kernels[k].params.scalars;
+
+            stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
     }
 
@@ -238,21 +231,15 @@ protected:
     }
 
     kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
-        auto split = get_split();
-
-        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
         for (size_t k = 0; k < _kernels.size(); ++k) {
-            for (decltype(split) i = 0; i < split; i++) {
-                auto args = get_arguments(instance, i);
-                args.scalars = &_kernel_data.kernels[k].params.scalars;
-                args.split = i;
+            auto args = get_arguments(instance);
+            args.scalars = &_kernel_data.kernels[k].params.scalars;
 
-                for (const auto& m : instance.get_intermediates_memories()) {
-                    args.intermediates.push_back(m);
-                }
-
-                return args;
+            for (const auto& m : instance.get_intermediates_memories()) {
+                args.intermediates.push_back(m);
             }
+
+            return args;
         }
 
         kernel_arguments_data args;
@@ -269,41 +256,34 @@ protected:
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
 
-        // TODO - split should be handle in kernel selector by providing multiple kernels.
-        auto split = get_split();
-
-        // we iterate over split first in order to be able parallelism with OOOQ mechanism.
         for (size_t k = 0; k < _kernels.size(); ++k) {
             std::vector<event::ptr> new_events;
-            for (decltype(split) i = 0; i < split; i++) {
-                // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-                bool is_output_event;
-                if (instance.node != nullptr) {
-                    auto users = instance.node->get_users();
-                    is_output_event = is_any_user_cpu(users) || instance.node->is_output();
-                } else {
-                    is_output_event = instance.is_output();
-                }
-
-                kernel_arguments_data args;
-
-                if (_kernel_args.inputs.size() > 0) {
-                    args = get_arguments_by_idx(instance, i);
-                } else {
-                    args = get_arguments(instance, i);
-
-                    for (const auto& m : instance.get_intermediates_memories()) {
-                        args.intermediates.push_back(m);
-                    }
-                }
-
-                args.scalars = &_kernel_data.kernels[k].params.scalars;
-                args.split = i;
-
-                auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
-                new_events.push_back(ev);
-                all_events.push_back(ev);
+            // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
+            bool is_output_event;
+            if (instance.node != nullptr) {
+                auto users = instance.node->get_users();
+                is_output_event = is_any_user_cpu(users) || instance.node->is_output();
+            } else {
+                is_output_event = instance.is_output();
             }
+
+            kernel_arguments_data args;
+
+            if (_kernel_args.inputs.size() > 0) {
+                args = get_arguments_by_idx(instance);
+            } else {
+                args = get_arguments(instance);
+
+                for (const auto& m : instance.get_intermediates_memories()) {
+                    args.intermediates.push_back(m);
+                }
+            }
+
+            args.scalars = &_kernel_data.kernels[k].params.scalars;
+
+            auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
+            new_events.push_back(ev);
+            all_events.push_back(ev);
 
             tmp_events = new_events;
         }

@@ -72,8 +72,6 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
 
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
-
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size());

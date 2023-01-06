@@ -84,7 +84,6 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSplitSupport();
     k.EnableBatching();
     k.EnableGroupedConvolution();
     return k;

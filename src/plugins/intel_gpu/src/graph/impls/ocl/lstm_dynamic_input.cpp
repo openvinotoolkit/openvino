@@ -28,7 +28,7 @@ struct lstm_dynamic_input_impl : typed_primitive_impl_ocl<lstm_dynamic_input> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_input>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_input>& instance) const override {
         kernel_arguments_data args;
         args.inputs = { instance.input_memory_ptr(), instance.dyn_length_memory()};
         args.outputs = { instance.output_memory_ptr() };

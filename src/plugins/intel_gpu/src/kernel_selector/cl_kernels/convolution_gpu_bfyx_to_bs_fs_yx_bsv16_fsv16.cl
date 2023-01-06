@@ -17,14 +17,14 @@ __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
 KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const int xy = get_global_id(0);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
@@ -48,10 +48,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     const uint input_f_pitch = INPUT0_FEATURE_PITCH;
     const uint input_b_pitch = INPUT0_BATCH_PITCH;
 
-    const uint in_split_offset = split_idx * FILTER_IFM_NUM * input_f_pitch;
-
-    const uint input_offset = in_split_offset +
-                              INPUT0_OFFSET +
+    const uint input_offset = INPUT0_OFFSET +
                               b * input_b_pitch +
                               input_y * input_y_pitch +
                               input_x * input_x_pitch;
@@ -65,10 +62,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
 
     const uint output_fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
-    const uint out_split_offset = split_idx * (OUTPUT_FEATURE_NUM / FEATURE_SLICE_SIZE) * output_fs_pitch;
-
-    const uint output_offset = out_split_offset +
-                               (b_block * output_b_pitch) + ((b % BATCH_SLICE_SIZE) * FEATURE_SLICE_SIZE) +
+    const uint output_offset = (b_block * output_b_pitch) + ((b % BATCH_SLICE_SIZE) * FEATURE_SLICE_SIZE) +
                                (f_block + output_fs_pad_before) * output_fs_pitch +
                                (y + OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
                                (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
@@ -80,18 +74,10 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     const uint filter_is_pitch = filter_y_pitch * FILTER_SIZE_Y;
     const uint filter_os_pitch = filter_is_pitch * ((FILTER_IFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
 
-#if GROUPED
-    const uint filter_offset = f_block * filter_os_pitch + split_idx * FILTER_LENGTH;
-#else
     const uint filter_offset = f_block * filter_os_pitch;
-#endif
 
 #if BIAS_TERM
     uint bias_offset = f_block * FEATURE_SLICE_SIZE;
-
-#if GROUPED
-    bias_offset += split_idx * BIAS_LENGTH;
-#endif
 
     vec_t dst = (vec_t)(UNIT_BLOCK_READ(biases, bias_offset));
 #else

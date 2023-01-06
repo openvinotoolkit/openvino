@@ -59,7 +59,6 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableGroupedConvolution();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();

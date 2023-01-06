@@ -23,7 +23,6 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.DisableTuning();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();

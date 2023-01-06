@@ -159,8 +159,6 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
             }
         }
     }
-
-    args.split = 0;
 }
 
 std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_selector::KernelsData& kernels_data) {

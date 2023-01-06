@@ -40,7 +40,7 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
+                                                    instance.weights_memory()->get_layout().data_type,
                                                     "");
 
         return res;
@@ -52,12 +52,12 @@ protected:
         auto onednn_engine = engine.get_onednn_engine();
 
         {
-            auto weights = instance.weights_memory(0);
+            auto weights = instance.weights_memory();
             args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
         }
 
         if (instance.bias_term()) {
-            auto bias = instance.bias_memory(0);
+            auto bias = instance.bias_memory();
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 

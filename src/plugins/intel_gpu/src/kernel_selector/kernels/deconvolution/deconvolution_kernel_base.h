@@ -20,17 +20,12 @@ struct deconvolution_params : public weight_bias_params {
     uSize stride;
     uSize dilation;
     uSize padding;
-    uint32_t split = 1;
     uint32_t groups = 1;
 
     std::string to_string() const override;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = weight_bias_params::GetParamsKey();
-
-        if (split > 1) {
-            k.EnableSplitSupport();
-        }
 
         if (dilation.x != 1 || dilation.y != 1 || dilation.z != 1) {
             k.EnableDilation();

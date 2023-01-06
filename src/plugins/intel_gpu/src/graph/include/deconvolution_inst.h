@@ -21,31 +21,21 @@ struct typed_program_node<deconvolution> : public typed_program_node_base<deconv
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
-          split(this->get_primitive()->split()),
           groups(this->get_primitive()->groups) {
         support_padding_all(true);
     }
-
-    void set_split(int32_t node_split) { split = node_split; }
-    int32_t get_split() const { return split; }
 
     void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
     program_node& input() const { return get_dependency(0); }
 
-    program_node& weights(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= get_split())
-            throw std::range_error("weights offset too big");
-
-        return get_dependency(1 + idx);
+    program_node& weights() const {
+        return get_dependency(1);
     }
 
-    program_node& bias(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) >= get_split())
-            throw std::range_error("bias offset too big");
-
-        return get_dependency(1 + this->get_split() + idx);
+    program_node& bias() const {
+        return get_dependency(2);
     }
 
     bool bias_term() const {
@@ -55,20 +45,6 @@ public:
             return false;
     }
 
-    program_node& fused_sum(size_t idx = 0) const {
-        if (static_cast<int32_t>(idx) > 0)
-            throw std::range_error("Only one input for fused sum is supported");
-
-        size_t d_idx = 1 + this->get_split() + idx;
-        d_idx += bias_term() ? this->get_split() : 0;
-        return get_dependency(d_idx);
-    }
-
-    bool has_fused_sum() const {
-        size_t d_idx = 1 + this->get_split();
-        d_idx += bias_term() ? this->get_split() : 0;
-        return dependencies.size() == (d_idx + 1);
-    }
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
@@ -80,7 +56,6 @@ public:
 
 
 private:
-    int32_t split;
     uint32_t groups;
 };
 
@@ -98,28 +73,16 @@ public:
 public:
     typed_primitive_inst(network& network, deconvolution_node const& node);
 
-    memory::ptr weights_memory(size_t index) const {
+    memory::ptr weights_memory() const {
         if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
             return _impl_params->reordered_weights;
-        } else if (_groups == 1) {
-            if (static_cast<int32_t>(index) >= _split)
-                throw std::range_error("weights offset too big");
-            return dep_memory_ptr(1 + index);
-        } else {  // all weights are in one buffer
+        } else {
             return dep_memory_ptr(1);
         }
     }
 
-    memory::ptr bias_memory(size_t index) const {
-        if (_groups == 1) {
-            if (!bias_term() && static_cast<int32_t>(index) >= _split)
-                throw std::range_error("no bias data");
-            if (static_cast<int32_t>(index) > _split)
-                throw std::range_error("bias offset too big");
-            return dep_memory_ptr(1 + _split + index);
-        } else {  // all bias are in one buffer
-            return dep_memory_ptr(2);
-        }
+    memory::ptr bias_memory() const {
+        return dep_memory_ptr(2);
     }
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
@@ -128,7 +91,6 @@ public:
 
 private:
     uint32_t _groups;
-    int32_t _split;
 };
 
 using deconvolution_inst = typed_primitive_inst<deconvolution>;

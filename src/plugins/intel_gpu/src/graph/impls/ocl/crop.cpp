@@ -58,11 +58,11 @@ public:
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<crop>();
-        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::eltwise_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
-        params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), 1, impl_param.input_offsets[0]);
+        params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]);
         return {params, optional_params};
     }
 

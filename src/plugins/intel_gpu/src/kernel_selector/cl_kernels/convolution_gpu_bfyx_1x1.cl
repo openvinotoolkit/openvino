@@ -58,11 +58,11 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_bfyx_1x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
     const uint group_xy = (uint)get_group_id(0) * 16;
     const uint xy = group_xy + get_sub_group_local_id();
@@ -86,11 +86,10 @@ KERNEL(convolution_bfyx_1x1)(
     }
 #endif
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
     const uint filter_offset = group_f * ((FILTER_OFM_PITCH + 8 - 1) / 8) * 8;//f*FILTER_OFM_PITCH;
     const uint xy_block_num = (INPUT0_FEATURE_PITCH + 16 - 1) / 16;
     const uint f_block_num = (INPUT0_FEATURE_NUM + 8 - 1) / 8;
-    const uint input_offset = in_split_offset + group_xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+    const uint input_offset = group_xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
 
     for (uint k = 0; k < (FILTER_IFM_NUM + 8 - 1) / 8; ++k)
     {
@@ -109,11 +108,9 @@ KERNEL(convolution_bfyx_1x1)(
     if(xy >= INPUT0_SIZE_X * INPUT0_SIZE_Y)
         return;
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-
     for(uint i = 0; i < 16; i++)
     {
-        const uint dst_index = GET_DATA_INDEX(OUTPUT, b, group_f+i, y, x) + out_split_offset;
+        const uint dst_index = GET_DATA_INDEX(OUTPUT, b, group_f+i, y, x);
     #if LEFTOVERS
         if(group_f+i < OUTPUT_FEATURE_NUM)
     #endif

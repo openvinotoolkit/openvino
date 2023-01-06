@@ -28,8 +28,8 @@ struct lstm_elt_impl : typed_primitive_impl_ocl<lstm_elt> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_elt>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_elt>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
         args.outputs = { instance.output_memory_ptr() };

@@ -7,15 +7,14 @@
 KERNEL(deconvolution_gpu_yxfb_ref)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    const __global FILTER_TYPE* filter,
+    const __global FILTER_TYPE* filter
 #if BIAS_TERM
-    const __global BIAS_TYPE* bias,
+    , const __global BIAS_TYPE* bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
-    )
+)
 {
     ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 

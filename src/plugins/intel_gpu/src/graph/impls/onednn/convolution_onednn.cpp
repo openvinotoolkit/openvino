@@ -44,7 +44,7 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
+                                                    instance.weights_memory()->get_layout().data_type,
                                                     "");
 
         return res;
@@ -54,17 +54,17 @@ protected:
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
 
         {
-            auto weights = instance.weights_memory(0);
+            auto weights = instance.weights_memory();
             args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
         }
 
         if (instance.bias_term()) {
-            auto bias = instance.bias_memory(0);
+            auto bias = instance.bias_memory();
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
         if (has_zero_points(DNNL_ARG_SRC, _attrs)) {
-            auto a_zp = instance.activations_zero_points_memory(0);
+            auto a_zp = instance.activations_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
@@ -81,7 +81,7 @@ protected:
         }
 
         if (has_zero_points(DNNL_ARG_WEIGHTS, _attrs)) {
-            auto w_zp = instance.weights_zero_points_memory(0);
+            auto w_zp = instance.weights_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 

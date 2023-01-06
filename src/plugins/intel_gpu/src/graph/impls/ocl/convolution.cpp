@@ -32,7 +32,6 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     convolution_impl() : parent() {}
 
     explicit convolution_impl(const convolution_impl& other) : parent(other),
-      _split(other._split),
       _groups(other._groups) {}
 
     convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
@@ -42,7 +41,6 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     void set_node_params(const program_node& arg) override {
         IE_ASSERT(arg.is_type<convolution>());
         const auto& node = arg.as<convolution>();
-        _split = node.get_split();
         _groups = node.get_groups();
     }
 
@@ -63,38 +61,34 @@ protected:
         return res;
     }
 
-    kernel_arguments_data get_arguments(const typed_primitive_inst<convolution>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<convolution>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-        args.weights = instance.weights_memory(split);
-        args.bias = instance.bias_term() ? instance.bias_memory(split) : nullptr;
-        args.weights_zero_points = instance.weights_zero_points_term() ? instance.weights_zero_points_memory(split) : nullptr;
-        args.activations_zero_points = instance.activations_zero_points_term() ? instance.activations_zero_points_memory(split) : nullptr;
-        args.compensation = instance.compensation_term() ? instance.compensation_memory(split) : nullptr;
+        args.weights = instance.weights_memory();
+        args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
+        args.weights_zero_points = instance.weights_zero_points_term() ? instance.weights_zero_points_memory() : nullptr;
+        args.activations_zero_points = instance.activations_zero_points_term() ? instance.activations_zero_points_memory() : nullptr;
+        args.compensation = instance.compensation_term() ? instance.compensation_memory() : nullptr;
 
         return args;
     }
 
-    int32_t get_split() const override { return _split; }
     uint32_t get_groups() const override { return _groups; }
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << _split;
         ob << _groups;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        ib >> _split;
         ib >> _groups;
     }
 
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<convolution>();
 
-        const auto &split = primitive->split();
         auto stride = primitive->stride;
         const auto& dilation = primitive->dilation;
         const auto& pad = primitive->pad;
@@ -102,8 +96,7 @@ public:
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = arg.get_transposed();
 
-        auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
-            impl_param, split, 1, primitive->grouped_weights_shape);
+        auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(impl_param, primitive->grouped_weights_shape);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
@@ -120,7 +113,6 @@ public:
         conv_params.transposed = transposed;
         conv_params.deformable_groups = deformable_groups;
 
-        conv_params.split = split;
         conv_params.groups = groups;
 
         const auto& weights_layout = impl_param.input_layouts[1 + 0 + arg.get_deform_conv_dep_offset()]
@@ -168,8 +160,7 @@ public:
                 && cp.outputs[0].GetLayout() == kernel_selector::Tensor::DataLayout::bfyx
                 && cp.outputs[0].X().v == 1 && cp.outputs[0].Y().v > 1
                 && cp.weights.X().v == 1 && cp.weights.Y().v > 1
-                && !((cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v && cp.split == 1)
-                    || (cp.split == cp.inputs[0].Feature().v && cp.groups == 1))) { // Don't swap if it is depthwise conv
+                && !(cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v)) {
                 auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
                     auto x_channel_idx = kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
                                                     kernel_selector::Tensor::DataChannelName::X);
@@ -232,7 +223,6 @@ public:
     }
 
 private:
-    int32_t _split;
     uint32_t _groups;
 };
 

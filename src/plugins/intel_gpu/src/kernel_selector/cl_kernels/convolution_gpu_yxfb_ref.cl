@@ -7,11 +7,11 @@
 KERNEL(convolution_gpu_yxfb_ref)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* filter,
+    const __global UNIT_TYPE* filter
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    , const __global UNIT_TYPE* bias
 #endif
-    uint split_idx)
+)
 {
     UNIT_TYPE result = UNIT_VAL_ZERO;
 

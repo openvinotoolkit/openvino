@@ -21,7 +21,6 @@ struct convolution_params : public weight_bias_zero_point_params {
     uSize stride;
     uSize dilation;
     uSize padding;
-    uint32_t split = 1;
     bool transposed = false;
     QuantizationType quantization = QuantizationType::NONE;
     bool deformable_mode = false;

@@ -46,16 +46,16 @@ protected:
                                                     "Input memory",
                                                     data_type,
                                                     "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
+                                                    instance.weights_memory()->get_layout().data_type,
                                                     "");
 
         return res;
     }
 
-    kernel_arguments_data get_arguments(const typed_primitive_inst<binary_convolution>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<binary_convolution>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-        args.weights = instance.weights_memory(split);
+        args.weights = instance.weights_memory();
         return args;
     }
 
@@ -75,7 +75,6 @@ public:
 
         params.pad_value = primitive->pad_value;
         params.out_dt = to_data_type(*primitive->output_data_types[0]);
-        params.split = 1;
         params.groups = static_cast<uint32_t>(groups);
         params.filterSize = {
             (uint32_t)weights_size.spatial[0],

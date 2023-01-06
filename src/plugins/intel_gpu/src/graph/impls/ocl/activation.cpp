@@ -25,8 +25,8 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return make_unique<activation_impl>(*this);
     }
 
-    kernel_arguments_data get_arguments(const typed_primitive_inst<activation>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<activation>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         if (instance.is_parameterized()) {
             args.slope = instance.slope_memory();

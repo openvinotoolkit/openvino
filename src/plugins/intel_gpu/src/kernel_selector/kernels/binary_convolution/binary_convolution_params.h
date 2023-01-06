@@ -21,7 +21,6 @@ struct binary_convolution_params : public weight_bias_params {
     uSize dilation;
     uSize padding;
     Datatype out_dt = Datatype::UNSUPPORTED;
-    uint32_t split = 1;
     float pad_value = 0.0f;
     uint32_t groups = 1;
 

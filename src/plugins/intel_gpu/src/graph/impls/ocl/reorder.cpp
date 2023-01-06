@@ -59,8 +59,8 @@ protected:
         return parent::optimized_out(instance) || _can_be_optimized;
     }
 
-    kernel_arguments_data get_arguments(const reorder_inst& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
         if (_has_mean) {

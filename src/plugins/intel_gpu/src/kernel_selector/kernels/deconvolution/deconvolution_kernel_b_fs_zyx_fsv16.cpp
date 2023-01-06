@@ -168,7 +168,7 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     jit.AddConstant(MakeJitConstant("ICB", icb));
     jit.AddConstant(MakeJitConstant("IWB", CeilDiv(output.X().v, iw_block)));
     jit.AddConstant(MakeJitConstant("MB_LAST", (output.Batch().v / 16) * 16));
-    jit.AddConstant(MakeJitConstant("G", params.split));
+    jit.AddConstant(MakeJitConstant("G", 1));
     jit.AddConstant(MakeJitConstant("DD", params.dilation.z - 1));
     jit.AddConstant(MakeJitConstant("DH", params.dilation.y - 1));
     jit.AddConstant(MakeJitConstant("DW", params.dilation.x - 1));

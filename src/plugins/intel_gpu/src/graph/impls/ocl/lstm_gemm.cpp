@@ -28,8 +28,8 @@ struct lstm_gemm_impl : typed_primitive_impl_ocl<lstm_gemm> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_gemm>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_gemm>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         args.outputs = { instance.output_memory_ptr() };
         args.weights = instance.weights_memory();
