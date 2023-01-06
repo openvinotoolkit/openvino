@@ -52,8 +52,7 @@ size_t DecoderFlatBuffer::get_output_size() const {
 }
 
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
-    // FIXME add checks
-    FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested input is out-of-range");
+    FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
     return m_output_info.at(idx).tensor->name()->str();
 }
 

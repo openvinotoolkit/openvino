@@ -37,7 +37,7 @@ public:
         m_names = names;
     }
 
-protected:
+private:
     const ov::frontend::InputModel& m_input_model;
     std::vector<std::string> m_names;
 };
@@ -168,7 +168,7 @@ public:
     Ptr get_producing_port() const override;
     bool is_equal_data(const Ptr& another) const override;
 
-protected:
+private:
     PartialShape m_pshape;
     element::Type m_type;
 
