@@ -8,6 +8,7 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include <onednn/dnnl.h>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -56,6 +57,7 @@ using DetectionOutputAttributes = std::tuple<
 using DetectionOutputParamsDynamic = std::tuple<
     DetectionOutputAttributes,
     ParamsWhichSizeDependsDynamic,
+    bool,       // sparsity case
     size_t,     // Number of batch
     float,      // objectnessScore
     bool,       // replace dynamic shapes to intervals
@@ -68,11 +70,12 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParamsDynamic>& obj) {
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
+        bool sparsity;
         ngraph::op::DetectionOutputAttrs attrs;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
         std::string targetDevice;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = obj.param;
+        std::tie(commonAttrs, specificAttrs, sparsity, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = obj.param;
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
@@ -86,11 +89,12 @@ public:
             inShapes.resize(3);
         }
 
+        if (sparsity)
+            scale_input_shapes(inShapes);
+
         for (size_t i = 0; i < inShapes.size(); i++) {
             inShapes[i].first[0] = batch;
         }
-
-
 
         std::ostringstream result;
         result << "IS = { ";
@@ -109,6 +113,18 @@ public:
         result << "RDS=" << (replaceDynamicShapesToIntervals ? "true" : "false") << "_";
         result << "TargetDevice=" << targetDevice;
         return result.str();
+    }
+
+    static void scale_input_shapes(std::vector<ov::test::InputShape> &inShapes) {
+        const int cacheSizeL3 = dnnl::utils::get_cache_size(3, true);
+        auto confShapes = inShapes[idxConfidence].second;
+        for (int i = 0; i < confShapes.size(); i++) {
+            int scale = cacheSizeL3 / (confShapes[i][1] * sizeof(float) * 2) + 1;
+            for (int j = 0; j < inShapes.size(); j++) {
+                int pos = (j == idxPriors) ? 2 : 1;
+                inShapes[j].second[i][pos] *= scale;
+            }
+        }
     }
 
     void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
@@ -171,9 +187,10 @@ public:
     void SetUp() override {
         DetectionOutputAttributes commonAttrs;
         ParamsWhichSizeDependsDynamic specificAttrs;
+        bool sparsity;
         size_t batch;
         bool replaceDynamicShapesToIntervals;
-        std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = this->GetParam();
+        std::tie(commonAttrs, specificAttrs, sparsity, batch, attrs.objectness_score, replaceDynamicShapesToIntervals, targetDevice) = this->GetParam();
 
         std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
                  attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
@@ -185,6 +202,9 @@ public:
         if (inShapes[idxArmConfidence].first.rank().get_length() == 0) {
             inShapes.resize(3);
         }
+
+        if (sparsity)
+            scale_input_shapes(inShapes);
 
         if (replaceDynamicShapesToIntervals) {
             set_dimension_intervals(inShapes);
@@ -358,6 +378,7 @@ const std::vector<ParamsWhichSizeDependsDynamic> specificParams3InDynamic = {
 const auto params3InputsDynamic = ::testing::Combine(
         commonAttributes,
         ::testing::ValuesIn(specificParams3InDynamic),
+        ::testing::Values(false, true),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(0.0f),
         ::testing::Values(false, true),
@@ -444,6 +465,7 @@ const std::vector<ParamsWhichSizeDependsDynamic> specificParams5InDynamic = {
 const auto params5InputsDynamic = ::testing::Combine(
         commonAttributes,
         ::testing::ValuesIn(specificParams5InDynamic),
+        ::testing::Values(false, true),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
         ::testing::Values(false, true),

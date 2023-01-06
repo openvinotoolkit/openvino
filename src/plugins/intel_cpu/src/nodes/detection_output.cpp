@@ -84,6 +84,7 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ngraph::Node>& op, const 
     imgWidth = attributes.input_width;
     priorSize = normalized ? 4 : 5;
     coordOffset = normalized ? 0 : 1;
+    cacheSizeL3 = utils::get_cache_size(3, true);
 
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
@@ -127,7 +128,6 @@ void DetectionOutput::prepareParams() {
     //        --> g_topk(vector<>(all detections) --> indices per class))
     // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
     //        --> g_topk(vector<>(all detections) --> indices per class))
-    int cacheSizeL3 = utils::get_cache_size(3, true);
     isSparsityWorthwhile =
         (confidenceThreshold > sparsityThreshold) &&
         ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
