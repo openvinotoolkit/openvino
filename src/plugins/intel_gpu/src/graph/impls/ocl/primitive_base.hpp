@@ -152,9 +152,6 @@ protected:
         return args;
     }
 
-    virtual uint32_t get_groups() const { return 1; }
-    virtual bool get_depthwise_sep_opt() const { return false; }
-
     event::ptr aggregate_events(const std::vector<event::ptr>& events, stream& stream, bool group = false, bool is_output = false) const {
         if (events.size() == 1 && !is_output)
             return events[0];

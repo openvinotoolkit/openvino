@@ -27,31 +27,6 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         return make_unique<deformable_conv_impl>(*this);
     }
 
-    deformable_conv_impl() : parent() {}
-
-    explicit deformable_conv_impl(const deformable_conv_impl& other) : parent(other),
-        _groups(other._groups) {}
-
-    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<deformable_conv>());
-        const auto& node = arg.as<deformable_conv>();
-        _groups = node.get_groups();
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _groups;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _groups;
-    }
-
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<deformable_conv>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
@@ -60,8 +35,6 @@ protected:
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
         return args;
     }
-
-    uint32_t get_groups() const override { return _groups; }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -84,9 +57,6 @@ public:
 
         return {params, optional_params};
     }
-
-private:
-    uint32_t _groups;
 };
 
 struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
@@ -100,9 +70,6 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<deformable_interp_impl>(*this);
     }
-
-protected:
-    uint32_t get_groups() const override { return 1; }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {

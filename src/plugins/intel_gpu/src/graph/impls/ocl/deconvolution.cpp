@@ -26,32 +26,6 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         return make_unique<deconvolution_impl>(*this);
     }
 
-    deconvolution_impl() : parent() {}
-
-    explicit deconvolution_impl(const deconvolution_impl& other) : parent(other),
-        _groups(other._groups) {}
-
-    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-        this->can_reuse_memory = kd.can_reuse_memory;
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<deconvolution>());
-        const auto& node = arg.as<deconvolution>();
-        _groups = node.get_groups();
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _groups;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _groups;
-    }
-
 protected:
     // TODO: share it with convolution and fully connected
     bool validate_impl(const typed_primitive_inst<deconvolution>& instance) const override {
@@ -75,8 +49,6 @@ protected:
 
         return args;
     }
-
-    uint32_t get_groups() const override { return _groups; }
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -117,9 +89,6 @@ public:
 
         return {params, optional_params};
     }
-
-private:
-    uint32_t _groups;
 };
 
 namespace detail {

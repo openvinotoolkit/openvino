@@ -29,21 +29,6 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
         return make_unique<convolution_impl>(*this);
     }
 
-    convolution_impl() : parent() {}
-
-    explicit convolution_impl(const convolution_impl& other) : parent(other),
-      _groups(other._groups) {}
-
-    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<convolution>());
-        const auto& node = arg.as<convolution>();
-        _groups = node.get_groups();
-    }
-
 protected:
     bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
         bool res = true;
@@ -73,19 +58,7 @@ protected:
         return args;
     }
 
-    uint32_t get_groups() const override { return _groups; }
-
 public:
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _groups;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _groups;
-    }
-
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<convolution>();
 
@@ -221,9 +194,6 @@ public:
 
         return make_unique<convolution_impl>(arg, best_kernel);
     }
-
-private:
-    uint32_t _groups;
 };
 
 namespace detail {
