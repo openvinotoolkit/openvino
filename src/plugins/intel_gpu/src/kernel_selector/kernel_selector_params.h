@@ -175,7 +175,6 @@ public:
                     struct conv_t {
                         uint32_t split : 1;
                         uint32_t dilation : 1;
-                        uint32_t depthwise_separable_opt : 1;
                         uint32_t grouped : 1;
                         uint32_t deformable : 1;
                         uint32_t bilinear_interpolation_pad : 1;
@@ -325,7 +324,6 @@ public:
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableSplitSupport() { key.restrict.val.dedicated.conv.split = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
-    void EnableDepthwiseSeparableOpt() { key.restrict.val.dedicated.conv.depthwise_separable_opt = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
     void EnableBilinearInterpolationPad() { key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1; }

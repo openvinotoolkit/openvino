@@ -100,11 +100,6 @@ struct program_helpers {
         else
             do_for_types<RestOfT...>(node, rest...);
     }
-    static void merge_buffers(engine& engine,
-                              program_node& node,
-                              const layout& target_layout,
-                              size_t begin_offset,
-                              size_t end_offset);
 
     // helper functions for deconvolution optimizations
     static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,

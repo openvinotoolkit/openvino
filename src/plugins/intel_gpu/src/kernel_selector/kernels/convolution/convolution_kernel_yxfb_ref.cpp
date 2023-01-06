@@ -23,7 +23,6 @@ ParamsKey ConvolutionKernel_yxfb_Ref::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDilation();
-    k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
     k.EnableGroupedConvolution();
     return k;

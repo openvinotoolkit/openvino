@@ -33,7 +33,7 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
         _split(other._split),
         _groups(other._groups) {}
 
-    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
+    deformable_conv_impl(const deformable_conv_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         set_node_params(arg);
     }
 
@@ -85,7 +85,6 @@ public:
         const auto& weights_layout = impl_param.input_layouts[weight_idx].convert_to_weights_layout(false);
         const auto& weights_size = weights_layout.get_tensor();
 
-        params.depthwise_separable_opt = false;
         params.split = split;
         params.groups = groups;
         params.filterSize = {

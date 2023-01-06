@@ -25,7 +25,6 @@ ParamsKey ConvolutionKernel_bfyx_1x1::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     return k;
 }
 

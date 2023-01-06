@@ -75,7 +75,6 @@ public:
 
         params.pad_value = primitive->pad_value;
         params.out_dt = to_data_type(*primitive->output_data_types[0]);
-        params.depthwise_separable_opt = false;
         params.split = 1;
         params.groups = static_cast<uint32_t>(groups);
         params.filterSize = {

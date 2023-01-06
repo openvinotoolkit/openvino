@@ -86,11 +86,7 @@ KERNEL(convolution_bfyx_1x1)(
     }
 #endif
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (f / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#else
     const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#endif
     const uint filter_offset = group_f * ((FILTER_OFM_PITCH + 8 - 1) / 8) * 8;//f*FILTER_OFM_PITCH;
     const uint xy_block_num = (INPUT0_FEATURE_PITCH + 16 - 1) / 16;
     const uint f_block_num = (INPUT0_FEATURE_NUM + 8 - 1) / 8;

@@ -24,7 +24,6 @@ ParamsKey DeformableConvolutionKernel_bfyx_interp::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();

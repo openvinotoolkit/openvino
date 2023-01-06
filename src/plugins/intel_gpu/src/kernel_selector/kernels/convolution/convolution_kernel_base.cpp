@@ -41,7 +41,6 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         MakeJitConstant("DILATION", params.dilation),
         MakeJitConstant("FILTER_ARRAY_NUM", params.split * params.groups),
         MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-        MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", params.depthwise_separable_opt),
         MakeJitConstant("GROUPED", (params.groups > 1) ? 1 : 0),
     });
 

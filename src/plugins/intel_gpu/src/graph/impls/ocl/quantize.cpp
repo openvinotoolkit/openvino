@@ -87,7 +87,7 @@ public:
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
-        return make_unique<quantize_impl>(best_kernel);
+        return make_unique<quantize_impl>(arg, best_kernel);
     }
 };
 

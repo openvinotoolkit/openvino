@@ -48,11 +48,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     const uint input_f_pitch = INPUT0_FEATURE_PITCH;
     const uint input_b_pitch = INPUT0_BATCH_PITCH;
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (f_block / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#else
     const uint in_split_offset = split_idx * FILTER_IFM_NUM * input_f_pitch;
-#endif // DEPTHWISE_SEPARABLE_OPT
 
     const uint input_offset = in_split_offset +
                               INPUT0_OFFSET +
@@ -84,7 +80,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     const uint filter_is_pitch = filter_y_pitch * FILTER_SIZE_Y;
     const uint filter_os_pitch = filter_is_pitch * ((FILTER_IFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
 
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
+#if GROUPED
     const uint filter_offset = f_block * filter_os_pitch + split_idx * FILTER_LENGTH;
 #else
     const uint filter_offset = f_block * filter_os_pitch;
@@ -93,7 +89,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
 #if BIAS_TERM
     uint bias_offset = f_block * FEATURE_SLICE_SIZE;
 
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
+#if GROUPED
     bias_offset += split_idx * BIAS_LENGTH;
 #endif
 

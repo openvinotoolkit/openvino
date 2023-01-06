@@ -47,7 +47,7 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
     const uint start_x = (STRIDE_SIZE_X - (in_x % STRIDE_SIZE_X)) % STRIDE_SIZE_X;
     const uint start_y = (STRIDE_SIZE_Y - (in_y % STRIDE_SIZE_Y)) % STRIDE_SIZE_Y;
 
-#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+#if GROUPED
     const uint g = (ofm_offset / FILTER_OFM_NUM);
     const uint of = (ofm_offset % FILTER_OFM_NUM);
     const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;

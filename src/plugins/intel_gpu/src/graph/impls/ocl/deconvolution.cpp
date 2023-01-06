@@ -32,7 +32,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
         _split(other._split),
         _groups(other._groups) {}
 
-    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
+    deconvolution_impl(const deconvolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         set_node_params(arg);
         this->can_reuse_memory = kd.can_reuse_memory;
     }

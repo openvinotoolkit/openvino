@@ -22,7 +22,6 @@ ParamsKey ConvolutionKernel_bfyx_depthwise_weights_lwg::GetSupportedKey() const 
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
     k.EnableGroupedConvolution();
     return k;

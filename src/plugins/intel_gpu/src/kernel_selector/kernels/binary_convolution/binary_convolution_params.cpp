@@ -47,11 +47,7 @@ ParamsKey binary_convolution_params::GetParamsKey() const {
         k.EnableDilation();
     }
 
-    if (depthwise_separable_opt) {
-        k.EnableDepthwiseSeparableOpt();
-    }
-
-    if (groups > 1 && !depthwise_separable_opt) {
+    if (groups > 1) {
         k.EnableGroupedConvolution();
     }
 

@@ -39,7 +39,6 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     k.DisableTuning();
     k.EnableGroupedConvolution();
 

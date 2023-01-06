@@ -35,7 +35,7 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
       _split(other._split),
       _groups(other._groups) {}
 
-    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
+    convolution_impl(const convolution_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         set_node_params(arg);
     }
 
@@ -228,7 +228,7 @@ public:
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
-        return make_unique<convolution_impl>(best_kernel);
+        return make_unique<convolution_impl>(arg, best_kernel);
     }
 
 private:

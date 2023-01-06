@@ -31,7 +31,6 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableBatching();
     return k;
 }

@@ -22,7 +22,6 @@ struct deconvolution_params : public weight_bias_params {
     uSize padding;
     uint32_t split = 1;
     uint32_t groups = 1;
-    bool depthwise_separable_opt = false;
 
     std::string to_string() const override;
 
@@ -37,11 +36,7 @@ struct deconvolution_params : public weight_bias_params {
             k.EnableDilation();
         }
 
-        if (depthwise_separable_opt) {
-            k.EnableDepthwiseSeparableOpt();
-        }
-
-        if (groups > 1 && !depthwise_separable_opt) {
+        if (groups > 1) {
             k.EnableGroupedConvolution();
         }
 

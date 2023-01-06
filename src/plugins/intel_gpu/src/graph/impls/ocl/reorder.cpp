@@ -31,7 +31,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         _can_be_optimized(other._can_be_optimized),
         _has_mean(other._has_mean) {}
 
-    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(kd) {
+    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
         set_node_params(arg);
     }
 

@@ -53,7 +53,7 @@ KERNEL(kernel_name)(
     const int input_z = 0;
 #endif
 
-#if DEPTHWISE_SEPARABLE_OPT || GROUPED
+#if GROUPED
     const uint g = (f / FILTER_OFM_NUM);
     const uint of = (f % FILTER_OFM_NUM);
 #else
@@ -113,7 +113,7 @@ KERNEL(kernel_name)(
     }
 
 #if BIAS_TERM
-    #if GROUPED || DEPTHWISE_SEPARABLE_OPT
+    #if GROUPED
         const uint bias_offset = 0;
     #else
         const uint bias_offset = 0;
