@@ -28,11 +28,11 @@ using namespace InferenceEngine;
 
 static const size_t progressBarDefaultTotalCount = 1000;
 
-uint64_t getDurationInMilliseconds(uint32_t duration) {
+uint64_t getDurationInMilliseconds(uint64_t duration) {
     return duration * 1000LL;
 }
 
-uint64_t getDurationInNanoseconds(uint32_t duration) {
+uint64_t getDurationInNanoseconds(uint64_t duration) {
     return duration * 1000000000LL;
 }
 
@@ -454,7 +454,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -472,7 +472,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         if ((niter > 0) && (FLAGS_api == "async")) {
             niter = ((niter + nireq - 1) / nireq) * nireq;
             if (FLAGS_niter != niter) {
@@ -482,7 +482,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;
