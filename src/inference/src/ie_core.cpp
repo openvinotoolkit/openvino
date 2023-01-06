@@ -911,7 +911,7 @@ public:
             bool loadedFromCache = false;
             ov::Tensor tensor = ov::Tensor();
             if (weights) {
-                tensor = ov::Tensor(element::u8, {1, weights->byteSize()}, weights->cbuffer().as<uint8_t*>());
+                tensor = ov::Tensor(element::u8, {weights->byteSize()}, weights->cbuffer().as<uint8_t*>());
             }
             cacheContent.blobId = CalculateMemoryHash(modelStr, tensor, parsed._deviceName, plugin, parsed._config);
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
