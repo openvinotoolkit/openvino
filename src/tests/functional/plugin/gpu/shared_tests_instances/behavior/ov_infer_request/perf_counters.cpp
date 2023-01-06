@@ -35,17 +35,23 @@ auto configs = []() {
 
 auto Multiconfigs = []() {
     return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+#ifdef ENABLE_INTEL_CPU
                                    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
                                     ov::intel_auto::device_bind_buffer(false)},
                                    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
-                                    ov::intel_auto::device_bind_buffer(true)}};
+                                    ov::intel_auto::device_bind_buffer(true)}
+#endif
+    };
 };
 
 auto Autoconfigs = []() {
     return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+#ifdef ENABLE_INTEL_CPU
                                    {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
                                     ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
-                                    ov::intel_auto::device_bind_buffer(true)}};
+                                    ov::intel_auto::device_bind_buffer(true)}
+#endif
+    };
 };
 
 auto AutoBatchConfigs = []() {
