@@ -76,6 +76,9 @@ def _params(request):
 def test_compression(_params, tmp_path, models):
     model_name, model_framework, algorithm, preset, subset_size, expected_accuracy, additional_params, device = _params
 
+    if model_framework == 'mxnet':
+        pytest.skip('Skipped due to conflict with numpy version in mxnet #99501.')
+
     algorithm_config = make_algo_config(algorithm, preset, subset_size, additional_params, device)
 
     if model_name in CASCADE_MAP:
