@@ -136,11 +136,10 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    // TODO: FIXME
-    // _taskExecutor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    m_task_executor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
-    // _plugin->executorManager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+    _plugin->get_executor_manager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]
 
@@ -157,12 +156,10 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::c
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::create_infer_request() const {
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
     internalRequest = create_infer_request_impl();
-    return internalRequest;
-    // return
-    // std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
-    //                                                    _taskExecutor,
-    //                                                    _plugin->_waitExecutor,
-    //                                                    _callbackExecutor);
+    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+                                                       m_task_executor,
+                                                       _plugin->_waitExecutor,
+                                                       m_callback_executor);
 }
 // ! [executable_network:create_infer_request]
 

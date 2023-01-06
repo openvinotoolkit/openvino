@@ -95,8 +95,12 @@ private:
 }  // namespace ov
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
-                                   const std::shared_ptr<const ov::IPlugin>& plugin)
-    : m_plugin(plugin) {
+                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                                   const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
+    : m_plugin(plugin),
+      m_task_executor(task_executor),
+      m_callback_executor(callback_executor) {
     std::shared_ptr<const ov::Model> const_model = model;
     // Add pre-processing
     m_inputs = const_model->inputs();
@@ -124,9 +128,10 @@ std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::crea
     if (m_exec_network) {
         return m_exec_network->CreateInferRequest();
     }
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> asyncRequestImpl = create_infer_request_impl();
-    // asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    return asyncRequestImpl;
+    if (m_task_executor && m_callback_executor) {
+        return create_async_infer_request_from_sync();
+    }
+    return create_infer_request_impl();
 }
 
 void ov::ICompiledModel::export_model(std::ostream& model) const {
