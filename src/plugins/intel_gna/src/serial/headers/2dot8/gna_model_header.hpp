@@ -6,14 +6,15 @@
 
 #include <cstdint>
 #include <map>
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "serial/headers/2dot7/gna_model_header.hpp"
 #include "gna_data_types.hpp"
 
 #pragma pack(push, 1)
 
-namespace GNAPluginNS {
-namespace Header2dot8 {
+namespace ov {
+namespace intel_gna {
+namespace header_2_dot_8 {
 
 /**
  Maximal number of supported shape dimensions.
@@ -86,7 +87,7 @@ struct ModelHeader {
 
     ModelHeader() = default;
 
-    ModelHeader(GNAPluginNS::Header2dot1::ModelHeader const &old) {
+    ModelHeader(header_2_dot_1::ModelHeader const& old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
@@ -97,7 +98,7 @@ struct ModelHeader {
         version.minor = old.version.minor;
     }
 
-    ModelHeader(GNAPluginNS::Header2dot4::ModelHeader const &old) {
+    ModelHeader(header_2_dot_4::ModelHeader const& old) {
         gnaMemSize = old.gnaMemSize;
         layersCount = old.layersCount;
         nGroup = old.nGroup;
@@ -135,7 +136,7 @@ struct RuntimeEndPoint {
     uint32_t elements_count = 0;
     /**
      * Offset in bytes of pointer descriptor
-    */
+     */
     uint64_t descriptor_offset = 0ull;
     /**
      Shape specifying dimension values.
@@ -169,12 +170,12 @@ struct RuntimeEndPoint {
     RuntimeEndPoint() = default;
 
     // support of previous versions
-    RuntimeEndPoint(const GNAPluginNS::Header2dot6::RuntimeEndPoint &old, uint32_t ngroup) {
-        GNAPluginNS::Header2dot7::RuntimeEndPoint ep_v7 = GNAPluginNS::Header2dot7::RuntimeEndPoint(old, ngroup);
-        *this = GNAPluginNS::Header2dot8::RuntimeEndPoint(ep_v7);
+    RuntimeEndPoint(const header_2_dot_6::RuntimeEndPoint& old, uint32_t ngroup) {
+        header_2_dot_7::RuntimeEndPoint ep_v7 = header_2_dot_7::RuntimeEndPoint(old, ngroup);
+        *this = header_2_dot_8::RuntimeEndPoint(ep_v7);
     }
 
-    RuntimeEndPoint(GNAPluginNS::Header2dot7::RuntimeEndPoint &old) {
+    RuntimeEndPoint(header_2_dot_7::RuntimeEndPoint& old) {
         scaleFactor = old.scaleFactor;
         descriptor_ptr = old.descriptor_ptr;
         element_size = old.element_size;
@@ -198,15 +199,18 @@ struct RuntimeEndPoint {
                     uint8_t layout,
                     uint8_t precision,
                     uint8_t tensor_names_count,
-                    intel_dnn_orientation_t orientation) : scaleFactor(static_cast<float>(scaleFactor)),
-                                                           descriptor_ptr(descriptor_ptr),
-                                                           element_size(element_size),
-                                                           elements_count(elements_count),
-                                                           shape(shape),
-                                                           layout(layout),
-                                                           precision(precision),
-                                                           tensor_names_count(tensor_names_count),
-                                                           orientation(orientation) { }
+                    intel_dnn_orientation_t orientation)
+        : scaleFactor(static_cast<float>(scaleFactor)),
+          descriptor_ptr(descriptor_ptr),
+          element_size(element_size),
+          elements_count(elements_count),
+          shape(shape),
+          layout(layout),
+          precision(precision),
+          tensor_names_count(tensor_names_count),
+          orientation(orientation) {}
 };
-} // namespace Header2dot8
-} // namespace GNAPluginNS
+
+}  // namespace header_2_dot_8
+}  // namespace intel_gna
+}  // namespace ov

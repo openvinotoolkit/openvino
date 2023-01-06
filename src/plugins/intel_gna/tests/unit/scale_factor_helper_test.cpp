@@ -36,7 +36,6 @@ public:
         if (!legacy_str.empty()) {
             name += "," + legacy_str;
         }
-        std::cout << "name: " << name << std::endl;
         return name;
     }
     void SetUp() override {
@@ -77,22 +76,22 @@ public:
         }
     }
 
-    GNAPluginNS::Config _config;
-    GNAPluginNS::HeaderLatest::ModelHeader _header;
-    GNAPluginNS::GnaInputs _gna_inputs;
+    Config _config;
+    header_latest::ModelHeader _header;
+    GnaInputs _gna_inputs;
     std::vector<std::pair<std::string, float>> _test_inputs;
     bool _applicable;
     bool _legacy_scale_factor;
 };
 
 TEST_P(GNAApplyInputScaleFactorsTest, test_scale_factor_set_properly) {
-    EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs));
+    EXPECT_NO_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs));
     for (const auto& input : _test_inputs) {
         auto& input_ref = _gna_inputs[input.first];
         if (_applicable) {
             EXPECT_FLOAT_EQ(input_ref.scale_factor, input.second);
         } else {
-            EXPECT_FLOAT_EQ(input_ref.scale_factor, GNAPluginNS::kScaleFactorDefault);
+            EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
         }
     }
 }
@@ -105,13 +104,13 @@ TEST_P(GNAApplyInputScaleFactorsTest, inputs_count_not_match_to_scale_factors) {
     }
 
     if (_applicable) {
-        EXPECT_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs), std::exception);
+        EXPECT_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs), std::exception);
     } else {
         // check if no exception and data are not changed
-        EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs));
+        EXPECT_NO_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(_config, _header, _gna_inputs));
         for (const auto& input : _test_inputs) {
             auto& input_ref = _gna_inputs[input.first];
-            EXPECT_FLOAT_EQ(input_ref.scale_factor, GNAPluginNS::kScaleFactorDefault);
+            EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
         }
     }
 }
@@ -131,27 +130,27 @@ INSTANTIATE_TEST_CASE_P(smoke_,
 
 // Tests if nothing was changed if there is no custom scale factor in configuration
 TEST(smoke_GNAApplyInputScaleFactorsTest, test_default_scale_factor) {
-    GNAPluginNS::Config config;
-    GNAPluginNS::HeaderLatest::ModelHeader header;
-    GNAPluginNS::GnaInputs inputs;
+    Config config;
+    header_latest::ModelHeader header;
+    GnaInputs inputs;
 
     std::string input_name = "input";
     auto& input_ref = inputs[input_name];
     config.inputScaleFactors.clear();
     config.inputScaleFactorsPerInput.clear();
 
-    EXPECT_NO_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(config, header, inputs));
+    EXPECT_NO_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(config, header, inputs));
 
-    EXPECT_FLOAT_EQ(input_ref.scale_factor, GNAPluginNS::kScaleFactorDefault);
+    EXPECT_FLOAT_EQ(input_ref.scale_factor, kScaleFactorDefault);
 }
 
 // Tests if exception is thron if input scale factor name does not match to input name
 TEST(smoke_GNAApplyInputScaleFactorsTest, test_wrong_scale_factor_config_input_name) {
-    GNAPluginNS::Config config;
-    GNAPluginNS::HeaderLatest::ModelHeader header;
+    Config config;
+    header_latest::ModelHeader header;
     header.version.major = 2;
     header.version.minor = 7;
-    GNAPluginNS::GnaInputs gna_inputs;
+    GnaInputs gna_inputs;
 
     const std::string name_1{"input_1"};
     const std::string name_2{"input_2"};
@@ -162,5 +161,5 @@ TEST(smoke_GNAApplyInputScaleFactorsTest, test_wrong_scale_factor_config_input_n
     config.inputScaleFactorsPerInput[name_1] = 2.0;
     config.inputScaleFactorsPerInput[name_2 + "__"] = 2.0;
 
-    EXPECT_THROW(ov::intela_gna::helpers::ApplyInputScaleFactors(config, header, gna_inputs), std::exception);
+    EXPECT_THROW(ov::intel_gna::helpers::ApplyInputScaleFactors(config, header, gna_inputs), std::exception);
 }

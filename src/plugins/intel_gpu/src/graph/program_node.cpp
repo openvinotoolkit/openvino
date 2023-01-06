@@ -6,7 +6,6 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
-#include "strided_slice_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -246,23 +245,18 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     bool allow_new_shape_infer =
         get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
             return out_layouts[0];
         }
     }
 
     auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
-    GPU_DEBUG_IF(debug_config->verbose >= 4) {
-        GPU_DEBUG_COUT << id() << ": calc_output_layout:" << res << std::endl;
-    }
+    GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout:" << res << std::endl;
 
     return res;
 }
@@ -353,16 +347,6 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    if (is_type<strided_slice>()) {
-        for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
-                return true;
-        }
-    }
     for (const auto& input : get_dependencies()) {
         if (input.first->is_dynamic_output_layout())
             return true;
@@ -376,17 +360,6 @@ bool program_node::is_dynamic() const {
 }
 
 bool program_node::is_dynamic() {
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    if (is_type<strided_slice>()) {
-        for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
-                return true;
-        }
-    }
-
     for (auto& input : get_dependencies()) {
         if (input.first->is_dynamic_output_layout())
             return true;
@@ -528,8 +501,6 @@ bool program_node::has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& a
 
 dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr,
                                                    bool& optimization_is_completed) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-
     // Create new dnnl::post_ops object which will be filled inside the optimization process
     dnnl::post_ops optimized_p_ops;
 
@@ -673,22 +644,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     int64_t prev_post_op_idx = 0;
     bool optimization_done = false;
 
-    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-        GPU_DEBUG_COUT << "================================================" << std::endl;
-        GPU_DEBUG_COUT << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
-        for (size_t i = 0; i < cur_post_ops.size(); i++)
-            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-    }
+    GPU_DEBUG_TRACE << "================================================" << std::endl;
+    GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+    for (size_t i = 0; i < cur_post_ops.size(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
 
     remove_optimized_prefix(cur_post_ops);
 
-    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-        GPU_DEBUG_COUT << "remove optimized prefix ------------------------" << std::endl;
-        GPU_DEBUG_COUT << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
-        for (size_t i = 0; i < cur_post_ops.size(); i++)
-            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-        GPU_DEBUG_COUT << "----------------------------------->>>>>>>>>>>>>" << std::endl;
-    }
+    GPU_DEBUG_TRACE << "remove optimized prefix ------------------------" << std::endl;
+    GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+    for (size_t i = 0; i < cur_post_ops.size(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
 
     // Get post-ops size for current node
     int64_t post_ops_size = cur_post_ops.size();
@@ -710,8 +677,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_type = cur_post_ops[cur_post_op_idx].op_type;
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
-        GPU_DEBUG_IF(debug_config->verbose >= 3)
-            GPU_DEBUG_COUT << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+        GPU_DEBUG_TRACE << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         // Ignore optimized operations for "previous" operation in our operation pair
         while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
@@ -728,8 +694,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
         }
 
-        GPU_DEBUG_IF(debug_config->verbose >= 3)
-            GPU_DEBUG_COUT << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+        GPU_DEBUG_TRACE << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
         auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
@@ -766,10 +731,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
         bool cur_ops_pair_is_optimized = false;
 
-        GPU_DEBUG_IF(debug_config->verbose >= 3) {
-            GPU_DEBUG_COUT << "prev_idx: " << prev_idx << " " << prev_type
-                           << ", cur_idx: " << cur_idx << " " << cur_type << std::endl;
-        }
+        GPU_DEBUG_TRACE << "prev_idx: " << prev_idx << " " << prev_type
+                         << ", cur_idx: " << cur_idx << " " << cur_type << std::endl;
 
         if (can_try_optimize) {
             if (eltw_and_eltw) {
@@ -1005,12 +968,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         remove_optimized_prefix(cur_post_ops);
     }
 
-    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-        GPU_DEBUG_COUT << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
-        for (size_t i = 0; i < cur_post_ops.size(); i++)
-            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-        GPU_DEBUG_COUT << "------------------------------------------------" << std::endl;
-    }
+    GPU_DEBUG_TRACE << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
+    for (size_t i = 0; i < cur_post_ops.size(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    GPU_DEBUG_TRACE << "------------------------------------------------" << std::endl;
 
     add_onednn_fused_primitives(cur_post_ops);
 
@@ -1202,7 +1163,7 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. clamp
                 {
-                    if (q_param->has_clamp) {
+                    if (q_param->has_clamp || idx < cldnn_post_ops.size() - 1) {
                         float out_lo = q_param->has_min_clamp ? q_param->out_lo : data_type_traits::min<float>(out_dt);
                         float out_hi = q_param->has_max_clamp ? q_param->out_hi : data_type_traits::max<float>(out_dt);
                         post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, out_lo, out_hi);

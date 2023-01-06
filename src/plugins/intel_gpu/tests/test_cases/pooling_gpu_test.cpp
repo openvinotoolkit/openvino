@@ -225,13 +225,13 @@ TEST(pooling_forward_gpu, basic_max_byxf_f32_wsiz3x3_wstr1x1_i1x3x3x8_nopad) {
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
-    EXPECT_EQ(4.0f, output_ptr[3]);
+    ASSERT_EQ(4.0f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
@@ -263,14 +263,14 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz3x3_wstr1x1_i3x3x1x1_nopad) {
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.0f, output_ptr[0]);
+    ASSERT_EQ(2.0f, output_ptr[0]);
 }
 
 TEST(pooling_forward_gpu, basic_max_pooling_int8) {
@@ -315,7 +315,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
     unsigned int cntr = 0;
     for (const auto& exp : final_results)
     {
-        EXPECT_EQ(exp, interm_ptr[cntr++]);
+        ASSERT_EQ(exp, interm_ptr[cntr++]);
     }
 }
 
@@ -364,7 +364,7 @@ TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
 
     auto interm = outputs.at("reorder2").get_memory();
     cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
-    EXPECT_EQ(final_result, interm_ptr[0]);
+    ASSERT_EQ(final_result, interm_ptr[0]);
 }
 
 TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
@@ -397,17 +397,17 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.0f, output_ptr[0]);
-    EXPECT_EQ(1.5f, output_ptr[1]);
-    EXPECT_EQ(2.0f, output_ptr[2]);
-    EXPECT_EQ(1.5f, output_ptr[3]);
+    ASSERT_EQ(2.0f, output_ptr[0]);
+    ASSERT_EQ(1.5f, output_ptr[1]);
+    ASSERT_EQ(2.0f, output_ptr[2]);
+    ASSERT_EQ(1.5f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr2x2_i4x4x1x1_nopad) {
@@ -441,17 +441,17 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr2x2_i4x4x1x1_nopad) {
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(2.0f, output_ptr[0]);
-    EXPECT_EQ(0.5f, output_ptr[1]);
-    EXPECT_EQ(0.5f, output_ptr[2]);
-    EXPECT_EQ(0.5f, output_ptr[3]);
+    ASSERT_EQ(2.0f, output_ptr[0]);
+    ASSERT_EQ(0.5f, output_ptr[1]);
+    ASSERT_EQ(0.5f, output_ptr[2]);
+    ASSERT_EQ(0.5f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x2x2_nopad) {
@@ -495,22 +495,22 @@ TEST(pooling_forward_gpu, basic_max_yxfb_f32_wsiz2x2_wstr1x1_i3x3x2x2_nopad) {
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(1.0f, output_ptr[0]); EXPECT_EQ(0.0f, output_ptr[2]);
-    EXPECT_EQ(0.5f, output_ptr[4]); EXPECT_EQ(1.5f, output_ptr[6]);
-    EXPECT_EQ(1.0f, output_ptr[8]); EXPECT_EQ(1.0f, output_ptr[10]);
-    EXPECT_EQ(-0.5f, output_ptr[12]); EXPECT_EQ(1.5f, output_ptr[14]);
+    ASSERT_EQ(1.0f, output_ptr[0]); ASSERT_EQ(0.0f, output_ptr[2]);
+    ASSERT_EQ(0.5f, output_ptr[4]); ASSERT_EQ(1.5f, output_ptr[6]);
+    ASSERT_EQ(1.0f, output_ptr[8]); ASSERT_EQ(1.0f, output_ptr[10]);
+    ASSERT_EQ(-0.5f, output_ptr[12]); ASSERT_EQ(1.5f, output_ptr[14]);
 
-    EXPECT_EQ(0.5f,  output_ptr[1]);  EXPECT_EQ(1.0f, output_ptr[3]);
-    EXPECT_EQ(1.0f,  output_ptr[5]);  EXPECT_EQ(0.5f, output_ptr[7]);
-    EXPECT_EQ(-0.5f, output_ptr[9]);  EXPECT_EQ(1.0f, output_ptr[11]);
-    EXPECT_EQ(1.5f,  output_ptr[13]); EXPECT_EQ(0.0f, output_ptr[15]);
+    ASSERT_EQ(0.5f,  output_ptr[1]);  ASSERT_EQ(1.0f, output_ptr[3]);
+    ASSERT_EQ(1.0f,  output_ptr[5]);  ASSERT_EQ(0.5f, output_ptr[7]);
+    ASSERT_EQ(-0.5f, output_ptr[9]);  ASSERT_EQ(1.0f, output_ptr[11]);
+    ASSERT_EQ(1.5f,  output_ptr[13]); ASSERT_EQ(0.0f, output_ptr[15]);
 }
 
 TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad) {
@@ -545,16 +545,16 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad)
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
-    EXPECT_EQ( 1.5f, output_ptr[0]);
-    EXPECT_EQ(-0.5f, output_ptr[1]);
-    EXPECT_EQ(-1.0f, output_ptr[2]);
-    EXPECT_EQ( 0.5f, output_ptr[3]);
+    ASSERT_EQ( 1.5f, output_ptr[0]);
+    ASSERT_EQ(-0.5f, output_ptr[1]);
+    ASSERT_EQ(-1.0f, output_ptr[2]);
+    ASSERT_EQ( 0.5f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad) {
@@ -596,17 +596,17 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().count(), 4);
+    ASSERT_EQ((int)output_prim->get_layout().count(), 4);
 
     cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    EXPECT_EQ(1.5f, output_ptr[0]);
-    EXPECT_EQ(-0.5f, output_ptr[1]);
-    EXPECT_EQ(1.0f, output_ptr[2]);
-    EXPECT_EQ(-0.5f, output_ptr[3]);
+    ASSERT_EQ(1.5f, output_ptr[0]);
+    ASSERT_EQ(-0.5f, output_ptr[1]);
+    ASSERT_EQ(1.0f, output_ptr[2]);
+    ASSERT_EQ(-0.5f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, basic_avg_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
@@ -639,17 +639,17 @@ TEST(pooling_forward_gpu, basic_avg_yxfb_f32_wsiz2x2_wstr1x1_i3x3x1x1_nopad) {
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_EQ(1.0f,   output_ptr[0]);
-    EXPECT_EQ(0.625f, output_ptr[1]);
-    EXPECT_EQ(1.625f, output_ptr[2]);
-    EXPECT_EQ(0.875f, output_ptr[3]);
+    ASSERT_EQ(1.0f,   output_ptr[0]);
+    ASSERT_EQ(0.625f, output_ptr[1]);
+    ASSERT_EQ(1.625f, output_ptr[2]);
+    ASSERT_EQ(0.875f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad) {
@@ -684,16 +684,16 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i2x2x1x1_zeropad)
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
-    EXPECT_EQ(0.375f,  output_ptr[0]);
-    EXPECT_EQ(-0.125f, output_ptr[1]);
-    EXPECT_EQ(-0.25f,  output_ptr[2]);
-    EXPECT_EQ(0.125f,  output_ptr[3]);
+    ASSERT_EQ(0.375f,  output_ptr[0]);
+    ASSERT_EQ(-0.125f, output_ptr[1]);
+    ASSERT_EQ(-0.25f,  output_ptr[2]);
+    ASSERT_EQ(0.125f,  output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad) {
@@ -732,17 +732,17 @@ TEST(pooling_forward_gpu, offsets_avg_bfyx_f32_wsiz3x3_wstr3x3_i1x1x3x3_zeropad)
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_NEAR(output_ptr[0], 0.177777f, 1e-05F);
-    EXPECT_NEAR(output_ptr[1], -0.133333f, 1e-05F);
-    EXPECT_NEAR(output_ptr[2], 0.333333f, 1e-05F);
-    EXPECT_NEAR(output_ptr[3], 0.55f, 1e-05F);
+    ASSERT_NEAR(output_ptr[0], 0.177777f, 1e-05F);
+    ASSERT_NEAR(output_ptr[1], -0.133333f, 1e-05F);
+    ASSERT_NEAR(output_ptr[2], 0.333333f, 1e-05F);
+    ASSERT_NEAR(output_ptr[3], 0.55f, 1e-05F);
 }
 
 TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad) {
@@ -777,17 +777,17 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_f32_wsiz2x2_wstr2x2_i3x3x1x1_zeropad)
     network.set_input_data("input_prim", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "pool_prim");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().count(), 4);
+    ASSERT_EQ((int)output_prim->get_layout().count(), 4);
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
-    EXPECT_EQ(0.375f,  output_ptr[0]);
-    EXPECT_EQ(0.5f,    output_ptr[1]);
-    EXPECT_EQ(-0.125f, output_ptr[2]);
-    EXPECT_EQ(-1.125f, output_ptr[3]);
+    ASSERT_EQ(0.375f,  output_ptr[0]);
+    ASSERT_EQ(0.5f,    output_ptr[1]);
+    ASSERT_EQ(-0.125f, output_ptr[2]);
+    ASSERT_EQ(-1.125f, output_ptr[3]);
 }
 
 TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_outpad2) {
@@ -841,13 +841,13 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_out
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "pool_prim");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], output_ptr[i]);
+            ASSERT_EQ(expected[i], output_ptr[i]);
         }
     }
 }
@@ -906,16 +906,16 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "pool_prim");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
-        EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().count(), 4);
+        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], output_ptr[i]);
+            ASSERT_EQ(expected[i], output_ptr[i]);
         }
     }
 }
@@ -973,13 +973,13 @@ TEST(pooling_forward_gpu, offsets_avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_inp
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "pool_prim");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], output_ptr[i]);
+            ASSERT_EQ(expected[i], output_ptr[i]);
         }
     }
 }
@@ -1040,16 +1040,16 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "pool_prim");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
-        EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().count(), 4);
+        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], output_ptr[i]);
+            ASSERT_EQ(expected[i], output_ptr[i]);
         }
     }
 }
@@ -1111,13 +1111,13 @@ TEST(pooling_forward_gpu, avg_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i2x2x1x1_inpad2x1_ou
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "pool_prim");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], output_ptr[i]);
+            ASSERT_EQ(expected[i], output_ptr[i]);
         }
     }
 }
@@ -1182,16 +1182,16 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "pool_prim");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "pool_prim");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().count(), 9);
-        EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
+        ASSERT_EQ((int)output_prim->get_layout().count(), 9);
+        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], output_ptr[i]);
+            ASSERT_EQ(expected[i], output_ptr[i]);
         }
     }
 }
@@ -1234,11 +1234,11 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
     auto output_mem = net.execute().at("pool").get_memory();
 
     ASSERT_EQ(output_mem->count(), expected_output.size());
-    EXPECT_EQ(output_mem->get_layout().get_tensor(), output);
+    ASSERT_EQ(output_mem->get_layout().get_tensor(), output);
     cldnn::mem_lock<DataType> out_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < expected_output.size(); ++i)
-        EXPECT_FLOAT_EQ(out_ptr[i], expected_output[i]);
+        ASSERT_FLOAT_EQ(out_ptr[i], expected_output[i]);
 }
 
 //bfyx fp32
@@ -1536,17 +1536,17 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_1x1_stride_2x2_ou
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_after_pooling");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_after_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_EQ(1.0f, float(output_ptr[0]));
-    EXPECT_EQ(0.625f, float(output_ptr[1]));
-    EXPECT_EQ(1.625f, float(output_ptr[2]));
-    EXPECT_EQ(0.875f, float(output_ptr[3]));
+    ASSERT_EQ(1.0f, float(output_ptr[0]));
+    ASSERT_EQ(0.625f, float(output_ptr[1]));
+    ASSERT_EQ(1.625f, float(output_ptr[2]));
+    ASSERT_EQ(0.875f, float(output_ptr[3]));
 
 }
 
@@ -1588,17 +1588,17 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_3x3_input_2x2_pool_2x2_stride)
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_after_pooling");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_after_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
 
-    EXPECT_EQ(1.0f, float(output_ptr[0]));
-    EXPECT_EQ(0.f, float(output_ptr[1]));
+    ASSERT_EQ(1.0f, float(output_ptr[0]));
+    ASSERT_EQ(0.f, float(output_ptr[1]));
 
-    EXPECT_EQ(1.5f, float(output_ptr[2]));
-    EXPECT_EQ(3.5f, float(output_ptr[3]));
+    ASSERT_EQ(1.5f, float(output_ptr[2]));
+    ASSERT_EQ(3.5f, float(output_ptr[3]));
 
 }
 
@@ -1657,8 +1657,8 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_after_pooling");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_after_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1673,11 +1673,11 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_2x2x3x3_input_2x2_pool_2x2_stride)
         {
             const int f_pitch = out_x * out_y;
             const int bf_offset = b * (f_pitch * features_count) + f * f_pitch;
-            EXPECT_EQ(1.0f, float(output_ptr[bf_offset + 0])); // X0Y0
-            EXPECT_EQ(0.f,  float(output_ptr[bf_offset + 1])); // X1Y0
+            ASSERT_EQ(1.0f, float(output_ptr[bf_offset + 0])); // X0Y0
+            ASSERT_EQ(0.f,  float(output_ptr[bf_offset + 1])); // X1Y0
 
-            EXPECT_EQ(1.5f, float(output_ptr[bf_offset + 2])); // X0Y1
-            EXPECT_EQ(3.5f, float(output_ptr[bf_offset + 3])); // X1Y1
+            ASSERT_EQ(1.5f, float(output_ptr[bf_offset + 2])); // X0Y1
+            ASSERT_EQ(3.5f, float(output_ptr[bf_offset + 3])); // X1Y1
         }
     }
 }
@@ -1738,17 +1738,17 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
         };
 
         auto outputs = network.execute();
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "reorder_pooling");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "reorder_pooling");
 
         auto output_prim = outputs.begin()->second.get_memory();
-        EXPECT_EQ((int)output_prim->get_layout().count(), 4);
-        EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().count(), 4);
+        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
 
         cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
 
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_EQ(expected[i], float(output_ptr[i]));
+            ASSERT_EQ(expected[i], float(output_ptr[i]));
         }
 
 }
@@ -1814,17 +1814,17 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
     };
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder_pooling");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder_pooling");
 
     auto output_prim = outputs.begin()->second.get_memory();
-    EXPECT_EQ((int)output_prim->get_layout().count(), 9);
-    EXPECT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
+    ASSERT_EQ((int)output_prim->get_layout().count(), 9);
+    ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
 
     cldnn::mem_lock<FLOAT16> output_ptr(output_prim, get_test_stream());
 
     for (size_t i = 0; i < expected.size(); ++i) {
-        EXPECT_EQ(expected[i], float(output_ptr[i]));
+        ASSERT_EQ(expected[i], float(output_ptr[i]));
     }
 }
 
@@ -1901,7 +1901,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_avg_65x5x6x7_input_3x3_pool_4x4_stride_3
     ASSERT_EQ(fsv32_results.size(), golden_results.size());
     for (size_t i = 0; i < golden_results.size(); i++)
     {
-        EXPECT_NEAR(golden_results[i], fsv32_results[i], 0.001f);
+        ASSERT_NEAR(golden_results[i], fsv32_results[i], 0.001f);
     }
 }
 
@@ -1999,7 +1999,7 @@ public:
                                 ASSERT_NEAR(ref_val, actual_val, tolerance)
                                     << "at b= " << bi << ", f= " << fi << ", z= " << zi << ", y= " << yi << ", x= " << xi;
                             } else {
-                                EXPECT_TRUE(are_equal(ref_val, actual_val))
+                                ASSERT_TRUE(are_equal(ref_val, actual_val))
                                     << "at b= " << bi << ", f= " << fi << ", z= " << zi << ", y= " << yi << ", x= " << xi;
                             }
                         }
@@ -2359,7 +2359,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -2442,7 +2442,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x2x2_input_4x4_pool_1x1_stride_1x
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -2526,7 +2526,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x3_stride)
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -2609,7 +2609,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x1_stride)
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -2694,7 +2694,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x20x20_input_5x5_pool_3x1_stride)
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -2779,7 +2779,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_32x32x20x20_input_5x5_pool_3x1_stride)
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -2868,7 +2868,7 @@ TEST(pooling_forward_gpu, bsv16_fsv16_max_32x16x20x20_input_5x5_pool_3x1_stride)
     for (size_t i = 0; i < golden_results.size(); i++)
     {
         auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
-        EXPECT_TRUE(equal);
+        ASSERT_TRUE(equal);
         if (!equal)
         {
             std::cout << "Difference at idx = " << i << std::endl;
@@ -3249,7 +3249,7 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     unsigned int cntr = 0;
     for (const auto& exp : final_results)
     {
-        EXPECT_EQ(exp, interm_ptr[cntr++]);
+        ASSERT_EQ(exp, interm_ptr[cntr++]);
     }
 }
 

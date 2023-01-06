@@ -60,18 +60,15 @@ static std::shared_ptr<ov::Model> simple_function_relu(ov::element::Type type, s
     return func;
 }
 
-std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
-    // Wrapper of most part of available builder functions
-    using ovModelIS = std::function<std::shared_ptr<ov::Model>(std::vector<size_t> inputShape,
-                                                                      ov::element::Type_t type)>;
-    auto inputShapeWrapper = [](ovModelIS fun, std::vector<size_t> inputShape) {
-        return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
-            auto shape = inputShape;
-            shape[0] = batchSize;
-            return fun(shape, type);
-        };
+ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape) {
+    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+        auto shape = inputShape;
+        shape[0] = batchSize;
+        return fun(shape, type);
     };
+}
 
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericTypeOnlyFunctions() {
     std::vector<ovModelWithName> res;
     res.push_back(ovModelWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(ovModelWithName { simple_function_relu, "SimpleFunctionRelu"});
@@ -84,9 +81,6 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
-    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
-    }, "TIwithLSTMcell1"});
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
@@ -108,14 +102,44 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
     res.push_back(ovModelWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
-    res.push_back(ovModelWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
-        "ReadConcatSplitAssign"});
     res.push_back(ovModelWithName{
         inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
-
     return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions() {
+    std::vector<ovModelWithName> res;
+    res.push_back(ovModelWithName {
+        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
+        "ReadConcatSplitAssign"});
+    return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
+    std::vector<ovModelWithName> res;
+    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
+        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+    }, "TIwithLSTMcell1"});
+    return res;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getNumericAnyTypeFunctions() {
+    std::vector<ovModelWithName> funcs = CompileModelCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<ovModelWithName> numericType = CompileModelCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+
+    return funcs;
+}
+
+std::vector<ovModelWithName> CompileModelCacheTestBase::getStandardFunctions() {
+    std::vector<ovModelWithName> funcs = CompileModelCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<ovModelWithName> numericType = CompileModelCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+    std::vector<ovModelWithName> floatType = CompileModelCacheTestBase::getFloatingPointOnlyFunctions();
+    funcs.insert(funcs.end(), floatType.begin(), floatType.end());
+
+    return funcs;
 }
 
 bool CompileModelCacheTestBase::importExportSupported(ov::Core& core) const {
@@ -163,6 +187,11 @@ void CompileModelCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    try {
+        core->set_property(targetDevice, ov::cache_dir());
+    } catch (...) {
+       // do nothing
+    }
     APIBaseTest::TearDown();
 }
 
