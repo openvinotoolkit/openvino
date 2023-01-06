@@ -63,17 +63,6 @@ public:
 
     virtual ov::RemoteContext get_context() const;
 
-protected:
-    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request_impl() const;
-    template <typename AsyncInferRequestType = InferenceEngine::AsyncInferRequestThreadSafeDefault>
-    InferenceEngine::IInferRequestInternal::Ptr create_async_infer_request_from_sync() const {
-        InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl = this->create_infer_request_impl();
-        return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
-    }
-
-    InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
-    InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor
-
 private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
@@ -87,6 +76,17 @@ private:
     friend InferenceEngine::Core;
     friend OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
     convert_compiled_model_to_legacy(const std::shared_ptr<ov::ICompiledModel>& model);
+
+protected:
+    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request_impl() const;
+    template <typename AsyncInferRequestType = InferenceEngine::AsyncInferRequestThreadSafeDefault>
+    InferenceEngine::IInferRequestInternal::Ptr create_async_infer_request_from_sync() const {
+        InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl = this->create_infer_request_impl();
+        return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
+    }
+
+    InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
+    InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor
 };
 
 }  // namespace ov
