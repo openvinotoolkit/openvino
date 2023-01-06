@@ -96,8 +96,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     }
 
 protected:
-    virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
-
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
         kernel_arguments_data args;
 
@@ -197,7 +195,7 @@ protected:
     }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (optimized_out(instance) || is_cpu()) {
+        if (instance.can_be_optimized() || is_cpu()) {
             return;
         }
 
@@ -245,7 +243,7 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
-        if (optimized_out(instance)) {
+        if (instance.can_be_optimized()) {
             return aggregate_events(events, stream, false, instance.is_output());
         }
 
