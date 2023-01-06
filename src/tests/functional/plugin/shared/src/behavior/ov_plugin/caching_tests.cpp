@@ -341,10 +341,10 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
         weights_file.unsetf(std::ios::skipws);
 
         weights_file.seekg(0, std::ios::end);
-        const auto weights_size = weights_file.tellg();
+        const auto weights_size = static_cast<std::size_t>(weights_file.tellg());
         weights_file.seekg(0, std::ios::beg);
 
-        weights_vector.reserve(static_cast<std::size_t>(weights_size));
+        weights_vector.reserve(weights_size);
         weights_vector.insert(weights_vector.begin(),
                               std::istream_iterator<std::uint8_t>(weights_file),
                               std::istream_iterator<std::uint8_t>());
