@@ -228,6 +228,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     manager.register_pass<ngraph::pass::StridesOptimization>();
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
+
     // Returning value is false because pass::Manager always apply Validation pass
     // if function was changed. This helps to avoid excess Validations after applying
     // this pass. In future when we will return more meaningful status code it will be

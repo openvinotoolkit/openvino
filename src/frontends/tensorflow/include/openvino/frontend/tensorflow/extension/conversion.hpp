@@ -29,7 +29,7 @@ public:
 
     ~ConversionExtension() override;
 
-protected:
+private:
     ov::frontend::CreatorFunction m_converter;
 };
 

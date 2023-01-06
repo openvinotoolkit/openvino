@@ -137,6 +137,7 @@ macro(ov_add_frontend)
 
     # Generate protobuf file on build time for each '.proto' file in src/proto
     file(GLOB proto_files ${frontend_root_dir}/src/proto/*.proto)
+
     foreach(INFILE IN LISTS proto_files)
         get_filename_component(FILE_DIR ${INFILE} DIRECTORY)
         get_filename_component(FILE_WE ${INFILE} NAME_WE)

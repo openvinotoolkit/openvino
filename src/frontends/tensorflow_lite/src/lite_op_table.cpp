@@ -24,9 +24,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RELU", ov::frontend::tensorflow::op::translate_unary_op<opset10::Relu>},
         {"PAD", pad},
         {"ADD", ov::frontend::tensorflow::op::translate_binary_op<opset10::Add>},
-        // AVERAGE_POOL_2D
-        // PACK
-        // SOFTMAX
     };
 }
 }  // namespace op

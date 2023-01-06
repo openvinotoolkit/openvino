@@ -18,13 +18,10 @@ ov::element::Type get_ov_type(const tflite::TensorType& tf_type);
 
 ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape);
 
-// ov::frontend::tensorflow_lite::Quantization get_quantization(const tflite::QuantizationParameters* tf_quantization);
 std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> get_quantization(
     const tflite::QuantizationParameters* tf_quantization);
 
-ov::Output<Node> apply_quantization(ov::Output<ov::Node> output,
-                                    const std::shared_ptr<ov::frontend::tensorflow::TensorPlace>& tensor,
-                                    bool is_input = false);
+void apply_quantization(ov::Output<ov::Node>& output);
 
 }  // namespace tensorflow_lite
 }  // namespace frontend

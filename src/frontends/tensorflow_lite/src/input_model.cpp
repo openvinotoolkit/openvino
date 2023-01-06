@@ -80,8 +80,6 @@ private:
 void InputModel::InputModelTFLiteImpl::loadModel() {
     std::map<std::string, uint64_t> op_statistics;  // for telemetry
 
-    // go over all ops. collect info regarding constant, input and output tensors
-    //  -- how to preserve order of inputs / outputs?
     m_op_places.reserve(m_graph_iterator->size());
     for (; !m_graph_iterator->is_end(); m_graph_iterator->next()) {
         const auto& decoder = m_graph_iterator->get_decoder();

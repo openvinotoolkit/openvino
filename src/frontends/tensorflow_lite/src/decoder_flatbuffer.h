@@ -12,11 +12,6 @@
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
 
-namespace tflite {
-class Operator;
-class Tensor;
-}  // namespace tflite
-
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
@@ -42,7 +37,7 @@ public:
 
     ov::Any get_attribute(const std::string& name) const override {
         FRONT_END_NOT_IMPLEMENTED(get_attribute);
-        return {}; // TODO: explore
+        return {};
     }
 
     size_t get_input_size() const override;

@@ -12,33 +12,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-// template <class AttrT>
-// ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
-//    auto bopts = m_node_def->builtin_options();
-//    if (bopts == NULL) {
-//        return m_node_def->custom_options();
-//    }
-//    return m_node_def->builtin_options_as<AttrT>();
-//}
-//
-// ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
-//    auto bopts = m_node_def->builtin_options();
-//    if (bopts == NULL) {
-//        return {m_node_def->custom_options()};
-//    }
-//    m_node_def->builtin_options_type()
-//    if (name == "Conv2DOptions")
-////        m_node_def->builtin_options_as<tflite::Conv2DOptions*>();
-//        return m_node_def->builtin_options_as_Conv2DOptions();
-//    if (name == "DepthwiseConv2DOptions")
-//        return m_node_def->builtin_options_as_DepthwiseConv2DOptions();
-//    if (name == "ConcatenationOptions")
-//        return m_node_def->builtin_options_as_ConcatenationOptions();
-//    if (name == "ReshapeOptions")
-//        return m_node_def->builtin_options_as_ReshapeOptions();
-//    return {};
-//}
-
 size_t DecoderFlatBuffer::get_input_size() const {
     return m_node_def->inputs()->size();
 }

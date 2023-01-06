@@ -1,5 +1,5 @@
-//
-// Created by evgenya on 12/23/22.
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <graph_iterator_flatbuffer.hpp>

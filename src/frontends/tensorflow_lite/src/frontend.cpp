@@ -32,7 +32,6 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
     ov::frontend::tensorflow::NodeContext node_ctx(node->get_decoder(), ov_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
     ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_node_outputs);
-    // TODO: quantization!!!
 
     auto new_output = new_node_outputs.begin();
     auto old_outputs = node->outputs();
@@ -40,6 +39,7 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
 
     for (; new_output != new_node_outputs.end() && old_output != old_outputs.end(); ++old_output, ++new_output) {
         old_output->replace(*new_output);
+        apply_quantization(*new_output);
     }
 }
 }  // namespace
@@ -173,16 +173,16 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
     auto all_tensor_places = model_lite->get_tensor_places();
 
     for (auto& value : all_tensor_values) {
-        auto output = value.second;
+        auto& output = value.second;
         FRONT_END_GENERAL_CHECK(ov::is_type<ov::opset1::Constant>(output.get_node_shared_ptr()),
                                 "Unexpected constant data configuration at the beginning of graph translation");
         const auto& input_tensor = all_tensor_places.at(value.first);
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
         output.get_node_shared_ptr()->set_friendly_name(*input_tensor->get_names().begin());
         output.set_names({*input_tensor->get_names().begin()});
-        input_tensor->translate(value.second);
+        input_tensor->translate(output);
         if (!no_conversion) {
-            value.second = apply_quantization(output, input_tensor);
+            apply_quantization(output);
         }
     }
 
@@ -203,7 +203,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
         Output<Node> output = parameter->output(0);
         input_tensor->translate(output);
         if (!no_conversion) {
-            output = apply_quantization(output, input_tensor, true);
+            apply_quantization(output);
         }
         all_tensor_values[name] = output;
     }
@@ -259,7 +259,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
             const auto& name = decoder->get_output_tensor_name(i);
             all_tensor_places[name]->translate(ov_outputs[i], !no_conversion);
             if (!no_conversion) {
-                ov_outputs[i] = apply_quantization(ov_outputs[i], all_tensor_places[name]);
+                apply_quantization(ov_outputs[i]);
             }
             all_tensor_values[name] = ov_outputs[i];
         }

@@ -35,7 +35,7 @@ OutputVector concatenation(const ov::frontend::tensorflow::NodeContext& node) {
     del_output_names(output);
     get_activation(output, node, decoder_for_tf_translator);
     del_output_names(output);
-    // TODO: where should op name go?
+    output[0].get_node_shared_ptr()->set_friendly_name(decoder->get_op_name());
     return output;
 }
 

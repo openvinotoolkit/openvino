@@ -30,6 +30,10 @@ public:
     bool is_copyable() const override {
         return false;
     }
+    std::shared_ptr<Quantization> get_quantization() const {
+        return m_quantization;
+    }
+
 private:
     std::shared_ptr<Quantization> m_quantization;
 };

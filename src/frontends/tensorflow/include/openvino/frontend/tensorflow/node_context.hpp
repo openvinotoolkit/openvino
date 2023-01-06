@@ -60,7 +60,7 @@ public:
         return m_translate_session;
     }
 
-protected:
+private:
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::shared_ptr<DecoderBase> m_decoder;

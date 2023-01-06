@@ -6,7 +6,7 @@
 
 #include <openvino/opsets/opset10.hpp>
 
-#include "decoder_flatbuffer.h"
+#include "quantization_info.hpp"
 #include "schema_generated.h"
 #include "tensor_lite_place.hpp"
 
@@ -69,14 +69,17 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
     return ov::Shape{tf_shape->begin(), tf_shape->end()};
 }
 
-ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
-    ov::Output<ov::Node> output,
-    const std::shared_ptr<ov::frontend::tensorflow::TensorPlace>& tensor_,
-    bool is_input) {
-    auto tensor = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(tensor_);
-    auto quantization = tensor->get_quantization();
+void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& output) {
+    auto rt_info = output.get_rt_info();
+    if (!rt_info.count(QuantizationInfo::get_type_info_static()))  // no quantization
+        return;
+
+    auto quantization = rt_info[QuantizationInfo::get_type_info_static()].as<QuantizationInfo>().get_quantization();
     if (!quantization || quantization->no_quantization)
-        return output;
+        return;
+
+    bool is_constant = ov::is_type<ov::opset10::Constant>(output.get_node_shared_ptr());
+    bool is_input = ov::is_type<ov::opset10::Parameter>(output.get_node_shared_ptr());
 
     auto input_type = output.get_element_type();
     ov::Output<ov::Node> input_low, input_high, output_low, output_high;
@@ -88,14 +91,14 @@ ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
     auto scale_node =
         ov::opset10::Constant::create(element::f32, (scale.size() == 1 ? ov::Shape{} : ov::Shape{scale.size()}), scale);
 
-    if (ov::is_type<ov::opset10::Constant>(output.get_node_shared_ptr())) {
+    if (is_constant) {
         output = std::make_shared<ov::opset10::Convert>(output, element::f32);
         if (std::any_of(zp.begin(), zp.end(), [](const int64_t& i) {
                 return i != 0;
             }))
             output = std::make_shared<ov::opset10::Subtract>(output, zp_node);
         output = std::make_shared<ov::opset10::Multiply>(output, scale_node);
-        return output;
+        return;
     }
 
     auto levels = 256;
@@ -119,7 +122,6 @@ ov::Output<ov::Node> ov::frontend::tensorflow_lite::apply_quantization(
         input_low = output_low;
         input_high = output_high;
     }
-    auto fq = std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
-    tensor->disable_quantization();  // we applied parameters -- disable them so that they won't apply twice
-    return fq;
+    output = std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
+    quantization->no_quantization = true;  // we applied parameters -- disable them so that they won't apply twice
 }
