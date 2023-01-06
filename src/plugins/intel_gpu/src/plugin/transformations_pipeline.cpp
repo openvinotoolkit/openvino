@@ -28,6 +28,7 @@
 
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
+#include "transformations/decompose_reduce_for_false_keepdims.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -40,6 +41,7 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/common_optimizations/convert_compressed_to_mixed_precision.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
 
@@ -235,7 +237,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
-        pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
+
+        // disable conversion to legacy and use the new mixed precision
+        // in which precision sensitive nodes are kept in FP32
+        pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
+        pass_config->enable<ov::pass::ConvertCompressedToMixedPrecision>();
 
         // SpaceToDepth/DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         pass_config->set_callback<ngraph::pass::ConvertSpaceToDepth,
@@ -261,6 +267,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
             manager.register_pass<ConvertAvgPoolingToReduce>();
+            manager.register_pass<DecomposeReduceForFalseKeepDims>();
         } else {
             pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {

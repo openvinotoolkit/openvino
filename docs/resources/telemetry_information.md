@@ -8,7 +8,7 @@ without an explicit consent on your part and will cover only OpenVINO™ usage i
 It does not extend to any other Intel software, hardware, website usage, or other products. 
 
 Google Analytics is used for telemetry purposes. Refer to 
-:ref:`Google Analytics support<https://support.google.com/analytics/answer/6004245#zippy=%2Cour-privacy-policy%2Cgoogle-analytics-cookies-and-identifiers%2Cdata-collected-by-google-analytics%2Cwhat-is-the-data-used-for%2Cdata-access>` to understand how the data is collected and processed.
+`Google Analytics support <https://support.google.com/analytics/answer/6004245#zippy=%2Cour-privacy-policy%2Cgoogle-analytics-cookies-and-identifiers%2Cdata-collected-by-google-analytics%2Cwhat-is-the-data-used-for%2Cdata-access>`__ to understand how the data is collected and processed.
 
 Enable or disable Telemetry reporting
 ======================================

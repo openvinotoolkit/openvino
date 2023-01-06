@@ -17,8 +17,7 @@
 #include "request/worker_impl.hpp"
 #include "request/worker_pool.hpp"
 
-using namespace GNAPluginNS;
-using namespace GNAPluginNS::request;
+using namespace ov::intel_gna::request;
 using ::testing::_;
 using ::testing::Return;
 

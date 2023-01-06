@@ -84,6 +84,9 @@ void start_cl_mem_check_2_inputs(bool is_caching_test) {
     int height = 224;
     cl_int err;
 
+    if (!device->get_info().supports_image)
+        GTEST_SKIP();
+
     auto data = createSampleData(width, height);
     cl_image_format image_format;
     image_format.image_channel_order = CL_R;
@@ -174,6 +177,9 @@ TEST(cl_mem_check, check_input) {
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
     auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
+
+    if (!device->get_info().supports_intel_planar_yuv)
+        GTEST_SKIP();
 
     int width = 224;
     int height = 224;
