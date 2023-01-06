@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "pass_manager.h"
 #include "convolution_inst.h"
 #include "primitive_type_base.h"
@@ -481,7 +479,6 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
 convolution_inst::typed_primitive_inst(network& network, convolution_node const& node) :
     parent(network, node),
-    _groups(node.get_groups()),
     _deform_conv_dep_offset(node.get_deform_conv_dep_offset()) {
     if (node.is_dynamic())
         return;
@@ -564,14 +561,12 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
 void convolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     parent::save(ob);
 
-    ob << _groups;
     ob << _deform_conv_dep_offset;
 }
 
 void convolution_inst::load(cldnn::BinaryInputBuffer& ib) {
     parent::load(ib);
 
-    ib >> _groups;
     ib >> _deform_conv_dep_offset;
 }
 }  // namespace cldnn

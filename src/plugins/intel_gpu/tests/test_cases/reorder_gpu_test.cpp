@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -2586,7 +2584,7 @@ public:
     layout get_input_layout(T& p) {
         auto pad = p.pad;
         std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
-        return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
+    return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 
     layout get_weights_layout(T& p) {

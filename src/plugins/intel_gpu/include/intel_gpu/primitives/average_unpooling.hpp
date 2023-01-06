@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs "average_unpooling" operation.
 /// @details Reverse operation of average pooling.
@@ -42,7 +35,4 @@ struct average_unpooling : public primitive_base<average_unpooling> {
     /// @brief Output size of this primitive.
     tensor output_size;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

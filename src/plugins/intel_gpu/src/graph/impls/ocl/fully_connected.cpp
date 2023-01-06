@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "fully_connected_inst.h"
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"

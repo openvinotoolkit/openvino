@@ -14,7 +14,7 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>

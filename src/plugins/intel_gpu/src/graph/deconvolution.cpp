@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "deconvolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.hpp"
@@ -123,8 +121,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 }
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
-    : parent(network, node),
-    _groups(node.get_groups()) {
+    : parent(network, node) {
     auto stride = argument->stride;
     auto pad = argument->pad;
 
@@ -201,15 +198,4 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                             "Weights/ifm mismatch");
 }
 
-void deconvolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    ob << _groups;
-}
-
-void deconvolution_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    ib >> _groups;
-}
 }  // namespace cldnn

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "program_helpers.h"
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"

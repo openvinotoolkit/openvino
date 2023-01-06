@@ -5,12 +5,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details Construct identity matrix or batch fo them
@@ -36,7 +30,4 @@ struct eye : public primitive_base<eye> {
     tensor output_shape;
     int32_t shift;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

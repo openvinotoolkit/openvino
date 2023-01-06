@@ -6,12 +6,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief ROIAlign is a pooling layer used over feature maps of
 /// non-uniform input sizes and outputs a feature map of a fixed size.
@@ -65,7 +59,4 @@ struct roi_align : public primitive_base<roi_align> {
     /// @brief Method to coordinate alignment.
     AlignedMode aligned_mode;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

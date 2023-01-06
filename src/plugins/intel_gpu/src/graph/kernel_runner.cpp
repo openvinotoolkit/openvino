@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "kernel_runner.h"
 #include "runtime/kernels_cache.hpp"
 #include "intel_gpu/runtime/stream.hpp"

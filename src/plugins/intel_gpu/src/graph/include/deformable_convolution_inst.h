@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/convolution.hpp"
 #include "primitive_inst.h"
@@ -27,18 +26,11 @@ public:
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
-    void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
     program_node& input() const { return get_dependency(0); }
-
-    program_node& weights() const {
-        return get_dependency(1);
-    }
-
-    program_node& bias() const {
-        return get_dependency(2);
-    }
+    program_node& weights() const { return get_dependency(1);}
+    program_node& bias() const { return get_dependency(2); }
 
     bool bias_term() const { return get_primitive()->bias.size() > 0; }
 
@@ -66,17 +58,10 @@ public:
     static layout calc_output_layout(deformable_conv_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deformable_conv_node const& node);
 
-public:
     typed_primitive_inst(network& network, deformable_conv_node const& node);
 
-    memory::ptr weights_memory() const {
-        return dep_memory_ptr(1);
-    }
-
-    memory::ptr bias_memory() const {
-        return dep_memory_ptr(2);
-    }
-
+    memory::ptr weights_memory() const { return dep_memory_ptr(1); }
+    memory::ptr bias_memory() const { return dep_memory_ptr(2);}
     bool bias_term() const { return node->bias_term(); }
 };
 
@@ -99,15 +84,11 @@ public:
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
-    void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
-    void set_deformable_groups(uint32_t node_deformable_groups) { deformable_groups = node_deformable_groups; }
     uint32_t get_deformable_groups() const { return deformable_groups; }
 
     program_node& input() const { return get_dependency(0); }
-    program_node& trans() const { return get_dependency(1); }
-    program_node& mask() const { return get_dependency(2); }
 
 private:
     bool transposed;
@@ -126,11 +107,7 @@ public:
     static layout calc_output_layout(deformable_interp_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deformable_interp_node const& node);
 
-public:
     typed_primitive_inst(network& network, deformable_interp_node const& node);
-
-    memory& trans_memory() const { return dep_memory(1); }
-    memory& mask_memory() const { return dep_memory(2); }
 };
 
 using deformable_interp_inst = typed_primitive_inst<deformable_interp>;

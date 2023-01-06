@@ -14,7 +14,6 @@
 // limitations under the License.
 */
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/gather_elements.hpp"
 #include "primitive_inst.h"

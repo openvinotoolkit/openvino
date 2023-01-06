@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#pragma once
+/////////////////////#pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief SpaceToDepth operation rearranges data from the spatial dimensions of the input tensor into depth dimension of the output tensor.
 /// @details SpaceToDepth operation permutes element from the input tensor with shape [b, f, y, x]
@@ -72,7 +65,4 @@ struct space_to_depth : public primitive_base<space_to_depth> {
     /// @brief Block size.
     size_t block_size;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

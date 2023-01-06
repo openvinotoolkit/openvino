@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/deconvolution.hpp"
@@ -25,25 +24,13 @@ public:
         support_padding_all(true);
     }
 
-    void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
     program_node& input() const { return get_dependency(0); }
+    program_node& weights() const { return get_dependency(1);}
+    program_node& bias() const { return get_dependency(2);}
 
-    program_node& weights() const {
-        return get_dependency(1);
-    }
-
-    program_node& bias() const {
-        return get_dependency(2);
-    }
-
-    bool bias_term() const {
-        if (get_primitive()->bias.size() != 0)
-            return true;
-        else
-            return false;
-    }
+    bool bias_term() const { return !get_primitive()->bias.empty();}
 
     using parent::get_kernel_impl_params;
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
@@ -70,7 +57,6 @@ public:
     static layout calc_output_layout(deconvolution_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(deconvolution_node const& node);
 
-public:
     typed_primitive_inst(network& network, deconvolution_node const& node);
 
     memory::ptr weights_memory() const {
@@ -81,16 +67,9 @@ public:
         }
     }
 
-    memory::ptr bias_memory() const {
-        return dep_memory_ptr(2);
-    }
+    memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 
     bool bias_term() const { return _impl_params->bias_layout.has_value(); }
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
-
-private:
-    uint32_t _groups;
 };
 
 using deconvolution_inst = typed_primitive_inst<deconvolution>;

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/convolution.hpp"
 #include "primitive_inst.h"
@@ -31,10 +30,8 @@ public:
     void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
-    void set_groups(uint32_t node_groups) { groups = node_groups; }
     uint32_t get_groups() const { return groups; }
 
-    void set_deformable_groups(uint32_t node_deformable_groups) { deformable_groups = node_deformable_groups; }
     uint32_t get_deformable_groups() const { return deformable_groups; }
 
     int32_t get_deform_conv_dep_offset() const {
@@ -177,7 +174,6 @@ public:
     void load(cldnn::BinaryInputBuffer& ib) override;
 
 private:
-    uint32_t _groups;
     int32_t _deform_conv_dep_offset;
 };
 

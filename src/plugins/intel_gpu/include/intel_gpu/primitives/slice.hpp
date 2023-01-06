@@ -5,12 +5,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -30,7 +24,4 @@ struct slice : public primitive_base<slice> {
 
     tensor output_shape;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
