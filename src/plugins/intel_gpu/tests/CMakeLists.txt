@@ -72,7 +72,7 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/)
 
 if(ENABLE_ONEDNN_FOR_GPU)
-    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 
 if(WIN32)
