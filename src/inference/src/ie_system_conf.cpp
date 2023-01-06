@@ -117,6 +117,18 @@ int getNumberOfLogicalCPUCores(bool) {
 bool cpuMapAvailable() {
     return false;
 }
+int getCoreOffset(const cpu_core_type_of_processor core_type) {
+    return 0;
+}
+
+int getThreadStep(const cpu_core_type_of_processor core_type) {
+    return 0;
+}
+std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
+    return {};
+}
+void setCpuUsed(std::vector<int> cpu_ids, int used) {}
+
 #else
 int getNumberOfLogicalCPUCores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
