@@ -29,8 +29,8 @@
 - 'src/core/include/**/*'
 - 'src/frontends/common/**/*'
 - 'src/frontends/onnx/frontend/include/**/*'
-- 'src/frontends/tensorflow/**/*'
-- 'src/frontends/paddle/**/*'
+- 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/paddle/include/**/*'
 
 'category: CPU':
 - 'src/plugins/intel_cpu/**/*'
@@ -40,9 +40,10 @@
 'category: dependency_changes':
 - '**/requirement*.txt'
 - 'scripts/**/*'
-- 'thirdparty/**/*'
 - '.gitmodules'
 - '**/setup.py'
+- any: ['thirdparty/**/*',
+        '!thirdparty/**/CMakeLists.txt']
 
 'category: docs':
 - 'docs/**/*'
@@ -66,11 +67,10 @@
 - 'src/plugins/hetero/**/*'
 
 'category: IE Tests':
+- 'thirdparty/gtest/**/*'
+- 'src/frontends/tests/frontend/shared/**/*'
 - any: ['src/tests/**/*',
-        'thirdparty/gtest/**/*',
-        'src/frontends/tests/frontend/shared/**/*']
-  all: ['!src/tests/**/gpu/**/*',
-        '!src/tests/**/cpu/**/*',
+        '!src/tests/**/gpu/**/*',
         '!src/tests/**/myriad/**/*',
         '!src/tests/**/inference_engine/**/*']
 
@@ -122,7 +122,9 @@
 - 'src/frontends/tensorflow/**/*'
 
 'category: tools':
-- 'tools/**'
+- any: ['tools/**',
+        '!tools/pot/**/*',
+        '!tools/mo/**/*']
 
 'category: transformations':
 - 'src/common/transformations/**/*'
