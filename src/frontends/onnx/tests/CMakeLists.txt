@@ -159,7 +159,7 @@ endif()
 target_include_directories(ov_onnx_frontend_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
 
-if(OV_COMPILER_IS_APPLECLANG)
+if(OV_COMPILER_IS_APPLECLANG OR (OV_COMPILER_IS_CLANG AND APPLE))
     target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,-dead_strip)
 elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--exclude-libs,ALL)
