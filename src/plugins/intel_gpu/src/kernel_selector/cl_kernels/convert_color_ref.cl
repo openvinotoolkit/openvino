@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #if defined(CONVERT_FROM_NV12) || defined(CONVERT_FROM_I420)
 #ifdef BUFFER_MEM

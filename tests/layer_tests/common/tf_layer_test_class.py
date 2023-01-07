@@ -61,7 +61,7 @@ class CommonTFLayerTest(CommonLayerTest):
         input = dict()
         for key in inputs_dict.keys():
             data = inputs_dict.get(key)
-            if self.use_old_api or self.use_new_frontend:
+            if not ':' in key:
                 key += ':0'
             input[key] = transpose_nchw_to_nhwc(data, self.use_new_frontend, self.use_old_api)
 
