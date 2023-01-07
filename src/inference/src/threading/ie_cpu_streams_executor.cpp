@@ -16,6 +16,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
@@ -80,12 +81,13 @@ struct CPUStreamsExecutor::Impl {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             if (cpuMapAvailable()) {
                 std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
+                const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
                 const auto concurrency =
-                    (_streamId < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
+                    (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
                         ? _impl->_config._threads_per_stream_big
                         : _impl->_config._threads_per_stream_small;
                 const auto selected_core_type =
-                    (_streamId < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
+                    (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
@@ -109,7 +111,7 @@ struct CPUStreamsExecutor::Impl {
                                                                     .set_max_concurrency(concurrency)});
                     }
                 }
-                if (_impl->_config._bind_cores) {
+                if (_impl->_config._bind_cores && _streamId < _impl->_config._streams) {
                     const auto cpu_core_type =
                         _streamId < _impl->_config._big_core_streams
                             ? MAIN_CORE_PROC
