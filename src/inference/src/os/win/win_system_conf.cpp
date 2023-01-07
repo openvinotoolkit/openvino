@@ -42,7 +42,6 @@ struct CPU {
         _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
 
         std::vector<int> list;
-        list.resize(_processors, 0);
 
         char* info_ptr = base_ptr;
         int list_len = 0;
@@ -55,13 +54,17 @@ struct CPU {
 
         auto MaskToList = [&](const KAFFINITY mask_input) {
             KAFFINITY mask = mask_input;
-            KAFFINITY i = 1;
-            list_len = 0;
+            int cnt = 0;
 
+            list.clear();
+            list_len = 0;
             while (mask != 0) {
-                list[list_len] = int(log2(mask));
-                mask = mask - (i << list[list_len]);
-                list_len++;
+                if (0x1 == (mask & 0x1)) {
+                    list.push_back(cnt);
+                    list_len++;
+                }
+                cnt++;
+                mask >>= 1;
             }
             return;
         };
@@ -81,7 +84,7 @@ struct CPU {
                     break;
                 }
 
-                if (0 == list[list_len - 1]) {
+                if (0 == list[0]) {
                     base_proc = _proc_type_table[ALL_PROC];
                 }
 
@@ -95,8 +98,8 @@ struct CPU {
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_ID] = _cores;
                     _cpu_mapping_table[list[1] + base_proc][CPU_MAP_CORE_ID] = _cores;
 
-                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
-                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
+                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
 
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
                     _cpu_mapping_table[list[1] + base_proc][CPU_MAP_GROUP_ID] = group;
