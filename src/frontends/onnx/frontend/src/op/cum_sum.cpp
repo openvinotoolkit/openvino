@@ -21,6 +21,11 @@ OutputVector cum_sum(const Node& node) {
 
     if (inputs.size() > 1) {
         axis = inputs.at(1);  // optional input, 0-D tensor
+        if (axis.get_partial_shape().size() > 0) {
+            axis = std::make_shared<default_opset::Reshape>(axis,
+                   default_opset::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
+                   false);
+        }
     } else {
         axis = default_opset::Constant::create(element::i64, Shape{}, {0});  // default
     }
