@@ -176,5 +176,4 @@ typedef enum {
     CPU_MAP_USED_FLAG = 5      //!< column for resource management of the processor
 } column_of_cpu_mapping_table;
 
-
 }  // namespace InferenceEngine

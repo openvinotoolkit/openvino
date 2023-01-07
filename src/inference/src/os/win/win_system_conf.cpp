@@ -18,40 +18,14 @@
 namespace InferenceEngine {
 
 struct CPU {
-
     int _processors = 0;
     int _sockets = 0;
     int _cores = 0;
 
     std::vector<int> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
-    
-    int _node = 0;
-    int _p_cores = 0;
-    int _e_cores = 0;
-    int _phy_cores = 0;
-    int _proc = 0;
- 
 
     CPU() {
-        /**
-         * New method to get CPU infomation and CPU map. Below is the structure of CPU map and two sample.
-         *  1. Four processors of two Pcore
-         *  2. Four processors of four Ecores shared L2 cache
-         *
-         *  Proc ID : Socket ID | HW Core ID | Phy Core of Pcores | Logic Core of Pcores | ID of Ecore Group | Used
-         *  (index)
-         *     0         1            1                0                      1                   0             0
-         *     1         1            1                1                      0                   0             0
-         *     2         1            2                0                      2                   0             0
-         *     3         1            2                2                      0                   0             0
-         *     4         1            3                0                      0                   1             0
-         *     5         1            4                0                      0                   1             0
-         *     6         1            5                0                      0                   1             0
-         *     7         1            6                0                      0                   1             0
-         */
-        _cpu_mapping.resize(GetActiveProcessorCount(ALL_PROCESSOR_GROUPS), std::vector<int>(CPU_MAP_USED_PROC + 1, 0));
-
         DWORD len = 0;
         if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) ||
             GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
@@ -63,19 +37,25 @@ struct CPU {
             return;
         }
 
+        _proc_type_table.resize(EFFICIENT_CORE_PROC + 1, 0);
+        _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
+        _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
+
+        std::vector<int> list;
+        list.resize(_processors, 0);
+
         char* info_ptr = base_ptr;
-        int list[64] = {0};
         int list_len = 0;
-        int ecore_group = 0;
         int base_proc = 0;
         int mask_len = 0;
+        int group = 0;
+        _sockets = -1;
 
         PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX info = NULL;
 
         auto MaskToList = [&](const KAFFINITY mask_input) {
             KAFFINITY mask = mask_input;
             KAFFINITY i = 1;
-
             list_len = 0;
 
             while (mask != 0) {
@@ -83,7 +63,6 @@ struct CPU {
                 mask = mask - (i << list[list_len]);
                 list_len++;
             }
-
             return;
         };
 
@@ -91,58 +70,68 @@ struct CPU {
             info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)info_ptr;
 
             if (info->Relationship == RelationProcessorPackage) {
-                base_proc = _proc;
-                _node++;
-
+                _sockets++;
                 MaskToList(info->Processor.GroupMask->Mask);
-
                 mask_len = list_len;
 
             } else if (info->Relationship == RelationProcessorCore) {
-                _phy_cores++;
-
                 MaskToList(info->Processor.GroupMask->Mask);
 
+                if (_proc_type_table[ALL_PROC] >= _processors) {
+                    break;
+                }
+
+                if (0 == list[list_len - 1]) {
+                    base_proc = _proc_type_table[ALL_PROC];
+                }
+
                 if (2 == list_len) {
-                    _p_cores++;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
+                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_PROCESSOR_ID] = list[1] + base_proc;
 
-                    _cpu_mapping[list[0] + base_proc][CPU_MAP_SOCKET] = _node;
-                    _cpu_mapping[list[1] + base_proc][CPU_MAP_SOCKET] = _node;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_SOCKET_ID] = _sockets;
+                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_SOCKET_ID] = _sockets;
 
-                    _cpu_mapping[list[0] + base_proc][CPU_MAP_CORE] = _phy_cores;
-                    _cpu_mapping[list[1] + base_proc][CPU_MAP_CORE] = _phy_cores;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_ID] = _cores;
+                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_CORE_ID] = _cores;
 
-                    _cpu_mapping[list[0] + base_proc][CPU_MAP_PHY_CORE] = _p_cores;
-                    _cpu_mapping[list[1] + base_proc][CPU_MAP_LOG_CORE] = _p_cores;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_CORE_TYPE] = HYPER_THREADING_PROC;
+
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
+                    _cpu_mapping_table[list[1] + base_proc][CPU_MAP_GROUP_ID] = group;
+
+                    _proc_type_table[MAIN_CORE_PROC]++;
+                    _proc_type_table[HYPER_THREADING_PROC]++;
+                    group++;
 
                 } else {
-                    _cpu_mapping[list[0] + base_proc][CPU_MAP_SOCKET] = _node;
-
-                    _cpu_mapping[list[0] + base_proc][CPU_MAP_CORE] = _phy_cores;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_PROCESSOR_ID] = list[0] + base_proc;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_SOCKET_ID] = _sockets;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_ID] = _cores;
                 }
-
-                _proc += list_len;
-
-                if (list[0] + 1 == mask_len) {
-                    base_proc = _proc;
-                }
+                _proc_type_table[ALL_PROC] += list_len;
+                _cores++;
 
             } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
                 MaskToList(info->Cache.GroupMask.Mask);
 
                 if (4 == list_len) {
-                    ecore_group++;
                     for (int m = 0; m < list_len; m++) {
-                        _e_cores++;
-                        _cpu_mapping[list[m] + base_proc][CPU_MAP_SMALL_CORE] = ecore_group;
+                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
+                        _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group;
+                        _proc_type_table[EFFICIENT_CORE_PROC]++;
                     }
+                    group++;
+
                 } else if (1 == list_len) {
-                    _p_cores++;
-                    _cpu_mapping[list[0] + base_proc][CPU_MAP_PHY_CORE] = _p_cores;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
+                    _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
+                    _proc_type_table[MAIN_CORE_PROC]++;
+                    group++;
                 }
             }
         }
-
         delete[] base_ptr;
     }
 };
