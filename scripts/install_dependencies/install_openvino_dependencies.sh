@@ -334,7 +334,7 @@ if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04
 elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
      [ "$os" == "fedora34" ] || [ "$os" == "fedora35" ] || [ "$os" == "fedora36" ] ||
-     [ "$os" == "fedora36" ] || [ "$os" == "fedora38" ] ||
+     [ $os == "fedora36" ] || [ "$os" == "fedora38" ] ||
      [ "$os" == "almalinux8.7" ] || [ "$os" == "amzn2" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
