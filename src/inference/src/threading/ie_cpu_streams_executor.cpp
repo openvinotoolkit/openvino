@@ -16,7 +16,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-#include <iostream>
 
 #include "ie_parallel_custom_arena.hpp"
 #include "ie_system_conf.h"
