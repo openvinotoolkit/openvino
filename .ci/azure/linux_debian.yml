@@ -132,7 +132,6 @@ jobs:
       sudo cp -v ninja /usr/local/bin/
       # Speed up tests
       git clone https://github.com/google/gtest-parallel.git
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
     # Should be after 'Install dependencies' because Git lfs is not installed
@@ -162,6 +161,7 @@ jobs:
         -DCPACK_GENERATOR=DEB
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
+    displayName: 'CMake OpenVINO'
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
@@ -174,7 +174,7 @@ jobs:
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
-      ninja -C $(BUILD_DIR)
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Lin'
 
   - script: ccache --show-stats
@@ -189,8 +189,9 @@ jobs:
         -GNinja
         -S $(REPO_DIR)/tests/layer_tests
         -B $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'CMake Layer Tests'
 
-  - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
+  - script: cmake --build $(BUILD_LAYER_TESTS_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Layer Tests'
 
     # to check that wheel packages tested later, contain all all the dependencies like TBB or pugixml
@@ -250,14 +251,15 @@ jobs:
 
   - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
-      cmake --build $(BUILD_DIR) --target package -j8
+      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --target package -j8
     displayName: 'Build Debian packages'
 
   - script: |
       # install debian packages from previous release
+      sudo apt-get -y update
+      sudo apt-get install --no-install-recommends gnupg wget -y
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-      sudo apt-get install --no-install-recommends gnupg -y
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get install openvino -y || exit 1
@@ -322,12 +324,6 @@ jobs:
   - script: $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - script: $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-
-  - script: $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
-    displayName: 'XLink Tests'
-
   - script: $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
 
@@ -364,6 +360,7 @@ jobs:
         -GNinja
         -S $(REPO_DIR)/tests/samples_tests
         -B $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'CMake Samples Tests'
 
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'

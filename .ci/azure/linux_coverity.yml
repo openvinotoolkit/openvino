@@ -87,7 +87,6 @@ jobs:
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
@@ -104,8 +103,9 @@ jobs:
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: "Cmake configure"
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
@@ -126,8 +126,8 @@ jobs:
         export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
         export CCACHE_BASEDIR=$(Pipeline.Workspace)
         export CCACHE_MAXSIZE=50G
-        $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
-    workingDirectory: $(BUILD_DIR)
+        $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
+          cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Lin with Coverity'
 
   - script: ccache --show-stats

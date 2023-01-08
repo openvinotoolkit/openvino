@@ -154,7 +154,6 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
-    workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Install dependencies'
 
   - script: |
@@ -165,7 +164,6 @@ jobs:
       source $(CROSSENV_DIR)/bin/activate
       build-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
-    workingDirectory: $(BUILD_OPENVINO)
     displayName: 'Create crossenv'
 
   - task: CMake@1
@@ -191,8 +189,8 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
         -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
-        $(OPENVINO_REPO_DIR)
-      workingDirectory: $(BUILD_OPENVINO)
+        -S $(OPENVINO_REPO_DIR)
+        -B $(BUILD_OPENVINO)
     displayName: 'CMake OpenVINO ARM plugin'
 
   - script: |
@@ -201,12 +199,10 @@ jobs:
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
       export USE_CCACHE=1
-      ninja
-    workingDirectory: $(BUILD_OPENVINO)
+      cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
     displayName: 'Build OpenVINO ARM plugin'
 
-  - script: ninja install
-    workingDirectory: $(BUILD_OPENVINO)
+  - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
     displayName: 'Install OpenVINO ARM plugin'
 
   - script: |
@@ -229,12 +225,10 @@ jobs:
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
       export USE_CCACHE=1
-      ninja
-    workingDirectory: $(BUILD_OPENVINO_PYTHON)
+      cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --config $(BUILD_TYPE)
     displayName: 'Build OpenVINO python binding'
 
-  - script: ninja install
-    workingDirectory: $(BUILD_OPENVINO_PYTHON)
+  - script: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --target install
     displayName: 'Install OpenVINO python binding'
 
   - task: PublishBuildArtifacts@1

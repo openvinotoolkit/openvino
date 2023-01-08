@@ -123,7 +123,6 @@ jobs:
       unzip commandlinetools-linux-7583922_latest.zip
       yes | ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --licenses
       ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --install "ndk-bundle" "platform-tools" "platforms;android-$(ANDROID_SDK_VERSION)"
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
@@ -145,8 +144,8 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        $(OPENVINO_REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(OPENVINO_REPO_DIR)
+        -B $(BUILD_DIR)
 
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
@@ -156,8 +155,7 @@ jobs:
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=50G
-      ninja
-    workingDirectory: $(BUILD_DIR)
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Android ARM64'
 
   - script: ccache --show-stats

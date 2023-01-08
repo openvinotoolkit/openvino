@@ -64,8 +64,8 @@ jobs:
 #        -DENABLE_FASTER_BUILD=ON
 #        -DENABLE_STRICT_DEPENDENCIES=OFF
 #        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-#        $(REPO_DIR)
-#      workingDirectory: $(BUILD_DIR)
+#        -S $(REPO_DIR)
+#        -B $(BUILD_DIR)
 
   - script: >
       env -C ~/work

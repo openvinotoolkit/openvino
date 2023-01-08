@@ -53,7 +53,6 @@ jobs:
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
-    BUILD_DIR_2: $(WORK_DIR)\build_s
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
@@ -74,7 +73,6 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-      rd /Q /S $(BUILD_DIR_2) & mkdir $(BUILD_DIR_2)
     displayName: 'Make dir'
 
   - checkout: self
@@ -119,9 +117,9 @@ jobs:
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
-        $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'CMake'
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'CMake COLLECT'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
@@ -129,7 +127,7 @@ jobs:
   - script: |
       call "$(MSVS_VARS_PATH)" && cmake --build . --config $(BUILD_TYPE) && cmake --build . --config $(BUILD_TYPE) --target sea_itt_lib
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build Win CC COLLECT'
+    displayName: 'Build CC COLLECT'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
@@ -163,22 +161,20 @@ jobs:
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
-        $(REPO_DIR)
-    workingDirectory: $(BUILD_DIR_2)
-    displayName: 'CMake2'
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'CMake CC ON'
 
-  - script: cmake --build . --config $(BUILD_TYPE)
-    workingDirectory: $(BUILD_DIR_2)
-    displayName: 'Build WinCC ON'
+  - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE)
+    displayName: 'Build CC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
 
-  - script: type $(BUILD_DIR_2)\src\common\conditional_compilation\conditional_compilation_gen.h
+  - script: type $(BUILD_DIR)\src\common\conditional_compilation\conditional_compilation_gen.h
     displayName: 'Check conditional_compilation_gen.h header'
 
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
       $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
-    workingDirectory: $(REPO_DIR)
     displayName: 'Use OpenVINO after CC'

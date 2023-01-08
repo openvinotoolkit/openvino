@@ -96,7 +96,6 @@ jobs:
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - checkout: testdata
@@ -126,14 +125,14 @@ jobs:
         -DENABLE_OV_ONNX_FRONTEND=OFF
         -DENABLE_OV_PADDLE_FRONTEND=OFF
         -DENABLE_OV_TF_FRONTEND=OFF
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'Cmake CC COLLECT'
 
   - script: |
-      ninja
-      cmake --build . --target sea_itt_lib
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build LinCC COLLECT'
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target sea_itt_lib
+    displayName: 'Build CC COLLECT'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
@@ -143,7 +142,6 @@ jobs:
           --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
       $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
           -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-    workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
   - task: CMake@1
@@ -152,11 +150,12 @@ jobs:
         -GNinja
         -DSELECTIVE_BUILD=ON
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)/*.csv
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'CMake CC ON'
 
-  - script: cmake --build $(BUILD_DIR)
-    displayName: 'Build LinCC ON'
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    displayName: 'Build CC ON'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files ON'
@@ -164,5 +163,4 @@ jobs:
   - script: |
       $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
         -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-    workingDirectory: $(REPO_DIR)
     displayName: 'Use OpenVINO after CC'

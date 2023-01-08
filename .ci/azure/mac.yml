@@ -117,9 +117,6 @@ jobs:
       # Speed up build
       brew install ninja
       brew install ccache
-      # Speed up tests
-      git clone https://github.com/google/gtest-parallel.git
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - script: |
@@ -161,8 +158,7 @@ jobs:
       export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
       export CCACHE_BASEDIR=$(Pipeline.Workspace)
       export CCACHE_MAXSIZE=10G
-      ninja
-    workingDirectory: $(BUILD_DIR)
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Mac'
 
   - script: ccache --show-stats
@@ -207,10 +203,6 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
-    enabled: 'false'
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
     enabled: 'false'
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
