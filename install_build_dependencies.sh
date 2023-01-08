@@ -45,14 +45,13 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         file \
         `# build tools` \
         build-essential \
+        ccache \
         "${cmake_packages[@]}" \
         "${x86_64_specific_packages[@]}" \
         `# to find dependencies` \
         pkg-config \
         `# to deternime product version via git` \
         git \
-        `# to speed-up build` \
-        ccache \
         `# check bash scripts for correctness` \
         shellcheck \
         `# to build and check pip packages` \
@@ -99,14 +98,13 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         file \
         `# build tools`
         cmake3 \
+        ccache \
         gcc \
         gcc-c++ \
         make \
         `# to determine openvino version via git` \
         git \
         git-lfs \
-        `# to speed-up build` \
-        ccache \
         `# to build and check pip packages` \
         patchelf \
         fdupes \
@@ -133,12 +131,11 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         file \
         `# build tools` \
         build-essential \
+        ccache \
         `# to find dependencies` \
         pkg-config \
         `# to deternime product version via git` \
         git \
-        `# to speed-up build` \
-        ccache \
         `# to build and check pip packages` \
         patchelf \
         fdupes \
