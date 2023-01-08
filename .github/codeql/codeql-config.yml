@@ -1,4 +1,4 @@
 name: "CodeQL python config"
 
 paths:
-  - "model-optimizer"
+  - "tools/mo"
