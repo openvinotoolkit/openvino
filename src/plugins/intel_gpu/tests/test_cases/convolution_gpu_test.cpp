@@ -8920,8 +8920,7 @@ using TestParamType_convolution_gpu_onednn = ::testing::tuple<  int,    // 0 - I
         int,            // 10 - Batch
         format,         // 11 - Input data format
         std::string,    // 12 - Implementation name
-        impl_types,     // 13 - Implementation type
-        bool>;          // 14 - With bias
+        bool>;          // 13 - With bias
 
 struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_convolution_gpu_onednn> {
     static std::string PrintToStringParamName(
@@ -8939,17 +8938,11 @@ struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_co
                           std::to_string(testing::get<9>(param_info.param)) + "_batch" +
                           std::to_string(testing::get<10>(param_info.param)) + "_format" +
                           std::to_string(testing::get<11>(param_info.param)) + "_with_bias_" +
-                          std::to_string(testing::get<14>(param_info.param));
+                          std::to_string(testing::get<13>(param_info.param));
 
         if (testing::get<12>(param_info.param) != "") {
             res += "_kernel_" + testing::get<12>(param_info.param);
         }
-
-        auto impl_type = testing::get<13>(param_info.param);
-        if (impl_type == impl_types::onednn)
-            res += "_onednn_impl";
-        else if (impl_type == impl_types::ocl)
-            res += "_ocl_impl";
 
         return res;
     }
@@ -8961,10 +8954,10 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
                             // Input data format, Implementation name, WithBias
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, true),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, false)
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, true),
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, false)
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
+                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
+                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
                         ),
                         convolution_gpu_onednn::PrintToStringParamName);
 
@@ -8992,8 +8985,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     const uint64_t stride = testing::get<9>(GetParam());
     auto input_data_format = testing::get<11>(GetParam());
     auto impl_name = testing::get<12>(GetParam());
-    auto prim_impl_types = testing::get<13>(GetParam());
-    auto with_bias = testing::get<14>(GetParam());
+    auto with_bias = testing::get<13>(GetParam());
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
