@@ -118,6 +118,7 @@ jobs:
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
       # Install Android SDK, NDK and TOOLS
+      sudo apt -y --no-install-recommends install unzip
       wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
       unzip commandlinetools-linux-7583922_latest.zip
       yes | ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --licenses

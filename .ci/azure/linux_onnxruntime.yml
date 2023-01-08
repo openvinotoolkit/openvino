@@ -94,6 +94,7 @@ jobs:
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/

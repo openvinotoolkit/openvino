@@ -126,6 +126,7 @@ jobs:
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
