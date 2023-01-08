@@ -146,3 +146,40 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
     validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
+
+void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
+    const std::shared_ptr<ov::Model>& body,
+    const ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& input_descriptors) {
+    for (const auto& input_description : input_descriptors) {
+        auto index = input_description->m_input_index;
+
+        auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
+        auto input_partial_shape = input_value(index).get_partial_shape();
+        body_parameter->set_partial_shape(input_partial_shape);
+    }
+    body->validate_nodes_and_infer_types();
+}
+
+ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapping_outputs_on_body_description(
+    const ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector& output_descriptors) {
+    OutputMap outputs_map = OutputMap();
+    std::unordered_set<int64_t> checked_results_in_body;
+
+    for (const auto& output_description : output_descriptors) {
+        auto out_index = output_description->m_output_index;
+        auto internal_result_index = output_description->m_body_value_index;
+        NODE_VALIDATION_CHECK(this,
+                              checked_results_in_body.count(internal_result_index) == 0,
+                              "Incorrect associating in body! Result ",
+                              internal_result_index,
+                              " is already associated with another output!");
+        NODE_VALIDATION_CHECK(this,
+                              outputs_map.count(out_index) == 0,
+                              "Incorrect associating in body! Several results try to "
+                              "associate with the same output!");
+        checked_results_in_body.insert(internal_result_index);
+        outputs_map.insert({out_index, output_description});
+    }
+
+    return outputs_map;
+}
