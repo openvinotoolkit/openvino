@@ -193,6 +193,7 @@ jobs:
   - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Build Layer Tests'
 
+    # to check that wheel packages tested later, contain all all the dependencies like TBB or pugixml
   - script: sudo apt-get remove libtbb2 libpugixml1v5 -y
     displayName: 'Remove debian dependencies'
 
