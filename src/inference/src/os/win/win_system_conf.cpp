@@ -31,9 +31,9 @@ struct CPU {
             return;
         }
 
-        char* base_ptr = new char[len];
+        std::shared_ptr<char> base_shared_ptr(new char[len]);
+        char* base_ptr = base_shared_ptr.get();
         if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
-            delete[] base_ptr;
             return;
         }
 
@@ -135,7 +135,6 @@ struct CPU {
                 }
             }
         }
-        delete[] base_ptr;
     }
 };
 static CPU cpu;
