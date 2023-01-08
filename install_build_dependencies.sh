@@ -3,22 +3,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-params=$1
-
-yes_or_no() {
-    if [ "$params" == "-y" ]; then
-        return 0
-    fi
-
-    while true; do
-        read -p -r "Add third-party Nux Dextop repository and install FFmpeg package (y) / Skip this step (N)" yn
-        case $yn in
-            [Yy]*) return 0 ;;
-            [Nn]*) return 1 ;;
-        esac
-    done
-}
-
 if [ $EUID -ne 0 ]; then
     echo "ERROR: this script must be run as root to install 3rd party packages." >&2
     echo "Please try again with \"sudo -E $0\", or as root." >&2
@@ -164,6 +148,7 @@ required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
     installed_cmake_ver=3.23.2
     arch=$(uname -m)
+    apt-get install -y --no-install-recommends wget
     wget "https://github.com/Kitware/CMake/releases/download/v${installed_cmake_ver}/cmake-${installed_cmake_ver}-linux-${arch}.sh"
     chmod +x "cmake-${installed_cmake_ver}-linux-${arch}.sh"
     "./cmake-${installed_cmake_ver}-linux-${arch}.sh" --skip-license --prefix=/usr/local
