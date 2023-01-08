@@ -24,7 +24,7 @@ jobs:
       run: |
         sudo apt --assume-yes install python3-setuptools
         python3 -m pip install --upgrade pip
-        python3 -m pip install -r ./model-optimizer/requirements.txt
+        python3 -m pip install -r tools/mo/requirements.txt
         # Set the `CODEQL-PYTHON` environment variable to the Python executable
         # that includes the dependencies
         echo "CODEQL_PYTHON=$(which python3)" >> $GITHUB_ENV
