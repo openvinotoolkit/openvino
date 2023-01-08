@@ -41,7 +41,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     fi
 
     apt update
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         file \
         `# build tools` \
         build-essential \
@@ -79,17 +79,17 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         zlib1g-dev
     # git-lfs is not available on debian9
     if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
-        apt-get install -y git-lfs
+        apt-get install -y --no-install-recommends git-lfs
     fi
     # for python3-enchant
     if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
-        apt-get install -y libenchant1c2a
+        apt-get install -y --no-install-recommends libenchant1c2a
     fi
     # samples
     if apt-cache search --names-only '^nlohmann-json3-dev'| grep -q nlohmann-json3; then
-        apt-get install -y nlohmann-json3-dev
+        apt-get install -y --no-install-recommends nlohmann-json3-dev
     else
-        apt-get install -y nlohmann-json-dev
+        apt-get install -y --no-install-recommends nlohmann-json-dev
     fi
 elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     # RHEL 8 / CentOS 7
@@ -129,7 +129,7 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     apt update
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         file \
         `# build tools` \
         build-essential \
