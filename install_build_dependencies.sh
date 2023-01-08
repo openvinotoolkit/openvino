@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 params=$1
@@ -29,10 +29,11 @@ fi
 if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     # Ubuntu
     host_cpu=$(uname -m)
+
+    x86_64_specific_packages=()
     if [ "$host_cpu" = "x86_64" ]; then
-        x86_64_specific_packages=(gcc-multilib g++-multilib)
-    else
-        x86_64_specific_packages=()
+        # to build 32-bit or ARM binaries on 64-bit host
+        x86_64_specific_packages+=(gcc-multilib g++-multilib)
     fi
 
     if ! command -v cmake &> /dev/null; then
@@ -41,63 +42,44 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
 
     apt update
     apt-get install -y \
+        file \
+        `# build tools` \
         build-essential \
         "${cmake_packages[@]}" \
-        ccache \
-        curl \
-        wget \
-        libssl-dev \
-        ca-certificates \
-        git \
         "${x86_64_specific_packages[@]}" \
-        libgtk2.0-dev \
-        unzip \
+        `# to find dependencies` \
+        pkg-config \
+        `# to deternime product version via git` \
+        git \
+        `# to speed-up build` \
+        ccache \
+        `# check bash scripts for correctness` \
         shellcheck \
+        `# to build and check pip packages` \
         patchelf \
         fdupes \
-        lintian \
-        file \
+        `# archive debian changelog file` \
         gzip \
-        `# openvino` \
+        `# to check debian package correctness` \
+        lintian \
+        `# openvino main dependencies` \
         libtbb-dev \
         libpugixml-dev \
-        `# gpu plugin extensions` \
+        `# GPU plugin extensions` \
         libva-dev \
-        `# python` \
+        `# python API` \
         python3-pip \
         python3-venv \
-        python3-enchant \
         python3-setuptools \
         libpython3-dev \
-        `# samples` \
-        pkg-config \
+        `# spell checking for MO sources` \
+        python3-enchant \
+        `# samples and tools` \
         libgflags-dev \
-        zlib1g-dev \
-        `# hddl` \
-        libudev1 \
-        libusb-1.0-0 \
-        `# myriad` \
-        libusb-1.0-0-dev \
-        `# cl_compiler` \
-        libtinfo5
+        zlib1g-dev
     # git-lfs is not available on debian9
     if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
         apt-get install -y git-lfs
-    fi
-    # hddl
-    if apt-cache search --names-only '^libboost-filesystem1.65.1' | grep -q libboost-filesystem1.65.1 ; then
-        # ubuntu 18.04
-        apt-get install -y \
-            libjson-c3 \
-            libboost-filesystem1.65.1 \
-            libboost-program-options1.65.1 \
-            libboost-system1.65.1
-    elif apt-cache search --names-only '^libjson-c4'| grep -q libjson-c4; then
-        # ubuntu 20.04
-        apt-get install -y \
-            libjson-c4 \
-            libboost-filesystem1.71.0 \
-            libboost-program-options1.71.0
     fi
     # for python3-enchant
     if apt-cache search --names-only 'libenchant1c2a'| grep -q libenchant1c2a; then
@@ -114,53 +96,66 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     yum update
     yum install -y centos-release-scl epel-release
     yum install -y \
-        wget \
-        curl \
+        file \
+        `# build tools`
         cmake3 \
-        tar \
-        xz \
-        p7zip \
-        ccache \
-        openssl-devel \
-        rpm-build \
-        rpmlint \
-        ShellCheck \
-        unzip \
-        which \
-        ca-certificates \
-        git \
-        git-lfs \
-        boost-devel \
-        python3-pip \
-        python3-devel \
-        libtool \
-        tbb-devel \
-        pugixml-devel \
         gcc \
         gcc-c++ \
         make \
+        `# to determine openvino version via git` \
+        git \
+        git-lfs \
+        `# to speed-up build` \
+        ccache \
+        `# to build and check pip packages` \
         patchelf \
         fdupes \
-        libusbx-devel \
-        file \
-        zlib-devel \
-        gflags-devel \
+        `# to build and check rpm packages` \
+        rpm-build \
+        rpmlint \
+        `# check bash scripts for correctness` \
+        ShellCheck \
+        `# main openvino dependencies` \
+        tbb-devel \
+        pugixml-devel \
+        `# GPU plugin dependency`
         libva-devel
+        `# python API` \
+        python3-pip \
+        python3-devel \
+        `# samples and tools` \
+        zlib-devel \
+        gflags-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     apt update
     apt-get install -y \
+        file \
+        `# build tools` \
         build-essential \
-        wget \
-        libssl-dev \
-        ca-certificates \
-        git \
+        `# to find dependencies` \
         pkg-config \
+        `# to deternime product version via git` \
+        git \
+        `# to speed-up build` \
+        ccache \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# archive debian changelog file` \
+        gzip \
+        `# openvino main dependencies` \
+        libtbb-dev \
+        libpugixml-dev \
+        `# python API` \
+        python3-pip \
+        python3-venv \
+        python3-setuptools \
+        libpython3-dev \
+        `# samples and tools` \
         libgflags-dev \
         zlib1g-dev \
-        nlohmann-json-dev \
-        unzip \
-        libusb-1.0-0-dev
+        nlohmann-json-dev
 else
     echo "Unknown OS, please install build dependencies manually"
 fi

@@ -112,7 +112,7 @@ jobs:
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       # Move into contrib install_build_dependencies.sh
-      sudo apt --assume-yes install scons crossbuild-essential-arm64 libprotoc-dev protobuf-compiler default-jdk
+      sudo apt --assume-yes install scons crossbuild-essential-arm64 default-jdk
       # Speed up build
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip

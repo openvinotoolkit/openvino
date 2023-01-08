@@ -65,7 +65,6 @@ jobs:
       uname -a
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
-      echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
       echo cmake info ; which cmake ; cmake --version
       lsb_release

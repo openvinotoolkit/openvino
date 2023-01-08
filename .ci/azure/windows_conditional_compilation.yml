@@ -64,8 +64,6 @@ jobs:
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python
       python --version
-      where java
-      java -version
       wmic computersystem get TotalPhysicalMemory
       wmic cpu list
       wmic logicaldisk get description,name
@@ -155,16 +153,13 @@ jobs:
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DENABLE_CLDNN=OFF ^
         -DENABLE_INTEL_GPU=OFF ^
         -DENABLE_MULTI=OFF ^
         -DENABLE_AUTO=OFF ^
         -DENABLE_AUTO_BATCH=OFF ^
         -DENABLE_HETERO=OFF ^
         -DENABLE_TEMPLATE=OFF ^
-        -DENABLE_INTEL_MYRIAD=OFF ^
         -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
-        -DENABLE_TESTS=OFF ^
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
