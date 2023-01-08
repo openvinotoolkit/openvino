@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(average_unpooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)

@@ -10,7 +10,55 @@
 namespace ov {
 namespace op {
 namespace v1 {
+
+namespace utils {
+namespace one_hot {
+
+template <class TShape>
+inline bool get_data_as_shape_and_validate_sign(
+    size_t idx,
+    const ov::Node* op,
+    TShape& shape,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    if (constant_data.count(idx)) {
+        using DimType = typename TShape::value_type;
+        const auto data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
+        shape.clear();
+        std::transform(data.cbegin(), data.cend(), std::back_inserter(shape), [&](int64_t v) {
+            NODE_VALIDATION_CHECK(op, v >= 0, "OneHot depth value can't be negative.");
+            return static_cast<DimType>(v);
+        });
+        return true;
+    } else {
+        return get_data_as_shape<TShape>(idx, op, shape, constant_data);
+    }
+}
+
+template <>
+inline bool get_data_as_shape_and_validate_sign<ov::PartialShape>(
+    size_t idx,
+    const ov::Node* op,
+    ov::PartialShape& shape,
+    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+    if (constant_data.count(idx)) {
+        const auto data = host_tensor_2_vector<int64_t>(constant_data.at(idx));
+        for (const auto& value : data) {
+            NODE_VALIDATION_CHECK(op, value >= 0, "OneHot depth value can't be negative.");
+        }
+        shape = PartialShape(data);
+        return true;
+    } else {
+        return ov::evaluate_as_partial_shape(op->input_value(idx), shape);
+    }
+}
+
+}  // namespace one_hot
+}  // namespace utils
+
 void inline resolve_axis(OneHot* op) {
+    if (op->get_input_size() < 1) {
+        return;
+    }
     const auto& indices_shape = op->get_input_partial_shape(0);
     if (indices_shape.rank().is_static()) {
         const auto indices_rank = indices_shape.rank().get_length();
@@ -43,23 +91,15 @@ void shape_infer(const OneHot* op,
                           "off_value input must be scalar.");
 
     auto& result_shape = output_shapes[0];
-    std::vector<int64_t> depth_vals;
-    bool depth_is_set = get_data_as_int64<T>(1, op, depth_vals, constant_data);
     if (indices_shape.rank().is_static()) {
-        // decide result rank
         result_shape = indices_shape;
         const auto indices_rank = indices_shape.rank().get_length();
         const auto axis = ov::normalize_axis(op, op->get_axis(), indices_rank + 1, -indices_rank - 1, indices_rank);
 
-        if (depth_is_set) {
-            int64_t depth_val = depth_vals[0];
-            NODE_VALIDATION_CHECK(op,
-                                  depth_val > 0,
-                                  "The value of 'depth' must be a positive number.",
-                                  " (got ",
-                                  depth_val,
-                                  ").");
-            result_shape.insert(result_shape.begin() + axis, DimType(depth_val));
+        T depth_dim_as_shape;
+        if (utils::one_hot::get_data_as_shape_and_validate_sign<T>(1, op, depth_dim_as_shape, constant_data) &&
+            depth_dim_as_shape.size() == 1) {
+            result_shape.insert(result_shape.begin() + axis, depth_dim_as_shape[0]);
         } else {
             result_shape.insert(result_shape.begin() + axis, DimType());
         }

@@ -46,8 +46,8 @@ class TestPriorBoxClusteredExt(unittest.TestCase):
         self.assertRaises(AttributeError, PriorBoxClusteredFrontExtractor.extract, None)
 
     def test_priorbox_clustered_ext_ideal_numbers(self):
-        node = self._create_priorbox_clustered_node(width= np.array([2, 3], dtype=np.float),
-                                          height=np.array([4, 5], dtype=np.float),
+        node = self._create_priorbox_clustered_node(width= np.array([2, 3], dtype=float),
+                                          height=np.array([4, 5], dtype=float),
                                           variance=np.array([0.2, 0.3, 0.2, 0.3]),
                                           img_size=300, step=5.0, offset=0.6, flip=True)
 
@@ -58,8 +58,8 @@ class TestPriorBoxClusteredExt(unittest.TestCase):
             'type': 'PriorBoxClustered',
             'clip': 0,
             'flip': 1,
-            'width': np.array([2, 3], dtype=np.float),
-            'height': np.array([4, 5], dtype=np.float),
+            'width': np.array([2, 3], dtype=float),
+            'height': np.array([4, 5], dtype=float),
             'variance': [0.2, 0.3, 0.2, 0.3],
             'img_size': 300,
             'img_h': 0,

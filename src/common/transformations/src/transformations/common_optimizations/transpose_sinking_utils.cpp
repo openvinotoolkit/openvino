@@ -71,12 +71,59 @@ void SwapNames(NodePtr node1, NodePtr node2) {
     SwapOutputNames(node1->output(0), node2->output(0));
 }
 
+namespace {
+
+bool HasDynamicRankInput(NodePtr node) {
+    for (auto& input_node : node->input_values()) {
+        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+ov::Rank::value_type GetMaxInputRank(const NodePtr& node) {
+    ov::Rank::value_type max_input_rank = 0;
+    for (auto& input_node : node->input_values()) {
+        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return -1;
+        const ov::Rank::value_type output_rank_len = output_rank.get_length();
+        if (output_rank_len > max_input_rank)
+            max_input_rank = output_rank_len;
+    }
+    return max_input_rank;
+}
+
+NodePtr InsertUnsqueeze(Output<Node> node, size_t n_dims) {
+    std::vector<size_t> dims(n_dims);
+    std::iota(dims.begin(), dims.end(), 0);
+    auto unsqueeze_const = std::make_shared<Constant>(ov::element::i64, Shape{dims.size()}, dims);
+    auto unsqueeze = std::make_shared<Unsqueeze>(node, unsqueeze_const);
+    copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
+    return unsqueeze;
+}
+
+ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank::value_type required_rank) {
+    const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
+    if (output_rank >= required_rank)
+        return input_node;
+    return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
+}
+
+}  // namespace
+
 namespace sink_forward {
 
 // insert input reversed transposes, remove first input tranpose
 void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
-    if (transpose_input_info.isEmpty())
+    if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return;
+
+    const auto max_input_rank = GetMaxInputRank(main_node);
+    if (max_input_rank < 0)
+        return;
+
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const size_t tranpose_input_index = transpose_input_info.input_idx;
@@ -88,6 +135,8 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
             auto transpose_parent = input_node.get_node()->input_value(0);
             main_node->input(i).replace_source_output(transpose_parent);
         } else {
+            input_node = FixInputNodeRank(input_node, max_input_rank);
+
             auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
                                                                   Shape{reversed_traspose_axis_order.size()},
                                                                   reversed_traspose_axis_order);
@@ -146,14 +195,23 @@ NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transp
 }  // namespace sink_forward
 
 namespace sink_backward {
+
 NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const) {
     const auto transpose_axis_order = transpose_const->get_axis_vector_val();
     const auto transpose_element_type = transpose_const->get_element_type();
 
+    if (HasDynamicRankInput(main_node))
+        return {};
+
     NodeVector new_nodes;
 
+    const auto max_input_rank = GetMaxInputRank(main_node);
+    if (max_input_rank < 0)
+        return {};
+
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
-        auto input_node = main_node->input_value(i);
+        auto input_node = FixInputNodeRank(main_node->input_value(i), max_input_rank);
+
         auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
                                                               Shape{transpose_axis_order.size()},
                                                               transpose_axis_order);
