@@ -122,12 +122,13 @@ jobs:
     displayName: 'Install coverity tool'
 
   - script: |
-        export CCACHE_DIR=$(CCACHE_DIR)
-        export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-        export CCACHE_BASEDIR=$(Pipeline.Workspace)
-        export CCACHE_MAXSIZE=50G
-        $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
-          cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+      $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
+        cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin with Coverity'
 
   - script: ccache --show-stats

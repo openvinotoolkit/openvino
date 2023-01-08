@@ -120,9 +120,6 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      export PATH="/usr/local/opt/cython/bin:$PATH"
-      export CC=gcc
-      export CXX=g++
       cmake -GNinja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
@@ -137,6 +134,10 @@ jobs:
         -DBUILD_nvidia_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
+    env:
+      PATH: "/usr/local/opt/cython/bin:$PATH"
+      CC: gcc
+      CXX: g++
     displayName: 'CMake'
 
   - script: ls -alR $(REPO_DIR)/temp/
@@ -153,12 +154,12 @@ jobs:
   - script: ccache --zero-stats --max-size=10G --show-config
     displayName: 'Clean ccache stats'
 
-  - script: |
-      export CCACHE_DIR=$(CCACHE_DIR)
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=10G
-      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 10G
     displayName: 'Build Mac'
 
   - script: ccache --show-stats
@@ -218,16 +219,18 @@ jobs:
     enabled: 'false'
 
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
     enabled: 'false'
 
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
     enabled: 'false'
 
