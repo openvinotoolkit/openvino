@@ -8,7 +8,6 @@
 
 #include <windows.h>
 
-#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -34,6 +33,7 @@ struct CPU {
 
         char* base_ptr = new char[len];
         if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
+            delete[] base_ptr;
             return;
         }
 
