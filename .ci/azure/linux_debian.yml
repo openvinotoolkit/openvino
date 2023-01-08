@@ -372,12 +372,11 @@ jobs:
       export PATH=$HOME/.local/bin:$PATH
       export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
-      # for gna plugin
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(INSTALL_DIR)/lib/x86_64-linux-gnu:$(INSTALL_DIR)/lib/x86_64-linux-gnu/openvino-2022.3.0
       export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
       export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
-      python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+      # GNA isn't a part of Debian package, so filter out that tests
+      python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     displayName: 'Samples Smoke Tests'
 
   - script: |
