@@ -1,82 +1,103 @@
 # Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-This guide provides installation steps for the Intel® distribution of OpenVINO™ toolkit distributed through the PyPI repository.
+You can install both OpenVINO™ Runtime and OpenVINO Development Tools through the PyPI repository. This page provides the main steps for installing OpenVINO Runtime.
 
-## System Requirements
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. See [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
-* [Python* distribution](https://www.python.org/) 3.6 or 3.7
-* Operating Systems:
-  - Ubuntu* 18.04 long-term support (LTS), 64-bit
-  - macOS* 10.15.x versions
-  - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
-  - Windows Server* 2016 or higher
+## Installing OpenVINO Runtime
 
-## Install the Runtime Package Using the PyPI Repository
+For system requirements and troubleshooting, see <https://pypi.org/project/openvino/>.
 
-### Step 1. Set up and update pip to the highest version
+### Step 1. Set Up Python Virtual Environment
 
-Run the command below:
-```sh
-python3 -m pip install --upgrade pip
-```
+Use a virtual environment to avoid dependency conflicts. 
 
-### Step 2. Install the Intel® distribution of OpenVINO™ toolkit
+To create a virtual environment, use the following command:
 
-Run the command below:
-   ```sh
-   pip install openvino
-   ```
+@sphinxdirective
 
-### Step 3. Add PATH to environment variables
+.. tab:: Linux and macOS
 
-Run a command for your operating system:
-- Ubuntu 18.04 and macOS:
-```sh
-export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
-```
-- Windows* 10:
-```sh
-set PATH=<library_dir>;%PATH%
-```
-To find `library_dir`:   
-**Ubuntu, macOS**:
-- Standard user:
-```sh
-echo $(python3 -m site --user-base)/lib
-```
-- Root or sudo user:
-```sh
-/usr/local/lib
-```
-- Virtual environments or custom Python installations (from sources or tarball):
-```sh
-echo $(which python3)/../../lib
-```
-**Windows**:
-- Standard Python:
-```sh
-python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
-```
-- Virtual environments or custom Python installations (from sources or tarball):
-```sh
-python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
-```
-
-### Step 4. Verify that the package is installed
-
-Run the command below:
-```sh
-python3 -c "import openvino"
-```
+   .. code-block:: sh
    
-Now you are ready to develop and run your application.
+      python3 -m venv openvino_env
+   
+.. tab:: Windows
+
+   .. code-block:: sh
+   
+      python -m venv openvino_env
+     
+     
+@endsphinxdirective
+
+### Step 2. Activate Virtual Environment
+
+@sphinxdirective
+
+.. tab:: On Linux and macOS
+
+   .. code-block:: sh
+   
+      source openvino_env/bin/activate
+   
+.. tab:: On Windows
+
+   .. code-block:: sh
+   
+      openvino_env\Scripts\activate
+     
+     
+@endsphinxdirective
+
+### Step 3. Set Up and Update PIP to the Highest Version
+
+Use the following command:
+```sh
+python -m pip install --upgrade pip
+```
+
+### Step 4. Install the Package
+
+Use the following command:
+```
+pip install openvino
+```
+
+### Step 5. Verify that the Package Is Installed
+
+Run the command below:
+```sh
+python -c "from openvino.runtime import Core"
+```
+
+If installation was successful, you will not see any error messages (no console output).
+
+Congratulations! You finished installing OpenVINO Runtime. Now you can start exploring OpenVINO's functionality through Jupyter Notebooks and sample applications. See the <a href="#whats-next">What's Next</a> section to learn more!
+
+## Installing OpenVINO Development Tools
+OpenVINO Development Tools adds even more functionality to OpenVINO. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Development Tools, OpenVINO Runtime will also be installed as a dependency, so you don't need to install OpenVINO Runtime separately. 
+
+See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
+
+<a name="whats-next"></a>
+## What's Next?
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
+
+<img src="https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif" width=400>
+
+Try the [Python Quick Start Example](https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html) to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+
+### Get started with Python
+Visit the [Tutorials](../tutorials.md) page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+* [OpenVINO Python API Tutorial](https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html)
+* [Basic image classification program with Hello Image Classification](https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html)
+* [Convert a PyTorch model and use it for image background removal](https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html)
+
+### Run OpenVINO on accelerated devices
+OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. Visit the [Additional Configurations](configurations-header.md) page for instructions on how to configure your hardware devices to work with OpenVINO.
 
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino/)
-
+- Intel® Distribution of OpenVINO™ toolkit home page: <https://software.intel.com/en-us/openvino-toolkit>
+- For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

@@ -1,6 +1,9 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
-LABEL version=2020.07.09.1
+LABEL version=2021.03.30.1
+
+# Build configuration arguments
+ARG BUILD_TYPE=Release
 
 ARG http_proxy
 ARG https_proxy
@@ -22,16 +25,14 @@ ENV LC_ALL en_US.UTF-8
 
 RUN apt-get update && apt-get -y --no-install-recommends install \
 # OpenVINO dependencies
-        autoconf \
-        automake \
         build-essential \
+        ninja-build \
         cmake \
         curl \
         git \
-        libtool \
-        ocl-icd-opencl-dev \
-        pkg-config \
         unzip \
+        libtbb-dev \
+        libpugixml-dev \
         wget \
 # Python dependencies
         python3 \
@@ -39,11 +40,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         python3-dev \
         python3-virtualenv \
         cython3 \
-        tox \
-# ONNX dependencies
-        git-lfs \
-        protobuf-compiler \
-        libprotobuf-dev && \
+        tox && \
     apt-get clean autoclean && \
     apt-get autoremove -y
 
@@ -51,31 +48,28 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DENABLE_VPU=OFF \
-    -DENABLE_GNA=OFF \
-    -DENABLE_OPENCV=OFF \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+    -DENABLE_INTEL_MYRIAD_COMMON=OFF \
+    -DENABLE_INTEL_GNA=OFF \
+    -DENABLE_INTEL_GPU=OFF \
+    -DENABLE_HETERO=OFF \
+    -DENABLE_MULTI=OFF \
+    -DENABLE_BATCH=OFF \
+    -DENABLE_GAPI_PREPROCESSING=OFF \
     -DENABLE_CPPLINT=OFF \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_MKL_DNN=ON \
-    -DENABLE_CLDNN=OFF \
+    -DENABLE_NCC_STYLE=OFF \
     -DENABLE_PROFILING_ITT=OFF \
     -DENABLE_SAMPLES=OFF \
-    -DENABLE_SPEECH_DEMO=OFF \
-    -DENABLE_PYTHON=ON \
-    -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-    -DNGRAPH_ONNX_IMPORT_ENABLE=ON \
-    -DNGRAPH_INTERPRETER_ENABLE=ON \
-    -DNGRAPH_DEBUG_ENABLE=OFF \
-    -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
+    -DENABLE_OV_PADDLE_FRONTEND=OFF \
+    -DENABLE_OV_TF_FRONTEND=OFF \
+    -DENABLE_OPENVINO_DEBUG=OFF \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
-RUN make -j $(nproc) install
+RUN ninja install
 
 # Run tests via tox
-WORKDIR /openvino/ngraph/python
-ENV NGRAPH_CPP_BUILD_PATH=/openvino/dist/deployment_tools/ngraph
-ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
-ENV NGRAPH_ONNX_IMPORT_ENABLE=TRUE
-ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
-RUN git clone --recursive https://github.com/pybind/pybind11.git -b v2.5.0 --depth 1
+WORKDIR /openvino/src/bindings/python
+ENV OpenVINO_DIR=/openvino/dist/runtime/cmake
+ENV LD_LIBRARY_PATH=/openvino/dist/runtime/lib:/openvino/dist/runtime/3rdparty/tbb/lib
+ENV PYTHONPATH=/openvino/bin/intel64/${BUILD_TYPE}/python_api/python3.10:${PYTHONPATH}
 CMD tox

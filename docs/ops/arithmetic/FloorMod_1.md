@@ -1,12 +1,19 @@
-## FloorMod <a name="FloorMod"></a> {#openvino_docs_ops_arithmetic_FloorMod_1}
+# FloorMod  {#openvino_docs_ops_arithmetic_FloorMod_1}
 
 **Versioned name**: *FloorMod-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
-**Short description**: *FloorMod* returns an element-wise division reminder with two given tensors applying multi-directional broadcast rules. 
-The result here is consistent with a flooring divide (like in Python programming language): `floor(x / y) * y + mod(x, y) = x`. 
-The sign of the result is equal to a sign of the divisor.
+**Short description**: *FloorMod* performs an element-wise floor modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
+
+**Detailed description**
+As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *FloorMod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
+
+\f[
+o_{i} = a_{i} \mod b_{i}
+\f]
+
+*FloorMod* operation computes a reminder of a floored division. It is the same behaviour like in Python programming language: `floor(x / y) * y + floor_mod(x, y) = x`. The sign of the result is equal to a sign of a divisor. The result of division by zero is undefined.
 
 **Attributes**:
 
@@ -14,20 +21,20 @@ The sign of the result is equal to a sign of the divisor.
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: A tensor of type T. Required.
-* **2**: A tensor of type T. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The element-wise division reminder. A tensor of type T.
+* **1**: The result of element-wise floor modulo operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 
@@ -35,10 +42,11 @@ The sign of the result is equal to a sign of the divisor.
 
 **Examples**
 
-*Example 1*
+*Example 1 - no broadcasting*
 
 ```xml
 <layer ... type="FloorMod">
+    <data auto_broadcast="none"/>
     <input>
         <port id="0">
             <dim>256</dim>
@@ -58,9 +66,10 @@ The sign of the result is equal to a sign of the divisor.
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcasting*
 ```xml
 <layer ... type="FloorMod">
+    <data auto_broadcast="numpy"/>
     <input>
         <port id="0">
             <dim>8</dim>

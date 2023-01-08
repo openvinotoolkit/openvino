@@ -1,8 +1,10 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-find_package(Git REQUIRED)
+if(ENABLE_DATA)
+    find_package(Git REQUIRED)
+endif()
 
 set(MODELS_LST "")
 set(MODELS_LST_TO_FETCH "")
@@ -30,6 +32,7 @@ function(add_lfs_repo name prefix url tag)
         return()
     endif()
 
+    include(ExternalProject)
     ExternalProject_Add(${name}
         PREFIX ${prefix}
         GIT_REPOSITORY ${url}

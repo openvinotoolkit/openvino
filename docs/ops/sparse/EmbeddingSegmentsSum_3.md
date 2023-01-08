@@ -1,4 +1,4 @@
-## EmbeddingSegmentsSum <a name="EmbeddingSegmentsSum"></a> {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
+# EmbeddingSegmentsSum {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
 
 **Versioned name**: *EmbeddingSegmentsSum-3*
 
@@ -8,17 +8,19 @@
 
 **Detailed description**: This is [sparse.segment_sum](https://www.tensorflow.org/api_docs/python/tf/sparse/segment_sum) operation from Tensorflow. For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each segment. Values in `segment_ids` define which segment index in `indices` tensor belong to, e.g. `segments_ids` with value `[0,0,0,1,1,3,5,5]` define 4 non empty segments other segments are empty, the number of segments is defined by `num_segments` input.
 
+**Attributes**: EmbeddingSegmentsSum operation has no attributes.
+
 **Inputs**:
 
-*   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. Required.
+*   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. **Required.**
 
-*   **2**: `indices` tensor of shape `[num_indices]` and of type *T_IND*. Required.
+*   **2**: `indices` tensor of shape `[num_indices]` and of type *T_IND*. **Required.**
 
-*   **3**: `segment_ids` tensor of shape `[num_indices]` and of type *T_IND* with indices into the output Tensor. Values should be sorted and can be repeated. Required.
+*   **3**: `segment_ids` tensor of shape `[num_indices]` and of type *T_IND* with indices into the output Tensor. Values should be sorted and can be repeated. **Required.**
 
-*   **4**: `num_segments` scalar of type *T_IND* indicating the number of segments. Required.
+*   **4**: `num_segments` scalar of type *T_IND* indicating the number of segments. **Required.**
 
-*   **5**: `default_index` scalar of type *T_IND* containing default index in embedding table to fill empty segments. If not provided empty segments are filled with zeros. Optional.
+*   **5**: `default_index` scalar of type *T_IND* containing default index in embedding table to fill empty segments. If not provided empty segments are filled with zeros. **Optional.**
 
 *   **6**: `per_sample_weights` tensor of the same shape as `indices` and of type *T*. Each value in this tensor are multiplied with each value pooled from embedding table for each index. Optional, default is tensor of ones.
 

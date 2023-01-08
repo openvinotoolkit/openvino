@@ -1,8 +1,8 @@
-## Asin <a name="Asin"></a> {#openvino_docs_ops_arithmetic_Asin_1}
+# Asin {#openvino_docs_ops_arithmetic_Asin_1}
 
 **Versioned name**: *Asin-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: *Arithmetic unary*
 
 **Short description**: *Asin* performs element-wise inverse sine (arcsin) operation with given tensor.
 
@@ -12,11 +12,11 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T*. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise asin operation. A tensor of type T.
+* **1**: The result of element-wise asin operation. A tensor of type *T*.
 
 **Types**
 

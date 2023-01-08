@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,7 @@ set(TARGET_NAME fuzz-testhelper)
 
 file(
     GLOB SRC_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*-testhelper.cc)
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.cc)
 
 add_library(
     ${TARGET_NAME} STATIC

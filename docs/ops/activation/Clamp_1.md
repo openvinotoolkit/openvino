@@ -1,4 +1,4 @@
-## Clamp<a name="Clamp"></a> {#openvino_docs_ops_activation_Clamp_1}
+# Clamp {#openvino_docs_ops_activation_Clamp_1}
 
 **Versioned name**: *Clamp-1*
 
@@ -6,48 +6,61 @@
 
 **Short description**: *Clamp* operation represents clipping activation function.
 
+**Detailed description**:
+
+*Clamp* performs clipping operation over the input tensor element-wise. Element values of the output are within the range `[min, max]`.
+* Input values that are smaller than *min* are replaced with *min* value.
+* Input values that are greater than *max* are replaced with *max* value.
+* Input values within the range `[min, max]` remain unchanged.
+
+Let *min_value* and *max_value* be *min* and *max*, respectively. The mathematical formula of *Clamp* is as follows:
+\f[
+clamp( x_{i} )=\min\big( \max\left( x_{i},\ min\_value \right),\ max\_value \big)
+\f]
+
 **Attributes**:
 
 * *min*
 
-  * **Description**: *min* is the lower bound of values in the output. Any value in the input that is smaller than the bound, is replaced with the *min* value. For example, *min* equal 10 means that any value in the input that is smaller than the bound, is replaced by 10.
-  * **Range of values**: non-negative positive floating point number
-  * **Type**: float
-  * **Default value**: None
+  * **Description**: *min* is the lower bound of values in the output.
+  * **Range of values**: arbitrary floating-point number
+  * **Type**: `float`
   * **Required**: *yes*
 
 * *max*
 
-  * **Description**: *max* is the upper bound of values in the output. Any value in the input that is greater than the bound, is replaced with the *max* value. For example, *max* equals 50 means that any value in the input that is greater than the bound, is replaced by 50.
-  * **Range of values**: positive floating point number
-  * **Type**: float
-  * **Default value**: None
+  * **Description**: *max* is the upper bound of values in the output.
+  * **Range of values**: arbitrary floating-point number
+  * **Type**: `float`
   * **Required**: *yes*
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor. Required.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 
-*   **1**: Multidimensional output tensor with shape and type matching the input tensor.
+*   **1**: A tensor of type *T* with same shape as input tensor.
 
-**Detailed description**:
+**Types**
 
-*Clamp* does the following with the input tensor element-wise:
-\f[
-clamp( x )=\left\{\begin{array}{ll}
-    max\_value \quad \mbox{if } \quad input( x )>max\_value \\
-    min\_value \quad \mbox{if } \quad input( x )
-\end{array}\right.
-\f]
+* *T*: any numeric type.
+*   **Note**: In case of integral numeric type, ceil is used to convert *min* from `float` to *T* and floor is used to convert *max* from `float` to *T*.
 
 **Example**
 
 ```xml
-<layer ... type="Clamp" ... >
+<layer id="1" name="clamp_node" type="Clamp">
     <data min="10" max="50" />
-    <input> ... </input>
-    <output> ... </output>
+    <input>
+        <port id="0">
+            <dim>256</dim>
+        </port>
+    </input>
+    <output>
+        <port id="1">
+            <dim>256</dim>
+        </port>
+    </output>
 </layer>
 ```

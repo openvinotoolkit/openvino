@@ -1,8 +1,8 @@
-## Broadcast <a name="Broadcast"></a> {#openvino_docs_ops_movement_Broadcast_3}
+# Broadcast {#openvino_docs_ops_movement_Broadcast_3}
 
 **Versioned name**: *Broadcast-3*
 
-**Category**: Data movement
+**Category**: *Data movement*
 
 **Short description**: *Broadcast* replicates data on the first input to fit a given shape on the second input.
 
@@ -10,9 +10,9 @@
 
 *Broadcast* takes the first tensor `data` and, following broadcasting rules that are specified by `mode` attribute and the 3rd input `axes_mapping`, builds a new tensor with shape matching the 2nd input tensor `target_shape`. `target_shape` input is a 1D integer tensor that represents required shape of the output.
 
-Attribute `mode` and the 3rd input `axes_mapping` are relevant for cases when rank of the input `data` tensor doesn't match the size of the `target_shape` input. They both define how axes from `data` shape are mapped to the output axes. If `mode` is set to `numpy`, it means that the standard one-directional numpy broadcasting rules are applied. They are similar to rules that applied in all binary element-wise operations in case when `auto_broadcasting` attribute is set to `numpy`, and are similar to rules described at [here](https://docs.scipy.org/doc/numpy/user/basics.broadcasting.html#general-broadcasting-rules), when only one-directional broadcasting is applied: input tensor `data` is broadcasted to `target_shape` but not vice-versa.
+Attribute `mode` and the 3rd input `axes_mapping` are relevant for cases when rank of the input `data` tensor doesn't match the size of the `target_shape` input. They both define how axes from `data` shape are mapped to the output axes. If `mode` is set to `numpy`, it means that the standard one-directional numpy broadcasting rules are applied. These rules are described in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md), when only one-directional broadcasting is applied: input tensor `data` is broadcasted to `target_shape` but not vice-versa.
 
-In case if `mode` is set to `bidirectional`, then the broadcast rule is similar to `numpy.array(input) * numpy.ones(target_shape)`. Dimensions are right alignment. Two corresponding dimension must have the same value, or one of them is equal to 1. If this attribute value is used, then the 3rd input for the operation shouldn't be provided. The behaviour of such kind of broadcasting is equivalent to ONNX operation [Expand](https://github.com/onnx/onnx/blob/rel-1.7.0/docs/Operators.md#Expand). 
+In case if `mode` is set to `bidirectional`, then the broadcast rule is similar to `numpy.array(input) * numpy.ones(target_shape)`. Dimensions are right alignment. Two corresponding dimension must have the same value, or one of them is equal to 1. If this attribute value is used, then the 3rd input for the operation shouldn't be provided. The behaviour is described in [Bidirectional Broadcast Rules](../broadcast_rules.md).
 
 In case if `mode` is set to `explicit`, then 3rd input `axes_mapping` comes to play. It contains a list of axis indices, each index maps an axis from the 1st input tensor `data` to axis in the output. The size of `axis_mapping` should match the rank of input `data` tensor, so all axes from `data` tensor should be mapped to axes of the output.
 
@@ -35,9 +35,9 @@ For example, `axes_mapping = [1]` enables broadcasting of a tensor with shape `[
 
 **Inputs**:
 
-*   **1**: `data` - source tensor of type *T* and shape that is being broadcasted. Required.
+*   **1**: `data` - source tensor of type *T* and shape that is being broadcasted. **Required.**
 
-*   **2**: `target_shape` - 1D tensor of type *T_SHAPE* describing output shape. Required.
+*   **2**: `target_shape` - 1D tensor of type *T_SHAPE* describing output shape. **Required.**
 
 *   **3**: `axes_mapping` - 1D tensor of type *T_SHAPE* describing a list of axis indices, each index maps an axis from the 1st input tensor `data` to axis in the output. The index values in this tensor should be sorted, that disables on-the-fly transpositions of input `data` tensor while the broadcasting. `axes_mapping` input is needed for `mode` equal to *explicit* only.
 

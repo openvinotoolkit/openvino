@@ -1,0 +1,160 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#include "program_helpers.h"
+#include "intel_gpu/graph/program.hpp"
+#include "data_inst.h"
+#include "pooling_inst.h"
+#include <algorithm>
+#include <utility>
+#include <vector>
+#include <sstream>
+
+namespace cldnn {
+// helper function for merging the weights/biases buffers on cpu side for depthwise separable convolution optimization
+void program_helpers::merge_buffers(engine& engine,
+                                    program_node& node,
+                                    const layout& target_layout,
+                                    size_t begin_offset,
+                                    size_t end_offset) {
+    memory::ptr data_to_allocate = engine.allocate_memory(target_layout, false);
+    auto& stream = node.get_program().get_stream();
+
+    for (size_t i = begin_offset; i < end_offset; i++) {
+        auto& weights = node.get_dependency(i).as<data>();
+        mem_lock<char, mem_lock_type::read> src{weights.get_attached_memory_ptr(), stream};
+        mem_lock<char, mem_lock_type::write> dst{data_to_allocate, stream};
+        std::copy(src.begin(), src.end(), dst.begin() + (i - begin_offset) * src.size());
+    }
+
+    for (size_t i = 0; i < end_offset - begin_offset - 1; i++) node.remove_dependency(begin_offset + 1);
+
+    auto& data_node = node.get_dependency(begin_offset).as<data>();
+    data_node.attach_memory(data_to_allocate, false);
+}
+
+void program_helpers::reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
+    const int channels,
+    const int kernel_width,
+    const int kernel_height,
+    const int scale_factor,
+    std::vector<std::vector<std::vector<float> > >& subpixel_weights) {
+
+    std::vector<std::vector<float> > weights(channels);
+
+    int pad_zero_x = kernel_width % 2 == 0 ? 0 : 1;
+    int pad_zero_y = kernel_height % 2 == 0 ? 0 : 1;
+
+    // reshape 9x9 deconv weights, for example 32 9x9 deconv weights to 32 10x10 conv weights
+    for (int f = 0; f < channels; ++f) {
+        for (int kernel_y = 0; kernel_y < kernel_height; ++kernel_y) {
+            for (int kernel_x = 0; kernel_x < kernel_width; ++kernel_x) {
+                int index = f * kernel_width * kernel_height + kernel_y * kernel_width + kernel_x;
+                weights[f].push_back(deconv_weights[index]);
+            }
+            if (pad_zero_x == 1) {    // pad with zero on x axis
+                weights[f].push_back(0.f);
+            }
+        }
+        if (pad_zero_y == 1) {    // pad a line on y axis with zero
+            for (int kernel_x = 0; kernel_x < kernel_width + pad_zero_x; ++kernel_x) {
+                weights[f].push_back(0.f);
+            }
+        }
+    }
+
+    // reshape 32 10x10 weights to 4 32 5x5 weights
+    for (int s = 0; s < scale_factor*scale_factor; ++s) {
+        subpixel_weights[s].resize(channels);
+    }
+
+    const int kernel_sz = kernel_width + pad_zero_x;
+
+    auto get_row_index = [](int index, const int kernel_sz)->int {
+        bool isRowEven = (index / (kernel_sz)) % 2 == 0 ? true : false;
+        bool isColEven = (index % 2) == 0 ? true : false;
+        int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
+        return kernel_num;
+    };
+
+    int feature_num = static_cast<int>(weights.size());
+    for (int f = 0; f < feature_num; ++f) {
+        for (int i = 0; i < static_cast<int>(weights[f].size()); ++i) {
+            int row = get_row_index(i, kernel_sz);
+            subpixel_weights[row][f].push_back(weights[f][i]);
+        }
+    }
+
+    // dump the weights for the shuffled kernel
+    int subpixel_conv_num = static_cast<int>(subpixel_weights.size());
+    for (int s = 0; s < subpixel_conv_num; ++s) {
+        for (int row = 0; row < static_cast<int>(subpixel_weights[s].size()); ++row) {
+            std::reverse(std::begin(subpixel_weights[s][row]), std::end(subpixel_weights[s][row]));
+        }
+    }
+}
+
+// helper function for getting target layout used in depthwise sep optimization
+layout program_helpers::get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split) {
+    auto mem_layout = data_node.get_output_layout();
+
+    return layout(mem_layout.data_type,
+                  mem_layout.format,
+                  {split * mem_layout.batch(),
+                   mem_layout.feature(),
+                   mem_layout.spatial(0),
+                   mem_layout.spatial(1)});
+}
+
+bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
+    if (l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
+        || l.batch() > 1) {
+        return true;
+    }
+    return false;
+}
+
+void onednn_add_fusing_helpers::for_eltwise(
+    const program_node& node, eltwise_mode mode,
+    std::function<void(const program_node& p_node,
+                    const fused_primitive_desc& desc)> func) {
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.is_type<eltwise>() && fo.typed_desc<eltwise>()->mode == mode) {
+            func(node, fo);
+        }
+    }
+}
+
+add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
+    const program_node& p_node, const fused_primitive_desc& desc) {
+    if (!desc.is_type<eltwise>()) {
+        return add_fusing_type::not_supported;
+    }
+     if (desc.typed_desc<eltwise>()->mode != eltwise_mode::sum) {
+         return add_fusing_type::not_supported;
+     }
+
+    auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
+    auto p_layout = p_node.get_output_layout();
+    auto d_layout = dep_node.get_output_layout();
+
+    if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
+        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
+            && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
+            && p_layout.data_padding == d_layout.data_padding
+            && dep_node.get_users().size() == 1
+            && !p_node.is_type<pooling>()) {
+            return add_fusing_type::sum;
+        } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
+            return add_fusing_type::binary_per_tensor;
+        }
+    }
+
+    return add_fusing_type::binary_per_oc;
+}
+
+
+}  // namespace cldnn

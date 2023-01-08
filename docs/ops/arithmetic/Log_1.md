@@ -1,10 +1,16 @@
-## Log <a name="Log"></a> {#openvino_docs_ops_arithmetic_Log_1}
+# Log  {#openvino_docs_ops_arithmetic_Log_1}
 
 **Versioned name**: *Log-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: *Arithmetic unary*
 
 **Short description**: *Log* performs element-wise natural logarithm operation with given tensor.
+
+**Detailed description**: *Log* does the following with the input tensor *a*:
+
+\f[
+a_{i} = log(a_{i})
+\f]
 
 **Attributes**:
 
@@ -12,21 +18,15 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise log operation. A tensor of type T.
+* **1**: The result of element-wise log operation. A tensor of type *T* and the same shape as input.
 
 **Types**
 
 * *T*: any numeric type.
-
-*Log* does the following with the input tensor *a*:
-
-\f[
-a_{i} = log(a_{i})
-\f]
 
 **Examples**
 

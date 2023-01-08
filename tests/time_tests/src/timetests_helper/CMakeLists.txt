@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,16 +8,8 @@ file (GLOB SRC *.cpp)
 add_library(${TARGET_NAME} STATIC ${SRC})
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_SOURCE_DIR}/include")
 
-include(FetchContent)
-FetchContent_Declare(
-    gflags
-    GIT_REPOSITORY "https://github.com/gflags/gflags.git"
-    GIT_TAG "v2.2.2"
-)
-FetchContent_GetProperties(gflags)
-if(NOT gflags_POPULATED)
-    FetchContent_Populate(gflags)
-    add_subdirectory(${gflags_SOURCE_DIR} ${gflags_BINARY_DIR})
-endif()
+add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
+                 ${CMAKE_CURRENT_BINARY_DIR}/gflags_build
+                 EXCLUDE_FROM_ALL)
 
-target_link_libraries(${TARGET_NAME} gflags)
+target_link_libraries(${TARGET_NAME} gflags tests_shared_lib)

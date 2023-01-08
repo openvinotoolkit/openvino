@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,7 +33,7 @@ function(ieTargetLinkWholeArchive targetName)
                     "-WHOLEARCHIVE:\"$<TARGET_FILE:${staticLib}>\""
                     )
             endif()
-        elseif(APPLE)
+        elseif(OV_COMPILER_IS_APPLECLANG)
             list(APPEND libs
                 "-Wl,-all_load"
                 ${staticLib}

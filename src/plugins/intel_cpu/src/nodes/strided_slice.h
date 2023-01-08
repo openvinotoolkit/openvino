@@ -1,0 +1,139 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <node.h>
+#include <string>
+#include <vector>
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+class StridedSlice : public Node {
+public:
+    StridedSlice(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
+    void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
+    void createPrimitive() override;
+    void execute(dnnl::stream strm) override;
+    bool created() const override;
+    bool canBeInPlace() const override {
+        return false;
+    }
+
+    bool isExecutable() const override;
+    bool needShapeInfer() const override;
+
+    struct StridedSliceAttributes {
+        std::vector<int> begin;
+        std::vector<int> end;
+        std::vector<int> stride;
+        std::vector<int> axes;
+
+        std::vector<int> beginMask;
+        std::vector<int> endMask;
+        std::vector<int> ellipsisMask;
+        std::vector<int> newAxisMask;
+        std::vector<int> shrinkAxisMask;
+
+        VectorDims beginDims;
+        VectorDims endDims;
+        VectorDims strideDims;
+        VectorDims axesDims;
+
+        bool equalDims = false;
+        size_t dataSize = 1lu;
+        int ellipsisMaskCounter = 0;
+        bool isStridedSliceOp = true;
+        int ellipsisPos1 = -1;
+        bool hasConstInputs = false;
+    } attrs;
+
+protected:
+    bool needPrepareParams() const override;
+    void prepareParams() override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+private:
+    class StridedSliceExecutor {
+    public:
+        StridedSliceExecutor(const StridedSliceAttributes& attrs,
+                             const std::vector<MemoryCPtr>& srcMemory,
+                             const std::vector<MemoryCPtr>& dstMemory,
+                             const std::string& errorPrefix) : errorPrefix(errorPrefix) {}
+        virtual void exec(const std::vector<MemoryCPtr>& srcMemory,
+                          const std::vector<MemoryCPtr>& dstMemory) = 0;
+        virtual ~StridedSliceExecutor() = default;
+
+    protected:
+        const std::string errorPrefix;
+    };
+
+    class StridedSliceCommonExecutor : public StridedSliceExecutor {
+    public:
+        StridedSliceCommonExecutor(const StridedSliceAttributes& attrs,
+                                   const std::vector<MemoryCPtr>& srcMemory,
+                                   const std::vector<MemoryCPtr>& dstMemory,
+                                   const std::string& errorPrefix);
+        void exec(const std::vector<MemoryCPtr>& srcMemory,
+                  const std::vector<MemoryCPtr>& dstMemory) override;
+
+    private:
+        struct StridedSliceParams {
+            StridedSliceAttributes attrs;
+            VectorDims srcBlockedDims;
+            VectorDims srcOrder;
+            VectorDims dstBlockedDims;
+            VectorDims srcStrides;
+            VectorDims dstStrides;
+            size_t nDimsForWork = 0lu;
+            bool isOptimized = false;
+        };
+
+        void paramsInitialization(const StridedSliceAttributes& attrs,
+                                  const std::vector<MemoryCPtr>& srcMemory,
+                                  const std::vector<MemoryCPtr>& dstMemory);
+        void dimsNormalization();
+        void dimsGluing();
+        void indicesCalculation();
+        void indicesCalculationForOptimized();
+        void orderParametersByLayouts(const BlockedMemoryDescCPtr& blockedMemoryDesc);
+
+        StridedSliceParams params;
+        VectorDims srcIndices;
+        VectorDims dstIndices;
+        size_t nThreads = 0lu;
+        size_t workAmount = 0lu;
+        size_t lastDstDim = 0lu;
+        size_t srcShift = 0lu;
+    };
+    using executorPtr = std::shared_ptr<StridedSliceExecutor>;
+    executorPtr execPtr = nullptr;
+
+    bool isStrideSpecified = false;
+    bool isAxesSpecified = false;
+
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t BEGIN_ID = 1;
+    static constexpr size_t END_ID = 2;
+    static constexpr size_t STRIDE_ID = 3;
+    static constexpr size_t AXES_ID = 4;
+
+    bool isConstantInput[AXES_ID + 1] = {false};
+    bool shapeHasDataDependency = false;
+    bool hasConstAttrInputs = true;
+
+    std::vector<MemoryCPtr> srcMemory;
+    std::vector<MemoryCPtr> dstMemory;
+
+    std::string errorPrefix;
+};
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

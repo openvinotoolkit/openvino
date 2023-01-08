@@ -1,4 +1,4 @@
-## Constant <a name="Constant"></a> {#openvino_docs_ops_infrastructure_Constant_1}
+# Constant {#openvino_docs_ops_infrastructure_Constant_1}
 
 **Versioned name**: *Constant-1*
 
@@ -12,33 +12,38 @@
 
   * **Description**: specifies position in binary file with weights where the content of the constant begins; value in bytes
   * **Range of values**: non-negative integer value
-  * **Type**: int
-  * **Default value**: none
+  * **Type**: `int`
   * **Required**: *yes*
 
 * *size*
 
   * **Description**: size of constant content in binary files; value in bytes
   * **Range of values**: positive integer bigger than zero
-  * **Type**: int
-  * **Default value**: none
+  * **Type**: `int`
   * **Required**: *yes*
 
 * *element_type*
 
   * **Description**: the type of element of output tensor
   * **Range of values**: u1, u8, u16, u32, u64, i8, i16, i32, i64, f16, f32, boolean, bf16
-  * **Type**: string
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Type**: `string`
+  * **Required**: *yes*
 
 * *shape*
 
   * **Description**: the shape of the output tensor
   * **Range of values**: list of non-negative integers, empty list is allowed, which means 0D or scalar tensor
-  * **Type**: int[]
-  * **Default value**: None
-  * **Required**: *Yes*
+  * **Type**: `int[]`
+  * **Required**: *yes*
+
+
+**Outputs**
+
+* **1**: Output tensor of type *T*.
+
+**Types**
+
+* *T*: any type from *element type* values.
 
 **Example**
 

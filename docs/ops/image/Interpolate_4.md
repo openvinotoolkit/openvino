@@ -1,8 +1,8 @@
-## Interpolate <a name="Interpolate"></a> {#openvino_docs_ops_image_Interpolate_4}
+# Interpolate {#openvino_docs_ops_image_Interpolate_4}
 
 **Versioned name**: *Interpolate-4*
 
-**Category**: Image processing
+**Category**: *Image processing*
 
 **Short description**: *Interpolate* layer performs interpolation of independent slices in input tensor by specified dimensions and attributes.
 
@@ -13,8 +13,8 @@
   * **Description**: specifies type of interpolation
   * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
+  **Note**: Only 2D, 3D, 4D, 5D tensors with `axes = {0, 1}`, `axes = {0, 1, 2}`, `axes = {2, 3}`,  `axes = {2, 3, 4}` respectively are supported for `"mode" == "linear_onnx"`.
 
 * *shape_calculation_mode*
 
@@ -23,7 +23,6 @@
     * `sizes` - an output shape is calculated as `output_shape[axes[i]] = sizes[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`.
     * `scales` - an output shape is calculated as `output_shape[axes[i]] = floor(scales[i] * (input_shape[axes[i]] + pads_begin[axes[i]] + pads_end[axes[i]]))` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`
   * **Type**: string
-  * **Default value**: none
   * **Required**: *yes*
 
 * *coordinate_transformation_mode*
@@ -80,25 +79,31 @@
 
 * *cube_coeff*
 
-* **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
-  * **Range of values**: floating point number
-  * **Type**: any of supported floating point type
+  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
+  * **Range of values**: floating-point number
+  * **Type**: any of supported floating-point type
   * **Default value**: `-0.75`
   * **Required**: *no*
 
 **Inputs**
 
-*   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type or `int8` type. Required.
+*   **1**: `data` - tensor of type *T* with data for interpolation. **Required.**
 
-*   **2**: `sizes` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
+*   **2**: `sizes` - 1D tensor of type *T_SIZE* describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. **Required.**
 
-*   **3**: `scales` - 1D tensor describing scales for spatial axes. Type of elements is any supported floating point type. Number and order of elements match the number and order of indices in `axes` input. Required.
+*   **3**: `scales` - 1D tensor of type *T_SCALES* describing scales for spatial axes. Number and order of elements match the number and order of indices in `axes` input. **Required.**
 
-*   **4**: `axes` - 1D tensor specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. Optional with default value `[0,...,rank(data) - 1]`.
+*   **4**: `axes` - 1D tensor of type *T_AXES* specifying dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `sizes`. **Optional** with default value `[0,...,rank(data) - 1]`.
 
 **Outputs**
 
 *   **1**: Resulting interpolated tensor with elements of the same type as input `data` tensor. The shape of the output matches input `data` shape except spatial dimensions mentioned in `axes` attribute. For other dimensions shape matches sizes from `sizes` in order specified in `axes`.
+
+**Types**
+* *T*: any supported numeric type.
+* *T_SIZE*: any supported integer type.
+* *T_SCALES*: any supported floating-point type.
+* *T_AXES*: any supported integer type.
 
 
 **Detailed description**
@@ -365,7 +370,119 @@ class InterpolateCalculation:
 
         return result
 
-    def onnx_linear_interpolation(self, input_data):
+    def onnx_linear_interpolation5D(self, input_data):
+        rank = len(self.input_shape)
+        assert rank in [3, 5], "mode 'linear_onnx' supports only 3D or 5D tensors"
+        assert set(self.axes) == {2, 3, 4} or set(self.axes) == {0, 1, 2}, \
+            "mode 'linear_onnx' supports only case when axes = {2, 3, 4} or axes = {0, 1, 2}"
+
+        result = np.zeros(self.output_shape)
+
+        if rank == 3:
+            reshaped_data = np.reshape(input_data, (1, 1, self.input_shape[0], self.input_shape[1], self.input_shape[2]))
+            result = np.reshape(result,  (1, 1, self.output_shape[0], self.output_shape[1], self.output_shape[2]))
+        else:
+            reshaped_data = input_data
+
+        input_shape = np.array(reshaped_data.shape).astype(np.int64)
+        output_shape = np.array(result.shape).astype(np.int64)
+
+        batch_size = input_shape[0];
+        num_channels = input_shape[1];
+        input_depth = input_shape[2];
+        input_height = input_shape[3];
+        input_width = input_shape[4];
+        output_depth = output_shape[2];
+        output_height = output_shape[3];
+        output_width = output_shape[4];
+
+        depth_scale = self.scales[0];
+        height_scale = self.scales[1];
+        width_scale = self.scales[2];
+
+        z_original = np.zeros(output_depth).astype(np.float)
+        y_original = np.zeros(output_height).astype(np.float)
+        x_original = np.zeros(output_width).astype(np.float)
+
+        in_z1 = np.zeros(output_depth).astype(np.int64)
+        in_z2 = np.zeros(output_depth).astype(np.int64)
+        in_y1 = np.zeros(output_height).astype(np.int64)
+        in_y2 = np.zeros(output_height).astype(np.int64)
+        in_x1 = np.zeros(output_width).astype(np.int64)
+        in_x2 = np.zeros(output_width).astype(np.int64)
+
+        dz1 = np.zeros(output_depth).astype(np.float)
+        dz2 = np.zeros(output_depth).astype(np.float)
+
+        dy1 = np.zeros(output_height).astype(np.float)
+        dy2 = np.zeros(output_height).astype(np.float)
+
+        dx1 = np.zeros(output_width).astype(np.float)
+        dx2 = np.zeros(output_width).astype(np.float)
+
+        for z in range(0, output_depth):
+            in_z = self.get_original_coordinate(z, depth_scale, output_depth, input_depth)
+            z_original[z] = in_z
+            in_z = max(0, min(in_z, input_depth - 1))
+            in_z1[z] = max(0, min(int(in_z), input_depth - 1))
+            in_z2[z] = min(in_z1[z] + 1, input_depth - 1)
+            dz1[z] = abs(in_z - in_z1[z])
+            dz2[z] = abs(in_z - in_z2[z])
+
+            if in_z1[z] == in_z2[z]:
+                dz1[z] = 0.5
+                dz2[z] = 0.5
+
+        for y in range(0, output_height):
+            in_y = self.get_original_coordinate(y, height_scale, output_height, input_height)
+            y_original[y] = in_y
+            in_y = max(0, min(in_y, input_height - 1))
+            in_y1[y] = max(0, min(int(in_y), input_height - 1))
+            in_y2[y] = min(in_y1[y] + 1, input_height - 1)
+            dy1[y] = abs(in_y - in_y1[y])
+            dy2[y] = abs(in_y - in_y2[y])
+
+            if in_y1[y] == in_y2[y]:
+                dy1[y] = 0.5
+                dy2[y] = 0.5
+
+        for x in range(0, output_width):
+            in_x = self.get_original_coordinate(x, width_scale, output_width, input_width);
+            x_original[x] = in_x
+            in_x = max(0.0, min(in_x, input_width - 1));
+
+            in_x1[x] = min(in_x, input_width - 1);
+            in_x2[x] = min(in_x1[x] + 1, input_width - 1);
+
+            dx1[x] = abs(in_x - in_x1[x]);
+            dx2[x] = abs(in_x - in_x2[x]);
+            if in_x1[x] == in_x2[x]:
+                dx1[x] = 0.5
+                dx2[x] = 0.5
+        for n in range(0, batch_size):
+            for c in range(0, num_channels):
+                for z in range(0, output_depth):
+                    for y in range(0, output_height):
+                        for x in range(0, output_width):
+                            x111 = reshaped_data[n, c, in_z1[z], in_y1[y], in_x1[x]]
+                            x211 = reshaped_data[n, c, in_z1[z], in_y1[y], in_x2[x]]
+                            x121 = reshaped_data[n, c, in_z1[z], in_y2[y], in_x1[x]]
+                            x221 = reshaped_data[n, c, in_z1[z], in_y2[y], in_x2[x]]
+                            x112 = reshaped_data[n, c, in_z2[z], in_y1[y], in_x1[x]]
+                            x212 = reshaped_data[n, c, in_z2[z], in_y1[y], in_x2[x]]
+                            x122 = reshaped_data[n, c, in_z2[z], in_y2[y], in_x1[x]]
+                            x222 = reshaped_data[n, c, in_z2[z], in_y2[y], in_x2[x]]
+
+                            temp = dx2[x] * dy2[y] * dz2[z] * x111 + dx1[x] * dy2[y] * dz2[z] * x211
+                            temp += dx2[x] * dy1[y] * dz2[z] * x121 + dx1[x] * dy1[y] * dz2[z] * x221
+                            temp += dx2[x] * dy2[y] * dz1[z] * x112 + dx1[x] * dy2[y] * dz1[z] * x212
+                            temp += dx2[x] * dy1[y] * dz1[z] * x122 + dx1[x] * dy1[y] * dz1[z] * x222
+
+                            result[n, c, z, y, x] = temp
+
+        return np.reshape(result, self.output_shape)
+
+    def onnx_linear_interpolation4D(self, input_data):
         rank = len(self.input_shape)
         assert rank in [2, 4], "mode 'linear_onnx' supports only 2D or 4D tensors"
         assert set(self.axes) == {2, 3} or set(self.axes) == {0, 1}, \
@@ -444,6 +561,15 @@ class InterpolateCalculation:
                         result[n, c, y, x] = temp
 
         return np.reshape(result, self.output_shape)
+
+    def onnx_linear_interpolation(self, input_data):
+        rank = len(self.input_shape)
+        assert rank in [2, 3, 4, 5], "mode 'linear_onnx' supports only 2D, 3D, 4D, or 5D tensors"
+
+        if rank in [2, 4]:
+            self.onnx_linear_interpolation4D(input_data)
+        else:
+            self.onnx_linear_interpolation5D(input_data)
 
     def nearest_interpolation(self, input_data):
         result = np.zeros(self.output_shape)

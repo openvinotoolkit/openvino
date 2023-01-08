@@ -1,14 +1,11 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 """
 Basic high-level plugin file for pytest.
-
 See [Writing plugins](https://docs.pytest.org/en/latest/writing_plugins.html)
 for more information.
-
 This plugin adds the following command-line options:
-
 * `--test_conf` - Path to test configuration file. Used to parametrize tests.
   Format: YAML file.
 * `--exe` - Path to a timetest binary to execute.
@@ -29,10 +26,13 @@ import pytest
 import yaml
 from jsonschema import validate, ValidationError
 
-from scripts.run_timetest import check_positive_int
-from test_runner.utils import upload_timetest_data, metadata_from_manifest, get_os_name, get_os_version, \
-    DATABASE, DB_COLLECTIONS
+# add utils folder to imports
+UTILS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "utils")
+sys.path.insert(0, str(UTILS_DIR))
 
+from path_utils import check_positive_int
+from platform_utils import get_os_name, get_os_version, get_cpu_info
+from utils import upload_data, metadata_from_manifest, push_to_db_facade, modify_data_for_push_to_new_db, DB_COLLECTIONS
 
 # -------------------- CLI options --------------------
 
@@ -43,7 +43,7 @@ def pytest_addoption(parser):
     test_args_parser.addoption(
         "--test_conf",
         type=Path,
-        help="path to a test config",
+        help="Path to a test config",
         default=Path(__file__).parent / "test_config.yml"
     )
     test_args_parser.addoption(
@@ -51,27 +51,25 @@ def pytest_addoption(parser):
         required=True,
         dest="executable",
         type=Path,
-        help="path to a timetest binary to execute"
+        help="Path to a timetest binary to execute"
     )
     test_args_parser.addoption(
         "--niter",
         type=check_positive_int,
-        help="number of iterations to run executable and aggregate results",
+        help="Number of iterations to run executable and aggregate results",
         default=3
     )
-    # TODO: add support of --mo, --omz etc. required for OMZ support
-    helpers_args_parser = parser.getgroup("test helpers")
-    helpers_args_parser.addoption(
-        "--dump_refs",
-        type=Path,
-        help="path to dump test config with references updated with statistics collected while run",
+    test_args_parser.addoption(
+        "--model_cache",
+        action='store_true',
+        help="Enable model cache usage",
     )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
         metavar="RUN_ID",
         type=str,
-        help='submit results to the database. ' \
+        help='Submit results to the database. ' \
              '`RUN_ID` should be a string uniquely identifying the run' \
              ' (like Jenkins URL or time)'
     )
@@ -86,19 +84,27 @@ def pytest_addoption(parser):
         '--db_collection',
         type=str,
         required=is_db_used,
-        help='collection name in "{}" database'.format(DATABASE),
+        help='Collection name in database',
         choices=DB_COLLECTIONS
     )
     db_args_parser.addoption(
         '--db_metadata',
         type=str,
         default=None,
-        help='path to JSON-formatted file to extract additional information')
+        help='Path to JSON-formatted file to extract additional information'
+    )
     db_args_parser.addoption(
         '--manifest',
         type=Path,
         required=is_db_used,
-        help='path to build manifest to extract commit information')
+        help='Path to build manifest to extract commit information'
+    )
+    db_args_parser.addoption(
+        '--db_api_handler',
+        type=str,
+        help='API handler url for push data to database',
+        default=''
+    )
 
 
 @pytest.fixture(scope="session")
@@ -119,6 +125,12 @@ def niter(request):
     return request.config.getoption('niter')
 
 
+@pytest.fixture(scope="session")
+def model_cache(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('model_cache')
+
+
 # -------------------- CLI options --------------------
 
 
@@ -133,47 +145,61 @@ def temp_dir(pytestconfig):
 
 
 @pytest.fixture(scope="function")
-def cl_cache_dir(pytestconfig):
+def cl_cache_dir(pytestconfig, instance):
     """Generate directory to save OpenCL cache before test run and clean up after run.
-
     Folder `cl_cache` should be created in a directory where tests were run. In this case
     cache will be saved correctly. This behaviour is OS independent.
     More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
     """
-    cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
-    # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
-    # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
-    os.environ["cl_cache_dir"] = str(cl_cache_dir)
-    if cl_cache_dir.exists():
+    if instance["device"]["name"] == "GPU":
+        cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+        # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
+        # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
+        os.environ["cl_cache_dir"] = str(cl_cache_dir)
+        if cl_cache_dir.exists():
+            shutil.rmtree(cl_cache_dir)
+        cl_cache_dir.mkdir()
+        logging.info(f"cl_cache will be created in {cl_cache_dir}")
+        yield cl_cache_dir
         shutil.rmtree(cl_cache_dir)
-    cl_cache_dir.mkdir()
-    yield cl_cache_dir
-    shutil.rmtree(cl_cache_dir)
+    else:
+        yield None
+
+
+@pytest.fixture(scope="function")
+def model_cache_dir(pytestconfig, instance):
+    """
+    Generate directory to IE model cache before test run and clean up after run.
+    """
+    if instance.get("use_model_cache"):
+        model_cache_dir = pytestconfig.invocation_dir / "models_cache"
+        if model_cache_dir.exists():
+            shutil.rmtree(model_cache_dir)
+        model_cache_dir.mkdir()
+        logging.info(f"model_cache will be created in {model_cache_dir}")
+        yield model_cache_dir
+        shutil.rmtree(model_cache_dir)
+    else:
+        yield None
 
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
     """Fixture for collecting timetests information.
-
     Current fixture fills in `request` and `pytestconfig` global
     fixtures with timetests information which will be used for
     internal purposes.
     """
-    setattr(request.node._request, "test_info", {"orig_instance": request.node.funcargs["instance"],
-                                                 "results": {},
+    setattr(request.node._request, "test_info", {"results": {},
+                                                 "raw_results": {},
                                                  "db_info": {}})
-    if not hasattr(pytestconfig, "session_info"):
-        setattr(pytestconfig, "session_info", [])
 
     yield request.node._request.test_info
-
-    pytestconfig.session_info.append(request.node._request.test_info)
 
 
 @pytest.fixture(scope="function")
 def validate_test_case(request, test_info):
     """Fixture for validating test case on correctness.
-
     Fixture checks current test case contains all fields required for
     a correct work.
     """
@@ -197,7 +223,7 @@ def validate_test_case(request, test_info):
             }
         },
         "required": ["device", "model"],
-        "additionalProperties": false
+        "additionalProperties": true
     }
     """
     schema = json.loads(schema)
@@ -213,7 +239,6 @@ def validate_test_case(request, test_info):
 @pytest.fixture(scope="function")
 def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     """Fixture for preparing and validating data to submit to a database.
-
     Fixture prepares data and metadata to submit to a database. One of the steps
     is parsing of build information from build manifest. After preparation,
     it checks if data contains required properties.
@@ -230,6 +255,9 @@ def prepare_db_info(request, test_info, executable, niter, manifest_metadata):
     if db_meta_path:
         with open(db_meta_path, "r") as db_meta_f:
             test_info["db_info"].update(json.load(db_meta_f))
+
+    # add model cache status
+    test_info["db_info"].update({"model_cache": request.config.getoption("model_cache")})
 
     # add test info
     info = {
@@ -308,14 +336,15 @@ def manifest_metadata(request):
         {
             "type": "object",
             "properties": {
-                "product_type": {"enum": ["private_linux_ubuntu_18_04", "private_windows_vs2019"]},
+                "product_type": {"type": "string"},
                 "repo_url": {"type": "string"},
                 "commit_sha": {"type": "string"},
                 "commit_date": {"type": "string"},
+                "branch": {"type": "string"},
                 "target_branch": {"type": "string"},
                 "version": {"type": "string"}
             },
-            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "target_branch", "version"],
+            "required": ["product_type", "repo_url", "commit_sha", "commit_date", "branch", "target_branch", "version"],
             "additionalProperties": false
         }
         """
@@ -329,26 +358,8 @@ def manifest_metadata(request):
     yield manifest_meta
 
 
-@pytest.fixture(scope="session", autouse=True)
-def prepare_tconf_with_refs(pytestconfig):
-    """Fixture for preparing test config based on original test config
-    with timetests results saved as references.
-    """
-    yield
-    new_tconf_path = pytestconfig.getoption('dump_refs')
-    if new_tconf_path:
-        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
-        upd_cases = pytestconfig.orig_cases.copy()
-        for record in pytestconfig.session_info:
-            rec_i = upd_cases.index(record["orig_instance"])
-            upd_cases[rec_i]["references"] = record["results"]
-        with open(new_tconf_path, "w") as tconf:
-            yaml.safe_dump(upd_cases, tconf)
-
-
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
-
     Generate parameterized tests from discovered modules and test config
     parameters.
     """
@@ -356,7 +367,6 @@ def pytest_generate_tests(metafunc):
         test_cases = yaml.safe_load(file)
     if test_cases:
         metafunc.parametrize("instance", test_cases)
-        setattr(metafunc.config, "orig_cases", test_cases)
 
 
 def pytest_make_parametrize_id(config, val, argname):
@@ -380,7 +390,6 @@ def pytest_make_parametrize_id(config, val, argname):
 @pytest.mark.hookwrapper
 def pytest_runtest_makereport(item, call):
     """Pytest hook for report preparation.
-
     Submit tests' data to a database.
     """
 
@@ -391,6 +400,8 @@ def pytest_runtest_makereport(item, call):
 
     data = item._request.test_info["db_info"].copy()
     data["results"] = item._request.test_info["results"].copy()
+    data["raw_results"] = item._request.test_info["raw_results"].copy()
+    data["cpu_info"] = get_cpu_info()
     data["status"] = "not_finished"
     data["error_msg"] = ""
 
@@ -405,5 +416,12 @@ def pytest_runtest_makereport(item, call):
 
         db_url = item.config.getoption("db_url")
         db_collection = item.config.getoption("db_collection")
-        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
-        upload_timetest_data(data, db_url, db_collection)
+        logging.info(f"Upload data to {db_url}/{'timetests'}.{db_collection}. "
+                     f"Data: {data}")
+        upload_data(data, db_url, 'timetests', db_collection)
+
+        db_api_handler = item.config.getoption("db_api_handler")
+        if db_api_handler and call.when == "call":
+            new_format_records = modify_data_for_push_to_new_db(data)
+            new_format_records['data'][0]["log"] = item._request.test_info["logs"]
+            push_to_db_facade(new_format_records, db_api_handler)

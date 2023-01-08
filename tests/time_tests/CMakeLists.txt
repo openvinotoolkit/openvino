@@ -1,20 +1,25 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 cmake_minimum_required(VERSION 3.13)
 
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+endif()
+
 set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
 project(time_tests)
 
-
-find_package(InferenceEngine)
-if (NOT InferenceEngine_FOUND)
-    set (HAVE_SYS_STAT_H 1)
-    set (HAVE_INTTYPES_H 1)
-    set (INTTYPES_FORMAT C99)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-endif()
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 add_subdirectory(src)
+
+install(DIRECTORY test_runner/ DESTINATION tests/time_tests/test_runner COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY .automation/ DESTINATION tests/time_tests/test_runner/.automation COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY scripts/ DESTINATION tests/time_tests/scripts COMPONENT tests EXCLUDE_FROM_ALL)
+install(DIRECTORY ../utils/ DESTINATION tests/utils COMPONENT tests EXCLUDE_FROM_ALL)

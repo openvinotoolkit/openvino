@@ -1,4 +1,4 @@
-## ExtractImagePatches <a name="ExtractImagePatches"></a> {#openvino_docs_ops_movement_ExtractImagePatches_3}
+# ExtractImagePatches {#openvino_docs_ops_movement_ExtractImagePatches_3}
 
 **Versioned name**: *ExtractImagePatches-3*
 
@@ -8,9 +8,7 @@
 
 **Detailed description**:
 
-The *ExtractImagePatches* operation is similar to the TensorFlow* operation [ExtractImagePatches](https://www.tensorflow.org/api_docs/python/tf/image/extract_patches).
-
-This op extracts patches of shape `sizes` which are `strides` apart in the input image. The output elements are taken from the input at intervals given by the `rate` argument, as in dilated convolutions.
+The *ExtractImagePatches* operation extracts patches of shape `sizes` which are `strides` apart in the input image. The output elements are taken from the input at intervals given by the `rate` argument, as in dilated convolutions.
 
 The result is a 4D tensor containing image patches with size `size[0] * size[1] * depth` vectorized in the "depth" dimension.
 
@@ -24,7 +22,6 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
   * **Description**: *sizes* is a size `[size_rows, size_cols]` of the extracted patches.
   * **Range of values**: non-negative integer number
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *strides*
@@ -32,15 +29,13 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
   * **Description**: *strides* is a distance `[stride_rows, stride_cols]` between centers of two consecutive patches in an input tensor.
   * **Range of values**: non-negative integer number
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *rates*
 
-  * **Description**: *rates* is the input stride `[rate_rows, rate_cols]`, specifying how far two consecutive patch samples are in the input. Equivalent to extracting patches with `patch_sizes_eff = patch_sizes + (patch_sizes - 1) * (rates - 1)`, followed by subsampling them spatially by a factor of rates. This is equivalent to rate in dilated (a.k.a. Atrous) convolutions. 
+  * **Description**: *rates* is the input stride `[rate_rows, rate_cols]`, specifying how far two consecutive patch samples are in the input. Equivalent to extracting patches with `patch_sizes_eff = patch_sizes + (patch_sizes - 1) * (rates - 1)`, followed by subsampling them spatially by a factor of rates. This is equivalent to rate in dilated (a.k.a. Atrous) convolutions.
   * **Range of values**: non-negative integer number
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
@@ -49,7 +44,6 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
     * *same_upper (same_lower)* the input is padded by zeros to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
     * *valid* - do not use padding.
   * **Type**: string
-  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**
@@ -79,7 +73,7 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
         </port>
     </input>
     <output>
-        <port id="1" precision="f32">      
+        <port id="1" precision="f32">
             <dim>64</dim>
             <dim>27</dim>
             <dim>2</dim>
@@ -92,20 +86,23 @@ The "auto_pad" attribute has no effect on the size of each patch, it determines 
 Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We use the symbol `x` to mark output patches.
 
 1. `sizes="3,3", strides="5,5", rates="1,1", auto_pad="valid"`
+\f[
+    \begin{bmatrix}
+        x & x & x & 4 & 5 & x & x & x & 9 & 10 \\
+        x & x & x & 14 & 15 & x & x & x & 19 & 20 \\
+        x & x & x & 24 & 25 & x & x & x & 29 & 30 \\
+        31 & 32 & 33 & 34 & 35 & 36 & 37 & 38 & 39 & 40 \\
+        41 & 42 & 43 & 44 & 45 & 46 & 47 & 48 & 49 & 50 \\
+        x & x & x & 54 & 55 & x & x & x & 59 & 60 \\
+        x & x & x & 64 & 65 & x & x & x & 69 & 70 \\
+        x & x & x & 74 & 75 & x & x & x & 79 & 80 \\
+        81 & 82 & 83 & 84 & 85 & 86 & 87 & 88 & 89 & 90 \\
+        91 & 92 & 93 & 94 & 95 & 96 & 79 & 98 & 99 & 100
+    \end{bmatrix}
+\f]
 
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp; 4 &nbsp; 5 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp; 9 10    
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;14 15 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x 19 20  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;24 25 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x 29 30  
-  31 32 33 34 35 36 37 38 39 40  
-  41 42 43 44 45 46 47 48 49 50  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;54 55 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x 59 60  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;64 65 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x 69 70  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;74 75 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x 79 80  
-  81 82 83 84 85 86 87 88 89 90  
-  91 92 93 94 95 96 97 98 99 100  
-  
-  output:  
-
+  output:
+```
     [[[[ 1  6]
        [51 56]]
 
@@ -131,26 +128,29 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
        [72 77]]
 
       [[23 28]
-       [73 78]]]] 
-
+       [73 78]]]]
+```
   output shape: `[1, 9, 2, 2]`
-  
+
 2. `sizes="4,4", strides="8,8", rates="1,1", auto_pad="valid"`
+\f[
+    \begin{bmatrix}
+        x & x & x & x & 5 & 6 & 7 & 8 & 9 & 10 \\
+        x & x & x & x & 15 & 16 & 17 & 18 & 19 & 20 \\
+        x & x & x & x & 25 & 26 & 27 & 28 & 29 & 30 \\
+        x & x & x & x & 35 & 36 & 37 & 38 & 39 & 40 \\
+        41 & 42 & 43 & 44 & 45 & 46 & 47 & 48 & 49 & 50 \\
+        51 & 52 & 53 & 54 & 55 & 56 & 57 & 58 & 59 & 60 \\
+        61 & 62 & 63 & 64 & 65 & 66 & 67 & 68 & 69 & 70 \\
+        71 & 72 & 73 & 74 & 75 & 76 & 77 & 78 & 79 & 80 \\
+        81 & 82 & 83 & 84 & 85 & 86 & 87 & 88 & 89 & 90 \\
+        91 & 92 & 93 & 94 & 95 & 96 & 79 & 98 & 99 & 100
+    \end{bmatrix}
+\f]
 
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;&nbsp;5 &nbsp;&nbsp;6 &nbsp;&nbsp;7 &nbsp;&nbsp;8 &nbsp;&nbsp;9 10  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;15 16 17 18 19 20  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;25 26 27 28 29 30  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;35 36 37 38 39 40  
-  41 42 43 44 45 46 47 48 49 50  
-  51 52 53 54 55 56 57 58 59 60  
-  61 62 63 64 65 66 67 68 69 70  
-  71 72 73 74 75 76 77 78 79 80  
-  81 82 83 84 85 86 87 88 89 90  
-  91 92 93 94 95 96 97 98 99 100  
-  
-  output:  
-
-    [[[[ 1]]
+  output:
+```
+     [[[[ 1]]
 
       [[ 2]]
 
@@ -180,28 +180,30 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
 
       [[33]]
 
-      [[34]]]] 
-      
+      [[34]]]]
+```
   output shape: `[1, 16, 1, 1]`
 
 3. `sizes="4,4", strides="9,9", rates="1,1", auto_pad="same_upper"`
-
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;&nbsp;4 &nbsp;&nbsp;5 &nbsp;&nbsp;6 &nbsp;&nbsp;7 &nbsp;&nbsp;8 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;14 15 16 17 18 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;24 25 26 27 28 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;0 31 32 33 34 35 36 37 38 39 40 &nbsp;&nbsp;0 &nbsp;&nbsp;0  
-   &nbsp;&nbsp;0 41 42 43 44 45 46 47 48 49 50 &nbsp;&nbsp;0 &nbsp;&nbsp;0  
-   &nbsp;&nbsp;0 51 52 53 54 55 56 57 58 59 60 &nbsp;&nbsp;0 &nbsp;&nbsp;0  
-   &nbsp;&nbsp;0 61 62 63 64 65 66 67 68 69 70 &nbsp;&nbsp;0 &nbsp;&nbsp;0  
-   &nbsp;&nbsp;0 71 72 73 74 75 76 77 78 79 80 &nbsp;&nbsp;0 &nbsp;&nbsp;0  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;84 85 86 87 88 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;94 95 96 97 98 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;0 &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;x    
-
-  output:  
-
+\f[
+    \begin{bmatrix}
+        x & x & x & x & 0 & 0 & 0 & 0 & 0 & x & x & x & x\\
+        x & x & x & x & 4 & 5 & 6 & 7 & 8 & x & x & x & x\\
+        x & x & x & x & 14 & 15 & 16 & 17 & 18 & x & x & x & x\\
+        x & x & x & x & 24 & 25 & 26 & 27 & 28 & x & x & x & x\\
+        0 & 31 & 32 & 33 & 34 & 35 & 36 & 37 & 38 & 39 & 40 & 0 & 0\\
+        0 & 41 & 42 & 43 & 44 & 45 & 46 & 47 & 48 & 49 & 50 & 0 & 0\\
+        0 & 51 & 52 & 53 & 54 & 55 & 56 & 57 & 58 & 59 & 60 & 0 & 0\\
+        0 & 61 & 62 & 63 & 64 & 65 & 66 & 67 & 68 & 69 & 70 & 0 & 0\\
+        0 & 71 & 72 & 73 & 74 & 75 & 76 & 77 & 78 & 79 & 80 & 0 & 0\\
+        x & x & x & x & 84 & 85 & 86 & 87 & 88 & x & x & x & x\\
+        x & x & x & x & 94 & 95 & 96 & 79 & 98 & x & x & x & x\\
+        x & x & x & x & 0 & 0 & 0 & 0 & 0 & x & x & x & x\\
+        x & x & x & x & 0 & 0 & 0 & 0 & 0 & x & x & x & x
+    \end{bmatrix}
+\f]
+  output:
+```
     [[[[  0   0]
        [  0  89]]
 
@@ -248,26 +250,29 @@ Image is a `1 x 1 x 10 x 10` array that contains the numbers 1 through 100. We u
        [  0   0]]
 
       [[ 23   0]
-       [  0   0]]]] 
-
+       [  0   0]]]]
+```
   output shape: `[1, 16, 2, 2]`
 
-4. `sizes="3,3", strides="5,5", rates="2,2", auto_pad="valid"`  
+4. `sizes="3,3", strides="5,5", rates="2,2", auto_pad="valid"`
 This time we use the symbols `x`, `y`, `z` and `k` to distinguish the patches:
-  
-   &nbsp;&nbsp;x &nbsp;&nbsp;2 &nbsp;&nbsp;x &nbsp;&nbsp;4 &nbsp;&nbsp;x &nbsp;&nbsp;y &nbsp;&nbsp;7 &nbsp;&nbsp;y &nbsp;&nbsp;9 &nbsp;&nbsp;y  
-  11 12 13 14 15 16 17 18 19 20  
-   &nbsp;&nbsp;x &nbsp;22 &nbsp;&nbsp;x 24 &nbsp;&nbsp;x &nbsp;&nbsp;y 27 &nbsp;&nbsp;y 29 &nbsp;&nbsp;y  
-  31 32 33 34 35 36 37 38 39 40  
-   &nbsp;&nbsp;x &nbsp;42 &nbsp;&nbsp;x 44 &nbsp;&nbsp;x &nbsp;&nbsp;y 47 &nbsp;&nbsp;y 49 &nbsp;&nbsp;y  
-   &nbsp;&nbsp;z &nbsp;52 &nbsp;&nbsp;z 54 &nbsp;&nbsp;z &nbsp;&nbsp;k 57 &nbsp;&nbsp;k 59 &nbsp;&nbsp;k  
-  61 62 63 64 65 66 67 68 69 70  
-   &nbsp;&nbsp;z &nbsp;72 &nbsp;&nbsp;z 74 &nbsp;&nbsp;z &nbsp;&nbsp;k 77 &nbsp;&nbsp;k 79 &nbsp;&nbsp;k  
-  81 82 83 84 85 86 87 88 89 90  
-   &nbsp;&nbsp;z &nbsp;92 &nbsp;&nbsp;z 94 &nbsp;&nbsp;z &nbsp;&nbsp;k 97 &nbsp;&nbsp;k 99 &nbsp;&nbsp;k
-   
-  output:
+\f[
+    \begin{bmatrix}
+        x & 2 & x & 4 & x & y & 7 & y & 9 & y \\
+        11 & 12 & 13 & 14 & 15 & 16 & 17 & 18 & 19 & 20 \\
+        x & 22 & x & 24 & x & y & 27 & y & 29 & y \\
+        31 & 32 & 33 & 34 & 35 & 36 & 37 & 38 & 39 & 40 \\
+        x & 42 & x & 44 & x & y & 47 & y & 49 & y \\
+        z & 52 & z & 54 & z & k & 57 & k & 59 & k \\
+        61 & 62 & 63 & 64 & 65 & 66 & 67 & 68 & 69 & 70 \\
+        z & 72 & z & 74 & z & k & 77 & k & 79 & k \\
+        81 & 82 & 83 & 84 & 85 & 86 & 87 & 88 & 89 & 90 \\
+        z & 92 & z & 94 & z & k & 79 & k & 99 & k
+    \end{bmatrix}
+\f]
 
+  output:
+```
     [[[[  1   6]
        [ 51  56]]
 
@@ -293,27 +298,31 @@ This time we use the symbols `x`, `y`, `z` and `k` to distinguish the patches:
        [ 93  98]]
 
       [[ 45  50]
-       [ 95 100]]]] 
-
+       [ 95 100]]]]
+```
   output_shape: `[1, 9, 2, 2]`
 
-5. `sizes="2,2", strides="3,3", rates="1,1", auto_pad="valid"`  
-Image is a `1 x 2 x 5 x 5` array that contains two feature maps where feature map with coordinate 0 contains numbers in a range `[1, 25]` and feature map with coordinate 1 contains numbers in a range `[26, 50]`  
+5. `sizes="2,2", strides="3,3", rates="1,1", auto_pad="valid"`
+Image is a `1 x 2 x 5 x 5` array that contains two feature maps where feature map with coordinate 0 contains numbers in a range `[1, 25]` and feature map with coordinate 1 contains numbers in a range `[26, 50]`
 
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;&nbsp;3 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;6 &nbsp;&nbsp;7 &nbsp;&nbsp;8 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-  11 12 13 14 15  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;18 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;23 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;28 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;33 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-  36 37 38 39 40  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;43 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-   &nbsp;&nbsp;x &nbsp;&nbsp;x &nbsp;48 &nbsp;&nbsp;x &nbsp;&nbsp;x  
-
+\f[
+    \begin{bmatrix}
+        x & x & 3 & x & x\\
+        x & x & 8 & x & x\\
+        11 & 12 & 13 & 14 & 15\\
+        x & x & 18 & x & x\\
+        x & x & 23 & x & x
+    \end{bmatrix}\\
+    \begin{bmatrix}
+        x & x & 28 & x & x\\
+        x & x & 33 & x & x\\
+        36 & 37 & 38 & 39 & 40\\
+        x & x & 43 & x & x\\
+        x & x & 48 & x & x
+    \end{bmatrix}
+\f]
   output:
-
+```
     [[[[ 1  4]
        [16 19]]
 
@@ -336,6 +345,6 @@ Image is a `1 x 2 x 5 x 5` array that contains two feature maps where feature ma
        [22 25]]
 
       [[32 35]
-       [47 50]]]] 
-   
+       [47 50]]]]
+```
   output shape: `[1, 8, 2, 2]`

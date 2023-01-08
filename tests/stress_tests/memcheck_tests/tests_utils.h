@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,24 +6,27 @@
 
 #include "../common/tests_utils.h"
 
+#include <array>
 #include <pugixml.hpp>
 
 // Measure values
-enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
+enum MeasureValue {
+    VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax
+};
 // Measure values headers
-const std::array<std::string, MeasureValueMax> MeasureValueHeader { "VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS" };
+const std::array<std::string, MeasureValueMax> MeasureValueHeader{"VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS"};
 
 namespace util {
-    template <typename Type>
-    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> & array,
-                                                 const std::string & delimiter = "\t\t") {
+    template<typename Type>
+    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> &array,
+                                                 const std::string &delimiter = "\t\t") {
         std::string str = std::to_string(*array.begin());
         for (auto it = array.begin() + 1; it != array.end(); it++)
             str += delimiter + std::to_string(*it);
         return str;
     }
 
-    static std::string get_measure_values_headers(const std::string & delimiter = "\t\t") {
+    static std::string get_measure_values_headers(const std::string &delimiter = "\t\t") {
         std::string str = *MeasureValueHeader.begin();
         for (auto it = MeasureValueHeader.begin() + 1; it != MeasureValueHeader.end(); it++)
             str += delimiter + *it;
@@ -34,16 +37,20 @@ namespace util {
 class MemCheckEnvironment {
 private:
     pugi::xml_document _refs_config;
+
     MemCheckEnvironment() = default;
-    MemCheckEnvironment(const MemCheckEnvironment&) = delete;
-    MemCheckEnvironment& operator=(const MemCheckEnvironment&) = delete;
+
+    MemCheckEnvironment(const MemCheckEnvironment &) = delete;
+
+    MemCheckEnvironment &operator=(const MemCheckEnvironment &) = delete;
+
 public:
-    static MemCheckEnvironment& Instance(){
+    static MemCheckEnvironment &Instance() {
         static MemCheckEnvironment env;
         return env;
     }
 
-    const pugi::xml_document & getRefsConfig() {
+    const pugi::xml_document &getRefsConfig() {
         return _refs_config;
     }
 
@@ -54,12 +61,12 @@ public:
 
 class TestReferences {
 private:
-    std::vector<std::string> model_name_v, test_name_v, device_v;
+    std::vector<std::string> model_name_v, test_name_v, device_v, precision_v;
     std::vector<long> vmsize_v, vmpeak_v, vmrss_v, vmhwm_v;
 public:
     std::array<long, MeasureValueMax> references;
 
-    TestReferences () {
+    TestReferences() {
         std::fill(references.begin(), references.end(), -1);
 
         // Parse RefsConfig from MemCheckEnvironment
@@ -69,6 +76,8 @@ public:
             for (pugi::xml_attribute_iterator ait = node.attributes_begin(); ait != node.attributes_end(); ait++) {
                 if (strncmp(ait->name(), "path", strlen(ait->name())) == 0) {
                     model_name_v.push_back(ait->value());
+                } else if (strncmp(ait->name(), "precision", strlen(ait->name())) == 0) {
+                    precision_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "test", strlen(ait->name())) == 0) {
                     test_name_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "device", strlen(ait->name())) == 0) {
@@ -90,11 +99,12 @@ public:
         for (int i = 0; i < test_name_v.size(); i++)
             if (test_name_v[i] == test_name)
                 if (model_name_v[i] == test_params.model_name)
-                    if (device_v[i] == test_params.device) {
-                        references[VMSIZE] = vmsize_v[i];
-                        references[VMPEAK] = vmpeak_v[i];
-                        references[VMRSS] = vmrss_v[i];
-                        references[VMHWM] = vmhwm_v[i];
-                    }
+                    if (device_v[i] == test_params.device)
+                        if (precision_v[i] == test_params.precision) {
+                            references[VMSIZE] = vmsize_v[i];
+                            references[VMPEAK] = vmpeak_v[i];
+                            references[VMRSS] = vmrss_v[i];
+                            references[VMHWM] = vmhwm_v[i];
+                        }
     }
 };

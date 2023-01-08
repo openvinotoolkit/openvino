@@ -1,33 +1,47 @@
-## SoftPlus <a name="SoftPlus"></a> {#openvino_docs_ops_activation_SoftPlus_4}
+# SoftPlus {#openvino_docs_ops_activation_SoftPlus_4}
 
 **Versioned name**: *SoftPlus-4*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
-**Short description**: SoftPlus takes one input tensor and produces output tensor where the softplus function is applied to the tensor elementwise.
+**Short description**: *SoftPlus* is a rectified-based element-wise activation function.
 
-**Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula:
+**Detailed description**
+
+*SoftPlus* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
 
 \f[
-SoftPlus(x) = ln(e^{x} + 1.0)
+SoftPlus(x) = \left\{\begin{array}{r}
+    x \qquad \mbox{if } x \geq threshold \\
+    log(e^{x} + 1.0) \qquad \mbox{if } x < threshold
+\end{array}\right.
 \f]
+
+**Note**: For numerical stability the operation reverts to the linear function when `x > threshold` where `threshold` depends on *T* and
+is chosen in such a way that the difference between the linear function and exact calculation is no more than `1e-6`.
+The `threshold` can be calculated with the following formula where `alpha` is the number of digits after the decimal point,
+`beta` is maximum value of *T* data type:
+
+\f[
+-log(e^{10^{-\alpha}} - 1.0) < threshold < log(\beta)
+\f]
+
+For example, if *T* is `fp32`, `threshold` should be `20` or if *T* is `fp16`, `threshold` should be `11`.
 
 **Attributes**: *SoftPlus* operation has no attributes.
 
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of type *T*. **Required**.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 
-*   **1**: The resulting tensor of the same shape and type as input tensor.
+*   **1**: The result of element-wise *SoftPlus* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-* *T*: arbitrary supported floating point type.
-
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 

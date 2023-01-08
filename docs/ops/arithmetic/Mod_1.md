@@ -1,12 +1,19 @@
-## Mod <a name="Mod"></a> {#openvino_docs_ops_arithmetic_Mod_1}
+# Mod  {#openvino_docs_ops_arithmetic_Mod_1}
 
 **Versioned name**: *Mod-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
-**Short description**: *Mod* returns an element-wise division reminder with two given tensors applying multi-directional broadcast rules. 
-The result here is consistent with a truncated divide (like in C programming language): `truncated(x / y) * y + truncated_mod(x, y) = x`. 
-The sign of the result is equal to a sign of a dividend.
+**Short description**: *Mod* performs an element-wise modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
+
+**Detailed description**
+As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Mod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
+
+\f[
+o_{i} = a_{i} \mod b_{i}
+\f]
+
+*Mod* operation computes a reminder of a truncated division. It is the same behaviour like in C programming language: `truncated(x / y) * y + truncated_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend. The result of division by zero is undefined.
 
 **Attributes**:
 
@@ -14,20 +21,21 @@ The sign of the result is equal to a sign of a dividend.
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
+
 **Inputs**
 
-* **1**: A tensor of type T. Required.
-* **2**: A tensor of type T. Required.
+* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**
 
-* **1**: The element-wise division reminder. A tensor of type T.
+* **1**: The result of element-wise modulo operation. A tensor of type *T* with shape equal to broadcasted shape of two inputs.
 
 **Types**
 
@@ -35,10 +43,11 @@ The sign of the result is equal to a sign of a dividend.
 
 **Examples**
 
-*Example 1*
+*Example 1 - no broadcasting*
 
 ```xml
-<layer ... type="FloorMod">
+<layer ... type="Mod">
+    <data auto_broadcast="none"/>
     <input>
         <port id="0">
             <dim>256</dim>
@@ -58,9 +67,10 @@ The sign of the result is equal to a sign of a dividend.
 </layer>
 ```
 
-*Example 2: broadcast*
+*Example 2: numpy broadcasting*
 ```xml
-<layer ... type="FloorMod">
+<layer ... type="Mod">
+    <data auto_broadcast="numpy"/>
     <input>
         <port id="0">
             <dim>8</dim>

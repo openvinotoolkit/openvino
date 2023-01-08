@@ -1,2 +1,6 @@
-openvino.tools.benchmark.log
+*.log
+*.egg-info/
+*.egg
 __pycache__/
+build/
+dist/

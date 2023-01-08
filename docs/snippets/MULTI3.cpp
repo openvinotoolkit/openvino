@@ -1,19 +1,17 @@
-#include <inference_engine.hpp>
-#include <multi-device/multi_device_config.hpp>
-
+#include <openvino/openvino.hpp>
 
 int main() {
 //! [part3]
-    InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork("sample.xml");
-    std::string allDevices = "MULTI:";
-    std::vector<std::string> myriadDevices = ie.GetMetric("MYRIAD", METRIC_KEY(AVAILABLE_DEVICES));
-    for (int i = 0; i < myriadDevices.size(); ++i) {
-        allDevices += std::string("MYRIAD.")
-                                + myriadDevices[i]
-                                + std::string(i < (myriadDevices.size() -1) ? "," : "");
-    }
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, allDevices, {});
+ov::Core core;
+std::vector<std::string> myriadDevices = core.get_property("MYRIAD", ov::available_devices);
+std::string all_devices;
+for (size_t i = 0; i < myriadDevices.size(); ++i) {
+    all_devices += std::string("MYRIAD.")
+                            + myriadDevices[i]
+                            + std::string(i < (myriadDevices.size() -1) ? "," : "");
+}
+ov::CompiledModel compileModel = core.compile_model("sample.xml", "MULTI",
+    ov::device::priorities(all_devices));
 //! [part3]
 return 0;
 }

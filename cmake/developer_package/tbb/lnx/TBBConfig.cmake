@@ -1,19 +1,6 @@
-#===============================================================================
-# Copyright 2017-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#===============================================================================
-
 # TBB_FOUND should not be set explicitly. It is defined automatically by CMake.
 # Handling of TBB_VERSION is in TBBConfigVersion.cmake.
 
@@ -184,6 +171,10 @@ endforeach()
 if (NOT _lib_exists AND TBB_FIND_REQUIRED AND TBB_FIND_REQUIRED_${_tbb_component})
     message(FATAL_ERROR "Missed required Intel TBB component: ${_tbb_component}")
 endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(TBB
+    REQUIRED_VARS _lib_exists)
 
 unset(_tbb_x32_subdir)
 unset(_tbb_x64_subdir)

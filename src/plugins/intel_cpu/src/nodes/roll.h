@@ -1,0 +1,59 @@
+// Copyright (C) 2018-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <ie_common.h>
+#include <node.h>
+#include <string>
+
+namespace ov {
+namespace intel_cpu {
+namespace node {
+
+class Roll : public Node {
+public:
+    Roll(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+
+    void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
+    void execute(dnnl::stream strm) override;
+    bool created() const override;
+
+    void prepareParams() override;
+    void executeDynamicImpl(dnnl::stream strm) override;
+
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+
+private:
+    struct RollExecutor {
+        RollExecutor(const VectorDims& dataDims, const VectorDims& shiftDims, const VectorDims& axesDims,
+                     const VectorDims& dstDims);
+        ~RollExecutor() = default;
+
+        template<typename T>
+        void exec(const MemoryPtr& dataMemPtr, const MemoryPtr& shiftMemPtr, const MemoryPtr& axesMemPtr,
+                  MemoryPtr& dstMemPtr);
+
+    private:
+        const size_t numOfDims;
+        const size_t blockSize;
+        const size_t numOfIterations;
+        const size_t axesLength;
+    };
+
+    using ExecutorPtr = std::shared_ptr<RollExecutor>;
+    ExecutorPtr execPtr = nullptr;
+
+    std::string layerErrorPrefix;
+
+    static constexpr std::array<size_t, 3> supportedPrecisionSizes{1, 2, 4};
+    static constexpr size_t DATA_INDEX = 0ul;
+    static constexpr size_t SHIFT_INDEX = 1ul;
+    static constexpr size_t AXES_INDEX = 2ul;
+};
+
+}   // namespace node
+}   // namespace intel_cpu
+}   // namespace ov

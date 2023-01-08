@@ -1,40 +1,40 @@
-## VariadicSplit <a name="VariadicSplit"></a> {#openvino_docs_ops_movement_VariadicSplit_1}
+# VariadicSplit {#openvino_docs_ops_movement_VariadicSplit_1}
 
 **Versioned name**: *VariadicSplit-1*
 
-**Category**: *Data movement operations*
+**Category**: *Data movement*
 
-**Short description**: *VariadicSplit* operation splits an input tensor into pieces along some axis. The pieces may have variadic lengths depending on *"split_lengths*" attribute.
-
-**Attributes**
-
-No attributes available.
-
-**Inputs**
-
-* **1**: `data` - A tensor of type T1. **Required.**
-
-* **2**: `axis` - An axis along `data` to split. A scalar of type T2 with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end. 
-**Required.**
-
-* **3**: `split_lengths` - A list containing the sizes of each output tensor along the split `axis`. Size of `split_lengths` should be equal to the number of outputs. The sum of sizes must match `data.shape[axis]`. A 1-D Tensor of type T2. `split_lenghts` can contain a single `-1` element, that means all remaining items along specified `axis` that are not consumed by other parts. **Required.**
-
-**Outputs**
-
-* **Multiple outputs**: Tensors of the same type as the `data` tensor. The shape of the i-th output has the same shape as the `data` except along dimension `axis` where the size is `split_lengths[i]` if `split_lengths[i] != -1`. `-1` item, if exists, is processed as described in the `split_lengths` input description.
+**Short description**: *VariadicSplit* operation splits an input tensor into chunks along some axis. The chunks may have variadic lengths depending on `split_lengths` input tensor.
 
 **Detailed Description**
 
-*VariadicSplit* operation splits the `data` input tensor into pieces along `axis`. The i-th shape of output tensor will be equal to the `data` shape except along dimension `axis` where the size will be `split_lengths[i]`. The sum of elements of split_lengths must match `data.shape[axis]`.
+*VariadicSplit* operation splits a given input tensor `data` into chunks along a scalar or tensor with shape `[1]` `axis`. It produces multiple output tensors based on additional input tensor `split_lengths`.
+The i-th output tensor shape is equal to the input tensor `data` shape, except for dimension along `axis` which is `split_lengths[i]`.
 
-Shape of output tensor will be:
 \f[
-shape_output_tensor = shape_input_tensor[shape_input_tensor[0], shape_input_tensor[1], ..., split_lengths[axis], ..., shape_input_tensor[D-1]], where D rank of input tensor.
+shape\_output\_tensor = [data.shape[0], data.shape[1], \dotsc , split\_lengths[i], \dotsc , data.shape[D-1]]
 \f]
+
+Where D is the rank of input tensor `data`. The sum of elements in `split_lengths` must match `data.shape[axis]`.
+
+**Attributes**: *VariadicSplit* operation has no attributes.
+
+**Inputs**
+
+* **1**: `data`. A tensor of type `T1` and arbitrary shape. **Required.**
+
+* **2**: `axis`. Axis along `data` to split. A scalar or tensor with shape `[1]` of type `T2` with value from range `-rank(data) .. rank(data)-1`. Negative values address dimensions from the end.
+**Required.**
+
+* **3**: `split_lengths`. A list containing the dimension values of each output tensor shape along the split `axis`. A 1D tensor of type `T2`. The number of elements in `split_lengths` determines the number of outputs. The sum of elements in `split_lengths` must match `data.shape[axis]`. In addition `split_lengths` can contain a single `-1` element, which means, all remaining items along specified `axis` that are not consumed by other parts. **Required.**
+
+**Outputs**
+
+* **Multiple outputs**: Tensors of type `T1`. The i-th output has the same shape as `data` input tensor except for dimension along `axis` which is `split_lengths[i]` if `split_lengths[i] != -1`. Otherwise, the dimension along `axis` is processed as described in `split_lengths` input description.
 
 **Types**
 
-* *T1*: arbitrary supported type.
+* *T1*: any arbitrary supported type.
 * *T2*: any integer type.
 
 **Examples**

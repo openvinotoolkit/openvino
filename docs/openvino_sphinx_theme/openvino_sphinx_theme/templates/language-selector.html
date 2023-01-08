@@ -1,0 +1,15 @@
+{# Add language selector #}
+{% if languages and current_language %}
+<div class="dropdown sst-dropdown sst-dropdown-navbar">
+  <button class="btn sst-btn dropdown-toggle" type="button" id="language-selector" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{current_language}}</button>
+  <div class="dropdown-menu" aria-labelledby="language-selector">
+    {% for slug, url in languages %}
+      {% if slug == current_language %}
+        <a class="dropdown-item font-weight-bold" href="{{ url }}/index.html">{{ slug }}</a>
+      {% else %}
+        <a  class="dropdown-item" href="{{ url }}/index.html">{{ slug }}</a>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endif %}

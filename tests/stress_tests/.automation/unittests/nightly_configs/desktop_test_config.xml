@@ -1,6 +1,7 @@
 <attributes>
     <processes>
         <value>1</value>
+        <value>2</value>
     </processes>
     <threads>
         <value>1</value>
@@ -13,9 +14,13 @@
         <value>CPU</value>
         <value>GPU</value>
     </devices>
+    <api_versions>
+        <value>1</value>
+        <value>2</value>
+    </api_versions>
     <models>
-        <model name="alexnet" source="omz" />
-        <model name="mobilenet-ssd" source="omz" />
-        <model name="mtcnn-r" source="omz" />
+        <model name="alexnet" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
     </models>
 </attributes>

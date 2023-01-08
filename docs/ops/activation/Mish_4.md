@@ -1,36 +1,36 @@
-## Mish <a name="Mish"></a> {#openvino_docs_ops_activation_Mish_4}
+# Mish {#openvino_docs_ops_activation_Mish_4}
 
 **Versioned name**: *Mish-4*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
-**Short description**: Mish is a Self Regularized Non-Monotonic Neural Activation Function.
+**Short description**: *Mish* is a Self Regularized Non-Monotonic Neural Activation Function.
 
-**Detailed description**: Mish is a self regularized non-monotonic neural activation function proposed in the [article](https://arxiv.org/abs/1908.08681).
+**Detailed description**
 
-**Attributes**: operation has no attributes.
+*Mish* is a self regularized non-monotonic neural activation function proposed in this [article](https://arxiv.org/abs/1908.08681v2).
+
+*Mish* performs element-wise activation function on a given input tensor, based on the following mathematical formula:
+
+\f[
+Mish(x) = x\cdot\tanh\big(SoftPlus(x)\big) = x\cdot\tanh\big(\ln(1+e^{x})\big)
+\f]
+
+**Attributes**: *Mish* operation has no attributes.
 
 **Inputs**:
 
-*   **1**: Input tensor *x* of any floating point type T. Required.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 
-*   **1**: Floating point tensor with shape and type matching the input tensor.
+*   **1**: The result of element-wise *Mish* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
 
 **Types**
 
-* *T*: any floating point type.
+* *T*: arbitrary supported floating-point type.
 
-**Mathematical Formulation**
-
-   For each element from the input tensor calculates corresponding
-    element in the output tensor with the following formula:
-\f[
-Mish(x) = x*tanh(ln(1.0+e^{x}))
-\f]
-
-**Examples**
+**Example**
 
 ```xml
 <layer ... type="Mish">

@@ -1,10 +1,18 @@
-## Subtract <a name="Subtract"></a> {#openvino_docs_ops_arithmetic_Subtract_1}
+# Subtract {#openvino_docs_ops_arithmetic_Subtract_1}
 
 **Versioned name**: *Subtract-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
-**Short description**: *Subtract* performs element-wise subtraction operation with two given tensors applying multi-directional broadcast rules.
+**Short description**: *Subtract* performs element-wise subtraction operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
+
+**Detailed description**
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+After broadcasting *Subtract* performs subtraction operation for the input tensors *a* and *b* using the formula below:
+
+\f[
+o_{i} = a_{i} - b_{i}
+\f]
 
 **Attributes**:
 
@@ -12,33 +20,25 @@
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match,
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: A tensor of type T. **Required.**
-* **2**: A tensor of type T. **Required.**
+* **1**: A tensor of type *T* and arbitrary shape and rank. **Required.**
+* **2**: A tensor of type *T* and arbitrary shape and rank. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise subtraction operation. A tensor of type T.
+* **1**: The result of element-wise subtraction operation. A tensor of type *T* with shape equal to broadcasted shape of the two inputs.
 
 **Types**
 
 * *T*: any numeric type.
-
-**Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *Subtract* does the following with the input tensors *a* and *b*:
-
-\f[
-o_{i} = a_{i} - b_{i}
-\f]
 
 **Examples**
 
@@ -46,6 +46,7 @@ o_{i} = a_{i} - b_{i}
 
 ```xml
 <layer ... type="Subtract">
+    <data auto_broadcast="none"/>
     <input>
         <port id="0">
             <dim>256</dim>
@@ -67,6 +68,7 @@ o_{i} = a_{i} - b_{i}
 *Example 2: broadcast*
 ```xml
 <layer ... type="Subtract">
+    <data auto_broadcast="numpy"/>
     <input>
         <port id="0">
             <dim>8</dim>

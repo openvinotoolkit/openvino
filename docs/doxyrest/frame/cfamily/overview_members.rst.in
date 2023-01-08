@@ -1,0 +1,108 @@
+%{
+--------------------------------------------------------------------------------
+--
+--  This file is part of the Doxyrest toolkit.
+--
+--  Doxyrest is distributed under the MIT license.
+--  For details see accompanying license.txt file,
+--  the public copy of which is also available at:
+--  http://tibbo.com/downloads/archive/doxyrest/license.txt
+--
+--------------------------------------------------------------------------------
+
+local argArray = table.pack(...)
+local compound = argArray[1]
+local variableSectionName = string.lower(argArray[2])
+local functionSectionName = string.lower(argArray[3])
+local indent = argArray[4]
+
+if #compound.namespaceArray > 0 then
+	includeFileWithIndent(indent, "overview_namespaces.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.typedefArray > 0 then
+	includeFileWithIndent(indent, "overview_typedefs.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.enumArray > 0 then
+	includeFileWithIndent(indent, "overview_enums.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.structArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.structArray, "structs")
+	emit("\n")
+end
+
+if #compound.unionArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.unionArray, "unions")
+	emit("\n")
+end
+
+if #compound.interfaceArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.interfaceArray, "interfaces")
+	emit("\n")
+end
+
+if #compound.protocolArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.protocolArray, "protocols")
+	emit("\n")
+end
+
+if #compound.exceptionArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.exceptionArray, "exceptions")
+	emit("\n")
+end
+
+if #compound.classArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.classArray, "classes")
+	emit("\n")
+end
+
+if #compound.singletonArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.singletonArray, "singletons")
+	emit("\n")
+end
+
+if #compound.serviceArray > 0 then
+	includeFileWithIndent(indent, "overview_classes.rst.in", compound, compound.serviceArray, "services")
+	emit("\n")
+end
+
+if #compound.variableArray > 0 then
+	includeFileWithIndent(indent, "overview_variables.rst.in", compound, variableSectionName)
+	emit("\n")
+end
+
+if #compound.propertyArray > 0 then
+	includeFileWithIndent(indent, "overview_properties.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.eventArray > 0 then
+	includeFileWithIndent(indent, "overview_events.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.constructorArray > 0 or not EXCLUDE_DESTRUCTORS and compound.destructor then
+	includeFileWithIndent(indent, "overview_construction.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.functionArray > 0 then
+	includeFileWithIndent(indent, "overview_functions.rst.in", compound, functionSectionName)
+	emit("\n")
+end
+
+if #compound.aliasArray > 0 then
+	includeFileWithIndent(indent, "overview_aliases.rst.in", compound)
+	emit("\n")
+end
+
+if #compound.defineArray > 0 then
+	includeFileWithIndent(indent, "overview_defines.rst.in", compound)
+	emit("\n")
+end
+}

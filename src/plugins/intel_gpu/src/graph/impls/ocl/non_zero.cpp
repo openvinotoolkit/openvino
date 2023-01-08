@@ -1,0 +1,112 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "non_zero_inst.h"
+#include "primitive_base.hpp"
+#include "impls/implementation_map.hpp"
+#include "kernel_selector_helper.h"
+#include "non_zero/count_nonzero_kernel_ref.h"
+#include "non_zero/count_nonzero_kernel_selector.h"
+#include "non_zero/gather_nonzero_kernel_ref.h"
+#include "non_zero/gather_nonzero_kernel_selector.h"
+#include "intel_gpu/runtime/error_handler.hpp"
+
+using namespace cldnn;
+
+namespace cldnn {
+namespace ocl {
+
+struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
+    using parent = typed_primitive_impl_ocl<count_nonzero>;
+    using parent::parent;
+    using kernel_selector_t = kernel_selector::count_nonzero_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::count_nonzero_params, kernel_selector::count_nonzero_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<count_nonzero_impl>(*this);
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
+        return {params, optional_params};
+    }
+};
+
+struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
+    using parent = typed_primitive_impl_ocl<gather_nonzero>;
+    using parent::parent;
+    using kernel_selector_t = kernel_selector::gather_nonzero_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::gather_nonzero_params, kernel_selector::gather_nonzero_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<gather_nonzero_impl>(*this);
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
+
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
+        params.ov_input_rank = impl_param.get_input_layout().get_shape().size();
+        return {params, optional_params};
+    }
+};
+
+namespace detail {
+
+attach_count_nonzero_impl::attach_count_nonzero_impl() {
+    implementation_map<count_nonzero>::add(impl_types::ocl, typed_primitive_impl_ocl<count_nonzero>::create<count_nonzero_impl>, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
+
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+        std::make_tuple(data_types::i8, format::bfwzyx),
+        std::make_tuple(data_types::u8, format::bfwzyx),
+    });
+}
+
+attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
+    implementation_map<gather_nonzero>::add(impl_types::ocl, typed_primitive_impl_ocl<gather_nonzero>::create<gather_nonzero_impl>, {
+        std::make_tuple(data_types::f32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::i8, format::bfyx),
+        std::make_tuple(data_types::u8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
+
+        std::make_tuple(data_types::f32, format::bfwzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+        std::make_tuple(data_types::i8, format::bfwzyx),
+        std::make_tuple(data_types::u8, format::bfwzyx),
+    });
+}
+
+}  // namespace detail
+}  // namespace ocl
+}  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::count_nonzero_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nonzero_impl)

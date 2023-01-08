@@ -1,17 +1,18 @@
 name: Files Size
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  Check-Files-Size:
-    runs-on: ubuntu-18.04
+  Check_Files_Size:
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: git ls-tree
-        run: |
-          git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
+        run: git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
 
       - name: git lfs ls-files
-        run: |
-          git lfs ls-files --size
-          
+        run: git lfs ls-files --size

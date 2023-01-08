@@ -1,36 +1,41 @@
-## GELU- Gaussian Error Linear Unit <a name="Gelu"></a> {#openvino_docs_ops_activation_GELU_2}
+# GELU {#openvino_docs_ops_activation_GELU_2}
 
 **Versioned name**: *Gelu-2*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
-**Short description**: [Reference](https://pytorch.org/docs/stable/nn.functional.html#gelu)
+**Short description**: Gaussian error linear unit element-wise activation function.
 
-**Detailed description**: [Reference](https://arxiv.org/abs/1606.08415)
+**Detailed description**
+
+*Gelu* operation is introduced in this [article](https://arxiv.org/abs/1606.08415).
+It performs element-wise activation function on a given input tensor, based on the following mathematical formula:
+
+\f[
+    Gelu(x) = x\cdot\Phi(x) = x\cdot\frac{1}{2}\cdot\left[1 + erf\frac{x}{\sqrt{2}}\right]
+\f]
+
+where Φ(x) is the Cumulative Distribution Function for Gaussian Distribution.
+
+Additionally, *Gelu* function may be approximated as follows:
+
+\f[
+    Gelu(x) \approx 0.5\cdot x\cdot \left(1 + \tanh\left[\sqrt{2/\pi} \cdot (x + 0.044715 \cdot x^3)\right]\right)
+\f]
 
 **Attributes**: *Gelu* operation has no attributes.
 
-**Mathematical Formulation**
-Gelu(x)=x*Φ(x), where Φ(x) is the Cumulative Distribution Function for Gaussian Distribution.
-The following equivalent combination is recognized and fused into single Gelu op: 
-
-\f[
-    Gelu(x) = 0.5*x*(1.0 + erf((x) / \sqrt{2})
-\f]
-
-Similarly, the following Gelu approximation (typical for the TensorFlow*) is recognized and fused into single Gelu op 
-
-\f[
-    Gelu(x) \approx 0.5x(1.0 + tanh(\sqrt{2.0/pi} * (x + 0.044715 * x ^ 3))
-\f]
-
 **Inputs**:
 
-*   **1**: Multidimensional input tensor. Required.
+*   **1**: A tensor of type *T* and arbitrary shape. **Required.**
 
 **Outputs**:
 
-*   **1**: Floating point tensor with shape and type matching the input tensor.
+*   **1**: The result of element-wise *Gelu* function applied to the input tensor. A tensor of type *T* and the same shape as input tensor.
+
+**Types**
+
+* *T*: arbitrary supported floating-point type.
 
 **Example**
 

@@ -1,111 +1,188 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Linux* Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+# Install OpenVINO™ Runtime on Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
-This guide provides installation steps for the Intel® Distribution of OpenVINO™ toolkit for Linux* distributed through the YUM repository.
+This guide provides installation steps for OpenVINO™ Runtime for Linux distributed through the YUM repository.
 
-> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products). Please, review the content inside the `<openvino_install_root>/licensing` folder for more details.
+> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. If you want to develop or optimize your models with OpenVINO, see [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
-> **NOTE**: Intel® Graphics Compute Runtime for OpenCL™ is not a part of OpenVINO™ YUM distribution. You can install it from the [Intel® Graphics Compute Runtime for OpenCL™ GitHub repo](https://github.com/intel/compute-runtime).
+> **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf).
 
-## Set up the Repository
+## System Requirements
 
-> **NOTE:** You must be logged in as root to set up and install the repository.
-<br>
-Configure YUM with the OpenVINO repository to install OpenVINO. You have two options for this, using the `yum-config-manager` or manually by creating a text file and pointing YUM to the file. 
+@sphinxdirective
+.. tab:: System Requirements
 
-* **OPTION 1:** Import the `.repo` file using the `yum-config-manager`:
-   1. `yum-utils` must be installed on your system.  If it’s not currently installed, run the command:
-   ```sh
-   sudo yum install yum-utils
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+
+.. tab:: Processor Notes
+
+  Processor graphics are not included in all processors.
+  See `Product Specifications`_ for information about your processor.
+
+  .. _Product Specifications: https://ark.intel.com/
+
+.. tab:: Software
+
+  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+  * GCC 8.2.0
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+
+@endsphinxdirective
+
+## Install OpenVINO Runtime
+
+### Step 1: Set Up the Repository
+
+1. Create the YUM repo file in the `/tmp` directory as a normal user:
    ```
-   2. Add repository using the `yum-config-manager`:
-   ```sh
-   sudo yum-config-manager --add-repo https://yum.repos.intel.com/openvino/2021/setup/intel-openvino-2021.repo
-   ```
-   3. Import the gpg public key for the repository:
-   ```sh
-   sudo rpm --import https://yum.repos.intel.com/openvino/2021/setup/RPM-GPG-KEY-INTEL-OPENVINO-2021
-   ```
-
-* **OPTION 2:** Create the repository file manually:
-   1. Navigate to the repository directory:
-   ```sh
-   cd /etc/yum.repos.d
-   ```
-   2. Edit the repo file:
-   ```sh
-   vi intel-openvino-2021.repo
-   ```
-   3. Append the following code:
-   ```sh
-   [intel-openvino-2021]
-   name=Intel(R) Distribution of OpenVINO 2021
-   baseurl=https://yum.repos.intel.com/openvino/2021
+   tee > /tmp/openvino-2022.repo << EOF
+   [OpenVINO]
+   name=Intel(R) Distribution of OpenVINO 2022
+   baseurl=https://yum.repos.intel.com/openvino/2022
    enabled=1
    gpgcheck=1
-   gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-INTEL-OPENVINO-2021
+   repo_gpgcheck=1
+   gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+   EOF
    ```
-   4. Save and close the `intel-openvino-2021.repo` file.
-   5. Import the gpg public key for the repository:
+2.	Move the new openvino-2022.repo file to the YUM configuration directory `/etc/yum.repos.d`:
    ```sh
-   sudo rpm --import https://yum.repos.intel.com/openvino/2021/setup/RPM-GPG-KEY-INTEL-OPENVINO-2021
+   sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
    ```
+3.	Verify that the new repo is properly setup by running the following command:
+   ```sh
+   yum repolist | grep -i openvino
+   ```
+    You will see the available list of packages.
 
-### Verify that the new repo is properly setup
-Run the following command:   
-```sh
-yum repolist | grep -i openvino
-```
 
-Results:
-```sh
-intel-openvino-2021 Intel(R) Distribution of OpenVINO 2021
-```
-  
-### To list the available OpenVINO packages
-Use the following command:
-```sh
-yum list intel-openvino*
-```
+To list available OpenVINO packages, use the following command:
 
----
-  
-## Install the runtime packages Using the YUM Package Manager
+@sphinxdirective
 
-Intel® OpenVINO will be installed in: `/opt/intel/openvino_<VERSION>.<UPDATE>.<BUILD_NUM>`
-<br>
-A symlink will be created: `/opt/intel/openvino`
+   .. code-block:: sh
 
----
+      yum list 'openvino*'
 
-### To install the latest version
-To install the full runtime version of the OpenVINO package:
-```sh
-sudo yum install intel-openvino-runtime-centos7
-```
+@endsphinxdirective
 
----
+### Step 2: Install OpenVINO Runtime Using the YUM Package Manager
 
-### To install a specific version
-To install the full runtime version of the OpenVINO package:
-```sh
-sudo yum install intel-openvino-runtime-centos7-<VERSION>.<UPDATE>.<BUILD_NUM>
-```
+#### Install OpenVINO Runtime
 
----
+@sphinxdirective
 
-### To Uninstall a specific version
+.. tab:: The Latest Version
 
-To uninstall a specific full runtime package:
-```sh
-sudo yum autoremove intel-openvino-runtime-centos<OS_VERSION>-<VERSION>.<UPDATE>.<BUILD_NUM>
-```
-**Additional Resources**
+   Run the following command:
 
-- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic).
-- For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+   .. code-block:: sh
 
+      sudo yum install openvino
+
+.. tab::  A Specific Version
+
+   Run the following command:
+
+   .. code-block:: sh
+
+      sudo yum install openvino-<VERSION>.<UPDATE>.<PATCH>
+
+   For example:
+
+   .. code-block:: sh
+
+      sudo yum install openvino-2022.3.0
+
+@endsphinxdirective
+
+
+#### Check for Installed Packages and Version
+
+Run the following command:
+
+@sphinxdirective
+
+   .. code-block:: sh
+
+      yum list installed 'openvino*'
+
+@endsphinxdirective
+
+
+#### Uninstall OpenVINO Runtime
+
+@sphinxdirective
+
+.. tab:: The Latest Version
+
+   Run the following command:
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino
+
+
+.. tab::  A Specific Version
+
+   Run the following command:
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+
+   For example:
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino-2022.3.0
+
+@endsphinxdirective
+
+
+### Step 3 (Optional): Install Software Dependencies
+
+After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
+
+Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+
+### Step 4 (Optional): Configure Inference on Non-CPU Devices
+
+To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
+
+### Step 5: Build Samples
+
+To build the C++ or C sample applications for Linux, run the `build_samples.sh` script:
+
+@sphinxdirective
+
+.. tab:: C++
+
+   .. code-block:: sh
+
+      /usr/share/openvino/samples/cpp/build_samples.sh
+
+.. tab:: C
+
+   .. code-block:: sh
+
+      /usr/share/openvino/samples/c/build_samples.sh
+
+@endsphinxdirective
+
+For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
+
+## What's Next?
+
+Now you may continue with the following tasks:
+
+* To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+* See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/nightly/notebooks/notebooks.html).
+* To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
+* See sample applications in [OpenVINO™ Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
+
+## Additional Resources
+
+- OpenVINO™ home page: <https://software.intel.com/en-us/openvino-toolkit>
+- For IoT Libraries & Code Samples, see [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

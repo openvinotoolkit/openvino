@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,10 +13,10 @@ set(_ACCEPTED_ARCHS_AVX512F "^(ANY|SSE42|AVX|AVX2|AVX512F)$")
 
 ## Arch specific definitions
 set(_DEFINE_ANY      "")
-set(_DEFINE_SSE42    "-DHAVE_SSE42"   ${_DEFINE_ANY})
-set(_DEFINE_AVX      "-DHAVE_AVX"     ${_DEFINE_SSE42})
-set(_DEFINE_AVX2     "-DHAVE_AVX2"    ${_DEFINE_AVX})
-set(_DEFINE_AVX512F  "-DHAVE_AVX512F" ${_DEFINE_AVX2})
+set(_DEFINE_SSE42    "HAVE_SSE42"   ${_DEFINE_ANY})
+set(_DEFINE_AVX      "HAVE_AVX"     ${_DEFINE_SSE42})
+set(_DEFINE_AVX2     "HAVE_AVX2"    ${_DEFINE_AVX})
+set(_DEFINE_AVX512F  "HAVE_AVX512F" ${_DEFINE_AVX2})
 
 ## Arch specific compile options
 ie_avx512_optimization_flags(_FLAGS_AVX512F)
@@ -117,21 +117,25 @@ function(_clone_source_to_target TARGET SOURCE ARCH_SET)
                         ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}
                         ${CMAKE_CURRENT_BINARY_DIR}/${ARCH_SOURCE}
                 DEPENDS ${SOURCE}
+                VERBATIM
                 )
 
-        set(_ARCH_SPECIFIC_FLAGS
+        set_property(SOURCE ${ARCH_SOURCE} APPEND_STRING PROPERTY COMPILE_OPTIONS
+                "${_FLAGS_${_arch}}")
+
+        set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY COMPILE_DEFINITIONS
                 ${_DEFINE_${_arch}}
-                ${_FLAGS_${_arch}}
-                "-DXARCH=${_arch}"  ## to replace XARCH with direct ARCH name
-                "-I${CMAKE_CURRENT_SOURCE_DIR}/${ARCH_INCLUDE_DIR}"  ## To make valid #include "some.hpp"
+                "XARCH=${_arch}" ## to replace XARCH with direct ARCH name
                 )
 
-        _add_source_compile_flags(${ARCH_SOURCE} ${_ARCH_SPECIFIC_FLAGS})
+        ## To make `#include "some.hpp"` valid
+        set_property(SOURCE ${ARCH_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
+                "${CMAKE_CURRENT_SOURCE_DIR}/${ARCH_INCLUDE_DIR}")
 
         list(APPEND _ARCH_SOURCES ${ARCH_SOURCE})
     endforeach()
 
-    _add_source_to_target(${TARGET} ${_ARCH_SOURCES})
+    target_sources(${TARGET} PRIVATE ${_ARCH_SOURCES})
 endfunction()
 
 
@@ -146,26 +150,27 @@ function(_add_dispatcher_to_target TARGET HEADER FUNC_NAME NAMESPACE ARCH_SET)
     set(DISPATCHER_SOURCE     "cross-compiled/${DISPATCHER_NAME}_disp.cpp")
     set(DISPATCHER_OPT_HOLDER "cross-compiled/${DISPATCHER_NAME}_holder.txt")
 
-    set(_GEN_ARGS_LIST
-            -DXARCH_FUNC_NAME="${X_NAME}"
-            -DXARCH_NAMESPACES="${NAMESPACE}"
-            -DXARCH_API_HEADER="${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}"
-            -DXARCH_DISP_FILE="${CMAKE_CURRENT_BINARY_DIR}/${DISPATCHER_SOURCE}"
-            -DXARCH_SET="${ARCH_SET}"
-    )
     configure_file(${DISPATCHER_GEN_OPTIONS_HOLDER} ${DISPATCHER_OPT_HOLDER})
 
     add_custom_command(
             OUTPUT  ${DISPATCHER_SOURCE}
-            COMMAND ${CMAKE_COMMAND} ${_GEN_ARGS_LIST}
+            COMMAND ${CMAKE_COMMAND}
+                    -D "XARCH_FUNC_NAME=${X_NAME}"
+                    -D "XARCH_NAMESPACES=${NAMESPACE}"
+                    -D "XARCH_API_HEADER=${CMAKE_CURRENT_SOURCE_DIR}/${HEADER}"
+                    -D "XARCH_DISP_FILE=${CMAKE_CURRENT_BINARY_DIR}/${DISPATCHER_SOURCE}"
+                    -D "XARCH_SET=${ARCH_SET}"
                     -P ${DISPATCHER_GEN_SCRIPT}
             DEPENDS ${HEADER}
                     ${DISPATCHER_GEN_SCRIPT}
                     ${CMAKE_CURRENT_BINARY_DIR}/${DISPATCHER_OPT_HOLDER} ## Just to make run dependency on args value
+            VERBATIM
     )
 
-    _add_source_compile_flags(${DISPATCHER_SOURCE} "-I${DISPATCHER_INCLUDE_DIR}")
-    _add_source_to_target(${TARGET} ${DISPATCHER_SOURCE})
+    set_property(SOURCE ${DISPATCHER_SOURCE} APPEND PROPERTY INCLUDE_DIRECTORIES
+            "${CMAKE_CURRENT_SOURCE_DIR}/${DISPATCHER_INCLUDE_DIR}")
+
+    target_sources(${TARGET} PRIVATE ${DISPATCHER_SOURCE})
 endfunction()
 
 #######################################
@@ -198,30 +203,4 @@ function(_remove_source_from_target TARGET SOURCE_FILE)
     set_target_properties(${TARGET}
             PROPERTIES
             SOURCES "${ORIGINAL_SOURCES}")
-endfunction()
-
-function(_add_source_to_target TARGET)
-    get_target_property(ORIGINAL_SOURCES ${TARGET} SOURCES)
-
-    list(APPEND ORIGINAL_SOURCES ${ARGN})
-
-    set_target_properties(${TARGET}
-            PROPERTIES
-            SOURCES "${ORIGINAL_SOURCES}")
-endfunction()
-
-function(_add_source_compile_flags SOURCE)
-    get_source_file_property(ORIGINAL_FLAGS  ${SOURCE} COMPILE_FLAGS)
-
-    ## Empty list of COMPILE_FLAGS represented as NOTFOUND
-    if(NOT ORIGINAL_FLAGS)
-        set(ORIGINAL_FLAGS "")
-    endif()
-
-    string(REPLACE ";" " " NEW_FLAGS "${ARGN}")
-    string(APPEND ORIGINAL_FLAGS " " ${NEW_FLAGS})
-
-    set_source_files_properties(${SOURCE}
-            PROPERTIES
-            COMPILE_FLAGS "${ORIGINAL_FLAGS}")
 endfunction()

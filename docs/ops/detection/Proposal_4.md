@@ -1,4 +1,4 @@
-## Proposal <a name="Proposal"></a> {#openvino_docs_ops_detection_Proposal_4}
+# Proposal {#openvino_docs_ops_detection_Proposal_4}
 
 **Versioned name**: *Proposal-4*
 
@@ -8,12 +8,12 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a 4D tensor of shape `[num_batches, 2*K, H, W]` with probabilities whether particular 
-bounding box corresponds to background or foreground, a 4D tensor of shape `[num_batches, 4*K, H, W]` with deltas for each 
-of the bound box, and a tensor with input image size in the `[image_height, image_width, scale_height_and_width]` or 
-`[image_height, image_width, scale_height, scale_width]` format. `K` is number of anchors and `H, W` are height and 
-width of the feature map. Operation produces two tensors: 
-the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and 
+*Proposal* has three inputs: a 4D tensor of shape `[num_batches, 2*K, H, W]` with probabilities whether particular
+bounding box corresponds to background or foreground, a 4D tensor of shape `[num_batches, 4*K, H, W]` with deltas for each
+of the bound box, and a tensor with input image size in the `[image_height, image_width, scale_height_and_width]` or
+`[image_height, image_width, scale_height, scale_width]` format. `K` is number of anchors and `H, W` are height and
+width of the feature map. Operation produces two tensors:
+the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and
 the second optional tensor of shape `[batch_size * post_nms_topn]` with probabilities (sometimes referred as scores).
 
 *Proposal* layer does the following with the input tensor:
@@ -26,29 +26,29 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals and optionally their probabilities 
+8.  Returns the results:
+    *   Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+    *   Optionally returns probabilities for each proposal, which are not terminated by any special value.
 
+**Attributes**:
 
 * *base_size*
 
   * **Description**: *base_size* is the size of the anchor to which *scale* and *ratio* attributes are applied.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *pre_nms_topn*
   * **Description**: *pre_nms_topn* is the number of bounding boxes before the NMS operation. For example, *pre_nms_topn* equal to 15 means to take top 15 boxes with the highest scores.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *post_nms_topn*
   * **Description**: *post_nms_topn* is the number of bounding boxes after the NMS operation. For example, *post_nms_topn* equal to 15 means to take after NMS top 15 boxes with the highest scores.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *nms_thresh*
@@ -56,7 +56,6 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
   * **Description**: *nms_thresh* is the minimum value of the proposal to be taken into consideration. For example, *nms_thresh* equal to 0.5 means that all boxes with prediction probability less than 0.5 are filtered out.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *feat_stride*
@@ -64,7 +63,6 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
   * **Description**: *feat_stride* is the step size to slide over boxes (in pixels). For example, *feat_stride* equal to 16 means that all boxes are analyzed with the slide 16.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *min_size*
@@ -72,7 +70,6 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
   * **Description**: *min_size* is the minimum size of box to be taken into consideration. For example, *min_size* equal 35 means that all boxes with box size less than 35 are filtered out.
   * **Range of values**: a positive integer number
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *ratio*
@@ -80,7 +77,6 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
   * **Description**: *ratio* is the ratios for anchor generation.
   * **Range of values**: a list of floating-point numbers
   * **Type**: `float[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *scale*
@@ -88,7 +84,6 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
   * **Description**: *scale* is the scales for anchor generation.
   * **Range of values**: a list of floating-point numbers
   * **Type**: `float[]`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *clip_before_nms*
@@ -143,11 +138,11 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 **Inputs**:
 
-*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. Required.
+*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. **Required.**
 
-*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. Required.
+*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. **Required.**
 
-*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. Required.
+*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. **Required.**
 
 **Outputs**
 
@@ -157,7 +152,7 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 **Types**
 
-* *T*: floating point type.
+* *T*: floating-point type.
 
 **Example**
 

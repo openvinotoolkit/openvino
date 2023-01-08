@@ -1,0 +1,244 @@
+trigger:
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+pr:
+  drafts: 'false'
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
+
+resources:
+  repositories:
+  - repository: openvino_contrib
+    type: github
+    endpoint: openvinotoolkit
+    name: openvinotoolkit/openvino_contrib
+    ref: master
+
+jobs:
+- job: linux_arm64
+  # About 150% of total time
+  timeoutInMinutes: '120'
+
+  pool:
+    name: LIN_VMSS_VENV_F16S_U20_WU2
+
+  variables:
+    system.debug: true
+    VSTS_HTTP_RETRY: 5
+    VSTS_HTTP_TIMEOUT: 200
+    PYTHON_ARM_VERSION: "3.10.6"
+    PYTHON_EXEC: "python3.10"
+    OPENVINO_ARCH: 'aarch64'
+    NUM_PROC: 1
+    BUILD_TYPE: Release
+    OPENVINO_REPO_DIR: $(Build.Repository.LocalPath)
+    OPENVINO_CONTRIB_REPO_DIR: $(OPENVINO_REPO_DIR)/../openvino_contrib
+    OPENCV_REPO_DIR: $(OPENVINO_REPO_DIR)/../opencv
+    ONETBB_REPO_DIR: $(OPENVINO_CONTRIB_REPO_DIR)/../oneTBB
+    BUILD_PYTHON: $(WORK_DIR)/build_python
+    BUILD_OPENCV: $(WORK_DIR)/build_opencv
+    BUILD_ONETBB: $(WORK_DIR)/build_onetbb
+    BUILD_OPENVINO: $(WORK_DIR)/build
+    BUILD_OPENVINO_PYTHON: $(WORK_DIR)/build_python
+    CROSSENV_DIR: $(WORK_DIR)/cross_env
+    INSTALL_OPENVINO: $(WORK_DIR)/install_openvino
+    INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
+    INSTALL_ONETBB: $(WORK_DIR)/build/extras/oneTBB
+    INSTALL_ONETBB_PACKAGE: $(INSTALL_OPENVINO)/extras/oneTBB
+    INSTALL_OPENCV: $(INSTALL_OPENVINO)/extras/opencv
+    WORK_DIR: $(Pipeline.Workspace)/_w
+    SHARE_DIR: /mount/cinfsshare/onnxtestdata
+    TMP_DIR: /mnt/tmp
+    OPENVINO_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
+    OPENCV_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_opencv
+    ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
+
+  steps:
+  - script: |
+      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+      whoami
+      uname -a
+      echo ls /usr/bin/python3.10
+      rm -rf /usr/bin/python3
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
+      lsb_release
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      cat /etc/fstab
+      vmstat -s
+      df
+      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
+      echo "##vso[task.setvariable variable=NUM_PROC]$(nproc --all)"
+      echo "NUM_PROC=$(NUM_PROC)"
+    displayName: 'System information'
+
+  - script: |
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      mkdir -p $(BUILD_ONETBB) $(BUILD_OPENCV) $(BUILD_OPENVINO) $(BUILD_OPENVINO_PYTHON) $(BUILD_PYTHON)
+      mkdir -p $(INSTALL_ONETBB) $(INSTALL_ONETBB_PACKAGE) $(INSTALL_OPENVINO) $(INSTALL_PYTHON) $(INSTALL_OPENCV)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(SHARE_DIR)
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
+      sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(OPENVINO_CCACHE_DIR)
+      mkdir -p $(OPENCV_CCACHE_DIR)
+      mkdir -p $(ONETBB_CCACHE_DIR)
+    displayName: 'Make directories'
+
+  - checkout: self
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
+    path: openvino
+
+  - checkout: openvino_contrib
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
+    path: openvino_contrib
+
+  - script: |
+      set -e
+      sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
+      export USE_CCACHE=1
+      export OPENCV_CCACHE_DIR=$(OPENCV_CCACHE_DIR)
+      export ONETBB_CCACHE_DIR=$(ONETBB_CCACHE_DIR)
+      export PYTHON_ARM_VERSION=$(PYTHON_ARM_VERSION)
+      export NUM_PROC=$(NUM_PROC)
+      export BUILD_PYTHON=$(BUILD_PYTHON)
+      export WORK_DIR=$(WORK_DIR)
+      export INSTALL_PYTHON=$(INSTALL_PYTHON)
+      export BUILD_TYPE=$(BUILD_TYPE)
+      export OPENVINO_REPO_DIR=$(OPENVINO_REPO_DIR)
+      export BUILD_ONETBB=$(BUILD_ONETBB)
+      export INSTALL_ONETBB=$(INSTALL_ONETBB)
+      export INSTALL_OPENCV=$(INSTALL_OPENCV)
+      export PYTHON_EXEC=$(PYTHON_EXEC)
+      export ONETBB_REPO_DIR=$(ONETBB_REPO_DIR)
+      export OPENCV_REPO_DIR=$(OPENCV_REPO_DIR)
+      export BUILD_OPENCV=$(BUILD_OPENCV)
+      export INSTALL_OPENVINO=$(INSTALL_OPENVINO)
+      $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
+      python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+    workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'Install dependencies'
+
+  - script: |
+      set -e
+      /usr/local/bin/$(PYTHON_EXEC) -m pip install -U pip
+      /usr/local/bin/$(PYTHON_EXEC) -m pip install crossenv
+      /usr/local/bin/$(PYTHON_EXEC) -m crossenv $(INSTALL_PYTHON)/bin/$(PYTHON_EXEC) $(CROSSENV_DIR)
+      source $(CROSSENV_DIR)/bin/activate
+      build-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      cross-pip3 install -U pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+    workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'Create crossenv'
+
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
+        -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
+        -DENABLE_PYTHON=OFF
+        -DENABLE_TESTS=ON
+        -DENABLE_DATA=OFF
+        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DENABLE_INTEL_MYRIAD=OFF
+        -DTHREADING=TBB
+        -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
+        -DCMAKE_VERBOSE_MAKEFILE=ON
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
+        -DARM_COMPUTE_SCONS_JOBS=$(NUM_PROC)
+        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO)
+        $(OPENVINO_REPO_DIR)
+      workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'CMake OpenVINO ARM plugin'
+
+  - script: |
+      export CCACHE_DIR=$(OPENVINO_CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
+      export USE_CCACHE=1
+      ninja
+    workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'Build OpenVINO ARM plugin'
+
+  - script: ninja install
+    workingDirectory: $(BUILD_OPENVINO)
+    displayName: 'Install OpenVINO ARM plugin'
+
+  - script: |
+      source $(CROSSENV_DIR)/bin/activate
+      cmake \
+        -GNinja \
+        -DENABLE_PYTHON=ON \
+        -DENABLE_WHEEL=ON \
+        -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
+        -DOpenVINODeveloperPackage_DIR=$(BUILD_OPENVINO) \
+        -DCMAKE_INSTALL_PREFIX=$(INSTALL_OPENVINO) \
+        -S $(OPENVINO_REPO_DIR)/src/bindings/python \
+        -B $(BUILD_OPENVINO_PYTHON)
+      deactivate
+    displayName: 'CMake OpenVINO python binding'
+
+  - script: |
+      export CCACHE_DIR=$(OPENVINO_CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
+      export USE_CCACHE=1
+      ninja
+    workingDirectory: $(BUILD_OPENVINO_PYTHON)
+    displayName: 'Build OpenVINO python binding'
+
+  - script: ninja install
+    workingDirectory: $(BUILD_OPENVINO_PYTHON)
+    displayName: 'Install OpenVINO python binding'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: $(Build.ArtifactStagingDirectory)
+      ArtifactName: 'openvino_aarch64_linux'
+    displayName: 'Publish OpenVINO AArch64 linux package'

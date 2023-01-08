@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,7 @@ std::array<long, MeasureValueMax> MemCheckPipeline::measure() {
     return measures;
 }
 
-void MemCheckPipeline::record_measures(const std::string & id) {
+void MemCheckPipeline::record_measures(const std::string &id) {
     std::array<long, MeasureValueMax> measures = measure();
     log_debug("[ MEASURE ] " << MEMCHECK_DELIMITER << id);
     log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
@@ -47,12 +47,14 @@ void MemCheckPipeline::record_measures(const std::string & id) {
 }
 
 std::string MemCheckPipeline::get_reference_record_for_test(std::string test_name, std::string model_name,
-                                              std::string target_device) {
+                                                            std::string precision, std::string target_device) {
     std::array<long, MeasureValueMax> measures = measure();
     std::stringstream ss;
     ss << "Record to update reference config: "
-       << "<model path=\"" << model_name << "\"" <<
-       " test=\"" << test_name << "\" device=\"" << target_device <<
+       << "<model path=\"" << model_name <<
+       "\" precision=\"" << precision <<
+       "\" test=\"" << test_name <<
+       "\" device=\"" << target_device <<
        "\" vmsize=\"" << (int) (measures[VMSIZE] * REPORTING_THRESHOLD) <<
        "\" vmpeak=\"" << (int) (measures[VMPEAK] * REPORTING_THRESHOLD) <<
        "\" vmrss=\"" << (int) (measures[VMRSS] * REPORTING_THRESHOLD) <<
@@ -60,7 +62,7 @@ std::string MemCheckPipeline::get_reference_record_for_test(std::string test_nam
     return ss.str();
 }
 
-TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()>& test_pipeline,
+TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()> &test_pipeline,
                                 const std::array<long, MeasureValueMax> &references) {
     log_info("Reference values of virtual memory consumption:");
     log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));

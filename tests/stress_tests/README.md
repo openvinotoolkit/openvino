@@ -12,8 +12,8 @@ when executing continuously.
 - StressUnitTests executing various Inference Engine use cases in parallel
 threads and processes.
 
-Each test refers to configuration files located in `<test dir>\local_configs`
-folder. The configuration files are installed along with tests on build time.
+Each test refers to configuration files located in `<test dir>\.automation`
+folder. 
 
 ## Getting Started
 
@@ -32,33 +32,20 @@ one at a time to mitigate memory statistics pollution. You can use
 
 ### Building Tests
 
-Stress tests should be built in 2 steps.
-
-1. Build `dldt`
-
-Build `dldt` as usual but with `-DENABLE_TESTS=ON`.
-
-2. Build `stress_tests`
-
-Stress tests depend from the Inference Engine Developer Package located in the
-`dldt` build directory.
-
-In the command line snippet bellow, it is assumed that the Inference Engine
-Developer Package CMake module can be found in the directory `build` under
-`dldt` repository root.
-
+To build the tests, you need to have OpenVINO™ installed or build from source.
+Before build the tests, open a terminal, set OpenVINO™ environment, and after that
+run the commands below:
 ``` bash
-(
-export DLDT_BUILD_DIR=$(git rev-parse --show-toplevel)/build
-mkdir -p build && cd build && \
-cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_BUILD_DIR .. && make -j$(nproc) \
-)
+source <OpenVINO_install_dir>/setupvars.sh
+mkdir build && cd build
+cmake .. && cmake --build . -j8
 ```
 
 ### Preparing Test Data
 
-Stress test use models from [Open Model Zoo][open_model_zoo]. Download and
-convert models to IRs using `./scripts/get_testdata.py` script.
+Stress tests may work with models from [Open Model Zoo][open_model_zoo]. To use it, 
+download and convert models to IRs using `./scripts/get_testdata.py` script.
+Script will update test config file with data required for OMZ models execution.
 
 From Intel network you can use models from cache at `vdp_tests` file share.
 Refer to [VDP shared folders][VDP-shared-folders] on using file shares.
@@ -66,12 +53,14 @@ Refer to [VDP shared folders][VDP-shared-folders] on using file shares.
 ### Running Tests
 
 ``` bash
-gtest-parallel ./MemCheckTests
+gtest-parallel <openvino_bin>/StressMemLeaksTests
 ```
 
+For MemCheckTests preferable way is:
 ``` bash
-gtest-parallel ./StressMemLeaksTests
-```
+python ./scripts/run_memcheck.py --gtest_parallel <gtest_parallel_py_path> 
+<openvino_bin>/MemCheckTests -- --test_conf=<test_conf_path> --refs_conf=<refs_conf_path>
+``` 
 
 MemCheckTests logs can be used to gather reference values based on current
 memory consumption:
@@ -84,4 +73,4 @@ grep -rh ./MemCheckTests-logs -e ".*<model " | sed -e "s/.*<model /<model /" | s
 
 [VDP-shared-folders]: https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders
 [gtest-parallel]: https://github.com/google/gtest-parallel
-[open_model_zoo]: https://github.com/opencv/open_model_zoo
+[open_model_zoo]: https://github.com/openvinotoolkit/open_model_zoo

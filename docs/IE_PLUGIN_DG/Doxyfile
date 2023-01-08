@@ -675,7 +675,7 @@ SHOW_NAMESPACES        = YES
 # The FILE_VERSION_FILTER tag can be used to specify a program or script that
 # doxygen should invoke to get the current version for each file (typically from
 # the version control system). Doxygen will invoke the program by executing (via
-# popen()) the command command input-file, where command is the value of the
+# popen()) the command input-file, where command is the value of the
 # FILE_VERSION_FILTER tag, and input-file is the name of an input file provided
 # by doxygen. Whatever the program writes to standard output is used as the file
 # version. For an example see the documentation.
@@ -781,9 +781,9 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = . \
-						 ../../inference-engine/src/transformations/include/transformations \
-						 ../../inference-engine/src/plugin_api \
-						 ../../openvino/itt/include/openvino
+						 ../../src/common/transformations/include/transformations \
+						 ../../src/inference/dev_api \
+						 ../../src/common/itt/include/openvino
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -844,8 +844,7 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = generic_ie.hpp \
-                         function_name.hpp \
+EXCLUDE_PATTERNS       = function_name.hpp \
                          macro_overload.hpp
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -863,13 +862,11 @@ EXCLUDE_SYMBOLS        =
 # that contain example code fragments that are included (see the \include
 # command).
 
-EXAMPLE_PATH           = ../template_plugin/src \
-                         ../template_plugin/include \
-                         ../template_plugin/src/CMakeLists.txt \
-                         ../template_plugin/tests/functional/CMakeLists.txt \
-                         ../template_plugin/tests/functional/transformations \
-                         ../template_plugin/tests/functional/shared_tests_instances/ \
-                         ../../inference-engine/tests/functional/plugin/shared/include \
+EXAMPLE_PATH           = ../../src/plugins/ \
+                         ../../src/plugins/template/tests/functional/CMakeLists.txt \
+                         ../../src/plugins/template/tests/functional/transformations \
+                         ../../src/plugins/template/tests/functional/shared_tests_instances/ \
+                         ../../src/tests/functional/plugin/shared/include \
                          ../snippets
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
@@ -2047,14 +2044,23 @@ INCLUDE_FILE_PATTERNS  =
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
 PREDEFINED             = INFERENCE_PLUGIN_API \
+                         OPENVINO_PLUGIN_API \
                          INFERENCE_ENGINE_API \
                          INFERENCE_ENGINE_API_CPP \
                          INFERENCE_ENGINE_API_CLASS \
+                         OPENVINO_RUNTIME_API_C \
+                         OPENVINO_RUNTIME_API \
+                         OPENVINO_EXTERN_C \
+                         OPENVINO_CORE_IMPORTS \
+                         OPENVINO_CORE_EXPORTS \
+                         OPENVINO_CDECL \
+                         OPENVINO_STDCALL \
                          INFERENCE_ENGINE_DEPRECATED \
+                         OPENVINO_DEPRECATED \
                          IE_SUPPRESS_DEPRECATED_START \
                          IE_SUPPRESS_DEPRECATED_END \
-                         IE_SUPPRESS_DEPRECATED_START_WIN \
-                         IE_SUPPRESS_DEPRECATED_END_WIN \
+                         _IE_SUPPRESS_DEPRECATED_START_GCC \
+                         _IE_SUPPRESS_DEPRECATED_END_GCC \
                          IE_THREAD=IE_THREAD_TBB \
                          TRANSFORMATIONS_API
 

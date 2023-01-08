@@ -1,13 +1,17 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include(download/extract)
 include(download/download_and_check)
 
-function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win archive_name_lin archive_name_mac archive_name_android)
+function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win archive_name_lin archive_name_mac archive_name_android USE_NEW_LOCATION)
   if (archive_name_unified)
-    set (${url} "thirdparty/unified/${archive_name_unified}" PARENT_SCOPE)
+      if (USE_NEW_LOCATION)
+        set (${url} "${archive_name_unified}" PARENT_SCOPE)
+      else()
+        set (${url} "thirdparty/unified/${archive_name_unified}" PARENT_SCOPE)
+      endif()
     set (${name} ${archive_name_unified} PARENT_SCOPE)
   else()
     if(archive_name_lin)
@@ -42,25 +46,27 @@ function (DownloadAndExtractPlatformSpecific
   unpacked_path
   result_path
   folder
-  sha256)
+  sha256
+  files_to_extract
+  USE_NEW_LOCATION)
 
-  GetNameAndUrlToDownload(archive_name RELATIVE_URL ${archive_name_unified} ${archive_name_win} ${archive_name_lin} ${archive_name_mac} ${archive_name_android} )
+  GetNameAndUrlToDownload(archive_name RELATIVE_URL ${archive_name_unified} ${archive_name_win} ${archive_name_lin} ${archive_name_mac} ${archive_name_android} ${USE_NEW_LOCATION})
   if (NOT archive_name OR NOT RELATIVE_URL)
     return()
   endif()
-  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} TRUE FALSE TRUE ${sha256})
+  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} TRUE FALSE TRUE ${sha256} ${files_to_extract} ${USE_NEW_LOCATION})
   set (${result_path} ${result_path2} PARENT_SCOPE)
 
 endfunction(DownloadAndExtractPlatformSpecific)
 
 #download from common folder
-function (DownloadAndExtract component archive_name unpacked_path result_path folder sha256)
+function (DownloadAndExtract component archive_name unpacked_path result_path folder sha256 files_to_extract USE_NEW_LOCATION)
   set (RELATIVE_URL  "${archive_name}")
   set(fattal TRUE)
-  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} ${fattal} result TRUE ${sha256})
+  CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} result_path2 ${folder} ${fattal} result TRUE ${sha256} ${files_to_extract} ${USE_NEW_LOCATION})
 
   if (NOT ${result})
-    DownloadAndExtractPlatformSpecific(${component} ${archive_name} ${archive_name} ${archive_name} ${unpacked_path} ${result_path2} ${folder})
+    DownloadAndExtractPlatformSpecific(${component} ${archive_name} ${archive_name} ${archive_name} ${unpacked_path} ${result_path2} ${folder} ${sha256} ${files_to_extract} ${USE_NEW_LOCATION})
   endif()
 
   set (${result_path} ${result_path2} PARENT_SCOPE)
@@ -68,7 +74,7 @@ function (DownloadAndExtract component archive_name unpacked_path result_path fo
 endfunction(DownloadAndExtract)
 
 
-function (DownloadAndExtractInternal URL archive_path  unpacked_path folder fattal resultExt sha256)
+function (DownloadAndExtractInternal URL archive_path  unpacked_path folder fattal resultExt sha256 files_to_extract)
   set (status "ON")
   DownloadAndCheck(${URL} ${archive_path} ${fattal} result1 ${sha256})
   if ("${result1}" STREQUAL "ARCHIVE_DOWNLOAD_FAIL")
@@ -83,17 +89,17 @@ function (DownloadAndExtractInternal URL archive_path  unpacked_path folder fatt
   endif()
 
   if("${status}" STREQUAL "ON")
-    ExtractWithVersion(${URL} ${archive_path} ${unpacked_path} ${folder} result)
+    ExtractWithVersion(${URL} ${archive_path} ${unpacked_path} ${folder} result ${files_to_extract})
   endif()
 
   set (${resultExt} ${status} PARENT_SCOPE)
 
 endfunction(DownloadAndExtractInternal)
 
-function (ExtractWithVersion URL archive_path unpacked_path folder result)
+function (ExtractWithVersion URL archive_path unpacked_path folder result files_to_extract)
 
-  debug_message("ExtractWithVersion : ${archive_path} : ${unpacked_path}")
-  extract(${archive_path} ${unpacked_path} ${folder} status)
+  debug_message("ExtractWithVersion : ${archive_path} : ${unpacked_path} : ${folder} : ${files_to_extract}")
+  extract(${archive_path} ${unpacked_path} ${folder} ${files_to_extract} status)
   #dont need archive actually after unpacking
   file(REMOVE_RECURSE "${archive_path}")
   if (${status})
@@ -106,28 +112,30 @@ function (ExtractWithVersion URL archive_path unpacked_path folder result)
   set (${result} ${status} PARENT_SCOPE)
 endfunction (ExtractWithVersion)
 
-function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal resultExt sha256)
+function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal resultExt sha256 files_to_extract)
   debug_message("checking wether archive downloaded : ${archive_path}")
   set (downloadStatus "NOTOK")
   if (NOT EXISTS ${archive_path})
-    DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256})
+    DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256} ${files_to_extract})
     if (${result})
       set (downloadStatus "OK")
     endif()
   else()
 
     if (ENABLE_UNSAFE_LOCATIONS)
-      ExtractWithVersion(${URL} ${archive_path} ${unpacked_path} ${folder} result)
+      ExtractWithVersion(${URL} ${archive_path} ${unpacked_path} ${folder} result ${files_to_extract})
       if(NOT ${result})
-        DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256})
+        DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256} ${files_to_extract})
         if (${result})
           set (downloadStatus "OK")
         endif()
+      else()
+        set (downloadStatus "OK")
       endif()
     else()
       debug_message("archive found on FS : ${archive_path}, however we cannot check it's checksum and think that it is invalid")
       file(REMOVE_RECURSE "${archive_path}")
-      DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256})
+      DownloadAndExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} result ${sha256} ${files_to_extract})
       if (${result})
         set (downloadStatus "OK")
       endif()
@@ -145,9 +153,7 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
 
 endfunction(DownloadOrExtractInternal)
 
-file(REMOVE ${CMAKE_BINARY_DIR}/dependencies_64.txt)
-
-function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives sha256)
+function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked_path result_path folder fattal resultExt use_alternatives sha256 files_to_extract USE_NEW_LOCATION)
   set (archive_path ${TEMP}/download/${archive_name})
   set (status "ON")
 
@@ -155,6 +161,8 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
     set(URL "${IE_PATH_TO_DEPS}/${RELATIVE_URL}")
   elseif(DEFINED ENV{IE_PATH_TO_DEPS})
     set(URL "$ENV{IE_PATH_TO_DEPS}/${RELATIVE_URL}")
+  elseif(USE_NEW_LOCATION)
+    set(URL "https://storage.openvinotoolkit.org/dependencies/${RELATIVE_URL}")
   else()
     set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
   endif()
@@ -163,18 +171,17 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   if (${use_alternatives})
     set(DEP_INFO "${component}=${URL}")
     debug_message (STATUS "DEPENDENCY_URL: ${DEP_INFO}")
-    file(APPEND ${CMAKE_BINARY_DIR}/dependencies_64.txt "${DEP_INFO}\n")
   endif()
 
   debug_message ("checking that unpacked directory exist: ${unpacked_path}")
 
   if (NOT EXISTS ${unpacked_path})
-    DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256})
+    DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256} ${files_to_extract})
   else(NOT EXISTS ${unpacked_path})
     #path exists, so we would like to check what was unpacked version
     set (version_file ${unpacked_path}/ie_dependency.info)
 
-    if (NOT EXISTS ${version_file} AND NOT ${ENABLE_ALTERNATIVE_TEMP})
+    if (NOT EXISTS ${version_file})
       clean_message(FATAL_ERROR "error: Dependency doesn't contain version file. Please select actions: \n"
         "if you are not sure about your FS dependency - remove it : \n"
         "\trm -rf ${unpacked_path}\n"
@@ -200,12 +207,12 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
         string(REPLACE ${TEMP} ${ALTERNATIVE_PATH} archive_path ${archive_path})
 
         debug_message("dependency different: use local path for fetching updated version: ${alternative_path}")
-        CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} ${result_path} ${folder} ${fattal} ${resultExt} FALSE ${sha256})
+        CheckOrDownloadAndExtract(${component} ${RELATIVE_URL} ${archive_name} ${unpacked_path} ${result_path} ${folder} ${fattal} ${resultExt} FALSE ${sha256} ${files_to_extract})
 
       else()
         debug_message("dependency updated: download it again")
         file(REMOVE_RECURSE "${unpacked_path}")
-        DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256})
+        DownloadOrExtractInternal(${URL} ${archive_path} ${unpacked_path} ${folder} ${fattal} status ${sha256} ${files_to_extract})
       endif()
     endif ()
    endif()

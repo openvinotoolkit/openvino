@@ -1,14 +1,14 @@
-# Synchronous Inference Request {#infer_request}
+# Synchronous Inference Request {#openvino_docs_ie_plugin_dg_infer_request}
 
 `InferRequest` class functionality:
 - Allocate input and output blobs needed for a backend-dependent network inference.
-- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref async_infer_request) implementation.
+- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) implementation.
 - Call inference stages one by one synchronously.
 
 `InferRequest` Class
 ------------------------
 
-Inference Engine Plugin API provides the helper InferenceEngine::InferRequestInternal class recommended 
+Inference Engine Plugin API provides the helper InferenceEngine::IInferRequestInternal class recommended 
 to use as a base class for a synchronous inference request implementation. Based of that, a declaration 
 of a synchronous request class can look as follows: 
 
@@ -46,7 +46,7 @@ Decrements a number of created inference requests:
 
 ### `InferImpl()`
 
-**Implementation details:** Base InferRequestInternal class implements the public InferenceEngine::InferRequestInternal::Infer method as following:
+**Implementation details:** Base IInferRequestInternal class implements the public InferenceEngine::IInferRequestInternal::Infer method as following:
 - Checks blobs set by users
 - Calls the `InferImpl` method defined in a derived class to call actual pipeline stages synchronously
 
@@ -54,12 +54,12 @@ Decrements a number of created inference requests:
 
 #### 1. `inferPreprocess`
 
-Below is the code of the the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
+Below is the code of the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
 
 @snippet src/template_infer_request.cpp infer_request:infer_preprocess
 
 **Details:**
-* `InferImpl` must call the InferenceEngine::InferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
+* `InferImpl` must call the InferenceEngine::IInferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
 * If `inputBlob` passed by user differs in terms of precisions from precision expected by plugin, `blobCopy` is performed which does actual precision conversion.
 
 #### 2. `startPipeline`
@@ -80,4 +80,4 @@ The method sets performance counters which were measured during pipeline stages 
 
 @snippet src/template_infer_request.cpp infer_request:get_performance_counts
 
-The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref async_infer_request) class.
+The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.

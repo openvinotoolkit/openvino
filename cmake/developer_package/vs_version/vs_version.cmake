@@ -1,31 +1,16 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-macro(ie_parse_ci_build_number)
-    if(CI_BUILD_NUMBER MATCHES "^([0-9]+)\.([0-9]+)\.([0-9]+)\-.*")
-        set(IE_VERSION_MAJOR ${CMAKE_MATCH_1})
-        set(IE_VERSION_MINOR ${CMAKE_MATCH_2})
-        set(IE_VERSION_PATCH ${CMAKE_MATCH_3})
-        set(IE_VS_VER_HAS_VERSION 1)
-    else()
-        set(IE_VS_VER_HAS_VERSION 0)
-    endif()
-endmacro()
-
-ie_parse_ci_build_number()
-
-if(IE_VS_VER_HAS_VERSION)
-    set(IE_VS_VER_FILEVERSION_QUAD "${IE_VERSION_MAJOR},${IE_VERSION_MINOR},${IE_VERSION_PATCH},0")
-    set(IE_VS_VER_PRODUCTVERSION_QUAD "${IE_VERSION_MAJOR},${IE_VERSION_MINOR},${IE_VERSION_PATCH},0")
-    set(IE_VS_VER_FILEVERSION_STR "${IE_VERSION_MAJOR}.${IE_VERSION_MINOR}.${IE_VERSION_PATCH}.0")
-endif()
+set(IE_VS_VER_FILEVERSION_QUAD "${OpenVINO_VERSION_MAJOR},${OpenVINO_VERSION_MINOR},${OpenVINO_VERSION_PATCH},${OpenVINO_VERSION_BUILD}")
+set(IE_VS_VER_PRODUCTVERSION_QUAD "${OpenVINO_VERSION_MAJOR},${OpenVINO_VERSION_MINOR},${OpenVINO_VERSION_PATCH},${OpenVINO_VERSION_BUILD}")
+set(IE_VS_VER_FILEVERSION_STR "${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}.${OpenVINO_VERSION_BUILD}")
 
 set(IE_VS_VER_COMPANY_NAME_STR "Intel Corporation")
 set(IE_VS_VER_PRODUCTVERSION_STR "${CI_BUILD_NUMBER}")
 set(IE_VS_VER_PRODUCTNAME_STR "OpenVINO toolkit")
-set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2020, Intel Corporation")
-set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
+set(IE_VS_VER_COPYRIGHT_STR "Copyright (C) 2018-2021, Intel Corporation")
+set(IE_VS_VER_COMMENTS_STR "https://docs.openvino.ai/")
 
 #
 # ie_add_vs_version_file(NAME <name>
@@ -41,7 +26,7 @@ set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
 #                        [PRODUCTVERSION_QUAD <name>])
 #
 function(ie_add_vs_version_file)
-    if(NOT WIN32)
+    if(NOT WIN32 OR NOT BUILD_SHARED_LIBS)
         return()
     endif()
 
@@ -49,6 +34,11 @@ function(ie_add_vs_version_file)
 
     if(NOT TARGET ${VS_VER_NAME})
         message(FATAL_ERROR "${VS_VER_NAME} must define a target")
+    endif()
+
+    get_target_property(target_type ${VS_VER_NAME} TYPE)
+    if(NOT target_type MATCHES "^(SHARED|MODULE)_LIBRARY$")
+        message(FATAL_ERROR "ie_add_vs_version_file can work only with dynamic libraries")
     endif()
 
     macro(_vs_ver_update_variable name)

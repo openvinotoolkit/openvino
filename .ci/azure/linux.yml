@@ -1,46 +1,111 @@
+trigger:
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+
+pr:
+  branches:
+    include:
+    - 'master'
+    - 'releases/*'
+  paths:
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+
 resources:
   repositories:
   - repository: openvino_contrib
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
+    ref: master
 
   - repository: testdata
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: master
 
 jobs:
 - job: Lin
+  strategy:
+    matrix:
+      # Dynamic:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
+      #   CMAKE_CPACK_GENERATOR:
+      #   SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+      #   PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
+      #   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+      # Debian:
+      #   CMAKE_BUILD_SHARED_LIBS: 'ON'
+      #   PYTHON_STATIC_ARGS:
+      #   CMAKE_CPACK_GENERATOR: 'DEB'
+      #   SAMPLES_INSTALL_DIR: /usr/share/openvino/samples
+      #   PYTHON_SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/share/openvino/samples/python
+      #   RUN_PREFIX: LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/opencv/lib:$LD_LIBRARY_PATH
+      Static:
+        CMAKE_BUILD_SHARED_LIBS: 'OFF'
+        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+        CMAKE_CPACK_GENERATOR:
+        SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+        PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
+        RUN_PREFIX: . $(SETUPVARS) &&
+    maxParallel: '2'
+
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '120'
 
   pool:
-    name: LIN_VMSS_VENV_F8S_WU2
+    name: LIN_VMSS_VENV_F16S_U20_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
+    BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
+    BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
+    BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
+    INSTALL_DIR: $(WORK_DIR)/install_pkg
+    INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
+    LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
+    SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+    TMP_DIR: /mnt/tmp
+    SHARE_DIR: /mount/cinfsshare/onnxtestdata
+    CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
+    CMAKE_VERSION: 3.24.0
+    BUILD_PYTHON: $(WORK_DIR)/build_python
+    INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
 
   steps:
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      which python3
-      python3 --version
-      which java
-      java -version
-      gcc --version
+      echo Python3 info ; which python3 ; python3 --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -49,39 +114,58 @@ jobs:
       vmstat -s
       df
       lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'System info'
 
   - script: |
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+      rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(SHARE_DIR)
+      sudo apt --assume-yes update && sudo apt --assume-yes install nfs-common
+      sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino_contrib
 
-  - checkout: testdata
-    clean: true
-    lfs: true
-    path: testdata
-
   - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/requirements.txt
+      set -e
+      sudo -E $(REPO_DIR)/install_build_dependencies.sh
+      # Move jdk into contrib
+      # 'clang' compiler is to check that samples can be built using it
+      sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang
+      # For Python API
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
       # For running Python API tests
-      python3 -m pip install -r $(REPO_DIR)/inference-engine/ie_bridges/python/src/requirements-dev.txt
+      python3 -m pip install -r $(REPO_DIR)/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+      # For running Paddle frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/paddle/tests/requirements.txt
+      # For running ONNX frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
+      # For running TensorFlow frontend unit tests
+      python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
+      # For MO unit tests
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
       # Speed up build
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
       # Speed up tests
@@ -89,99 +173,346 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+  - script: |
+      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+      whoami
+      uname -a
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      echo cmake info ; which cmake ; cmake --version
+      lsb_release
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      cat /etc/fstab
+      vmstat -s
+      df
+      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
+    displayName: 'System info'
+
+
+    # Should be after 'Install dependencies' because Git lfs is not installed
+  - checkout: testdata
+    clean: 'true'
+    fetchDepth: '1'
+    lfs: 'true'
+    path: testdata
+
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
       cmakeArgs: >
         -GNinja
-        -DVERBOSE_BUILD=ON
-        -DENABLE_TEMPLATE_PLUGIN=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_PYTHON=ON
-        -DPYTHON_EXECUTABLE=/usr/bin/python3.6
+        -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_TESTS=ON
+        -DENABLE_OV_ONNX_FRONTEND=ON
         -DENABLE_FASTER_BUILD=ON
-        -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
+        -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+        -DCMAKE_C_LINKER_LAUNCHER=ccache
+        -DCPACK_GENERATOR=$(CMAKE_CPACK_GENERATOR)
+        -DBUILD_nvidia_plugin=OFF
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_DIR)
+  - script: ls -alR $(REPO_DIR)/temp/
+    displayName: 'List temp SDKs'
+
+  - script: ccache --zero-stats --max-size=50G --show-config
+    displayName: 'Clean ccache stats'
+
+  - script: |
+      export CCACHE_DIR=$(CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      export CCACHE_BASEDIR=$(Pipeline.Workspace)
+      export CCACHE_MAXSIZE=50G
+      ninja -C $(BUILD_DIR)
     displayName: 'Build Lin'
 
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
+
   - script: ls -alR $(REPO_DIR)/bin/
-    displayName: 'List files'
+    displayName: 'List bin files'
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
-    displayName: 'nGraph UT'
-    continueOnError: false
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        $(REPO_DIR)/tests/layer_tests
+      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
 
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+  - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Build Layer Tests'
+
+  - script: sudo apt-get remove libtbb2 -y
+    displayName: 'Remove debian dependencies'
+    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+
+  - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    displayName: 'Install wheel packages'
+
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
+    displayName: 'Install Layer Tests'
+
+  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+    displayName: 'Install python wheels'
+
+  - script: |
+      set -e
+      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
+    displayName: 'Install tests'
+
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install test files'
+
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      # because of static build libgna is needed for python binary
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
+        --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
+        --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    displayName: 'nGraph and IE Python Bindings Tests'
+
+    # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
+  - script: |
+      # because of static build libgna is needed for python binary and mock_py frontend library
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      # For python imports to import pybind_mock_frontend
+      export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
+      # For frontend manager to load mock_py library
+      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
+      python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
+        --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
+        --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+    displayName: 'Python API 2.0 Tests'
+
+  - script: |
+      # because of static build libgna is needed for python binary
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+    displayName: 'Model Optimizer UT'
+
+  - script: |
+      sudo apt-get install libtbb-dev libpugixml-dev -y
+      cmake --build $(BUILD_DIR) --target package -j8
+    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'Build Debian packages'
+
+  - script: |
+      # install debian packages from previous release
+      wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+      sudo apt-get install --no-install-recommends gnupg -y
+      echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
+      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
+      # sudo apt-get install openvino -y
+      # install our local one and make sure the conflicts are resolved
+      sudo apt-get install --no-install-recommends dpkg-dev -y
+      rm -r _CPack_Packages
+      dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+      echo "deb [trusted=yes] file:$(BUILD_DIR) ./" | sudo tee /etc/apt/sources.list.d/openvino-local.list
+      sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/openvino-local.list
+      sudo apt-get install openvino -y
+    workingDirectory: $(BUILD_DIR)
+    condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'Install Debian packages'
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+    condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'Install openvino'
+
+  - script: ls -alR $(INSTALL_DIR)
+    condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
+    displayName: 'List install files'
+
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
+    displayName: 'Build cpp samples'
+
+  - script: |
+      export CC=clang
+      export CXX=clang++
+      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
+    displayName: 'Build cpp samples - clang'
+
+  - script: |
+      export VERBOSE=1
+      $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
+    displayName: 'Build c samples'
+
+  - script: rm -fr $(BUILD_DIR)
+    displayName: 'Clean build dir'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+    displayName: 'OV Core UT'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceFunc.xml
+    displayName: 'Inference Func Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceUnit.xml
+    displayName: 'Inference Unit Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
+    displayName: 'Conditional Compilation Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
+    displayName: 'Paddle Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
+    displayName: 'IR Frontend Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    displayName: 'ONNX Frontend Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+    displayName: 'Paddle Frontend UT'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+    displayName: 'TensorFlow Frontend Unit Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
+    displayName: 'Low Precision Transformations Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
+    displayName: 'Transformations Tests'
+
+    # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
-    continueOnError: false
 
-  - script: $(BIN_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
     displayName: 'IE UT'
-    continueOnError: false
 
-  - script: $(BIN_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
-    displayName: 'CPU UT'
-    continueOnError: false
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
+    displayName: 'Intel CPU Unit Tests'
 
-  - script: $(BIN_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
-    continueOnError: false
 
-  - script: $(BIN_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
-    continueOnError: false
 
-  - script: $(BIN_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
-    displayName: 'ONNX Importer UT'
-    continueOnError: false
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
+    displayName: 'XLink Tests'
 
-  - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
+    displayName: 'MULTI UT'
+
+  - script: |
+      # because of IR reader v7
+      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
-    continueOnError: false
 
-  - script: $(BIN_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
-    continueOnError: false
 
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
-    continueOnError: false
-
-  - script: $(BIN_DIR)/MklDnnBehaviorTests --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
-    displayName: 'MklDnnBehaviorTests'
-    continueOnError: false
+    condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-    workingDirectory: $(WORK_DIR)
-    displayName: 'MklDnnFunctionalTests'
-    continueOnError: false
-
-  - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
-      $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
-    continueOnError: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      export LD_LIBRARY_PATH=$(BIN_DIR)/lib
-      export PYTHONPATH=$(BIN_DIR)/lib/python_api/python3.6
-      env
-      cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      pytest pytest --junitxml=TEST-PythonAPI.xml
-    displayName: 'Python API Tests'
-    continueOnError: false
-    enabled: false
+      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
+    displayName: 'OV CAPITests'
+
+  - task: CMake@1
+    inputs:
+      cmakeArgs: >
+        -GNinja
+        $(REPO_DIR)/tests/samples_tests
+      workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'Install Samples Tests'
+
+  - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+    workingDirectory: $(INSTALL_TEST_DIR)
+
+    displayName: 'Install dependencies for samples smoke tests'
+
+  - script: |
+      export PATH=$HOME/.local/bin:$PATH
+      export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
+      export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
+      export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
+      export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
+      export WORKSPACE=$(INSTALL_DIR)
+      $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+    displayName: 'Samples Smoke Tests'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_fe.xmlTEST
+    displayName: 'TensorFlow 1 Layer Tests - TF FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf2_fe.xmlTEST
+    displayName: 'TensorFlow 2 Layer Tests - TF FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
+    displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
+    displayName: 'TensorFlow 2 Layer Tests - Legacy FE'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_complex_params.py --ir_version=11 --junitxml=./TEST-test_mo_convert_complex_params.xmlTEST
+    displayName: 'MO Python API Tests - Complex Python params'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_tf.py --ir_version=11 --junitxml=./TEST-test_mo_convert_tf.xmlTEST
+    displayName: 'MO Python API Tests - Import TF model from memory'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_pytorch.py --ir_version=11 --junitxml=./TEST-test_mo_convert_pytorch.xmlTEST
+    displayName: 'MO Python API Tests - Import PyTorch model from memory'
 
   - task: PublishTestResults@2
     condition: always()

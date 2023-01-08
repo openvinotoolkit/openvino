@@ -1,4 +1,4 @@
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -10,7 +10,7 @@
 #   XARCH_FUNC_NAME -- name of function to dispatch
 #   XARCH_NAMESPACES -- full namespace used to keep ODR
 #   XARCH_DISP_FILE -- dispatcher file name to generate
-#   XARCH_SET -- set of ARCH supported by dispatcher. space delimited
+#   XARCH_SET -- set of ARCH supported by dispatcher. semicolon-delimited
 #
 # =================================================================
 
@@ -24,7 +24,6 @@ function(_generate_dispatcher)
     _find_signature_in_file(${XARCH_API_HEADER} ${XARCH_FUNC_NAME} SIGNATURE)
     _generate_call_line_from_signature("${SIGNATURE}" CALL_LINE)
 
-    string(REPLACE " " ";" XARCH_SET "${XARCH_SET}")
     string(REPLACE "::" ";" XARCH_NAMESPACES "${XARCH_NAMESPACES}")
 
     list(GET XARCH_NAMESPACES -1 XARCH_CURRENT_NAMESPACE)

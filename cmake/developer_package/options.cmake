@@ -1,13 +1,23 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 # Usage: ie_option(<option_variable> "description" <initial value or boolean expression> [IF <condition>])
 
 include (CMakeDependentOption)
 
+if(POLICY CMP0127)
+    cmake_policy(SET CMP0127 NEW)
+endif()
+
 macro (ie_option variable description value)
     option(${variable} "${description}" ${value})
     list(APPEND IE_OPTIONS ${variable})
+endmacro()
+
+# Usage: ov_option(<option_variable> "description" <initial value or boolean expression> [IF <condition>])
+macro (ov_option variable description value)
+    ie_option(${variable} "${description}" ${value})
 endmacro()
 
 macro (ie_dependent_option variable description def_value condition fallback_value)
@@ -28,6 +38,7 @@ macro (ie_option_enum variable description value)
     list(APPEND IE_OPTIONS ${variable})
 
     set(${variable} ${value} CACHE STRING "${description}")
+    set_property(CACHE ${variable} PROPERTY STRINGS ${IE_OPTION_ENUM_ALLOWED_VALUES})
 endmacro()
 
 function (print_enabled_features)
@@ -35,7 +46,7 @@ function (print_enabled_features)
         message(FATAL_ERROR "CI_BUILD_NUMBER is not set yet")
     endif()
 
-    message(STATUS "Inference Engine enabled features: ")
+    message(STATUS "OpenVINO Runtime enabled features: ")
     message(STATUS "")
     message(STATUS "    CI_BUILD_NUMBER: ${CI_BUILD_NUMBER}")
     foreach(_var ${IE_OPTIONS})

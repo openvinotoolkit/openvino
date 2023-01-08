@@ -1,10 +1,17 @@
-## Sin <a name="Sin"></a> {#openvino_docs_ops_arithmetic_Sin_1}
+# Sin {#openvino_docs_ops_arithmetic_Sin_1}
 
 **Versioned name**: *Sin-1*
 
-**Category**: Arithmetic unary operation 
+**Category**: *Arithmetic unary*
 
 **Short description**: *Sin* performs element-wise sine operation with given tensor.
+
+**Detailed description**: *sin* does the following with the input tensor *a*:
+\f[
+a_{i} = sin(a_{i})
+\f]
+
+a - value representing angle in radians.
 
 **Attributes**:
 
@@ -12,21 +19,16 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type *T* and arbitrary rank. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise sin operation. A tensor of type T.
+* **1**: The result of element-wise sin operation. A tensor of type *T*.
 
 **Types**
 
 * *T*: any numeric type.
 
-*sin* does the following with the input tensor *a*:
-
-\f[
-a_{i} = sin(a_{i})
-\f]
 
 **Examples**
 

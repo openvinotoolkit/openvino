@@ -1,0 +1,4 @@
+requests>=2.25.1
+numpy>=1.19.2
+torch
+pytest

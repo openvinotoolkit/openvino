@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include (download/download)
 
-function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH FOLDER ENVIRONMENT SHA256)
+function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH FOLDER ENVIRONMENT SHA256 FILES_TO_EXTRACT USE_NEW_LOCATION)
   if (ENVIRONMENT AND (DEFINED ${ENVIRONMENT} OR DEFINED ENV{${ENVIRONMENT}}))
     set(HAS_ENV "TRUE")
   endif()
@@ -12,9 +12,9 @@ function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHI
   if (NOT DEFINED HAS_ENV)
     if (ARCHIVE)
       #TODO: check whether this is platform specific binary with same name per or it is in common folder
-      DownloadAndExtract(${COMPONENT} ${ARCHIVE} ${TARGET_PATH} result_path ${FOLDER} ${SHA256})
+      DownloadAndExtract(${COMPONENT} ${ARCHIVE} ${TARGET_PATH} result_path ${FOLDER} ${SHA256} ${FILES_TO_EXTRACT} ${USE_NEW_LOCATION})
     else()
-      DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} result_path  ${FOLDER} ${SHA256})
+      DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} result_path ${FOLDER} ${SHA256} ${FILES_TO_EXTRACT} ${USE_NEW_LOCATION})
     endif()
 
     set (${VAR} ${result_path} PARENT_SCOPE)
@@ -25,14 +25,7 @@ function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHI
       set (${VAR} $ENV{${ENVIRONMENT}} PARENT_SCOPE)
     endif ()
   endif()
-
 endfunction(resolve_archive_dependency)
-
-function(resolve_pull_request GITHUB_PULL_REQUEST TARGET_PATH)
-    get_filename_component(FILE_NAME ${GITHUB_PULL_REQUEST} NAME)
-    set (PATCH_URL "")
-    DownloadAndApply("${PATCH_URL}/${GITHUB_PULL_REQUEST}" "${IE_MAIN_SOURCE_DIR}/${TARGET_PATH}/${FILE_NAME}")
-endfunction(resolve_pull_request)
 
 function(extract_version_from_filename filename regex version)
     string(REGEX MATCH ${regex} match ${filename})
@@ -51,10 +44,8 @@ function(read_version archive regex version_var)
 endfunction(read_version)
 
 function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
-
   list(REMOVE_AT ARGV 0)
-  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT GITHUB_PULL_REQUEST VERSION_REGEX SHA256)
-
+  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT VERSION_REGEX SHA256 FILES_TO_EXTRACT USE_NEW_LOCATION)
 
   #unnecessary vars
   foreach(arg ${ARGV})
@@ -116,6 +107,13 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
     message(FATAL_ERROR "SHA is not specified for: " ${NAME_OF_CMAKE_VAR})
   endif()
 
+  if (NOT DEFINED FILES_TO_EXTRACT)
+    set (FILES_TO_EXTRACT FALSE)
+  endif()
+
+  if (NOT DEFINED USE_NEW_LOCATION)
+    set (USE_NEW_LOCATION FALSE)
+  endif()
 
   #for each dependency type have to do separate things
   if (ARCHIVE_WIN OR ARCHIVE_LIN OR ARCHIVE_MAC OR ARCHIVE_ANDROID OR ARCHIVE OR ARCHIVE_UNIFIED)
@@ -123,19 +121,16 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
       message(FATAL_ERROR "TARGET_PATH should be defined for every dependency")
     endif()
 
-    resolve_archive_dependency(RESULT ${NAME_OF_CMAKE_VAR} ${ARCHIVE} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} ${FOLDER} ${ENVIRONMENT} ${SHA256})
+    resolve_archive_dependency(RESULT ${NAME_OF_CMAKE_VAR} ${ARCHIVE} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} ${FOLDER} ${ENVIRONMENT} ${SHA256} ${FILES_TO_EXTRACT} ${USE_NEW_LOCATION})
     set(${NAME_OF_CMAKE_VAR} ${RESULT} PARENT_SCOPE)
     if (VERSION_REGEX)
-        GetNameAndUrlToDownload(archive RELATIVE_URL ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID})
+        GetNameAndUrlToDownload(archive RELATIVE_URL ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${USE_NEW_LOCATION})
         if (archive)
             read_version(${archive} ${VERSION_REGEX} "${NAME_OF_CMAKE_VAR}_VERSION")
         endif()
     endif()
-
-  elseif (DEFINED GITHUB_PULL_REQUEST)
-    resolve_pull_request(${GITHUB_PULL_REQUEST} ${TARGET_PATH})
   else()
-    message(FATAL_ERROR "Dependency of unknowntype, SHOULD set one of ARCHIVE_WIN, ARCHIVE, ARCHIVE_LIN, ARCHIVE_MAC, ARCHIVE_ANDROID, GITHUB_PULL_REQUEST")
+    message(FATAL_ERROR "Dependency of unknowntype, SHOULD set one of ARCHIVE_WIN, ARCHIVE, ARCHIVE_LIN, ARCHIVE_MAC, ARCHIVE_ANDROID")
   endif()
 
 endfunction(RESOLVE_DEPENDENCY)

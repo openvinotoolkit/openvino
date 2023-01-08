@@ -1,4 +1,4 @@
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,13 +14,19 @@ set(CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
 function(set_ci_build_number)
     set(repo_root "${CMAKE_SOURCE_DIR}")
     include(version)
-    set(CI_BUILD_NUMBER "${CI_BUILD_NUMBER}" PARENT_SCOPE)
+    foreach(var CI_BUILD_NUMBER OpenVINO_VERSION OpenVINO_SOVERSION OpenVINO_VERSION_SUFFIX OpenVINO_VERSION_BUILD
+                OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
+        if(NOT DEFINED ${var})
+            message(FATAL_ERROR "${var} version component is not defined")
+        endif()
+        set(${var} "${${var}}" PARENT_SCOPE)
+    endforeach()
 endfunction()
-
-set_ci_build_number()
 
 include(features)
 include(message)
+
+set_ci_build_number()
 
 #
 # Detect target
@@ -28,15 +34,17 @@ include(message)
 
 include(target_flags)
 
-string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" ARCH_FOLDER)
 if(X86_64)
     set(ARCH_FOLDER intel64)
 elseif(X86)
     set(ARCH_FOLDER ia32)
 elseif(MSVC AND ARM)
     set(ARCH_FOLDER arm)
-elseif(MSVC AND AARCH64)
+elseif((MSVC OR APPLE) AND AARCH64)
     set(ARCH_FOLDER arm64)
+elseif(UNIVERSAL2)
+    set(ARCH_FOLDER universal2)
 endif()
 
 #
@@ -44,18 +52,12 @@ endif()
 #
 
 function(set_temp_directory temp_variable source_tree_dir)
-    if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
+    if(DEFINED OV_TEMP)
+        message(STATUS "OV_TEMP cmake variable is set : ${OV_TEMP}")
+        file(TO_CMAKE_PATH ${OV_TEMP} temp)
+    elseif (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
-
-        if (WIN32)
-            string(REPLACE "\\" "\\\\" temp $ENV{DL_SDK_TEMP})
-        else()
-            set(temp $ENV{DL_SDK_TEMP})
-        endif()
-
-        if (ENABLE_ALTERNATIVE_TEMP)
-            set(ALTERNATIVE_PATH ${source_tree_dir}/temp)
-        endif()
+        file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} temp)
     else ()
         set(temp ${source_tree_dir}/temp)
     endif()
@@ -77,6 +79,11 @@ if(NOT COMMAND find_host_package)
         find_package(${ARGN})
     endmacro()
 endif()
+if(NOT COMMAND find_host_library)
+    macro(find_host_library)
+        find_library(${ARGN})
+    endmacro()
+endif()
 if(NOT COMMAND find_host_program)
     macro(find_host_program)
         find_program(${ARGN})
@@ -87,7 +94,6 @@ endif()
 # Common scripts
 #
 
-include(packaging)
 include(coverage/coverage)
 include(shellcheck/shellcheck)
 
@@ -106,17 +112,11 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-else()
-    set(RELEASE_TYPES "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
-    list(FIND RELEASE_TYPES ${CMAKE_BUILD_TYPE} INDEX_FOUND)
-    if (INDEX_FOUND EQUAL -1)
-        message(FATAL_ERROR "CMAKE_BUILD_TYPE must be one of Debug, Release, RelWithDebInfo, or MinSizeRel")
-    endif()
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
+if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
 endif()
-message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 if(USE_BUILD_TYPE_SUBFOLDER)
     set(BIN_FOLDER "${BIN_FOLDER}/${CMAKE_BUILD_TYPE}")
@@ -124,10 +124,10 @@ endif()
 
 # allow to override default OUTPUT_ROOT root
 if(NOT DEFINED OUTPUT_ROOT)
-    if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
-        message(FATAL_ERROR "OpenVINO_MAIN_SOURCE_DIR is not defined")
+    if(NOT DEFINED OpenVINO_SOURCE_DIR)
+        message(FATAL_ERROR "OpenVINO_SOURCE_DIR is not defined")
     endif()
-    set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
+    set(OUTPUT_ROOT ${OpenVINO_SOURCE_DIR})
 endif()
 
 # Enable postfixes for Debug/Release builds
@@ -152,8 +152,8 @@ endif()
 set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
-if (MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
-    # Support CMake multiconfiguration for Visual Studio or Xcode build
+# Support CMake multi-configuration for Visual Studio / Ninja or Xcode build
+if (OV_GENERATOR_MULTI_CONFIG)
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -162,22 +162,42 @@ else ()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
     endif()
 endif()
-
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
-if(NOT UNIX)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-else()
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+macro(ov_set_if_not_defined var value)
+    if(NOT DEFINED ${var})
+        set(${var} ${value})
+    endif()
+endmacro()
+
+ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
+    # to make sure that lib/<multiarch-tuple> is created on Debian
+    set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()
-set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+
+include(packaging/packaging)
+
+set(CMAKE_SKIP_INSTALL_RPATH ON)
 
 if(APPLE)
-    set(CMAKE_MACOSX_RPATH ON)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+
+    if(DEFINED OV_CPACK_LIBRARYDIR)
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
+    else()
+        message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
+    endif()
+
+    if(CPACK_GENERATOR STREQUAL "BREW")
+        set(CMAKE_SKIP_INSTALL_RPATH OFF)
+    endif()
+
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
@@ -187,8 +207,21 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+# CMake 3.0+: Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
+# CMake 3.0+: MACOSX_RPATH is enabled by default.
+set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
+# CMake 3.0+ (2.8.12): MacOS "@rpath" in target's install name
+set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+# CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
+set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+# CMake 3.13+: option() honors normal variables.
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
+set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
+
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
 
 # LTO
 
@@ -208,6 +241,20 @@ endif()
 
 # General flags
 
+macro(ov_install_static_lib target comp)
+    if(NOT BUILD_SHARED_LIBS)
+        get_target_property(target_type ${target} TYPE)
+        if(${target_type} STREQUAL "STATIC_LIBRARY")
+            set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL FALSE)
+        endif()
+        install(TARGETS ${target} EXPORT OpenVINOTargets
+                ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${comp} ${ARGN})
+    endif()
+endmacro()
+
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 include(compile_flags/sdl)
 include(compile_flags/os_flags)
 include(compile_flags/sanitizer)
@@ -222,16 +269,48 @@ include(api_validator/api_validator)
 
 include(vs_version/vs_version)
 include(plugins/plugins)
+include(frontends/frontends)
 include(add_ie_target)
+include(CMakePackageConfigHelpers)
 
 if(ENABLE_FUZZING)
     enable_fuzzing()
 endif()
 
+get_linux_name(LINUX_OS_NAME)
+
+# macro to mark target as conditionally compiled
+
+function(ie_mark_target_as_cc TARGET_NAME)
+    set(cc_library openvino::conditional_compilation)
+    if(TARGET IE::conditional_compilation)
+        set(cc_library IE::conditional_compilation)
+    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
+
+    if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
+        return()
+    endif()
+
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "${TARGET_NAME} does not represent target")
+    endif()
+
+    get_target_property(sources ${TARGET_NAME} SOURCES)
+    set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+endfunction()
+
+function(ov_mark_target_as_cc)
+    ie_mark_target_as_cc(${ARGN})
+endfunction()
+
+include(python_requirements)
+
 # Code style utils
 
 include(cpplint/cpplint)
 include(clang_format/clang_format)
+include(ncc_naming_style/ncc_naming_style)
 
 # Restore state
 set(CMAKE_MODULE_PATH ${OLD_CMAKE_MODULE_PATH})

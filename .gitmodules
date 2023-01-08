@@ -1,16 +1,65 @@
-[submodule "inference-engine/thirdparty/ade"]
-	path = inference-engine/thirdparty/ade
-	url = https://github.com/opencv/ade.git
-	ignore = dirty
-[submodule "inference-engine/thirdparty/mkl-dnn"]
-	path = inference-engine/thirdparty/mkl-dnn
+[submodule "src/plugins/intel_cpu/thirdparty/onednn"]
+	path = src/plugins/intel_cpu/thirdparty/onednn
 	url = https://github.com/openvinotoolkit/oneDNN.git
 	ignore = dirty
-[submodule "inference-engine/tests/ie_test_utils/common_test_utils/gtest"]
-	path = inference-engine/tests/ie_test_utils/common_test_utils/gtest
-	url = https://github.com/openvinotoolkit/googletest.git
+[submodule "thirdparty/xbyak"]
+	path = thirdparty/xbyak
+	url = https://github.com/herumi/xbyak.git
 	ignore = dirty
-[submodule "inference-engine/samples/thirdparty/gflags"]
-	path = inference-engine/samples/thirdparty/gflags
+[submodule "thirdparty/zlib/zlib"]
+	path = thirdparty/zlib/zlib
+	url = https://github.com/madler/zlib.git
+	ignore = dirty
+[submodule "thirdparty/pugixml"]
+	path = thirdparty/pugixml
+	url = https://github.com/zeux/pugixml.git
+	ignore = dirty
+[submodule "thirdparty/ade"]
+	path = thirdparty/ade
+	url = https://github.com/opencv/ade.git
+	ignore = dirty
+[submodule "thirdparty/gflags/gflags"]
+	path = thirdparty/gflags/gflags
 	url = https://github.com/gflags/gflags.git
 	ignore = dirty
+[submodule "thirdparty/gtest/gtest"]
+	path = thirdparty/gtest/gtest
+	url = https://github.com/openvinotoolkit/googletest.git
+	ignore = dirty
+[submodule "thirdparty/ocl/icd_loader"]
+	path = thirdparty/ocl/icd_loader
+	url = https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+	ignore = dirty
+[submodule "thirdparty/ocl/cl_headers"]
+	path = thirdparty/ocl/cl_headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+	ignore = dirty
+[submodule "thirdparty/ocl/clhpp_headers"]
+	path = thirdparty/ocl/clhpp_headers
+	url = https://github.com/KhronosGroup/OpenCL-CLHPP.git
+	ignore = dirty
+[submodule "thirdparty/onnx"]
+	path = thirdparty/onnx/onnx
+	url = https://github.com/onnx/onnx.git
+[submodule "thirdparty/protobuf"]
+	path = thirdparty/protobuf/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
+[submodule "src/bindings/python/thirdparty/pybind11"]
+	path = src/bindings/python/thirdparty/pybind11
+	url = https://github.com/pybind/pybind11.git
+[submodule "thirdparty/ittapi/ittapi"]
+	path = thirdparty/ittapi/ittapi
+	url = https://github.com/intel/ittapi.git
+[submodule "ncc"]
+	path = cmake/developer_package/ncc_naming_style/ncc
+	url = https://github.com/nithinn/ncc.git
+[submodule "thirdparty/onednn_gpu"]
+	path = src/plugins/intel_gpu/thirdparty/onednn_gpu
+	url = https://github.com/oneapi-src/oneDNN.git
+[submodule "tools/pot/thirdparty/open_model_zoo"]
+	path = thirdparty/open_model_zoo
+	url = https://github.com/openvinotoolkit/open_model_zoo.git
+[submodule "thirdparty/json/nlohmann_json"]
+	path = thirdparty/json/nlohmann_json
+	url = https://github.com/nlohmann/json.git
+	shallow = true
