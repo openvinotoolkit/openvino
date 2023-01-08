@@ -70,7 +70,7 @@ jobs:
     GRADLE_VER: 7.1.1
 
   steps:
-  - script: |
+  - bash: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       echo # prev line output doesn't end with eol
       whoami
@@ -91,7 +91,7 @@ jobs:
       free -h
     displayName: 'System info'
 
-  - script: |
+  - bash: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
@@ -108,7 +108,7 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - script: |
+  - bash: |
       set -e
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
@@ -118,7 +118,7 @@ jobs:
       unzip ninja-linux.zip
     displayName: 'Install dependencies'
 
-  - script: >
+  - bash: |
       sudo docker pull openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1 &&
       sudo docker run --volume $(REPO_DIR)/../:/root/repos --volume $(WORK_DIR):/root/w
       openvino.azurecr.io/openvino_ci/cuda-ubuntu2004:2022.1
@@ -143,5 +143,5 @@ jobs:
       cmake --build /root/w/build --verbose --parallel --verbose -- CudaFuncTests CudaUnitTests"
     displayName: 'Docker build Lin'
 
-  - script: ls -alR $(OPENVINO_REPO_DIR)/bin/
+  - bash: ls -alR $(OPENVINO_REPO_DIR)/bin/
     displayName: 'List bin files'

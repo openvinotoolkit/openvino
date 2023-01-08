@@ -25,7 +25,7 @@ jobs:
 #    BUILD_DIR: $(WORK_DIR)/build
 
   steps:
-  - script: git -C ~/work/openvino fetch origin $(Build.SourceBranch)
+  - bash: git -C ~/work/openvino fetch origin $(Build.SourceBranch)
     displayName: fetch
 
 #  - checkout: self
@@ -36,7 +36,7 @@ jobs:
 
   - checkout: none
 
-  - script: git -C ~/work/openvino checkout -m $(Build.SourceVersion) && git -C ~/work/openvino submodule update --init --recursive
+  - bash: git -C ~/work/openvino checkout -m $(Build.SourceVersion) && git -C ~/work/openvino submodule update --init --recursive
     displayName: checkout
 
     # Should be after 'Install dependencies' because Git lfs is not installed
@@ -47,7 +47,7 @@ jobs:
 #    lfs: 'true'
 #    path: testdata
 
-  - script: env -C ~/work ./configreleasenolto.sh
+  - bash: env -C ~/work ./configreleasenolto.sh
     displayName: CMake
 
 #  - task: CMake@1
@@ -67,7 +67,7 @@ jobs:
 #        -S $(REPO_DIR)
 #        -B $(BUILD_DIR)
 
-  - script: >
+  - bash: |
       env -C ~/work
       ./buildreleasenolto.sh
       libopenvino_gapi_preproc.so
@@ -77,5 +77,5 @@ jobs:
       gpuFuncTests
     displayName: Build Lin
 
-  - script: ~/work/testreleasenolto.sh
+  - bash: ~/work/testreleasenolto.sh
     displayName: cldnn tests

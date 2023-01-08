@@ -31,13 +31,10 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_coverity
 
   steps:
-  - script: |
+  - bash: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      echo ls /usr/bin/python3.10
-      rm -rf /usr/bin/python3
-      sudo ln -s /usr/bin/python3.10 /usr/bin/python3
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
@@ -54,7 +51,7 @@ jobs:
       free -h
     displayName: 'System info'
 
-  - script: |
+  - bash: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
@@ -77,7 +74,7 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - script: |
+  - bash: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
@@ -107,13 +104,13 @@ jobs:
         -B $(BUILD_DIR)
     displayName: "Cmake configure"
 
-  - script: ls -alR $(REPO_DIR)/temp/
+  - bash: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
-  - script: ccache --zero-stats --max-size=50G --show-config
+  - bash: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - script: |
+  - bash: |
         set -e
         wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
         tar xvf coverity_tool.tgz
@@ -121,7 +118,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
-  - script: |
+  - bash: |
       $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
         cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     env:
@@ -131,17 +128,17 @@ jobs:
       CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin with Coverity'
 
-  - script: ccache --show-stats
+  - bash: ccache --show-stats
     displayName: 'Show ccache stats'
 
-  - script: ls -alR $(REPO_DIR)/bin/
+  - bash: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
+  - bash: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
     workingDirectory: $(BUILD_DIR)
     displayName: 'Pack cov-int folder for submission'
 
-  - script: |
+  - bash: |
         curl --form token=$(COVERITY_TOKEN) \
           --form email=$(COVERITY_USER) \
           --form file=@openvino.tgz \

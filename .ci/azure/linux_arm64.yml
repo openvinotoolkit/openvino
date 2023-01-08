@@ -77,13 +77,11 @@ jobs:
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
 
   steps:
-  - script: |
+  - bash: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      echo ls /usr/bin/python3.10
-      rm -rf /usr/bin/python3
-      sudo ln -s /usr/bin/python3.10 /usr/bin/python3      echo Python3 info ; which python3 ; python3 --version
+      echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
@@ -101,7 +99,7 @@ jobs:
       echo "NUM_PROC=$(NUM_PROC)"
     displayName: 'System information'
 
-  - script: |
+  - bash: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       mkdir -p $(BUILD_ONETBB) $(BUILD_OPENCV) $(BUILD_OPENVINO) $(BUILD_OPENVINO_PYTHON) $(BUILD_PYTHON)
       mkdir -p $(INSTALL_ONETBB) $(INSTALL_ONETBB_PACKAGE) $(INSTALL_OPENVINO) $(INSTALL_PYTHON) $(INSTALL_OPENCV)
@@ -126,7 +124,7 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - script: |
+  - bash: |
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       $(OPENVINO_CONTRIB_REPO_DIR)/modules/arm_plugin/scripts/install_build_dependencies.sh
@@ -135,7 +133,7 @@ jobs:
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
     displayName: 'Install dependencies'
 
-  - script: |
+  - bash: |
       set -e
       /usr/local/bin/$(PYTHON_EXEC) -m pip install -U pip
       /usr/local/bin/$(PYTHON_EXEC) -m pip install crossenv
@@ -172,7 +170,7 @@ jobs:
         -B $(BUILD_OPENVINO)
     displayName: 'CMake OpenVINO ARM plugin'
 
-  - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
+  - bash: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE)
     env:
       CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
@@ -181,10 +179,10 @@ jobs:
       USE_CCACHE: 1
     displayName: 'Build OpenVINO ARM plugin'
 
-  - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
+  - bash: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
     displayName: 'Install OpenVINO ARM plugin'
 
-  - script: |
+  - bash: |
       source $(CROSSENV_DIR)/bin/activate
       cmake \
         -GNinja \
@@ -198,7 +196,7 @@ jobs:
       deactivate
     displayName: 'CMake OpenVINO python binding'
 
-  - script: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --config $(BUILD_TYPE)
+  - bash: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --config $(BUILD_TYPE)
     env:
       CCACHE_DIR: $(OPENVINO_CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
@@ -207,7 +205,7 @@ jobs:
       USE_CCACHE: 1
     displayName: 'Build OpenVINO python binding'
 
-  - script: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --target install
+  - bash: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --target install
     displayName: 'Install OpenVINO python binding'
 
   - task: PublishBuildArtifacts@1
