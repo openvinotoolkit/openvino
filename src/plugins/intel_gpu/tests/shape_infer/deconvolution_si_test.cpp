@@ -68,7 +68,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
     testing::ValuesIn(std::vector<deconvolution_test_params>{
         // 2d deconv
         {
-            ov::PartialShape{1, 20, 224, 224}, ov::PartialShape{20, 10, 3, 3},
+            ov::PartialShape{1, 20, 224, 224}, ov::PartialShape{10, 20, 3, 3},
             1, {2, 2}, {1, 1},
             std::vector<ptrdiff_t>{1, 1}, std::vector<ptrdiff_t>{1, 1},
             std::vector<ptrdiff_t>{0, 0},
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
         },
         // 2d deconv with output padding
         {
-            ov::PartialShape{1, 20, 2, 2}, ov::PartialShape{20, 10, 3, 3},
+            ov::PartialShape{1, 20, 2, 2}, ov::PartialShape{10, 20, 3, 3},
             1, {3, 3}, {1, 1},
             std::vector<ptrdiff_t>{0, 0}, std::vector<ptrdiff_t>{0, 0},
             std::vector<ptrdiff_t>{2, 2},
@@ -84,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
         },
         // 2d deconv with dynamic shape
         {
-            ov::PartialShape::dynamic(4), ov::PartialShape{20, 10, 3, 3},
+            ov::PartialShape::dynamic(4), ov::PartialShape{10, 20, 3, 3},
             1, {3, 3}, {1, 1},
             std::vector<ptrdiff_t>{0, 0}, std::vector<ptrdiff_t>{0, 0},
             std::vector<ptrdiff_t>{2, 2},
@@ -92,7 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
         },
         // 1d groupdeconv
         {
-            ov::PartialShape{1, 20, 224}, ov::PartialShape{4, 5, 2, 3},
+            ov::PartialShape{1, 20, 224}, ov::PartialShape{4, 2, 5, 3},
             4, {2}, {1},
             std::vector<ptrdiff_t>{1}, std::vector<ptrdiff_t>{1},
             std::vector<ptrdiff_t>{0},
@@ -100,7 +100,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
         },
         // 2d groupdeconv
         {
-            ov::PartialShape{1, 20, 224, 224}, ov::PartialShape{4, 5, 2, 3, 3},
+            ov::PartialShape{1, 20, 224, 224}, ov::PartialShape{4, 2, 5, 3, 3},
             4, {2, 2}, {1, 1},
             std::vector<ptrdiff_t>{1, 1}, std::vector<ptrdiff_t>{1, 1},
             std::vector<ptrdiff_t>{0, 0},
