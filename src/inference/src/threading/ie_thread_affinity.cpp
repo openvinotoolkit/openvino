@@ -46,26 +46,37 @@ bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
     return 0 == sched_setaffinity(0, CPU_ALLOC_SIZE(ncores), procMask.get());
 }
 
-bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
+bool PinThreadToVacantCore(int thrIdx,
+                           int hyperthreads,
+                           int ncores,
+                           const CpuSet& procMask,
+                           std::vector<int> cpu_ids,
+                           int cpuIdxOffset) {
     if (procMask == nullptr)
         return false;
     const size_t size = CPU_ALLOC_SIZE(ncores);
     const int num_cpus = CPU_COUNT_S(size, procMask.get());
     thrIdx %= num_cpus;  // To limit unique number in [; num_cpus-1] range
-    // Place threads with specified step
-    int cpu_idx = cpuIdxOffset;
-    for (int i = 0, offset = 0; i < thrIdx; ++i) {
-        cpu_idx += hyperthreads;
-        if (cpu_idx >= num_cpus)
-            cpu_idx = ++offset;
-    }
 
-    // Find index of 'cpu_idx'-th bit that equals to 1
-    int mapped_idx = cpuIdxOffset - 1;
-    while (cpu_idx >= cpuIdxOffset) {
-        mapped_idx++;
-        if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
-            --cpu_idx;
+    int mapped_idx;
+    if (cpu_ids.size() > 0) {
+        mapped_idx = cpu_ids[thrIdx];
+    } else {
+        // Place threads with specified step
+        int cpu_idx = cpuIdxOffset;
+        for (int i = 0, offset = 0; i < thrIdx; ++i) {
+            cpu_idx += hyperthreads;
+            if (cpu_idx >= num_cpus)
+                cpu_idx = ++offset;
+        }
+
+        // Find index of 'cpu_idx'-th bit that equals to 1
+        mapped_idx = cpuIdxOffset - 1;
+        while (cpu_idx >= cpuIdxOffset) {
+            mapped_idx++;
+            if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
+                --cpu_idx;
+        }
     }
 
     CpuSet targetMask{CPU_ALLOC(ncores)};
@@ -104,7 +115,12 @@ std::tuple<CpuSet, int> GetProcessMask() {
 }
 void ReleaseProcessMask(cpu_set_t*) {}
 
-bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSet& procMask, int cpuIdxOffset) {
+bool PinThreadToVacantCore(int thrIdx,
+                           int hyperthreads,
+                           int ncores,
+                           const CpuSet& procMask,
+                           std::vector<int> cpu_ids,
+                           int cpuIdxOffset) {
     return false;
 }
 bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {

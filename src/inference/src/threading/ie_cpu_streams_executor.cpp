@@ -35,6 +35,7 @@ struct CPUStreamsExecutor::Impl {
             int _threadBindingStep = 0;
             int _offset = 0;
             int _cpuIdxOffset = 0;
+            std::vector<int> _cpu_ids;
             Observer(custom::task_arena& arena,
                      CpuSet mask,
                      int ncpus,
@@ -42,18 +43,21 @@ struct CPUStreamsExecutor::Impl {
                      const int threadsPerStream,
                      const int threadBindingStep,
                      const int threadBindingOffset,
-                     const int cpuIdxOffset = 0)
+                     const int cpuIdxOffset = 0,
+                     const std::vector<int> cpu_ids = {})
                 : custom::task_scheduler_observer(arena),
                   _mask{std::move(mask)},
                   _ncpus(ncpus),
                   _threadBindingStep(threadBindingStep),
                   _offset{streamId * threadsPerStream + threadBindingOffset},
-                  _cpuIdxOffset(cpuIdxOffset) {}
+                  _cpuIdxOffset(cpuIdxOffset),
+                  _cpu_ids(cpu_ids) {}
             void on_scheduler_entry(bool) override {
                 PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
                                       _threadBindingStep,
                                       _ncpus,
                                       _mask,
+                                      _cpu_ids,
                                       _cpuIdxOffset);
             }
             void on_scheduler_exit(bool) override {
@@ -119,8 +123,6 @@ struct CPUStreamsExecutor::Impl {
                                    : EFFICIENT_CORE_PROC);
                     const auto small_core_threads_3 = cpu_core_type == EFFICIENT_CORE_PROC && concurrency == 3 &&
                                                       _impl->_config._small_core_streams > 1;
-                    const auto thread_binding_step = getThreadStep(cpu_core_type);
-                    const auto cpu_idx_offset = getCoreOffset(cpu_core_type);
                     const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
                     _cpu_ids = getAvailableCPUs(cpu_core_type, num_cpus);
                     setCpuUsed(_cpu_ids, 1);
@@ -133,9 +135,10 @@ struct CPUStreamsExecutor::Impl {
                                                      ncpus,
                                                      0,
                                                      concurrency,
-                                                     thread_binding_step,
-                                                     _impl->_config._threadBindingOffset,
-                                                     cpu_idx_offset});
+                                                     0,
+                                                     0,
+                                                     0,
+                                                     _cpu_ids});
                         _observer->observe(true);
                     }
                 }

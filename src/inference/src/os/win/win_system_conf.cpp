@@ -62,14 +62,6 @@ bool cpuMapAvailable() {
     return cpu._cpu_mapping_table.size() > 0;
 }
 
-int getCoreOffset(const cpu_core_type_of_processor core_type) {
-    return 0;
-}
-
-int getThreadStep(const cpu_core_type_of_processor core_type) {
-    return 0;
-}
-
 std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
     return {};
 }

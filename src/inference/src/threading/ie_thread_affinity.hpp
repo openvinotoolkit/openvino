@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 #include "ie_api.h"
 
@@ -64,7 +65,12 @@ std::tuple<CpuSet, int> GetProcessMask();
  * @param[in]  processMask   The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask, int cpuIdxOffset = 0);
+bool PinThreadToVacantCore(int thrIdx,
+                           int hyperThreads,
+                           int ncores,
+                           const CpuSet& processMask,
+                           std::vector<int> cpu_ids = {},
+                           int cpuIdxOffset = 0);
 
 /**
  * @brief      Pins thread to a spare core in the round-robin scheme, while respecting the given process mask.

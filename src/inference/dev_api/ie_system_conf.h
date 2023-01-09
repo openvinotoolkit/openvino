@@ -160,22 +160,6 @@ typedef enum {
 } cpu_core_type_of_processor;
 
 /**
- * @brief      Returns offset of cores
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  core_type core type.
- * @return     Offset of CPU cores.
- */
-INFERENCE_ENGINE_API_CPP(int) getCoreOffset(const cpu_core_type_of_processor core_type);
-
-/**
- * @brief      Returns step of threads
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  core_type core type.
- * @return     Step of threads.
- */
-INFERENCE_ENGINE_API_CPP(int) getThreadStep(const cpu_core_type_of_processor core_type);
-
-/**
  * @brief      Returns available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  core_type core type.
