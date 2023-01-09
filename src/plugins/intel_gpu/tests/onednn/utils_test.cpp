@@ -3,6 +3,7 @@
 //
 
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_debug.h>
 
 #include "test_utils.h"
 

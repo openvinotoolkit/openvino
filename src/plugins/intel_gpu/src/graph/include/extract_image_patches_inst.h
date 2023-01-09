@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 #include "primitive_inst.h"
@@ -20,7 +19,6 @@ public:
     static layout calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(extract_image_patches_node const& node);
 
-public:
     typed_primitive_inst(network& network, extract_image_patches_node const& desc);
 };
 
