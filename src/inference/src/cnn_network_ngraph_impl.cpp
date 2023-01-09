@@ -520,7 +520,10 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
                 REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
                 using namespace ov::pass;
-                REGISTER_PASS(manager, MarkDequantizationSubgraph)
+                REGISTER_PASS(
+                    manager,
+                    MarkDequantizationSubgraph,
+                    ov::element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})
                 REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
                 REGISTER_PASS(manager, ConstantFolding)
 
