@@ -27,8 +27,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         size_t batchSize = 0;
 
         // first_inference_latency = time_to_inference + first_inference
-        SCOPED_TIMER(first_inference_latency);
         {
+            SCOPED_TIMER(first_inference_latency);
             {
                 SCOPED_TIMER(time_to_inference);
                 {
