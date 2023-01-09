@@ -89,7 +89,7 @@ KERNEL(convolution_bfyx_1x1)(
     const uint filter_offset = group_f * ((FILTER_OFM_PITCH + 8 - 1) / 8) * 8;//f*FILTER_OFM_PITCH;
     const uint xy_block_num = (INPUT0_FEATURE_PITCH + 16 - 1) / 16;
     const uint f_block_num = (INPUT0_FEATURE_NUM + 8 - 1) / 8;
-    const uint input_offset = group_xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+    const uint input_offset = group_xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET;
 
     for (uint k = 0; k < (FILTER_IFM_NUM + 8 - 1) / 8; ++k)
     {
