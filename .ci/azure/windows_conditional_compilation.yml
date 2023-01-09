@@ -125,7 +125,8 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake --build . --config $(BUILD_TYPE) && cmake --build . --config $(BUILD_TYPE) --target sea_itt_lib
+      cmake --build . --config $(BUILD_TYPE) --parallel
+      cmake --build . --config $(BUILD_TYPE) --parallel --target sea_itt_lib
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build CC COLLECT'
 
