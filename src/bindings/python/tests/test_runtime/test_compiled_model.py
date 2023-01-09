@@ -165,16 +165,12 @@ def test_inputs_docs(device):
     assert input_0.__doc__ == "openvino.runtime.ConstOutput represents port/node output."
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_infer_new_request_numpy(device):
     compiled_model, img = generate_model_and_image(device)
     res = compiled_model.infer_new_request({"data": img})
     assert np.argmax(res[list(res)[0]]) == 531
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_infer_new_request_tensor_numpy_copy(device):
     compiled_model, img = generate_model_and_image(device)
 
@@ -185,8 +181,6 @@ def test_infer_new_request_tensor_numpy_copy(device):
     assert np.argmax(res_tensor[list(res_tensor)[0]]) == np.argmax(res_img[list(res_img)[0]])
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_infer_tensor_numpy_shared_memory(device):
     compiled_model, img = generate_model_and_image(device)
 
@@ -217,8 +211,6 @@ def test_infer_tensor_wrong_input_data(device):
     assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_direct_infer(device):
     compiled_model, img = generate_model_and_image(device)
 

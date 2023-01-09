@@ -351,8 +351,6 @@ def test_infer_list_as_inputs(device):
     check_fill_inputs(request, inputs)
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_infer_mixed_keys(device):
     core = Core()
     model = get_relu_model()
