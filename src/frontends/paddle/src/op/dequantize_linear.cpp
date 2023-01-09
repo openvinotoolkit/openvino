@@ -12,11 +12,12 @@ namespace op {
 NamedOutputs dequantize_linear(const NodeContext& node) {
     // extract the INPUTS
     const auto x = node.get_input("X");
-    const auto scale = node.get_input("Scale");  // type: float or 1-D
+    const auto scale = node.get_input("Scale");
     const auto zero_point = node.get_input("ZeroPoint");
 
     // assert shape of scale and zero_point
     const auto& scale_shape = scale.get_partial_shape();
+    PADDLE_OP_CHECK(node, scale.get_partial_shape().rank().is_static(), "dequantize_linear scale rank must be static.");
     const auto& scale_shape_length = scale.get_partial_shape().rank().get_length();
 
     if (scale_shape_length == 1) {

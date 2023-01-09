@@ -37,6 +37,8 @@ NamedOutputs quantize_linear(const NodeContext& node) {
     // extract the ATTRIBUTES
     const auto bit_length = node.get_attribute<int32_t>("bit_length");
     const auto range = (1 << (bit_length - 1)) - 1;
+    const auto high_range = (1 << (bit_length - 1)) - 1;
+    const auto low_range = -(1 << (bit_length - 1));
     const auto round_mode = [&]() {
         if (node.has_attribute("round_type")) {
             if (node.get_attribute<int32_t>("round_type")) {
@@ -53,7 +55,7 @@ NamedOutputs quantize_linear(const NodeContext& node) {
     const auto real_scale = std::make_shared<default_opset::Multiply>(scale, range_node);
     const auto q_div_node = std::make_shared<default_opset::Divide>(x, real_scale);
     const auto q_round_node = std::make_shared<default_opset::Round>(q_div_node, round_mode);
-    const auto q_node = std::make_shared<default_opset::Clamp>(q_round_node, -127, 127);
+    const auto q_node = std::make_shared<default_opset::Clamp>(q_round_node, low_range, high_range);
     return node.default_single_output_mapping({q_node}, {"Y"});
 }
 

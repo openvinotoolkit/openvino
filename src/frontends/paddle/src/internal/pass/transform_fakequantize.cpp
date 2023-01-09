@@ -42,7 +42,7 @@ using namespace ov::frontend::paddle::op;
                                 |                                      v                        |   |   |   |
      +------------------+       |                                +-----------+                  v   v   v   v
      |                  |       |                                |  Convert  |
-     |  quantize_linear |  -->  |                                +-----------+
+     |dequantize_linear |  -->  |                                +-----------+
      |                  |       |                                      |
      +------------------+       |                                      v
                                 |              +-----------+     +-----------+
@@ -72,6 +72,12 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         }
         // prepare for replace
         const auto& output_node = opsMap.at(output_label).get_node_shared_ptr();
+        // prepare levels
+        const auto& clamp_node = opsMap.at(q_clamp_label).get_node_shared_ptr();
+        const auto& clamp_node_cast = std::dynamic_pointer_cast<Clamp>(clamp_node);
+        const auto& high_range = static_cast<int>(clamp_node_cast->get_max());
+        const auto& low_range = static_cast<int>(clamp_node_cast->get_min());
+        const auto& levels = high_range - low_range + 1;
         // get the input
         const auto& div_node = opsMap.at(div_label).get_node_shared_ptr();
         if (!div_node->get_input_node_shared_ptr(0)) {
@@ -87,7 +93,7 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         }
         std::vector<float> scales = scale_value_cast->cast_vector<float>();
         const auto scale = scales[0];
-        const auto scale_low = -scale * 128 / 127;
+        const auto scale_low = scale * low_range / high_range;
         const auto scale_high = scale;
         const auto input_clamp = std::make_shared<Clamp>(input_item, scale_low, scale_high);
         const auto input_low = std::make_shared<Constant>(element::f32, Shape{1}, scale_low);
@@ -95,7 +101,7 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
         const auto output_low = std::make_shared<Constant>(element::f32, Shape{1}, scale_low);
         const auto output_high = std::make_shared<Constant>(element::f32, Shape{1}, scale_high);
         auto fake_node =
-            std::make_shared<FakeQuantize>(input_clamp, input_low, input_high, output_low, output_high, 256);
+            std::make_shared<FakeQuantize>(input_clamp, input_low, input_high, output_low, output_high, levels);
         fake_node->set_friendly_name(output_node->get_friendly_name());
         replace_node(output_node, fake_node);
         return true;
