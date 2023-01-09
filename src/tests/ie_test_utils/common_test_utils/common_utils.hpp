@@ -185,4 +185,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     os << ")";
     return os;
 }
+
+std::string generateTestFilePrefix();
 }  // namespace CommonTestUtils
