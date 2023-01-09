@@ -58,7 +58,7 @@ TEST(lrn_fp32_gpu, basic) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
@@ -107,7 +107,7 @@ TEST(lrn_fp32_gpu, basic2) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
@@ -156,7 +156,7 @@ TEST(lrn_fp16_gpu, basic1) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -248,6 +248,6 @@ TEST(lrn_fp32_gpu, basic3) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }

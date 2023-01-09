@@ -174,18 +174,23 @@ void program::init_primitives() {
 }
 
 void program::compile() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
     _kernels_cache->build_all();
 }
 
 void program::init_kernels() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
     for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl())
+        if (n->get_selected_impl()) {
             n->get_selected_impl()->init_kernels(*_kernels_cache);
+            n->get_selected_impl()->reset_kernels_source();
+        }
     }
 }
 
 void program::load_tuning_cache() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
     try {
         tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
     } catch (...) {
@@ -239,6 +244,7 @@ program_node const& program::get_node(primitive_id const& id) const {
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("analyze_output_size_handling_need");
     bool handling_needed = false;
 
     // Calculate output size and compare with specified.
@@ -700,6 +706,7 @@ void program::mark_if_data_flow(program_node& node) {
 }
 
 void program::transfer_memory_to_device() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
@@ -719,17 +726,12 @@ void program::transfer_memory_to_device() {
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -739,6 +741,7 @@ void program::transfer_memory_to_device() {
 }
 
 void program::cleanup() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
 
@@ -1656,7 +1659,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               });
     auto& engine = get_engine();
     int64_t host_alloc = 0;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
@@ -1676,10 +1678,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
         if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                    << cur_vmem << ")" << std::endl;
-            }
+            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                           << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
         #endif

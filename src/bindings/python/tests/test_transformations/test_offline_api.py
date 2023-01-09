@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import pytest
 import numpy as np
 from openvino.runtime import serialize
 from openvino.offline_transformations import (
@@ -166,9 +167,18 @@ def test_fused_names_cleanup():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass_v2(request):
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_pass_v2(request, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  is_path_xml,
+                                                  is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -202,9 +212,18 @@ def test_compress_model_transformation():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_version_default(request):
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_version_default(request, is_path_xml, is_path_bin):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  is_path_xml,
+                                                  is_path_bin)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -222,8 +241,17 @@ def test_version_default(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_default_bin(request):
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_default_bin(request, is_path_xml, is_path_bin):
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  is_path_xml,
+                                                  is_path_bin)
     model = get_relu_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)

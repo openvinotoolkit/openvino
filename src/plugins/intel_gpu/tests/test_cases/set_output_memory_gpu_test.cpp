@@ -55,12 +55,12 @@ TEST(set_output_memory_gpu, basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
     }
 }
 
@@ -101,17 +101,17 @@ TEST(set_output_memory_gpu, basic_const) {
 
     auto output_dyn = outputs.at("reorder_dyn").get_memory();
     auto output_const = outputs.at("reorder_const").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
 
     cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_const_ptr(output_const, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
     }
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_const_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_const_ptr[i])) << i;
     }
 }
 
@@ -150,18 +150,18 @@ TEST(set_output_memory_gpu, basic_mutable) {
 
     auto output_dyn = outputs.at("reorder_dyn").get_memory();
     auto output_mutable = outputs.at("reorder_mutable").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
 
     cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_mutable_mem_ptr(output_mutable_mem, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
     }
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_mutable_mem_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_mutable_mem_ptr[i])) << i;
     }
 }
 
@@ -200,13 +200,13 @@ TEST(set_output_memory_gpu, top_k1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
     }
 }
 
@@ -246,13 +246,13 @@ TEST(set_output_memory_gpu, top_k2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(second_output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
     }
 }
 
@@ -330,16 +330,16 @@ TEST(set_output_memory_gpu, basic_opt) {
     auto outputs = network.execute();
     auto output = outputs.at(outputID).get_memory();
     //  check for correct output memory setting
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
     //  check for memory set propagation
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("concat")));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp1")));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp2")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("concat")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp1")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp2")));
 
     //  check for correct result
     cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_ptr[i], output_vec[i])) << i;
+        ASSERT_TRUE(are_equal(output_ptr[i], output_vec[i])) << i;
     }
 }
 

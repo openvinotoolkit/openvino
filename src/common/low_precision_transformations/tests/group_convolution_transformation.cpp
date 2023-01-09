@@ -352,7 +352,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
       {{ngraph::element::f32}, {}, {{0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f}, ngraph::element::f32, {1, 6, 1, 1}}},
       op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{2.f}),
       {},
-      {ngraph::element::f32, {}, {0.01}}},
+      {ngraph::element::f32, {}, {0.01f}}},
      // ExpectedValues
      {
          ngraph::element::u8,
@@ -405,7 +405,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
        {{0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f}, ngraph::element::f32, {1, 6, 1, 1}}},
       op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{2.f}),
       {},
-      {ngraph::element::f32, {{127}, ngraph::element::f32, {}, true, 1, ngraph::element::i8, true}, {0.01}}},
+      {ngraph::element::f32, {{127}, ngraph::element::f32, {}, true, 1, ngraph::element::i8, true}, {0.01f}}},
      // ExpectedValues
      {
          ngraph::element::u8,

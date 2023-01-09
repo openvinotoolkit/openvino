@@ -63,7 +63,7 @@ def test_compact_api_wrong_path():
             return "test class"
     with pytest.raises(RuntimeError) as e:
         compile_model(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string or pathlib.Path" in str(e.value)
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
 
 
 def test_core_class(device):

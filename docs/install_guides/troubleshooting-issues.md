@@ -205,7 +205,8 @@ sudo apt install mokutil
 sudo mokutil --disable-validation
 ```
 
-## <a name="yocto-install-issues"></a>Issues with Creating a Yocto Image for OpenVINO
+@anchor yocto-install-issues
+## Issues with Creating a Yocto Image for OpenVINO
 
 ### Error while adding "meta-intel" layer
 
