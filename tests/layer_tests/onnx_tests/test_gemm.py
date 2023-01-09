@@ -37,15 +37,15 @@ class TestGemm(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shapeB)), shapeB], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shapeA[-2], shapeB[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shapeA)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
         _shapeB = shapeB.copy()
         if trans_b:
             _shapeB.reverse()
-        const1 = np.random.ranf(_shapeB).astype(np.float)
-        const2 = np.random.ranf(shapeC).astype(np.float)
+        const1 = np.random.ranf(_shapeB).astype(float)
+        const2 = np.random.ranf(shapeC).astype(float)
 
         nodes = list()
         node_const1_def = onnx.helper.make_node(
@@ -157,12 +157,12 @@ class TestGemm(OnnxRuntimeLayerTest):
         extended_shape2 = np.concatenate([np.ones(max_len - len(shapeB)), shapeB], axis=0)
         output_shape = np.concatenate(
             [np.maximum(*[extended_shape1[0:-2], extended_shape2[0:-2]]), [shapeA[-2], shapeB[-1]]],
-            axis=0).astype(np.int).tolist()
+            axis=0).astype(int).tolist()
         input1 = helper.make_tensor_value_info('input1', TensorProto.FLOAT, _shapeA)
         input2 = helper.make_tensor_value_info('input2', TensorProto.FLOAT, _shapeB)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        const = np.random.ranf(shapeC).astype(np.float)
+        const = np.random.ranf(shapeC).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',

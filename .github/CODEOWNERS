@@ -1,0 +1,128 @@
+# See help here: https://help.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners
+
+*  @openvinotoolkit/openvino-maintainers
+
+# CI
+/Jenkinsfile  @openvinotoolkit/openvino-ci-maintainers
+/.github/  @openvinotoolkit/openvino-ci-maintainers
+/.ci/  @openvinotoolkit/openvino-ci-maintainers
+/.github/CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintainers
+
+# Licensing:
+/licensing/ @openvinotoolkit/openvino-legal-maintainers
+/LICENSE @openvinotoolkit/openvino-legal-maintainers
+
+# OpenVINO Scripts:
+/scripts/  @openvinotoolkit/openvino-scripts-maintainers
+/scripts/install_dependencies/  @openvinotoolkit/openvino-configuration-mgmt @openvinotoolkit/openvino-scripts-maintainers
+/install_build_dependencies.sh @openvinotoolkit/openvino-scripts-maintainers @openvinotoolkit/openvino-ie-maintainers
+
+# OpenVINO Core:
+/src/inference/  @openvinotoolkit/openvino-ie-maintainers
+/src/common/conditional_compilation/ @openvinotoolkit/openvino-ie-maintainers
+/src/common/itt/ @openvinotoolkit/openvino-ie-maintainers
+/src/common/preprocessing/ @openvinotoolkit/openvino-ie-maintainers
+/src/common/util/ @openvinotoolkit/openvino-ie-maintainers
+/thirdparty/ @openvinotoolkit/openvino-ie-maintainers
+/.gitmodules @openvinotoolkit/openvino-ie-maintainers
+
+/src/bindings/python/ @openvinotoolkit/openvino-ie-python-api-maintainers
+/src/bindings/c/ @openvinotoolkit/openvino-c-api-maintainers
+/src/common/*transformations/  @openvinotoolkit/openvino-ie-transformations-maintainers
+/src/core/  @openvinotoolkit/openvino-ngraph-maintainers
+
+# OpenVINO Samples:
+/samples/c/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-c-api-maintainers
+/samples/cpp/  @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-maintainers
+/samples/python/ @openvinotoolkit/openvino-samples-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
+/thirdparty/zlib/ @openvinotoolkit/openvino-samples-maintainers
+/thirdparty/json/ @openvinotoolkit/openvino-samples-maintainers
+/thirdparty/gflags/ @openvinotoolkit/openvino-samples-maintainers
+/thirdparty/cnpy/ @openvinotoolkit/openvino-samples-maintainers
+
+# OpenVINO Func Tests:
+/src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
+/src/frontends/tests/frontend/shared/ @openvinotoolkit/openvino-ie-tests-maintainers
+/thirdparty/gtest/ @openvinotoolkit/openvino-ie-tests-maintainers
+
+# OpenVINO CPU:
+/src/plugins/intel_cpu/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
+/src/common/snippets/ @openvinotoolkit/openvino-ie-cpu-maintainers
+/thirdparty/xbyak/ @openvinotoolkit/openvino-ie-cpu-maintainers
+
+# OpenVINO LPT
+/src/common/low_precision_transformations/  @openvinotoolkit/openvino-ie-lpt-maintainers
+
+# OpenVINO GPU:
+/src/plugins/intel_gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+/src/tests/**/gpu/ @openvinotoolkit/openvino-ie-gpu-maintainers
+/thirdparty/ocl/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
+
+# OpenVINO VPU:
+/src/plugins/intel_myriad  @openvinotoolkit/openvino-ie-vpu-maintainers
+/src/tests/**/myriad/ @openvinotoolkit/openvino-ie-vpu-maintainers
+
+# OpenVINO GNA:
+/src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
+/src/common/legacy/ @openvinotoolkit/openvino-ie-gna-maintainers
+
+# OpenVINO Auto (MULTI) plugin:
+/src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
+
+# OpenVINO Auto (Batch) plugin:
+/src/plugins/auto_batch/ @openvinotoolkit/openvino-auto-batch-maintainers
+
+# OpenVINO Hetero plugin:
+/src/plugins/hetero/ @openvinotoolkit/openvino-hetero-maintainers
+
+# OpenVINO Template plugin:
+/src/plugins/template/ @openvinotoolkit/openvino-ie-template-maintainers
+
+# OpenVINO Frontends:
+/src/frontends/common/ @openvinotoolkit/openvino-common-frontend-maintainers
+/src/frontends/ir/ @openvinotoolkit/openvino-ir-frontend-maintainers
+/src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
+/src/frontends/tensorflow/  @openvinotoolkit/openvino-tf-frontend-maintainers
+
+# OpenVINO ONNX Frontend:
+/src/frontends/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers
+/thirdparty/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers @openvinotoolkit/openvino-ie-maintainers
+/thirdparty/protobuf/ @openvinotoolkit/openvino-onnx-frontend-maintainers @openvinotoolkit/openvino-tf-frontend-maintainers @openvinotoolkit/openvino-ie-maintainers
+
+# QA Tests:
+/tests/  @openvinotoolkit/openvino-tests-maintainers
+/tests/layer_tests/ @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-mo-maintainers
+
+# Tools:
+/tools/  @openvinotoolkit/openvino-tools-maintainers
+/tools/benchmark_tool/ @openvinotoolkit/openvino-ie-python-api-maintainers
+/tools/legacy/ @openvinotoolkit/openvino-samples-maintainers
+/tools/openvino_dev/ @openvinotoolkit/openvino-tools-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
+/tools/mo/  @openvinotoolkit/openvino-mo-maintainers
+/tools/pot/  @openvinotoolkit/openvino-pot-maintainers
+/thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers @openvinotoolkit/openvino-pot-maintainers
+
+# Documentation
+/docs/  @openvinotoolkit/openvino-docs-maintainers
+/docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
+/**/*.md  @openvinotoolkit/openvino-docs-maintainers
+/docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-mo-maintainers
+/docs/OV_Runtime_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/IE_PLUGIN_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/Extensibility_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/snippets/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
+/docs/OV_Runtime_UG/supported_plugins/ARM_CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
+/docs/OV_Runtime_UG/supported_plugins/CPU.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
+/docs/OV_Runtime_UG/supported_plugins/GNA.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gna-maintainers
+/docs/OV_Runtime_UG/supported_plugins/GPU*.md @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
+
+# Configuration management
+/**/setup.py  @openvinotoolkit/openvino-configuration-mgmt
+/**/requirements*.*  @openvinotoolkit/openvino-configuration-mgmt
+/docs/requirements.txt @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-configuration-mgmt
+
+# CMake scripts
+/**/cmake/ @openvinotoolkit/openvino-ie-maintainers
+/**/*.cmake @openvinotoolkit/openvino-ie-maintainers
+/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers

@@ -15,7 +15,6 @@
 #include "descriptions/gna_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "connection_details.hpp"
-#include "backend/dnn.hpp"
 #include "memory/gna_memory.hpp"
 #include "layers/gna_memory_layer.hpp"
 #include "layers/gna_concat_layer.hpp"
@@ -27,12 +26,14 @@
 #include "gna_device.hpp"
 #include "gna_data_types.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class GNAGraphCompiler {
 private:
-    std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
-    std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
+    std::shared_ptr<backend::AMIntelDNN> dnn;
+    std::shared_ptr<gna_memory_type> gnamem;
+    std::shared_ptr<GnaInputs> inputs_ptr_;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -49,20 +50,20 @@ private:
     static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
 
-    std::unique_ptr<const GNALimitations::Cnn2D::AbstractValidator> cnn2dValidator;
+    std::unique_ptr<const limitations::cnn2d::AbstractValidator> cnn2dValidator;
 
     bool ShouldUseOnlyConv2DGnaIface() const;
 
 public:
-    GNAPluginNS::backend::DnnComponents dnnComponents;
+    backend::DnnComponents dnnComponents;
     MemoryConnection memory_connection;
     ConcatConnection concat_connection;
     ConstConnections const_connections;
 
     GNAGraphCompiler(const Config& gna_config);
-    void setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr);
-    void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
-    void setInputsPtr(std::shared_ptr<GNAPluginNS::GnaInputs> inputsPtr);
+    void setGNAMemoryPtr(std::shared_ptr<gna_memory_type> gnaMemPtr);
+    void setDNNPtr(std::shared_ptr<backend::AMIntelDNN> dnnPtr);
+    void setInputsPtr(std::shared_ptr<GnaInputs> inputsPtr);
 
     void fillMemoryConnections(std::unordered_map<std::string,
             std::vector<InferenceEngine::CNNLayerPtr>> &memoryPairs);
@@ -79,8 +80,6 @@ public:
     void ValidatePooling2D(const std::string& name,
         const uint32_t windowH, const uint32_t windowW,
         const uint32_t strideH, const uint32_t strideW) const;
-
-    bool IsCnn2DInputPaddingSupported(const std::string& name) const;
 
     void SetValidatorTarget(const std::string& target);
 
@@ -104,7 +103,7 @@ public:
      * in case when we would like to use zero offset and connect from  pointer set this to negative
      * @return layer used as input
      */
-    GNAPluginNS::ConnectionDetails connectInput(InferenceEngine::CNNLayerPtr layer,
+    ConnectionDetails connectInput(InferenceEngine::CNNLayerPtr layer,
                                                 void *pVoid,
                                                 size_t num_data_bytes_in,
                                                 int32_t offset = 0,
@@ -151,4 +150,6 @@ public:
 
     void Reset();
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

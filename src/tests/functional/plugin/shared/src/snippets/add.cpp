@@ -38,18 +38,7 @@ void Add::SetUp() {
     setInferenceType(type);
 }
 
-void AddSinh::SetUp() {
-    ov::Shape inputShape0, inputShape1;
-    ov::element::Type type;
-    std::tie(inputShape0, inputShape1, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes({{{}, {inputShape0, }}, {{}, {inputShape1, }}});
-
-    auto f = ov::test::snippets::AddSinhFunction({inputShape0, inputShape1});
-    function = f.getOriginal();
-    setInferenceType(type);
-}
-
-std::string AddSinhConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
+std::string AddConst::getTestCaseName(testing::TestParamInfo<ov::test::snippets::AddConstParams> obj) {
     ov::Shape inputShapes, newInputShapes;
     ov::element::Type type;
     std::string targetDevice;
@@ -65,13 +54,13 @@ std::string AddSinhConst::getTestCaseName(testing::TestParamInfo<ov::test::snipp
     return result.str();
 }
 
-void AddSinhConst::SetUp() {
+void AddConst::SetUp() {
     ov::Shape inputShape;
     ov::element::Type type;
     std::tie(inputShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({{{}, {inputShape, }}});
 
-    auto f = ov::test::snippets::AddSinhConstFunction({inputShape});
+    auto f = ov::test::snippets::AddConstFunction({inputShape});
     function = f.getOriginal();
     setInferenceType(type);
 }
@@ -92,12 +81,7 @@ TEST_P(Add, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-TEST_P(AddSinh, CompareWithRefImpl) {
-    run();
-    validateNumSubgraphs();
-}
-
-TEST_P(AddSinhConst, CompareWithRefImpl) {
+TEST_P(AddConst, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

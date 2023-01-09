@@ -26,8 +26,10 @@
 #include <legacy/ie_util_internal.hpp>
 #include <gna2-model-api.h>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
+
 class ModelWrapper;
 class WorkerPool;
 class Worker;
@@ -38,13 +40,13 @@ protected:
     std::string _pluginName = "GNA";
 
     Config config {};
-    std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
-    std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
-    std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
-    std::shared_ptr<GNAPluginNS::GnaInputs> inputs_ptr_;
-    GNAPluginNS::GnaOutputs outputs_;
+    std::shared_ptr<backend::AMIntelDNN> dnn;
+    std::shared_ptr<GNAFlags> gnaFlags;
+    std::shared_ptr<gna_memory_type> gnamem;
+    std::shared_ptr<GnaInputs> inputs_ptr_;
+    GnaOutputs outputs_;
 
-    GNAPluginNS::GNAGraphCompiler graphCompiler;
+    GNAGraphCompiler graphCompiler;
 
     uint32_t activeLayerIndex = 0xffffffff;
     TranspositionInfoMap transpose_inputs_info;
@@ -67,7 +69,6 @@ protected:
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
-    std::string GetCompileTarget() const;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -238,4 +239,5 @@ protected:
 #endif
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

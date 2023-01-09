@@ -12,7 +12,7 @@ from unit_tests.utils.graph import build_graph
 class TestNot(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(np.bool)
+            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(bool)
         return inputs_dict
 
     def create_net(self, shape, ir_version):
@@ -96,7 +96,7 @@ class TestNot(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.BOOL, shape)
         output = helper.make_tensor_value_info('output', TensorProto.BOOL, output_shape)
 
-        constant = np.random.randint(0, 2, shape).astype(np.bool)
+        constant = np.random.randint(0, 2, shape).astype(bool)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
