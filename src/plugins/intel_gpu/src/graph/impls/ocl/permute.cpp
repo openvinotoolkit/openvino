@@ -75,7 +75,27 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
 namespace detail {
 
 attach_permute_impl::attach_permute_impl() {
-    implementation_map<permute>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<permute>::create<permute_impl>, {});
+    implementation_map<permute>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<permute>::create<permute_impl>, {});
+
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<permute>::add(impl_types::ocl,
+                                     shape_types::dynamic_shape,
+                                     typed_primitive_impl_ocl<permute>::create<permute_impl>,
+                                     dyn_types,
+                                     dyn_formats);
 }
 
 }  // namespace detail

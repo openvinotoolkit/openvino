@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Erf);
-
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Erf_visit_attributes);
     return true;

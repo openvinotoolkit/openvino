@@ -204,3 +204,21 @@ sudo apt install mokutil
 ```sh
 sudo mokutil --disable-validation
 ```
+
+@anchor yocto-install-issues
+## Issues with Creating a Yocto Image for OpenVINO
+
+### Error while adding "meta-intel" layer
+
+When using the `bitbake-layers add-layer meta-intel` command, the following error might occur:
+```sh
+NOTE: Starting bitbake server...
+ERROR: The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed: chrpath diffstat pzstd zstd
+```
+
+To resolve the issue, install the `chrpath diffstat zstd` tools:
+
+```sh
+sudo apt-get install chrpath diffstat zstd
+```
+

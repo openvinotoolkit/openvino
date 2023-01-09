@@ -7,6 +7,7 @@
 #include <memory>
 
 #include <openvino/core/model.hpp>
+#include <openvino/op/util/sub_graph_base.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -22,9 +23,9 @@ namespace op {
  * @brief An operation that is implemented by a model
  * @ingroup snippets
  */
-class Subgraph : public ngraph::op::Op {
+class Subgraph : public ov::op::util::SubGraphOp {
 public:
-    OPENVINO_OP("Subgraph", "SnippetsOpset");
+    OPENVINO_OP("Subgraph", "SnippetsOpset", ov::op::util::SubGraphOp);
     enum {DYNAMIC_DIMENSION = 0xffffffffffffffff};
 
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -71,6 +72,8 @@ public:
     using BlockedShape = std::tuple<ngraph::PartialShape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
+    Subgraph() = default;
+
     Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body);
 
     Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body);
@@ -81,13 +84,16 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    std::shared_ptr<ov::Model> get_body() const {
-        return m_body;
-    }
+    // we introduce this method instead of using SubGraphOp::get_function()
+    // to align naming with other methods
+    const std::shared_ptr<ov::Model>& body_ptr() const { return m_bodies[0]; }
+    std::shared_ptr<ov::Model>& body_ptr() { return m_bodies[0]; }
 
-    std::shared_ptr<ngraph::snippets::Generator> get_generator() const {
-        return m_generator;
-    }
+    const ov::Model& body() const { return *m_bodies[0]; }
+    ov::Model& body() { return *m_bodies[0]; }
+
+    const std::shared_ptr<ngraph::snippets::Generator>& get_generator() const { return m_generator; }
+    std::shared_ptr<ngraph::snippets::Generator> & get_generator() { return m_generator; }
 
     size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad; }
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
@@ -141,7 +147,6 @@ private:
     bool m_buffer_needed = false;
     size_t m_buffer_scratchpad = 0lu;
     Shape exec_domain = {};
-    std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
 
     // TODO: Change logic of insert Converts. This exec element type can be different for plugins
@@ -200,7 +205,7 @@ auto inline update_out_tensor_name(const std::shared_ptr<ngraph::snippets::op::S
     for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
         for (const auto &in : subgraph->get_output_target_inputs(i)) {
             if (ov::is_type<ov::op::v0::Result>(in.get_node())) {
-                const auto& body_result = subgraph->get_body()->get_output_op(i);
+                const auto& body_result = subgraph->body_ptr()->get_output_op(i);
                 const auto& body_result_input = body_result->get_input_source_output(0);
                 ngraph::snippets::op::Subgraph::fill_empty_output_names(
                         subgraph->output(i), body_result_input);

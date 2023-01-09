@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API ReduceMin : public util::ArithmeticReductionKeepDims {
 public:
     OPENVINO_OP("ReduceMin", "opset1", util::ArithmeticReductionKeepDims, 1);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a summation operation.
     ReduceMin() = default;
     /// \brief Constructs a summation operation.

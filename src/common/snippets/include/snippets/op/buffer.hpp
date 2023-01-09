@@ -25,7 +25,6 @@ namespace op {
 class Buffer : public ngraph::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
-    BWDCMP_RTTI_DECLARATION;
 
     Buffer(const Output<Node>& x, const int32_t allocation_rank = -1);
     Buffer() = default;

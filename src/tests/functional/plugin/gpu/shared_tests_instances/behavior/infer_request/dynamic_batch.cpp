@@ -15,7 +15,8 @@ std::vector<size_t> batch_sizes = {
     16
 };
 
-std::map<std::string, std::string> additional_config = {
+auto additional_config = []() {
+    return std::map<std::string, std::string>{};
 };
 } // namespace
 
@@ -26,7 +27,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_async, DynamicBatchTest,
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(batch_sizes),
         ::testing::Values(true),
-        ::testing::Values(additional_config)),
+        ::testing::Values(additional_config())),
     DynamicBatchTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_sync, DynamicBatchTest,
@@ -35,6 +36,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchTest_sync, DynamicBatchTest,
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(batch_sizes),
         ::testing::Values(false),
-        ::testing::Values(additional_config)),
+        ::testing::Values(additional_config())),
     DynamicBatchTest::getTestCaseName);
 } // namespace ConfigurationTestsDefinitions

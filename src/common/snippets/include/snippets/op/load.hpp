@@ -37,11 +37,14 @@ public:
  */
 class LoadReshape : public Load {
 public:
-    OPENVINO_OP("LoadReshape", "SnippetsOpset");
+    OPENVINO_OP("LoadReshape", "SnippetsOpset", Load);
     LoadReshape(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
+    LoadReshape() = default;
+
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+
 private:
     std::vector<size_t> m_order;
 };

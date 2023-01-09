@@ -38,7 +38,7 @@ namespace node {
 
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
@@ -59,10 +59,10 @@ void Snippet::copy_snippet() {
         if (!sharedMutex) {
             IE_THROW() << "Subgraph doesn't have shared mutex";
         }
-        std::lock_guard<std::mutex> lock(*sharedMutex.get());
-        new_body = ov::clone_model(*original_snippet->get_body().get());
+        std::lock_guard<std::mutex> lock(*sharedMutex);
+        new_body = ov::clone_model(*original_snippet->body_ptr());
     } else {
-        new_body = ov::clone_model(*original_snippet->get_body().get());
+        new_body = ov::clone_model(*original_snippet->body_ptr());
     }
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
@@ -337,7 +337,7 @@ void Snippet::createPrimitive() {
     if (canonicalShape.is_dynamic())
         IE_THROW() << "Snippets: Canonicalization returned dynamic shape in static pipeline";
     masterShape = canonicalShape.get_shape();
-    const auto &body = snippet->get_body();
+    const auto &body = snippet->body_ptr();
     for (const auto& p : body->get_parameters())
         normInputShapes.emplace_back(p->get_output_shape(0));
     for (const auto& r : body->get_results())
@@ -393,7 +393,7 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
         for (size_t i = 0; i < getParentEdges().size(); i++) {
             errorMessage << i << " port = " << getParentEdgesAtPort(i)[0]->getMemory().GetShape().toString() << ", ";
         }
-        errorMessage << "). Master shape = ( " << masterShape << " )";
+        errorMessage << "). Master shape = ( " << Shape(masterShape).toString() << " )";
         IE_THROW() << errorMessage.str();
     }
 
@@ -460,7 +460,7 @@ void Snippet::prepareParams() {
         dim = 1;
     }
 
-    auto& body_rt_info = snippet->get_body()->get_rt_info();
+    auto& body_rt_info = snippet->body_ptr()->get_rt_info();
     std::vector<std::vector<size_t>> new_shapes(normInputShapes);
     std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
     body_rt_info["PluginShapesOverride"] = new_shapes;

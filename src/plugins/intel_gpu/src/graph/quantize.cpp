@@ -20,8 +20,8 @@ layout quantize_inst::calc_output_layout(quantize_node const& node, kernel_impl_
     auto input_layout = impl_param.get_input_layout();
     auto output_format = input_layout.format;
     auto out_dt = input_layout.data_type;
-    if (desc->output_data_type)
-        out_dt = *desc->output_data_type;
+    if (desc->output_data_types[0])
+        out_dt = *desc->output_data_types[0];
 
     if (out_dt == data_types::bin) {
         output_format = format::b_fs_yx_32fp;
@@ -36,7 +36,7 @@ std::vector<layout> quantize_inst::calc_output_layouts(quantize_node const&, ker
 
     auto input_layout = impl_param.get_input_layout();
     auto output_format = input_layout.format;
-    auto out_dt = desc->output_data_type.value_or(input_layout.data_type);
+    auto out_dt = desc->output_data_types[0].value_or(input_layout.data_type);
 
     if (out_dt == data_types::bin) {
         output_format = format::b_fs_yx_32fp;

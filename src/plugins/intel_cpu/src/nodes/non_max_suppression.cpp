@@ -18,6 +18,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/jit_load_store_emitters.hpp"
 #include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl;
@@ -575,7 +576,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ngraph:
 }
 
 NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), isSoftSuppressedByIOU(false) {
+        WeightsSharing::Ptr &cache) : Node(op, eng, cache, InternalDynShapeInferFactory()), isSoftSuppressedByIOU(false) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;

@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string MaxNumParamsEltwiseSinh::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
+std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
     ov::Shape inputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
@@ -24,7 +24,7 @@ std::string MaxNumParamsEltwiseSinh::getTestCaseName(testing::TestParamInfo<ov::
     return result.str();
 }
 
-void MaxNumParamsEltwiseSinh::SetUp() {
+void MaxNumParamsEltwise::SetUp() {
     ov::Shape inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     std::vector<ov::PartialShape> expandedShapes(10, inputShape);
@@ -35,11 +35,11 @@ void MaxNumParamsEltwiseSinh::SetUp() {
 
     init_input_shapes(input_shapes);
 
-    auto f = ov::test::snippets::EltwiseMaxNumParamsSinhFunction(expandedShapes);
+    auto f = ov::test::snippets::EltwiseMaxNumParamsFunction(expandedShapes);
     function = f.getOriginal();
 }
 
-TEST_P(MaxNumParamsEltwiseSinh, CompareWithRefImpl) {
+TEST_P(MaxNumParamsEltwise, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }

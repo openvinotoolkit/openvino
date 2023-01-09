@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 #include "ie_parallel.hpp"
 #include "bucketize.h"
 
@@ -30,7 +31,7 @@ bool Bucketize::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& 
 }
 
 Bucketize::Bucketize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -208,10 +209,6 @@ void Bucketize::prepareParams() {
 
 bool Bucketize::isExecutable() const {
     return !isInputTensorAtPortEmpty(0);
-}
-
-std::vector<VectorDims> Bucketize::shapeInfer() const {
-    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 template <typename T, typename T_BOUNDARIES, typename T_IND>

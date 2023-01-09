@@ -99,16 +99,16 @@ public:
         topology.add(input_layout(input_deltas_id, input_deltas->get_layout()));
         topology.add(input_layout(input_scores_id, input_scores->get_layout()));
         topology.add(input_layout(input_im_info_id, input_im_info->get_layout()));
-        
+
         const primitive_id b_input_boxes_id = "BlockedInputBoxes";
         const primitive_id b_input_deltas_id = "BlockedInputDeltas";
         const primitive_id b_input_scores_id = "BlockedInputScores";
         const primitive_id b_input_im_info_id = "BlockedInputImInfo";
 
-        topology.add(reorder(b_input_boxes_id, input_boxes_id, fmt, data_type));
-        topology.add(reorder(b_input_deltas_id, input_deltas_id, fmt, data_type));
-        topology.add(reorder(b_input_scores_id, input_scores_id, fmt, data_type));
-        topology.add(reorder(b_input_im_info_id, input_im_info_id, fmt, data_type));
+        topology.add(reorder(b_input_boxes_id, input_info(input_boxes_id), fmt, data_type));
+        topology.add(reorder(b_input_deltas_id, input_info(input_deltas_id), fmt, data_type));
+        topology.add(reorder(b_input_scores_id, input_info(input_scores_id), fmt, data_type));
+        topology.add(reorder(b_input_im_info_id, input_info(input_im_info_id), fmt, data_type));
 
         const primitive_id b_output_scores_id = "BlockedOutputScores";
         const primitive_id b_output_classes_id = "BlockedOutputClasses";
@@ -123,12 +123,12 @@ public:
         const primitive_id b_eddo_id = "blocked_experimental_detectron_detection_output";
         const auto b_eddo_primitive = experimental_detectron_detection_output{
             b_eddo_id,
-            b_input_boxes_id,
-            b_input_deltas_id,
-            b_input_scores_id,
-            b_input_im_info_id,
-            b_output_classes_id,
-            b_output_scores_id,
+            input_info(b_input_boxes_id),
+            input_info(b_input_deltas_id),
+            input_info(b_input_scores_id),
+            input_info(b_input_im_info_id),
+            input_info(b_output_classes_id),
+            input_info(b_output_scores_id),
             param.score_threshold,
             param.nms_threshold,
             param.num_classes,
@@ -141,7 +141,7 @@ public:
 
         topology.add(b_eddo_primitive);
         const primitive_id eddo_id = "experimental_detectron_detection_output";
-        topology.add(reorder(eddo_id, b_eddo_primitive /*b_eddo_id*/, format::bfyx, data_type));
+        topology.add(reorder(eddo_id, input_info(b_eddo_primitive) /*b_eddo_id*/, format::bfyx, data_type));
 
         cldnn::network::ptr network;
 
@@ -175,7 +175,7 @@ public:
         const primitive_id output_scores_id = "OutputScores";
         cldnn::topology reorder_score_topology;
         reorder_score_topology.add(input_layout(b_output_scores_id, output_scores_layout));
-        reorder_score_topology.add(reorder(output_scores_id, b_output_scores_id, format::bfyx, data_type));
+        reorder_score_topology.add(reorder(output_scores_id, input_info(b_output_scores_id), format::bfyx, data_type));
         cldnn::network reorder_score_net{engine, reorder_score_topology};
         reorder_score_net.set_input_data(b_output_scores_id, b_output_scores);
         const auto score_result = reorder_score_net.execute();
@@ -186,7 +186,7 @@ public:
         const primitive_id output_classes_id = "OutputClasses";
         cldnn::topology reorder_classes_topology;
         reorder_classes_topology.add(input_layout(b_output_classes_id, output_classes_layout));
-        reorder_classes_topology.add(reorder(output_classes_id, b_output_classes_id, format::bfyx, data_types::i32));
+        reorder_classes_topology.add(reorder(output_classes_id, input_info(b_output_classes_id), format::bfyx, data_types::i32));
         cldnn::network reorder_classes_net{engine, reorder_classes_topology};
         reorder_classes_net.set_input_data(b_output_classes_id, b_output_classes);
         const auto classes_result = reorder_classes_net.execute();
@@ -199,15 +199,15 @@ public:
         const auto& expected_scores = param.expected_scores;
         for (int i = 0; i < param.max_detections_per_image; ++i) {
             if (!is_caching_test) {
-                EXPECT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
+                ASSERT_NEAR(expected_scores[i], output_scores_ptr[i], 0.001) << "i=" << i;
             }
             for (size_t coord = 0; coord < 4; ++coord) {
                 const auto roi_idx = i * 4 + coord;
-                EXPECT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
+                ASSERT_NEAR(expected_boxes[roi_idx], output_boxes_ptr[roi_idx], getError<T>())
                     << "i=" << i << ", coord=" << coord;
             }
             if (!is_caching_test) {
-                EXPECT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
+                ASSERT_EQ(expected_classes[i], output_classes_ptr[i]) << "i=" << i;
             }
         }
     }

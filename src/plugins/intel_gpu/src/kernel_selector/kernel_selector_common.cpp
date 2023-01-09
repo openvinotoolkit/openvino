@@ -197,19 +197,6 @@ std::string toString(EltwiseMode b_mode) {
     }
 }
 
-std::string toString(ReorderMode mode) {
-    switch (mode) {
-        case ReorderMode::xyzw: return "XYZW";
-        case ReorderMode::xywz: return "XYWZ";
-        case ReorderMode::xwyz: return "XWYZ";
-        case ReorderMode::wxyz: return "WXYZ";
-        case ReorderMode::xzyw: return "XZYW";
-        case ReorderMode::zyxw: return "ZYXW";
-        case ReorderMode::yxzw: return "YXZW";
-        default: return "XYZW";
-    }
-}
-
 std::string toString(MeanSubtractMode mode) {
     switch (mode) {
         case MeanSubtractMode::NONE:          return "NONE";

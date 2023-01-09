@@ -82,6 +82,14 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_ConvertPartialInputsAndResults) {
     run();
 }
 
+TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
+    const auto &f = EltwiseTwoResultsFunction(std::vector<PartialShape>{{2, 5}, {2, 1}});
+    function = f.getOriginal();
+    function_ref = f.getReference();
+    comparator.enable(FunctionsComparator::CmpValues::NAMES);
+    run();
+}
+
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

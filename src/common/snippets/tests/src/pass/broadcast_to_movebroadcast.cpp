@@ -38,7 +38,7 @@ TEST_P(BroadcastToMoveBroadcastTests, BroadcastSelect) {
     PartialShape scheduler_shape({master_shape[master_shape.size() - 2],
                                   master_shape[master_shape.size() - 1]});
     auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), scheduler_shape);
-    function = subgraph->get_body();
+    function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }
 

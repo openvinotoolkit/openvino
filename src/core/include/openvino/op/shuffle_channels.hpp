@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API ShuffleChannels : public Op {
 public:
     OPENVINO_OP("ShuffleChannels", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     ShuffleChannels() = default;
     /// \brief Constructs a ShuffleChannels node.

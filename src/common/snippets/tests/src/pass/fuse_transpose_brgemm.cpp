@@ -36,7 +36,7 @@ void FuseTransposeBrgemmTests::SetUp() {
 
 TEST_P(FuseTransposeBrgemmTests, FuseTransposeMatmul) {
     auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape);
-    function = subgraph->get_body();
+    function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }
 

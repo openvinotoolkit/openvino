@@ -335,19 +335,19 @@ The sample application logs each step in a standard output stream.
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Core.import_model]:
-[openvino.runtime.CompiledModel.export_model]:
-[openvino.runtime.Model.add_outputs]:
-[openvino.runtime.set_batch]:
-[openvino.runtime.CompiledModel.inputs]:
-[openvino.runtime.CompiledModel.outputs]:
-[openvino.runtime.ConstOutput.any_name]:
-[openvino.runtime.CompiledModel.create_infer_request]:
-[openvino.runtime.InferRequest.infer]:
-[openvino.runtime.InferRequest.get_input_tensor]:
-[openvino.runtime.InferRequest.model_outputs]:
-[openvino.runtime.InferRequest.model_inputs]:
-[openvino.runtime.InferRequest.query_state]:
-[openvino.runtime.VariableState.reset]:
-[openvino.runtime.InferRequest.profiling_info]:
-[openvino.runtime.ProfilingInfo.real_time]: -->
+[openvino.runtime.Core.import_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.import_model
+[openvino.runtime.CompiledModel.export_model]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.export_model
+[openvino.runtime.Model.add_outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.add_outputs
+[openvino.runtime.set_batch]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.html#openvino.runtime.set_batch
+[openvino.runtime.CompiledModel.inputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.inputs
+[openvino.runtime.CompiledModel.outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.outputs
+[openvino.runtime.ConstOutput.any_name]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.ConstOutput.html#openvino.runtime.ConstOutput.any_name
+[openvino.runtime.CompiledModel.create_infer_request]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.CompiledModel.html#openvino.runtime.CompiledModel.create_infer_request
+[openvino.runtime.InferRequest.infer]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.infer
+[openvino.runtime.InferRequest.model_outputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.model_outputs
+[openvino.runtime.InferRequest.model_inputs]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.model_inputs
+[openvino.runtime.InferRequest.query_state]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.query_state
+[openvino.runtime.VariableState.reset]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.inference_engine.VariableState.html#openvino.inference_engine.VariableState.reset
+[openvino.runtime.InferRequest.profiling_info]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.profiling_info
+[openvino.runtime.ProfilingInfo.real_time]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.ProfilingInfo.html#openvino.runtime.ProfilingInfo.real_time
+[openvino.runtime.InferRequest.get_input_tensor]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.get_input_tensor

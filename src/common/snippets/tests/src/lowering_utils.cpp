@@ -43,6 +43,13 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
 }
 
+LoweringTests::LoweringTests() : TransformationTestsF() {
+    // external subgraph input shape and internal parameters shapes
+    // might differ due to the blocked layout
+    // so input & output descriptors shouldn't be checked
+    comparator.disable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
+}
+
 void LoweringTests::SetUp() {
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 }
@@ -89,7 +96,7 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgrap
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
     subgraph->set_master_shape(master_shape);
-    const auto& body = subgraph->get_body();
+    const auto& body = subgraph->body_ptr();
     auto& body_rt_info = body->get_rt_info();
     // todo: insertLoops pass requires body_rt_info["PluginShapesOverride"] and subgraph->set_tile_rank to work normally
     //  consider revising snippets-plugin shape and scheduling communication

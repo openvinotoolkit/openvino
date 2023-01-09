@@ -324,6 +324,13 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+
+    # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
+    # the main thing is to differentiate this format from text frozen format and checkpoint
+    # that can utilize input_model option
+    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint:
+        return None
+
     user_output_node_names_list = argv.output.split(',') if argv.output else None
     graph_def, _, _, _ = load_tf_graph_def(
         graph_file_name=argv.input_model,

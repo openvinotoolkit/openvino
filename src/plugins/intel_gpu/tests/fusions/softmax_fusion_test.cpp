@@ -79,9 +79,10 @@ TEST_P(softmax_quantize, basic) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        quantize("quantize", "softmax", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        quantize("quantize", input_info("softmax"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;
@@ -105,10 +106,11 @@ TEST_P(softmax_quantize_fusing_through, reshape) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        reshape("reshape", "softmax", get_reshape_shape(p)),
-        quantize("quantize", "reshape", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        reshape("reshape", input_info("softmax"), get_reshape_shape(p)),
+        quantize("quantize", input_info("reshape"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;
@@ -123,10 +125,11 @@ TEST_P(softmax_quantize_fusing_through, reorder) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        reorder("reorder", "softmax", reorder_layout),
-        quantize("quantize", "reorder", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        reorder("reorder", input_info("softmax"), reorder_layout),
+        quantize("quantize", input_info("reorder"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;
@@ -141,12 +144,13 @@ TEST_P(softmax_quantize_fusing_through, chain) {
         data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        softmax("softmax", "input", p.dimension),
-        reshape("reshape_first", "softmax", get_reshape_shape(p)),
-        reorder("reorder", "reshape_first", reorder_layout),
-        reshape("reshape_second", "reorder", get_reshape_shape(p)),
-        quantize("quantize", "reshape_second", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-        reorder("reorder_bfyx", "quantize", get_output_layout(p))
+        softmax("softmax", input_info("input"), p.dimension),
+        reshape("reshape_first", input_info("softmax"), get_reshape_shape(p)),
+        reorder("reorder", input_info("reshape_first"), reorder_layout),
+        reshape("reshape_second", input_info("reorder"), get_reshape_shape(p)),
+        quantize("quantize", input_info("reshape_second"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
+        reorder("reorder_bfyx", input_info("quantize"), get_output_layout(p))
     );
 
     tolerance = 1.f;

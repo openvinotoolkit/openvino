@@ -41,6 +41,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace ov::op::util;
 
 void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Generator> generator) {
     m_generator = generator;
@@ -55,7 +56,7 @@ void snippets::op::Subgraph::set_buffer_needed(const bool need) {
 }
 
 void snippets::op::Subgraph::init_config() {
-    const auto ops = m_body->get_ops();
+    const auto ops = body_ptr()->get_ops();
     for (const auto& op : ops) {
         config.m_is_quantized = config.m_is_quantized ||
             ov::is_type<ov::op::v0::FakeQuantize>(op);
@@ -76,9 +77,15 @@ void snippets::op::Subgraph::init_config() {
 }
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
-    : Op(args), m_body(body), m_generator(nullptr) {
+    : SubGraphOp(args), m_generator(nullptr) {
+    set_function(body);
     init_config();
     constructor_validate_and_infer_types();
+    for (size_t i = 0; i < body->get_parameters().size(); ++i)
+        m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
+    for (size_t i = 0; i < body->get_output_size(); ++i)
+        m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
+    m_transformations_allowed = false;
 }
 
 snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Model> body)
@@ -86,32 +93,32 @@ snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Mod
 
 std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, ov::clone_model(*m_body.get()));
+    return make_shared<Subgraph>(inputs, ov::clone_model(body()));
 }
 
 std::vector<PartialShape> snippets::op::Subgraph::reshape_body(const std::vector<PartialShape>& input_shapes) {
-    auto& params = m_body->get_parameters();
+    auto& params = body_ptr()->get_parameters();
     OPENVINO_ASSERT(params.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
     for (size_t i = 0; i < params.size(); ++i) {
         params[i]->set_partial_shape(input_shapes[i]);
     }
-    m_body->validate_nodes_and_infer_types();
+    body_ptr()->validate_nodes_and_infer_types();
     std::vector<PartialShape> output_shapes;
-    for (const auto& res : m_body->get_results()) {
+    for (const auto& res : body_ptr()->get_results()) {
         output_shapes.emplace_back(res->get_input_partial_shape(0));
     }
     return output_shapes;
 }
 
 std::vector<Shape> snippets::op::Subgraph::reshape_body(const std::vector<Shape>& input_shapes) {
-    auto& params = m_body->get_parameters();
+    auto& params = body_ptr()->get_parameters();
     OPENVINO_ASSERT(params.size() == input_shapes.size(), "Got invalid number of input shapes to reshape subgraph body");
     for (size_t i = 0; i < params.size(); ++i) {
         params[i]->set_partial_shape(input_shapes[i]);
     }
-    m_body->validate_nodes_and_infer_types();
+    body_ptr()->validate_nodes_and_infer_types();
     std::vector<Shape> output_shapes;
-    for (const auto& res : m_body->get_results()) {
+    for (const auto& res : body_ptr()->get_results()) {
         auto pshape = res->get_input_partial_shape(0);
         OPENVINO_ASSERT(pshape.is_static(), "Subgraph inferred dynamic output shape during reshape with static inputs");
         output_shapes.emplace_back(res->get_input_partial_shape(0).get_shape());
@@ -123,27 +130,30 @@ void snippets::op::Subgraph::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::validate_and_infer_types")
     ngraph::ParameterVector old_parameters;
-    for (auto op : m_body->get_parameters()) {
+    for (auto op : body_ptr()->get_parameters()) {
         old_parameters.push_back(op);
     }
 
     for (size_t i = 0; i < get_input_size(); ++i) {
-        m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
+        body_ptr()->replace_parameter(i, std::make_shared<opset1::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
     }
 
-    m_body->validate_nodes_and_infer_types();
+    body_ptr()->validate_nodes_and_infer_types();
 
-    for (size_t i = 0; i < m_body->get_parameters().size(); i++) {
-        m_body->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
+    for (size_t i = 0; i < body_ptr()->get_parameters().size(); i++) {
+        body_ptr()->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
     }
 
-    set_output_size(m_body->get_output_size());
+    set_output_size(body_ptr()->get_output_size());
     for (size_t i = 0; i < get_output_size(); ++i) {
-        set_output_type(i, m_body->get_output_element_type(i), m_body->get_output_partial_shape(i));
+        set_output_type(i, body_ptr()->get_output_element_type(i), body_ptr()->get_output_partial_shape(i));
     }
 }
 
 bool snippets::op::Subgraph::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("body", body_ptr());
+    visitor.on_attribute("input_descriptions", m_input_descriptions[0]);
+    visitor.on_attribute("output_descriptions", m_output_descriptions[0]);
     return true;
 }
 
@@ -181,9 +191,6 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
-    // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
-    //  This is needed so the model body will be created correctly
-    body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
         body_results.push_back(std::make_shared<ngraph::opset1::Result>(body_node->output(output.get_index())));
@@ -217,13 +224,13 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
 void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto out_tensor = target_output_node.get_tensor_ptr();
+    auto& out_tensor = target_output_node.get_tensor();
     const std::string new_name = ngraph::op::util::get_ie_output_name(replacement_output_node);
-    if (out_tensor->get_name().empty()) {
-        out_tensor->set_name(new_name);
+    if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
+        ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
     }
     if (!replacement_output_node.get_names().empty()) {
-        out_tensor->set_names(replacement_output_node.get_names());
+        out_tensor.set_names(replacement_output_node.get_names());
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
@@ -247,11 +254,11 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
                                                       const BlockedShapeVector& inputShapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::canonicalize")
-    NODE_VALIDATION_CHECK(this, inputShapes.size() == m_body->get_parameters().size(),
-        "Number of parameters for snippet doesn't match passed to generate method: ", inputShapes.size(), " vs ", m_body->get_parameters().size(), ".");
+    NODE_VALIDATION_CHECK(this, inputShapes.size() == body_ptr()->get_parameters().size(),
+        "Number of parameters for snippet doesn't match passed to generate method: ", inputShapes.size(), " vs ", body_ptr()->get_parameters().size(), ".");
 
-    NODE_VALIDATION_CHECK(this, outputShapes.size() == m_body->get_results().size(),
-        "number of results for snippet doesn't match passed to generate method: ", outputShapes.size(), " vs ", m_body->get_results().size(), ".");
+    NODE_VALIDATION_CHECK(this, outputShapes.size() == body_ptr()->get_results().size(),
+        "number of results for snippet doesn't match passed to generate method: ", outputShapes.size(), " vs ", body_ptr()->get_results().size(), ".");
 
     auto getMaxRankBlockedShape = [](const BlockedShapeVector& blockedShapes) -> const BlockedShape& {
         return *std::max_element(blockedShapes.begin(), blockedShapes.end(),
@@ -295,12 +302,12 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
             NODE_VALIDATION_CHECK(this,
                                   PartialShape::broadcast_merge_into(tmpPShape, inShape, ::ngraph::op::AutoBroadcastType::NUMPY),
                                   "Failed to create broadcastable shapes in snippets canonicalization");
-        const auto paramShape = m_body->get_parameters()[i]->get_partial_shape();
-        const auto paramType =  m_body->get_parameters()[i]->get_element_type();
+        const auto paramShape = body_ptr()->get_parameters()[i]->get_partial_shape();
+        const auto paramType =  body_ptr()->get_parameters()[i]->get_element_type();
         if (paramShape.size() != inShape.size() || !equal(paramShape.begin(), paramShape.end(), inShape.begin()))
-                m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(paramType, inShape));
+                body_ptr()->replace_parameter(i, std::make_shared<opset1::Parameter>(paramType, inShape));
     }
-    m_body->validate_nodes_and_infer_types();
+    body_ptr()->validate_nodes_and_infer_types();
     auto skipStartEndOnes = [](const PartialShape& shape) {
         auto begin = shape.begin();
         auto end = shape.end();
@@ -315,7 +322,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
     };
 
     // Check that output shapes are broadcastable => can be scheduled
-    const auto& body_results = m_body->get_results();
+    const auto& body_results = body_ptr()->get_results();
     PartialShape outPShape = body_results[0]->get_input_partial_shape(0);
     // todo: we need a slightly more general approach for backward ROI propagation
     const auto& result_parent = body_results[0]->get_input_node_shared_ptr(0);
@@ -355,7 +362,7 @@ ov::PartialShape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& 
 void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outputShapes,
                                                  const BlockedShapeVector& inputShapes) {
     // We should insert Convert before Results to set original output element type if needed
-    const auto& body_results = m_body->get_results();
+    const auto& body_results = body_ptr()->get_results();
     for (size_t i = 0; i < outputShapes.size(); i++) {
         const auto needed_out_type = std::get<2>(outputShapes[i]);
         if (body_results[i]->get_input_element_type(0) != needed_out_type) {
@@ -366,7 +373,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
     }
 
     // We should change existing element type to original for Parameters if needed
-    const auto& body_parameters = m_body->get_parameters();
+    const auto& body_parameters = body_ptr()->get_parameters();
     for (size_t i = 0; i < inputShapes.size(); ++i) {
         const auto needed_in_type = std::get<2>(inputShapes[i]);
         if (body_parameters[i]->get_element_type() != needed_in_type) {
@@ -390,7 +397,7 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
         //                 We call EliminateConverts pass to remove them
         manager.register_pass<ngraph::pass::EliminateConvert>();
     }
-    manager.run_passes(m_body);
+    manager.run_passes(body_ptr());
 }
 
 void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
@@ -477,7 +484,7 @@ void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
     };
     m_buffer_scratchpad = 0;
     size_t offset = 0;
-    const auto ops = m_body->get_ordered_ops();
+    const auto ops = body_ptr()->get_ordered_ops();
     for (const auto& op : ops) {
         if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(op)) {
             const auto buffer_size = buffer->get_byte_size();
@@ -523,7 +530,7 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
     // Then we are going to support variadic Load/Store with different element count
     const size_t count = m_generator->get_target_machine()->get_lanes();
-    const auto & params = m_body->get_parameters();
+    const auto & params = body_ptr()->get_parameters();
 
     bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
                                                     [](const shared_ptr<ngraph::op::Parameter>& p){
@@ -581,8 +588,8 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.register_pass<snippets::pass::LoopFusion>();
             manager.register_pass<snippets::pass::ResetBufferState>();
         }
-        manager.run_passes(m_body);
     }
+    manager.run_passes(body_ptr());
 }
 
 snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
@@ -611,16 +618,16 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
     convert_to_snippet_dialect();
-    opt.run_passes(m_body);
+    opt.run_passes(body_ptr());
 
     // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
     // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops
     if (config.m_has_domain_sensitive_ops)
         initialize_buffer_scratchpad_size();
 
-    snippets::pass::AssignRegisters().run_on_model(m_body);
+    snippets::pass::AssignRegisters().run_on_model(body_ptr());
 
-    const auto ops = m_body->get_ops();
+    const auto ops = body_ptr()->get_ops();
     ngraph::snippets::Generator::GeneratorConfig generatorConfig;
     generatorConfig.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     generatorConfig.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
@@ -629,7 +636,7 @@ snippets::Schedule snippets::op::Subgraph::generate(ngraph::pass::Manager& opt, 
     });
 
     // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body, generatorConfig, compile_params);
+    ngraph::snippets::code ptr = m_generator->generate(body_ptr(), generatorConfig, compile_params);
 
     return {master_shape, false /*canBeLinearized*/, ptr};
 }
@@ -638,10 +645,10 @@ void snippets::op::Subgraph::print() const {
     INTERNAL_OP_SCOPE(Subgraph);
     remark(13) << "subgraph " << this->get_friendly_name() << " "
         << this->get_type_name()
-        << " which contains " << this->get_body()->get_ops().size() << " nodes" << std::endl;
+        << " which contains " << body_ptr()->get_ops().size() << " nodes" << std::endl;
 
     int qqq = 0;
-    for (auto op : this->get_body()->get_ordered_ops()) {
+    for (auto op : body_ptr()->get_ordered_ops()) {
         remark(13) << "op " << qqq++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op << std::endl;
     }
 
@@ -672,7 +679,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         }
 
         if (auto subgraph = ngraph::as_type_ptr<op::Subgraph>(n)) {
-            for (auto op : subgraph->get_body()->get_ordered_ops()) {
+            for (auto op : subgraph->body_ptr()->get_ordered_ops()) {
                 if (ngraph::as_type_ptr<ngraph::opset1::Constant>(op)) {
                     total += op->output(0).get_tensor().size();
                 }
@@ -682,9 +689,9 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         return total;
     };
 
-    auto getModelInventory = [getNodeInventory](std::shared_ptr<ov::Model> f) -> size_t {
+    auto getModelInventory = [getNodeInventory](const ov::Model & f) -> size_t {
         size_t total = 0;
-        for (auto op : f->get_ordered_ops()) {
+        for (auto op : f.get_ordered_ops()) {
             // Results and parameters are artificially introduced,
             // while Constants are already considered if they are inputs of other operation
             // this should lead to 1:1 inventory for single node operations
@@ -697,24 +704,22 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
         return total;
     };
 
-    auto countConstants = [](std::shared_ptr<ov::Model> f) -> size_t {
+    auto countConstants = [](const ov::Model & f) -> size_t {
         size_t count = 0;
-        for (auto op : f->get_ordered_ops()) {
+        for (auto op : f.get_ordered_ops()) {
             count += !!ngraph::as_type_ptr<ngraph::opset1::Constant>(op) ? 1 : 0;
         }
         return count;
     };
 
-    auto body = this->get_body();
-
-    std::cout << this->get_friendly_name()
+    std::cout << get_friendly_name()
                 << ";" << this
-                << ";" << body->get_ops().size()
-                << ";" << body->get_parameters().size()
-                << ";" << body->get_results().size()
-                << ";" << countConstants(body)
-                << ";" << getModelInventory(body)
-                << ";" << getNodeInventory(this->shared_from_this()) << std::endl;
+                << ";" << body_ptr()->get_ops().size()
+                << ";" << body_ptr()->get_parameters().size()
+                << ";" << body_ptr()->get_results().size()
+                << ";" << countConstants(body())
+                << ";" << getModelInventory(body())
+                << ";" << getNodeInventory(shared_from_this()) << std::endl;
 
     if (verbose) {
         this->print();
@@ -724,7 +729,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 void snippets::op::Subgraph::serialize() const {
     std::stringstream xmlFile, binFile;
     ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
-    serializer.run_on_model(get_body());
+    serializer.run_on_model(body_ptr());
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();
     std::cout << m_model << std::endl;

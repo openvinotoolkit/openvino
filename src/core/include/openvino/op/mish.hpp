@@ -16,7 +16,6 @@ namespace v4 {
 class OPENVINO_API Mish : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Mish", "opset4", util::UnaryElementwiseArithmetic, 4);
-    BWDCMP_RTTI_DECLARATION;
 
     Mish() = default;
     /// \brief Constructs an Mish operation.

@@ -19,7 +19,6 @@ std::shared_ptr<ngraph::Node> ov::intel_cpu::InteractionNode::clone_with_new_inp
     INTERNAL_OP_SCOPE(InteractionNode_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::InteractionNode>(new_args);
-    throw ngraph::ngraph_error("Unsupported number of arguments for FullyConnected operation");
 }
 
 void ov::intel_cpu::InteractionNode::validate_and_infer_types() {

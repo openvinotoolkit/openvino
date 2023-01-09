@@ -35,12 +35,12 @@ TEST_P(concatenation_test, shape_infer) {
 
     cldnn::program prog(engine);
     std::vector<std::shared_ptr<input_layout>> input_prims;
-    std::vector<std::string> input_prims_ids;
+    std::vector<input_info> input_prims_ids;
     for (size_t i = 0; i < p.input_layouts.size(); i++) {
         auto prim_id = "data" + std::to_string(i);
         auto data_layout_prim = std::make_shared<input_layout>(prim_id, p.input_layouts[i]);
         input_prims.push_back(data_layout_prim);
-        input_prims_ids.push_back(prim_id);
+        input_prims_ids.push_back(input_info(prim_id));
     }
 
     auto concatenation_prim = std::make_shared<concatenation>("output", input_prims_ids, p.axis);

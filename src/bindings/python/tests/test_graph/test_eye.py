@@ -6,7 +6,6 @@ import openvino.runtime.opset9 as ov
 import numpy as np
 import pytest
 
-from tests.runtime import get_runtime
 from openvino.runtime.utils.types import get_element_type_str
 from openvino.runtime.utils.types import get_element_type
 
@@ -46,13 +45,6 @@ def test_eye_rectangle(num_rows, num_columns, diagonal_index, out_type):
     assert eye_node.get_output_size() == 1
     assert eye_node.get_output_element_type(0) == get_element_type(out_type)
     assert tuple(eye_node.get_output_shape(0)) == expected_results.shape
-
-    # TODO: Enable with Eye reference implementation
-    """runtime = get_runtime()
-    computation = runtime.computation(eye_node)
-    eye_results = computation()
-    assert np.allclose(eye_results, expected_results)
-    """
 
 
 @pytest.mark.parametrize(
@@ -96,10 +88,3 @@ def test_eye_batch_shape(num_rows, num_columns, diagonal_index, batch_shape, out
     assert eye_node.get_output_size() == 1
     assert eye_node.get_output_element_type(0) == get_element_type(out_type)
     assert tuple(eye_node.get_output_shape(0)) == expected_results.shape
-
-    # TODO: Enable with Eye reference implementation
-    """runtime = get_runtime()
-    computation = runtime.computation(eye_node)
-    eye_results = computation()
-    assert np.allclose(eye_results, expected_results)
-    """

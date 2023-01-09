@@ -5,7 +5,7 @@
 #include <fstream>
 
 #include <exec_graph_info.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 #include <ie_ngraph_utils.hpp>
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"

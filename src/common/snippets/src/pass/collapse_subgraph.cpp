@@ -277,6 +277,8 @@ TokenizeSnippets::TokenizeSnippets() {
         OutputVector external_inputs;
         // inputs to the node before merge to subgraph
         OutputVector internal_inputs;
+        // nodes whose rt_info should be copied into result subgraph
+        NodeVector replaced_nodes{node};
 
         auto input_values = node->input_values();
         /*
@@ -322,8 +324,8 @@ TokenizeSnippets::TokenizeSnippets() {
         for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
-                    auto f = ov::clone_model(*subgraph->get_body().get());
-                    f->set_friendly_name(subgraph->get_body()->get_friendly_name());
+                    auto f = ov::clone_model(subgraph->body());
+                    f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                     clones[input_node] = f;
                 }
             }
@@ -336,6 +338,7 @@ TokenizeSnippets::TokenizeSnippets() {
                       << " outputs" << std::endl;
             return true;
         }
+        std::string subgraph_name = node->get_friendly_name();
         std::string fusedNames{};
         size_t num_result_children = 0;
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
@@ -350,8 +353,14 @@ TokenizeSnippets::TokenizeSnippets() {
                     input_subgraphs.insert(input_node);
 
                     fusedNames += getFusedNames(subgraph);
+                    replaced_nodes.push_back(subgraph);
 
-                    num_result_children += has_result_child(subgraph);
+                    if (has_result_child(subgraph)) {
+                        // we set input subgraph name to the current subgraph
+                        // in order to save node friendly name before result
+                        subgraph_name = subgraph->get_friendly_name();
+                        num_result_children += 1;
+                    }
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
                     // Todo:
@@ -561,10 +570,11 @@ TokenizeSnippets::TokenizeSnippets() {
         for (size_t i = 0; i < body->get_parameters().size(); i++) {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
-        auto subgraph = op::build_subgraph(node, external_inputs, body);
-        auto act_body = subgraph->get_body();
-        for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
-            act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        auto subgraph = op::build_subgraph(node, external_inputs, body, subgraph_name);
+        copy_runtime_info(replaced_nodes, subgraph);
+        const auto& act_body = subgraph->body();
+        for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
+            act_body.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
 
         if (subgraph->get_output_size() != subgraph_result_inputs.size()) {
@@ -583,9 +593,9 @@ TokenizeSnippets::TokenizeSnippets() {
 
         subgraph->validate_and_infer_types();
 
-        auto act_body1 = subgraph->get_body();
-        for (size_t i = 0; i < act_body1->get_parameters().size(); i++) {
-            act_body1->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
+        const auto& act_body1 = subgraph->body();
+        for (size_t i = 0; i < act_body1.get_parameters().size(); i++) {
+            act_body1.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         subgraph->get_rt_info()["originalLayersNames"] = fusedNames;
         subgraph->set_virtual_port_count(hidden_data_count);
@@ -595,7 +605,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     << subgraph->get_friendly_name()
                     << " with " << subgraph->inputs().size()
                     << " inputs and " << subgraph->outputs().size()
-                    << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
+                    << " outputs and " << subgraph->body_ptr()->get_ops().size() << " ops total\n";
 
         return true;
     };

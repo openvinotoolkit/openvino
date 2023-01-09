@@ -21,7 +21,7 @@ class LoopBase : public ngraph::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
     LoopBase(const std::vector<Output<Node>>& args, size_t work_amount, size_t increment);
-    LoopBase() = delete;
+    LoopBase() = default;
     bool visit_attributes(AttributeVisitor& visitor) override;
     size_t get_work_amount() const;
     size_t get_increment() const;
@@ -46,7 +46,7 @@ class LoopBegin : public LoopBase {
 public:
     OPENVINO_OP("LoopBegin", "SnippetsOpset", LoopBase);
     explicit LoopBegin(const OutputVector& args);
-    LoopBegin() = delete;
+    LoopBegin() = default;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     std::shared_ptr<LoopEnd> get_loop_end();
@@ -81,7 +81,7 @@ public:
               std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
     LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,
             std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets);
-    LoopEnd() = delete;
+    LoopEnd() = default;
     std::shared_ptr<LoopBegin> get_loop_begin();
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;

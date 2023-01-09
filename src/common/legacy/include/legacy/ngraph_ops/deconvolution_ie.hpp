@@ -17,7 +17,6 @@ namespace op {
 class DeconvolutionIE : public Op {
 public:
     OPENVINO_OP("DeconvolutionIE", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     DeconvolutionIE() = default;
 

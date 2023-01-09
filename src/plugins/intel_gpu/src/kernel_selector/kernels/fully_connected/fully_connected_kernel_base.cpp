@@ -14,10 +14,29 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
                                                        const FullyConnectedKernelBase::DispatchData&) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
-    const auto x_size = input.LogicalSize() / input.Batch().v;
+    if (input.is_dynamic()) {
+        auto x = toCodeString(input.X(), 5);
+        auto y = toCodeString(input.Y(), 4);
+        auto z = toCodeString(input.Z(), 3);
+        auto w = toCodeString(input.W(), 2);
+        auto f = toCodeString(input.Feature(), 1);
 
-    jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
-
+        auto multiply = [](std::vector<std::string> dims) -> std::string {
+            std::string res = "(";
+            for (size_t i = 0; i < dims.size(); i++) {
+                auto& d = dims[i];
+                res += d;
+                if (i != dims.size() - 1)
+                    res += "*";
+            }
+            res += ")";
+            return res;
+        };
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", multiply({x, y, z, w, f})));
+    } else {
+        const auto x_size = input.LogicalSize() / input.Batch().v;
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
+    }
     return jit;
 }
 
@@ -64,6 +83,13 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     }
 
     KernelData kd = KernelData::Default<fully_connected_params>(params);
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const fully_connected_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
     fully_connected_params& newParams = *static_cast<fully_connected_params*>(kd.params.get());
 
     if (!bProperInput) {
@@ -107,7 +133,9 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      true,
                      !orgParams.bias.empty(),
                      1,
-                     fused_deps_total);
+                     fused_deps_total,
+                     1,
+                     orgParams.outputs[0].is_dynamic());
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;
@@ -119,7 +147,7 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,

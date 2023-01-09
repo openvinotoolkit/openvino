@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0::NormalizeL2>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     // params
@@ -49,7 +49,7 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
     p.add_primitive(*op, cldnn::data(scalesName, mem));
 
     auto normPrim = cldnn::normalize(layerName,
-                                     inputPrimitives[0],
+                                     inputs[0],
                                      scalesName,
                                      across_spatial,
                                      eps);

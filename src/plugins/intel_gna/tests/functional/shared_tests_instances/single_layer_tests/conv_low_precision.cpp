@@ -66,10 +66,8 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(),
-                                                -0.05f,
-                                                0.05f,
-                                                1 / inputDataResolution);
+        return FuncTestUtils::createAndFillBlobFloatNormalDistribution(
+            info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
     ParameterVector createInputVector(const Type& type, const vector<std::size_t>& shapes) {
@@ -113,7 +111,7 @@ protected:
         // Create network
         auto inputVector = createInputVector(ngPrc, {inputShape});
         auto inputFQ = createFQNode(ngPrc, inputVector[0], fqMin, fqMax, levels);
-        auto kernelWeights = makeConstant<float>(ngPrc, {8, 8, kernelHeight, 2}, {0.1f});
+        auto kernelWeights = makeConstant<float>(ngPrc, {8, 8, kernelHeight, 2}, {}, true, 1.0f, -1.0f, 7235346);
         auto weightsFQ = createFQNode(ngPrc, kernelWeights, fqMin, fqMax, levels);
         auto convolution = make_shared<Convolution>(inputFQ,
                                                     weightsFQ,
@@ -171,7 +169,7 @@ const vector<Shape> inputShapes = {
 };
 
 const vector<pair<float, float>> fqMinMax = {
-    {-8, 8}
+    {-1.0f, 1.0f}
 };
 
 const vector<std::size_t> levels = {

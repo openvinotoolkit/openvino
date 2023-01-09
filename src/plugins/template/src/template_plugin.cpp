@@ -20,6 +20,7 @@
 #include <transformations/convert_precision.hpp>
 
 #include "openvino/core/except.hpp"
+#include "openvino/op/ops.hpp"
 #include "template/template_config.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"

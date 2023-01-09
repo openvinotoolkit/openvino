@@ -373,7 +373,7 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
 
         subgraph->validate_and_infer_types();
 
-        auto act_body = subgraph->get_body();
+        auto act_body = subgraph->body_ptr();
         for (size_t i = 0; i < act_body->get_parameters().size(); i++) {
             act_body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }

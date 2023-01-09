@@ -333,14 +333,14 @@ public:
         topology.add(mutable_data{output_roi_scores_id, output_roi_scores});
         topology.add(mutable_data{output_rois_num_id, output_rois_num});
 
-        topology.add(reorder(reorder_im_info_id, input_im_info_id, data_layout, data_type));
-        topology.add(reorder(reorder_anchors_id, input_anchors_id, data_layout, data_type));
-        topology.add(reorder(reorder_deltas_id, input_deltas_id, data_layout, data_type));
-        topology.add(reorder(reorder_scores_id, input_scores_id, data_layout, data_type));
+        topology.add(reorder(reorder_im_info_id, input_info(input_im_info_id), data_layout, data_type));
+        topology.add(reorder(reorder_anchors_id, input_info(input_anchors_id), data_layout, data_type));
+        topology.add(reorder(reorder_deltas_id, input_info(input_deltas_id), data_layout, data_type));
+        topology.add(reorder(reorder_scores_id, input_info(input_scores_id), data_layout, data_type));
 
         const primitive_id generate_proposals_id = "generate_proposals";
-        const std::vector<primitive_id> inputs{ reorder_im_info_id, reorder_anchors_id, reorder_deltas_id,
-                                                reorder_scores_id, output_roi_scores_id, output_rois_num_id};
+        const std::vector<input_info> inputs{ input_info(reorder_im_info_id), input_info(reorder_anchors_id), input_info(reorder_deltas_id),
+                                              input_info(reorder_scores_id), input_info(output_roi_scores_id), input_info(output_rois_num_id) };
         const auto generate_proposals_primitive = generate_proposals{
             generate_proposals_id,
             inputs,
@@ -354,7 +354,7 @@ public:
 
         topology.add(generate_proposals_primitive);
         const primitive_id reorder_result_id = generate_proposals_id + "Reordered";
-        topology.add(reorder(reorder_result_id, generate_proposals_id, format::bfyx, data_type));
+        topology.add(reorder(reorder_result_id, input_info(generate_proposals_id), format::bfyx, data_type));
 
         cldnn::network::ptr network;
 
@@ -393,7 +393,7 @@ public:
             }
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("data", from_layout));
-            reorder_topology.add(reorder("plane_data", "data", format::bfyx, data_type));
+            reorder_topology.add(reorder("plane_data", input_info("data"), format::bfyx, data_type));
             cldnn::network reorder_net{engine, reorder_topology};
             reorder_net.set_input_data("data", mem);
             const auto second_output_result = reorder_net.execute();
@@ -415,18 +415,18 @@ public:
 
         if (!is_caching_test) {
             for (size_t j = 0; j < expected_rois_num.size(); ++j) {
-                EXPECT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
+                ASSERT_EQ(expected_rois_num[j], rois_num_ptr[j]) << "j=" << j;
             }
         }
 
         for (auto i = 0; i < param.post_nms_count; ++i) {
             if (!is_caching_test) {
-                EXPECT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
+                ASSERT_NEAR(expected_roi_scores[i], roi_scores_ptr[i], getError<T>()) << "i=" << i;
             }
             if (static_cast<float>(expected_roi_scores[i]) != 0.0f) {
                 for (size_t coord = 0; coord < 4; ++coord) {
                     const auto roi_idx = i * 4 + coord;
-                    EXPECT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
+                    ASSERT_NEAR(expected_rois[roi_idx], rois_ptr[roi_idx], getError<T>()) << "i=" << i << ", coord=" << coord;
                 }
             }
         }

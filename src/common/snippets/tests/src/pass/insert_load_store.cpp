@@ -37,7 +37,7 @@ void InsertLoadStoreTests::SetUp() {
 
 TEST_P(InsertLoadStoreTests, ThreeInputsEltwise) {
     auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), master_shape);
-    function = subgraph->get_body();
+    function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }
 

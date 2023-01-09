@@ -47,7 +47,7 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
 }
 
 Split::Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+        Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -242,10 +242,6 @@ bool Split::needPrepareParams() const {
         return false;
     }
     return Node::inputShapesModified();
-}
-
-std::vector<VectorDims> Split::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1, 2));
 }
 
 void Split::prepareParams() {

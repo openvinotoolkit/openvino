@@ -2,26 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
 #include <gtest/gtest.h>
 
-#include <transformations/init_node_info.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/fold_fake_quantize.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <sstream>
+#include <string>
+#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/convolution_function.hpp"
-
 #include "simple_low_precision_transformer.hpp"
-
 
 namespace {
 class ConvolutionWithIncorrectWeightsTestValues {
@@ -48,9 +45,9 @@ public:
     Expected expected;
 };
 
-class ConvolutionWithIncorrectWeightsTransformation :
-    public LayerTransformation,
-    public testing::WithParamInterface<ConvolutionWithIncorrectWeightsTestValues> {
+class ConvolutionWithIncorrectWeightsTransformation
+    : public LayerTransformation,
+      public testing::WithParamInterface<ConvolutionWithIncorrectWeightsTestValues> {
 public:
     void SetUp() override {
         const ConvolutionWithIncorrectWeightsTestValues testValues = GetParam();
@@ -63,8 +60,11 @@ public:
             testValues.isCorrect);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+            testValues.params);
+        transform
+            .add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(
+                testValues.params);
         transform.transform(actualFunction);
 
         ngraph::pass::Manager cleanupManager;
@@ -85,8 +85,7 @@ public:
         const ConvolutionWithIncorrectWeightsTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result << toString(testValues.params) <<
-            (testValues.isCorrect ? "_correct_weights" : "_incorrect_weights");
+        result << toString(testValues.params) << (testValues.isCorrect ? "_correct_weights" : "_incorrect_weights");
         return result.str();
     }
 };
@@ -103,43 +102,37 @@ const std::vector<ConvolutionWithIncorrectWeightsTestValues> testValues = {
     // incorrect weights
     {
         ngraph::element::u8,
-        ngraph::Shape({ 1, 3, 224, 224 }),
+        ngraph::Shape({1, 3, 224, 224}),
         LayerTransformation::createParamsU8I8(),
         false,
         {
             {ngraph::element::f32, {}, {0.1f}},
-            { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+            {255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-127.f}, {127.f}},
         },
-        {
-            {ngraph::element::f32, {}, {0.1f}},
-            ngraph::element::f32,
-            {-129.f},
-            {}
-        },
+        {{ngraph::element::f32, {}, {0.1f}}, ngraph::element::f32, {-129.f}, {}},
     },
     // correct weights
     {
         ngraph::element::u8,
-        ngraph::Shape({ 1, 3, 224, 224 }),
+        ngraph::Shape({1, 3, 224, 224}),
         LayerTransformation::createParamsU8I8(),
         true,
         {
             {ngraph::element::f32, {}, {0.1f}},
-            { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+            {255ul, ngraph::Shape{1, 1, 1, 1}, {0.f}, {254.f}, {-127.f}, {127.f}},
         },
         {
             {},
             ngraph::element::i8,
             {-126.f},
-            {{}, {}, {{ 0.1f }, ngraph::element::f32, {}}},
+            {{}, {}, {{0.1f}, ngraph::element::f32, {}}},
         },
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    ConvolutionWithIncorrectWeightsTransformation,
-    ::testing::ValuesIn(testValues),
-    ConvolutionWithIncorrectWeightsTransformation::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_LPT,
+                         ConvolutionWithIncorrectWeightsTransformation,
+                         ::testing::ValuesIn(testValues),
+                         ConvolutionWithIncorrectWeightsTransformation::getTestCaseName);
 
-} // namespace
+}  // namespace
