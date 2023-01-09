@@ -31,7 +31,7 @@ TEST(attributes, framework_node_op) {
     auto res1 = make_shared<Result>(Xe);
     auto body1 = make_shared<Model>(OutputVector{res0}, ParameterVector{Xt, Yt});
     auto body2 = make_shared<Model>(OutputVector{res1}, ParameterVector{Xe});
-    auto fn_op = make_shared<op::util::FrameworkNode>(OutputVector{cond}, 1, 2);
+    auto fn_op = make_shared<op::util::FrameworkNode>(OutputVector{cond}, 0, 2);
 
     // Add attributes
     auto attrs = op::util::FrameworkNodeAttrs();
@@ -45,7 +45,7 @@ TEST(attributes, framework_node_op) {
     auto out = fn_op->set_body_outputs({res0, res1});
     fn_op->validate_and_infer_types();
     EXPECT_EQ(fn_op->inputs().size(), 3);
-    EXPECT_EQ(fn_op->outputs().size(), 2);
+    EXPECT_EQ(fn_op->outputs().size(), 1);
 
     NodeBuilder builder(fn_op);
     auto g_fn = ov::as_type_ptr<op::util::FrameworkNode>(builder.create());

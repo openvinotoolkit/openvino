@@ -8,8 +8,9 @@
 #include "ngraph/graph_util.hpp"
 
 ov::op::util::FrameworkNode::FrameworkNode(const OutputVector& inputs, size_t output_size, size_t num_subgraphs)
-    : MultiSubGraphOp(inputs, num_subgraphs),
+    : MultiSubGraphOp(num_subgraphs),
       m_num_bodies(num_subgraphs) {
+    set_arguments(inputs);
     set_output_size(output_size);
     constructor_validate_and_infer_types();
 }
@@ -20,7 +21,7 @@ ov::op::util::FrameworkNode::FrameworkNode(const ov::op::util::FrameworkNode& ot
 }
 
 void ov::op::util::FrameworkNode::clone_to(ov::op::util::FrameworkNode& dst) const {
-    dst.set_output_size(m_output_descriptions.size());
+    dst.set_output_size(get_output_size());
 
     for (size_t i = 0; i < get_output_size(); ++i) {
         dst.set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
