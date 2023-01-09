@@ -9,7 +9,6 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import scipy.optimize
 
 from ..qnoise_estimator.algorithm import QuantNoiseEstimator
@@ -166,7 +165,7 @@ class OptimizationAlgorithm(Algorithm):
             Path('/'.join(self._result_filename.split('/')[:-1])).mkdir(
                 parents=True, exist_ok=True
             )
-            pd.DataFrame(self._results).to_csv(self._result_filename)
+            np.savetxt(self._result_filename, self._results, delimiter=",", fmt='%s')
         if self._dump_model_prefix:
             dump_path = self._dump_model_prefix + '{:05}'.format(
                 self._optimization_iter
