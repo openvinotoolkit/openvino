@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "reshape_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <iostream>
 #include <cmath>
 #include <iomanip>
@@ -20,7 +18,7 @@
 using namespace cldnn;
 
 void compile_graph::run(program& p) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::CompileGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
     for (auto& node : p.get_processing_order()) {
         node->set_unique_id();
         if (!node->is_type<data>()) {

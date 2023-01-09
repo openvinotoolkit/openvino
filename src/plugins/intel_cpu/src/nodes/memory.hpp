@@ -61,7 +61,7 @@ public:
 
 class MemoryOutput : public Node, public MemoryNode {
 public:
-    MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~MemoryOutput() override;
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -86,7 +86,7 @@ public:
 
 class MemoryInput : public Input, public MemoryNode {
 public:
-    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    MemoryInput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~MemoryInput() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
