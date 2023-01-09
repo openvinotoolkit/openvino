@@ -837,6 +837,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
              << ", skipped_count=" << test_suite.skipped_test_count()
              << ", failed_count=" << test_suite.failed_test_count()
              << ", disabled_count=" << test_suite.disabled_test_count()
+             << ", run_count=" << test_suite.test_to_run_count()
              << ", total_count=" << test_suite.total_test_count() << " WHERE sr_id=" << this->testSuiteId;
         auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
