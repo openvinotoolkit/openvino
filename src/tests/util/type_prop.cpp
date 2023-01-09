@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "type_prop.hpp"
+
 #include "openvino/core/dimension.hpp"
 #include "sequnce_generator.hpp"
-#include "type_prop.hpp"
 
 std::vector<ov::label_t> get_shape_labels(const ov::PartialShape& p_shape) {
     std::vector<ov::label_t> labels;
