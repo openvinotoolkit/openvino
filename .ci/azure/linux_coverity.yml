@@ -44,9 +44,6 @@ jobs:
     displayName: Setup Python 3.10
     name: setupPython
 
-  - script: $(setupPython.pythonLocation)\python.exe --version
-    displayName: 'Check Python 3.10'
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami

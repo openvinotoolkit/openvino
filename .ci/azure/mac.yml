@@ -78,9 +78,6 @@ jobs:
     displayName: Setup Python 3.10
     name: setupPython
 
-  - script: $(setupPython.pythonLocation)\python.exe --version
-    displayName: 'Check Python 3.10'
-
   - script: |
       whoami
       uname -a

@@ -72,9 +72,6 @@ jobs:
     displayName: Setup Python 3.10
     name: setupPython
 
-  - script: $(setupPython.pythonLocation)\python.exe --version
-    displayName: 'Check Python 3.10'
-
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python
