@@ -131,6 +131,28 @@ jobs:
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/requirements.txt
       python3 -m pip install -r $(OPENVINO_REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
+    env:
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
+      USE_CCACHE: 1
+      OPENCV_CCACHE_DIR: $(OPENCV_CCACHE_DIR)
+      ONETBB_CCACHE_DIR: $(ONETBB_CCACHE_DIR)
+      PYTHON_ARM_VERSION: $(PYTHON_ARM_VERSION)
+      NUM_PROC: $(NUM_PROC)
+      BUILD_PYTHON: $(BUILD_PYTHON)
+      WORK_DIR: $(WORK_DIR)
+      INSTALL_PYTHON: $(INSTALL_PYTHON)
+      BUILD_TYPE: $(BUILD_TYPE)
+      OPENVINO_REPO_DIR: $(OPENVINO_REPO_DIR)
+      BUILD_ONETBB: $(BUILD_ONETBB)
+      INSTALL_ONETBB: $(INSTALL_ONETBB)
+      INSTALL_OPENCV: $(INSTALL_OPENCV)
+      PYTHON_EXEC: $(PYTHON_EXEC)
+      ONETBB_REPO_DIR: $(ONETBB_REPO_DIR)
+      OPENCV_REPO_DIR: $(OPENCV_REPO_DIR)
+      BUILD_OPENCV: $(BUILD_OPENCV)
+      INSTALL_OPENVINO: $(INSTALL_OPENVINO)
     displayName: 'Install dependencies'
 
   - script: |
