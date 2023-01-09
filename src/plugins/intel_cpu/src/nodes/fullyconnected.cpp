@@ -83,6 +83,38 @@ bool FCKey::operator==(const FCKey &rhs) const {
     return retVal;
 }
 
+class FCShapeInfer : public ShapeInferEmptyPads {
+public:
+    std::vector<VectorDims> infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        VectorDims activationShape = input_shapes[0].get();
+        VectorDims weightShape = input_shapes[1].get();
+        size_t activationRank = activationShape.size();
+        if (one_of(activationRank, 2, 3)) {
+            VectorDims output_shape = activationShape;
+            output_shape[activationRank - 1] = weightShape[0];
+            return { output_shape };
+        } else if (activationRank == 4) {
+            VectorDims output_shape{activationShape[0], weightShape[0]};
+            return { output_shape };
+        } else {
+            IE_THROW() << "FullyConnected layer has unsupported input rank(" << activationRank << "), 2 or 3 or 4 is expected.";
+        }
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class FCShapeInferFactory : public ShapeInferFactory {
+public:
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<FCShapeInfer>();
+    }
+};
+
 } // namespace
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -114,7 +146,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
 }
 
 FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+        : Node(op, context), withBiases(false) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
