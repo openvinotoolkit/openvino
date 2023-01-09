@@ -22,6 +22,17 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.cpp"
   )
 
+if (NOT ENABLE_ONEDNN_FOR_GPU)
+    set(EXCLUDE_DIR "/onednn/")
+    foreach (SOURCE_FILE ${SOURCES_MAIN})
+        string (FIND ${SOURCE_FILE} ${EXCLUDE_DIR} EXCLUDE_DIR_FOUND)
+        if (NOT ${EXCLUDE_DIR_FOUND} EQUAL -1)
+            message (Exclude : ${SOURCE_FILE})
+            list (REMOVE_ITEM SOURCES_MAIN ${SOURCE_FILE})
+        endif ()
+    endforeach(SOURCE_FILE)
+endif()
+
 if (MSVC)
   file(GLOB SOURCES_NATVIS
     "${CMAKE_CURRENT_SOURCE_DIR}/float16.natvis"
@@ -59,6 +70,10 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_kernels,INTERFACE_INCLUDE_DIRECTORIES>
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
                                                   ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/)
+
+if(ENABLE_ONEDNN_FOR_GPU)
+    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+endif()
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
