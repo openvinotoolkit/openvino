@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
@@ -11,12 +10,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs transposed convolution.
 /// Also supports built-in Relu @ref activation available by setting it in arguments.
@@ -280,9 +273,6 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
-
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -293,7 +283,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

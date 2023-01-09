@@ -16,11 +16,11 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __read_only image2d_t weights,
+    __read_only image2d_t weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
 
     const uint local_x = get_local_id(0);

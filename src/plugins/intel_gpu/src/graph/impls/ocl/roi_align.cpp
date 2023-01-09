@@ -50,7 +50,7 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory()};
         args.outputs = {instance.output_memory_ptr()};

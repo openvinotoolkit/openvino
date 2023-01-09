@@ -466,6 +466,7 @@ protected:
                 }
 
                 case onednn_post_op_type::binary_add:
+                case onednn_post_op_type::binary_sub:
                 case onednn_post_op_type::binary_mul:
                 case onednn_post_op_type::binary_max:
                 case onednn_post_op_type::binary_min:
