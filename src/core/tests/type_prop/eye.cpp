@@ -1,14 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace testing;
+using namespace ov::opset10;
+
+using label_t = size_t;
 
 TEST(type_prop, eye_constant) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
@@ -18,10 +22,11 @@ TEST(type_prop, eye_constant) {
     auto eye = std::make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::bf16);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::bf16);
+    EXPECT_EQ(eye->get_output_size(), 1);
     EXPECT_EQ(eye->get_output_partial_shape(0), ov::PartialShape({6, 3}));
 }
 
-TEST(type_prop, eye_batchshape_constant) {
+TEST(type_prop, eye_batch_shape_constant) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {3});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -34,7 +39,11 @@ TEST(type_prop, eye_batchshape_constant) {
 }
 
 TEST(type_prop, eye_rows_param) {
-    auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    constexpr label_t row_label = 2;
+    auto rows_dim = Dimension{0, 1};
+    DimensionTracker::set_label(rows_dim, row_label);
+
+    auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{rows_dim});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {10});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
 
@@ -42,20 +51,30 @@ TEST(type_prop, eye_rows_param) {
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 10}));
+    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), Each(no_label));
 }
 
 TEST(type_prop, eye_rows_const) {
+    constexpr label_t columns_label = 2;
+    auto columns_dim = Dimension{0, 1};
+    DimensionTracker::set_label(columns_dim, columns_label);
+
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
-    auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
+    auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{columns_dim});
     auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
 
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::f32);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({10, Dimension::dynamic()}));
+    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), Each(no_label));
 }
 
-TEST(type_prop, eye_batchshape_const) {
+TEST(type_prop, eye_batch_shape_const) {
+    constexpr label_t batch_label = 2;
+    auto batch_dim = Dimension{2};
+    DimensionTracker::set_label(batch_dim, batch_label);
+
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
     auto num_columns = num_rows;
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {0});
@@ -65,9 +84,10 @@ TEST(type_prop, eye_batchshape_const) {
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({2, 3, Dimension::dynamic(), Dimension::dynamic()}));
+    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), Each(no_label));
 }
 
-TEST(type_prop, eye_batchshape_params) {
+TEST(type_prop, eye_batch_shape_params) {
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
     auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
     auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
@@ -79,7 +99,7 @@ TEST(type_prop, eye_batchshape_params) {
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape().dynamic(4));
 }
 
-TEST(type_prop, eye_batchshape_shapeof) {
+TEST(type_prop, eye_batch_shape_shape_of) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
     auto num_columns = num_rows;
     auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
@@ -309,4 +329,20 @@ TEST(type_prop, eye_dynamic_batch_shape_invalid_rank) {
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
+}
+
+class TypePropEyeV9Test : public TypePropOpTest<op::v9::Eye> {};
+
+TEST_F(TypePropEyeV9Test, eye_batch_shape_param_other_ins_const) {
+    auto num_rows = Constant::create(element::i64, Shape{1}, {5});
+    auto num_columns = Constant::create(element::i64, Shape{1}, {6});
+    ;
+    auto diagonal_index = Constant::create(element::i64, Shape{1}, {0});
+    auto batch_shape = std::make_shared<Parameter>(element::i64, PartialShape{3});
+
+    auto op = make_op(num_rows, num_columns, diagonal_index, batch_shape, element::f32);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, -1, 5, 6}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
 }
