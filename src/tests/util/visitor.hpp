@@ -11,9 +11,9 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
+#include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/op/util/framework_node.hpp"
 
 namespace ngraph {
 namespace test {
