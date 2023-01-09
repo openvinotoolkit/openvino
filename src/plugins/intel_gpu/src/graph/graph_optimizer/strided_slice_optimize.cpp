@@ -26,12 +26,25 @@ void strided_slice_optimize::run(program& p) {
             if (std::find(new_axis_mask.begin(), new_axis_mask.end(), 1) == new_axis_mask.end())
                 continue;
 
+            auto node_layout = strided_slice_node.get_output_layout();
+            // only 4D or less dimension output runs optimization
+            if (node_layout.get_rank() > 4)
+                continue;
+
             auto& deps = node->get_dependencies();
+            auto is_other_deps_constant = [deps]() {
+                for (size_t i = 1; i < deps.size(); i++) {
+                    if (!deps[i].first->is_type<data>()) return false;
+                }
+                return true;
+            };
+            if (!is_other_deps_constant())
+                continue;
+
             for (size_t i = deps.size(); i--;)
                 if (deps[i].first->is_type<data>())
                     node->remove_dependency(i);
 
-            auto node_layout = strided_slice_node.get_output_layout();
             auto node_size = node_layout.get_tensor().sizes(format::bfyx);
 
             auto is_shift_possible = [&](const std::vector<int32_t>& dims) -> bool {
