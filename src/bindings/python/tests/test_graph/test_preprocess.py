@@ -227,7 +227,7 @@ def test_graph_preprocess_spatial_static_shape():
     ]
     assert len(model_operators) == 7
     assert function.get_output_size() == 1
-    assert list(function.get_output_shape(0)) == [2, 2, 2]
+    assert list(function.get_output_shape(0)) == [3, 2, 2]
     assert function.get_output_element_type(0) == Type.f32
     for op in expected_ops:
         assert op in model_operators
@@ -395,7 +395,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
         ]
         assert len(model_operators) == 16
         assert function.get_output_size() == 1
-        assert list(function.get_output_shape(0)) == [1, 1, 3, 3]
+        assert list(function.get_output_shape(0)) == [1, 3, 3, 3]
         assert function.get_output_element_type(0) == Type.f32
         for op in expected_ops:
             assert op in model_operators
