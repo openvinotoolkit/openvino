@@ -8,7 +8,7 @@
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_impl.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna;
 using namespace request;
 using namespace testing;
 
@@ -18,7 +18,7 @@ TEST_F(GNA_Request_WorkerImplTest, initDeinit) {
     ASSERT_THROW(WorkerImpl(nullptr, {}), std::exception);
 
     std::vector<std::shared_ptr<Subrequest>> subrequests;
-    ASSERT_THROW(GNAPluginNS::request::WorkerImpl(nullptr, subrequests), std::exception);
+    ASSERT_THROW(WorkerImpl(nullptr, subrequests), std::exception);
     auto wrapper = ModelWrapperFactory::createTrivial();
     ASSERT_THROW(WorkerImpl(wrapper, {}), std::exception);
 

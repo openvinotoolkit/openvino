@@ -220,6 +220,18 @@ void SubgraphBaseTest::compile_model() {
         }
     #endif
 
+    // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision may vary
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        ov::element::Type hint = ov::element::f32;
+        for (auto& param : function->get_parameters()) {
+            if (param->get_output_element_type(0) == ov::element::f16) {
+                hint = ov::element::f16;
+                break;
+            }
+        }
+        configuration.insert({ov::hint::inference_precision.name(), hint});
+    }
+
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();

@@ -48,7 +48,7 @@ protected:
 };
 
 TEST_F(GNAAllocatorTest, canAllocateStdMemory) {
-    auto sp = GNAPluginNS::memory::GNAFloatAllocator{};
+    auto sp = memory::GNAFloatAllocator{};
     uint8_t *x = nullptr;
     ASSERT_NO_THROW(x = sp.allocate(100));
     ASSERT_NE(x, nullptr);
@@ -58,7 +58,7 @@ TEST_F(GNAAllocatorTest, canAllocateStdMemory) {
 TEST_F(GNAAllocatorTest, canAllocateGNAMemory) {
     // GNA device can be opened one per process for now
     gnadevice.reset(new GNADeviceHelper());
-    GNAPluginNS::memory::GNAAllocator sp{ gnadevice };
+    memory::GNAAllocator sp{ gnadevice };
     uint8_t *x = nullptr;
     ASSERT_NO_THROW(x = sp.allocate(100));
     ASSERT_NE(x, nullptr);
