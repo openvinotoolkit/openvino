@@ -167,13 +167,6 @@ jobs:
       # 'clang' compiler is to check that samples can be built using it
       sudo apt --assume-yes install openjdk-11-jdk libbz2-dev clang
       # For Python API
-      # For opencv-python: python3-setuptools and pip upgrade
-      $(setupPython.pythonLocation)/bin/python3.10 -m venv $(PY_VENV)
-      . $(PY_VENV)/bin/activate
-      echo Python3 info ; which python3 ; python3 --version
-      python3 --version
-      python3.10 --version
-      curl https://bootstrap.pypa.io/get-pip.py | python3
       python3 -m pip install --upgrade pip
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/wheel/requirements-dev.txt
       python3 -m pip install -r $(REPO_DIR)/src/bindings/python/requirements.txt
