@@ -313,7 +313,7 @@ TEST_P(convert_color_to_gray, assert_rank_less_4) {
 
 TEST_P(convert_color_to_gray, assert_rank_more_4) {
     const auto& COLOR_FORMAT = GetParam();
-    
+
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 2, 3});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("NDHWC").set_color_format(COLOR_FORMAT);
@@ -324,7 +324,7 @@ TEST_P(convert_color_to_gray, assert_rank_more_4) {
 
 TEST_P(convert_color_to_gray, assert_C_not_equal_1) {
     const auto& COLOR_FORMAT = GetParam();
-    
+
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 5});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("NHWC").set_color_format(COLOR_FORMAT);
