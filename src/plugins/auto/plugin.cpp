@@ -326,7 +326,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::Loa
 
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(const std::string& modelPath,
                                                                               CNNNetwork network,
-                                                                              const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
+                                                                              const std::shared_ptr<InferenceEngine::RemoteContext>& ctx,
                                                                               const std::map<std::string, std::string>& config,
                                                                               const std::string &networkPrecision) {
     if (GetCore() == nullptr) {
@@ -337,8 +337,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
 
-    if (ctx && !ctx->is<MultiRemoteContext>() && !ctx->as<MultiRemoteContext>()->isEmpty()) {
-        IE_THROW() << GetName() << " Please , load to " << GetName() << " via valid MULTI remote context";
+    if (ctx && !ctx->is<MultiRemoteContext>() && ctx->as<MultiRemoteContext>()->isEmpty()) {
+        IE_THROW() << GetName() << " Please, load to " << GetName() << " via valid MULTI/AUTO remote context";
     }
     // to use plugin's name as the log tag
     _LogTag = GetName();
@@ -455,6 +455,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_plugin = this;
         autoSContext->_core = GetCore();
         autoSContext->_LogTag = _LogTag;
+        if (ctx)
+            autoSContext->_remoteContext = ctx;
         auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
         if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
             autoSContext->_bindBuffer = true;
@@ -980,11 +982,11 @@ std::string MultiDeviceInferencePlugin::GetLogTag() const noexcept {
 }
 
 RemoteContext::Ptr MultiDeviceInferencePlugin::CreateContext(const InferenceEngine::ParamMap& config) {
-    MultiRemoteContext::Ptr multiRemoteContext = std::make_shared<MultiRemoteContext>();
+    MultiRemoteContext::Ptr multiRemoteContext = std::make_shared<MultiRemoteContext>(GetName());
     auto cfg = config;
     for (auto& it : config) {
-        auto val = it.second.as<RemoteContext::Ptr>();
-        multiRemoteContext->AddContext(val);
+        if (it.second.is<RemoteContext::Ptr>())
+            multiRemoteContext->AddContext(it.second.as<RemoteContext::Ptr>());
     }
     return multiRemoteContext;
 }

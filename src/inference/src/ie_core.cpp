@@ -2140,7 +2140,6 @@ void Core::register_plugins(const std::string& xmlConfigFile) {
 
 RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& params) {
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
-    OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("BATCH") != 0, "BATCH device does not support remote context");
     AnyMap updatedParams = params;
     std::vector<std::shared_ptr<void>> sovec;

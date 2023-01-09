@@ -10,11 +10,12 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "base/ov_behavior_test_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace ::testing;
 
-static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
-    std::string allDevices = "MULTI:";
+static std::string getDeviceStringWithMulti(std::vector<std::string> names, bool flag = true) {
+    std::string allDevices = flag ? "MULTI:" : "AUTO:";
     for (auto && device : names) {
         allDevices += device;
         allDevices += ((device == names[names.size()-1]) ? "" : ",");
@@ -24,6 +25,7 @@ static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
 using DeviceName = std::string;
 using DevicesNames = std::vector<DeviceName>;
 using DevicesNamesAndSupportPair = std::pair<DevicesNames, bool>;
+using DevicesNamesMultiCumuTuple = std::tuple<DevicesNames, bool, bool>;
 
 class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
     void SetUp() override {
@@ -59,10 +61,11 @@ protected:
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
 
-class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
+class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamesMultiCumuTuple> {
     void SetUp() override {
-        device_names = getDeviceStringWithMulti(this->GetParam());
-        device_lists = this->GetParam();
+        auto param = this->GetParam();
+        device_names = getDeviceStringWithMulti(std::get<0>(param), std::get<1>(param));
+        device_lists = std::get<0>(param);
         auto fn_ptr = ov::test::behavior::getDefaultNGraphFunctionForTheDevice("");
         using namespace ov::preprocess;
         auto p = PrePostProcessor(fn_ptr);
@@ -82,13 +85,21 @@ class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public 
                 iter++;
         }
         config = {ov::device::priorities(prioritylist)};
+        cumu_enabled = std::get<2>(param);
     }
 
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
-        auto s = getDeviceStringWithMulti(obj.param);
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNamesMultiCumuTuple> &obj) {
+        auto param = obj.param;
+        auto s = getDeviceStringWithMulti(std::get<0>(param));
         std::replace(s.begin(), s.end(), ',', '_');
-        return "device_names_" + s;
+        std::ostringstream ss;
+        ss << "device_names_" << s << "_" << (std::get<1>(param) ? "MULTI" : "AUTO") << "_";
+        if (std::get<2>(param))
+            ss << "cumulative_yes";
+        else
+            ss << "cumulative_no";
+        return ss.str();
     }
 
 protected:
@@ -96,6 +107,7 @@ protected:
     std::vector<std::string> device_lists;
     std::shared_ptr<ov::Model> function;
     ov::AnyMap config;
+    bool cumu_enabled;
 };
 
 using MultiDeviceCreateContextMultipleGPU_Test = MultiDeviceMultipleGPU_Test;

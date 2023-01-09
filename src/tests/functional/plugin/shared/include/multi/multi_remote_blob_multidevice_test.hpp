@@ -116,7 +116,9 @@ TEST_P(MultiDeviceCreateContextMultipleGPU_Test, canInferOnUserContextWithSystem
     for (auto& iter : remote_contexts) {
         context_list.insert({iter.get_device_name(), iter});
     }
-    auto multi_context = ie.create_context("MULTI", context_list);
+    auto multi_context = ie.create_context(device_names, context_list);
+    if (cumu_enabled)
+        config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     auto exec_net_shared = ie.compile_model(function, multi_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
@@ -177,9 +179,10 @@ TEST_P(MultiDeviceCreateContextMultipleGPU_Test, canInferOnUserContextWithRemote
         context_list.insert({iter.get_device_name(), iter});
     }
 
-    auto multi_context = ie.create_context("MULTI", context_list);
+    auto multi_context = ie.create_context(device_names, context_list);
     // load to MULTI with multi remote context
-
+    if (cumu_enabled)
+        config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
     auto exec_net_context = ie.compile_model(function, multi_context, config);
 
     auto num_request = device_lists.size();

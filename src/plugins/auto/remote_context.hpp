@@ -33,10 +33,7 @@ public:
     using Ptr = std::shared_ptr<MultiRemoteContext>;
 
     MultiRemoteContext() = default;
-
-    MultiRemoteContext(const std::vector<RemoteContext::Ptr> contexts) {
-        m_contexts = contexts;
-    }
+    MultiRemoteContext(const std::string pluginName) : m_plugin_name(pluginName) {}
 
     RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) override {
         if (isEmpty()) {
@@ -72,9 +69,14 @@ public:
     }
 
     std::string getDeviceName() const noexcept override {
-        std::string deviceName = "MULTI";
-        return deviceName;
-    };
+        std::lock_guard<std::mutex> locker(m_mutex);
+        return m_plugin_name;
+    }
+
+    void updateDeviceName(const std::string& devicename) {
+        std::lock_guard<std::mutex> locker(m_mutex);
+        m_plugin_name = devicename;
+    }
 
     void AddContext(RemoteContext::Ptr hwcontext) {
         if (hwcontext) {
@@ -89,5 +91,7 @@ public:
 private:
     std::vector<RemoteContext::Ptr> m_contexts;
     std::string m_default_device_id = "0";
+    std::string m_plugin_name;
+    mutable std::mutex m_mutex;
 };
 }  // namespace MultiDevicePlugin

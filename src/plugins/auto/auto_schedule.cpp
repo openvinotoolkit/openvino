@@ -147,7 +147,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") !=std::string::npos && !isCumulative;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
-    if (isActualDevCPU || isCumulative) {
+    if (isActualDevCPU || isCumulative || _autoSContext->_remoteContext) {
         _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
@@ -329,7 +329,18 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
         if (!modelPath.empty()) {
             context.executableNetwork = _autoSContext->_core->LoadNetwork(modelPath, device, deviceConfig);
         } else {
-            context.executableNetwork = _autoSContext->_core->LoadNetwork(network, device, deviceConfig);
+            std::shared_ptr<RemoteContext> tempCtx = _autoSContext->_remoteContext;
+            if (_autoSContext->_remoteContext) {
+                // cumulative case, need to update device name of the remote context
+                if (device.find("MULTI") != std::string::npos) {
+                    tempCtx->as<MultiRemoteContext>()->updateDeviceName("MULTI");
+                    deviceConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = device.substr(6);
+                } else {
+                    tempCtx = _autoSContext->_remoteContext->as<MultiRemoteContext>()->GetTargetContext(device);
+                }
+            }
+            context.executableNetwork = tempCtx ? _autoSContext->_core->LoadNetwork(network, tempCtx, deviceConfig)
+                                        : _autoSContext->_core->LoadNetwork(network, device, deviceConfig);
         }
         context.isLoadSuccess = true;
     } catch (const std::exception& e) {

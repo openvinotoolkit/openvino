@@ -65,12 +65,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU,
                          MultiDevice_Test::getTestCaseName);
 
 auto multi_device_names_and_support_for_remote_blobs = []() {
-    return std::vector<DevicesNames>{
+    return std::vector<DevicesNamesMultiCumuTuple>{
 #ifdef ENABLE_INTEL_CPU
-        {CPU, "GPU.0"},
-        {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
+        {{CPU, "GPU.0"}, true, false},
+        {{CPU, "GPU.0", "GPU.1"}, true, false},
+        {{CPU, "GPU.0"}, false, true},
+        {{CPU, "GPU.0", "GPU.1"}, false, true},
+        {{CPU, "GPU.0"}, false, false},
+        {{CPU, "GPU.0", "GPU.1"}, false, false},
 #endif
-        {"GPU.0", "GPU.1"}};
+        {{"GPU.0", "GPU.1"}, true, false},
+        {{"GPU.0", "GPU.1"}, false, true},
+        {{"GPU.0", "GPU.1"}, false, false},
+        };
 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU,
                          MultiDeviceMultipleGPU_Test,
@@ -78,14 +85,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU,
                          MultiDeviceMultipleGPU_Test::getTestCaseName);
 
 auto multi_device_names_for_remote_contexts = []() {
-    return std::vector<DevicesNames>{
+    return std::vector<DevicesNamesMultiCumuTuple>{
 #ifdef ENABLE_INTEL_CPU
-        {CPU, "GPU.0"},
-        {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
+        {{CPU, "GPU.0"}, true, false},
+        {{CPU, "GPU.0", "GPU.1"}, true, false},
+        {{"GPU.0", CPU}, false, true},
+        {{"GPU.0", "GPU.1", CPU}, false, false},
+        {{"GPU.0", CPU}, false, false},
+        {{"GPU.0", "GPU.1", CPU}, false, true},
 #endif
-        {"GPU.0"},
-        {"GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
-    };
+        {{"GPU.0"}, true, false},
+        {{"GPU.0"}, false, false},
+        {{"GPU.0", "GPU.1"}, true, true},
+        {{"GPU.0", "GPU.1"}, false, false}
+        };
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteContextWithGPU,
                          MultiDeviceCreateContextMultipleGPU_Test,

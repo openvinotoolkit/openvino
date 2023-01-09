@@ -70,7 +70,7 @@ protected:
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
-                                                                       const std::shared_ptr<InferenceEngine::RemoteContext> ctx,
+                                                                       const std::shared_ptr<InferenceEngine::RemoteContext>& ctx,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
     PluginConfig _pluginConfig;

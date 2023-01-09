@@ -137,6 +137,7 @@ public:
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
     MultiDeviceInferencePlugin* _plugin;
+    IE::RemoteContext::Ptr      _remoteContext;
     virtual ~AutoScheduleContext() = default;
 };
 
