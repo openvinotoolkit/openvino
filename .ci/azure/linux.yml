@@ -456,12 +456,12 @@ jobs:
 
   - script: |
       export PATH=$HOME/.local/bin:$PATH
+      export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
       $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ \
         --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml \
         -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     env:
       IE_APP_PATH: $(INSTALL_DIR)/samples_bin
-      LD_LIBRARY_PATH: $IE_APP_PATH
       IE_APP_PYTHON_PATH: $(PYTHON_SAMPLES_INSTALL_DIR)/
       SHARE: $(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       WORKSPACE: $(INSTALL_DIR)
