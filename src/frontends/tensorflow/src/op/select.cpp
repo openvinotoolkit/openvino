@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,13 +57,18 @@ OutputVector translate_select_op(const NodeContext& node) {
     auto num_new_axes = make_shared<Subtract>(x_rank, cond_rank);
 
     // generate a new shape for the condition
-    auto const_one = make_shared<opset10::Constant>(element::i32, Shape{1}, 1);
-    auto new_subshape = make_shared<opset10::Broadcast>(const_one, num_new_axes);
-    auto cond_shape = make_shared<opset10::ShapeOf>(condition, element::i32);
-    auto new_cond_shape = make_shared<opset10::Concat>(OutputVector{cond_shape, new_subshape}, 0);
+    auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto new_subshape = make_shared<Broadcast>(const_one, num_new_axes);
+    auto cond_shape = make_shared<ShapeOf>(condition, element::i32);
+    // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
+    auto const_1 = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto new_cond_shape = make_shared<Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
 
     // prepare the condition to have the same rank as operands `x` and `y`
-    auto prep_cond = make_shared<opset10::Reshape>(condition, new_cond_shape, false);
+    auto prep_cond = make_shared<Reshape>(condition, new_cond_shape, false)->output(0);
+    // squeeze prep_cond by one extra dimension specially added
+    auto const_0 = make_shared<Constant>(element::i32, Shape{1}, 0);
+    prep_cond = make_shared<Squeeze>(prep_cond, const_0);
 
     return translate_select_base_op(node, prep_cond, x, y);
 }

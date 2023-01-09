@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,6 +36,7 @@ class TestSelect(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
+        dict(cond_shape=[], x_shape=[], y_shape=[]),
         dict(cond_shape=[], x_shape=[3, 2, 4], y_shape=[3, 2, 4]),
         dict(cond_shape=[2], x_shape=[2, 4, 5], y_shape=[2, 4, 5]),
         dict(cond_shape=[2, 3, 4], x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
