@@ -89,14 +89,10 @@ public:
  *
  * \return true if a less b otherwise false.
  */
-template <
-    class T,
-    class U,
-    typename std::enable_if<(std::is_signed<T>::value && std::is_signed<U>::value) ||
-                            (std::is_unsigned<T>::value && std::is_unsigned<U>::value) ||
-                            // temporary to be able compare float element types
-                            (std::is_floating_point<T>::value || std::is_floating_point<U>::value) ||
-                            (std::is_same<T, float16>::value || std::is_same<U, float16>::value)>::type* = nullptr>
+template <class T,
+          class U,
+          typename std::enable_if<(std::is_signed<T>::value && std::is_signed<U>::value) ||
+                                  (std::is_unsigned<T>::value && std::is_unsigned<U>::value)>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return a < b;
 }
@@ -111,10 +107,26 @@ constexpr bool lt(T a, U b) noexcept {
 
 template <class T,
           class U,
+          typename std::enable_if<(std::is_floating_point<T>::value || std::is_same<T, float16>::value) &&
+                                  std::is_unsigned<U>::value>::type* = nullptr>
+constexpr bool lt(T a, U b) noexcept {
+    return a < 0 ? true : a < b;
+}
+
+template <class T,
+          class U,
           typename std::enable_if<std::is_unsigned<T>::value && std::is_integral<U>::value &&
                                   std::is_signed<U>::value>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return b < 0 ? false : a < static_cast<typename std::make_unsigned<U>::type>(b);
+}
+
+template <class T,
+          class U,
+          typename std::enable_if<std::is_unsigned<T>::value && (std::is_floating_point<U>::value ||
+                                                                 std::is_same<U, float16>::value)>::type* = nullptr>
+constexpr bool lt(T a, U b) noexcept {
+    return b < 0 ? true : a < b;
 }
 
 /**
