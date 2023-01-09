@@ -97,6 +97,7 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
+        -DENABLE_CPPLINT=OFF ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=ON ^

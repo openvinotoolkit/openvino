@@ -91,6 +91,7 @@ jobs:
       # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
         -GNinja
+        -DENABLE_CPPLINT=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=OFF

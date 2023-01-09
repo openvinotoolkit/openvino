@@ -127,6 +127,7 @@ jobs:
           python3 -m pip install -r /root/repos/openvino/src/bindings/python/requirements.txt &&
           cmake -GNinja \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
+            -DDENABLE_CPPLINT=OFF \
             -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
             -DOPENVINO_EXTRA_MODULES=/root/repos/openvino_contrib/modules/nvidia_plugin \
             -DENABLE_INTEL_CPU=OFF \
