@@ -198,7 +198,6 @@ jobs:
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
       CCACHE_MAXSIZE: 50G
-      USE_CCACHE: 1
     displayName: 'Build OpenVINO ARM plugin'
 
   - script: cmake --build $(BUILD_OPENVINO) --parallel --config $(BUILD_TYPE) --target install
@@ -224,7 +223,6 @@ jobs:
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
       CCACHE_BASEDIR: $(Pipeline.Workspace)
       CCACHE_MAXSIZE: 50G
-      USE_CCACHE: 1
     displayName: 'Build OpenVINO python binding'
 
   - script: cmake --build $(BUILD_OPENVINO_PYTHON) --parallel --target install
