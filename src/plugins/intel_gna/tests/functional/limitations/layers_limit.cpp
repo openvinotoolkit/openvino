@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 
 using namespace InferenceEngine;
 using namespace ov::opset8;
-// using namespace ov::test;
 
 namespace LayerTestsDefinitions {
 
@@ -53,11 +52,12 @@ protected:
 
         auto params = ngraph::builder::makeParams(net_type, shapes);
         auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
-        ngraph::ResultVector results;
+        ov::ResultVector results;
 
         std::vector<std::vector<std::shared_ptr<Add>>> branches;
 
         for (size_t i = 0; i < branch_count; ++i) {
+            configuration.insert({"GNA_SCALE_FACTOR_" + std::to_string(i), "1638.4"});
             std::vector<std::shared_ptr<Add>> add_nodes;
             add_nodes.push_back(std::make_shared<Add>(add_const, params[i]));
 
@@ -67,7 +67,6 @@ protected:
             branches.push_back(add_nodes);
             results.push_back(std::make_shared<Result>(add_nodes.back()));
         }
-
         function = std::make_shared<ov::Model>(results, params, "layers_limit");
     };
 };
@@ -91,7 +90,7 @@ std::vector<std::map<std::string, std::string>> configs_30{{{"GNA_EXEC_TARGET", 
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_0"}}};
 
 // for GNA v2.0 limit is 4096
-std::vector<size_t> layer_limits_20{64, 2000, 4104};
+std::vector<size_t> layer_limits_20{64, 4096, 4160};
 // for GNA v3.0 limit is 8191
 std::vector<size_t> layer_limits_30{64, 8192, 8200};
 
