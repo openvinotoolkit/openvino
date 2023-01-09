@@ -58,7 +58,6 @@ void prepare_primitive_fusing::run(program& p) {
     fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
-    fuse_activations(p);
     optimize_fused_ops(p);
 }
 
@@ -222,105 +221,6 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
             auto output_layout = node.get_output_layout();
             input.set_output_layout(output_layout, false);
             p.extract_and_remove(node);
-        });
-    }
-}
-
-void prepare_primitive_fusing::fuse_activations(program &p) {
-    std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
-    bool use_onednn_impls = false;
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& engine = p.get_engine();
-    if (engine.get_device_info().supports_immad && p.get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
-        use_onednn_impls = true;
-#endif
-
-    auto itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr);
-
-        program_helpers::do_for_types<activation>(*node, [&p, &fusing_history, &use_onednn_impls](activation_node& node) {
-            auto& input = node.input();
-            auto id = node.id();
-            // Restrictions:
-            // - inputs cannot be padded
-            // - primitives input cannot be output
-            // - no activation additional input
-            // - input was optimized
-            // - can't have fused primitives
-            if (node.has_padded_dependency() || input.is_output() || node.is_output() ||
-                node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant() ||
-                node.has_fused_primitives())
-                return;
-
-            if (use_onednn_impls && node.get_primitive()->activation_function == cldnn::activation_func::hyperbolic_tan) {
-                return;
-            }
-
-            // - limit to primitives which implementations support activation fusing
-            if (input.get_users().size() != 1 ||
-                // TODO: new api needs to be created to read such caps
-                // right now use whitelist so no new primitives will be affected in case of lack of fused activation
-                // support
-                (!input.is_type<concatenation>() && !input.is_type<convolution>() &&
-                 !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
-                 !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
-                 !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
-                 !input.is_type<reshape>() && !input.is_type<roi_pooling>() &&
-                 !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
-                 !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
-                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
-                 !input.is_type<scatter_nd_update>() &&
-                 !input.is_type<gather_nd>() &&
-                 !input.is_type<gather_elements>() &&
-                 !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
-                 !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
-                 !input.is_type<activation>()))
-                return;
-
-            if (input.is_type<eltwise>()) {
-                bool is_quantization = true;
-                for (auto& in : input.get_dependencies()) {
-                    if (!data_type_traits::is_i8_u8(in.first->get_output_layout().data_type))
-                        is_quantization = false;
-                }
-
-                // TODO: Add new fused ops mechanism support to eltwise kernel in order to enable fusings in case of quantization
-                if (is_quantization)
-                    return;
-            }
-
-            if (use_onednn_impls) {
-                if (input.is_type<reshape>() || input.is_type<concatenation>())
-                    return;
-                #ifdef ENABLE_ONEDNN_FOR_GPU
-                // Activation should not be fused if it isn't supported in onednn
-                try {
-                    onednn::convert_activation_func(node.get_primitive()->activation_function);
-                } catch (...) {
-                    return;
-                }
-                #endif
-            }
-
-            if (input.get_fused_primitives().empty()) {
-                input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);
-                for (size_t i = 0; i < node.get_fused_activations_funcs().size(); i++) {
-                    input.add_fused_activation(node.get_fused_activations_funcs()[i],
-                                               node.get_fused_activations_params()[i]);
-                }
-                auto outputPadding = node.get_output_layout().data_padding;
-                input.set_output_padding(outputPadding);
-                p.extract_and_remove(node);
-            } else {
-                // If node already has any fused node using new mechanism,
-                // we can just use the same way and handle any amount of activations
-                p.fuse_nodes(input, node, &fusing_history);
-            }
-
-            p.add_optimized_primitive_info(id, {input.id()});
         });
     }
 }

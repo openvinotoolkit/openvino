@@ -119,8 +119,6 @@ struct kernel_impl_params {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
 #endif // ENABLE_ONEDNN_FOR_GPU
-    std::vector<activation_func> fused_act_funcs;
-    std::vector<activation_additional_params> activation_params;
 
     optional_layout weights_layout = optional_layout();
 
@@ -141,9 +139,7 @@ struct kernel_impl_params {
                        size_t _uid,
                        const std::vector<layout>& _in_layouts,
                        const std::vector<layout>& _out_layouts,
-                       const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
-                       const std::vector<activation_func>& _fused_act_funcs,
-                       const std::vector<activation_additional_params>& _act_params)
+                       const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
                        : has_runtime_layouts(true)
                        , prog(&_prog)
                        , desc(_desc)
@@ -151,8 +147,6 @@ struct kernel_impl_params {
                        , input_layouts(_in_layouts)
                        , output_layouts(_out_layouts)
                        , fused_desc(_fused_descs)
-                       , fused_act_funcs(_fused_act_funcs)
-                       , activation_params(_act_params)
                        , primary_input_idx(0) {
     }
 
@@ -209,25 +203,6 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
 }
 
 template <typename p_type>
-inline void convert_activation_func_params(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
-    const float negative_slope = primitive->activation_negative_slope;
-    if (negative_slope != 0.0f) {
-        params.emplace_back(kernel_selector::activation_function::RELU_NEGATIVE_SLOPE, negative_slope, 0.0f);
-    } else {
-        params.emplace_back(kernel_selector::activation_function::RELU, 0.0f, 0.0f);
-    }
-}
-
-inline void convert_fused_activation_func_params(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& params) {
-    const auto& act_funcs = param_info.fused_act_funcs;
-    const auto& act_params = param_info.activation_params;
-    for (size_t i = 0; i < act_funcs.size(); i++) {
-        params.emplace_back(get_kernel_selector_activation_param(act_funcs[i]),
-                            act_params[i].a,
-                            act_params[i].b);
-    }
-}
-template <typename p_type>
 inline void convert_new_activation_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
     params.insert(params.begin(), {get_kernel_selector_activation_param(primitive->activation_function),
                                    primitive->additional_params.a,
@@ -249,7 +224,6 @@ inline params_t get_default_params(const kernel_impl_params& param_info) {
     params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
 
-    convert_fused_activation_func_params(param_info, params.activations);
     std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
     size_t op_id = 0;
     for (auto& fused_prim : param_info.fused_desc) {

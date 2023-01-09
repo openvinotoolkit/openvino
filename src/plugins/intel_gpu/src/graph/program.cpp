@@ -1160,13 +1160,6 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
-    if (!peer_node.get_fused_activations_funcs().empty()) {
-        if (peer_node.get_fused_activations_funcs().size() > 1)
-            CLDNN_ERROR_MESSAGE(peer_node.id(), "Fused primitive descriptor doesn't support > 1 activation functions in a peer node");
-
-        local_desc.activation = peer_node.get_fused_activations_funcs()[0];
-        local_desc.activation_params = peer_node.get_fused_activations_params()[0];
-    }
 
     auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
