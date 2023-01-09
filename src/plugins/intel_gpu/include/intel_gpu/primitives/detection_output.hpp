@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <limits>
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select method for coding the prior-boxes in the @ref detection output layer.
 enum class prior_box_code_type : int32_t {
@@ -130,7 +123,4 @@ struct detection_output : public primitive_base<detection_output> {
 protected:
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

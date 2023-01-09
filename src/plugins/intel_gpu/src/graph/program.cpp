@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -66,7 +64,7 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "to_string_utils.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "runtime/kernels_cache.hpp"
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
@@ -174,18 +172,23 @@ void program::init_primitives() {
 }
 
 void program::compile() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
     _kernels_cache->build_all();
 }
 
 void program::init_kernels() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
     for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl())
+        if (n->get_selected_impl()) {
             n->get_selected_impl()->init_kernels(*_kernels_cache);
+            n->get_selected_impl()->reset_kernels_source();
+        }
     }
 }
 
 void program::load_tuning_cache() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::LoadTuningCache");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
     try {
         tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
     } catch (...) {
@@ -239,6 +242,7 @@ program_node const& program::get_node(primitive_id const& id) const {
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("analyze_output_size_handling_need");
     bool handling_needed = false;
 
     // Calculate output size and compare with specified.
@@ -254,7 +258,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
@@ -276,7 +280,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
@@ -300,7 +304,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
@@ -546,7 +550,7 @@ void program::build_program(bool is_internal) {
 }
 
 void program::init_graph() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<calculate_prior_boxes>();
@@ -557,7 +561,7 @@ void program::init_graph() {
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
 
     if (!is_internal)
         load_tuning_cache();
@@ -639,7 +643,7 @@ void program::pre_optimize_graph(bool is_internal) {
 }
 
 void program::post_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PostOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PostOptimizeGraph");
     // input reorder for fully connected if necessary
     apply_opt_pass<post_input_reorder>();
 
@@ -700,7 +704,8 @@ void program::mark_if_data_flow(program_node& node) {
 }
 
 void program::transfer_memory_to_device() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::TransferMemory");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
@@ -734,6 +739,7 @@ void program::transfer_memory_to_device() {
 }
 
 void program::cleanup() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
 
@@ -1413,9 +1419,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
-            if (conv.get_primitive()->split() > 1)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::splitted_convolution, 1);
-
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
@@ -1431,7 +1434,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
                     total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
                                                       // heuristics
-                else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
+                else if (conv.get_primitive()->groups > 1)
                     total_grouped_conv_layers++;
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)

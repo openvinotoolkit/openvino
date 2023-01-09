@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/unit_type.cl"
 #include "include/batch_headers/fetch_data.cl"
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
@@ -32,19 +31,19 @@
 // ======================================================================================
 
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
-KERNEL(convolution_gpu_fs_byx_fsv32)(
+KERNEL(convolution_gpu_fs_byx_fsv32_depthwise)(
        __global UNIT_TYPE* input,
        __global UNIT_TYPE* output,
-       __global UNIT_TYPE* weights,
+       __global UNIT_TYPE* weights
 #if BIAS_TERM
-       __global UNIT_TYPE* biases,
+       , __global UNIT_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-       int split_idx)
+)
 {
     uint oc = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;
     uint or = get_global_id(1);
@@ -225,8 +224,6 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
     }
     // ========================================================================
 }
-
-#undef unroll_for
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING

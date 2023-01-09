@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
@@ -41,19 +41,19 @@
 // ======================================================================================
 
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_fs_byx_fsv32)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    int split_idx)
+)
 {
     uint oc = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;
     uint or = get_global_id(1);
@@ -128,7 +128,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
                     {
                         unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
                         {
-                            INPUT0_TYPE in_val = intel_sub_group_shuffle(
+                            INPUT0_TYPE in_val = _sub_group_shuffle(
                                 in[(out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) * FSV_PER_THREAD + ifii / SUB_GROUP_SIZE],
                                 ifii % SUB_GROUP_SIZE);
 
@@ -241,8 +241,6 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
     }
     // ========================================================================
 }
-
-#undef unroll_for
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING

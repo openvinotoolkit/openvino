@@ -37,11 +37,12 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32_depthwise::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getInputWidth(const convolution_params& arg, size_t blockWidth) const {

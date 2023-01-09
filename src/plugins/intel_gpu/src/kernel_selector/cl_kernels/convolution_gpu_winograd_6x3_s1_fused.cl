@@ -9,7 +9,7 @@
 // --------------------------------------------------------------------------------------------------------------------------------
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 
 
 #define DOT8i_0( _result, _A, _B, i)					\
@@ -63,7 +63,7 @@
 
 
 __attribute__((reqd_work_group_size(16, 1, 8)))
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 (
 	__global INPUT0_TYPE* I,
@@ -71,12 +71,12 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
     __read_only image2d_t  U,
 #else
-	__global FILTER_TYPE* U,
+	__global FILTER_TYPE* U
 #endif
 #if BIAS_TERM
-	const __global UNIT_TYPE * bias,
-#endif 
-	uint split_idx)
+	, const __global UNIT_TYPE * bias
+#endif
+)
 {
 	//               (DxC2)x(UxWx8c)
 	const uint slmSize = (2 * 8)*(16 * 4);
@@ -100,7 +100,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 
 	uint gx = get_group_id(0);
 	uint gy = get_group_id(1);
-	uint gz = get_group_id(2);	
+	uint gz = get_group_id(2);
 	uint gk = gz % K16;
 	uint gn = gz / K16;
 
@@ -266,7 +266,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 			__local const UNIT_TYPE_8 *V_read_c16 = V_read;
 
 			__attribute__((opencl_unroll_hint(1)))
-            for (uint c16 = 0; c16 < 2 
+            for (uint c16 = 0; c16 < 2
 #ifndef FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB
 				&& coordU0.y < last_coord_y
 #endif
@@ -297,17 +297,17 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 
 							// Fetch 8 channels of Winograd components from f(k,s)
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-							const UNIT_TYPE_8 f00 = as_half8(intel_sub_group_block_read_us8(U, (int2)(coordU0.x, coordU0.y)));
+							const UNIT_TYPE_8 f00 = as_half8(_sub_group_block_read_us8(U, (int2)(coordU0.x, coordU0.y)));
 #else
 							const UNIT_TYPE_8 f00 = (UNIT_TYPE_8)(
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 0 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 1 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 2 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 3 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 4 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 5 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 6 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 7 * WEIGHTWIDTH])));
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 0 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 1 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 2 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 3 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 4 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 5 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 6 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 7 * WEIGHTWIDTH])));
 #endif
 
 
@@ -467,17 +467,17 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 							DOT8i_7(M6.s1, f00, V8, 10 + c8);
 
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-							const UNIT_TYPE_8 f01 = as_half8(intel_sub_group_block_read_us8(U, (int2)(coordU0.x + 16 * sizeof(UNIT_TYPE), coordU0.y)));
+							const UNIT_TYPE_8 f01 = as_half8(_sub_group_block_read_us8(U, (int2)(coordU0.x + 16 * sizeof(UNIT_TYPE), coordU0.y)));
 #else
 							const UNIT_TYPE_8 f01 = (UNIT_TYPE_8)(
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 0 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 1 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 2 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 3 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 4 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 5 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 6 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 7 * WEIGHTWIDTH])));
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 0 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 1 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 2 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 3 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 4 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 5 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 6 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 7 * WEIGHTWIDTH])));
 #endif
 
 							// f1[c8] x v[1 .. 15]
@@ -637,17 +637,17 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 							DOT8i_7(M6.s1, f01, V8, 12 + c8);
 
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-							const UNIT_TYPE_8 f02 = as_half8(intel_sub_group_block_read_us8(U, (int2)(coordU0.x + 32 * sizeof(UNIT_TYPE), coordU0.y)));
+							const UNIT_TYPE_8 f02 = as_half8(_sub_group_block_read_us8(U, (int2)(coordU0.x + 32 * sizeof(UNIT_TYPE), coordU0.y)));
 #else
 							const UNIT_TYPE_8 f02 = (UNIT_TYPE_8)(
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 0 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 1 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 2 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 3 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 4 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 5 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 6 * WEIGHTWIDTH])),
-								as_half(intel_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 7 * WEIGHTWIDTH])));
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 0 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 1 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 2 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 3 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 4 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 5 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 6 * WEIGHTWIDTH])),
+								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 7 * WEIGHTWIDTH])));
 #endif
 							coordU0.y += 8;
 
@@ -919,7 +919,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 #else
 						O_write_0[0] = ACTIVATION(S0.s0 * scl, ACTIVATION_PARAMS);
 #endif
-#endif 
+#endif
 					}
 					if (q1_in) {
 #if OUTPUT_LAYOUT_BYXF
@@ -927,14 +927,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[0 * QK + 1 * K] = ACTIVATION(S0.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[0 * QK + 1 * K] = ACTIVATION(S0.s1 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_0[1] = ACTIVATION(S0.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_0[1] = ACTIVATION(S0.s1 * scl, ACTIVATION_PARAMS);
-#endif 
-#endif 
+#endif
+#endif
 					}
 				}
 
@@ -946,14 +946,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[1 * QK + 0 * K] = ACTIVATION(S1.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[1 * QK + 0 * K] = ACTIVATION(S1.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_1[0] = ACTIVATION(S1.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_1[0] = ACTIVATION(S1.s0 * scl, ACTIVATION_PARAMS);
-#endif 
-#endif 
+#endif
+#endif
 					}
 					if (q1_in) {
 #if OUTPUT_LAYOUT_BYXF
@@ -961,14 +961,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[1 * QK + 1 * K] = ACTIVATION(S1.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[1 * QK + 1 * K] = ACTIVATION(S1.s1 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_1[1] = ACTIVATION(S1.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_1[1] = ACTIVATION(S1.s1 * scl, ACTIVATION_PARAMS);
-#endif 
-#endif 
+#endif
+#endif
 					}
 				}
 
@@ -980,14 +980,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[2 * QK + 0 * K] = ACTIVATION(S2.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[2 * QK + 0 * K] = ACTIVATION(S2.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_2[0] = ACTIVATION(S2.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_2[0] = ACTIVATION(S2.s0 * scl, ACTIVATION_PARAMS);
-#endif 
-#endif 
+#endif
+#endif
 					}
 					if (q1_in) {
 #if OUTPUT_LAYOUT_BYXF
@@ -995,14 +995,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[2 * QK + 1 * K] = ACTIVATION(S2.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[2 * QK + 1 * K] = ACTIVATION(S2.s1 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_2[1] = ACTIVATION(S2.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_2[1] = ACTIVATION(S2.s1 * scl, ACTIVATION_PARAMS);
-#endif 
-#endif 
+#endif
+#endif
 					}
 				}
 
@@ -1014,13 +1014,13 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[3 * QK + 0 * K] = ACTIVATION(S3.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[3 * QK + 0 * K] = ACTIVATION(S3.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_3[0] = ACTIVATION(S3.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_3[0] = ACTIVATION(S3.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #endif
 					}
 					if (q1_in) {
@@ -1029,14 +1029,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 						O_write[3 * QK + 1 * K] = ACTIVATION(S3.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write[3 * QK + 1 * K] = ACTIVATION(S3.s1 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 						O_write_3[1] = ACTIVATION(S3.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 						O_write_3[1] = ACTIVATION(S3.s1 * scl, ACTIVATION_PARAMS);
-#endif   
-#endif   
+#endif
+#endif
 					}
 				}
 			}
@@ -1049,13 +1049,13 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 					O_write[4 * QK + 0 * K] = ACTIVATION(S4.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write[4 * QK + 0 * K] = ACTIVATION(S4.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 					O_write_4[0] = ACTIVATION(S4.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write_4[0] = ACTIVATION(S4.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #endif
 				}
 				if (q1_in) {
@@ -1064,14 +1064,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 					O_write[4 * QK + 1 * K] = ACTIVATION(S4.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write[4 * QK + 1 * K] = ACTIVATION(S4.s1 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 					O_write_4[1] = ACTIVATION(S4.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write_4[1] = ACTIVATION(S4.s1 * scl, ACTIVATION_PARAMS);
-#endif   
-#endif   
+#endif
+#endif
 				}
 			}
 
@@ -1083,13 +1083,13 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 					O_write[5 * QK + 0 * K] = ACTIVATION(S5.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write[5 * QK + 0 * K] = ACTIVATION(S5.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 					O_write_5[0] = ACTIVATION(S5.s0 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write_5[0] = ACTIVATION(S5.s0 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #endif
 				}
 				if (q1_in) {
@@ -1098,14 +1098,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 					O_write[5 * QK + 1 * K] = ACTIVATION(S5.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write[5 * QK + 1 * K] = ACTIVATION(S5.s1 * scl, ACTIVATION_PARAMS);
-#endif 
+#endif
 #else
 #if BIAS_TERM
 					O_write_5[1] = ACTIVATION(S5.s1 * scl + bias[bias_index0], ACTIVATION_PARAMS);
 #else
 					O_write_5[1] = ACTIVATION(S5.s1 * scl, ACTIVATION_PARAMS);
-#endif   
-#endif   
+#endif
+#endif
 				}
 			}
 		}

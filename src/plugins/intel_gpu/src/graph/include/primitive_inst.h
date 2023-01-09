@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
@@ -53,7 +52,6 @@ struct primitive_impl {
     virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
     // TODO: added a derived class for weights reordering (maybe for all static data reordering)
     kernel_selector::weights_reorder_params _weights_reorder_params;
@@ -65,6 +63,7 @@ struct primitive_impl {
         return {};
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
+    virtual void reset_kernels_source() {}
     virtual void set_kernels(std::vector<kernel::ptr>) {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
@@ -159,12 +158,8 @@ public:
     }
     void set_arguments();
 
-    bool validate() const {
+    void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
-        if (_impl)
-            return _impl->validate(*this);
-
-        return true;
     }
     bool output_changed() const { return _output_changed; }
     void reset_output_change() { _output_changed = false; }
@@ -392,19 +387,7 @@ private:
         kernel_arguments_data args;
         return args;
     }
-    virtual event::ptr execute_impl(const std::vector<event::ptr>& event,
-                                         typed_primitive_inst<PType>& instance) = 0;
-
-    bool validate(const primitive_inst& instance) const override {
-        if (instance.type() != PType::type_id())
-            throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
-            throw std::invalid_argument(
-                "Trying to validate primitive implementation with mismatching primitive instance");
-
-        return validate_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-    virtual bool validate_impl(const typed_primitive_inst<PType>&) const { return true; }
+    virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
 };
 
 template <class PType>

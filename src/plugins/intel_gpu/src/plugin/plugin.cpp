@@ -22,7 +22,7 @@
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/plugin/internal_properties.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_icore.hpp"
@@ -108,6 +108,7 @@ void Plugin::TransformNetwork(std::shared_ptr<ov::Model>& model, const Config& c
 InferenceEngine::CNNNetwork Plugin::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const Config& config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::CloneAndTransformNetwork");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
     auto nGraphFunc = clonedNetwork.getFunction();

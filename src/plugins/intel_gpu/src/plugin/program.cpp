@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if defined(__unix__) && !defined(__ANDROID__)
+#include <malloc.h>
+#endif
+
 #include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -305,6 +309,14 @@ void Program::CleanupBuild() {
     m_topology.reset();
     m_networkInputs.clear();
     m_networkOutputs.clear();
+    #if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+    malloc_trim(0);
+    #endif
 }
 
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
@@ -327,8 +339,11 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         options.set_option(cldnn::build_option::partial_build_program(true));
     }
     PrepareBuild(networkInputs, networkOutputs);
-    for (const auto& op : ops) {
-        CreateSingleLayerPrimitive(*m_topology, op);
+    {
+        GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        for (const auto& op : ops) {
+            CreateSingleLayerPrimitive(*m_topology, op);
+        }
     }
     if (createTopologyOnly) {
         return {};

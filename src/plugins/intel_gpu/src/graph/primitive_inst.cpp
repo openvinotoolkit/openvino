@@ -10,11 +10,9 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
-#include "strided_slice_inst.h"
 #include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
-#include "strided_slice_inst.h"
 #include "gemm_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
@@ -170,19 +168,7 @@ void primitive_inst::update_shape() {
     if (_node->is_type<shape_of>() && !input_shape_changed)
         return;
 
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    bool strided_slice_wa = false;
-    if (_node->is_type<strided_slice>()) {
-        for (size_t i = 1; i < _node->get_dependencies().size(); i++) {
-            if (!_node->get_dependency(i).is_type<data>())
-                strided_slice_wa = true;
-        }
-    }
-
-    if (!strided_slice_wa && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -802,11 +788,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
-    const auto& alloc_type = use_lockable_memory ? lockable_mem_type
-        : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
+    auto alloc_type = use_lockable_memory ? lockable_mem_type
+                    : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
     if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
+        // Use usm_device memory for weights reordering
+        if (is_internal && _node.is_type<generic_layer>() && _engine.supports_allocation(allocation_type::usm_device))
+            alloc_type = allocation_type::usm_device;
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
@@ -1151,8 +1140,6 @@ void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_argu
             args_idx.fused_op_inputs[idx] = get_index_in_deps(args.fused_op_inputs[idx]);
         }
     }
-
-    args_idx.split = args.split;
 }
 
 int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
