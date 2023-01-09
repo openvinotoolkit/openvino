@@ -96,14 +96,13 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
-        -DENABLE_FASTER_BUILD=ON ^
+      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=ON ^
         -DSELECTIVE_BUILD=COLLECT ^
-        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_C_COMPILER="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER="$(MSVC_COMPILER_PATH)" ^
         -DENABLE_CLDNN=OFF ^
         -DENABLE_INTEL_GPU=OFF ^
         -DENABLE_MULTI=OFF ^
@@ -142,26 +141,9 @@ jobs:
     displayName: 'List csv files'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
-        -DVERBOSE_BUILD=ON ^
-        -DENABLE_FASTER_BUILD=ON ^
-        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
-        -DENABLE_PROFILING_ITT=OFF ^
+      cmake ^
         -DSELECTIVE_BUILD=ON ^
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
-        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DENABLE_INTEL_GPU=OFF ^
-        -DENABLE_MULTI=OFF ^
-        -DENABLE_AUTO=OFF ^
-        -DENABLE_AUTO_BATCH=OFF ^
-        -DENABLE_HETERO=OFF ^
-        -DENABLE_TEMPLATE=OFF ^
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
-        -DENABLE_OV_ONNX_FRONTEND=OFF ^
-        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
-        -DENABLE_OV_TF_FRONTEND=OFF ^
-        -S $(REPO_DIR) ^
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 

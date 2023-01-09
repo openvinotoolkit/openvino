@@ -191,8 +191,8 @@ jobs:
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
         -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10.7\x64\libs\python310.lib" ^
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
-        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_C_COMPILER="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR) -B $(BUILD_DIR)
     displayName: 'CMake OpenVINO'
 
@@ -200,7 +200,6 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)"
     displayName: 'Build Win - IB'
 
@@ -220,8 +219,8 @@ jobs:
 
   - script: |
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) ^
-        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_C_COMPILER="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER="$(MSVC_COMPILER_PATH)" ^
         -S $(REPO_DIR)\tests\samples_tests ^
         -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake Samples Tests'

@@ -227,6 +227,10 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
+      # Required by python imports to load requires libraries
+      # - tests install dir for mock_py
+      # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
+      export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
@@ -235,10 +239,6 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     env:
-      # Required by python imports to load requires libraries
-      # - tests install dir for mock_py
-      # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
-      LD_LIBRARY_PATH: $(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
       # For frontend manager to load frontend libraries:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
