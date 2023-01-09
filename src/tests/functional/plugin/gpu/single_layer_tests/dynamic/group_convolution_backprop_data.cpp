@@ -9,7 +9,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/single_layer/convolution_backprop_data.hpp"
+#include "shared_test_classes/single_layer/group_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -19,23 +19,23 @@ using namespace ov::test;
 
 namespace GPULayerTestsDefinitions {
 
-using DeconvSpecParams = LayerTestsDefinitions::convBackpropDataSpecificParams;
+using GroupDeconvSpecParams = LayerTestsDefinitions::groupConvBackpropSpecificParams;
 
 using DeconvInputData = std::tuple<InputShape,                           // data shape
                                    ngraph::helpers::InputLayerType,      // 'output_shape' input type
                                    std::vector<std::vector<int32_t>>>;   // values for 'output_shape'
 
-using DeconvLayerTestParamsSet = std::tuple<DeconvSpecParams,
-                                            DeconvInputData,
-                                            ElementType,
-                                            LayerTestsUtils::TargetDevice,
-                                            std::map<std::string, std::string>>;
+using GroupDeconvLayerTestParamsSet = std::tuple<GroupDeconvSpecParams,
+                                                 DeconvInputData,
+                                                 ElementType,
+                                                 LayerTestsUtils::TargetDevice,
+                                                 std::map<std::string, std::string>>;
 
-class DeconvolutionLayerGPUTest : public testing::WithParamInterface<DeconvLayerTestParamsSet>,
-                                  virtual public SubgraphBaseTest {
+class GroupDeconvolutionLayerGPUTest : public testing::WithParamInterface<GroupDeconvLayerTestParamsSet>,
+                                       virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DeconvLayerTestParamsSet> obj) {
-        DeconvSpecParams basicParamsSet;
+    static std::string getTestCaseName(testing::TestParamInfo<GroupDeconvLayerTestParamsSet> obj) {
+        GroupDeconvSpecParams basicParamsSet;
         DeconvInputData inputData;
         ElementType prec;
         std::string targetDevice;
@@ -45,15 +45,15 @@ public:
         ngraph::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
+        size_t convOutChannels, groupNum;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding) = basicParamsSet;
 
         InputShape inputShape;
         ngraph::helpers::InputLayerType outShapeType;
         std::vector<std::vector<int32_t>> outShapeData;
         std::tie(inputShape, outShapeType, outShapeData) = inputData;
 
-        std::ostringstream result;
+                std::ostringstream result;
         result << "IS=";
         result << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
@@ -70,6 +70,7 @@ public:
         result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
         result << "OP=" << CommonTestUtils::vec2str(outPadding) << "_";
         result << "O=" << convOutChannels << "_";
+        result << "G=" << groupNum << "_";
         result << "AP=" << padType << "_";
         result << "OUT_SH=" << outShapeType << "_";
         result << "OUT_D=";
@@ -184,23 +185,23 @@ public:
         std::shared_ptr<ov::Node> deconv;
         if (!outShapeData.empty()) {
             IE_ASSERT(outShapeNode != nullptr);
-            deconv = ngraph::builder::makeConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
-                                                                  padEnd, dilation, padType, convOutChannels);
+            deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], outShapeNode, prec, kernel, stride, padBegin,
+                                                                       padEnd, dilation, padType, convOutChannels, groupNum);
         } else {
-            deconv = ngraph::builder::makeConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
-                                                                  padEnd, dilation, padType, convOutChannels, false, outPadding);
+            deconv = ngraph::builder::makeGroupConvolutionBackpropData(params[0], prec, kernel, stride, padBegin,
+                                                                       padEnd, dilation, padType, convOutChannels, groupNum, false, outPadding);
         }
 
         ngraph::ResultVector results;
         for (int i = 0; i < deconv->get_output_size(); i++)
              results.push_back(std::make_shared<ngraph::opset1::Result>(deconv->output(i)));
 
-        return std::make_shared<ngraph::Function>(results, params, "Deconv");
+        return std::make_shared<ngraph::Function>(results, params, "GroupDeconv");
     }
 
 protected:
     void SetUp() override {
-        DeconvSpecParams basicParamsSet;
+        GroupDeconvSpecParams basicParamsSet;
         DeconvInputData inputData;
         std::map<std::string, std::string> additionalConfig;
         std::tie(basicParamsSet, inputData, prec, targetDevice, additionalConfig) = this->GetParam();
@@ -209,7 +210,7 @@ protected:
         ngraph::helpers::InputLayerType outShapeType;
         std::tie(inputShape, outShapeType, outShapeData) = inputData;
 
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
+        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum,  padType, outPadding) = basicParamsSet;
 
         std::vector<InputShape> paramsShapes;
         paramsShapes.push_back(inputShape);
@@ -228,13 +229,13 @@ private:
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
-    size_t convOutChannels;
+    size_t convOutChannels, groupNum;
     ngraph::helpers::InputLayerType outShapeType;
     std::vector<std::vector<int32_t>> outShapeData;
     size_t inferRequestNum = 0;
 };
 
-TEST_P(DeconvolutionLayerGPUTest, CompareWithRefs) {
+TEST_P(GroupDeconvolutionLayerGPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
@@ -244,28 +245,31 @@ namespace {
 
 std::map<std::string, std::string> emptyAdditionalConfig;
 
-const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = { {} };
+const std::vector<std::vector<size_t >> emptyOutputShape = {{}};
+const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 
-/* ============= Deconvolution params ============= */
-const InferenceEngine::SizeVector numOutChannels = { 6 };
+/* ============= GroupConvolution params ============= */
+const InferenceEngine::SizeVector numOutChannels = {6};
+const InferenceEngine::SizeVector numGroups = {2, 3};
 
-/* ============= Deconvolution params (2D) ============= */
-const std::vector<InferenceEngine::SizeVector> kernels2d = { {3, 3}, {1, 1} };
-const std::vector<InferenceEngine::SizeVector> strides2d = { {1, 1}, {2, 2} };
-const std::vector<std::vector<ptrdiff_t>> padBegins2d = { {0, 0} };
-const std::vector<std::vector<ptrdiff_t>> padEnds2d = { {0, 0} };
-const std::vector<InferenceEngine::SizeVector> dilations2d = { {1, 1} };
+/* ============= GroupConvolution params (2D) ============= */
+const std::vector<InferenceEngine::SizeVector> kernels2d = {{3, 3}, {1, 1}};
+const std::vector<InferenceEngine::SizeVector> strides2d = {{1, 1}, {2, 2}};
+const std::vector<std::vector<ptrdiff_t>> padBegins2d = {{0, 0}};
+const std::vector<std::vector<ptrdiff_t>> padEnds2d = {{0, 0}};
+const std::vector<InferenceEngine::SizeVector> dilations2d = {{1, 1}};
 
-/* ============= Deconvolution (2D) ============= */
-const auto convParams_ExplicitPadding_2D = ::testing::Combine(
-    ::testing::ValuesIn(kernels2d),
-    ::testing::ValuesIn(strides2d),
-    ::testing::ValuesIn(padBegins2d),
-    ::testing::ValuesIn(padEnds2d),
-    ::testing::ValuesIn(dilations2d),
-    ::testing::ValuesIn(numOutChannels),
-    ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::ValuesIn(emptyOutputPadding)
+/* ============= GroupConvolution (2D) ============= */
+const auto groupConvParams_ExplicitPadding_2D = ::testing::Combine(
+        ::testing::ValuesIn(kernels2d),
+        ::testing::ValuesIn(strides2d),
+        ::testing::ValuesIn(padBegins2d),
+        ::testing::ValuesIn(padEnds2d),
+        ::testing::ValuesIn(dilations2d),
+        ::testing::ValuesIn(numOutChannels),
+        ::testing::ValuesIn(numGroups),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
 );
 
 const std::vector<DeconvInputData> dyn_2D_inputs_smoke = {
@@ -280,25 +284,25 @@ const std::vector<DeconvInputData> dyn_2D_inputs_smoke = {
         {}
     },
     DeconvInputData{
-        InputShape{{-1, 12, 7, 7}, {{1, 12, 7, 7}, {2, 12, 7, 7}, {1, 12, 7, 7}}},
+        InputShape{{-1, 12, -1, -1}, {{2, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 9, 4}, {2, 12, 5, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {}
     },
     DeconvInputData{
-        InputShape{{{1, 10}, 12, 7, 7}, {{1, 12, 7, 7}, {2, 12, 7, 7}, {3, 12, 7, 7}}},
+        InputShape{{{1, 10}, 12, 7, 7}, {{1, 12, 7, 7}, {3, 12, 7, 7}, {2, 12, 7, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {}
-    },
+    }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_FP32, DeconvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_FP32, GroupDeconvolutionLayerGPUTest,
     ::testing::Combine(
-        convParams_ExplicitPadding_2D,
+        groupConvParams_ExplicitPadding_2D,
         ::testing::ValuesIn(dyn_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(emptyAdditionalConfig)),
-    DeconvolutionLayerGPUTest::getTestCaseName);
+    GroupDeconvolutionLayerGPUTest::getTestCaseName);
 
 } // namespace
 
