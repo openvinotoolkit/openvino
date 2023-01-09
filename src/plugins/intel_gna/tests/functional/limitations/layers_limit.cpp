@@ -9,6 +9,7 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 using namespace InferenceEngine;
+using namespace ov::opset8;
 // using namespace ov::test;
 
 namespace LayerTestsDefinitions {
@@ -51,23 +52,23 @@ protected:
         configuration.insert(conf.begin(), conf.end());
 
         auto params = ngraph::builder::makeParams(net_type, shapes);
-        auto add_const = ngraph::builder::makeConstant(net_type, ngraph::Shape{1}, std::vector<float>{0.01f});
+        auto add_const = ngraph::builder::makeConstant(net_type, ov::Shape{1}, std::vector<float>{0.01f});
         ngraph::ResultVector results;
 
-        std::vector<std::vector<std::shared_ptr<ov::op::v1::Add>>> branches;
+        std::vector<std::vector<std::shared_ptr<Add>>> branches;
 
         for (size_t i = 0; i < branch_count; ++i) {
-            std::vector<std::shared_ptr<ov::op::v1::Add>> add_nodes;
-            add_nodes.push_back(std::make_shared<ngraph::opset8::Add>(add_const, params[i]));
+            std::vector<std::shared_ptr<Add>> add_nodes;
+            add_nodes.push_back(std::make_shared<Add>(add_const, params[i]));
 
             for (size_t j = 0; j < (layers_number - branch_count) / branch_count; ++j) {
-                add_nodes.push_back(std::make_shared<ngraph::opset8::Add>(add_nodes.back(), params[i]));
+                add_nodes.push_back(std::make_shared<Add>(add_nodes.back(), params[i]));
             }
             branches.push_back(add_nodes);
-            results.push_back(std::make_shared<ngraph::opset1::Result>(add_nodes.back()));
+            results.push_back(std::make_shared<Result>(add_nodes.back()));
         }
 
-        function = std::make_shared<ngraph::Function>(results, params, "layers_limit");
+        function = std::make_shared<ov::Model>(results, params, "layers_limit");
     };
 };
 
