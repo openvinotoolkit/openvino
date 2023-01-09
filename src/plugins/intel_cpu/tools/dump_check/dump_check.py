@@ -76,6 +76,7 @@ def fill_tensors_from_image(input, input_file):
 class IEB:
     precision_table = {
         10:(np.float32, 4),
+        12:(np.int16, 2),
         40:(np.uint8, 1),
         50:(np.int8, 1),
         70:(np.int32, 4),
@@ -136,7 +137,16 @@ class IEB:
             self.dims = np.array([self.dims0, self.dims1, self.dims2, self.dims3, self.dims4, self.dims5, self.dims6])
             self.dims = self.dims[0:self.ndims]
             self.value = np.frombuffer(data, dtype = dtype, count=count, offset=self.data_offset)
-            self.value = np.reshape(self.value, self.dims)
+            dims = self.dims
+            # bf16 blob is parsed with numpy with int16. Append 0 in lower/higer 16 bit 0 on little/big endian then view with float32 type.
+            if (dtype == np.int16):
+                zero_array=np.zeros(self.value.shape, dtype=dtype)
+                if (sys.byteorder == "little"):
+                    self.value=np.dstack((zero_array, self.value)).flatten()
+                else:
+                    self.value=np.dstack((self.value, zero_array)).flatten()
+                self.value=self.value.view(dtype=np.float32)
+            self.value = np.reshape(self.value, dims)
 
             # self.values = struct.unpack_from(f"@{count}{stype}", data, offset=self.data_offset)
             # print(self.values.shape, self.values.dtype)
@@ -147,10 +157,12 @@ class DumpIndex:
         (self.ExecIndex, self.Name, self.OriginalLayers, self.tag, self.itag, self.ieb_file) = args
 
 
-def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_target="CPU"):
+def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_target="CPU", infer_bf16=False, filter_type=""):
     os.environ["OV_CPU_BLOB_DUMP_DIR"] = dump_dir
     os.environ["OV_CPU_BLOB_DUMP_FORMAT"] = "BIN"
     os.environ["OV_CPU_BLOB_DUMP_NODE_PORTS"] = dump_ports
+    if filter_type != "":
+        os.environ["OV_CPU_BLOB_DUMP_NODE_TYPE"]  = filter_type
     mkdirp(dump_dir)
 
     device_config = {"PERF_COUNT": "NO",
@@ -160,7 +172,9 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
                 "INFERENCE_PRECISION_HINT": "f32",
                 "NUM_STREAMS":1,
                 "INFERENCE_NUM_THREADS":1}
-
+    if infer_bf16 == True:
+        device_config["INFERENCE_PRECISION_HINT"] = "bf16"
+        device_config["ENFORCE_BF16"] = "YES"
     print("compiling model with {}".format(device_config))
     exec_net = core.compile_model(model, device_target, device_config)
     req = exec_net.create_infer_request()
@@ -385,6 +399,8 @@ def main():
     parser.add_argument("-v", action="store_true", help="visualize error")
     parser.add_argument("-p", "--ports", type=str, default="OUT", help="dump ports: OUT | ALL")
     parser.add_argument("dumps", type=str, default="", nargs="+", help="dump folders or files")
+    parser.add_argument("-bf16", help="Enables infer with BF16 precision", action='store_true')
+    parser.add_argument("-f", "--filter_op", type=str, default="", help="op type filter: Convolution | ConvolutionBackpropData")
     args = parser.parse_args()
 
     print(f"Read model {args.m}...")
@@ -392,7 +408,7 @@ def main():
     model = core.read_model(args.m)
 
     if len(args.dumps) == 1:
-        dump_tensors(core, model, args.dumps[0], args.ports)
+        dump_tensors(core, model, args.dumps[0],  args.ports, "CPU", args.bf16, args.filter_op)
     else:
         assert(len(args.dumps) == 2)
         if (os.path.isdir(args.dumps[0])):

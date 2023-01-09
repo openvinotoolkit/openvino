@@ -35,3 +35,12 @@ python3 dump_check.py -m=/path/to/model dump1 dump2 -v
 
 more options can be learned from the help of this tool.
 
+ # Compare BF16 dump with FP32 reference
+CPU plugin would dump BF16 blob as int16_t type buffer.Dumping all the nodes
+and compare usually would fail, because BF16 executable graph differs with fp32.
+However, we can dump some computing intensive node output and compare result error
+following the steps:
+
+python3 dump_check.py -m /path/model.xml -bf16 -f Convolution ./dump_bf16
+python3 dump_check.py -m /path/model.xml  -f Convolution ./dump_fp32
+python3 dump_check.py -m /path/model.xml  ./dump_bf16 ./dump_fp32
