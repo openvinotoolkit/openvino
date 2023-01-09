@@ -32,7 +32,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     int num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
         // if it is smaller than the smallest positive normal fp16 but not zero
-        if (std::abs(src_data[i]) < ov::float16::from_bits(0x0400) && src_data[i] != 0.0f) {
+        if (std::abs(src_data[i]) <= ov::float16::from_bits(0x0400) && src_data[i] != 0.0f) {
             num_out_of_range++;
             is_out_of_range = true;
         } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
@@ -53,7 +53,7 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     auto keep_threshold = static_cast<float>(ov::util::getenv_int("KEEP_FP32_THRESHOLD", 75));
     auto actual_out_of_range_in_percent = 100.0f * static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
-    if (actual_out_of_range_in_percent > keep_threshold) {
+    if (actual_out_of_range_in_percent >= keep_threshold) {
         std::cerr << "Warning: while the model was compressed into FP16, Constant '" << constant->get_friendly_name()
                   << "' "
                      "is kept in FP32. This means the model originally was not designed to be inferred on FP16. "
