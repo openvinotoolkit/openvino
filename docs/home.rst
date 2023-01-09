@@ -127,4 +127,4 @@ Get Started
    DOCUMENTATION <documentation>
    MODEL ZOO <model_zoo>
    RESOURCES <resources>
-   RELEASE NOTES <https://software.intel.com/content/www/us/en/develop/articles/openvino-relnotes.html>
+   RELEASE NOTES <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>

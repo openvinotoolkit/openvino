@@ -6,21 +6,11 @@ OpenVINO™ Development Tools enables you to download models from Open Model Zoo
 
 ## System Requirements
 
-Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
-
-| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.7, 3.8, 3.9, 3.10                                 |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.7, 3.8, 3.9, 3.10                                 |
-|   macOS* 10.15.x                                             | 3.7, 3.8, 3.9, 3.10                                 |
-|   Windows 10*, 64-bit                                        | 3.7, 3.8, 3.9, 3.10                                 |
+Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [System Requirements](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html).
 
 **C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
 > **NOTE**: This package can be installed on other versions of macOS, Linux and Windows, but only the specific versions above are fully validated.
-
-> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
 
 ## Install the OpenVINO™ Development Tools Package
 
@@ -94,6 +84,8 @@ For example, to install and configure the components for working with TensorFlow
    pip install openvino-dev[tensorflow2,mxnet,caffe]
    ```
 > **NOTE**: Model Optimizer support for TensorFlow 1.x environment has been deprecated. Use TensorFlow 2.x environment to convert both TensorFlow 1.x and 2.x models.
+
+> **NOTE**: On macOS, you may need to enclose the package name in quotes: `pip install "openvino-dev[extras]"`.
 
 ### Step 5. Verify that the Package Is Installed
 

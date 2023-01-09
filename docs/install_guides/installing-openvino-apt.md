@@ -6,24 +6,12 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf).
 
-## System Requirements
 
 @sphinxdirective
-.. tab:: Operating Systems
-
-  * Ubuntu 18.04 long-term support (LTS) x86, 64-bit
-  * Ubuntu 20.04 long-term support (LTS) x86, 64-bit
-
-.. tab:: Hardware
-
-  Optimized for these processors:
-
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors
-  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
-  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
-  * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
-  * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
-  * Intel® Iris® Xe MAX Graphics
+.. tab:: System Requirements
+   
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Processor Notes
 
@@ -32,7 +20,7 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
   .. _Product Specifications: https://ark.intel.com/
 
-.. tab:: Software
+.. tab:: Software Requirements
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
