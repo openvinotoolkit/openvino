@@ -765,14 +765,14 @@ std::shared_ptr<ov::ICompiledModel> ov::legacy_convert::convert_compiled_model(
     return std::make_shared<ov::CompiledModelWrapper>(model);
 }
 
-std::shared_ptr<::InferenceEngine::IInferRequestInternal> convert_infer_request(
+std::shared_ptr<::InferenceEngine::IInferRequestInternal> ov::legacy_convert::convert_infer_request(
     const std::shared_ptr<::ov::IInferRequest>& model) {
     if (auto comp_model = std::dynamic_pointer_cast<ov::OVIInferRequestWrapper>(model)) {
         return comp_model->get_infer_request();
     }
     return std::make_shared<ov::InferRequestWrapper>(model);
 }
-std::shared_ptr<::ov::IInferRequest> convert_infer_request(
+std::shared_ptr<::ov::IInferRequest> ov::legacy_convert::convert_infer_request(
     const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& model) {
     if (auto comp_model = std::dynamic_pointer_cast<ov::InferRequestWrapper>(model)) {
         return comp_model->get_infer_request();
