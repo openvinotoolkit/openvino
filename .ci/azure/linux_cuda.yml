@@ -141,6 +141,7 @@ jobs:
             -S /root/repos/openvino \
             -B /root/w/build &&
           cmake --build /root/w/build --parallel --config Release --verbose -- CudaFuncTests CudaUnitTests"
+    workingDirectory: $(WORK_DIR)
     displayName: 'Docker build Lin'
 
   - script: ls -alR $(OPENVINO_REPO_DIR)/bin/

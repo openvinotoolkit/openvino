@@ -227,6 +227,8 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
+      # For python imports to import pybind_mock_frontend
+      export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
@@ -241,8 +243,6 @@ jobs:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
       OV_FRONTEND_PATH: $(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
-      # For python imports to import pybind_mock_frontend
-      PYTHONPATH: $(INSTALL_TEST_DIR):$PYTHONPATH
     displayName: 'Python API 2.0 Tests'
 
   - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
@@ -291,23 +291,27 @@ jobs:
     displayName: 'Build c samples'
 
   - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'OV Core UT'
 
   - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'ONNX Frontend Tests'
 
   - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Paddle Frontend UT'
 
   - script: |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
       $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Frontend Unit Tests'
 
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
@@ -330,8 +334,9 @@ jobs:
     displayName: 'IE FuncTests'
 
   - script:  |
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TEMPLATE FuncTests'
 
   # run not all smoke filter to save time in post-commit
@@ -371,7 +376,7 @@ jobs:
       python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     env:
       IE_APP_PATH: $(INSTALL_DIR)/samples_bin
-      LD_LIBRARY_PATH: $IE_APP_PATH:$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: $(IE_APP_PATH)
       IE_APP_PYTHON_PATH: $(PYTHON_SAMPLES_INSTALL_DIR)/
       SHARE: $(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       WORKSPACE: $(INSTALL_DIR)
