@@ -116,7 +116,7 @@ jobs:
       brew install ccache
     displayName: 'Install dependencies'
 
-  - bash: |
+  - script: |
       cmake -GNinja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
@@ -126,8 +126,6 @@ jobs:
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules \
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
         -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-        -DCMAKE_CXX_LINKER_LAUNCHER=ccache \
-        -DCMAKE_C_LINKER_LAUNCHER=ccache \
         -DBUILD_nvidia_plugin=OFF \
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
@@ -171,9 +169,7 @@ jobs:
   - bash: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - bash: |
-      set -e
-      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
+  - bash: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install tests'
 
   - bash: ls -alR $(INSTALL_DIR)

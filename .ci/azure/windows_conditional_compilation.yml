@@ -117,7 +117,7 @@ jobs:
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
-        -S $(REPO_DIR)
+        -S $(REPO_DIR) ^
         -B $(BUILD_DIR)
     displayName: 'CMake COLLECT'
 

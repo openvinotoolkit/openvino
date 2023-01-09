@@ -131,18 +131,20 @@ jobs:
 
   - bash: |
       source $(INSTALL_DIR)/setupvars.sh
-      CXXFLAGS="-Wno-error=deprecated-declarations" $(ONNXRUNTIME_REPO_DIR)/build.sh \
+      $(ONNXRUNTIME_REPO_DIR)/build.sh \
         --config RelWithDebInfo \
         --use_openvino CPU_FP32 \
         --build_shared_lib \
         --parallel \
         --skip_tests \
         --build_dir $(ONNXRUNTIME_BUILD_DIR)
+    env:
+      CXXFLAGS: "-Wno-error=deprecated-declarations"
     displayName: 'Build Lin ONNX Runtime'
 
   - bash: |
       source $(INSTALL_DIR)/setupvars.sh
-      skip_tests=`tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests`
+      skip_tests=$(tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests)
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_test_all'
