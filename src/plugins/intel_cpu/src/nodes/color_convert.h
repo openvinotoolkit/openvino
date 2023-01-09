@@ -16,9 +16,7 @@ namespace node {
 
 class ColorConvert : public Node {
 public:
-    ColorConvert(const std::shared_ptr<ngraph::Node>& op,
-                 const dnnl::engine& eng,
-                 WeightsSharing::Ptr &cache);
+    ColorConvert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     class Converter;
 
 public:

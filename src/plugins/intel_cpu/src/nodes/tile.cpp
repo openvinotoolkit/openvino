@@ -32,8 +32,8 @@ bool Tile::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
     return true;
 }
 
-Tile::Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
+Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

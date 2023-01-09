@@ -31,8 +31,8 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, PassThroughShapeInferFactory()) {
+Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Convert node with name '" + getName() + "'";
@@ -45,8 +45,8 @@ Convert::Convert(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& en
 }
 
 Convert::Convert(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
-                 const std::string &nodeName, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node("Convert", nodeName, eng, cache)
+                 const std::string &nodeName, const GraphContext::CPtr context)
+        : Node("Convert", nodeName, context)
         , origPrc(outPrc) {
     inputShapes.push_back(shape);
     addOriginalInputPrecision(inPrc);

@@ -15,11 +15,13 @@ namespace node {
 
 class Input : public Node {
 public:
-    Input(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
-    Input(const Shape& shape, const InferenceEngine::Precision &prc, const std::string &name,
-                    const std::string &type, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
-    Input(MemoryDescPtr memDesc, const std::string &name, const std::string &type, const dnnl::engine& eng,
-                    WeightsSharing::Ptr &cache);
+    Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Input(const Shape& shape,
+          const InferenceEngine::Precision& prc,
+          const std::string& name,
+          const std::string& type,
+          const GraphContext::CPtr context);
+    Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

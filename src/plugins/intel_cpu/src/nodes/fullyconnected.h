@@ -17,7 +17,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -58,8 +58,6 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
 
     void setDynamicBatchLim(int lim) override;
-
-    void setMinSparseRate(float sparseRate) { minSparseRate = sparseRate; }
 
 private:
     void createDescriptorInternal(const dnnl::memory::desc &inputDesc,

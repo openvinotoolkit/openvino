@@ -34,8 +34,8 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1))) {
+Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

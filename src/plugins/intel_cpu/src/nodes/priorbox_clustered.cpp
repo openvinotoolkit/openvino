@@ -79,10 +79,8 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-PriorBoxClustered::PriorBoxClustered(
-    const std::shared_ptr<ngraph::Node>& op,
-    const dnnl::engine& eng,
-    WeightsSharing::Ptr &cache) : Node(op, eng, cache, PriorBoxClusteredShapeInferFactory(op)) {
+PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

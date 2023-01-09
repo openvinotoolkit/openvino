@@ -16,7 +16,7 @@ namespace node {
 
 class Broadcast : public Node, public TileBroadcastCommon {
 public:
-    Broadcast(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;

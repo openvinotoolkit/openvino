@@ -16,7 +16,7 @@ namespace node {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;

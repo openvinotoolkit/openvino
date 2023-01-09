@@ -151,7 +151,7 @@ bool Deconvolution::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 }
 
 Deconvolution::Deconvolution(const std::shared_ptr<ngraph::Node>& op,
-                             const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache, DeconfolutionShapeInferFactory(op)) {
+                             const GraphContext::CPtr context) : Node(op, context, DeconfolutionShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Deconvolution node with name '" + getName() + "'";
@@ -928,7 +928,7 @@ void Deconvolution::prepareParams() {
     };
 
     execPtr = nullptr;
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
