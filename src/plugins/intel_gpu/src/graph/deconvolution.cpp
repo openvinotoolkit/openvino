@@ -158,17 +158,21 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
     }
 
     std::vector<ShapeType> input_shapes = {
-        input_layout.get<ShapeType>(),
-        weights_layout.get<ShapeType>()
+        input_layout.get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes = {ShapeType()};
-
+    // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
+    // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
+    // dimension order for shape inference.
+    auto weights_pshape = weights_layout.get_partial_shape();
     if (desc->groups > 1) {
         ov::op::v1::GroupConvolutionBackpropData op;
         op.set_strides(strides);
         op.set_dilations(dilations);
         op.set_output_padding(output_padding);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        std::swap(weights_pshape[2], weights_pshape[1]);
+        input_shapes.push_back(weights_pshape);
         ov::op::v1::shape_infer(&op, pads_begin, pads_end, ov::PartialShape{}, input_shapes, output_shapes);
     } else {
         ov::op::v1::ConvolutionBackpropData op;
@@ -176,6 +180,8 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         op.set_dilations(dilations);
         op.set_output_padding(output_padding);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
+        std::swap(weights_pshape[1], weights_pshape[0]);
+        input_shapes.push_back(weights_pshape);
         ov::op::v1::shape_infer(&op, pads_begin, pads_end, ov::PartialShape{}, input_shapes, output_shapes);
     }
     return {layout{output_shapes[0], output_type, out_fmt.value}};
@@ -213,6 +219,8 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
     : parent(network, node) {
+    if (node.is_dynamic())
+        return;
     auto stride = argument->stride;
     auto pad = argument->pad;
 
