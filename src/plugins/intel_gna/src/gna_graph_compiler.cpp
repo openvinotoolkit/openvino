@@ -41,11 +41,13 @@
 #include "ops/pwl.hpp"
 
 using namespace InferenceEngine;
-using namespace std;
-using namespace ov::intel_gna;
 using namespace ov::intel_gna::frontend;
 using namespace ov::intel_gna::common;
-using namespace memory;
+using namespace ov::intel_gna::memory;
+using namespace std;
+
+namespace ov {
+namespace intel_gna {
 
 static bool CheckIFLastComponentIsPrecededByConv2D(const backend::DnnComponents::storage_type& components,
                                             bool verify_with_pooling = true) {
@@ -2688,3 +2690,6 @@ GNAGraphCompiler::transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint
     }
     return temp_buffer;
 }
+
+}  // namespace intel_gna
+}  // namespace ov
