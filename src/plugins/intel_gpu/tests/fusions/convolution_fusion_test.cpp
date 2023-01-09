@@ -1280,7 +1280,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
 
     std::vector<std::string> weights_idx;
     for (size_t w = 0; w < p.groups; w++) {
-        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p, p.groups))));
+        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p))));
         weights_idx.push_back(("weights" + std::to_string(w)));
     }
 
@@ -2596,7 +2596,7 @@ class conv_int8_asymmetric_weights : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_weights, basic) {
     auto p = GetParam();
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
                                            get_weights_layout(p);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2666,7 +2666,7 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     layout weights_layout = get_weights_layout(p);
     if (!engine.get_device_info().supports_immad) {
         auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-        weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) : get_weights_layout(p);
+        weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) : get_weights_layout(p);
     }
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2736,7 +2736,7 @@ class conv_int8_asymmetric_data_and_weights : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     auto p = GetParam();
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
                           get_weights_layout(p);
     create_topologies(
         input_layout("input", get_input_layout(p)),
