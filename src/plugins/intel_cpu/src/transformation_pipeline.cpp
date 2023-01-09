@@ -544,10 +544,9 @@ void Transformations::PostLpt() {
         });
 
     // Float MHA is supported by snippets now
-    auto postLPTPassConfig = postLPTPassManager.get_pass_config();
     if (!enableBF16) {
-        postLPTPassConfig->disable<MHAFloatFusion>();
-        postLPTPassConfig->disable<MHAFloatFusion2>();
+        postLPTPassManager.get_pass_config()->disable<MHAFloatFusion>();
+        postLPTPassManager.get_pass_config()->disable<MHAFloatFusion2>();
     }
 
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
@@ -567,8 +566,7 @@ void Transformations::MainSnippets(void) {
 
     if (enableBF16) {
         // TODO: Need to add BF16 support for MHA in Snippets
-        const auto snippetsConfig = snippetsManager.get_pass_config();
-        snippetsConfig->disable<ngraph::snippets::pass::TokenizeMHASnippets>();
+        snippetsManager.get_pass_config()->disable<ngraph::snippets::pass::TokenizeMHASnippets>();
     }
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeMHASnippets>(
@@ -590,9 +588,8 @@ void Transformations::MainSnippets(void) {
                     //       - parallelism support on JIT level
                     const auto needed_num_of_threads = 12lu;
                     const auto l2_cache_size = dnnl::utils::get_cache_size(2, true);
-                    const auto is_unsupported_parallel_work_amount = IMPLICATION(
-                            parallel_get_num_threads() / 2 > parallel_work_amount,
-                            parallel_work_amount < needed_num_of_threads);
+                    const auto is_unsupported_parallel_work_amount = parallel_get_num_threads() / 2 > parallel_work_amount &&
+                                                                     parallel_work_amount < needed_num_of_threads;
                     const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
                     return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
                 });

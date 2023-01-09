@@ -19,6 +19,7 @@ namespace pass {
  */
 class TokenizeMHASnippets: public ngraph::pass::MatcherPass {
 public:
+    OPENVINO_RTTI("TokenizeMHASnippets", "0");
     TokenizeMHASnippets();
 };
 

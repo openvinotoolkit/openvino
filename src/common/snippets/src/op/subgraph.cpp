@@ -536,12 +536,13 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
                                                     [](const shared_ptr<ngraph::op::Parameter>& p){
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
+    const auto allocationRank = static_cast<int32_t>(tileRank);
     ngraph::pass::Manager manager;
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
-        manager.register_pass<snippets::pass::InsertBuffer>(tileRank);
-        manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, tileRank);
+        manager.register_pass<snippets::pass::InsertBuffer>(allocationRank);
+        manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, allocationRank);
         manager.register_pass<snippets::pass::TransposeDecomposition>();
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();

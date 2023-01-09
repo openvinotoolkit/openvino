@@ -24,7 +24,9 @@ ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
             return false;
         //  Note that all Constants {1,1,1,1} are converted to Scalar {1} here
         //  This is needed to simplify shape inference, otherwise {1,1,1,1} Constants can increase output rank
-        auto scalar = std::make_shared<snippets::op::Scalar>(ov::op::v0::Constant(*constant, ov::Shape{1}));
+        //  Also some operations support only scalar shapes, so we need separate scalars and shape [1]
+        const auto shape = constant->get_output_shape(0).size() == 0 ? ov::Shape{} : ov::Shape{1};
+        auto scalar = std::make_shared<snippets::op::Scalar>(ov::op::v0::Constant(*constant, shape));
         scalar->set_friendly_name(constant->get_friendly_name());
         ngraph::copy_runtime_info(constant, scalar);
         ngraph::replace_node(constant, scalar);

@@ -241,17 +241,23 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         }
 
         auto transpose1 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(parent);
-        if (!matmul0->get_transpose_b() && is_valid_transpose(transpose1, {0, 2, 3, 1})) {
-            ordered_ops.insert(ordered_ops.begin(), transpose1);
-        } else if (matmul0->get_transpose_b() && is_valid_transpose(transpose1, {0, 2, 1, 3})) {
-            // We can support several ops between MatMul0 with transposed_b and Transpose1 with 0213 order
-            // only if these ops have scalar shapes on other inputs.
-            // There is transformation ExplicitTransposeMatMulInputs that set supported order and transposed_b(false).
-            // We can allow to call this pass only if ops have scalar shapes to avoid shape mismatching
-            if (are_weights_scalar) {
-                ordered_ops.insert(ordered_ops.begin(), transpose1);
+        if (matmul0->get_transpose_b()) {
+            if (is_valid_transpose(transpose1, {0, 2, 1, 3})) {
+                // We can support several ops between MatMul0 with transposed_b and Transpose1 with 0213 order
+                // only if these ops have scalar shapes on other inputs.
+                // There is transformation ExplicitTransposeMatMulInputs that set supported order and transposed_b(false).
+                // We can allow to call this pass only if ops have scalar shapes to avoid shape mismatching
+                if (are_weights_scalar) {
+                    ordered_ops.insert(ordered_ops.begin(), transpose1);
+                } else {
+                    return false;
+                }
             } else {
                 return false;
+            }
+        } else {
+            if (is_valid_transpose(transpose1, {0, 2, 3, 1})) {
+                ordered_ops.insert(ordered_ops.begin(), transpose1);
             }
         }
 

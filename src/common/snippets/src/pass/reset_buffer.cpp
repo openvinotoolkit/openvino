@@ -94,7 +94,7 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
                     loop_index++;
                 }
 
-                const auto work_amount = std::accumulate(result_shape.rbegin(), result_shape.rbegin() + loop_index + 1, 1, std::multiplies<size_t>());
+                const auto work_amount = std::accumulate(result_shape.rbegin(), result_shape.rbegin() + loop_index + 1, size_t(1), std::multiplies<size_t>());
                 finalization_offsets[i_size + i] =
                         calculate_required_finalization_offsets(work_amount, *(result_shape.rbegin() + loop_index));
             }
