@@ -13,7 +13,7 @@ namespace node {
 
 class ExperimentalDetectronTopKROIs : public Node {
 public:
-    ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ExperimentalDetectronTopKROIs(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
