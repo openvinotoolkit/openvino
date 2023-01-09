@@ -34,8 +34,8 @@ protected:
         return out;
     }
 
-    std::pair<std::vector<ov::label_t>, std::vector<ov::label_t>> make_in_exp_labels() const {
-        std::vector<ov::label_t> in_labels;
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
         std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(10));
 
         auto exp_labels = in_labels;
@@ -130,7 +130,7 @@ TEST_P(VariadicSplitTest, use_default_ctor) {
 }
 
 TEST_P(VariadicSplitTest, label_propagation) {
-    std::vector<ov::label_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -147,16 +147,16 @@ TEST_P(VariadicSplitTest, label_propagation) {
 
 class VariadicSplitBoundTest : public VariadicSplitTest {
 protected:
-    std::pair<std::vector<ov::label_t>, std::vector<std::vector<ov::label_t>>> make_in_exp_labels() const {
-        std::vector<ov::label_t> in_labels;
+    std::pair<ov::TensorLabel, std::vector<ov::TensorLabel>> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
         std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(8));
 
-        std::vector<std::vector<ov::label_t>> exp_labels;
+        std::vector<ov::TensorLabel> exp_labels;
 
         auto label_it = in_labels.begin();
         for (auto split_length : split_lengths) {
             if (split_length == 0) {
-                exp_labels.emplace_back(std::vector<ov::label_t>(1, ov::no_label));
+                exp_labels.emplace_back(ov::TensorLabel(1, ov::no_label));
             } else if (split_length == -1) {
                 split_length = std::accumulate(split_lengths.cbegin(),
                                                split_lengths.cend(),
@@ -174,7 +174,7 @@ protected:
     }
 
     std::vector<PartialShape> out_shapes;
-    std::vector<std::vector<ov::label_t>> out_labels;
+    std::vector<ov::TensorLabel> out_labels;
 };
 
 INSTANTIATE_TEST_SUITE_P(type_prop_bounds_propagate,
@@ -198,8 +198,8 @@ INSTANTIATE_TEST_SUITE_P(type_prop_bounds_propagate,
                          PrintToStringParamName());
 
 TEST_P(VariadicSplitBoundTest, propagate_label_and_dynamic_value) {
-    std::vector<ov::label_t> in_labels;
-    std::vector<std::vector<ov::label_t>> exp_labels;
+    ov::TensorLabel in_labels;
+    std::vector<ov::TensorLabel> exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
     set_shape_labels(p_shape, in_labels);
 

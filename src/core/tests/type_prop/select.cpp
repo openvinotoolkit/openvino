@@ -45,7 +45,7 @@ TEST(type_prop, select_default_constructor) {
 TEST(type_prop, select_labels_cond_numpy) {
     auto labeled_shape = PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}};
     set_shape_labels(labeled_shape, 10);
-    std::vector<ov::label_t> expected_labels{10, 11, 12, ov::no_label, 14};
+    ov::TensorLabel expected_labels{10, 11, 12, ov::no_label, 14};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape);
     auto then_param = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(5));
@@ -62,7 +62,7 @@ TEST(type_prop, select_labels_cond_numpy) {
 TEST(type_prop, select_labels_then_numpy) {
     auto labeled_shape = PartialShape::dynamic(5);
     set_shape_labels(labeled_shape, 10);
-    std::vector<ov::label_t> expected_labels{ov::no_label, ov::no_label, 12, ov::no_label, 14};
+    ov::TensorLabel expected_labels{ov::no_label, ov::no_label, 12, ov::no_label, 14};
 
     auto cond_param =
         make_shared<op::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
@@ -81,7 +81,7 @@ TEST(type_prop, select_labels_else_numpy) {
     auto labeled_shape = PartialShape{{1, 5}, {1, 11}, 5, {1, 8}};
     set_shape_labels(labeled_shape, 10);
 
-    std::vector<ov::label_t> expected_labels{ov::no_label, ov::no_label, 11, 12, 13};
+    ov::TensorLabel expected_labels{ov::no_label, ov::no_label, 11, 12, 13};
 
     auto cond_param =
         make_shared<op::Parameter>(element::boolean, PartialShape{{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}});
@@ -105,7 +105,7 @@ TEST(type_prop, select_labels_all_params_numpy) {
     set_shape_labels(labeled_shape_then, 20);
     set_shape_labels(labeled_shape_else, 30);
 
-    std::vector<ov::label_t> expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
+    ov::TensorLabel expected_labels{10, 11, 22, 13, 34, 15, 26, 17, 18};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
@@ -128,7 +128,7 @@ TEST(type_prop, select_labels_all_params_none) {
     set_shape_labels(labeled_shape_then, 20);
     set_shape_labels(labeled_shape_else, 30);
 
-    std::vector<ov::label_t> expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
+    ov::TensorLabel expected_labels{10, 11, 12, 13, 14, 15, 16, 17, 18};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);
@@ -151,7 +151,7 @@ TEST(type_prop, select_labels_all_params_pdpd) {
     set_shape_labels(labeled_shape_then, 20);
     set_shape_labels(labeled_shape_else, 30);
 
-    std::vector<ov::label_t> expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
+    ov::TensorLabel expected_labels{20, 21, 22, 23, 24, 25, 26, 27, 28};
 
     auto cond_param = make_shared<op::Parameter>(element::boolean, labeled_shape_cond);
     auto then_param = make_shared<op::Parameter>(element::f32, labeled_shape_then);

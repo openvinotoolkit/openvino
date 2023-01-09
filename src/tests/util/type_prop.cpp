@@ -7,8 +7,8 @@
 #include "openvino/core/dimension.hpp"
 #include "sequnce_generator.hpp"
 
-std::vector<ov::label_t> get_shape_labels(const ov::PartialShape& p_shape) {
-    std::vector<ov::label_t> labels;
+ov::TensorLabel get_shape_labels(const ov::PartialShape& p_shape) {
+    ov::TensorLabel labels;
     transform(p_shape.cbegin(), p_shape.cend(), back_inserter(labels), [](const ov::Dimension& dim) {
         return ov::DimensionTracker::get_label(dim);
     });
@@ -16,12 +16,12 @@ std::vector<ov::label_t> get_shape_labels(const ov::PartialShape& p_shape) {
 }
 
 void set_shape_labels(ov::PartialShape& p_shape, const ov::label_t first_label) {
-    std::vector<ov::label_t> labels;
+    ov::TensorLabel labels;
     std::generate_n(std::back_inserter(labels), p_shape.size(), ov::SeqGen<ov::label_t>(first_label));
     set_shape_labels(p_shape, labels);
 }
 
-void set_shape_labels(ov::PartialShape& p_shape, const std::vector<ov::label_t>& labels) {
+void set_shape_labels(ov::PartialShape& p_shape, const ov::TensorLabel& labels) {
     ASSERT_EQ(labels.size(), p_shape.size());
     auto label_it = labels.begin();
 

@@ -147,7 +147,7 @@ protected:
         std::tie(shape_in, repeats_val, exp_shape) = GetParam();
     }
 
-    std::vector<ov::label_t> get_exp_labels() const {
+    ov::TensorLabel get_exp_labels() const {
         auto labels = get_shape_labels(shape_in);
 
         if (!labels.empty()) {

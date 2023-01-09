@@ -48,7 +48,7 @@ TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm) {
 }
 
 TEST(type_prop, transpose_with_not_unique_order) {
-    const auto order = std::vector<ov::label_t>{1, 0, 1};
+    const auto order = ov::TensorLabel{1, 0, 1};
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 300});
     auto input_order = make_shared<op::Constant>(element::i64, Shape{order.size()}, order);
 
@@ -253,7 +253,7 @@ TEST(type_prop, transpose_input_order_et_wrong) {
 
 TEST(type_prop, transpose_with_empty_order) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 300});
-    auto input_order = make_shared<op::Constant>(element::i64, Shape({0}), std::vector<ov::label_t>());
+    auto input_order = make_shared<op::Constant>(element::i64, Shape({0}), ov::TensorLabel());
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
@@ -338,15 +338,15 @@ protected:
         std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
     }
 
-    std::vector<ov::label_t> make_seq_labels(const size_t first, const size_t count) {
-        std::vector<ov::label_t> labels;
+    ov::TensorLabel make_seq_labels(const size_t first, const size_t count) {
+        ov::TensorLabel labels;
 
         generate_n(std::back_inserter(labels), count, ov::SeqGen<size_t>(first));
         return labels;
     }
 
-    std::vector<ov::label_t> make_seq_labels_by_order(const size_t first, const vector<int64_t> order) {
-        std::vector<ov::label_t> labels;
+    ov::TensorLabel make_seq_labels_by_order(const size_t first, const vector<int64_t> order) {
+        ov::TensorLabel labels;
         transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) {
             return dim + first;
         });

@@ -8,12 +8,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "openvino/core/dimension.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 
 namespace ov {
-/// \brief Alias for label type.
-using label_t = uint32_t;
-
 /// \brief Special label value indicate no label set.
 constexpr label_t no_label = 0;
 
