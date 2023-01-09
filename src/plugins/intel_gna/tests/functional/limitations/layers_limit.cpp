@@ -81,14 +81,12 @@ TEST_P(GNALayersLimit30Test, CompareWithRefs) {
     Run();
 }
 
-std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}};
+std::map<std::string, std::string> common_config{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"},  {"GNA_COMPACT_MODE", "NO"}};
 
-std::vector<std::map<std::string, std::string>> configs_20{{{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"},
-                                                            {"GNA_COMPACT_MODE", "NO"}},
+std::vector<std::map<std::string, std::string>> configs_20{{{"GNA_EXEC_TARGET", "GNA_TARGET_2_0"}},
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_2_0"}}};
 
-std::vector<std::map<std::string, std::string>> configs_30{{{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"},
-                                                            {"GNA_COMPACT_MODE", "NO"}},
+std::vector<std::map<std::string, std::string>> configs_30{{{"GNA_EXEC_TARGET", "GNA_TARGET_3_0"}},
                                                            {{"GNA_COMPILE_TARGET", "GNA_TARGET_3_0"}}};
 
 // for GNA v2.0 limit is 4096
