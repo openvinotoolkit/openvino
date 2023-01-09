@@ -45,7 +45,7 @@ protected:
         mock.set_create_model(test_parameter.load_succesfull);
         mock.init();
 
-        GNAPluginNS::GNAPlugin gna_plugin{};
+        GNAPlugin gna_plugin{};
         InferenceEngine::CNNNetwork cnn_network{function};
         bool load_succesfull = true;
         try {

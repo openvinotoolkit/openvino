@@ -491,9 +491,6 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, cons
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& conv_params = *static_cast<convolution_params*>(kd.params.get());
 
-    if (conv_params.split != 1)
-        return false;
-
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&
             (conv_params.compensation.empty()))

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 
 // ToDo: remove those include with the appropriate code below once we will have support for multiple outputs of a

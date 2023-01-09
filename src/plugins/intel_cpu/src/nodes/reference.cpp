@@ -17,9 +17,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache,
+Reference::Reference(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context,
                                          const std::string& errorMessage) :
-        Node(op, eng, cache, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ngraphOp(op), additionalErrorMessage(errorMessage) {
+        Node(op, context, NgraphShapeInferFactory(op, FULL_PORT_MASK)), ngraphOp(op), additionalErrorMessage(errorMessage) {
     if (!op->has_evaluate()) {
         IE_THROW(NotImplemented) << "Cannot fallback on ngraph reference implementation (Ngraph::Node::evaluate() is not implemented)";
     }

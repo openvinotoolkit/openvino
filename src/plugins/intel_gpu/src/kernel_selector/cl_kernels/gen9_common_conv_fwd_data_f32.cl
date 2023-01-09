@@ -37,17 +37,17 @@ KERNEL(gen9_common_conv_fwd_f32_kernel)(
         const __global float *src,
         __global float *dst,
 #if USE_IMAGE == 1
-        __read_only image2d_t wei,
+        __read_only image2d_t wei
 #else
-        const __global float *wei,
+        const __global float *wei
 #endif
 #if WITH_BIAS
-        const __global float *bias,
+        , const __global float *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
 
 const float eltwise_alpha = 0;
