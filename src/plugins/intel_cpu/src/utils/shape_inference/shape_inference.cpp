@@ -658,9 +658,8 @@ std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::
         return shape_infer;
     } else if (auto shape_infer = make_shape_inference<IStaticShapeInfer>(op)) {
         return shape_infer;
-    }
-    // The unary nad binary elementwise ops can be moved to map but it is easier to handle them by these statements.
-    else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
+    } else if (ov::is_type<op::util::UnaryElementwiseArithmetic>(op)) {
+        // The unary nad binary elementwise ops can be moved to map but it is easier to handle them by these statements.
         return std::make_shared<entryCopy>(op);
     } else if (ov::is_type<op::util::BinaryElementwiseArithmetic>(op) ||
                ov::is_type<op::util::BinaryElementwiseComparison>(op) ||
