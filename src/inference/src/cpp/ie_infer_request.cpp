@@ -418,7 +418,7 @@ void InferRequest::wait() {
 }
 
 bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
-    OV_INFER_REQ_CALL_STATEMENT(_impl->wait_for(timeout);)
+    OV_INFER_REQ_CALL_STATEMENT(return _impl->wait_for(timeout);)
 }
 
 void InferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
