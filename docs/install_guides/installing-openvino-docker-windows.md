@@ -5,7 +5,7 @@ This guide provides steps for creating a Docker image with Intel® Distribution 
 ## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
-.. tab:: Target Operating System with Python Version
+.. tab:: Target Operating System with Python Versions
 
   +------------------------------------+--------------------------+
   | Operating System                   | Supported Python Version |
