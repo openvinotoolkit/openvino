@@ -59,7 +59,7 @@ std::vector<int> getAvailableNUMANodes() { return {-1}; }
 #endif
 
 bool cpuMapAvailable() {
-    return cpu._cpu_mapping_table.size() > 0;
+    return false;
 }
 
 std::vector<int> getAvailableCPUs(const cpu_core_type_of_processor core_type, const int num_cpus) {
