@@ -309,314 +309,162 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     }
 }
 
-static bool isSame(dnnl::memory::desc desc, dnnl::memory::format_tag fmt) {
-    dnnl::memory::desc refDesc(desc.dims(), desc.data_type(), fmt);
+static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
+                            size_t first, size_t depth) {
+    if (depth == 0)
+        return;
 
-    if (desc.data.ndims != refDesc.data.ndims)
-        return false;
+    for (size_t idx = first; idx <= first + depth ; idx++) {
+        std::swap(order[first], order[idx]);
+        if (first != idx)
+            orders.push_back(order);
 
-    if (desc.data.format_kind != dnnl_blocked || refDesc.data.format_kind != dnnl_blocked)
-        throw std::runtime_error("dnnlMemoryDesc::isSame is not implemented for non blocked memory format");
-
-    auto actualBlkDesc = desc.data.format_desc.blocking;
-    auto refBlkDesc = refDesc.data.format_desc.blocking;
-    if (actualBlkDesc.inner_nblks != refBlkDesc.inner_nblks)
-        return false;
-
-    for (int i = 0; i < actualBlkDesc.inner_nblks; ++i)
-        if (actualBlkDesc.inner_blks[i] != refBlkDesc.inner_blks[i])
-            return false;
-
-    for (int i = 0; i < actualBlkDesc.inner_nblks; ++i)
-        if (actualBlkDesc.inner_idxs[i] != refBlkDesc.inner_idxs[i])
-            return false;
-
-    auto actualStrides = desc.data.format_desc.blocking.strides;
-    auto refStrides = refDesc.data.format_desc.blocking.strides;
-
-    std::vector<size_t> actualOrder(desc.data.ndims);
-    std::iota(actualOrder.begin(), actualOrder.end(), 0);
-    std::sort(actualOrder.begin(), actualOrder.end(),
-              [&actualStrides] (size_t ind_l, size_t ind_r) {
-                  return actualStrides[ind_l] > actualStrides[ind_r];
-              });
-
-    std::vector<size_t> refOrder(refDesc.data.ndims);
-    std::iota(refOrder.begin(), refOrder.end(), 0);
-    std::sort(refOrder.begin(), refOrder.end(),
-              [&refStrides] (size_t ind_l, size_t ind_r) {
-                  return refStrides[ind_l] > refStrides[ind_r];
-              });
-
-    if (actualOrder != refOrder) {
-        return false;
+        get_identical_order(orders, order, first+1, depth-1);
+        std::swap(order[first], order[idx]);
     }
-
-    return true;
 }
 
-dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
-    // TODO [OneDNN]: Previously it was a field of tdesc, but now the brute
-    //                force search here. Please avoid of using this method.
-    const auto ndims = desc.dims().size();
-
-    // There are no suitable format_tag for this
-    if (ndims == 0 || ndims > 6)
-        return dnnl::memory::format_tag::undef;
-
-    for (const auto fmt : form_tags_by_ndims.at(static_cast<int>(ndims))) {
-        if (isSame(desc, fmt))
-            return fmt;
-    }
-
-    return dnnl::memory::format_tag::undef;
-}
-
-static std::vector<size_t> get_order(dnnl::memory::desc desc) {
-    auto blk = desc.data.format_desc.blocking;
-    auto strides = blk.strides;
+// Get candidate orders calculated by stride value of dnnl::memory::descriptor could be multiple
+std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc) {
+    std::vector<std::vector<size_t>> orders;
+    auto strides = desc.data.format_desc.blocking.strides;
     std::vector<size_t> order(desc.data.ndims);
-
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(),
                 [&strides] (size_t ind_l, size_t ind_r) {
                     return (strides[ind_l] > strides[ind_r]);
                 });
-    return order;
+
+    orders.push_back(order);
+
+    // Orders of those axes which have a same stride in memory::desc can be changed.
+    // If y and x axes have same, then it can be bfyx or bfxy.
+    for (size_t idx = 0 ; idx+1 < order.size() ; idx++) {
+        size_t depth = 0;
+        for (size_t next = idx+1 ; next < order.size() ; next++) {
+            if (strides[order[idx]] == strides[order[next]]) {
+                depth++;
+            } else {
+                break;
+            }
+        }
+
+        // mutiple axes can have a same stride value of mem descriptor
+        get_identical_order(orders, order, idx, depth);
+        idx += depth;
+    }
+
+    return orders;
 }
 
-static bool compare_strides(std::vector<size_t> a, std::vector<size_t> b) {
-    return std::equal(a.begin(), a.end(), b.begin());
+static bool compare_orders(std::vector<std::vector<size_t>> a, std::vector<size_t> b) {
+    for (size_t idx = 0 ; idx < a.size() ; idx++) {
+        if (std::equal(a[idx].begin(), a[idx].end(), b.begin()))
+            return true;
+    }
+
+    return false;
 }
 
 cldnn::format find_data_format(dnnl::memory::desc desc) {
-    auto onednn_desc = get_format_by_desc(desc);
+    auto blk = desc.data.format_desc.blocking;
+    auto order = get_candidate_orders(desc);
 
-    if (onednn_desc != dnnl::memory::format_tag::undef) {
-        return convert_data_format(onednn_desc);
-    } else {
-        auto blk = desc.data.format_desc.blocking;
-        auto order = get_order(desc);
-        for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::format_num ; fmt_idx++) {
-            auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
-            if (desc.data.ndims == static_cast<int>(candidate_trait._order.size())
-                && blk.inner_nblks == static_cast<int>(candidate_trait.block_sizes.size())
-                && compare_strides(order, candidate_trait._order)) {
-                bool is_match = true;
-                for (size_t idx = 0 ; idx < candidate_trait.block_sizes.size() ; idx++) {
-                    if (blk.inner_blks[idx] != static_cast<int>(candidate_trait.block_sizes[idx].second)
-                        || blk.inner_idxs[idx] != static_cast<int>(candidate_trait.block_sizes[idx].first)) {
+    for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
+        auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
+        if (desc.data.ndims == static_cast<int>(candidate_trait._order.size())
+            && blk.inner_nblks == static_cast<int>(candidate_trait.block_sizes.size())
+            && compare_orders(order, candidate_trait._order)) {
+            bool is_match = true;
+            for (size_t idx = 0 ; idx < candidate_trait.block_sizes.size() ; idx++) {
+                if (blk.inner_blks[idx] != static_cast<int>(candidate_trait.block_sizes[idx].second)
+                    || blk.inner_idxs[idx] != static_cast<int>(candidate_trait.block_sizes[idx].first)) {
+                    is_match = false;
+                    break;
+                }
+            }
+            if (is_match)
+                return static_cast<format::type>(fmt_idx);
+        }
+    }
+
+    std::stringstream msg;
+    msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
+        << "ndims: " << desc.data.ndims
+        << ", inner_nblks: " << blk.inner_nblks
+        << ", inner_blks: ";
+    for (int i = 0; i < blk.inner_nblks; i++)
+        msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+
+    throw std::runtime_error(msg.str());
+}
+
+cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
+    auto blk = desc.data.format_desc.blocking;
+    auto orders = get_candidate_orders(desc);
+
+    format start_format = format::oiyx;
+    if (is_grouped)
+        start_format = format::goiyx;
+
+    for (int32_t fmt_idx = start_format ; fmt_idx < format::format_num ; fmt_idx++) {
+        auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
+        if (static_cast<size_t>(desc.data.ndims) == candidate_trait._order.size()
+            && static_cast<size_t>(blk.inner_nblks) == candidate_trait.block_sizes.size()
+            && compare_orders(orders, candidate_trait._order)) {
+            // Compare all pairs of dimension number and block size to format_traits_map of all formats
+            bool is_match = true;
+            for (size_t idx = 0 ; idx < candidate_trait.block_sizes.size() ; idx++) {
+                auto block_idx = static_cast<dnnl_dim_t>(candidate_trait.block_sizes[idx].first);
+                auto block_size = static_cast<dnnl_dim_t>(candidate_trait.block_sizes[idx].second);
+                if (is_grouped && candidate_trait.is_group_char(candidate_trait.internal_order[block_idx])) {
+                    // inner_idx gets the index of group dimension in mem::desc when blocked axis is group
+                    auto inner_idx = candidate_trait.order.find_first_of(candidate_trait.internal_order[block_idx]);
+                    if (blk.inner_blks[idx] != block_size ||
+                        blk.inner_idxs[idx] != static_cast<dnnl_dim_t>(inner_idx)) {
+                        is_match = false;
+                        break;
+                    }
+                } else if (is_grouped) {
+                    // g,o,i from cldnn formats are matching to a,b,c of dnnl. But g is at the end of internal order.
+                    if (blk.inner_blks[idx] != block_size ||
+                        (blk.inner_idxs[idx] - static_cast<dnnl_dim_t>(candidate_trait.group_num)) != block_idx) {
+                        is_match = false;
+                        break;
+                    }
+                } else {
+                    if (blk.inner_blks[idx] != block_size ||
+                        blk.inner_idxs[idx] != block_idx) {
                         is_match = false;
                         break;
                     }
                 }
-
-                if (is_match)
-                    return static_cast<format::type>(fmt_idx);
             }
-        }
 
-        std::stringstream msg;
-        msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
-            << "ndims: " << desc.data.ndims
-            << ", inner_nblks: " << blk.inner_nblks
-            << ", inner_blks: ";
-        for (int i = 0; i < blk.inner_nblks; i++)
-            msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
-
-        throw std::runtime_error(msg.str());
-    }
-}
-
-
-// onednn -> cldnn
-static cldnn::format convert_format(dnnl::memory::format_tag fmt, bool is_grouped) {
-    if (is_grouped) {
-        switch (fmt) {
-        case dnnl::memory::format_tag::abcde: return cldnn::format::goiyx;
-        case dnnl::memory::format_tag::abcdef: return cldnn::format::goizyx;
-        case dnnl::memory::format_tag::Abcdef16a: return cldnn::format::gs_oizyx_gsv16;
-        case dnnl::memory::format_tag::Abcde16a: return cldnn::format::gs_oiyx_gsv16;
-        case dnnl::memory::format_tag::Abcde32a: return cldnn::format::gs_oiyx_gsv32;
-        case dnnl::memory::format_tag::Abcdef32a: return cldnn::format::gs_oizyx_gsv32;
-        case dnnl::memory::format_tag::aCBde16c16b: return cldnn::format::g_is_os_yx_isv16_osv16;
-        case dnnl::memory::format_tag::aBCde2b8c8b2c: return cldnn::format::g_os_is_yx_osa2_isa8_osv8_isv2;
-        case dnnl::memory::format_tag::aBCde4b8c8b4c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv4;
-        case dnnl::memory::format_tag::aBCde4b8c8b2c: return cldnn::format::g_os_is_yx_osa4_isa8_osv8_isv2;
-        case dnnl::memory::format_tag::aBCde8b2c: return cldnn::format::g_os_is_yx_osv8_isv2;
-        case dnnl::memory::format_tag::aBCde8b4c: return cldnn::format::g_os_is_yx_osv8_isv4;
-        case dnnl::memory::format_tag::aBcde8b: return cldnn::format::g_os_iyx_osv8;
-        case dnnl::memory::format_tag::aBCd2b8c16b4c: return cldnn::format::g_os_is_yx_osa2_isa8_osv16_isv4;
-        case dnnl::memory::format_tag::aBCd2b8c16b2c: return cldnn::format::g_os_is_yx_osa2_isa8_osv16_isv2;
-        case dnnl::memory::format_tag::aBCdef16c16b: return cldnn::format::g_os_is_zyx_isv16_osv16;
-        case dnnl::memory::format_tag::aBCdef4b8c8b2c: return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv2;
-        case dnnl::memory::format_tag::aBCdef4b8c8b4c: return cldnn::format::g_os_is_zyx_osa4_isa8_osv8_isv4;
-        default: throw std::runtime_error(std::string("Unsupported grouped onednn fmt ") + dnnl_fmt_tag2str((dnnl_format_tag_t)fmt));
-        }
-    } else {
-        switch (fmt) {
-        case dnnl::memory::format_tag::ab: return cldnn::format::oiyx;
-        case dnnl::memory::format_tag::abcd: return cldnn::format::oiyx;
-        case dnnl::memory::format_tag::bacd: return cldnn::format::ioyx;
-        case dnnl::memory::format_tag::bcda: return cldnn::format::iyxo;
-        case dnnl::memory::format_tag::BAcd16b16a: return cldnn::format::is_os_yx_isv16_osv16;
-        case dnnl::memory::format_tag::ABcd16b16a: return cldnn::format::os_is_yx_isv16_osv16;
-        case dnnl::memory::format_tag::abcde: return cldnn::format::oizyx;
-        case dnnl::memory::format_tag::ABcd4a8b8a4b: return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4;
-        case dnnl::memory::format_tag::ABcd4a8b8a2b: return cldnn::format::os_is_yx_osa4_isa8_osv8_isv2;
-        case dnnl::memory::format_tag::ABcde4a8b8a2b: return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv2;
-        case dnnl::memory::format_tag::ABcde4a8b8a4b: return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
-        case dnnl::memory::format_tag::ABcd8a4b: return cldnn::format::os_is_yx_osv8_isv4;
-        case dnnl::memory::format_tag::ABcde8a4b: return cldnn::format::os_is_zyx_osv8_isv4;
-        case dnnl::memory::format_tag::ABcde8a2b: return cldnn::format::os_is_zyx_osv8_isv2;
-        case dnnl::memory::format_tag::ABcd8a2b: return cldnn::format::os_is_yx_osv8_isv2;
-        case dnnl::memory::format_tag::Acdb16a: return cldnn::format::os_yxi_osv16;
-        case dnnl::memory::format_tag::Acdeb16a: return cldnn::format::os_zyxi_osv16;
-        case dnnl::memory::format_tag::ABcde16b16a: return cldnn::format::os_is_zyx_isv16_osv16;
-        case dnnl::memory::format_tag::aBcd16b: return cldnn::format::o_is_yx_isv16;
-        case dnnl::memory::format_tag::Abcd16a: return cldnn::format::os_iyx_osv16;
-        case dnnl::memory::format_tag::ABcd2a8b8a2b: return cldnn::format::os_is_yx_osa2_isa8_osv8_isv2;
-        case dnnl::memory::format_tag::ABcd2a8b16a4b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4;
-        case dnnl::memory::format_tag::ABcd2a8b16a2b: return cldnn::format::os_is_yx_osa2_isa8_osv16_isv2;
-        case dnnl::memory::format_tag::BAcd4b8a8b4a: return cldnn::format::is_os_yx_isa4_osa8_isv8_osv4;
-        default: throw std::runtime_error(std::string("Unsupported onednn fmt ") + dnnl_fmt_tag2str((dnnl_format_tag_t)fmt));
+            if (is_match)
+                return static_cast<format::type>(fmt_idx);
         }
     }
-}
 
-cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
-    auto onednn_desc = get_format_by_desc(desc);
-
-    if (onednn_desc != dnnl::memory::format_tag::undef) {
-        return convert_format(onednn_desc, is_grouped);
-    } else {
-        auto blk = desc.data.format_desc.blocking;
-        auto order = get_order(desc);
-        if (is_grouped) {
-            if (desc.data.ndims == 5 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
-                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
-                && compare_strides(order, {0, 1, 2, 3, 4})) {
-                return cldnn::format::g_os_is_yx_isa8_osv8_isv2;
-            }  else if (desc.data.ndims == 5 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
-                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
-                && compare_strides(order, {0, 1, 2, 3, 4})) {
-                return cldnn::format::g_os_is_yx_isa8_osv8_isv4;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
-                    if (compare_strides(order, {0, 1, 3, 4, 2}))        return cldnn::format::g_os_yx_is_osv8_isv2;
-                    else if (compare_strides(order, {0, 1, 3, 2, 4}))   return cldnn::format::g_os_y_is_x_osv8_isv2;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
-                    if (compare_strides(order, {0, 1, 3, 4, 2}))        return cldnn::format::g_os_yx_is_osv8_isv4;
-                    else if (compare_strides(order, {0, 1, 3, 2, 4}))   return cldnn::format::g_os_y_is_x_osv8_isv4;
-            } else if (desc.data.ndims == 6 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
-                    if (compare_strides(order, {0, 1, 3, 4, 5, 2}))       return cldnn::format::g_os_zyx_is_osv8_isv2;
-                    else if (compare_strides(order, {0, 1, 3, 4, 2, 5}))  return cldnn::format::g_os_zy_is_x_osv8_isv2;
-            } else if (desc.data.ndims == 6 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 2) {
-                    if (compare_strides(order, {0, 1, 3, 4, 5, 2}))       return cldnn::format::g_os_zyx_is_osv8_isv4;
-                    else if (compare_strides(order, {0, 1, 3, 4, 2, 5}))  return cldnn::format::g_os_zy_is_x_osv8_isv4;
-            } else if (desc.data.ndims == 6 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
-                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
-                && compare_strides(order, {0, 1, 2, 3, 4, 5})) {
-                return cldnn::format::g_os_is_zyx_isa8_osv8_isv2;
-            } else if (desc.data.ndims == 6 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
-                && blk.inner_idxs[0] == 2 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 2
-                && compare_strides(order, {0, 1, 2, 3, 4, 5})) {
-                return cldnn::format::g_os_is_zyx_isa8_osv8_isv4;
-            }
-        } else {
-            if (desc.data.ndims == 4 && blk.inner_nblks == 4
-                && blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4
-                && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1
-                && compare_strides(order, {1, 0, 2, 3})) {
-                return cldnn::format::is_os_yx_osa4_isa8_osv8_isv4;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 4
-                && blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1 && blk.inner_idxs[3] == 0
-                && compare_strides(order, {1, 0, 2, 3})) {
-                return cldnn::format::is_os_yx_isa2_osa8_isv8_osv2;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 4 && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1
-                && compare_strides(order, {0, 1, 2, 3})) {
-                return cldnn::format::os_is_yx_osv16_isv4;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 16 && blk.inner_blks[1] == 8 && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0
-                && compare_strides(order, {0, 1, 2, 3})) {
-                return cldnn::format::is_os_yx_isv16_osv8;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (compare_strides(order, {0, 1, 2, 3}))           return cldnn::format::os_is_yx_isa8_osv8_isv2;
-                else if (compare_strides(order, {1, 0, 2, 3}))      return cldnn::format::is_os_yx_isa8_osv8_isv2;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (compare_strides(order, {0, 1, 2, 3}))           return cldnn::format::os_is_yx_isa8_osv8_isv4;
-                else if (compare_strides(order, {1, 0, 2, 3}))      return cldnn::format::is_os_yx_isa8_osv8_isv4;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2
-                && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
-                if (compare_strides(order, {0, 2, 1, 3}))           return cldnn::format::os_y_is_x_osv8_isv2;
-                else if (compare_strides(order, {0, 2, 3, 1}))      return cldnn::format::os_yx_is_osv8_isv2;
-            } else if (desc.data.ndims == 4 && blk.inner_nblks == 2
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4
-                && blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
-                if (compare_strides(order, {0, 2, 1, 3}))           return cldnn::format::os_y_is_x_osv8_isv4;
-                else if (compare_strides(order, {0, 2, 3, 1}))      return cldnn::format::os_yx_is_osv8_isv4;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2 &&
-                blk.inner_blks[0] == 8 && blk.inner_blks[1] == 2 &&
-                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
-                if (compare_strides(order, {0, 2, 3, 4, 1}))        return cldnn::format::os_zyx_is_osv8_isv2;
-                else if (compare_strides(order, {0, 2, 3, 1, 4}))   return cldnn::format::os_zy_is_x_osv8_isv2;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 2 &&
-                blk.inner_blks[0] == 8 && blk.inner_blks[1] == 4 &&
-                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1) {
-                if (compare_strides(order, {0, 2, 3, 4, 1}))        return cldnn::format::os_zyx_is_osv8_isv4;
-                else if (compare_strides(order, {0, 2, 3, 1, 4}))   return cldnn::format::os_zy_is_x_osv8_isv4;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 2
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (compare_strides(order, {0, 1, 2, 3, 4}))        return cldnn::format::os_is_zyx_isa8_osv8_isv2;
-                else if (compare_strides(order, {1, 0, 2, 3, 4}))   return cldnn::format::is_os_zyx_isa8_osv8_isv2;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 3
-                && blk.inner_blks[0] == 8 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 4
-                && blk.inner_idxs[0] == 1 && blk.inner_idxs[1] == 0 && blk.inner_idxs[2] == 1) {
-                if (compare_strides(order, {0, 1, 2, 3, 4}))        return cldnn::format::os_is_zyx_isa8_osv8_isv4;
-                else if (compare_strides(order, {1, 0, 2, 3, 4}))   return cldnn::format::is_os_zyx_isa8_osv8_isv4;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
-                blk.inner_blks[0] == 2 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 2 &&
-                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
-                return cldnn::format::os_is_zyx_osa2_isa8_osv8_isv2;
-            } else if (desc.data.ndims == 5 && blk.inner_nblks == 4 &&
-                blk.inner_blks[0] == 4 && blk.inner_blks[1] == 8 && blk.inner_blks[2] == 8 && blk.inner_blks[3] == 4 &&
-                blk.inner_idxs[0] == 0 && blk.inner_idxs[1] == 1 && blk.inner_idxs[2] == 0 && blk.inner_idxs[3] == 1) {
-                return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
-            }
-        }
-
-        std::stringstream msg;
-        msg << "Unsupported " << (is_grouped ? "grouped" : "") << "onednn dnnl::memory::desc find_format. "
-            << "ndims: " << desc.data.ndims
-            << ", inner_nblks: " << blk.inner_nblks
-            << ", inner_blks: ";
-        for (int i = 0; i < blk.inner_nblks; i++)
-            msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
-        msg << ", strides_order: ";
+    std::stringstream msg;
+    msg << "Unsupported " << (is_grouped ? "grouped" : "") << "onednn dnnl::memory::desc find_format. "
+        << "ndims: " << desc.data.ndims
+        << ", inner_nblks: " << blk.inner_nblks
+        << ", inner_blks: ";
+    for (int i = 0; i < blk.inner_nblks; i++)
+        msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+    for (auto order : orders) {
+        msg << ", strides_order : ";
         for (const auto& value : order)
             msg << value << " ";
-
-        throw std::runtime_error(msg.str());
     }
+    msg << ", stride_value : ";
+    auto strides = desc.data.format_desc.blocking.strides;
+    for (size_t idx = 0; idx < orders[0].size() ; idx++) {
+        msg << strides[idx] << " ";
+    }
+
+    throw std::runtime_error(msg.str());
 }
 
 // Currently, usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
@@ -662,7 +510,5 @@ bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
 
 template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
 template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
-
-
 }  // namespace onednn
 }  // namespace cldnn
