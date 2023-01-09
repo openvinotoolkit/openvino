@@ -29,6 +29,9 @@ std::unique_ptr<ColorFormatInfo> ColorFormatInfo::get(ColorFormat format) {
     case ColorFormat::BGRX:
         res.reset(new ColorFormatInfo_RGBX_Base(format));
         break;
+    case ColorFormat::GRAY:
+        res.reset(new ColorFormatNHWC(format));
+        break;
     default:
         res.reset(new ColorFormatInfo(format));
         break;
