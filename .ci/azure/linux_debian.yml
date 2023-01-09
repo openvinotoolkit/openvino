@@ -238,7 +238,7 @@ jobs:
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
-      LD_LIBRARY_PATH: $(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: $(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR)
       # For frontend manager to load frontend libraries:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
