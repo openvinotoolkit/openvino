@@ -11,7 +11,10 @@ using namespace ov::opset9;
 typedef std::tuple<InferenceEngine::Precision,          // Network Precision
                    std::string,                         // Target Device
                    std::map<std::string, std::string>,  // Configuration
-                   std::vector<size_t>>                 // Input Shape
+                   std::vector<size_t>,                 // Input Shape
+                   ngraph::helpers::InputLayerType,     // Type of Eltwise input
+                   size_t>                             // Order of Eltwise input
+
     InputConvAddParams;
 
 namespace LayerTestsDefinitions {
@@ -24,8 +27,10 @@ public:
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
         std::vector<size_t> input_shape;
+        ngraph::helpers::InputLayerType input_eltwise_type;
+        size_t input_eltwise_order;
 
-        std::tie(precision, targetDevice, configuration, input_shape) = obj.param;
+        std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << precision.name() << "_";
@@ -35,6 +40,8 @@ public:
             result << "_configItem=" << configItem.first << "_" << configItem.second;
         }
         result << "_inputShape=" << CommonTestUtils::vec2str(input_shape);
+        result << "_input_eltwise_type=" << input_eltwise_type;
+        result << "_input_eltwise_order=" << input_eltwise_order;
 
         return result.str();
     }
@@ -52,9 +59,12 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision precision;
         std::vector<size_t> input_shape;
-        std::tie(precision, targetDevice, configuration, input_shape) = this->GetParam();
+        ngraph::helpers::InputLayerType input_eltwise_type;
+        size_t input_eltwise_order;
+        std::tie(precision, targetDevice, configuration, input_shape, input_eltwise_type, input_eltwise_order) = this->GetParam();
 
         auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
+
         auto input = std::make_shared<Parameter>(ng_precision, ov::Shape{input_shape});
 
         const auto weights_size = ov::shape_size(filter_size) * out_channels_num * input_shape[c_index_in_nchw];
@@ -71,98 +81,13 @@ protected:
                                                             out_channels_num,
                                                             false,
                                                             weights_values);
-        auto add = std::make_shared<Add>(input, convolution);
-        auto res = std::make_shared<Result>(add);
-        function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
-    }
-};
-
-class ConvInputAddTransposing : public InputConvAddTransposing {
-protected:
-    void SetUp() override {
-        InferenceEngine::Precision precision;
-        std::vector<size_t> input_shape;
-        std::tie(precision, targetDevice, configuration, input_shape) = this->GetParam();
-
-        auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
-        auto input = std::make_shared<Parameter>(ng_precision, ov::Shape{input_shape});
-        auto const_node = std::make_shared<Constant>(ng_precision, ov::Shape{input_shape});
-        const auto weights_size = ov::shape_size(filter_size) * out_channels_num * input_shape[c_index_in_nchw];
-        auto weights_values = CommonTestUtils::generate_float_numbers(weights_size, -0.2f, 0.2f);
-
-        auto convolution = ngraph::builder::makeConvolution(input,
-                                                            ng_precision,
-                                                            filter_size,
-                                                            strides,
-                                                            pads_begin,
-                                                            pads_end,
-                                                            dilations,
-                                                            pad_type,
-                                                            out_channels_num,
-                                                            false,
-                                                            weights_values);
-        auto add = std::make_shared<Add>(convolution, input);
-        auto res = std::make_shared<Result>(add);
-        function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
-    }
-};
-
-class ConstConvAddTransposing : public InputConvAddTransposing {
-protected:
-    void SetUp() override {
-        InferenceEngine::Precision precision;
-        std::vector<size_t> input_shape;
-        std::tie(precision, targetDevice, configuration, input_shape) = this->GetParam();
-
-        auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
-        auto input = std::make_shared<Parameter>(ng_precision, ov::Shape{input_shape});
-        auto const_node = std::make_shared<Constant>(ng_precision, ov::Shape{input_shape});
-        const auto weights_size = ov::shape_size(filter_size) * out_channels_num * input_shape[c_index_in_nchw];
-        auto weights_values = CommonTestUtils::generate_float_numbers(weights_size, -0.2f, 0.2f);
-
-        auto convolution = ngraph::builder::makeConvolution(input,
-                                                            ng_precision,
-                                                            filter_size,
-                                                            strides,
-                                                            pads_begin,
-                                                            pads_end,
-                                                            dilations,
-                                                            pad_type,
-                                                            out_channels_num,
-                                                            false,
-                                                            weights_values);
-        auto add = std::make_shared<Add>(const_node, convolution);
-        auto res = std::make_shared<Result>(add);
-        function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
-    }
-};
-
-class ConvConstAddTransposing : public InputConvAddTransposing {
-protected:
-    void SetUp() override {
-        InferenceEngine::Precision precision;
-        std::vector<size_t> input_shape;
-        std::tie(precision, targetDevice, configuration, input_shape) = this->GetParam();
-
-        auto ng_precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(precision);
-        auto input = std::make_shared<Parameter>(ng_precision, ov::Shape{input_shape});
-        auto const_node = std::make_shared<Constant>(ng_precision, ov::Shape{input_shape});
-        const auto weights_size = ov::shape_size(filter_size) * out_channels_num * input_shape[c_index_in_nchw];
-        auto weights_values = CommonTestUtils::generate_float_numbers(weights_size, -0.2f, 0.2f);
-
-        auto convolution = ngraph::builder::makeConvolution(input,
-                                                            ng_precision,
-                                                            filter_size,
-                                                            strides,
-                                                            pads_begin,
-                                                            pads_end,
-                                                            dilations,
-                                                            pad_type,
-                                                            out_channels_num,
-                                                            false,
-                                                            weights_values);
-
-        auto add = std::make_shared<Add>(convolution, const_node);
+        std::shared_ptr<Add> add;
+        if (input_eltwise_type == ngraph::helpers::InputLayerType::CONSTANT) {
+            auto const_node = std::make_shared<Constant>(ng_precision, ov::Shape{input_shape});
+            add = (input_eltwise_order == 0) ? std::make_shared<Add>(const_node, convolution) : std::make_shared<Add>(convolution, const_node);
+        } else if (input_eltwise_type == ngraph::helpers::InputLayerType::PARAMETER) {
+            add = (input_eltwise_order == 0) ? std::make_shared<Add>(input, convolution) : std::make_shared<Add>(convolution, input);
+        }
         auto res = std::make_shared<Result>(add);
         function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
     }
@@ -172,17 +97,12 @@ TEST_P(InputConvAddTransposing, CompareWithRefImpl) {
     Run();
 };
 
-TEST_P(ConvInputAddTransposing, CompareWithRefImpl) {
-    Run();
+const std::vector<ngraph::helpers::InputLayerType> eltwise_input_types = {
+    ngraph::helpers::InputLayerType::CONSTANT,
+    ngraph::helpers::InputLayerType::PARAMETER
 };
 
-TEST_P(ConstConvAddTransposing, CompareWithRefImpl) {
-    Run();
-};
-
-TEST_P(ConvConstAddTransposing, CompareWithRefImpl) {
-    Run();
-};
+const std::vector<size_t> eltwise_input_order = {0, 1};
 
 const InferenceEngine::Precision net_precisions{InferenceEngine::Precision::FP32};
 
@@ -200,32 +120,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
                          ::testing::Combine(::testing::Values(net_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(input_shapes)),
+                                            ::testing::ValuesIn(input_shapes),
+                                            ::testing::ValuesIn(eltwise_input_types),
+                                            ::testing::ValuesIn(eltwise_input_order)),
                          InputConvAddTransposing::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
-                         ConvInputAddTransposing,
-                         ::testing::Combine(::testing::Values(net_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(input_shapes)),
-                         ConvInputAddTransposing::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
-                         ConstConvAddTransposing,
-                         ::testing::Combine(::testing::Values(net_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(input_shapes)),
-                         ConstConvAddTransposing::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_add_transpose_detection,
-                         ConvConstAddTransposing,
-                         ::testing::Combine(::testing::Values(net_precisions),
-                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::ValuesIn(configs),
-                                            ::testing::ValuesIn(input_shapes)),
-                         ConvConstAddTransposing::getTestCaseName);
 
 
 }  // namespace LayerTestsDefinitions
