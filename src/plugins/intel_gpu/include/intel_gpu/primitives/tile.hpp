@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs tile operation on input.
 /// @details copies the input data n times across chosen axis.
@@ -40,7 +33,4 @@ struct tile : public primitive_base<tile> {
     /// @brief A per-dimension replication factor
     std::vector<int64_t> repeats;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

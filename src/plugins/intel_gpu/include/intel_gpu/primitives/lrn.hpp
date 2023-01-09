@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 typedef enum { /*:int32_t*/
     lrn_norm_region_across_channel,
@@ -67,7 +61,4 @@ struct lrn : public primitive_base<lrn> {
     /// @brief Normalize across or within channel
     lrn_norm_region norm_region;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

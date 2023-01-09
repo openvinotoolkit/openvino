@@ -7,15 +7,14 @@
 KERNEL(deconvolution_gpu_yxfb_ref)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    const __global FILTER_TYPE* filter,
+    const __global FILTER_TYPE* filter
 #if BIAS_TERM
-    const __global BIAS_TYPE* bias,
+    , const __global BIAS_TYPE* bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
-    )
+)
 {
     ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
@@ -52,7 +51,7 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
     const int y = (int)out_y + PADDING_SIZE_Y - (FILTER_SIZE_Y - 1);
     const int z = (int)out_z + PADDING_SIZE_Z - (FILTER_SIZE_Z - 1);
 
-#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+#if GROUPED
     const uint g = (ofm_offset / FILTER_OFM_NUM);
     const uint of = (ofm_offset % FILTER_OFM_NUM);
     const uint filter_offset = g * FILTER_GROUPS_PITCH;

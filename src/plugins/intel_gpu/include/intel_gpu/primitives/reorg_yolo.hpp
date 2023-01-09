@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Normalizes results so they sum to 1.
 /// @details
@@ -36,8 +29,5 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     /// Specific behaviour is determined by these parameters, as follows:
     uint32_t stride;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
 #pragma once

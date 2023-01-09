@@ -120,9 +120,6 @@ void set_arguments_impl(ocl_kernel_type& kernel,
             case args_t::SLOPE:
                 status = set_kernel_arg(kernel, i, data.slope);
                 break;
-            case args_t::SPLIT:
-                status = kernel.setArg(i, data.split);
-                break;
             case args_t::SCALAR:
                 if (data.scalars && args[i].index < data.scalars->size()) {
                     const auto& scalar = (*data.scalars)[args[i].index];

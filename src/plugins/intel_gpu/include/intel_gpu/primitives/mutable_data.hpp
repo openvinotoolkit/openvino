@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Provides mutable data.
 /// @details This primitive allows to pass data which can be written to during training.
@@ -55,7 +48,4 @@ struct mutable_data : public primitive_base<mutable_data> {
     /// @brief Specifies function which will be used to fill weights.
     filler_type fill_type;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

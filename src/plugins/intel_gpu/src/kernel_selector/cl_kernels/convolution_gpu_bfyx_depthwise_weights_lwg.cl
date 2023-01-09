@@ -11,11 +11,11 @@ __attribute__((reqd_work_group_size(16, 1, 1)))
 KERNEL(convolution_depthwise_weights_lwg)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
     const uint yx = (uint)get_global_id(0);
     const uint x = yx % OUTPUT_SIZE_X;
@@ -96,8 +96,7 @@ KERNEL(convolution_depthwise_weights_lwg)(
     dotProd += (UNIT_TYPE)biases[bias_index];
 #endif
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;
+    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x);
     output[dst_index] = ACTIVATION(dotProd, ACTIVATION_PARAMS);
 
 }

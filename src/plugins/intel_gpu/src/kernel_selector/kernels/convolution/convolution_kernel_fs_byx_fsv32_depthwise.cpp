@@ -37,7 +37,6 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32_depthwise::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
     return k;
 }

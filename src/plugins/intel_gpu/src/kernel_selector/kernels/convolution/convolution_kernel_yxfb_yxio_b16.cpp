@@ -23,7 +23,6 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b16::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableGroupedConvolution();
     k.EnableDilation();
     return k;

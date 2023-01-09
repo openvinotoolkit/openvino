@@ -12,6 +12,7 @@
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/util/file_util.hpp"
 
 #include <algorithm>
@@ -24,7 +25,6 @@
 #include <memory>
 #include <utility>
 
-#include "cldnn_itt.hpp"
 #if defined(__unix__) && !defined(__ANDROID__)
 #include <malloc.h>
 #endif
@@ -89,7 +89,7 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
     for (const auto& code : kernels_source_code) {
@@ -184,7 +184,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 
 // TODO: This build_batch method should be backend specific
 void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::build_batch");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
@@ -239,7 +239,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (precompiled_kernels.empty()) {
             cl::Program program(cl_build_engine.get_cl_context(), batch.source);
             {
-                OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
+                OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildProgram::RunCompilation");
                 if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
                     throw std::runtime_error("Failed in building program.");
             }
@@ -367,7 +367,7 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
 }
 
 void kernels_cache::build_all() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
     if (!_pending_compilation)
         return;
 
@@ -454,7 +454,7 @@ void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, cons
 }
 
 void kernels_cache::compile() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
 
     std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
     if (_engine.type() == engine_types::ocl) {

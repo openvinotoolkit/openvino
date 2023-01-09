@@ -22,7 +22,6 @@ public:
 
     static std::string to_string(random_uniform_node const &node);
 
-public:
     typed_primitive_inst(network &network, random_uniform_node const &desc);
 };
 

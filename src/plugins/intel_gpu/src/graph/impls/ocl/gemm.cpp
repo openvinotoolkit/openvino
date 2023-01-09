@@ -32,7 +32,7 @@ public:
         const auto input_layouts = gemm_inst::transform_input_layouts(primitive, impl_param.input_layouts, impl_param.output_layouts[0]);
         const auto output_layout = gemm_inst::transform_output_layout(primitive, input_layouts, impl_param.output_layouts[0]);
 
-        auto params = get_default_params<kernel_selector::gemm_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::gemm_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
 
         params.inputs.clear();

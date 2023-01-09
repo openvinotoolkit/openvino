@@ -103,7 +103,7 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include <low_precision/recurrent_cell.hpp>
 
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 namespace {
 template<typename T>

@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs non max supression of input boxes and returns indices of selected boxes.
 /// @detail Filters out boxes that have high intersection-over-union (IOU) with previously
@@ -88,7 +81,4 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

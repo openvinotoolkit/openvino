@@ -28,7 +28,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<broadcast>();
-        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
         const auto format = impl_param.get_output_layout().format;

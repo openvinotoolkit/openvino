@@ -43,8 +43,6 @@ public:
         return stream.enqueue_marker(events);
     }
 
-    bool validate(const primitive_inst&) const override { return true; }
-
     static std::unique_ptr<primitive_impl> create_data(const data_node& data, const kernel_impl_params&) {
         return make_unique<wait_for_events_impl>(data);
     }

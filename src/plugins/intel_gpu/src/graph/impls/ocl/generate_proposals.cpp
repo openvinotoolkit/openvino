@@ -27,8 +27,8 @@ struct generate_proposals_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance, int32_t) const override {
-        auto args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<generate_proposals>& instance) const override {
+        auto args = parent::get_arguments(instance);
         args.inputs.push_back(instance.output_rois_scores_memory());
         args.inputs.push_back(instance.output_rois_nums_memory());
         return args;

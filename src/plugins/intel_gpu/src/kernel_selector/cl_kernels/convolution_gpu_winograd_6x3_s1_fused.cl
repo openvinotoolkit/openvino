@@ -71,12 +71,12 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
     __read_only image2d_t  U,
 #else
-	__global FILTER_TYPE* U,
+	__global FILTER_TYPE* U
 #endif
 #if BIAS_TERM
-	const __global UNIT_TYPE * bias,
+	, const __global UNIT_TYPE * bias
 #endif
-	uint split_idx)
+)
 {
 	//               (DxC2)x(UxWx8c)
 	const uint slmSize = (2 * 8)*(16 * 4);

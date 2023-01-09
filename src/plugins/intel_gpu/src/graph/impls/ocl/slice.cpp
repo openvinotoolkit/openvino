@@ -109,7 +109,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
                 kernel_selector::slice_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        return make_unique<slice_impl>(arg, best_kernel);
+        return make_unique<slice_impl>(best_kernel);
     }
 };
 

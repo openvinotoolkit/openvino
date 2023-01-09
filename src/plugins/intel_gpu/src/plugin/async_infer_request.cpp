@@ -3,7 +3,7 @@
 //
 
 #include "intel_gpu/plugin/async_infer_request.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <memory>
 
 namespace ov {

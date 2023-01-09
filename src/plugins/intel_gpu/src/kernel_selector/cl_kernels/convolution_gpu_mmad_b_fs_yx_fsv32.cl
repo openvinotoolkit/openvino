@@ -45,21 +45,21 @@ REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     __global INPUT0_TYPE* input,
     __global PACKED_OUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint b = get_global_id(2);
     const uint fg = get_group_id(0);
@@ -84,9 +84,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
 #endif
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-
-    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET*ISV_SIZE + in_split_offset;
+    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET*ISV_SIZE;
 
     uint filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * ISV_SIZE * OSV_SIZE * IFM_BLOCKS;
 
@@ -237,13 +235,12 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #endif
     }
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
         for (int ofm = 0; ofm < 4; ofm++) {
 #if OUTPUT_DIMS == 5
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, z, y, x+i) + out_split_offset;
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, z, y, x+i);
 #elif OUTPUT_DIMS <= 4
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, y, x+i) + out_split_offset;
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, y, x+i);
 #endif
             bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
             bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
@@ -303,14 +300,13 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
         dst[i] = AS_PACKED_OUT_TYPE(pack);
     }
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X;
     const bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || (fg + 1) * OSV_SIZE <= OUTPUT_FEATURE_NUM;
     if (full_x && full_f) {
 #if OUTPUT_DIMS == 5
-        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x) + out_split_offset) / 4;
+        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / 4;
 #elif OUTPUT_DIMS <= 4
-        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, y, x) + out_split_offset) / 4;
+        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, y, x)) / 4;
 #endif
         BLOCK_WRITE(output + dst_index, dst);
     } else {
@@ -320,9 +316,9 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
             const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid < OUTPUT_FEATURE_NUM;
             if (full_it_x && full_sgl_f) {
 #   if OUTPUT_DIMS == 5
-                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, z, y, x+i) + out_split_offset;
+                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, z, y, x+i);
 #   elif OUTPUT_DIMS <= 4
-                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, y, x+i) + out_split_offset;
+                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, y, x+i);
 #   endif
                 output[dst_index/4] = dst[i];
             }
@@ -334,9 +330,9 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                 const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
                 if (full_it_x && full_sgl_f) {
 #   if OUTPUT_DIMS == 5
-                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, z, y, x+i) + out_split_offset;
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, z, y, x+i);
 #   elif OUTPUT_DIMS <= 4
-                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, y, x+i) + out_split_offset;
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, y, x+i);
 #   endif
                     ((__global uchar*)output)[dst_index] = as_uchar4(dst[i])[ofm];
                 }

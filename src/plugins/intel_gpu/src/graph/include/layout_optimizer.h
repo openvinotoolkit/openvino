@@ -86,7 +86,6 @@ private:
 class layout_optimizer {
 public:
     enum class optimization_attributes_type {
-        splitted_convolution,
         group_convolution,
         deformable_convolution,
         bfyx_only_layer,
@@ -99,7 +98,6 @@ public:
     };
 
     struct optimization_attributes {
-        int32_t splitted_convolution = 0;
         int32_t group_convolution = 0;
         int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;

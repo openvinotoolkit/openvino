@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief CTC greedy decoder primitve
 struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
@@ -39,7 +32,4 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
     tensor output_tensor;
     primitive_id second_output;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

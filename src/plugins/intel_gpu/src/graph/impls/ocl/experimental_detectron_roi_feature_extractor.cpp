@@ -26,7 +26,7 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
     }
 
 protected:
-    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance) const override {
         kernel_arguments_data args;
 
         for (std::size_t i = 0; i < instance.inputs_memory_count(); i++) {

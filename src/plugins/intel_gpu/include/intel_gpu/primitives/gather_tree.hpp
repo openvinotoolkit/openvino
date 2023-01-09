@@ -2,21 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-    /// @addtogroup cpp_api C++ API
-    /// @{
-    /// @addtogroup cpp_topology Network Topology
-    /// @{
-    /// @addtogroup cpp_primitives Primitives
-    /// @{
 
-    /// @brief Performs gather tree
-    ///
-    /// @details Performs gather tree
+/// @brief Performs gather tree
+///
+/// @details Performs gather tree
 struct gather_tree : public primitive_base<gather_tree> {
     CLDNN_DECLARE_PRIMITIVE(gather_tree)
 
@@ -38,7 +31,4 @@ struct gather_tree : public primitive_base<gather_tree> {
                     const padding& output_padding = padding())
             : primitive_base(id, { step_input, parent_input, max_seq_len_input, end_token }, {output_padding}) {}
 };
-    /// @}
-    /// @}
-    /// @}
 }  // namespace cldnn

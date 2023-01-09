@@ -8,12 +8,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief CTCLoss-4 primitive.
 struct ctc_loss : primitive_base<ctc_loss> {
@@ -41,7 +35,4 @@ struct ctc_loss : primitive_base<ctc_loss> {
     bool unique;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -46,21 +46,21 @@ REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
     __global INPUT0_TYPE* input,
     __global PACKED_OUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint b = get_global_id(2);
     const uint fg = get_group_id(0);
@@ -74,9 +74,7 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 
     ACCUMULATOR_TYPE_VEC acc[2] = { 0 }; // 2*8 packed channels * OUTPUT_X_BLOCK_SIZE
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-
-    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET;
 
     uint filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * 4 * OSV;
 
@@ -176,10 +174,9 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 #endif
     }
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
         for (int ofm = 0; ofm < 2; ofm++) {
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + ofm + 2*lid, y, x+i) + out_split_offset;
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + ofm + 2*lid, y, x+i);
             if (x + i < OUTPUT_SIZE_X && fg*OSV + ofm + 2*lid < OUTPUT_FEATURE_NUM) {
                 output[dst_index] = dst[ofm][i];
             }
@@ -212,10 +209,9 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 #endif
     }
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
         if (x + i < OUTPUT_SIZE_X) {
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + 2*lid, y, x+i) + out_split_offset;
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + 2*lid, y, x+i);
             output[dst_index/2] = dst[i];
         }
     }

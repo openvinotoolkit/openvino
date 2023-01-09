@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <vector>
 #include <list>
 #include <memory>
@@ -20,7 +18,7 @@ using namespace cldnn;
 
 // ToDo remove friendship relation from  program_node and program
 void propagate_constants::run(program& p) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::PropagateConstants");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::PropagateConstants");
     for (auto& node : p.get_processing_order()) {
         if (node->is_constant())
             handle_constant(p, *node);

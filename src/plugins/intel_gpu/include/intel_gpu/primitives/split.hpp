@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs split operation on input.
 /// @details splits the input data into n parts, for each user provides name and offsets.
@@ -72,7 +65,4 @@ protected:
         return res;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

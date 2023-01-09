@@ -8,12 +8,7 @@
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 /// @brief Constructs experimental_detectron_prior_grid_generator primitive.
 struct experimental_detectron_prior_grid_generator

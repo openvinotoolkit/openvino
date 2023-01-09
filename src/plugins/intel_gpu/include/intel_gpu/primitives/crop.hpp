@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select original ngraph op mode for the @ref crop layer.
 enum class crop_ngraph_op_mode : int32_t {
@@ -132,7 +125,4 @@ struct crop : public primitive_base<crop> {
     /// @brief original ngraph operation type
     crop_ngraph_op_mode op_mode;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

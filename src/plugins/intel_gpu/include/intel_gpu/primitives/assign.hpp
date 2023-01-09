@@ -10,12 +10,6 @@
 #include "intel_gpu/runtime/memory.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Sets an input value to the variable_id variable.
 struct assign : public primitive_base<assign> {
@@ -37,7 +31,4 @@ struct assign : public primitive_base<assign> {
     std::string variable_id;
     layout output_layout;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

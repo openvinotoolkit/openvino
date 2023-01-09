@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <iostream>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -23,7 +21,7 @@
 using namespace cldnn;
 
 void select_preferred_formats::run(program& p) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "pass::select_preferred_formats");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::select_preferred_formats");
 
     auto& engine = p.get_engine();
     const auto& device_info = engine.get_device_info();

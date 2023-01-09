@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/core/strides.hpp"
@@ -10,12 +9,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward spatial convolution with weight sharing.
 /// Also supports built-in Relu @CLDNN_PRIMITIVE_DESC{activation} available by setting it in arguments.
@@ -770,9 +763,6 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
-
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size() + bias.size() + weights_zero_points.size() +
@@ -863,9 +853,6 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
-
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size() + bias.size());
@@ -875,7 +862,4 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

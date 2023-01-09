@@ -8,17 +8,17 @@
 KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const __global INPUT0_TYPE* data,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if DEFORMABLE_MODE
-    const  __global INPUT1_TYPE* trans,
+    , const  __global INPUT1_TYPE* trans
 #if DEFORMABLE_MASK_ENABLED
-    const  __global INPUT2_TYPE* mask,
+    , const  __global INPUT2_TYPE* mask
 #endif
 #endif
-    uint split_idx)
+)
 {
     const uint x = get_global_id(0);
     const uint y = get_global_id(1);
@@ -133,7 +133,6 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
 #endif
     dotProd += (UNIT_TYPE)biases[bias_index];
 #endif
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, of, y, x) + out_split_offset;
+    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, of, y, x);
     output[dst_index] = ACTIVATION(dotProd, ACTIVATION_PARAMS);
 }

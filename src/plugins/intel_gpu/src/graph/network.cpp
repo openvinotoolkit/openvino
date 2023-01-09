@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
@@ -31,7 +29,7 @@
 #include "loop_inst.h"
 #include "kernel_selector_helper.h"
 #include "program_helpers.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "kernels_cache.hpp"
 #include "compilation_context.hpp"
 
@@ -532,8 +530,7 @@ network::ptr network::build_network(engine& engine,
 void network::validate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("validate_primitives");
     for (auto const& prim : _exec_order) {
-        bool valid = prim->validate();
-        CLDNN_ERROR_NOT_EQUAL(prim->id(), "validate", valid, "", true, "has not a valid instance.");
+        prim->validate();
     }
 }
 
@@ -894,7 +891,7 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
 
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::Execute");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     // Wait for previous execution completion
     reset_execution(false);
     GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
@@ -1173,7 +1170,7 @@ void network::allocate_primitive_instance(program_node const& node) {
 }
 
 void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "NetworkImpl::TransferMemory");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::TransferMemory");
     auto& inst_mem = instance->output_memory();
     auto alloc_type = inst_mem.get_allocation_type();
 

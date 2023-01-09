@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Creates a one-hot encoding of the input.
 /// @details Creates a one-hot encoding of the input, putting the new one-hot axis in the position
@@ -95,7 +88,4 @@ struct one_hot : public primitive_base<one_hot> {
     /// @brief all other locations take value this value.
     float off_value;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

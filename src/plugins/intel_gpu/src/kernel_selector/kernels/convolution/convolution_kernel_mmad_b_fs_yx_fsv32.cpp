@@ -63,7 +63,7 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p, const optio
         return false;
     }
 
-    if (params.split > 1 || params.groups > 1)
+    if (params.groups > 1)
         return false;
 
     return true;

@@ -14,11 +14,11 @@ REQD_SUB_GROUP_SIZE(8)
 KERNEL(convolution_f32)(
     const __global float *src0,
     __global float *dst,
-    const __global float *src1,
+    const __global float *src1
 #if BIAS_TERM
-    const __global float *bias,
+    , const __global float *bias
 #endif
-    uint split_idx)
+)
 {
 #include "include/batch_headers/vec_typedefs.cl"
 

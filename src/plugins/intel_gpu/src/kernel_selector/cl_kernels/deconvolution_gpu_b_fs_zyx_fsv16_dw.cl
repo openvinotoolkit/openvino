@@ -57,14 +57,14 @@ __attribute__((reqd_work_group_size(1, FEATURE_SLICE_SIZE, 1)))
 KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
         const  __global INPUT0_TYPE *input,
         __global OUTPUT_TYPE *output,
-        const __global FILTER_TYPE *weights,
+        const __global FILTER_TYPE *weights
 #if BIAS_TERM
-        const __global BIAS_TYPE *bias,
+        , const __global BIAS_TYPE *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-        FUSED_OPS_DECLS,
+        , FUSED_OPS_DECLS
 #endif
-        uint split_idx
+
         )
 {
     const uint zyx = (uint)get_global_id(0);

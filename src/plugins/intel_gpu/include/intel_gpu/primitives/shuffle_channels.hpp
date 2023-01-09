@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -37,7 +30,4 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
     /// @brief The index of the channel dimension (default is 1).
     int32_t axis;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -13,7 +13,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "file_utils.h"
 #include "ie_api.h"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include <openvino/util/common_util.hpp>
 

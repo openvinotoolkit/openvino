@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils/test_utils.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 

@@ -10,12 +10,7 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 using GridSampleOp = ov::op::v9::GridSample;
 
@@ -37,7 +32,4 @@ struct grid_sample : primitive_base<grid_sample> {
     GridSampleOp::Attributes attributes;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

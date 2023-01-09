@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pooling_inst.h"
 #include "program_node.h"
 #include "pass_manager.h"
@@ -62,7 +60,7 @@ void prepare_padding::run(program& p) {
                     format == format::b_fs_zyx_fsv32)
                     continue;
 
-                auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+                auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
@@ -81,7 +79,7 @@ void prepare_padding::run(program& p) {
                 if (!prim->with_output_size)
                     continue;
 
-                auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+                auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
@@ -176,7 +174,7 @@ void prepare_padding::run(program& p) {
             continue;
 
         // Calculating input padding needed for convolution
-        auto& filter_node = node.as<convolution>().weights(0);
+        auto& filter_node = node.as<convolution>().weights();
         auto filter_prim = filter_node.get_primitive();
 
         layout filter_layout = filter_node.get_output_layout().convert_to_weights_layout(conv->grouped_weights_shape);
@@ -244,7 +242,7 @@ void prepare_padding::run(program& p) {
             continue;
 
         // Calculating input padding needed for convolution
-        auto& filter_node = node.as<binary_convolution>().weights(0);
+        auto& filter_node = node.as<binary_convolution>().weights();
         auto filter_prim = filter_node.get_primitive();
 
         layout filter_layout = filter_node.get_output_layout();

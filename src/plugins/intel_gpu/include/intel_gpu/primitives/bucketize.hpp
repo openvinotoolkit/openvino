@@ -6,12 +6,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Bucketize operation bucketizes the input based on boundaries.
 struct bucketize : primitive_base<bucketize> {
@@ -33,7 +27,4 @@ struct bucketize : primitive_base<bucketize> {
     bool with_right_bound;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

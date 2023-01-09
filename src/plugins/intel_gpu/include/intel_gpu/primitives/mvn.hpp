@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Mean Variance Normalization primitive.
 /// @details Normalizes the input to have 0-mean and/or unit (1) variance.
@@ -48,7 +41,4 @@ struct mvn : public primitive_base<mvn> {
     /// @brief Determines if the normalization is done across or within channels.
     bool across_channels;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
