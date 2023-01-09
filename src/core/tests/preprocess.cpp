@@ -3,7 +3,6 @@
 //
 
 #include "common_test_utils/test_assertions.hpp"
-#include "gmock/gmock-matchers.h"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/ops.hpp"
@@ -212,10 +211,10 @@ TEST(pre_post_process, tensor_element_type_and_scale) {
     EXPECT_EQ(ov::layout::get_layout(f->input(0)), Layout());
 }
 
-class pre_post_process_to_gray : public ::testing::TestWithParam<ColorFormat> {};
+class convert_color_to_gray : public ::testing::TestWithParam<ColorFormat> {};
 
-TEST_P(pre_post_process_to_gray, convert_color_nhwc_to_nhwc) {
-    auto COLOR_FORMAT = GetParam();
+TEST_P(convert_color_to_gray, nhwc_to_nhwc) {
+    const auto& COLOR_FORMAT = GetParam();
 
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 1});
     auto p = PrePostProcessor(f);
@@ -234,8 +233,8 @@ TEST_P(pre_post_process_to_gray, convert_color_nhwc_to_nhwc) {
     EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 2, 1}));
 }
 
-TEST_P(pre_post_process_to_gray, convert_color_nchw_to_nchw) {
-    auto COLOR_FORMAT = GetParam();
+TEST_P(convert_color_to_gray, nchw_to_nchw) {
+    const auto& COLOR_FORMAT = GetParam();
 
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 2, 2});
     auto p = PrePostProcessor(f);
@@ -249,8 +248,8 @@ TEST_P(pre_post_process_to_gray, convert_color_nchw_to_nchw) {
     EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 1, 2, 2}));
 }
 
-TEST_P(pre_post_process_to_gray, convert_color_nhwc_to_nchw) {
-    auto COLOR_FORMAT = GetParam();
+TEST_P(convert_color_to_gray, nhwc_to_nchw) {
+    const auto& COLOR_FORMAT = GetParam();
 
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 2, 2});
     auto p = PrePostProcessor(f);
@@ -264,8 +263,8 @@ TEST_P(pre_post_process_to_gray, convert_color_nhwc_to_nchw) {
     EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 1, 2, 2}));
 }
 
-TEST_P(pre_post_process_to_gray, convert_color_nchw_to_nhwc) {
-    auto COLOR_FORMAT = GetParam();
+TEST_P(convert_color_to_gray, nchw_to_nhwc) {
+    const auto& COLOR_FORMAT = GetParam();
 
     auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 1});
     auto p = PrePostProcessor(f);
@@ -279,42 +278,53 @@ TEST_P(pre_post_process_to_gray, convert_color_nchw_to_nhwc) {
     EXPECT_EQ(f->get_result()->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 2, 2, 1}));
 }
 
-TEST_P(pre_post_process_to_gray, convert_color_asserts) {
-    auto COLOR_FORMAT = GetParam();
+TEST_P(convert_color_to_gray, assert_no_N_dim) {
+    const auto& COLOR_FORMAT = GetParam();
 
-    // No "N" dimension name
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 1});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("DHWC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
                     , ov::AssertFailure, ::testing::HasSubstr("Dimension name 'N' is not found in layout"));
+}
 
-    // No "C" dimension name
+TEST_P(convert_color_to_gray, assert_no_C_dim) {
+    const auto& COLOR_FORMAT = GetParam();
+
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 1});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("NHWD").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
                     , ov::AssertFailure, ::testing::HasSubstr("C dimension index is not defined"));
+}
 
-    // // Rank < 4
+TEST_P(convert_color_to_gray, assert_rank_less_4) {
+    const auto& COLOR_FORMAT = GetParam();
+
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 3});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("NHC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
                     , ov::AssertFailure, ::testing::HasSubstr("Input shape size should be equal to 4, actual size: 3"));
+}
 
-    // // Rank > 4
+TEST_P(convert_color_to_gray, assert_rank_more_4) {
+    const auto& COLOR_FORMAT = GetParam();
+    
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 2, 3});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("NDHWC").set_color_format(COLOR_FORMAT);
                     p.input().preprocess().convert_color(ColorFormat::GRAY);
                     p.build();
                     , ov::AssertFailure, ::testing::HasSubstr("Input shape size should be equal to 4, actual size: 5"));
+}
 
-    // // "C" != 1
+TEST_P(convert_color_to_gray, assert_C_not_equal_1) {
+    const auto& COLOR_FORMAT = GetParam();
+    
     OV_EXPECT_THROW(auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 5});
                     auto p = PrePostProcessor(f);
                     p.input().tensor().set_layout("NHWC").set_color_format(COLOR_FORMAT);
@@ -327,9 +337,9 @@ TEST_P(pre_post_process_to_gray, convert_color_asserts) {
 }
 
 INSTANTIATE_TEST_SUITE_P(pre_post_process,
-                         pre_post_process_to_gray,
+                         convert_color_to_gray,
                          ::testing::Values(ColorFormat::RGB, ColorFormat::BGR),
-                         [](const ::testing::TestParamInfo<pre_post_process_to_gray::ParamType>& info) {
+                         [](const ::testing::TestParamInfo<convert_color_to_gray::ParamType>& info) {
                              std::string name =
                                  color_format_name(info.param) + "_to_" + color_format_name(ColorFormat::GRAY);
                              return name;
