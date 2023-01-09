@@ -590,7 +590,8 @@ void shape_infer(const ConvolutionBackpropData* op,
     NODE_VALIDATION_CHECK(
         op,
         (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
+            (static_cast<int64_t>(filters_shape.size()) ==
+             static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
         "Data and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
@@ -671,7 +672,8 @@ void shape_infer(const GroupConvolutionBackpropData* op,
     NODE_VALIDATION_CHECK(
         op,
         (static_cast<int64_t>(input_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_data_dims)) &&
-            (static_cast<int64_t>(filters_shape.size()) == static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
+            (static_cast<int64_t>(filters_shape.size()) ==
+             static_cast<int64_t>(num_spatial + num_non_spatial_filter_dims)),
         "Data and filters rank do not match (data batch shape: ",
         input_shape,
         ", filters shape: ",
