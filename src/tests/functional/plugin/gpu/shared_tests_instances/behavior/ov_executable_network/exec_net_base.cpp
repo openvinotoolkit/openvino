@@ -39,7 +39,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests, OVExecutableNetworkBaseTe
                          OVExecutableNetworkBaseTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
-                         OVExecutableNetworkBaseTest,
+                         OVAutoExecutableNetworkTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                             ::testing::ValuesIn(multiConfigs)),
                          OVExecutableNetworkBaseTest::getTestCaseName);
