@@ -94,30 +94,34 @@ static bool CheckIfCanApplyCustomScaleFactor(const header_latest::ModelHeader& h
 }
 
 void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config, const header_latest::ModelHeader& header) {
-    if (CheckIfCanApplyCustomScaleFactor(header)) {
-        ApplyInputScaleFactors(inputs, config);
+    // we have to check that SF exist in the configuration and values are not default
+    const bool custom_scale_factors = IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput);
+    const bool custom_scale_factors_legacy = IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors);
+    if (!custom_scale_factors && !custom_scale_factors_legacy) {
+        return;
     }
+
+    if (!CheckIfCanApplyCustomScaleFactor(header)) {
+        return;
+    }
+
+    if (custom_scale_factors) {
+        ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);
+    } else if (custom_scale_factors_legacy) {
+        ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
+    }
+
+    return;
 }
 
 void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config) {
-    // If scale factors are defined in configuration we still need to use them instead of imported values,
-    // for example to change the scale factors for the old models.
-    const bool custom_scale_factor_per_input =
-        IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput);
-    const bool custom_scale_factor_legacy = IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors);
-
-    if (!custom_scale_factor_per_input && !custom_scale_factor_legacy) {
-        return;
-    }
-
-    // Due the fact inputScaleFactors is set by defuault construcor of ov::intel_gna::Config
-    // we need to check is_intput_scale_factor_per_input_given as first.
-    if (custom_scale_factor_per_input) {
+    if (IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput)) {
         ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);
-        return;
+    } else if (IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors)) {
+        ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
     }
 
-    ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
+    return;
 }
 
 }  // namespace helpers
