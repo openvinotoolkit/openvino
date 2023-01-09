@@ -1091,9 +1091,14 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         return;
     }
 
-    ob << _outputs[0]->get_layout();
-    const auto _allocation_type = _outputs[0]->get_allocation_type();
-    ob << make_data(&_allocation_type, sizeof(_allocation_type));
+    if (_outputs[0] == nullptr) {
+        ob << true;
+    } else {
+        ob << false;
+        ob << _outputs[0]->get_layout();
+        const auto _allocation_type = _outputs[0]->get_allocation_type();
+        ob << make_data(&_allocation_type, sizeof(_allocation_type));
+    }
 
     bool can_reuse_memory = true;
     if (user_requesting_mem_reuse_false(*_node)) {
@@ -1113,7 +1118,7 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << dep->id();
     }
 
-    if (!mem_allocated())
+    if (!mem_allocated() && _outputs[0] != nullptr)
         ob << find_dep_by_mem(this, output_memory());
 
     ob << _intermediates_memory.size();
@@ -1201,11 +1206,14 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         return;
     }
 
+    bool output_is_null;
+    ib >> output_is_null;
     layout output_layout = layout();
-    ib >> output_layout;
-
     allocation_type _allocation_type;
-    ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+    if (!output_is_null) {
+        ib >> output_layout;
+        ib >> make_data(&_allocation_type, sizeof(_allocation_type));
+    }
 
     bool can_reuse_memory;
     ib >> can_reuse_memory;
@@ -1227,19 +1235,21 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     }
 
     _outputs[0] = nullptr;
-    if (!_mem_allocated) {
-        std::string dep_id;
-        ib >> dep_id;
-        if (dep_id.compare("NOT_FOUND") != 0) {
-            _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layout);
-        } else if (type() == cldnn::mutable_data::type_id()) {
-            _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
-        }
-    } else {
-        if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
-            _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
+    if (!output_is_null) {
+        if (!_mem_allocated) {
+            std::string dep_id;
+            ib >> dep_id;
+            if (dep_id.compare("NOT_FOUND") != 0) {
+                _outputs[0] = get_network().get_engine().reinterpret_buffer(get_network().get_primitive(dep_id)->output_memory(), output_layout);
+            } else if (type() == cldnn::mutable_data::type_id()) {
+                _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
+            }
         } else {
-            _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, can_reuse_memory);
+            if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
+                _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
+            } else {
+                _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, can_reuse_memory);
+            }
         }
     }
     _output_changed = false;
