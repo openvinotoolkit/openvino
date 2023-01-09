@@ -43,6 +43,7 @@ struct memory {
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }
+    bool is_reused() const { return _reused; }
     virtual shared_mem_params get_internal_params() const = 0;
     virtual bool is_allocated_by(const engine& engine) const { return &engine == _engine; }
     engine* get_engine() const { return _engine; }

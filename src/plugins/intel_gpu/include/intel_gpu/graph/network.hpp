@@ -134,10 +134,16 @@ public:
     std::vector<U> get_output_values(const primitive_id& id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
         std::vector<U> ret;
         auto ptr = get_output_memory(id);
+        mem_lock<T, mem_lock_type::read> mem(ptr, get_stream());
         if (ptr->get_layout().data_type != type_to_data_type<T>::value)
             IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
                        << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
-        mem_lock<T, mem_lock_type::read> mem(ptr, get_stream());
+        if (ptr->is_reused()) {
+            IE_THROW()
+                << "WARNING: Reading reused memory. "
+                << "Please set engine_configuration.use_memory_pool option to false to use this function."
+                << std::endl;
+        }
         for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
             ret.push_back(mem[i]);
         return ret;
