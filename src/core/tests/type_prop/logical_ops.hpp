@@ -136,8 +136,8 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4, {-1, 5}};
-    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, ov::no_label, 14});
-    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, ov::no_label, ov::no_label});
+    set_shape_labels(shape_a, std::vector<ov::label_t>{ov::no_label, 11, 12, ov::no_label, 14});
+    set_shape_labels(shape_b, std::vector<ov::label_t>{20, 21, ov::no_label, ov::no_label, ov::no_label});
     const auto exp_shape = PartialShape{1, 3, {2, 5}, 4, {-1, 5}};
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);
@@ -157,8 +157,8 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4};
-    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, 13, 14});
-    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, 23});
+    set_shape_labels(shape_a, std::vector<ov::label_t>{ov::no_label, 11, 12, 13, 14});
+    set_shape_labels(shape_b, std::vector<ov::label_t>{20, 21, ov::no_label, 23});
     const auto exp_shape = PartialShape{1, {2, 4}, 3, 4, 4};
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);

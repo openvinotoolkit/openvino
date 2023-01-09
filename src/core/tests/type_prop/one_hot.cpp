@@ -55,7 +55,7 @@ TEST(type_prop, one_hot_v1_indices_labels) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, 4, {3, 5}, 2, 3};
-    std::vector<size_t> expected_labels{10, ov::no_label, 11, 12, 13};
+    std::vector<ov::label_t> expected_labels{10, ov::no_label, 11, 12, 13};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
@@ -110,7 +110,7 @@ TEST(type_prop, one_hot_v1_depth_value_label) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, {4, 6}, {3, 5}, 2, 3};
-    std::vector<size_t> expected_labels{10, depth_label, 11, 12, 13};
+    std::vector<ov::label_t> expected_labels{10, depth_label, 11, 12, 13};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
@@ -131,7 +131,7 @@ TEST(type_prop, one_hot_v1_output_labels) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, 4, {3, 5}, 2, 3};
-    std::vector<size_t> expected_labels{10, ov::no_label, 11, 12, 13};
+    std::vector<ov::label_t> expected_labels{10, ov::no_label, 11, 12, 13};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);

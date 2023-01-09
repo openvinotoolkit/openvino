@@ -261,12 +261,12 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_one_input_only_no_b
 TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_no_broadcast) {
     constexpr auto et = element::f64;
 
-    const auto labels_a = std::vector<size_t>{10, ov::no_label, 12, 13, 14, 15};
+    const auto labels_a = std::vector<ov::label_t>{10, ov::no_label, 12, 13, 14, 15};
     auto shape_a = PartialShape{2, 4, 5, -1, {4, 5}, {-1, 6}};
     set_shape_labels(shape_a, labels_a);
     const auto a = make_shared<op::Parameter>(et, shape_a);
 
-    const auto labels_b = std::vector<size_t>{20, 21, ov::no_label, 23, 24, 25};
+    const auto labels_b = std::vector<ov::label_t>{20, 21, ov::no_label, 23, 24, 25};
     auto shape_b = PartialShape{2, 4, 5, 5, -1, {4, -1}};
     set_shape_labels(shape_b, labels_b);
     const auto b = make_shared<op::Parameter>(et, shape_b);
@@ -283,12 +283,12 @@ TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_no_broa
 TYPED_TEST_P(BinaryElementwiseCmpTest, propagate_labels_from_both_inputs_numpy_broadcast) {
     constexpr auto et = element::f64;
 
-    const auto labels_a = std::vector<size_t>{10, ov::no_label, 12, 13, ov::no_label, 15};
+    const auto labels_a = std::vector<ov::label_t>{10, ov::no_label, 12, 13, ov::no_label, 15};
     auto shape_a = PartialShape{2, {2, 4}, -1, {4, 5}, {-1, 6}, 1};
     set_shape_labels(shape_a, labels_a);
     const auto a = make_shared<op::Parameter>(et, shape_a);
 
-    const auto labels_b = std::vector<size_t>{20, 21, ov::no_label, 23};
+    const auto labels_b = std::vector<ov::label_t>{20, 21, ov::no_label, 23};
     auto shape_b = PartialShape{2, {4, -1}, 5, {4, -1}};
     set_shape_labels(shape_b, labels_b);
     const auto b = make_shared<op::Parameter>(et, shape_b);

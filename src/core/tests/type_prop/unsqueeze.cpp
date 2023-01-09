@@ -92,8 +92,8 @@ protected:
         UnSqueezeFixture::SetUp();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
+    std::pair<std::vector<ov::label_t>, std::vector<ov::label_t>> make_in_exp_labels() const {
+        std::vector<ov::label_t> in_labels;
         std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
 
         auto unique_axes = std::set<int64_t>(axes.begin(), axes.end());
@@ -238,7 +238,7 @@ TEST_P(UnsqueezeTest, labels_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set label";
     }
-    std::vector<size_t> in_labels, exp_labels;
+    std::vector<ov::label_t> in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);

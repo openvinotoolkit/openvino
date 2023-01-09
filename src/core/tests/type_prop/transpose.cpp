@@ -48,7 +48,7 @@ TEST(type_prop, transpose_arg_static_input_order_constant_invalid_perm) {
 }
 
 TEST(type_prop, transpose_with_not_unique_order) {
-    const auto order = std::vector<size_t>{1, 0, 1};
+    const auto order = std::vector<ov::label_t>{1, 0, 1};
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 4, 300});
     auto input_order = make_shared<op::Constant>(element::i64, Shape{order.size()}, order);
 
@@ -253,7 +253,7 @@ TEST(type_prop, transpose_input_order_et_wrong) {
 
 TEST(type_prop, transpose_with_empty_order) {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{1, 300});
-    auto input_order = make_shared<op::Constant>(element::i64, Shape({0}), std::vector<size_t>());
+    auto input_order = make_shared<op::Constant>(element::i64, Shape({0}), std::vector<ov::label_t>());
 
     auto r = make_shared<op::Transpose>(arg, input_order);
 
@@ -338,15 +338,15 @@ protected:
         std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
     }
 
-    vector<size_t> make_seq_labels(const size_t first, const size_t count) {
-        vector<size_t> labels;
+    std::vector<ov::label_t> make_seq_labels(const size_t first, const size_t count) {
+        std::vector<ov::label_t> labels;
 
         generate_n(std::back_inserter(labels), count, ov::SeqGen<size_t>(first));
         return labels;
     }
 
-    vector<size_t> make_seq_labels_by_order(const size_t first, const vector<int64_t> order) {
-        vector<size_t> labels;
+    std::vector<ov::label_t> make_seq_labels_by_order(const size_t first, const vector<int64_t> order) {
+        std::vector<ov::label_t> labels;
         transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) {
             return dim + first;
         });
@@ -405,7 +405,7 @@ TEST_P(TransposeTest, propagate_interval_shape) {
  * The labels should be moved accordingly to transpose order.
  */
 TEST_P(TransposeTest, propagate_labels) {
-    constexpr size_t first_label = 33;
+    constexpr ov::label_t first_label = 33;
 
     const auto labels = make_seq_labels(first_label, transpose_order.size());
     const auto exp_labels = make_seq_labels_by_order(first_label, transpose_order);
