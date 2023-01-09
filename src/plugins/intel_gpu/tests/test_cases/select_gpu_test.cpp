@@ -2357,9 +2357,9 @@ TEST(select_gpu_f32, dynamic) {
     topology.add(input_layout("mask", mask_layout));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
-    build_options options;
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
