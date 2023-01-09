@@ -108,7 +108,7 @@ class ConvertFP8(Op):
             'version': 'opset1',
             'is_eltwise': True,
             'infer': self.infer,
-            'in_ports_count': 2,
+            'in_ports_count': 3,
             'out_ports_count': 1,
             'auto_broadcast': 'numpy',
             'destination_type': 'hf8_ext',
@@ -125,7 +125,7 @@ class ConvertFP8(Op):
 
     @staticmethod
     def infer(node: Node):
-        assert len(node.in_nodes()) == 2
+        assert len(node.in_nodes()) == 3
         assert len(node.out_nodes()) == 1
         inputs = [node.in_node(i) for i in range(2)]
         x, input_low = inputs

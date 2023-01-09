@@ -17,9 +17,10 @@ op::v1::ConvertFP8::ConvertFP8() : Op(), m_destination_type("hf8_ext"), m_apply_
 //! [op:ctor]
 op::v1::ConvertFP8::ConvertFP8(const ov::Output<ov::Node>& arg,
                                const ov::Output<ov::Node>& scale,
+                               const ov::Output<ov::Node>& offset,
                                const std::string& destination_type,
                                bool apply_scale)
-    : Op({arg, scale}),
+    : Op({arg, scale, offset}),
       m_destination_type(destination_type),
       m_apply_scale(apply_scale) {
     validate();
@@ -37,9 +38,13 @@ void op::v1::ConvertFP8::validate_and_infer_types() {
 
 //! [op:copy]
 std::shared_ptr<ov::Node> op::v1::ConvertFP8::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    OPENVINO_ASSERT(new_args.size() == 2, "Incorrect number of new arguments");
+    OPENVINO_ASSERT(new_args.size() == 3, "Incorrect number of new arguments");
 
-    return std::make_shared<ConvertFP8>(new_args.at(0), new_args.at(1), m_destination_type, m_apply_scale);
+    return std::make_shared<ConvertFP8>(new_args.at(0),
+                                        new_args.at(1),
+                                        new_args.at(2),
+                                        m_destination_type,
+                                        m_apply_scale);
 }
 //! [op:copy]
 
@@ -495,22 +500,28 @@ void apply_scale(T* data, int sz, S scale) {
 }
 
 template <typename T>
-void apply_per_channel_scale(ov::Tensor& data, const ov::Tensor& scale, bool invert = false) {
+void apply_per_channel_scale(ov::Tensor& data, const ov::Tensor& scale, 
+                             const ov::Tensor& offset, bool invert = false) {
     auto dataShape = data.get_shape();
     auto scaleShape = scale.get_shape();
     auto scaleSize = scale.get_size();
 
     T* dataPtr = static_cast<T*>(data.data());
     float* scalePtr = static_cast<float*>(scale.data());
+    float* offsetPtr = static_cast<float*>(offset.data());
 
     if (scaleSize == 1) {  // per tensor scale, probably for activation
         auto dataSize = data.get_size();
         float s = scalePtr[0];
-        if (invert)
-            s = 1.0 / s;
-
-        for (size_t j = 0; j < dataSize; j++) {
-            dataPtr[j] *= s;
+        float o = offsetPtr[0];
+        if (invert) {
+            for (size_t j = 0; j < dataSize; j++) {
+                dataPtr[j] = (dataPtr[j] + o) / s;
+            }
+        } else {
+            for (size_t j = 0; j < dataSize; j++) {
+                dataPtr[j] = dataPtr[j] * s - o;  // o = quntized(o * s)
+            }
         }
         return;
     }
@@ -524,10 +535,15 @@ void apply_per_channel_scale(ov::Tensor& data, const ov::Tensor& scale, bool inv
         for (size_t bs = 0; bs < dataShape[0]; bs++) {
             for (size_t i = 0; i < scaleSize; i++) {
                 float s = scalePtr[i];
-                if (invert)
-                    s = 1.0 / s;
-                for (size_t j = 0; j < step; j++) {
-                    dataPtr[j] *= s;
+                float o = offsetPtr[i];
+                if (invert) {
+                    for (size_t j = 0; j < step; j++) {
+                        dataPtr[j] = (dataPtr[j] + o) / s;
+                    }
+                } else {
+                    for (size_t j = 0; j < step; j++) {
+                        dataPtr[j] = dataPtr[j] * s - o;
+                    }
                 }
                 dataPtr += step;
             }
@@ -575,7 +591,7 @@ bool op::v1::ConvertFP8::evaluate(ov::TensorVector& outputs, const ov::TensorVec
     ngraph::runtime::reference::convert(inputs[0].data<float>(), fp16[0].data<ov::float16>(), element_count);
 
     if (m_apply_scale) {
-        convert_fp8::apply_per_channel_scale<ov::float16>(fp16[0], inputs[1]);
+        convert_fp8::apply_per_channel_scale<ov::float16>(fp16[0], inputs[1], inputs[2]);
     }
 
     if (outputs[0].get_element_type() == ov::element::f16)
@@ -586,7 +602,7 @@ bool op::v1::ConvertFP8::evaluate(ov::TensorVector& outputs, const ov::TensorVec
     }
 
     if (m_apply_scale) {
-        convert_fp8::apply_per_channel_scale<float>(outputs[0], inputs[1], true);
+        convert_fp8::apply_per_channel_scale<float>(outputs[0], inputs[1], inputs[2], true);
     }
 
     return true;

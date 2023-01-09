@@ -816,6 +816,10 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs
     input_low.out_port(0).connect(fq.in_port(1))
     input_low.infer(input_low)
 
+    input_offset = Const(graph, {'value': np.array(0.0, dtype=data_type)}).create_node()
+    input_offset.out_port(0).connect(fq.in_port(2))
+    input_offset.infer(input_offset)
+
     '''fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True, **kwargs}).create_node()
 

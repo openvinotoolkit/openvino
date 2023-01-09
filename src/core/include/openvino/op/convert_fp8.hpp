@@ -23,6 +23,7 @@ namespace v1 {
         ConvertFP8();
         ConvertFP8(const ov::Output<ov::Node>& arg,
                    const ov::Output<ov::Node>& scale,
+                   const ov::Output<ov::Node>& offset,
                    const std::string& destination_type,
                    bool apply_scale);
 

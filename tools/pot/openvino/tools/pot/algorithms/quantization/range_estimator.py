@@ -7,24 +7,25 @@ from copy import deepcopy
 DEFAULT_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG = {
     'perchannel': {
         'symmetric': {
-            'min': {'aggregator': 'min', 'type': 'min', 'granularity': 'pertensor'},
+            'min': {'aggregator': 'median', 'type': 'mean'},
             'max': {'aggregator': 'max', 'type': 'abs_max'}
         },
         'asymmetric': {
-            'min': {'aggregator': 'min', 'type': 'min'},
-            'max': {'aggregator': 'max', 'type': 'max'}
+            'min': {'aggregator': 'median', 'type': 'mean'},
+            'max': {'aggregator': 'max', 'type': 'abs_max'}
         }
     },
     'pertensor': {
         'symmetric': {
-            'min': {'aggregator': 'min', 'type': 'min'},
-            'max': {'aggregator': 'mean', 'type': 'abs_max'}
+            'min': {'aggregator': 'median', 'type': 'mean'},
+            'max': {'aggregator': 'max', 'type': 'max'}
         },
         'asymmetric': {
-            'min': {'aggregator': 'mean', 'type': 'min'},
-            'max': {'aggregator': 'mean', 'type': 'max'}
+            'min': {'aggregator': 'median', 'type': 'mean'},
+            'max': {'aggregator': 'max', 'type': 'max'}
         }
     }}
+
 
 
 QUANTILE_ACTIVATIONS_RANGE_ESTIMATOR_CONFIG = {
