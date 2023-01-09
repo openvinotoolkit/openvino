@@ -31,6 +31,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 ie_add_compiler_flags(-Wno-error=array-bounds -Wno-error=stringop-overflow= -Wno-error=unused-result)
             endif()
         endif()
+
+        foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
+                                   CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
+            list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+        endforeach()
+
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
@@ -44,6 +50,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_ENABLE_PRIMITIVE:STRING=${ONEDNN_ENABLED_PRIMITIVES}"
                 "-DDNNL_ENABLE_PRIMITIVE_GPU_ISA:STRING=${ONEDNN_ENABLED_ISA}"
             CMAKE_ARGS
+                ${cmake_extra_args}
                 "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
                 "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
                 "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
