@@ -104,6 +104,7 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
     auto new_subshape = make_shared<Broadcast>(const_one, num_new_axes);
     auto cond_shape = make_shared<ShapeOf>(tile, element::i32);
     // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
+    // remove this workaround once 100671 is resolved
     auto const_1 = make_shared<Constant>(element::i32, Shape{1}, 1);
     auto new_cond_shape = make_shared<Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
 
