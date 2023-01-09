@@ -53,6 +53,9 @@ public:
     }
 
     virtual ParamsKey GetSupportedKey() const = 0;
+    virtual DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+        return DeviceFeaturesKey();
+    }
     virtual const std::string GetName() const { return kernelName; }
 
     static const primitive_db& get_db() { return db; }
@@ -71,5 +74,11 @@ protected:
     virtual std::vector<FusedOpType> GetSupportedFusedOps() const;
     virtual JitConstants MakeFusedOpsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
     virtual JitConstants MakeFusedOpsDeclsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
+
+    // Basic check for extensions requirements
+    // If params has at least 1 tensor of fp32/fp16/(u)int8 type, then it sets corresponding subgroup extension as required
+    // Should be used carefully, as in some cases tensor types may not correspond to actually used extension
+    // e.g. int8 kernel may use intel_sub_group_block_read to load packed int8 data
+    DeviceFeaturesKey get_common_subgroups_device_features_key(const Params& params, const optional_params& /*options*/) const;
 };
 }  // namespace kernel_selector

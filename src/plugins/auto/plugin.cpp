@@ -366,6 +366,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    if (priorities->second.find("AUTO") != std::string::npos || priorities->second.find("MULTI") != std::string::npos) {
+        IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
+    }
     // If the user sets the property, insert the property into the deviceConfig
     auto insertPropToConfig = [&](std::string property,
                                   std::string& deviceName,

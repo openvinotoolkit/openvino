@@ -4,7 +4,7 @@
 
 include(target_flags)
 
-if(LINUX)
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     function(get_linux_name res_var)
         if(EXISTS "/etc/lsb-release")
             # linux version detection using cat /etc/lsb-release

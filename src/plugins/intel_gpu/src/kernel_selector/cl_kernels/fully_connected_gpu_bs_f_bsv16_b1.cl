@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -93,7 +95,7 @@
 
 // Extracts one scalar element of UNIT_TYPE from sub-group chunk;
 //     chunk - name of chunk variable, idx - 0-based index of element.
-#define SG_UNIT_SELECT(chunk, idx) CHUNK_UNIT_SELECT(intel_sub_group_shuffle(chunk, (idx) / UNITS_PER_CHUNK), (idx) % UNITS_PER_CHUNK)
+#define SG_UNIT_SELECT(chunk, idx) CHUNK_UNIT_SELECT(_sub_group_shuffle(chunk, (idx) / UNITS_PER_CHUNK), (idx) % UNITS_PER_CHUNK)
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Reads / Writes:
@@ -118,10 +120,10 @@
                                                                         (array)[(idx) + 6] = chunk_vec.s6, (array)[(idx) + 7] = chunk_vec.s7))
 
 // Currently block read is 4 bytes aligned.
-#define ALIGNED_BLOCK_READ1(ptr, byte_offset) intel_sub_group_block_read((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ2(ptr, byte_offset) intel_sub_group_block_read2((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ4(ptr, byte_offset) intel_sub_group_block_read4((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
-#define ALIGNED_BLOCK_READ8(ptr, byte_offset) intel_sub_group_block_read8((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ1(ptr, byte_offset) _sub_group_block_read((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ2(ptr, byte_offset) _sub_group_block_read2((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ4(ptr, byte_offset) _sub_group_block_read4((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
+#define ALIGNED_BLOCK_READ8(ptr, byte_offset) _sub_group_block_read8((const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
 
 // Currently read is 4 bytes aligned.
 #define ALIGNED_READ1(ptr, byte_offset) (*(const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
@@ -130,10 +132,10 @@
 #define ALIGNED_READ8(ptr, byte_offset) vload8(0, (const __global CHUNK_TYPE*)((const __global char*)(ptr) + (byte_offset)))
 
 // Currently block write is 16 bytes aligned.
-#define ALIGNED_BLOCK_WRITE1(ptr, byte_offset, val) intel_sub_group_block_write((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
-#define ALIGNED_BLOCK_WRITE2(ptr, byte_offset, val) intel_sub_group_block_write2((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
-#define ALIGNED_BLOCK_WRITE4(ptr, byte_offset, val) intel_sub_group_block_write4((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
-#define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) intel_sub_group_block_write8((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE1(ptr, byte_offset, val) _sub_group_block_write((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE2(ptr, byte_offset, val) _sub_group_block_write2((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE4(ptr, byte_offset, val) _sub_group_block_write4((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
+#define ALIGNED_BLOCK_WRITE8(ptr, byte_offset, val) _sub_group_block_write8((__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)), (val))
 
 // Currently block write is 4 bytes aligned.
 #define ALIGNED_WRITE1(ptr, byte_offset, val) ((void)(*(__global CHUNK_TYPE*)((__global char*)(ptr) + (byte_offset)) = (val)))
@@ -156,7 +158,7 @@
 
 
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
     const __global UNIT_TYPE* input,
@@ -210,32 +212,28 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
         CHUNK_TYPE input_val[IN_CHUNK_PREFETCH_SIZE];
 
 #if IN_CHUNK_PREFETCH_SIZE % 8 == 0
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 8)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 8)
         {
             CHUNK_VEC8_TYPE input_vals = ALIGNED_BLOCK_READ8(input, input_offset + 8 * sg_elem_offset);
             input_offset += 8 * BYTES_PER_SG_READ;
             EXPAND_CHUNK_VEC8_TO_CHUNK_ARRAY(input_val, input_val_idx, input_vals);
         }
 #elif IN_CHUNK_PREFETCH_SIZE % 4 == 0
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 4)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 4)
         {
             CHUNK_VEC4_TYPE input_vals = ALIGNED_BLOCK_READ4(input, input_offset + 4 * sg_elem_offset);
             input_offset += 4 * BYTES_PER_SG_READ;
             EXPAND_CHUNK_VEC4_TO_CHUNK_ARRAY(input_val, input_val_idx, input_vals);
         }
 #elif IN_CHUNK_PREFETCH_SIZE % 2 == 0
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 2)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 2)
         {
             CHUNK_VEC2_TYPE input_vals = ALIGNED_BLOCK_READ2(input, input_offset + 2 * sg_elem_offset);
             input_offset += 2 * BYTES_PER_SG_READ;
             EXPAND_CHUNK_VEC2_TO_CHUNK_ARRAY(input_val, input_val_idx, input_vals);
         }
 #else
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 1)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_SIZE; input_val_idx += 1)
         {
             CHUNK_VEC1_TYPE input_vals = ALIGNED_BLOCK_READ1(input, input_offset + sg_elem_offset);
             input_offset += BYTES_PER_SG_READ;
@@ -243,8 +241,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
         }
 #endif
 
-        __attribute__((opencl_unroll_hint))
-        for (uint elem_base_idx = 0; elem_base_idx < IN_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ; elem_base_idx += FILTER_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC)
+        unroll_for(uint elem_base_idx = 0; elem_base_idx < IN_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ; elem_base_idx += FILTER_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC)
         {
             // Contains group of weights for RESPONSES_PER_SG_EXEC responses and for (FILTER_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC) spatial points.
             // Currently for floats:
@@ -264,32 +261,28 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
             CHUNK_TYPE filter_val[FILTER_CHUNK_PREFETCH_SIZE];
 
 #if FILTER_CHUNK_PREFETCH_SIZE % 8 == 0
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 8)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 8)
             {
                 CHUNK_VEC8_TYPE filter_vals = ALIGNED_BLOCK_READ8(weight, filter_offset + 8 * sg_elem_offset);
                 filter_offset += 8 * BYTES_PER_SG_READ;
                 EXPAND_CHUNK_VEC8_TO_CHUNK_ARRAY(filter_val, filter_val_idx, filter_vals);
             }
 #elif FILTER_CHUNK_PREFETCH_SIZE % 4 == 0
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 4)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 4)
             {
                 CHUNK_VEC4_TYPE filter_vals = ALIGNED_BLOCK_READ4(weight, filter_offset + 4 * sg_elem_offset);
                 filter_offset += 4 * BYTES_PER_SG_READ;
                 EXPAND_CHUNK_VEC4_TO_CHUNK_ARRAY(filter_val, filter_val_idx, filter_vals);
             }
 #elif FILTER_CHUNK_PREFETCH_SIZE % 2 == 0
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 2)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 2)
             {
                 CHUNK_VEC2_TYPE filter_vals = ALIGNED_BLOCK_READ2(weight, filter_offset + 2 * sg_elem_offset);
                 filter_offset += 2 * BYTES_PER_SG_READ;
                 EXPAND_CHUNK_VEC2_TO_CHUNK_ARRAY(filter_val, filter_val_idx, filter_vals);
             }
 #else
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 1)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; filter_val_idx += 1)
             {
                 CHUNK_VEC1_TYPE filter_vals = ALIGNED_BLOCK_READ1(weight, filter_offset + sg_elem_offset);
                 filter_offset += BYTES_PER_SG_READ;
@@ -298,8 +291,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #endif
 
             // Processing of cached filter chunks.
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; ++filter_val_idx)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < FILTER_CHUNK_PREFETCH_SIZE; ++filter_val_idx)
             {
                 const uint input_base_elem_idx = elem_base_idx + filter_val_idx * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC;
 
@@ -338,32 +330,28 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
         CHUNK_TYPE input_val[IN_CHUNK_PREFETCH_SIZE];
 
     #if IN_CHUNK_PREFETCH_SIZE % 8 == 0 && (IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE % 8 == 0 || IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE >= 16)
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 8)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 8)
         {
             CHUNK_VEC8_TYPE input_vals = ALIGNED_BLOCK_READ8(input, input_offset + 8 * sg_elem_offset);
             input_offset += 8 * BYTES_PER_SG_READ;
             EXPAND_CHUNK_VEC8_TO_CHUNK_ARRAY(input_val, input_val_idx, input_vals);
         }
     #elif IN_CHUNK_PREFETCH_SIZE % 4 == 0 && (IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE % 4 == 0 || IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE >= 8)
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 4)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 4)
         {
             CHUNK_VEC4_TYPE input_vals = ALIGNED_BLOCK_READ4(input, input_offset + 4 * sg_elem_offset);
             input_offset += 4 * BYTES_PER_SG_READ;
             EXPAND_CHUNK_VEC4_TO_CHUNK_ARRAY(input_val, input_val_idx, input_vals);
         }
     #elif IN_CHUNK_PREFETCH_SIZE % 2 == 0 && (IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE % 2 == 0 || IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE >= 4)
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 2)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 2)
         {
             CHUNK_VEC2_TYPE input_vals = ALIGNED_BLOCK_READ2(input, input_offset + 2 * sg_elem_offset);
             input_offset += 2 * BYTES_PER_SG_READ;
             EXPAND_CHUNK_VEC2_TO_CHUNK_ARRAY(input_val, input_val_idx, input_vals);
         }
     #else
-        __attribute__((opencl_unroll_hint))
-        for (uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 1)
+        unroll_for(uint input_val_idx = 0; input_val_idx < IN_CHUNK_PREFETCH_REMAINDER_REQ_SIZE; input_val_idx += 1)
         {
             CHUNK_VEC1_TYPE input_vals = ALIGNED_BLOCK_READ1(input, input_offset + sg_elem_offset);
             input_offset += BYTES_PER_SG_READ;
@@ -371,8 +359,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
         }
     #endif
 
-        __attribute__((opencl_unroll_hint))
-        for (uint elem_base_idx = 0; elem_base_idx < INPUT0_ELEMENTS_REMAINDER; elem_base_idx += FILTER_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC)
+        unroll_for(uint elem_base_idx = 0; elem_base_idx < INPUT0_ELEMENTS_REMAINDER; elem_base_idx += FILTER_CHUNK_PREFETCH_SIZE * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC)
         {
             // Size of array of CHUNK_TYPE needed to contain filter elements for input elements in range [elem_base_idx; INPUT0_ELEMENTS_REMAINDER).
             const uint filter_chunk_remainder_size = ((INPUT0_ELEMENTS_REMAINDER - elem_base_idx) * RESPONSES_PER_SG_EXEC + UNITS_PER_SG_READ - 1) / UNITS_PER_SG_READ;
@@ -381,32 +368,28 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
             CHUNK_TYPE filter_val[FILTER_CHUNK_PREFETCH_SIZE];
 
 #if FILTER_CHUNK_PREFETCH_SIZE % 8 == 0
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 8)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 8)
             {
                 CHUNK_VEC8_TYPE filter_vals = ALIGNED_BLOCK_READ8(weight, filter_offset + 8 * sg_elem_offset);
                 filter_offset += 8 * BYTES_PER_SG_READ;
                 EXPAND_CHUNK_VEC8_TO_CHUNK_ARRAY(filter_val, filter_val_idx, filter_vals);
             }
 #elif FILTER_CHUNK_PREFETCH_SIZE % 4 == 0
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 4)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 4)
             {
                 CHUNK_VEC4_TYPE filter_vals = ALIGNED_BLOCK_READ4(weight, filter_offset + 4 * sg_elem_offset);
                 filter_offset += 4 * BYTES_PER_SG_READ;
                 EXPAND_CHUNK_VEC4_TO_CHUNK_ARRAY(filter_val, filter_val_idx, filter_vals);
             }
 #elif FILTER_CHUNK_PREFETCH_SIZE % 2 == 0
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 2)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 2)
             {
                 CHUNK_VEC2_TYPE filter_vals = ALIGNED_BLOCK_READ2(weight, filter_offset + 2 * sg_elem_offset);
                 filter_offset += 2 * BYTES_PER_SG_READ;
                 EXPAND_CHUNK_VEC2_TO_CHUNK_ARRAY(filter_val, filter_val_idx, filter_vals);
             }
 #else
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 1)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; filter_val_idx += 1)
             {
                 CHUNK_VEC1_TYPE filter_vals = ALIGNED_BLOCK_READ1(weight, filter_offset + sg_elem_offset);
                 filter_offset += BYTES_PER_SG_READ;
@@ -415,8 +398,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #endif
 
             // Processing of cached filter chunks.
-            __attribute__((opencl_unroll_hint))
-            for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; ++filter_val_idx)
+            unroll_for (uint filter_val_idx = 0; filter_val_idx < filter_chunk_prefetch_req_size; ++filter_val_idx)
             {
                 const uint input_base_elem_idx = elem_base_idx + filter_val_idx * UNITS_PER_SG_READ / RESPONSES_PER_SG_EXEC;
 
@@ -458,15 +440,14 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
          sg_reduce_offset < SUB_GROUP_SIZE;
          sg_reduce_offset += SUB_GROUP_SIZE * RESPONSES_PER_SG_EXEC / UNITS_PER_SG_READ)
     {
-        reduced_acc = AS_CHUNK(AS_UNITS(reduced_acc) + AS_UNITS(intel_sub_group_shuffle_down(acc, zero, sg_reduce_offset)));
+        reduced_acc = AS_CHUNK(AS_UNITS(reduced_acc) + AS_UNITS(_sub_group_shuffle_down(acc, zero, sg_reduce_offset)));
     }
 
 
     // Expand accumulator chunks to units.
     const uint expanded_acc_size = (RESPONSES_PER_SG_EXEC + SUB_GROUP_SIZE - 1) / SUB_GROUP_SIZE;
 
-    __attribute__((opencl_unroll_hint))
-    for (uint expanded_acc_idx = 0; expanded_acc_idx < expanded_acc_size; ++expanded_acc_idx)
+    unroll_for (uint expanded_acc_idx = 0; expanded_acc_idx < expanded_acc_size; ++expanded_acc_idx)
     {
         const uint output_id = output_base_id + expanded_acc_idx * SUB_GROUP_SIZE;
 #if BIAS_TERM

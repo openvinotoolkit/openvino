@@ -76,6 +76,11 @@ class CommonLayerTest:
         #     (flag, resp) = ir.compare(ref_net)
         #     assert flag, '\n'.join(resp)
 
+        config = None
+        # GPU default execution precision is FP16, so if we want to check FP32 inference we need to set explicit precision hint
+        if ie_device == 'GPU' and precision == 'FP32':
+            config = {'INFERENCE_PRECISION_HINT' : 'f32'}
+
         if self.use_old_api:
             ie_engine = IEInfer(model=path_to_xml,
                                 weights=path_to_bin,
@@ -93,7 +98,7 @@ class CommonLayerTest:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
         # IE infer:
-        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
+        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
@@ -112,13 +117,14 @@ class CommonLayerTest:
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
-            custom_eps = 1e-4
-
+            if precision == 'FP32':
+                custom_eps = 1e-4
+            else:
+                custom_eps = 5e-2
         # Compare Ie results with Framework results
-        fw_eps = custom_eps if precision == 'FP32' else 5e-2
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       mapping_dict=mapping_dict,
-                                                      framework_eps=fw_eps), \
+                                                      framework_eps=custom_eps), \
             "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
                                                                                    fw_res)
 
