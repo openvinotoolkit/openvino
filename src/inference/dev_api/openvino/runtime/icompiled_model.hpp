@@ -18,6 +18,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
@@ -33,9 +34,6 @@ class IPlugin;
 class ICompiledModel;
 class ExecNetworkWrapper;
 
-OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> convert_compiled_model_to_legacy(
-    const std::shared_ptr<ov::ICompiledModel>& model);
-
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
     ICompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -46,12 +44,11 @@ public:
                    const InferenceEngine::ITaskExecutor::Ptr& callback_executor =
                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(InferenceEngine::IStreamsExecutor::Config{
                            "Callback"}));
-    ICompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& exec_network);
 
     const std::vector<ov::Output<const ov::Node>>& outputs() const;
     const std::vector<ov::Output<const ov::Node>>& inputs() const;
 
-    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const;
+    virtual std::shared_ptr<ov::IInferRequest> create_infer_request() const;
 
     virtual void export_model(std::ostream& model) const;
 
@@ -69,20 +66,17 @@ private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<void> m_so;
     bool m_loaded_from_cache = false;
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_exec_network;
 
     friend IPlugin;
     friend ExecNetworkWrapper;
     friend InferenceEngine::Core;
-    friend OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    convert_compiled_model_to_legacy(const std::shared_ptr<ov::ICompiledModel>& model);
 
 protected:
-    virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request_impl() const;
-    template <typename AsyncInferRequestType = InferenceEngine::AsyncInferRequestThreadSafeDefault>
-    InferenceEngine::IInferRequestInternal::Ptr create_async_infer_request_from_sync() const {
-        InferenceEngine::IInferRequestInternal::Ptr syncRequestImpl = this->create_infer_request_impl();
-        return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
+    virtual std::shared_ptr<ov::IInferRequest> create_infer_request_impl() const;
+    template <typename AsyncInferRequestType = ov::IAsyncInferRequest>
+    std::shared_ptr<ov::IInferRequest> create_async_infer_request_from_sync() const {
+        std::shared_ptr<ov::IInferRequest> syncRequestImpl = this->create_infer_request_impl();
+        return std::make_shared<ov::IAsyncInferRequest>(syncRequestImpl, m_task_executor, m_callback_executor);
     }
 
     // Functions are needed for import model because on the moment of contructor call we don't have a model

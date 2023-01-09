@@ -23,7 +23,7 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
-    IInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model);
+    IInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model);
 
     virtual void infer() = 0;
     virtual void start_async();
@@ -35,29 +35,48 @@ public:
 
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
-    virtual ov::Tensor get_input_tensor(size_t idx) const;
-    virtual void set_input_tensor(size_t idx, const ov::Tensor& tensor);
+    virtual ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const;
+    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor);
 
-    virtual std::vector<ov::Tensor> get_input_tensors(size_t idx) const;
-    virtual void set_input_tensors(size_t idx, const std::vector<ov::Tensor>& tensors);
-    virtual void set_input_tensors_imp(size_t idx, const std::vector<ov::Tensor>& tensors);
-
-    virtual ov::Tensor get_output_tensor(size_t idx) const;
-    virtual void set_output_tensor(size_t idx, const ov::Tensor& tensor);
+    virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const;
+    virtual void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors);
+    virtual void set_tensors_imp(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
 
     virtual std::vector<ov::VariableState> query_state() const;
 
     virtual void set_callback(std::function<void(std::exception_ptr)> callback);
 
-    virtual void check_tensors();
+    virtual void check_tensors() const;
+
+    const std::vector<ov::Output<const ov::Node>>& get_inputs() const;
+    const std::vector<ov::Output<const ov::Node>>& get_outputs() const;
+
+    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const;
 
 protected:
+    struct FoundPort {
+        size_t idx;
+        enum class Type { NotFound = 0, Input, Output } type;
+
+        bool found() {
+            return type != Type::NotFound;
+        }
+        bool is_input() {
+            return type == Type::Input;
+        }
+        bool is_output() {
+            return !is_input();
+        }
+    };
+
+    FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+
     std::vector<ov::Tensor> m_input_tensors;
     std::vector<ov::Tensor> m_output_tensors;
     std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
 
 private:
-    std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
+    std::shared_ptr<ov::ICompiledModel> m_compiled_model;
     std::function<void(std::exception_ptr)> m_callback;
     std::shared_ptr<void> m_so;
 };

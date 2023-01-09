@@ -33,8 +33,8 @@ public:
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
     void export_model(std::ostream& model) const override;
-    InferenceEngine::IInferRequestInternal::Ptr create_infer_request_impl() const override;
-    InferenceEngine::IInferRequestInternal::Ptr create_infer_request() const override;
+    std::shared_ptr<ov::IInferRequest> create_infer_request_impl() const override;
+    std::shared_ptr<ov::IInferRequest> create_infer_request() const override;
 
     ov::Any get_property(const std::string& name) const override;
 

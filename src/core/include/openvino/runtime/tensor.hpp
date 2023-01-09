@@ -28,6 +28,8 @@ class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
+class OVIInferRequestWrapper;
+class InferRequestWrapper;
 
 /**
  * @brief Tensor API holding host memory
@@ -52,6 +54,8 @@ protected:
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::OVIInferRequestWrapper;
+    friend class ov::InferRequestWrapper;
 
 public:
     /// @brief Default constructor

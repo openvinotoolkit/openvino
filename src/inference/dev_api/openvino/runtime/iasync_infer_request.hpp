@@ -35,14 +35,11 @@ public:
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
-    ov::Tensor get_input_tensor(size_t idx) const override;
-    void set_input_tensor(size_t idx, const ov::Tensor& tensor) override;
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
 
-    std::vector<ov::Tensor> get_input_tensors(size_t idx) const override;
-    void set_input_tensors(size_t idx, const std::vector<ov::Tensor>& tensors) override;
-
-    ov::Tensor get_output_tensor(size_t idx) const override;
-    void set_output_tensor(size_t idx, const ov::Tensor& tensor) override;
+    std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override;
+    void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override;
 
     std::vector<ov::VariableState> query_state() const override;
 

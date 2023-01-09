@@ -766,7 +766,7 @@ public:
                 res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(convert_compiled_model_to_legacy(res._ptr), model, isNewAPI());
+                InferenceEngine::SetExeNetworkInfo(legacy_convert::convert_compiled_model(res._ptr), model, isNewAPI());
             }
         } else {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
@@ -781,7 +781,7 @@ public:
         ov::RemoteContext ctx{context, {nullptr}};
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
-        return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
+        return {legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
 
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
@@ -896,7 +896,7 @@ public:
                 res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
             } else {
                 // Temporary workaround until all plugins support caching of original model inputs
-                InferenceEngine::SetExeNetworkInfo(convert_compiled_model_to_legacy(res._ptr), model, isNewAPI());
+                InferenceEngine::SetExeNetworkInfo(legacy_convert::convert_compiled_model(res._ptr), model, isNewAPI());
             }
         } else {
             res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
@@ -910,7 +910,7 @@ public:
         OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceNameOrig, any_copy(config));
-        return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
+        return {legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
 
     ov::SoPtr<ov::ICompiledModel> compile_model(const std::string& modelPath,
@@ -996,7 +996,7 @@ public:
                                      {},
                                      cacheContent);
         }
-        return {convert_compiled_model_to_legacy(res._ptr), res._so};
+        return {legacy_convert::convert_compiled_model(res._ptr), res._so};
     }
 
     ov::SoPtr<ov::ICompiledModel> import_model(std::istream& networkModel,
@@ -1012,7 +1012,7 @@ public:
                                                   const std::string& deviceName,
                                                   const std::map<std::string, std::string>& config) override {
         auto compiled_model = import_model(networkModel, deviceName, any_copy(config));
-        return {convert_compiled_model_to_legacy(compiled_model._ptr), compiled_model._so};
+        return {legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
@@ -1665,16 +1665,8 @@ public:
             std::string deviceNameLocal = parser.getDeviceName();
 
             ov::Plugin cppPlugin = GetCPPPluginByName(deviceNameLocal);
-            ie::Version oldVersion;
-            if (cppPlugin.m_ptr->old_plugin) {
-                oldVersion = cppPlugin.m_ptr->old_plugin->GetVersion();
-            } else {
-                const ov::Version version = cppPlugin.get_version();
-                oldVersion.buildNumber = version.buildNumber;
-                oldVersion.description = version.description;
-            }
 
-            versions[deviceNameLocal] = oldVersion;
+            versions[deviceNameLocal] = ov::legacy_convert::convert_plugin(cppPlugin.m_ptr)->GetVersion();
         }
 
         return versions;
@@ -1921,7 +1913,7 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
     auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelStream, conf);
-    return {exec._ptr->m_exec_network, exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -1951,7 +1943,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     networkModel.seekg(currentPos, networkModel.beg);
 
     auto exec = _impl->GetCPPPluginByName(deviceName).import_model(networkModel, {});
-    return {exec._ptr->m_exec_network, exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
@@ -1972,7 +1964,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     auto exec =
         _impl->GetCPPPluginByName(deviceName)
             .import_model(networkModel, ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}}, conf);
-    return {exec._ptr->m_exec_network, exec._so};
+    return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
 QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network,

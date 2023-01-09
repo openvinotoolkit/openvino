@@ -21,10 +21,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
-namespace InferenceEngine {
-class IExecutableNetworkInternal;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class Core;
@@ -39,7 +35,6 @@ class ICompiledModel;
  */
 class OPENVINO_RUNTIME_API CompiledModel {
     std::shared_ptr<ICompiledModel> _impl;
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> _old_impl;
     std::shared_ptr<void> _so;
 
     /**
@@ -49,8 +44,6 @@ class OPENVINO_RUNTIME_API CompiledModel {
      * plugin object is destroyed.
      */
     CompiledModel(const std::shared_ptr<ICompiledModel>& impl, const std::shared_ptr<void>& so);
-    CompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& impl,
-                  const std::shared_ptr<void>& so);
     friend class ov::Core;
     friend class ov::InferRequest;
 

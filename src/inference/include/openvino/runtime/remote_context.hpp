@@ -32,6 +32,8 @@ class CompiledModel;
 class IPlugin;
 class ExecNetworkWrapper;
 class IInferencePluginWrapper;
+class OVIPluginWrapper;
+class CompiledModelWrapper;
 
 /**
  * @brief This class represents an abstraction
@@ -61,6 +63,8 @@ protected:
     friend class ov::IPlugin;
     friend class ov::ExecNetworkWrapper;
     friend class ov::IInferencePluginWrapper;
+    friend class ov::OVIPluginWrapper;
+    friend class ov::CompiledModelWrapper;
 
 public:
     /**

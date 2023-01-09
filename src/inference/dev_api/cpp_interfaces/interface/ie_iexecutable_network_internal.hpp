@@ -15,6 +15,10 @@
 #include "ie_remote_context.hpp"
 #include "so_ptr.hpp"
 
+namespace ov {
+class CompiledModelWrapper;
+}
+
 namespace InferenceEngine {
 
 class IInferencePlugin;
@@ -204,6 +208,8 @@ protected:
      * @brief If true, it means that model was loaded from cache
      */
     bool _loadedFromCache = false;
+
+    friend ::ov::CompiledModelWrapper;
 };
 
 /**

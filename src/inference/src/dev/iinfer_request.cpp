@@ -4,11 +4,12 @@
 
 #include "openvino/runtime/iinfer_request.hpp"
 
-#include <openvino/core/except.hpp>
-#include <openvino/core/layout.hpp>
-#include <openvino/op/util/op_types.hpp>
-
 #include "cpp_interfaces/plugin_itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/layout.hpp"
+#include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace {
 
@@ -94,7 +95,7 @@ void check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tens
 
 }  // namespace
 
-ov::IInferRequest::IInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model)
+ov::IInferRequest::IInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model)
     : m_compiled_model(compiled_model) {}
 
 void ov::IInferRequest::start_async() {
@@ -115,100 +116,94 @@ void ov::IInferRequest::cancel() {
 std::vector<ov::ProfilingInfo> ov::IInferRequest::get_profiling_info() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
-
-ov::Tensor ov::IInferRequest::get_input_tensor(size_t idx) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_input_tensor");
-    OPENVINO_ASSERT(idx < m_compiled_model->inputs().size(),
-                    "Cannot find input tensor for index ",
-                    idx,
-                    " number of inputs is ",
-                    m_compiled_model->inputs().size());
-    auto input = m_compiled_model->inputs().at(idx);
-    // TODO: Support dynamic inputs
-    // if (input.get_partial_shape().is_dynamic())
-    return m_input_tensors.at(idx);
+const std::vector<ov::Output<const ov::Node>>& ov::IInferRequest::get_inputs() const {
+    return m_compiled_model->inputs();
+}
+const std::vector<ov::Output<const ov::Node>>& ov::IInferRequest::get_outputs() const {
+    return m_compiled_model->outputs();
+}
+const std::shared_ptr<ov::ICompiledModel>& ov::IInferRequest::get_compiled_model() const {
+    return m_compiled_model;
 }
 
-void ov::IInferRequest::set_input_tensor(size_t idx, const ov::Tensor& tensor) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_input_tensor");
-    OPENVINO_ASSERT(idx < m_compiled_model->inputs().size(),
-                    "Cannot find input tensor for index ",
-                    idx,
-                    " number of inputs is ",
-                    m_compiled_model->inputs().size());
-    auto input = m_compiled_model->inputs().at(idx);
+ov::IInferRequest::FoundPort ov::IInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
+    ov::IInferRequest::FoundPort::Type type = ov::IInferRequest::FoundPort::Type::Input;
+    for (const auto& ports : {get_inputs(), get_outputs()}) {
+        for (size_t i = 0; i < ports.size(); i++) {
+            if (ports[i] == port) {
+                return {i, type};
+            }
+        }
+        type = ov::IInferRequest::FoundPort::Type::Output;
+    }
+    return {0, ov::IInferRequest::FoundPort::Type::NotFound};
+}
+
+ov::Tensor ov::IInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensor");
+    auto found_port = find_port(port);
+    OPENVINO_ASSERT(!found_port.found(), "Cannot find tensor for port ", port);
+    if (found_port.is_input()) {
+        auto input = m_compiled_model->inputs().at(found_port.idx);
+        // TODO: Support dynamic inputs
+        // if (input.get_partial_shape().is_dynamic())
+        return m_input_tensors.at(found_port.idx);
+    }
+
+    auto output = m_compiled_model->outputs().at(found_port.idx);
+    // TODO: Support dynamic inputs
+    // if (output.get_partial_shape().is_dynamic())
+    return m_output_tensors.at(found_port.idx);
+}
+
+void ov::IInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensor");
+    auto found_port = find_port(port);
+    OPENVINO_ASSERT(!found_port.found(), "Cannot find tensor for port ", port);
     OPENVINO_ASSERT(
-        input.get_element_type() == tensor.get_element_type(),
+        port.get_element_type() == tensor.get_element_type(),
         "Failed to set output tensor, the tensor element type is not corresponding with output element type");
-    OPENVINO_ASSERT(input.get_partial_shape().is_dynamic() || tensor.get_shape() == input.get_shape(),
+    OPENVINO_ASSERT(port.get_partial_shape().is_dynamic() || tensor.get_shape() == port.get_shape(),
                     "Input tensor size is not equal with model input size (",
                     tensor.get_shape(),
                     " != ",
-                    input.get_shape(),
+                    port.get_shape(),
                     ").");
-    m_input_tensors.at(idx) = tensor;
-    m_batched_tensors.erase(idx);
+    if (found_port.is_input()) {
+        m_input_tensors.at(found_port.idx) = tensor;
+        m_batched_tensors.erase(found_port.idx);
+    } else {
+        m_output_tensors.at(found_port.idx) = tensor;
+    }
 }
 
-std::vector<ov::Tensor> ov::IInferRequest::get_input_tensors(size_t idx) const {
-    if (m_batched_tensors.count(idx))
-        return m_batched_tensors.at(idx);
+std::vector<ov::Tensor> ov::IInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensors");
+    auto found_port = find_port(port);
+    OPENVINO_ASSERT(!found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
+    if (m_batched_tensors.count(found_port.idx))
+        return m_batched_tensors.at(found_port.idx);
     return {};
 }
 
-void ov::IInferRequest::set_input_tensors(size_t idx, const std::vector<ov::Tensor>& tensors) {
-    OPENVINO_ASSERT(idx < m_compiled_model->inputs().size(),
-                    "Cannot find input tensor for index ",
-                    idx,
-                    " number of inputs is ",
-                    m_compiled_model->inputs().size());
+void ov::IInferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) {
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensors");
+    auto found_port = find_port(port);
+    OPENVINO_ASSERT(!found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
     if (tensors.size() == 1) {
-        set_input_tensor(idx, tensors[0]);
+        set_tensor(port, tensors[0]);
         return;
     }
 
-    check_batched_tensors(m_compiled_model->inputs().at(idx), tensors);
-    set_input_tensors_imp(idx, tensors);
+    check_batched_tensors(port, tensors);
+    set_tensors_imp(port, tensors);
 }
-void ov::IInferRequest::set_input_tensors_imp(size_t idx, const std::vector<ov::Tensor>& tensors) {
+void ov::IInferRequest::set_tensors_imp(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) {
     OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                            "",
                            false,
                            "Not Implemented",
                            "set_input_tensors/set_tensors are not supported by this plugin");
-}
-
-ov::Tensor ov::IInferRequest::get_output_tensor(size_t idx) const {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_output_tensor");
-    OPENVINO_ASSERT(idx < m_compiled_model->outputs().size(),
-                    "Cannot find output tensor for index ",
-                    idx,
-                    " number of outputs is ",
-                    m_compiled_model->outputs().size());
-    auto output = m_compiled_model->outputs().at(idx);
-    // TODO: Support dynamic inputs
-    // if (output.get_partial_shape().is_dynamic())
-    return m_output_tensors.at(idx);
-}
-
-void ov::IInferRequest::set_output_tensor(size_t idx, const ov::Tensor& tensor) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_output_tensor");
-    OPENVINO_ASSERT(idx < m_compiled_model->outputs().size(),
-                    "Cannot find output tensor for index ",
-                    idx,
-                    " number of outputs is ",
-                    m_compiled_model->outputs().size());
-    auto output = m_compiled_model->outputs().at(idx);
-    OPENVINO_ASSERT(
-        output.get_element_type() == tensor.get_element_type(),
-        "Failed to set output tensor, the tensor element type is not corresponding with output element type");
-    OPENVINO_ASSERT(output.get_partial_shape().is_dynamic() || tensor.get_shape() == output.get_shape(),
-                    "Output tensor size is not equal with model output size (",
-                    tensor.get_shape(),
-                    " != ",
-                    output.get_shape(),
-                    ").");
-    m_output_tensors.at(idx) = tensor;
 }
 
 std::vector<ov::VariableState> ov::IInferRequest::query_state() const {
@@ -219,7 +214,7 @@ void ov::IInferRequest::set_callback(std::function<void(std::exception_ptr)> cal
     m_callback = std::move(callback);
 }
 
-void ov::IInferRequest::check_tensors() {
+void ov::IInferRequest::check_tensors() const {
     const auto& inputs = m_compiled_model->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
         check_tensor(inputs[i], m_input_tensors[i]);

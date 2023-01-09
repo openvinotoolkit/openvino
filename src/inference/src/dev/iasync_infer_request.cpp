@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/variable_state.hpp"
 #include "threading/ie_immediate_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
 
@@ -200,39 +201,30 @@ std::vector<ov::ProfilingInfo> ov::IAsyncInferRequest::get_profiling_info() cons
     return m_sync_request->get_profiling_info();
 }
 
-ov::Tensor ov::IAsyncInferRequest::get_input_tensor(size_t idx) const {
+ov::Tensor ov::IAsyncInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     check_state();
-    return m_sync_request->get_input_tensor(idx);
+    return m_sync_request->get_tensor(port);
 }
 
-void ov::IAsyncInferRequest::set_input_tensor(size_t idx, const ov::Tensor& tensor) {
+void ov::IAsyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
     check_state();
-    return m_sync_request->set_input_tensor(idx, tensor);
+    return m_sync_request->set_tensor(port, tensor);
 }
 
-std::vector<ov::Tensor> ov::IAsyncInferRequest::get_input_tensors(size_t idx) const {
+std::vector<ov::Tensor> ov::IAsyncInferRequest::get_tensors(const ov::Output<const ov::Node>& port) const {
     check_state();
-    return m_sync_request->get_input_tensors(idx);
+    return m_sync_request->get_tensors(port);
 }
 
-void ov::IAsyncInferRequest::set_input_tensors(size_t idx, const std::vector<ov::Tensor>& tensors) {
+void ov::IAsyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
+                                         const std::vector<ov::Tensor>& tensors) {
     check_state();
-    return m_sync_request->set_input_tensors(idx, tensors);
-}
-
-ov::Tensor ov::IAsyncInferRequest::get_output_tensor(size_t idx) const {
-    check_state();
-    return get_output_tensor(idx);
-}
-
-void ov::IAsyncInferRequest::set_output_tensor(size_t idx, const ov::Tensor& tensor) {
-    check_state();
-    return set_output_tensor(idx, tensor);
+    return m_sync_request->set_tensors(port, tensors);
 }
 
 std::vector<ov::VariableState> ov::IAsyncInferRequest::query_state() const {
     check_state();
-    return query_state();
+    return m_sync_request->query_state();
 }
 
 void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {

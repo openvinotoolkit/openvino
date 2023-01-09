@@ -22,6 +22,8 @@ class IVariableStateInternal;
 namespace ov {
 
 class InferRequest;
+class OVIInferRequestWrapper;
+class InferRequestWrapper;
 
 /**
  * @brief VariableState class
@@ -41,6 +43,8 @@ class OPENVINO_RUNTIME_API VariableState {
                   const std::vector<std::shared_ptr<void>>& so);
 
     friend class ov::InferRequest;
+    friend class ov::OVIInferRequestWrapper;
+    friend class ov::InferRequestWrapper;
 
 public:
     /**
