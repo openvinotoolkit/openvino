@@ -11,6 +11,7 @@ namespace ov {
 namespace intel_cpu {
 
 #define getReg64() RegistersPool::Reg<Xbyak::Reg64>(registersPool)
+#define getReg32() RegistersPool::Reg<Xbyak::Reg32>(registersPool)
 #define getVmm()   RegistersPool::Reg<Vmm>(registersPool)
 #define getMask()  RegistersPool::Reg<Vmask>(registersPool)
 
@@ -84,8 +85,15 @@ public:
                   const bool zeroFill = false);
 
     void fillRestWorkMask(const Xbyak::Opmask& kDstMask,
-                          const Xbyak::Zmm& zAux,
                           const Xbyak::Reg64& rWorkRest);
+
+    void fillRestWorkMask(const Xbyak::Xmm& ymmDstMask,
+                          const Xbyak::Reg64& rWorkRest,
+                          const uint64_t typeSize = 4);
+
+    void fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
+                          const Xbyak::Reg64& rWorkRest,
+                          const uint64_t typeSize = 4);
 
     void load(const Xbyak::Xmm&     vDst,
               const Xbyak::Address& srcAddr,
