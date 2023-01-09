@@ -101,10 +101,12 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
     : m_plugin(plugin),
       m_task_executor(task_executor),
       m_callback_executor(callback_executor) {
-    std::shared_ptr<const ov::Model> const_model = model;
-    // Add pre-processing
-    m_inputs = const_model->inputs();
-    m_outputs = const_model->outputs();
+    if (model) {
+        std::shared_ptr<const ov::Model> const_model = model;
+        // Add pre-processing
+        m_inputs = const_model->inputs();
+        m_outputs = const_model->outputs();
+    }
 }
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& exec_network)
@@ -171,6 +173,14 @@ ov::RemoteContext ov::ICompiledModel::get_context() const {
         return {m_exec_network->GetContext(), {}};
     else
         OPENVINO_NOT_IMPLEMENTED;
+}
+
+void ov::ICompiledModel::set_inputs(const std::vector<ov::Output<const ov::Node>>& inputs) {
+    m_inputs = inputs;
+}
+
+void ov::ICompiledModel::set_outputs(const std::vector<ov::Output<const ov::Node>>& outputs) {
+    m_outputs = outputs;
 }
 
 std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request_impl() const {
