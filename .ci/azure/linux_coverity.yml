@@ -31,7 +31,7 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_coverity
 
   steps:
-  - bash: |
+  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -51,7 +51,7 @@ jobs:
       free -h
     displayName: 'System info'
 
-  - bash: |
+  - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
@@ -74,7 +74,7 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - bash: |
+  - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
@@ -104,13 +104,13 @@ jobs:
         -B $(BUILD_DIR)
     displayName: "Cmake configure"
 
-  - bash: ls -alR $(REPO_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
-  - bash: ccache --zero-stats --max-size=50G --show-config
+  - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - bash: |
+  - script: |
         set -e
         wget https://scan.coverity.com/download/linux64 --post-data "token=$(COVERITY_TOKEN)&project=openvino" -O coverity_tool.tgz
         tar xvf coverity_tool.tgz
@@ -118,7 +118,7 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install coverity tool'
 
-  - bash: |
+  - script: |
       $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
         cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     env:
@@ -128,17 +128,17 @@ jobs:
       CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin with Coverity'
 
-  - bash: ccache --show-stats
+  - script: ccache --show-stats
     displayName: 'Show ccache stats'
 
-  - bash: ls -alR $(REPO_DIR)/bin/
+  - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - bash: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
+  - script: tar -C $(BUILD_DIR) -czvf openvino.tgz cov-int
     workingDirectory: $(BUILD_DIR)
     displayName: 'Pack cov-int folder for submission'
 
-  - bash: |
+  - script: |
         curl --form token=$(COVERITY_TOKEN) \
           --form email=$(COVERITY_USER) \
           --form file=@openvino.tgz \

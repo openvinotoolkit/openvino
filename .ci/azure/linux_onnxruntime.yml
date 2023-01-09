@@ -52,7 +52,7 @@ jobs:
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
 
   steps:
-  - bash: |
+  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -71,7 +71,7 @@ jobs:
       free -h
     displayName: 'System info'
 
-  - bash: |
+  - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       sudo mkdir -p $(MODELS_DIR)
@@ -85,12 +85,12 @@ jobs:
     submodules: 'true'
     path: openvino
 
-  - bash: |
+  - script: |
       branch=`tr -s '\n ' < $(ONNXRUNTIME_UTILS)/version`
       git clone --branch $branch --single-branch --recursive https://github.com/microsoft/onnxruntime.git $(ONNXRUNTIME_REPO_DIR)
     displayName: 'Clone onnxruntime'
 
-  - bash: |
+  - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
@@ -120,16 +120,16 @@ jobs:
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
 
-  - bash: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Lin ONNX'
 
-  - bash: ls -alR $(REPO_DIR)/bin/
+  - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - bash: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install OpenVINO'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       $(ONNXRUNTIME_REPO_DIR)/build.sh \
         --config RelWithDebInfo \
@@ -142,38 +142,38 @@ jobs:
       CXXFLAGS: "-Wno-error=deprecated-declarations"
     displayName: 'Build Lin ONNX Runtime'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       skip_tests=$(tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests)
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_test_all'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_shared_lib_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_global_thread_pools_test
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_global_thread_pools_test'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       ./onnxruntime_api_tests_without_env
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_api_tests_without_env'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-converted"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run pytorch-converted tests'
 
-  - bash: |
+  - script: |
       source $(INSTALL_DIR)/setupvars.sh
       ./onnx_test_runner "$(ONNXRUNTIME_REPO_DIR)/cmake/external/onnx/onnx/backend/test/data/pytorch-operator"
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo

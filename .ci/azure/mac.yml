@@ -66,7 +66,7 @@ jobs:
     CCACHE_DIR: $(WORK_DIR)/ccache/mac
 
   steps:
-  - bash: |
+  - script: |
       whoami
       uname -a
       echo test_debug ; which python3
@@ -80,7 +80,7 @@ jobs:
       sysctl -a
     displayName: 'System info'
 
-  - bash: |
+  - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
@@ -107,7 +107,7 @@ jobs:
     inputs:
       versionSpec: '3.10'
 
-  - bash: |
+  - script: |
       brew install cython
       brew install automake
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
@@ -135,7 +135,7 @@ jobs:
       CXX: g++
     displayName: 'CMake'
 
-  - bash: ls -alR $(REPO_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
   - task: Cache@2
@@ -146,10 +146,10 @@ jobs:
         ccache | "$(Agent.OS)"
     displayName: Cache
 
-  - bash: ccache --zero-stats --max-size=10G --show-config
+  - script: ccache --zero-stats --max-size=10G --show-config
     displayName: 'Clean ccache stats'
 
-  - bash: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     env:
       CCACHE_DIR: $(CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
@@ -157,61 +157,61 @@ jobs:
       CCACHE_MAXSIZE: 10G
     displayName: 'Build Mac'
 
-  - bash: ccache --show-stats
+  - script: ccache --show-stats
     displayName: 'Show ccache stats'
 
-  - bash: ls -alR $(REPO_DIR)/bin/
+  - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - bash: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install'
 
-  - bash: ls -alR $(INSTALL_DIR)
+  - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - bash: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install tests'
 
-  - bash: ls -alR $(INSTALL_DIR)
+  - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
     displayName: 'IE UT'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     enabled: 'false'
 
-  - bash: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
+  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     enabled: 'false'
 
-  - bash: |
+  - script: |
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     env:
       DATA_PATH: $(MODELS_PATH)
@@ -219,7 +219,7 @@ jobs:
     displayName: 'IE CAPITests'
     enabled: 'false'
 
-  - bash: |
+  - script: |
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     env:
       DATA_PATH: $(MODELS_PATH)

@@ -57,7 +57,7 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
 
   steps:
-  - bash: |
+  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -77,7 +77,7 @@ jobs:
       free -h
     displayName: 'System info'
 
-  - bash: |
+  - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
@@ -88,7 +88,7 @@ jobs:
     submodules: 'true'
     path: openvino
 
-  - bash: |
+  - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
@@ -129,15 +129,15 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'Cmake CC COLLECT'
 
-  - bash: |
+  - script: |
       cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
       cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target sea_itt_lib
     displayName: 'Build CC COLLECT'
 
-  - bash: ls -alR $(REPO_DIR)/bin/
+  - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - bash: |
+  - script: |
       python3 $(REPO_DIR)/thirdparty/itt_collector/runtool/sea_runtool.py \
           --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
       $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
@@ -154,13 +154,13 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 
-  - bash: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build CC ON'
 
-  - bash: ls -alR $(REPO_DIR)/bin/
+  - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files ON'
 
-  - bash: |
+  - script: |
       $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
         -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
     displayName: 'Use OpenVINO after CC'

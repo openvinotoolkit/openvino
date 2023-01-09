@@ -62,7 +62,7 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
 
   steps:
-  - bash: |
+  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -82,7 +82,7 @@ jobs:
       free -h
     displayName: 'System information'
 
-  - bash: |
+  - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(ANDROID_TOOLS) ; mkdir $(ANDROID_TOOLS)
@@ -105,7 +105,7 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - bash: |
+  - script: |
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       # Move into contrib install_build_dependencies.sh
@@ -144,10 +144,10 @@ jobs:
         -S $(OPENVINO_REPO_DIR)
         -B $(BUILD_DIR)
 
-  - bash: ccache --zero-stats --max-size=50G --show-config
+  - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - bash: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     env:
       CCACHE_DIR: $(CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
@@ -155,8 +155,8 @@ jobs:
       CCACHE_MAXSIZE: 50G
     displayName: 'Build Android ARM64'
 
-  - bash: ccache --show-stats
+  - script: ccache --show-stats
     displayName: 'Show ccache stats'
 
-  - bash: ls -alR $(OPENVINO_REPO_DIR)/bin/
+  - script: ls -alR $(OPENVINO_REPO_DIR)/bin/
     displayName: 'List binary files'

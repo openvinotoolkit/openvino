@@ -98,7 +98,7 @@ jobs:
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
 
   steps:
-  - bash: |
+  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -119,7 +119,7 @@ jobs:
       echo SourceBranch: $(Build.SourceBranch)
     displayName: 'System info'
 
-  - bash: |
+  - script: |
       set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
@@ -143,7 +143,7 @@ jobs:
     submodules: 'true'
     path: openvino_contrib
 
-  - bash: |
+  - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Move jdk into contrib
@@ -171,7 +171,7 @@ jobs:
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install dependencies'
 
-  - bash: |
+  - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
@@ -228,13 +228,13 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'Cmake OpenVINO'
 
-  - bash: ls -alR $(REPO_DIR)/temp/
+  - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
 
-  - bash: ccache --zero-stats --max-size=50G --show-config
+  - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - bash: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     env:
       CCACHE_DIR: $(CCACHE_DIR)
       CCACHE_TEMPDIR: $(TMP_DIR)/ccache
@@ -242,10 +242,10 @@ jobs:
       CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin'
 
-  - bash: ccache --show-stats
+  - script: ccache --show-stats
     displayName: 'Show ccache stats'
 
-  - bash: ls -alR $(REPO_DIR)/bin/
+  - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
   - task: CMake@1
@@ -256,32 +256,32 @@ jobs:
         -B $(BUILD_LAYER_TESTS_DIR)
     displayName: 'Cmake Layer Tests'
 
-  - bash: cmake --build $(BUILD_LAYER_TESTS_DIR) --parallel --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_LAYER_TESTS_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Layer Tests'
 
-  - bash: sudo apt-get remove libtbb2 -y
+  - script: sudo apt-get remove libtbb2 -y
     displayName: 'Remove debian dependencies'
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
 
-  - bash: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+  - script: cmake -DCOMPONENT=python_wheels -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install wheel packages'
 
-  - bash: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Layer Tests'
 
-  - bash: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
+  - script: python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
     displayName: 'Install python wheels'
 
-  - bash: |
+  - script: |
       set -e
       cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install tests'
 
-  - bash: ls -alR $(INSTALL_DIR)
+  - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install test files'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
-  - bash: |
+  - script: |
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
@@ -292,7 +292,7 @@ jobs:
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
-  - bash: |
+  - script: |
       python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
@@ -307,20 +307,20 @@ jobs:
       OV_FRONTEND_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Python API 2.0 Tests'
 
-  - bash: |
+  - script: |
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     env:
       # because of static build libgna is needed for python binary
       LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
     displayName: 'Model Optimizer UT'
 
-  - bash: |
+  - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
       cmake --build $(BUILD_DIR) --target package --parallel
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
 
-  - bash: |
+  - script: |
       # install debian packages from previous release
       sudo apt-get install --no-install-recommends gnupg wget -y
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
@@ -339,101 +339,101 @@ jobs:
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Install Debian packages'
 
-  - bash: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Install openvino'
 
-  - bash: ls -alR $(INSTALL_DIR)
+  - script: ls -alR $(INSTALL_DIR)
     condition: ne(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'List install files'
 
-  - bash: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
     displayName: 'Build cpp samples'
 
-  - bash: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
     env: 
       CC: clang
       CXX: clang++
     displayName: 'Build cpp samples - clang'
 
-  - bash: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
+  - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
     env:
       VERBOSE: 1
     displayName: 'Build c samples'
 
-  - bash: rm -fr $(BUILD_DIR)
+  - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-NGraphUT.xml
     displayName: 'OV Core UT'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceFunc.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceFunc.xml
     displayName: 'Inference Func Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceUnit.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceUnit.xml
     displayName: 'Inference Unit Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-PaddleTests.xml
     displayName: 'Paddle Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Paddle.xml
     displayName: 'Paddle Frontend UT'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
     displayName: 'Transformations Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
     displayName: 'IE UT'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
 
-  - bash: |
+  - script: |
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
     env:
       # because of IR reader v7
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'IE FuncTests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
-  - bash: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_func_tests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
-  - bash: |
+  - script: |
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
     env:
       DATA_PATH: $(MODELS_PATH)
       MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
-  - bash: |
+  - script: |
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
     env:
       DATA_PATH: $(MODELS_PATH)
@@ -448,13 +448,13 @@ jobs:
         -B $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'CMake Samples Tests'
 
-  - bash: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'
 
-  - bash: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
+  - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
 
-  - bash: |
+  - script: |
       $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ 
         --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml
         -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
@@ -467,48 +467,48 @@ jobs:
       WORKSPACE: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_fe.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - TF FE'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf2_fe.xmlTEST
     displayName: 'TensorFlow 2 Layer Tests - TF FE'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_Roll.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - Legacy FE'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=./TEST-tf2_Activation.xmlTEST -k "sigmoid"
     displayName: 'TensorFlow 2 Layer Tests - Legacy FE'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_complex_params.py --ir_version=11 --junitxml=./TEST-test_mo_convert_complex_params.xmlTEST
     displayName: 'MO Python API Tests - Complex Python params'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_tf.py --ir_version=11 --junitxml=./TEST-test_mo_convert_tf.xmlTEST
     displayName: 'MO Python API Tests - Import TF model from memory'
 
-  - bash: |
+  - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
