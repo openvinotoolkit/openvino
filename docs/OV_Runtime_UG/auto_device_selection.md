@@ -200,6 +200,26 @@ AUTO will then query all available devices and remove CPU from the candidate lis
 
 Note that if you choose to exclude CPU from device candidate list, CPU will not be able to support the initial model compilation stage. See more information in [How AUTO Works](#how-auto-works).
 
+### Checking Target Runtime Devices
+
+The `ov::execution_devices` property enables you to query runtime target devices in the Auto-Device plugin.
+
+@sphinxdirective
+
+.. tab:: C++
+
+   .. code-block:: sh
+
+      ov::Any execution_devices = compiled_model.get_property(ov::execution_devices)
+
+.. tab:: Python
+
+   .. code-block:: sh
+
+      execution_devices = compiled_model.get_property("EXECUTION_DEVICES")
+
+@endsphinxdirective
+
 ### Performance Hints for AUTO
 The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is `LATENCY`.
 
