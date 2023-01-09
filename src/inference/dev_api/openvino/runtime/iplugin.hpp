@@ -28,10 +28,18 @@ class CoreImpl;
 class IInferencePluginWrapper;
 class ICompiledModel;
 
+namespace legacy_convert {
+
+std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(const std::shared_ptr<::ov::IPlugin>& plugin);
+
+}
+
 }  // namespace ov
 
 namespace InferenceEngine {
 class IExtension;
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
+convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -72,8 +80,8 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties) const;
+    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                  const ov::AnyMap& properties) const;
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -83,9 +91,9 @@ public:
      *        execute the model
      * @return Created Compiled Model object
      */
-    virtual std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                          const ov::AnyMap& properties,
-                                                          const ov::RemoteContext& context) const;
+    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                  const ov::AnyMap& properties,
+                                                  const ov::RemoteContext& context) const;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -163,7 +171,7 @@ public:
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
-    virtual const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const;
+    const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const;
 
     /**
      * @brief Queries a plugin about supported layers in model
@@ -222,8 +230,15 @@ private:
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                                 //!< Member contains plugin version
     bool m_is_new_api;                                                     //!< A flag which shows used API
+    std::shared_ptr<InferenceEngine::IInferencePlugin> old_plugin;
     friend ::ov::CoreImpl;
     friend ::ov::IInferencePluginWrapper;
+    friend std::shared_ptr<::InferenceEngine::IInferencePlugin> ov::legacy_convert::convert_plugin(
+        const std::shared_ptr<::ov::IPlugin>& plugin);
+    friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
+        InferenceEngine::convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
+    OPENVINO_DEPRECATED("Constructor is deprecated. Please do not use or re-implement it")
+    IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
 };
 
 }  // namespace ov

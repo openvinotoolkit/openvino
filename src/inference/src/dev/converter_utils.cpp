@@ -382,91 +382,92 @@ private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
 };
 
-class OVIPluginWrapper : public ov::IPlugin {
-public:
-    OVIPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
-        auto& ver = plugin->GetVersion();
-        ov::Version version;
-        version.buildNumber = ver.buildNumber;
-        version.description = ver.description;
-        set_version(version);
-        set_name(plugin->GetName());
-        set_core(std::dynamic_pointer_cast<ov::ICore>(plugin->GetCore()));
-    }
-
-    std::shared_ptr<InferenceEngine::IInferencePlugin> get_plugin() {
-        return m_plugin;
-    }
-
-    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties) const override {
-        auto exec_network =
-            m_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
-        auto compiled_model = ov::legacy_convert::convert_compiled_model(exec_network);
-        return compiled_model;
-    }
-
-    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties,
-                                                  const ov::RemoteContext& context) const override {
-        auto compiled_model = ov::legacy_convert::convert_compiled_model(
-            m_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
-                                  any_copy(properties),
-                                  context._impl));
-        return compiled_model;
-    }
-
-    void set_property(const ov::AnyMap& properties) override {
-        m_plugin->SetProperties(properties);
-    }
-
-    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
-        try {
-            return m_plugin->GetConfig(name, arguments);
-        } catch (...) {
-            return m_plugin->GetMetric(name, arguments);
-        }
-    }
-
-    RemoteContext create_context(const ov::AnyMap& remote_properties) const override {
-        return ov::RemoteContext{m_plugin->CreateContext(remote_properties), {nullptr}};
-    }
-
-    RemoteContext get_default_context(const ov::AnyMap& remote_properties) const override {
-        return ov::RemoteContext{m_plugin->GetDefaultContext(remote_properties), {nullptr}};
-    }
-
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override {
-        return ov::legacy_convert::convert_compiled_model(m_plugin->ImportNetwork(model, any_copy(properties)));
-    }
-
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
-                                                     const ov::RemoteContext& context,
-                                                     const ov::AnyMap& properties) const override {
-        return ov::legacy_convert::convert_compiled_model(
-            m_plugin->ImportNetwork(model, context._impl, any_copy(properties)));
-    }
-
-    const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const override {
-        return m_plugin->executorManager();
-    }
-
-    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                    const ov::AnyMap& properties) const override {
-        auto res = m_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
-        if (res.rc != InferenceEngine::OK) {
-            throw ov::Exception(res.resp.msg);
-        }
-        return res.supportedLayersMap;
-    }
-
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override {
-        m_plugin->AddExtension(extension);
-    }
-
-private:
-    std::shared_ptr<InferenceEngine::IInferencePlugin> m_plugin;
-};
+// class OVIPluginWrapper : public ov::IPlugin {
+// public:
+//     OVIPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+//         auto& ver = plugin->GetVersion();
+//         ov::Version version;
+//         version.buildNumber = ver.buildNumber;
+//         version.description = ver.description;
+//         set_version(version);
+//         set_name(plugin->GetName());
+//         set_core(std::dynamic_pointer_cast<ov::ICore>(plugin->GetCore()));
+//     }
+//
+//     std::shared_ptr<InferenceEngine::IInferencePlugin> get_plugin() {
+//         return m_plugin;
+//     }
+//
+//     std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+//                                                   const ov::AnyMap& properties) const override {
+//         auto exec_network =
+//             m_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
+//         auto compiled_model = ov::legacy_convert::convert_compiled_model(exec_network);
+//         return compiled_model;
+//     }
+//
+//     std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+//                                                   const ov::AnyMap& properties,
+//                                                   const ov::RemoteContext& context) const override {
+//         auto compiled_model = ov::legacy_convert::convert_compiled_model(
+//             m_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
+//                                   any_copy(properties),
+//                                   context._impl));
+//         return compiled_model;
+//     }
+//
+//     void set_property(const ov::AnyMap& properties) override {
+//         m_plugin->SetProperties(properties);
+//     }
+//
+//     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override {
+//         try {
+//             return m_plugin->GetConfig(name, arguments);
+//         } catch (...) {
+//             return m_plugin->GetMetric(name, arguments);
+//         }
+//     }
+//
+//     RemoteContext create_context(const ov::AnyMap& remote_properties) const override {
+//         return ov::RemoteContext{m_plugin->CreateContext(remote_properties), {nullptr}};
+//     }
+//
+//     RemoteContext get_default_context(const ov::AnyMap& remote_properties) const override {
+//         return ov::RemoteContext{m_plugin->GetDefaultContext(remote_properties), {nullptr}};
+//     }
+//
+//     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const
+//     override {
+//         return ov::legacy_convert::convert_compiled_model(m_plugin->ImportNetwork(model, any_copy(properties)));
+//     }
+//
+//     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+//                                                      const ov::RemoteContext& context,
+//                                                      const ov::AnyMap& properties) const override {
+//         return ov::legacy_convert::convert_compiled_model(
+//             m_plugin->ImportNetwork(model, context._impl, any_copy(properties)));
+//     }
+//
+//     const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const override {
+//         return m_plugin->executorManager();
+//     }
+//
+//     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+//                                     const ov::AnyMap& properties) const override {
+//         auto res = m_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
+//         any_copy(properties)); if (res.rc != InferenceEngine::OK) {
+//             throw ov::Exception(res.resp.msg);
+//         }
+//         return res.supportedLayersMap;
+//     }
+//
+//     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override {
+//         m_plugin->AddExtension(extension);
+//     }
+//
+// private:
+//     std::shared_ptr<InferenceEngine::IInferencePlugin> m_plugin;
+// };
 
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
@@ -735,17 +736,16 @@ private:
 
 std::shared_ptr<::InferenceEngine::IInferencePlugin> ov::legacy_convert::convert_plugin(
     const std::shared_ptr<::ov::IPlugin>& plugin) {
-    if (auto ie_plugin = std::dynamic_pointer_cast<OVIPluginWrapper>(plugin)) {
-        return ie_plugin->get_plugin();
-    }
+    if (plugin->old_plugin)
+        return plugin->old_plugin;
+    // if (auto ie_plugin = std::dynamic_pointer_cast<OVIPluginWrapper>(plugin)) {
+    //     return ie_plugin->get_plugin();
+    // }
     return std::make_shared<ov::IInferencePluginWrapper>(plugin);
 }
 
 std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
     const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) {
-    if (auto ov_plugin = std::dynamic_pointer_cast<IInferencePluginWrapper>(plugin)) {
-        return ov_plugin->get_plugin();
-    }
     return InferenceEngine::convert_plugin(plugin);
 }
 
