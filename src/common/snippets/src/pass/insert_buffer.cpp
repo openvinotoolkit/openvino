@@ -32,7 +32,6 @@ ngraph::snippets::pass::InsertBuffer::InsertBuffer(const int32_t allocation_rank
                     !ov::is_type<ngraph::op::v0::Parameter>(input_node) &&
                     !ov::is_type<ngraph::op::v0::Constant>(input_node)) {
                     const auto buffer = std::make_shared<ngraph::snippets::op::Buffer>(input_node, allocation_rank);
-                    ngraph::copy_runtime_info(root, buffer);
                     root->set_argument(input.get_index(), buffer);
                     rewritten |= true;
                 }

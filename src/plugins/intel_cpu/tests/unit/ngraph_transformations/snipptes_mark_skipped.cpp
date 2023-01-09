@@ -6,7 +6,7 @@
 #include <subgraph_customizable.hpp>
 #include <snippets_helpers.hpp>
 #include <ngraph_transformations/snippets_mark_skipped.hpp>
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 
 namespace ov {
 namespace test {

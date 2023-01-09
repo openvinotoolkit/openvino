@@ -6,7 +6,7 @@
 #include <pass/collapse_subgraph.hpp>
 #include <subgraph_simple.hpp>
 #include <subgraph_converts.hpp>
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 
 namespace ov {
 namespace test {

@@ -11,6 +11,7 @@
 #include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
+#include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
@@ -32,7 +33,7 @@ void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Su
 
     for (auto& op : body->get_ops()) {
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
-        if (!(constant && ngraph::shape_size(constant->get_shape()) != 1ul))
+        if (!constant || ngraph::shape_size(constant->get_shape()) == 1ul)
             continue;
 
         const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
@@ -72,6 +73,7 @@ CommonOptimizations::CommonOptimizations() {
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
+        manager.register_pass<ngraph::snippets::pass::ExplicitTransposeMatMulInputs>();
         if (is_quantized) {
             manager.register_pass<ngraph::snippets::pass::CommonFakeQuantizeDecomposition>();
         }

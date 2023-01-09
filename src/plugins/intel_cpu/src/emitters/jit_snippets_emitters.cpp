@@ -936,27 +936,32 @@ void BrgemmEmitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brgKernel, in
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(brgKernel));
     h->mov(abi_param2, bs);
 
-    const auto data_ptr = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
+    const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
         if (bytes_offset) h->add(reg, bytes_offset);
     };
-    data_ptr(Xmm(0), abi_param3, in0_kernel_offset);
-    data_ptr(Xmm(1), abi_param4, in1_kernel_offset);
+    data_ptr_reg(Xmm(0), abi_param3, in0_kernel_offset);
+    data_ptr_reg(Xmm(1), abi_param4, in1_kernel_offset);
 
-    size_t num_args_passed_on_stack = 1;
+    size_t num_args_passed_on_stack = 0;
 #ifdef _WIN32
+    const auto data_ptr_stack = [&](Xmm xmm, size_t idx, size_t bytes_offset) {
+        h->uni_vmovq(h->qword[h->rsp + idx * gpr_size], xmm);
+        if (bytes_offset) h->add(h->qword[h->rsp + idx * gpr_size], bytes_offset);
+    };
+
     num_args_passed_on_stack = 3;
-    h->sub(h->rsp, gpr_size * num_args_passed_on_stack);
-    h->sub(h->rsp, gpr_size);
-    h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
-    h->mov(h->qword[h->rsp + gpr_size], reinterpret_cast<uintptr_t>(batch));
-    h->mov(h->qword[h->rsp + 2 * gpr_size], Xmm(2));
-    if (out0_kernel_offset) h->add(h->qword[h->rsp + 2 * gpr_size], out0_kernel_offset);
+    h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
+    h->mov(h->qword[h->rsp + 0 * gpr_size], reinterpret_cast<uintptr_t>(batch));
+    data_ptr_stack(Xmm(2), 1, out0_kernel_offset);
+    h->mov(h->qword[h->rsp + 2 * gpr_size], reinterpret_cast<uintptr_t>(scratch));
 #else
     h->mov(abi_param5, reinterpret_cast<uintptr_t>(batch));
-    data_ptr(Xmm(2), abi_param6, out0_kernel_offset);
-    h->sub(h->rsp, gpr_size);
-    h->mov(h->qword[h->rsp], reinterpret_cast<uint64_t>(scratch));
+    data_ptr_reg(Xmm(2), abi_param6, out0_kernel_offset);
+
+    num_args_passed_on_stack = 1;
+    h->sub(h->rsp, num_args_passed_on_stack * gpr_size);
+    h->mov(h->qword[h->rsp], reinterpret_cast<uintptr_t>(scratch));
 #endif
     // align stack on 16-byte as ABI requires
     // note that RBX must not be changed by the callee

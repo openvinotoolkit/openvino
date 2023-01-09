@@ -27,19 +27,17 @@ std::shared_ptr<ov::Model> AddSoftmaxFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> TransposeSoftmaxFunction::initOriginal() const {
     const auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
-    const auto sinh0 = std::make_shared<ov::op::v0::Sinh>(transpose0Param);
     const auto transpose0Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{m_order.size()}, m_order);
-    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(sinh0, transpose0Const);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto softMax = std::make_shared<ngraph::opset8::Softmax>(transpose2, m_axis);
     return std::make_shared<ov::Model>(ov::NodeVector{softMax}, ov::ParameterVector {transpose0Param}, "softmax_transpose");
 }
 
 std::shared_ptr<ov::Model> TransposeSoftmaxEltwiseFunction::initOriginal() const {
     const auto transpose0Param = std::make_shared<ngraph::opset1::Parameter>(precision, input_shapes[0]);
-    const auto sinh0 = std::make_shared<ov::op::v0::Sinh>(transpose0Param);
     const auto transpose0Const = ngraph::builder::makeConstant(ngraph::element::i64, ov::Shape{m_order.size()},
                                                                m_order);
-    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(sinh0, transpose0Const);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose0Param, transpose0Const);
     const auto mulConst = ngraph::builder::makeConstant(ngraph::element::f32, transpose2->get_shape(),
                                                         std::vector<float>{}, true);
     const auto mul = std::make_shared<ngraph::opset1::Multiply>(transpose2, mulConst);

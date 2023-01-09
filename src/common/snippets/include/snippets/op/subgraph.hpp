@@ -89,8 +89,7 @@ public:
         return m_generator;
     }
 
-    // Return common memory size for all buffers in body. Should be called only after tileRank setting
-    size_t get_buffer_scratchpad_size() const;
+    size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad; }
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
     bool is_buffer_needed() const { return m_buffer_needed; }
     bool is_quantized() const { return config.m_is_quantized; }
@@ -131,6 +130,7 @@ private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
     void convert_to_snippet_dialect();
     void init_config();
+    void initialize_buffer_scratchpad_size();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
     // Need Buffer op or not
@@ -139,6 +139,7 @@ private:
     //       we should MANUALLY calculate it where it needed.
     size_t m_virtual_port_count = 0;
     bool m_buffer_needed = false;
+    size_t m_buffer_scratchpad = 0lu;
     Shape exec_domain = {};
     std::shared_ptr<ov::Model> m_body = nullptr;
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;
@@ -191,6 +192,24 @@ static inline auto build_subgraph(const std::shared_ptr<ngraph::Node>& node, con
     subgraph->set_friendly_name(name.empty() ? node->get_friendly_name() : name);
     return subgraph;
 };
+
+// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
+// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
+auto inline update_out_tensor_name(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) -> void {
+    bool not_set = true;
+    for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
+        for (const auto &in : subgraph->get_output_target_inputs(i)) {
+            if (ov::is_type<ov::op::v0::Result>(in.get_node())) {
+                const auto& body_result = subgraph->get_body()->get_output_op(i);
+                const auto& body_result_input = body_result->get_input_source_output(0);
+                ngraph::snippets::op::Subgraph::fill_empty_output_names(
+                        subgraph->output(i), body_result_input);
+                not_set = false;
+                break;
+            }
+        }
+    }
+}
 
 }  // namespace op
 }  // namespace snippets

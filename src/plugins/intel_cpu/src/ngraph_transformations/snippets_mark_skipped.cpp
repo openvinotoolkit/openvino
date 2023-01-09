@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets_mark_skipped.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 #include <ngraph/opsets/opset1.hpp>
@@ -488,7 +488,7 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                     NodeFusingType updatedChainType = fusingChainType;
                     if (isSuitableChildForFusingMatMul(node, isExecutedInINT8, updatedChainType, channelAxis))
                         PropagateIfHasOnlyChild(node, updatedChainType);
-                } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::AppropriateForSubgraph(node) ||
+                } else if (fusingChainType == NodeFusingType::IgnoredAfterInputs && (snippets::pass::TokenizeSnippets::AppropriateForSubgraph(node) ||
                             ov::is_type<ngraph::op::v0::Convert>(node) || ov::is_type<ngraph::op::v1::Transpose>(node))) {
                     // In OV_API 2.0 after Input node with I8/U8 precisions incerts Convert node, moreother on TF models inserts
                     // Transpose layer. These brakes an idea to leave Eltwise node with I8/U8 inputs and FP32 outputs instead of Subgrath node

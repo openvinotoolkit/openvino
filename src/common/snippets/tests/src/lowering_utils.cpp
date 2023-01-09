@@ -4,7 +4,7 @@
 
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include "lowering_utils.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 
 
 namespace ov {

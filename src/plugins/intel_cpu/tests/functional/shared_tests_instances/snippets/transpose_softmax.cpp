@@ -21,7 +21,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmax, TransposeSoftmax,
                              ::testing::Values(inputShape),
                              ::testing::Values(std::vector<int64_t>{0, 2, 3, 1}),
                              ::testing::Values(-1),
-                             ::testing::Values(2),  // Subgraph + Sin
+                             ::testing::Values(1),
                              ::testing::Values(1),
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                      TransposeSoftmax::getTestCaseName);
@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeSoftmaxEltwise, TransposeSoftma
                                  ::testing::Values(inputShape),
                                  ::testing::Values(std::vector<int64_t>{0, 2, 3, 1}),
                                  ::testing::Values(-1),
-                                 ::testing::Values(2),  // Subgraph + Sin
+                                 ::testing::Values(1),
                                  ::testing::Values(1),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TransposeSoftmax::getTestCaseName);

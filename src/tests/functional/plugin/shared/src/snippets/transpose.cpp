@@ -34,7 +34,7 @@ void Transpose::SetUp() {
     std::tie(inputShape, order, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({{{inputShape}, {inputShape.get_shape(), }}});
 
-    auto f = ov::test::snippets::TransposeSinhFunction({inputShape}, order);
+    auto f = ov::test::snippets::TransposeFunction({inputShape}, order);
     function = f.getOriginal();
     if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE)) {
         configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,

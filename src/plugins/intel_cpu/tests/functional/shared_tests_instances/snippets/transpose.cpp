@@ -16,7 +16,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Transpose, Transpose,
                      ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
                              ::testing::Values(std::vector<int> {0, 2,  3, 1}),
-                             ::testing::Values(2), // Sinh + Transpose
+                             ::testing::Values(1), // Transpose
                              ::testing::Values(1), // Tokenized Transpose
                              ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                      Transpose::getTestCaseName);

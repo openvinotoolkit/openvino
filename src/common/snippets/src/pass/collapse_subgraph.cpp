@@ -6,6 +6,7 @@
 #include <snippets/itt.hpp>
 
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -21,7 +22,6 @@
 #include <memory>
 #include <vector>
 #include <cassert>
-#include <queue>
 #include <string>
 #include <numeric>
 #include <climits>
@@ -143,15 +143,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_broadcast_op = [](const std::shared_ptr<const Node> &n) -> bool {
-        // TODO: Add check for broadcastable input shapes of Broadcast children in MHA tokenization
-        //       Codogen removes Broadcast op, insert BroadcastMove if needed and save just last dim.
-        //       But if Broadcast child output shape depends on Broadcast we can loss needed output shape
-        //       Example:
-        //        in0 [1, 1, 1]      in0 [1, 1, 1]              in0 [1, 1, 1]   in0 [1, 1, 1]
-        //     Broadcast [1, 10, 1]    /                                 \       /
-        //           \               /                --->>>                Add
-        //                  Add                                              |
-        //             Result [1, 10, 1]                              Result [1, 1, 1]
+        // Broadcast is supported only for MHA tokenization where there are needed and special checks
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
             return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
         } else if (auto broadcast_v3 = ov::as_type_ptr<const ov::op::v3::Broadcast>(n)) {
@@ -172,12 +164,10 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [&n](descriptor::Tensor& t) -> bool {
-        static const std::set<ngraph::element::Type> supported_data_types =
-                { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
         // Todo: int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
         //  So i32 is supported exclusively for transposes and broadcast
         return t.get_partial_shape().is_static() &&
-               (supported_data_types.count(t.get_element_type()) != 0 ||
+               (TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ngraph::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
                          ov::is_type<const opset1::Broadcast>(n))));
@@ -214,65 +204,15 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
     }
     return result;
 }
-// Need to update tensor name manually, since intel_cpu::Graph::Replicate() looks at input.get_tensor().get_name();
-// If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
-auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &subgraph) -> void {
-    bool not_set = true;
-    for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
-        for (const auto &in : subgraph->get_output_target_inputs(i)) {
-            if (ov::is_type<opset1::Result>(in.get_node())) {
-                const auto& body_result = subgraph->get_body()->get_output_op(i);
-                const auto& body_result_input = body_result->get_input_source_output(0);
-                op::Subgraph::fill_empty_output_names(subgraph->output(i), body_result_input);
-                not_set = false;
-                break;
-            }
-        }
-    }
-}
 } // namespace
 
-bool AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
+const std::set<ngraph::element::Type> ngraph::snippets::pass::TokenizeSnippets::supported_element_types =
+        { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
+
+bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
     return is_supported_op(node) && has_supported_in_out(node);
 }
 
-void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {
-    auto &rt = node->get_rt_info();
-    rt["SnippetsNodeType"] = nodeType;
-}
-
-SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
-    auto &rt = node->get_rt_info();
-    const auto rinfo = rt.find("SnippetsNodeType");
-    if (rinfo == rt.end())
-        return SnippetsNodeType::NotSet;
-    return rinfo->second.as<SnippetsNodeType>();
-}
-
-void SetTopologicalOrder(const std::shared_ptr<Node> &node, int64_t order) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetTopologicalOrder")
-    auto &rt = node->get_rt_info();
-    rt["TopologicalOrder"] = order;
-}
-
-int64_t GetTopologicalOrder(const std::shared_ptr<const Node> &node) {
-    auto &rt = node->get_rt_info();
-    const auto rinfo = rt.find("TopologicalOrder");
-    if (rinfo == rt.end())
-        throw ngraph_error("Topological order is required, but not set.");
-    return rinfo->second.as<int64_t>();
-}
-
-bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::EnumerateNodes")
-    int64_t order = 0;
-    // Todo: We don't really have to set order for every node, just for subgraph parents and children would be enough
-    for (auto &node : m->get_ordered_ops()) {
-        SetTopologicalOrder(node, order++);
-    }
-    return true;
-}
 TokenizeSnippets::TokenizeSnippets() {
     MATCHER_SCOPE(TokenizeSnippets);
     enum continuation_strategy {
@@ -312,7 +252,7 @@ TokenizeSnippets::TokenizeSnippets() {
             auto subgraph = op::Subgraph::wrap_node_as_subgraph(node);
             subgraph->get_rt_info()["originalLayersNames"] = getFusedNames(node) + node->get_friendly_name();
             ngraph::replace_node(node, subgraph);
-            update_out_tensor_name(subgraph);
+            op::update_out_tensor_name(subgraph);
         };
 
         auto abort_with_strategy = [&](const std::string& message_reset,
@@ -639,7 +579,7 @@ TokenizeSnippets::TokenizeSnippets() {
                 target_input.replace_source_output(subgraph->output(i));
             }
         }
-        update_out_tensor_name(subgraph);
+        op::update_out_tensor_name(subgraph);
 
         subgraph->validate_and_infer_types();
 

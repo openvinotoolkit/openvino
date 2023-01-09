@@ -21,7 +21,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(0), // Transpose on 0th Matmul input
                                  ::testing::ValuesIn(precisions),
-                                 ::testing::Values(3), // Sinh * 2 + MatMu;
+                                 ::testing::Values(1), // MatMul;
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -36,7 +36,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(1), // Transpose on 1st Matmul input
                                  ::testing::ValuesIn(precisions),
-                                 ::testing::Values(3), // Sinh * 2 + MatMu;
+                                 ::testing::Values(1), // MatMu;
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::ValuesIn(transpose_input_shapes),
                                  ::testing::Values(2), // Transpose on Matmul output
                                  ::testing::ValuesIn(precisions),
-                                 ::testing::Values(3), // Sinh * 2 + MatMu;
+                                 ::testing::Values(1), // MatMu;
                                  ::testing::Values(1), // Tokenized MatMul + FusedTranspose
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);

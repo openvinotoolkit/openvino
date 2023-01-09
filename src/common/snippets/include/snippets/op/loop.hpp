@@ -44,7 +44,7 @@ class LoopBegin : public LoopBase {
     friend LoopEnd;
 
 public:
-    OPENVINO_OP("LoopBegin", "SnippetsOpset");
+    OPENVINO_OP("LoopBegin", "SnippetsOpset", LoopBase);
     explicit LoopBegin(const OutputVector& args);
     LoopBegin() = delete;
     void validate_and_infer_types() override;
@@ -76,7 +76,7 @@ private:
  */
 class LoopEnd : public LoopBase {
 public:
-    OPENVINO_OP("LoopEnd", "SnippetsOpset");
+    OPENVINO_OP("LoopEnd", "SnippetsOpset", LoopBase);
     LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,
               std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
     LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,

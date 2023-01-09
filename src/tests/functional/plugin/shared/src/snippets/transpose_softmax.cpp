@@ -62,6 +62,8 @@ void TransposeSoftmaxEltwise::SetUp() {
         configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE,
                               InferenceEngine::PluginConfigInternalParams::IGNORE_CALLBACK});
     }
+
+    abs_threshold = 1e-6;
 }
 
 TEST_P(TransposeSoftmax, CompareWithRefImpl) {

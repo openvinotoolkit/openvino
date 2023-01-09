@@ -16,16 +16,13 @@ namespace ov {
 namespace test {
 namespace snippets {
 /// Minimal graph to test Transpose support: Parameter->Sinh->Transpose->Result
-/// Works because Sinh is not supported by tokenization yet.
 /// Tokenized simply by starting subgraph, supported through TransposeDecomposition
-//   in1
-//   Sinh       Const(order)
+//   in1        Const(order)
 //        Transpose
 //         Result
-// todo: remove Sinh once "no subgraph after input" limitation is relaxed
-class TransposeSinhFunction : public SnippetsFunctionBase {
+class TransposeFunction : public SnippetsFunctionBase {
 public:
-    explicit TransposeSinhFunction(const std::vector<PartialShape>& inputShapes, std::vector<int> order)
+    explicit TransposeFunction(const std::vector<PartialShape>& inputShapes, std::vector<int> order)
     : SnippetsFunctionBase(inputShapes), order(std::move(order)) {
         NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
     }

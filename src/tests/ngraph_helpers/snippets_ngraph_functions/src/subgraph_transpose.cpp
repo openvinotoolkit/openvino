@@ -9,21 +9,19 @@
 namespace ov {
 namespace test {
 namespace snippets {
-std::shared_ptr<ov::Model> TransposeSinhFunction::initOriginal() const {
+std::shared_ptr<ov::Model> TransposeFunction::initOriginal() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {order.size()}, order);
-    auto sinh = std::make_shared<ov::op::v0::Sinh>(data);
-    auto transpose = std::make_shared<op::v1::Transpose>(sinh, const_order);
+    auto transpose = std::make_shared<op::v1::Transpose>(data, const_order);
     return std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data});
 }
-std::shared_ptr<ov::Model> TransposeSinhFunction::initReference() const {
+std::shared_ptr<ov::Model> TransposeFunction::initReference() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {order.size()}, order);
-    auto sinh = std::make_shared<ov::op::v0::Sinh>(data);
-    auto indata0 = std::make_shared<op::v0::Parameter>(precision, sinh->get_output_partial_shape(0));
+    auto indata0 = std::make_shared<op::v0::Parameter>(precision, data->get_output_partial_shape(0));
     auto indata1 = std::make_shared<op::v0::Parameter>(const_order->get_output_element_type(0),
                                                        const_order->get_output_partial_shape(0));
-    auto transpose = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{sinh, const_order},
+    auto transpose = std::make_shared<ngraph::snippets::op::Subgraph>(NodeVector{data, const_order},
                                           std::make_shared<ov::Model>(NodeVector{std::make_shared<op::v1::Transpose>(indata0, indata1)},
                                                                       ParameterVector{indata0, indata1}));
     return std::make_shared<ov::Model>(NodeVector{transpose}, ParameterVector{data});
