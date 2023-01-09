@@ -366,10 +366,10 @@ jobs:
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
+      export PATH=$HOME/.local/bin:$PATH
       # GNA isn't a part of Debian package, so filter out that tests
       python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     env:
-      PATH: $HOME/.local/bin:$PATH
       IE_APP_PATH: $(INSTALL_DIR)/samples_bin
       LD_LIBRARY_PATH: $IE_APP_PATH:$LD_LIBRARY_PATH
       IE_APP_PYTHON_PATH: $(PYTHON_SAMPLES_INSTALL_DIR)/

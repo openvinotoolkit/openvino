@@ -112,11 +112,11 @@ jobs:
       brew install automake
       python3 -m pip install -r $(REPO_DIR)/src/frontends/onnx/tests/requirements.txt
       # Speed up build
-      brew install ninja
-      brew install ccache
+      brew install ninja ccache
     displayName: 'Install dependencies'
 
   - script: |
+      export PATH="/usr/local/opt/cython/bin:$PATH"
       cmake -GNinja \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
@@ -130,10 +130,9 @@ jobs:
         -S $(REPO_DIR) \
         -B $(BUILD_DIR)
     env:
-      PATH: "/usr/local/opt/cython/bin:$PATH"
       CC: gcc
       CXX: g++
-    displayName: 'CMake'
+    displayName: 'CMake OpenVINO'
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
