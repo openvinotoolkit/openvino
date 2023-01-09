@@ -97,7 +97,7 @@ TEST(type_prop, one_hot_v1_depth_value_label) {
     auto dyn_indices = make_shared<op::Parameter>(element::i64, ind_shape);
 
     auto labeled_dim = Dimension(4, 6);
-    size_t depth_label = 2345664;
+    ov::label_t depth_label = 2345664;
     ov::DimensionTracker::set_label(labeled_dim, depth_label);
     PartialShape shape_for_depth = PartialShape{labeled_dim};
 
