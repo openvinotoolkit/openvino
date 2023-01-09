@@ -114,10 +114,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                              | | Indicates the priority for a model.                                |
 | |                              | | IMPORTANT: This property is not fully supported yet.               |
 +--------------------------------+----------------------------------------------------------------------+
-| | `ov::execution_devices`      | | **Values**:                                                        |
-| |                              | |       List of runtime target devices that running the model.       |
-| |                              | |                                                                    |
-| |                              | | Such as `CPU_HELP`, `CPU`, `GPU`, `CPU GPU`, `GPU.0`.              |
+| | `ov::execution_devices`      | | Lists the runtime target devices that are running the inference.   |
+| |                              | | Examples of returning results could be `CPU_HELP`, `CPU`, `GPU`,   |
+| |                              | | `CPU GPU`, `GPU.0`, etc.                                           |
 +--------------------------------+----------------------------------------------------------------------+
 
 @endsphinxdirective
