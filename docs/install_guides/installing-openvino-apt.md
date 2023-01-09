@@ -34,20 +34,19 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 1. Install the GPG key for the repository
 
-    a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). 
-    You can also use the following command:
+    a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB).
 
-      ```sh
-      wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-      ```
+        You can also use the following command:
+        ```sh
+        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        ```
 
     b. Add this key to the system keyring:
-    
-      ```sh
-      sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-      ```
+        ```sh
+        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        ```
 
-    > **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
+> **NOTE**: You might need to install GnuPG: `sudo apt-get install gnupg`
 
 2.	Add the repository via the following command:
 @sphinxdirective
@@ -203,7 +202,7 @@ Now you may continue with the following tasks:
 
 * To convert models for use with OpenVINO, see [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 * See pre-trained deep learning models in our [Open Model Zoo](../model_zoo.md).
-* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/nightly/notebooks/notebooks.html).
+* Try out OpenVINO via [OpenVINO Notebooks](https://docs.openvino.ai/2022.1/notebooks/notebooks.html).
 * To write your own OpenVINO™ applications, see [OpenVINO Runtime User Guide](../OV_Runtime_UG/openvino_intro.md).
 * See sample applications in [OpenVINO™ Toolkit Samples Overview](../OV_Runtime_UG/Samples_Overview.md).
 
