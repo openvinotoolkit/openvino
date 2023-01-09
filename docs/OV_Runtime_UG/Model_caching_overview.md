@@ -49,7 +49,7 @@ If the device does not support import/export capability, cache is not created an
 Depending on your device, total time for compiling model on application startup can be significantly reduced.
 Also note that the very first `compile_model` (when cache is not yet created) takes slightly longer time to "export" the compiled blob into a cache file:
 
-![caching_enabled]
+![](../img/caching_enabled.svg)
 
 ### Even faster: use compile_model(modelPath)
 
@@ -91,7 +91,7 @@ With model caching enabled, total load time is even smaller, if `read_model` is 
 
 @endsphinxdirective
 
-![caching_times]
+![](../img/caching_times.svg)
 
 ### Advanced Examples
 
@@ -116,6 +116,3 @@ To check in advance if a particular device supports model caching, your applicat
 
 > **NOTE**: The GPU plugin does not have the EXPORT_IMPORT capability, and does not support model caching yet. However, the GPU plugin supports caching kernels (see the [GPU plugin documentation](supported_plugins/GPU.md)). Kernel caching for the GPU plugin can be accessed the same way as model caching: by setting the `CACHE_DIR` configuration key to a folder where the cache should be stored.
 
-
-[caching_enabled]: ../img/caching_enabled.png
-[caching_times]: ../img/caching_times.png
