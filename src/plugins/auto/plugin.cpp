@@ -337,7 +337,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
 
-    if (ctx && !ctx->is<MultiRemoteContext>() && ctx->as<MultiRemoteContext>()->isEmpty()) {
+    if (ctx && !ctx->is<MultiRemoteContext>()) {
         IE_THROW() << GetName() << " Please, load to " << GetName() << " via valid MULTI/AUTO remote context";
     }
     // to use plugin's name as the log tag
