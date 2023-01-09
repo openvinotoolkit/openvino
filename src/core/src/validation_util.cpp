@@ -1351,8 +1351,10 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
             TensorVector inputs;
             inputs.reserve(inputs_count);
 
-            inputs.emplace_back(element::from<size_t>(), node->get_input_shape(0));
-            std::copy(labels.begin(), labels.end(), inputs.back().data<size_t>());
+            inputs.emplace_back(element::from_label_type(), node->get_input_shape(0));
+            std::copy(labels.begin(),
+                      labels.end(),
+                      static_cast<size_t*>(inputs.back().data(element::from_label_type())));
 
             for (size_t i = 1; i < inputs_count; ++i) {
                 if (node->get_input_tensor(i).has_and_set_bound()) {
@@ -1372,13 +1374,18 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
                 const auto& partial_shape = node->get_output_partial_shape(i);
                 // Set shape for static and Shape{0} tensor will not allocated now
                 auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
-                outputs.emplace_back(element::from<size_t>(), shape);
+                outputs.emplace_back(element::from_label_type(), shape);
             }
 
             if (node->evaluate(outputs, inputs)) {
                 std::transform(outputs.cbegin(), outputs.cend(), output_labels.begin(), [](const Tensor& t) {
                     // Return empty label tensor if input tensor not valid (can have Shape{0})
-                    return t ? TensorLabel(t.data<size_t>(), t.data<size_t>() + t.get_size()) : TensorLabel();
+                    if (t) {
+                        auto ptr = static_cast<size_t*>(t.data(element::from_label_type()));
+                        return TensorLabel(ptr, ptr + t.get_size());
+                    } else {
+                        return TensorLabel();
+                    }
                 });
                 return true;
             }
