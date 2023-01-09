@@ -27,7 +27,6 @@ OutputVector translate_concat_op(const NodeContext& node) {
 
     if (node.get_op_type() == "Concat") {
         std::vector<int64_t> axis_vector;
-        // const auto start_const = get_constant_from_source(start);
         get_const_input(node, 0, &axis_vector);
         TENSORFLOW_OP_VALIDATION(
             node,
