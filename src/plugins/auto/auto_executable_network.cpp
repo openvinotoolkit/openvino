@@ -175,11 +175,15 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             }
         }
         return decltype(ov::available_devices)::value_type {exeDevices};
+    } else if (name == ov::model_name) {
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].future.valid()) {
+            _autoSchedule->_loadContext[ACTUALDEVICE].future.wait();
+        }
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+            return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+        }
+        return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
     }
-    if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
-        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(
-                name);
-    }
-    return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+    IE_THROW() << "Unsupported metric key: " << name;
 }
 }  // namespace MultiDevicePlugin
