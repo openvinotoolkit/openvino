@@ -266,7 +266,6 @@ def test_register_plugin():
         core.register_plugin("openvino_intel_cpu_plugin", "BLA")
     else:
         core.register_plugin("openvino_arm_cpu_plugin", "BLA")
-    
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, "BLA")
     assert isinstance(compiled_model, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"

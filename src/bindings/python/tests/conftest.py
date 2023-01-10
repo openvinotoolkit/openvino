@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import platform
+from platform import processor
 import pytest
 
 import tests
@@ -90,8 +90,8 @@ def plugins_path():
     base_path = os.path.dirname(__file__)
     plugins_xml = os.path.join(base_path, "test_utils", "utils", "plugins.xml")
     plugins_win_xml = os.path.join(base_path, "test_utils", "utils", "plugins_win.xml")
-    processor = platform.processor()
-    if processor == "x86_64":
+    arch = processor()
+    if arch == "x86_64":
         plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_x86_apple.xml")
     else:
         plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_arm_apple.xml")
