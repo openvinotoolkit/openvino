@@ -239,7 +239,7 @@ protected:
 
     std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
         ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto exp_labels = in_labels;
         exp_labels[axis] = 0;
@@ -319,7 +319,7 @@ protected:
 
     std::pair<ov::TensorLabel, std::vector<ov::TensorLabel>> make_in_exp_labels() const {
         ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto split_size = in_labels.size() / num_of_splits;
         std::vector<ov::TensorLabel> exp_labels;
