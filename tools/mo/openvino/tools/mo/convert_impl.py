@@ -216,9 +216,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
-    if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
-            ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
-        argv.data_type = 'FP32'
+    # when compress_to_fp16 argument was introduced data_type is always FP32
+    argv.data_type = 'FP32'
+    if 'compress_to_fp16' in argv and argv.compress_to_fp16 is True:
         argv.compress_fp16 = True
     else:
         argv.compress_fp16 = False
@@ -233,9 +233,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
         ret_code = check_requirements(framework=argv.framework, silent=argv.silent)
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
-
-    if is_tf and argv.tensorflow_use_custom_operations_config is not None:
-        argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -457,9 +454,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         try:
             from openvino.tools.mo.back.offline_transformations import apply_offline_transformations
             func = apply_offline_transformations(func, argv)
-            if "compress_fp16" in argv and argv.compress_fp16:
-                # restore data_type cmd parameter
-                argv.data_type = 'FP16'
             return_code = 0
         except Exception as e:
             return_code = "failed"

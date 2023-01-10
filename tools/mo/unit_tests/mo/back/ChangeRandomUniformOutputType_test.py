@@ -34,13 +34,13 @@ edges_with_convert = [*connect('placeholder', '0:random_uniform'), *connect('min
 @generator
 class ChangeRandomUniformOutputTypeTest(unittest.TestCase):
     @generate(*[
-        ("FP16", np.float32, np.float16),
-        ("FP32", np.float16, np.float32),
-        ("FP32", np.float32, None),
-        ("FP32", np.int64, None)
+        (True, np.float32, np.float16),  # compress IR to fp16
+        (False, np.float16, np.float32),
+        (False, np.float32, None),
+        (False, np.int64, None)
     ])
-    def test_change_random_uniform_output_type(self, ir_type, out_type, dst_type):
-        graph = build_graph(nodes, edges, cli=Namespace(data_type=ir_type))
+    def test_change_random_uniform_output_type(self, compress_ir_to_fp16, out_type, dst_type):
+        graph = build_graph(nodes, edges, cli=Namespace(compress_to_fp16=compress_ir_to_fp16))
         graph_ref = build_graph(nodes, edges if dst_type is None else edges_with_convert, {},
                                 nodes_with_edges_only=True)
         Node(graph, 'random_uniform')['output_type'] = out_type

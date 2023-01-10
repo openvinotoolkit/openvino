@@ -31,7 +31,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
     """
     This transformation marks op nodes in ShapeOf subgraphs with 'returns_shape_value' bool attribute and
     data nodes of float32 constants with 'correct_data_type' attribute.
-    So that float Consts and Cast float will be kept in FP32 even if argument --data_type=FP16 is specified.
+    So that float Consts and Cast float will be kept in FP32 even if --compress_to_fp16 is specified.
 
     This is needed to enable conversion to FP16 even if values in ShapeOf subgraphs exceed max(float16)
     or because of FP16 lower precession shape inference is incorrect on some nodes (e.g. if Interpolate in scales mode
@@ -41,7 +41,7 @@ class MarkNodesWithShapeValues(BackReplacementPattern):
     Cast nodes in ShapeOf subgraphs therefore it's placed at the end of the back phase.
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
+    graph_condition = [lambda graph: graph.graph['cmd_params'].compress_to_fp16]
 
     def run_after(self):
         from openvino.tools.mo.back.pass_separator import BackFinish

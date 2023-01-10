@@ -146,7 +146,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     :return: generated graph.
     """
     # no mutable values must be set as default function argument
-    cli = Namespace(static_shape=False, data_type='FP32') if cli is None else cli
+    cli = Namespace(static_shape=False, data_type='FP32', compress_to_fp16=False) if cli is None else cli
     graph = Graph()
 
     for node_name, attrs in nodes_attrs.items():

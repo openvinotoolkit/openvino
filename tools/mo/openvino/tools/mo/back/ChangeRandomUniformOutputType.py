@@ -30,7 +30,7 @@ class ChangeRandomUniformOutputType(BackReplacementPattern):
         return []
 
     def find_and_replace_pattern(self, graph: Graph):
-        ir_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        ir_data_type = np.float16 if graph.graph['cmd_params'].compress_to_fp16 else np.float32
 
         for node in graph.get_op_nodes(op='RandomUniform'):
             assert node.has_valid('output_type')

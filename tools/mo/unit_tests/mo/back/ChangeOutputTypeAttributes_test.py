@@ -71,6 +71,7 @@ class ChangeOutputTypeAttributesTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+
 def build_range_test_graphs(start=0, limit=10, delta=1, dst_type_str='FP16',
                             src_type_str='FP32', returns_shape_value=None):
     nodes = {
@@ -103,7 +104,7 @@ def build_range_test_graphs(start=0, limit=10, delta=1, dst_type_str='FP16',
 
     graph = partial_infer(graph)
 
-    graph.graph['cmd_params'].data_type = dst_type_str
+    graph.graph['cmd_params'].compress_to_fp16 = True if dst_type_str == 'FP16' else False
     convert_blobs(graph, dst_type_str)
     return graph, graph_ref
 
@@ -133,6 +134,6 @@ def build_cast_test_graphs(input_data, dst_type_str='FP16'):
 
     graph = partial_infer(graph)
 
-    graph.graph['cmd_params'].data_type = dst_type_str
+    graph.graph['cmd_params'].compress_to_fp16 = True if dst_type_str == 'FP16' else False
     convert_blobs(graph, dst_type_str)
     return graph, graph_ref
