@@ -243,7 +243,7 @@ class Conformance:
         
         try:
             command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"']
-            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, os.cpu_count() - 1 if os.cpu_count() > 2 else 1, logs_dir, 500)
+            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, os.cpu_count() - 1 if os.cpu_count() > 2 else 1, logs_dir, "")
             conformance.run()
             conformance.postprocess_logs()
         except:

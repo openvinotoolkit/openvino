@@ -4,16 +4,15 @@
 from utils import utils
 from argparse import ArgumentParser
 from subprocess import Popen, STDOUT, TimeoutExpired
-
-import os
-import sys
-import threading
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree
 
+import os
+import sys
+import threading
+import platform
 import csv
-
 import datetime
 
 if sys.version_info.major >= 3:
@@ -27,10 +26,16 @@ LOG_NAME_REPLACE_STR = "##NAME##"
 
 DEFAUALT_PROCESS_TIMEOUT = 3600
 
-MAX_LENGHT = 4096
+MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
 
 
-TEST_STATUS = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]", "interapted": "interapted"}
+TEST_STATUS = {
+    'passed': "[       OK ]",
+    'failed': "[  FAILED  ]",
+    'hanged': "Test finished by timeout",
+    'crashed': "Unexpected application crash with code",
+    'skipped': "[  SKIPPED ]",
+    "interapted": "interapted"}
 RUN = "[ RUN      ]"
 
 GTEST_RESTRICTED_SYMBOLS = [':', '']
@@ -47,7 +52,7 @@ def parse_arguments():
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
-    parser.add_argument("-j", "--worker_num", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
+    parser.add_argument("-j", "--workers", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAUALT_PROCESS_TIMEOUT)
     return parser.parse_args()
@@ -135,7 +140,7 @@ class TaskManager:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
-                    logger.info(f"Process {pid} {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
+                    # logger.info(f"Process {pid} {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
                     break
                 except TimeoutExpired:
@@ -153,6 +158,7 @@ class TestParallelRunner:
             cache_path = os.path.join(self._working_dir, "test_cache.lst")
         self._cache_path = os.path.join(cache_path)
         self._is_save_cache = True
+        self._disabled_tests = list()
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -194,6 +200,8 @@ class TestParallelRunner:
                 pos = test_name.find('#')
                 if pos > 0:
                     real_test_name = test_suite + test_name[2:pos-2]
+                    if "DISABLED_" in real_test_name:
+                        self._disabled_tests.append(real_test_name)
                     test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
                 else:
                     test_suite = test_name
@@ -201,10 +209,7 @@ class TestParallelRunner:
         os.remove(test_list_file_name)
         return test_list
 
-
-    def __generate_gtest_filters(self, test_list: list, test_list_runtime:list):
-        res_test_filters = list()
-        def_length = len(self._command) + len(" --gtest_filter=")
+    def __generate_proved_test_list(self, test_list: list, test_list_runtime:list):
         proved_test_list = list()
         if len(test_list) == len(test_list_runtime):
             proved_test_list = test_list
@@ -213,6 +218,34 @@ class TestParallelRunner:
                 if test._name in test_list_runtime:
                     proved_test_list.append(test)
 
+        if len(proved_test_list) < len(test_list_runtime):
+            logger.warning(f'Cache file is not relevant the run. Taking test list from runtime')
+            return []
+        else:
+            return proved_test_list
+
+
+    def __generate_gtest_filters(self, proved_test_list:list):
+        res_test_filters = list()
+        def_length = len(self._command) + len(" --gtest_filter=")
+        idx = len(proved_test_list)
+        for i in range(len(proved_test_list)):
+            if proved_test_list[i]._time == 0 or proved_test_list[i]._time == -1:
+                idx = i
+                break
+        
+        # Remove all disabled tests from run
+        if idx < len(proved_test_list):
+            while proved_test_list[idx]._time == 0:
+                proved_test_list.pop(idx)
+
+        # Run crashed tests in separated thread
+        if idx < len(proved_test_list):
+            while idx < len(proved_test_list):
+                res_test_filters.append(f'"{self.__replace_restricted_symbols(proved_test_list[idx]._name)}":')
+                proved_test_list.pop(idx)
+
+        # prepare gtest filters per worker according command line length limitation
         while len(proved_test_list) > 0:
             test_times = []
             is_not_full = True
@@ -221,7 +254,7 @@ class TestParallelRunner:
             for _ in range(self._worker_num):
                 if len(proved_test_list) == 0:
                     break
-                worker_test_filters.append(proved_test_list[0]._name)
+                worker_test_filters.append(f'"{self.__replace_restricted_symbols(proved_test_list[0]._name)}":')
                 test_times.append(proved_test_list[0]._time)
                 proved_test_list.pop(0)
             while is_not_full and len(proved_test_list) > 0:
@@ -233,21 +266,24 @@ class TestParallelRunner:
                     while test_times[0] > test_times[i] + proved_test_list[len(proved_test_list) - 1]._time:
                         final_pos = len(proved_test_list) - 1
                         if len(worker_test_filters[i]) + def_length + len(proved_test_list[final_pos]._name) < MAX_LENGHT:
-                            worker_test_filters[i] += proved_test_list[final_pos]._name
+                            worker_test_filters[i] += f'"{self.__replace_restricted_symbols(proved_test_list[final_pos]._name)}":'
                             test_times[i] += proved_test_list[final_pos]._time
                             proved_test_list.pop(final_pos)
                         else:
                             is_not_full = False
                             break
                 if is_not_full and len(proved_test_list) > 0:
-                    worker_test_filters[0] += proved_test_list[0]._name
+                    worker_test_filters[0] += f'"{self.__replace_restricted_symbols(proved_test_list[0]._name)}":'
                     test_times[0] += proved_test_list[0]._time
                     proved_test_list.pop(0)
             for filter in worker_test_filters:
-                cnt = filter.count('\":')
-                logger.info(f"Number of tests in job: {cnt}")
                 res_test_filters.append(filter)
             is_not_full = True
+        # logging for debug
+        # for i in range(len(res_test_filters)):
+        #     filter = res_test_filters[i]
+        #     cnt = filter.count('\":')
+        #     logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
             
     def __get_test_list(self):
@@ -268,12 +304,13 @@ class TestParallelRunner:
                     test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
 
         logger.info(f"Len test_list_runtime: {len(test_list_runtime)}")
-        logger.info(f"Len test_list_cache: {len(test_list_cache)}")                
-        if len(test_list_cache) >= len(test_list_runtime):
+        logger.info(f"Len test_list_cache: {len(test_list_cache)}")
+        proved_test_list = self.__generate_proved_test_list(test_list_cache, test_list_runtime)               
+        if len(proved_test_list) > 0:
             self._is_save_cache = False
             logger.info("Test list in taken from cache")
             logger.info(f"Total test counter is {len(test_list_cache)}")
-            return self.__generate_gtest_filters(test_list_cache, test_list_runtime)
+            return self.__generate_gtest_filters(proved_test_list)
         else:
             logger.info("Test list in taken from runtime")
             logger.info(f"Total test counter is {len(test_list_runtime)}")
@@ -294,7 +331,7 @@ class TestParallelRunner:
         logger.info(f"Run test parallel is started. Worker num is {self._worker_num}")
         t_start = datetime.datetime.now()
         task_manger = TaskManager(self.__generate_command_list(), self._working_dir)
-        for index in range(self._worker_num):
+        for _ in range(self._worker_num):
             task_manger.init_worker()
         while task_manger.update_worker():
             pass
@@ -343,28 +380,16 @@ class TestParallelRunner:
                 dir = None
                 for line in log_file.readlines():
                     if RUN in line:
-                        if test_name is not None:
-                            dir = "interapted"
-                            test_times.append((1000000, test_name))
-                            if __save_log(logs_dir, dir, test_name):
-                                test_cnt_log += 1
-                                if dir in test_results.keys():
-                                    test_results[dir] += 1
-                                else:
-                                    test_results[dir] = 1
-                                test_log = list()
-                                dir = None
                         test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
                         test_log.append(line)
-                        continue
                     if dir is None:
                         for test_st, string in TEST_STATUS.items():
                             if string in line:
                                 dir = test_st
                     if test_name is not None:
                         test_log.append(line)
-                        if test_name in line:
-                            time = line[line.rfind("(") + 1:line.rfind("ms)")-1]
+                        if test_name in line or "Unexpected application crash with code:" in line:
+                            time = line[line.rfind("(") + 1:line.rfind("ms)")-1] if test_name in line else -1
                             try:
                                 test_times.append((int(time), test_name))
                             except:
@@ -378,11 +403,15 @@ class TestParallelRunner:
                                 test_name = None
                                 test_log = list()
                                 dir = None
-            logger.info(f"Number of tests in {log}: {test_cnt_log}")
+            # logging for debug
+            # logger.info(f"Number of tests in {log}: {test_cnt_log}")
             os.remove(log)
+
+        for disabled_test in self._disabled_tests:
+            test_times.append((0, disabled_test))
         if self._is_save_cache:
             test_times.sort(reverse=True)
-            head, tail = os.path.split(self._cache_path)
+            head, _ = os.path.split(self._cache_path)
             if not os.path.isdir(head) and head != "":
                 logger.error(f"Impossible to create cche file! The dir {head} does not exist!")
                 exit(-1)
@@ -397,6 +426,15 @@ class TestParallelRunner:
                 csv_writer.writerow(row)
             logger.info(f"Hash file: {hash_table_path} was created")
 
+        disabled_tests_path = os.path.join(logs_dir, "disabled_tests.lst")
+        with open(disabled_tests_path, "w") as disabled_tests_file:
+            logger.info(f"Disabled test list will be saved to: {disabled_tests_path}")
+            for i in range(len(self._disabled_tests)):
+                self._disabled_tests[i] += "\n"
+
+            disabled_tests_file.writelines(self._disabled_tests)
+            disabled_tests_file.close()
+
         logger.info(f"Log analize is succesfully finished")
         is_successfull_run = True
         test_cnt = 0
@@ -405,19 +443,21 @@ class TestParallelRunner:
             test_cnt += test_res
             if (test_st != "passed" or test_st != "skipped") and test_res > 0:
                 is_successfull_run = False
-        logger.info(f"Total test count is {test_cnt}. All logs is saved to {logs_dir}")
+     
+        logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
+        logger.info(f"Total test count is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
         return is_successfull_run
 
 if __name__ == "__main__":
     exec_file_args = get_test_command_line_args()
     args = parse_arguments()
     logger.info(f"[ARGUMENTS] --exec_file={args.exec_file}")
-    logger.info(f"[ARGUMENTS] --worker_num={args.worker_num}")
+    logger.info(f"[ARGUMENTS] --worker_num={args.workers}")
     logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --process_timeout={args.process_timeout}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
-    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.worker_num, args.working_dir, args.cache_path)
+    conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path)
     conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
