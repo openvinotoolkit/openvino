@@ -300,6 +300,41 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_FP32, DeconvolutionLayerGPUTest
         ::testing::Values(emptyAdditionalConfig)),
     DeconvolutionLayerGPUTest::getTestCaseName);
 
+const std::vector<DeconvInputData> dyn_2D_inputs_with_output_shape = {
+    DeconvInputData{
+        InputShape{{-1, 12, -1, -1}, {{1, 12, 7, 7}, {2, 12, 5, 7}, {1, 12, 7, 7}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{15, 15}, {9, 10}, {15, 15}}
+    },
+    DeconvInputData{
+        InputShape{{-1, 12, 7, 7}, {{1, 12, 7, 7}, {2, 12, 7, 7}, {1, 12, 7, 7}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{15, 15}}
+    },
+    DeconvInputData{
+        InputShape{{{1, 10}, 12, 7, 7}, {{1, 12, 7, 7}, {2, 12, 7, 7}, {3, 12, 7, 7}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{15, 15}}
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Dynamic_OutputShape_FP32, DeconvolutionLayerGPUTest,
+    ::testing::Combine(
+        ::testing::Combine(
+            ::testing::Values(SizeVector{3, 3}),
+            ::testing::ValuesIn(strides2d),
+            ::testing::ValuesIn(padBegins2d),
+            ::testing::ValuesIn(padEnds2d),
+            ::testing::ValuesIn(dilations2d),
+            ::testing::ValuesIn(numOutChannels),
+            ::testing::Values(ngraph::op::PadType::EXPLICIT),
+            ::testing::ValuesIn(emptyOutputPadding)),
+        ::testing::ValuesIn(dyn_2D_inputs_with_output_shape),
+        ::testing::Values(ElementType::f32),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(emptyAdditionalConfig)),
+    DeconvolutionLayerGPUTest::getTestCaseName);
+
 } // namespace
 
 } // namespace GPULayerTestsDefinitions
