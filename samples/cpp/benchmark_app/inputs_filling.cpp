@@ -139,8 +139,7 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
         }
     }
 
-    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
-    return tensor;
+    return ov::Tensor(inputInfo.type, inputInfo.dataShape, ov::Allocator(allocator));
 }
 
 template <typename T>
