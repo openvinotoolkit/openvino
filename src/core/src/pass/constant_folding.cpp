@@ -51,6 +51,45 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
     }
 };
 
+static void replace_subgraph_input_with_constant(ov::op::util::MultiSubGraphOp* subgraph,
+                                                 size_t input_idx,
+                                                 const Output<Node>& constant) {
+    for (size_t body_idx = 0; body_idx < subgraph->get_internal_subgraphs_size(); body_idx++) {
+        const auto& body = subgraph->get_function(body_idx);
+        auto& body_params = body->get_parameters();
+        const auto& descriptions = subgraph->get_input_descriptions(body_idx);
+        ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector new_descriptions;
+        for (const auto& desc : descriptions) {
+            if (desc->m_input_index == input_idx) {
+                continue;
+            }
+            auto new_desc = desc->copy();
+            if (new_desc->m_input_index > input_idx) {
+                new_desc->m_input_index--;
+            }
+            new_descriptions.push_back(new_desc);
+        }
+        for (const auto& desc : descriptions) {
+            if (desc->m_input_index != input_idx) {
+                continue;
+            }
+            auto body_param_idx = desc->m_body_parameter_index;
+            auto& body_param = body_params[body_param_idx];
+            body_param->output(0).replace(constant);
+            body->remove_parameter(body_param);
+            for (auto& new_desc : new_descriptions) {
+                if (new_desc->m_body_parameter_index > body_param_idx) {
+                    new_desc->m_body_parameter_index--;
+                }
+            }
+        }
+        subgraph->set_input_descriptions(body_idx, new_descriptions);
+    }
+    auto op_inputs = subgraph->input_values();
+    op_inputs.erase(op_inputs.begin() + input_idx);
+    subgraph->set_arguments(op_inputs);
+}
+
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
 
@@ -85,6 +124,12 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                     copy_runtime_info(node, replacement.get_node_shared_ptr());
 
                     rewritten = true;
+
+                    for (const auto input : replacement.get_target_inputs()) {
+                        if (auto sub_graph_node = ov::as_type<ov::op::util::MultiSubGraphOp>(input.get_node())) {
+                            replace_subgraph_input_with_constant(sub_graph_node, input.get_index(), replacement);
+                        }
+                    }
                 }
             }
         } else {
