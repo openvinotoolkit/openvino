@@ -202,7 +202,7 @@ Note that if you choose to exclude CPU from device candidate list, CPU will not 
 
 ### Checking Target Runtime Devices
 
-The `ov::execution_devices` property enables you to query runtime target devices in the Auto-Device plugin.
+To query the runtime target devices on which the inferences are being executed using AUTO, you can use the `ov::execution_devices` property. It must be used with `get_property`, for example:
 
 @sphinxdirective
 
