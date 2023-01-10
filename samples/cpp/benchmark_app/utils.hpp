@@ -137,7 +137,7 @@ bool is_numpy_file(const std::string& filePath);
 bool is_image_file(const std::string& filePath);
 bool contains_binaries(const std::vector<std::string>& filePaths);
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
-                                                    const std::vector<std::string>& extensions);
+                                                    const std::unordered_set<std::string>& extensions);
 
 std::string parameter_name_to_tensor_name(
     const std::string& name,
