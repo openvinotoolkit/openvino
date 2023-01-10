@@ -274,7 +274,7 @@ def test_properties_hint_model():
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_single_property_setting():
+def test_single_cpu_property_setting():
     core = Core()
 
     if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
@@ -327,7 +327,7 @@ def test_single_property_setting():
         },
     ],
 )
-def test_properties_core(properties_to_set):
+def test_core_cpu_properties(properties_to_set):
     core = Core()
 
     if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):

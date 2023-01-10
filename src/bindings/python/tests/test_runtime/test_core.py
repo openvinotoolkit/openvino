@@ -260,7 +260,7 @@ def test_query_model(device):
 
 @pytest.mark.dynamic_library()
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
-def test_register_plugin():
+def test_register_cpu_plugin():
     core = Core()
     if "Intel" in core.get_property("CPU", "FULL_DEVICE_NAME"):
         core.register_plugin("openvino_intel_cpu_plugin", "BLA")
@@ -273,7 +273,7 @@ def test_register_plugin():
 
 @pytest.mark.dynamic_library()
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
-def test_register_plugins():
+def test_register_cpu_plugins():
     core = Core()
     if platform == "linux" or platform == "linux2":
         core.register_plugins(plugins_xml)
