@@ -69,11 +69,6 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false));
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
-    }
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
@@ -151,9 +146,21 @@ void ExecutionConfig::apply_priority_hints(const cldnn::device_info& info) {
     }
 }
 
+void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
+    }
+
+    GPU_DEBUG_IF(debug_config->serialize_compile == 1) {
+        set_property(ov::compilation_num_threads(1));
+    }
+}
+
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
     apply_performance_hints(info);
     apply_priority_hints(info);
+    apply_debug_options(info);
 }
 
 void ExecutionConfig::apply_user_properties(const cldnn::device_info& info) {
