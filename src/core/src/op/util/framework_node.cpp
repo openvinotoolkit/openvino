@@ -36,7 +36,7 @@ void ov::op::util::FrameworkNode::clone_to(ov::op::util::FrameworkNode& dst) con
     dst.m_output_descriptions.resize(m_num_bodies);
 
     for (int i = 0; i < m_num_bodies; i++) {
-        dst.m_bodies[i] = ov::clone_model(*get_function(i));
+        dst.m_bodies[i] = get_function(i)->clone();
         for (auto& input_description : m_input_descriptions[i]) {
             dst.m_input_descriptions[i].push_back(input_description->copy());
         }
@@ -75,8 +75,8 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
     }
 
     // propagate shapes and types from bodies
-    std::map<size_t, PartialShape> shape_map;
-    std::map<size_t, element::Type> type_map;
+    std::unordered_map<size_t, PartialShape> shape_map;
+    std::unordered_map<size_t, element::Type> type_map;
     for (size_t i = 0; i < m_bodies.size(); ++i) {
         auto body = get_function(i);
         // If body doesn't exist skip the validation
@@ -86,7 +86,7 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
 
         auto outputs_map = get_mapping_outputs_on_body_description(m_output_descriptions[i]);
 
-        for (auto item : outputs_map) {
+        for (const auto& item : outputs_map) {
             auto output_index = item.first;
             auto desc = item.second;
             auto node_result = m_bodies[i]->get_results().at(desc->m_body_value_index)->input_value(0);
@@ -110,7 +110,7 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
             }
         }
     }
-    for (auto item : shape_map) {
+    for (const auto& item : shape_map) {
         auto output_index = item.first;
         NODE_VALIDATION_CHECK(this,
                               type_map.count(output_index) != 0,

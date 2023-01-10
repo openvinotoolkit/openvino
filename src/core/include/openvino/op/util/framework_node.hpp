@@ -8,7 +8,6 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/strides.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace ov {
