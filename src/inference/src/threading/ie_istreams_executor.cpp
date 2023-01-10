@@ -492,8 +492,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             streamExecutorConfig._big_core_logic_streams = streamExecutorConfig._big_core_streams;
         }
     }
-    if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType ||
-        ThreadBindingType::CORES == streamExecutorConfig._threadBindingType) {
+    if (!bLatencyCase && (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType ||
+                          ThreadBindingType::CORES == streamExecutorConfig._threadBindingType)) {
         streamExecutorConfig._bind_cores = true;
     }
     streamExecutorConfig._threads =
