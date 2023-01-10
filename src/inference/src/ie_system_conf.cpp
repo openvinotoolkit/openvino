@@ -100,7 +100,7 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     return false;
 }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
 int getNumberOfCPUCores(bool) {

@@ -836,7 +836,7 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
     }
 }
 
-kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals_original = l.get_partial_shape();
 
@@ -873,10 +873,6 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 
         pitch *= (reserved_in_mem_count + lp + up);
     }
-
-    const int feature_index =
-        kernel_selector::DataTensor::Channelndex(ks_layout, kernel_selector::Tensor::DataChannelName::FEATURE);
-    vec[feature_index].v /= split;
 
     return kernel_selector::data_tensor(vec, to_data_type(l.data_type), ks_layout);
 }

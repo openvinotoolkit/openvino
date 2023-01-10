@@ -335,7 +335,7 @@ public:
     OPENVINO_RTTI("AttributeAdapter<uint64_t>");
 };
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // size_t is one of the uint types on _WIN32
 template <>
 class OPENVINO_API AttributeAdapter<size_t> : public IndirectScalarValueAccessor<size_t, int64_t> {

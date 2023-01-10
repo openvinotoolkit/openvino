@@ -33,7 +33,6 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableGroupedConvolution();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
     k.EnableDifferentTypes();
     return k;
