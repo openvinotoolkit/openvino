@@ -16,14 +16,10 @@ In case of any questions, review and merge requests, contact the [AUTO Plugin ma
 ## Components
 
 The AUTO plugin follows the OpenVINO™ plugin architecture and consists of several main components:
-* Static device selection
-* Infer request pipeline
-* Inference to expose exection device and properties of execution device.
-
+ * [docs](./docs) contains developer documentation pages for AUTO plugin.
+ * [src](./) folder contains sources of the core component.
 
 Learn more in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html).
-
-`C++` tests are implemented for the AUTO plugin. For more details, read the [AUTO plugin tests](./docs/tests.md) page for more details. 
 
 ## Architecture
 The diagram below shows an overview of the components responsible for the basic inference flow:
