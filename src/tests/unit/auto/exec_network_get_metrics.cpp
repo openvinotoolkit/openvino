@@ -447,11 +447,11 @@ TEST_P(ExecNetworkGetMetricOtherTest, otherTest) {
     auto resPriority = AutoExecNetwork->GetMetric(ov::hint::model_priority.name());
     if (isNewAPI == true) {
         if (modelPriority.as<std::string>() == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
-            EXPECT_EQ(resPriority, ov::hint::Priority::LOW);
+            EXPECT_EQ(resPriority.as<ov::hint::Priority>(), ov::hint::Priority::LOW);
         } else if (modelPriority.as<std::string>() == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
-            EXPECT_EQ(resPriority, ov::hint::Priority::MEDIUM);
+            EXPECT_EQ(resPriority.as<ov::hint::Priority>(), ov::hint::Priority::MEDIUM);
         } else if (modelPriority.as<std::string>() == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
-            EXPECT_EQ(resPriority, ov::hint::Priority::HIGH);
+            EXPECT_EQ(resPriority.as<ov::hint::Priority>(), ov::hint::Priority::HIGH);
         }
     } else {
         EXPECT_EQ(resPriority, modelPriority);
