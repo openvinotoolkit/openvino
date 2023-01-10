@@ -105,8 +105,11 @@ protected:
                                  const PartialShape& src_shape,
                                  const Layout& src_layout) const override {
         PartialShape result = src_shape;
-        if (src_shape.rank().is_static())
-            result[ov::layout::channels_idx(src_layout)] = 3;
+        if (src_shape.rank().is_static()) {
+            auto c_idx = ov::layout::channels_idx(src_layout);
+            c_idx = c_idx < 0 ? c_idx + src_shape.size() : c_idx;
+            result[c_idx] = 3;
+        }
         return result;
     }
 };
