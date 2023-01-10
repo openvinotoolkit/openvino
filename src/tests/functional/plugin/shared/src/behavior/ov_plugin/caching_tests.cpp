@@ -321,6 +321,98 @@ TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutExecption) {
     run();
 }
 
+std::string CompileModelLoadFromMemoryTestBase::getTestCaseName(
+    testing::TestParamInfo<compileModelLoadFromMemoryParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+void CompileModelLoadFromMemoryTestBase::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
+    ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
+        {1, 3, 227, 227},
+        InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
+
+    try {
+        std::ifstream model_file(m_modelName, std::ios::binary);
+        std::stringstream ss;
+        ss << model_file.rdbuf();
+        m_model = ss.str();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read xml file from: " << m_modelName << "\nException [" << ex.what() << "]" << std::endl;
+    }
+
+    try {
+        std::ifstream weights_file(m_weightsName, std::ios::binary);
+        weights_file.unsetf(std::ios::skipws);
+
+        weights_file.seekg(0, std::ios::end);
+        const auto weights_size = static_cast<std::size_t>(weights_file.tellg());
+        weights_file.seekg(0, std::ios::beg);
+
+        weights_vector.reserve(weights_size);
+        weights_vector.insert(weights_vector.begin(),
+                              std::istream_iterator<std::uint8_t>(weights_file),
+                              std::istream_iterator<std::uint8_t>());
+        m_weights = ov::Tensor(ov::element::u8, {1, 1, 1, weights_size}, weights_vector.data());
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read weights file from: " << m_weightsName << "\nException [" << ex.what() << "]"
+                     << std::endl;
+    }
+}
+
+void CompileModelLoadFromMemoryTestBase::TearDown() {
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
+    CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    CommonTestUtils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    APIBaseTest::TearDown();
+    weights_vector.clear();
+}
+
+void CompileModelLoadFromMemoryTestBase::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    try {
+        compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
+        inferRequest = compiledModel.create_infer_request();
+        inferRequest.infer();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
+                     << std::endl;
+    } catch (...) {
+        GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+    }
+}
+
+TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
+    run();
+}
+
 std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj) {
     auto param = obj.param;
     std::string deviceName;
