@@ -79,7 +79,7 @@ TemplateInferRequest::TemplateInferRequest(const std::shared_ptr<TemplatePlugin:
                               "_WaitPipline"),
     };
 
-    _executable = get_template_model()->_plugin->_backend->compile(get_template_model()->m_model);
+    _executable = get_template_model()->get_template_plugin()->_backend->compile(get_template_model()->m_model);
 
     // Allocate plugin backend specific memory handles
     _inputTensors.resize(get_inputs().size());
@@ -129,17 +129,17 @@ void TemplateInferRequest::infer_preprocess() {
     OPENVINO_ASSERT(m_input_tensors.size() == _inputTensors.size());
     for (size_t i = 0; i < m_input_tensors.size(); i++) {
         // No ROI extraction is needed
-        _inputTensors[i] =
-            get_template_model()->_plugin->_backend->create_tensor(m_input_tensors.at(i).get_element_type(),
-                                                                   m_input_tensors.at(i).get_shape(),
-                                                                   m_input_tensors.at(i).data());
+        _inputTensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor(
+            m_input_tensors.at(i).get_element_type(),
+            m_input_tensors.at(i).get_shape(),
+            m_input_tensors.at(i).data());
     }
     OPENVINO_ASSERT(m_output_tensors.size() == _outputTensors.size());
     for (size_t i = 0; i < m_output_tensors.size(); i++) {
-        _outputTensors[i] =
-            get_template_model()->_plugin->_backend->create_tensor(m_output_tensors.at(i).get_element_type(),
-                                                                   m_output_tensors.at(i).get_shape(),
-                                                                   m_output_tensors.at(i).data());
+        _outputTensors[i] = get_template_model()->get_template_plugin()->_backend->create_tensor(
+            m_output_tensors.at(i).get_element_type(),
+            m_output_tensors.at(i).get_shape(),
+            m_output_tensors.at(i).data());
     }
     _durations[Preprocess] = Time::now() - start;
 }

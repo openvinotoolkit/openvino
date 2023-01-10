@@ -63,8 +63,8 @@ public:
 private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
-    std::shared_ptr<const ov::IPlugin> m_plugin;
     std::shared_ptr<void> m_so;
+    std::shared_ptr<const ov::IPlugin> m_plugin;
     bool m_loaded_from_cache = false;
 
     friend IPlugin;
@@ -85,6 +85,8 @@ protected:
 
     InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
     InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor
+
+    std::shared_ptr<const ov::IPlugin> get_plugin() const;
 };
 
 }  // namespace ov

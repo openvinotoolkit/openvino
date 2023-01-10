@@ -5,6 +5,7 @@
 #include "converter_utils.hpp"
 
 #include <ie_blob.h>
+#include <ie_common.h>
 #include <ie_compound_blob.h>
 #include <ie_layouts.h>
 
@@ -13,6 +14,7 @@
 #include <ie_version.hpp>
 #include <memory>
 #include <openvino/core/except.hpp>
+#include <openvino/op/parameter.hpp>
 #include <openvino/runtime/exception.hpp>
 #include <openvino/runtime/remote_context.hpp>
 #include <openvino/runtime/tensor.hpp>
@@ -62,6 +64,25 @@ void fill_output_info(ov::Output<ov::Node>& input, InferenceEngine::DataPtr& out
         rt_info.erase(it);
     }
 }
+
+InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port,
+                                     const std::function<bool(InferenceEngine::SizeVector& dims)>& callback = {}) {
+    InferenceEngine::SizeVector dims = {};
+    const auto& p_shape = port.get_partial_shape();
+    if (p_shape.is_static())
+        dims = p_shape.get_shape();
+    else {
+        if (!callback || !callback(dims)) {
+            if (p_shape.rank().is_static()) {
+                for (size_t i = 0; i < static_cast<size_t>(p_shape.rank().get_length()); i++) {
+                    dims.emplace_back(0);
+                }
+            }
+        }
+    }
+    return dims;
+}
+
 }  // namespace
 
 void ov::legacy_convert::fill_input_info(const ov::Output<const ov::Node>& input,
@@ -69,9 +90,17 @@ void ov::legacy_convert::fill_input_info(const ov::Output<const ov::Node>& input
     if (!input_info) {
         // Create input info
         auto param_name = input.get_node()->get_friendly_name();
+        auto dims = get_dims(input, [&](InferenceEngine::SizeVector& dims) -> bool {
+            auto param = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(input.get_node_shared_ptr());
+            if (param && param->get_partial_shape().is_static()) {
+                dims = param->get_partial_shape().get_shape();
+                return true;
+            }
+            return false;
+        });
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(input.get_element_type()),
-                                         input.get_shape(),
-                                         InferenceEngine::TensorDesc::getLayoutByDims(input.get_shape()));
+                                         dims,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
         auto data = std::make_shared<InferenceEngine::Data>(param_name, desc);
         input_info = std::make_shared<InferenceEngine::InputInfo>();
         input_info->setInputData(data);
@@ -93,9 +122,10 @@ void ov::legacy_convert::fill_output_info(const ov::Output<const ov::Node>& outp
     if (!output_info) {
         // Create input info
         const auto& res_name = ov::op::util::create_ie_output_name(output);
+        auto dims = get_dims(output);
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(output.get_element_type()),
-                                         output.get_shape(),
-                                         InferenceEngine::TensorDesc::getLayoutByDims(output.get_shape()));
+                                         dims,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
         output_info = std::make_shared<InferenceEngine::Data>(res_name, desc);
     }
     auto& rt_info = output.get_rt_info();

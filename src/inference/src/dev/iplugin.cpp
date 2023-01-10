@@ -13,6 +13,7 @@
 #include <ie_preprocess.hpp>
 #include <memory>
 #include <openvino/core/layout.hpp>
+#include <openvino/core/partial_shape.hpp>
 #include <openvino/core/preprocess/color_format.hpp>
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/core/preprocess/resize_algorithm.hpp>
@@ -128,9 +129,11 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::shared
                 switch (preProc.getResizeAlgorithm()) {
                 case InferenceEngine::ResizeAlgorithm::RESIZE_AREA:
                     preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST);
+                    preproc.input(i).tensor().set_spatial_dynamic_shape();
                     break;
                 case InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR:
                     preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+                    preproc.input(i).tensor().set_spatial_dynamic_shape();
                     break;
                 default:
                     // nothing to do

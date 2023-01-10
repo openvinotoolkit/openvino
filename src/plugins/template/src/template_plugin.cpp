@@ -122,7 +122,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& modelStre
     auto exec = std::make_shared<ExecutableNetwork>(modelStream,
                                                     fullConfig,
                                                     std::static_pointer_cast<const Plugin>(shared_from_this()));
-    // SetExeNetworkInfo(exec, exec->m_model);
     return exec;
 }
 // ! [plugin:import_network]

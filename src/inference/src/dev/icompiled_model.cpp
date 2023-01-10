@@ -56,6 +56,10 @@ void ov::ICompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
+    return m_plugin;
+}
+
 ov::Any ov::ICompiledModel::get_property(const std::string& name) const {
     OPENVINO_NOT_IMPLEMENTED;
 }

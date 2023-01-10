@@ -30,13 +30,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ov::M
                                                      const Configuration& cfg,
                                                      const std::shared_ptr<const Plugin>& plugin)
     : ov::ICompiledModel(model, plugin),  // Disable default threads creation
-      _cfg(cfg),
-      _plugin(plugin) {
+      _cfg(cfg) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileNetwork(model, InferenceEngine::InputsDataMap{}, InferenceEngine::OutputsDataMap{});
+        m_model = model->clone();
         InitExecutor();  // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
         throw;
@@ -48,13 +47,19 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ov::M
 }
 // ! [executable_network:ctor_cnnnetwork]
 
+std::shared_ptr<const Plugin> ExecutableNetwork::get_template_plugin() const {
+    auto template_plugin = std::dynamic_pointer_cast<const Plugin>(get_plugin());
+
+    OPENVINO_ASSERT(template_plugin);
+    return template_plugin;
+}
+
 // ! [executable_network:ctor_import_stream]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
                                                      const Configuration& cfg,
                                                      const std::shared_ptr<const Plugin>& plugin)
     : ov::ICompiledModel(nullptr, plugin),
-      _cfg(cfg),
-      _plugin(plugin) {
+      _cfg(cfg) {
     // read XML content
     std::string xmlString;
     std::uint64_t dataSize = 0;
@@ -63,69 +68,25 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
     model.read(const_cast<char*>(xmlString.c_str()), dataSize);
 
     // read blob content
-    InferenceEngine::Blob::Ptr dataBlob;
+    ov::Tensor data_tensor;
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
-        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                        {static_cast<std::size_t>(dataSize)},
-                                        InferenceEngine::Layout::C));
-        dataBlob->allocate();
-        model.read(dataBlob->buffer(), dataSize);
+        data_tensor = std::move(ov::Tensor(ov::element::i8, {dataSize}));
+        model.read(data_tensor.data<char>(), dataSize);
     }
 
-    IE_THROW() << "";
-    // auto cnnnetwork = _plugin->get_core()->ReadNetwork(xmlString, std::move(dataBlob));
-    //
-    // // TODO: implement Import / Export of configuration options and merge with `cfg`
-    // // TODO: implement Import / Export of network precisions, layouts, preprocessing info
-    // InferenceEngine::InputsDataMap inputInfoMap = cnnnetwork.getInputsInfo();
-    // InferenceEngine::OutputsDataMap outputInfoMap = cnnnetwork.getOutputsInfo();
-    //
-    // setNetworkInputs(inputInfoMap);
-    // setNetworkOutputs(outputInfoMap);
-    // SetPointerToPlugin(_plugin->shared_from_this());
-    //
-    // try {
-    //     // TODO: remove compilation, network is already compiled and serialized in compiled form
-    //     CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
-    //     InitExecutor();  // creates thread-based executor using for async requests
-    // } catch (const InferenceEngine::Exception&) {
-    //     throw;
-    // } catch (const std::exception& e) {
-    //     IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
-    // } catch (...) {
-    //     IE_THROW(Unexpected) << "Generic exception is thrown";
-    // }
+    m_model = get_template_plugin()->get_core()->read_model(xmlString, data_tensor);
+    try {
+        InitExecutor();  // creates thread-based executor using for async requests
+    } catch (const InferenceEngine::Exception&) {
+        throw;
+    } catch (const std::exception& e) {
+        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
+    } catch (...) {
+        IE_THROW(Unexpected) << "Generic exception is thrown";
+    }
 }
 // ! [executable_network:ctor_import_stream]
-
-// ! [executable_network:map_graph]
-// forward declaration
-void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ov::Model>& model,
-                                                       const InferenceEngine::InputsDataMap& inputInfoMap,
-                                                       const InferenceEngine::OutputsDataMap& outputsInfoMap) {
-    // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
-
-    // clone network
-    m_model = model->clone();
-
-    // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
-    // as inference request output names but the name of the layer before.
-    size_t idx = 0;
-    for (auto&& result : m_model->get_results()) {
-        const auto& input = result->input_value(0);
-        auto name = ngraph::op::util::get_ie_output_name(input);
-        if (_outputIndex.emplace(name, idx).second)
-            idx++;
-    }
-    for (auto&& parameter : m_model->get_parameters()) {
-        _inputIndex.emplace(parameter->get_friendly_name(), m_model->get_parameter_index(parameter));
-    }
-
-    // Perform any other steps like allocation and filling backend specific memory handles and so on
-}
-// ! [executable_network:map_graph]
 
 // ! [executable_network:init_executor]
 void TemplatePlugin::ExecutableNetwork::InitExecutor() {
@@ -138,10 +99,10 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    m_task_executor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    m_task_executor = get_template_plugin()->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
-    _plugin->get_executor_manager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+    get_template_plugin()->get_executor_manager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
 }
 // ! [executable_network:init_executor]
 
@@ -158,7 +119,7 @@ std::shared_ptr<ov::IInferRequest> TemplatePlugin::ExecutableNetwork::create_inf
     internalRequest = create_infer_request_impl();
     return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                        m_task_executor,
-                                                       _plugin->_waitExecutor,
+                                                       get_template_plugin()->_waitExecutor,
                                                        m_callback_executor);
 }
 // ! [executable_network:create_infer_request]
