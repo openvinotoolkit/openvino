@@ -136,6 +136,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 # this is to prevent GNA failing on pipeline until new style will be finalizeda and implemented in sources.
+set(ENABLE_GNA_NCC ON)
 if(ENABLE_GNA_NCC)
     ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
                         SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
