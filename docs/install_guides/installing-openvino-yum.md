@@ -144,7 +144,11 @@ Run the following command:
 
 After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
 
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+OpenVINO provides a script in the installation directory. Run the following commands:
+```sh
+cd <INSTALL_DIR>/install_dependencies
+sudo -E ./install_openvino_dependencies.sh
+```
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
