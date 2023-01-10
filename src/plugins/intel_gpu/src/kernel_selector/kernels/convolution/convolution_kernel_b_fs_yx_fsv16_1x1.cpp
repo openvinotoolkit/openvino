@@ -29,16 +29,16 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
     auto f = cp.outputs[0].Feature().v;
 
     if (x == 1 && y == 1) {
-        return { 1, DEFAULT };
+        return { 1, EXE_MODE_DEFAULT };
     } else if (x * f <= 256) {
         if (x < 8 || x * f <= 128)
-            return { 2, DEFAULT };
+            return { 2, EXE_MODE_DEFAULT };
         else
-            return { 4, DEFAULT };
+            return { 4, EXE_MODE_DEFAULT };
     } else if (x * f <= 1536) {
-        return { 4, DEFAULT };
+        return { 4, EXE_MODE_DEFAULT };
     } else {
-        return { 8, DEFAULT };
+        return { 8, EXE_MODE_DEFAULT };
     }
 }
 
@@ -67,7 +67,7 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_f
     size_t max_slm_div_factor = params.engineInfo.maxWorkGroupSize / tuning_data.sub_group_size;
     bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
-    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.bIMADSupport && !block_size_one_is_better)
+    if (params.engineInfo.deviceType == dev_type::integrated_gpu && params.engineInfo.supports_imad && !block_size_one_is_better)
         while (ic_blocks % (tuning_data.slm_div_factor * 2) == 0 && (tuning_data.slm_div_factor * 2 <= max_slm_div_factor) &&
                EstimateOccupancy(params, tuning_data) < 4.0)
             tuning_data.slm_div_factor *= 2;
@@ -92,8 +92,13 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_1x1::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_1x1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -250,7 +255,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
 }
 
 KernelsData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, DEFAULT, -1);
+    return GetCommonKernelsData(params, options, EXE_MODE_DEFAULT, -1);
 }
 
 }  // namespace kernel_selector

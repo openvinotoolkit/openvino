@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -72,7 +70,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (f + feature_num * (x + x_size * y));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -119,7 +117,7 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (f + feature_num * (x + x_size * y));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -167,7 +165,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (f + feature_num * (x + x_size * y));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -215,7 +213,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (f + feature_num * (x + x_size * y));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -264,7 +262,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_bfyx) {
                     int linear_id = x + x_size * (y + y_size * (f + feature_num * b));
                     int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
                     a.push_back(output_ptr[output_linear_id]);
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -313,7 +311,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_bfyx) {
                     int linear_id = x + x_size * (y + y_size * (f + feature_num * b));
                     int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
                     a.push_back(output_ptr[output_linear_id]);
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -362,7 +360,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_bfyx) {
                     int linear_id = x + x_size * (y + y_size * (f + feature_num * b));
                     int output_linear_id = x + crop_x_size * (y + crop_y_size * (f + crop_feature_num * b));
                     a.push_back(output_ptr[output_linear_id]);
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -409,7 +407,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_all_fyxb) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (x + x_size * (y + y_size * f));
                     int output_linear_id = b + crop_batch_num * (x + crop_x_size * (y + crop_y_size * f));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -456,7 +454,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_all_fyxb) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (x + x_size * (y + y_size * f));
                     int output_linear_id = b + crop_batch_num * (x + crop_x_size * (y + crop_y_size * f));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -503,7 +501,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_all_fyxb) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = b + batch_num * (x + x_size * (y + y_size * f));
                     int output_linear_id = b + crop_batch_num * (x + crop_x_size * (y + crop_y_size * f));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -568,7 +566,7 @@ TEST(crop_gpu, basic_in2x3x2x2_crop_offsets) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = (b + batch_offset) + batch_num * ((f + feature_offset) + feature_num * ((x + x_offset) + x_size * (y + y_offset)));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -633,7 +631,7 @@ TEST(crop_gpu, basic_i32_in2x3x2x2_crop_offsets) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = (b + batch_offset) + batch_num * ((f + feature_offset) + feature_num * ((x + x_offset) + x_size * (y + y_offset)));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -698,7 +696,7 @@ TEST(crop_gpu, basic_i64_in2x3x2x2_crop_offsets) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = (b + batch_offset) + batch_num * ((f + feature_offset) + feature_num * ((x + x_offset) + x_size * (y + y_offset)));
                     int output_linear_id = b + crop_batch_num * (f + crop_feature_num * (x + crop_x_size * y));
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -771,14 +769,14 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size();i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     std::cout << std::endl;
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size();i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
@@ -818,7 +816,7 @@ TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size();i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 }
 
 TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
@@ -887,13 +885,13 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
@@ -962,13 +960,13 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     cldnn::mem_lock<int64_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<int64_t> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
@@ -1041,16 +1039,16 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
 
     // check if crop has been executed in place
     auto in_place = engine->is_the_same_buffer(*outputs.at("crop1").get_memory(), *outputs.at("relu").get_memory());
-    EXPECT_TRUE(in_place);
+    ASSERT_TRUE(in_place);
 
     for (size_t i = 0; i < out1.size();i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("relu2").get_memory();
     cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size();i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
@@ -1096,7 +1094,7 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
                     for (int x = 0; x < crop_x_size; ++x) { //X
                         int linear_id = x + x_size * (y + y_size * (z + z_size * (f + feature_num * b)));
                         int output_linear_id = x + crop_x_size * (y + crop_y_size * (z + crop_z_size * (f + crop_feature_num * b)));
-                        EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                        ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                     }
                 }
             }
@@ -1153,7 +1151,7 @@ TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
                         for (int x = 0; x < crop_x_size; ++x) { //X
                             int linear_id = x + x_size * (y + y_size * (z + z_size * (w + w_size * (f + feature_num * b))));
                             int output_linear_id = x + crop_x_size * (y + crop_y_size * (z + crop_z_size * (w + crop_w_size * (f + crop_feature_num * b))));
-                            EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                            ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                         }
                     }
                 }
@@ -1241,7 +1239,7 @@ TEST_P(crop_gpu, pad_test) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < res.size(); i++)
-        EXPECT_EQ(output_ptr[i], res[i]);
+        ASSERT_EQ(output_ptr[i], res[i]);
 }
 
 static std::vector<std::pair<cldnn::format,cldnn::format>> formats = {
@@ -1323,7 +1321,7 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
                 for (int x = 0; x < crop_x_size; ++x) { //X
                     int linear_id = (b + batch_offset) * (feature_num * y_size * x_size) + (f + feature_offset) * (y_size * x_size) + (y + y_offset) * x_size + (x + x_offset);
                     int output_linear_id = b * (crop_feature_num * crop_y_size * crop_x_size) + f * (crop_y_size * crop_x_size) + y * crop_x_size + x;
-                    EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                    ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                 }
             }
         }
@@ -1378,13 +1376,13 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
 }
 
 TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
@@ -1440,11 +1438,62 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        EXPECT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
     cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
-        EXPECT_EQ(output_ptr_2[i], out2[i]);
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
+}
+
+TEST(crop_gpu, static_split_batch) {
+    auto& engine = get_test_engine();
+
+    auto input_actual_layout = layout{ ov::PartialShape{3, 4, 1, 1}, data_types::f32, format::bfyx };
+    auto input_mem = engine.allocate_memory(input_actual_layout);
+
+    cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::none;
+    topology topology;
+    topology.add(input_layout("input", input_actual_layout));
+    topology.add(crop("crop1", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(0, 0, 0, 0) }, op_mode, 0));
+    topology.add(crop("crop2", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(1, 0, 0, 0) }, op_mode, 1));
+    topology.add(crop("crop3", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(2, 0, 0, 0) }, op_mode, 2));
+
+    std::vector<int32_t> input_vec(12);
+    for (size_t i = 0; i < 12; i++) {
+        input_vec[i] = i;
+    }
+
+    std::vector<int32_t> out1 = { 0, 1, 2, 3 };
+    std::vector<int32_t> out2 = { 4, 5, 6, 7 };
+    std::vector<int32_t> out3 = { 8, 9, 10, 11 };
+
+    set_values(input_mem, input_vec);
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+
+    network network(engine, topology, bo);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop1").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out1.size(); i++)
+        ASSERT_EQ(output_ptr[i], out1[i]);
+
+    auto output_2 = outputs.at("crop2").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
+
+    for (size_t i = 0; i < out2.size(); i++)
+        ASSERT_EQ(output_ptr_2[i], out2[i]);
+
+    auto output_3 = outputs.at("crop3").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr_3(output_3, get_test_stream());
+
+    for (size_t i = 0; i < out3.size(); i++)
+        ASSERT_EQ(output_ptr_3[i], out3[i]);
 }

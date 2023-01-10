@@ -39,9 +39,8 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         MakeJitConstant("STRIDE", params.stride),
         MakeJitConstant("PADDING", params.padding),
         MakeJitConstant("DILATION", params.dilation),
-        MakeJitConstant("FILTER_ARRAY_NUM", params.split * params.groups),
+        MakeJitConstant("FILTER_ARRAY_NUM", params.groups),
         MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-        MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", params.depthwise_separable_opt),
         MakeJitConstant("GROUPED", (params.groups > 1) ? 1 : 0),
     });
 
@@ -107,41 +106,6 @@ bool ConvolutionKernelBase::CheckWorkGroups(const ConvolutionKernelBase::Dispatc
     }
 
     return true;
-}
-
-namespace {
-bool CheckTensorForSplit(const DataTensor& t, uint32_t split) {
-    if (t.PitchesDifferFromLogicalDims()) {
-        auto feature = t.Feature();
-        auto featureIndex = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::FEATURE);
-        if (featureIndex >= 0 && featureIndex + 1 < static_cast<int>(DataTensor::ChannelsCount(t.GetLayout()))) {
-            if (feature.v * split <= t.GetDims()[featureIndex + 1].pitch) {
-                Tensor::NDims newDims = t.GetDims();
-                newDims[featureIndex].v = feature.v * split;
-
-                DataTensor newTensor{newDims,
-                                     t.GetDType(),
-                                     t.GetLayout(),
-                                     t.GetViewOffset(),
-                                     t.PhysicalSize(),
-                                     t.GetPaddedVal()};
-
-                if (newTensor.PitchesDifferFromLogicalDims() == false) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    return true;
-}
-}  // namespace
-
-bool ConvolutionKernelBase::CheckPitchForSplitOnly(const convolution_params& params) {
-    // TODO: it's better to add pitch+offset support than handle this case
-    return CheckTensorForSplit(params.inputs[0], params.split);
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const convolution_params& params, int) const {
@@ -262,8 +226,6 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
             fused_deps_total++;
         }
     }
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
-
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};
@@ -353,7 +315,7 @@ std::string ConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) const {
         return autoTuneOptions[autoTuneIndex];
     }
 
-    return DEFAULT;
+    return EXE_MODE_DEFAULT;
 }
 
 KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,

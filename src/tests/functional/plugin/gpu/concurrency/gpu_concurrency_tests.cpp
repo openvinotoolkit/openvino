@@ -55,7 +55,7 @@ TEST_P(OVConcurrencyTest, canInferTwoExecNets) {
         auto fn = fn_ptrs[i];
 
         auto exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
-                                         {{ov::ie::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, std::to_string(num_streams)}});
+                                         {ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32)});
 
         auto input = fn_ptrs[i]->get_parameters().at(0);
         auto output = fn_ptrs[i]->get_results().at(0);
@@ -115,7 +115,7 @@ TEST(canSwapTensorsBetweenInferRequests, inputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
@@ -193,7 +193,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
@@ -232,7 +232,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
     auto fn = ngraph::builder::subgraph::makeDetectionOutput(ngraph::element::Type_t::f32);
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
     ov::InferRequest infer_request2 = compiled_model.create_infer_request();
@@ -258,7 +258,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
     auto fn = ngraph::builder::subgraph::makeSplitMultiConvConcat();
 
     auto ie = ov::Core();
-    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU);
+    auto compiled_model = ie.compile_model(fn, CommonTestUtils::DEVICE_GPU, ov::hint::inference_precision(ov::element::f32));
 
     const int infer_requests_num = 2;
     ov::InferRequest infer_request1 = compiled_model.create_infer_request();
@@ -303,7 +303,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         } else {
             iter1++;
             ov::Tensor output_tensor = infer_request1.get_output_tensor();
-            compare_results(output_tensor, ref[iter1 % 2].data());
+            compare_results(output_tensor, ref[0].data());
             if (iter1 < niter_limit) {
                 infer_request1.set_output_tensor(output_tensors[(iter1 + 1) % 2]);
                 infer_request1.start_async();
@@ -317,7 +317,7 @@ TEST(canSwapTensorsBetweenInferRequests, outputs) {
         } else {
             iter2++;
             ov::Tensor output_tensor = infer_request2.get_output_tensor();
-            compare_results(output_tensor, ref[(iter2 + 1) % 2].data());
+            compare_results(output_tensor, ref[1].data());
             if (iter2 < niter_limit) {
                 infer_request2.set_output_tensor(output_tensors[iter2 % 2]);
                 infer_request2.start_async();

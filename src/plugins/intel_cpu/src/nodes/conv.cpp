@@ -103,7 +103,7 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
 
 class Convolution::FusedSubgraph {
 public:
-    FusedSubgraph(const std::vector<NodePtr> &opList, const Convolution &conv, WeightsSharing::Ptr weightCache) {
+    FusedSubgraph(const std::vector<NodePtr> &opList, const Convolution &conv, const GraphContext::CPtr context) {
         _graph = std::unique_ptr<Graph>(new Graph());
 
         std::unordered_set<NodePtr> nodesSet;
@@ -119,11 +119,11 @@ public:
 
         //Make inputs
         const auto &inpMemDesc1 = conv.getBaseMemDescAtOutputPort(0);
-        auto inp0 = std::make_shared<Input>(inpMemDesc1, "inp0", "Parameter", conv.getEngine(), weightCache);
+        auto inp0 = std::make_shared<Input>(inpMemDesc1, "inp0", "Parameter", context);
         inputs.push_back(inp0);
         const size_t sumPortNum = conv.getParentEdges().size() - 1;
         const auto &inpMemDesc2 = conv.getBaseMemDescAtInputPort(sumPortNum);
-        auto inp1 = std::make_shared<Input>(inpMemDesc2, "inp1", "Parameter", conv.getEngine(), weightCache);
+        auto inp1 = std::make_shared<Input>(inpMemDesc2, "inp1", "Parameter", context);
         inputs.push_back(inp1);
 
         auto itr = std::find_if(opList.begin(), opList.end(), [](const NodePtr &node) {
@@ -162,13 +162,13 @@ public:
 
         //Make output
         const auto &outMemDesc = conv.getBaseMemDescAtOutputPort(0);
-        auto out = std::make_shared<Input>(outMemDesc, "out", "Result", conv.getEngine(), weightCache);
+        auto out = std::make_shared<Input>(outMemDesc, "out", "Result", context);
         addEdge(*parentItr, out, 0, 0);
         outputs.push_back(out);
 
         std::vector<NodePtr> nodes(nodesSet.begin(), nodesSet.end());
 
-        _graph->CreateGraph(nodes, edges, weightCache, "fused_subgraph");
+        _graph->CreateGraph(nodes, edges, context, "fused_subgraph");
     }
 
     std::shared_ptr<Input> getInput(size_t idx) const {
@@ -222,8 +222,8 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
+Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
           groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(Precision::FP32) {
     std::string errorMessage;
@@ -826,8 +826,7 @@ void Convolution::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
     if (inputDesc[0]->isDefined()) {
         inpDesc = inputDesc[0];
     } else {
-        auto dummyInDims = MemoryDescUtils::makeDummyShape(inputDesc[0]->getShape()).getStaticDims();
-        dummyInDims[1] = IC;
+        auto dummyInDims = makeInputDummyShape(inputDesc[0]->getShape());
         inpDesc = inputDesc[0]->cloneWithNewDims(dummyInDims);
     }
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
@@ -917,7 +916,8 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
     // attr[0] - Legacy post ops + Legacy zero points.
     attrs.resize(1);
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+    auto outputShape = outputStaticShape();
+    setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
     //dw-conv would be fused into conv only on AVX2 platform. no need attr[1]. Avoid extra useless attribute.
     if (attrs[0].get_post_ops().get()->find(dnnl::impl::primitive_kind::convolution) != -1) {
@@ -939,9 +939,9 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
         //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
         //For now, have to adapt to JIT_AMX kernel for performance.
-        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), true);
+        setPostOps(attrs[1], outputShape, true);
     else
-        setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+        setPostOps(attrs[1], outputShape, false);
     addZeroPoints(attrs[1]);
 }
 
@@ -1165,7 +1165,7 @@ bool Convolution::isNspcAvailable() const {
     using impl::cpu::x64::mayiuse;
 
     // do not use in non-quantized networks until it is enforced externally
-    if (!isInQuantizedGraph) {
+    if (!context->isGraphQuantized()) {
         auto predicate = [](memory::format_tag tag) {
             return one_of(tag, memory::format_tag::nwc, memory::format_tag::nhwc, memory::format_tag::ndhwc);
         };
@@ -1426,7 +1426,7 @@ void Convolution::prepareParams() {
     };
 
     execPtr = nullptr;
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
@@ -1504,7 +1504,7 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
         auto out = subgraph->getOutput(0);
         const auto& outMem = out->getParentEdgesAtPort(0).front()->getMemory();
         auto convOutMem = getChildEdgesAtPort(0).front()->getMemoryPtr();
-        convOutMem->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(outMem.getStaticDims()));
+        Node::redefineOutputMemory({outMem.getStaticDims()});
         convOutMem->SetData(outMem);
     }
 }
@@ -1524,7 +1524,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims> &newOutputS
         if (newOutputShapes.front() != sumInpMem.getStaticDims()) {
             withSumBroadcast = true;
             if (!subgraph) {
-                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, weightCache);
+                subgraph = std::make_shared<FusedSubgraph>(fusedWith, *this, context);
             }
             auto inp0 = subgraph->getInput(0);
             inp0->redefineOutputMemory(newOutputShapes);
@@ -1613,7 +1613,7 @@ void Convolution::initTryBrgconvFlag() {
             // should remove after binary postops performance issue resolved
             // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
             dnnl::primitive_attr attr;
-            setPostOps(attr, MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false);
+            setPostOps(attr, outputStaticShape(), false);
             const auto& ops = attr.get_post_ops();
             if (ops.get()->find(dnnl::impl::primitive_kind::binary) != -1) {
                 shouldTryBrgconv = false;
@@ -1639,6 +1639,39 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     if (inputZeroPointType == zpType::PerTensor &&
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));
+}
+
+VectorDims Convolution::makeInputDummyShape(const Shape& inpShape) const {
+    // There are a bunch of heuristics mostly aimed to guess the most appropriate oneDNN implementation, to reduce the
+    // amount of the implementation mismatch and the internal reordering as a consequence.
+    constexpr Dim dummyInputDim = 64;
+
+    const size_t spatialRank = stride.size();
+    const size_t filterStartIndx = weightDims.size() - spatialRank;
+
+    VectorDims dummyInputShapeVals(inpShape.getRank(), dummyInputDim);
+    dummyInputShapeVals[1] = IC; //channels
+
+    for (size_t i = 0; i < spatialRank; i++) {
+        if (weightDims[filterStartIndx + i] > dummyInputShapeVals[2 + i]) {
+            constexpr Dim dummyOutputDim = 16;
+            dummyInputShapeVals[2 + i] = (dummyOutputDim - 1) * stride[i] -
+                                (paddingL[i] + paddingR[i]) +
+                                weightDims[filterStartIndx + i] +
+                                (weightDims[filterStartIndx + i]- 1) * (dilation[i]);
+        }
+    }
+    return MemoryDescUtils::makeDummyShape(inpShape, dummyInputShapeVals).getStaticDims();
+}
+
+VectorDims Convolution::outputStaticShape() const {
+    auto& outputShape = getOutputShapeAtPort(0);
+    if (outputShape.isDynamic()) {
+        auto inpDummyShape = makeInputDummyShape(getInputShapeAtPort(0));
+        auto outputDims = shapeInferGeneric({ Shape(inpDummyShape), Shape(weightDims) });
+        return Shape(outputDims.front()).getStaticDims();
+    }
+    return outputShape.getStaticDims();
 }
 
 }   // namespace node

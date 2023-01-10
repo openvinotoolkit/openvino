@@ -79,7 +79,7 @@ macro(ov_cpack_settings)
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
         # - 2022.3 is the first release where RPM updated packages are introduced
-        # 2022.1.0
+        2022.3.0
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -277,7 +277,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make")
+    set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make, pkgconf-pkg-config")
     set(samples_build_deps_suggest "opencv-devel >= 3.0")
 
     # c_samples / cpp_samples

@@ -23,7 +23,8 @@ TEST_F(PrecisionUtilsTests, FP32ToFP16PositiveInfinity) {
 }
 
 TEST_F(PrecisionUtilsTests, FP32ToFP16NegativeInfinity) {
-    const auto fp16ConvertedInf = InferenceEngine::PrecisionUtils::f32tof16(-1 * std::numeric_limits<float>::infinity());
+    const auto fp16ConvertedInf =
+        InferenceEngine::PrecisionUtils::f32tof16(-1 * std::numeric_limits<float>::infinity());
     ASSERT_EQ(fp16ConvertedInf, negativeInf);
 }
 
@@ -43,6 +44,7 @@ TEST_F(PrecisionUtilsTests, FP32ToFP16MaximumValue) {
 }
 
 TEST_F(PrecisionUtilsTests, FP32ToFP16LowestValue) {
-    const auto fp16ConvertedLowestValue = InferenceEngine::PrecisionUtils::f32tof16(std::numeric_limits<float>::lowest());
+    const auto fp16ConvertedLowestValue =
+        InferenceEngine::PrecisionUtils::f32tof16(std::numeric_limits<float>::lowest());
     ASSERT_EQ(fp16ConvertedLowestValue, lowestNumber);
 }

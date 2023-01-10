@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #if defined(CONVERT_FROM_NV12) || defined(CONVERT_FROM_I420)
 #ifdef BUFFER_MEM
@@ -30,9 +29,13 @@ KERNEL(convert_color_ref)(const __global INPUT0_TYPE* input1,
     float V = input2[GET_DATA_INDEX(INPUT1, b, 1, y / 2, x / 2)];
 #else // Single plane
     uint input_uv_offset = INPUT0_SIZE_X * INPUT0_SIZE_Y / 3 * 2;
-
+#ifdef CONVERT_FROM_NV12
     float U = input1[GET_DATA_INDEX(INPUT0, b, 0, y / 2, (x / 2) * 2) + input_uv_offset];
     float V = input1[GET_DATA_INDEX(INPUT0, b, 1, y / 2, (x / 2) * 2) + input_uv_offset];
+#else
+    float U = input1[GET_DATA_INDEX(INPUT0, b, 0, 0, x / 2 + (y / 2)*(INPUT0_Y_PITCH / 2)) + input_uv_offset];
+    float V = input1[GET_DATA_INDEX(INPUT0, b, 0, 0, x / 2 + (y / 2)*(INPUT0_Y_PITCH / 2)) + 5 * input_uv_offset / 4];
+#endif
 #endif
 
     float Ycomponent = mad(Y, 1.164f, -18.624f);

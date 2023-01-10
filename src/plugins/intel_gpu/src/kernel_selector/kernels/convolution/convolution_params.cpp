@@ -21,7 +21,7 @@ std::string convolution_params::to_string() const {
     s << stride.x << "_" << stride.y << "_";
     s << dilation.x << "_" << dilation.y << "_";
     s << padding.x << "_" << padding.y << "_";
-    s << split;
+    s << 1;
 
     return s.str();
 }
@@ -34,7 +34,7 @@ std::string convolution_params::to_cache_string_v2() const {
     s << stride.x << "_" << stride.y << "_" << stride.z << ";";
     s << dilation.x << "_" << dilation.y << "_" << dilation.z << ";";
     s << padding.x << "_" << padding.y << "_" << padding.z << ";";
-    s << split << ";";
+    s << 1 << ";";
     s << groups;
 
     return s.str();
@@ -43,19 +43,11 @@ std::string convolution_params::to_cache_string_v2() const {
 ParamsKey convolution_params::GetParamsKey() const {
     ParamsKey k = parent::GetParamsKey();
 
-    if (split > 1) {
-        k.EnableSplitSupport();
-    }
-
     if (dilation.x != 1 || dilation.y != 1) {
         k.EnableDilation();
     }
 
-    if (depthwise_separable_opt) {
-        k.EnableDepthwiseSeparableOpt();
-    }
-
-    if (groups > 1 && !depthwise_separable_opt) {
+    if (groups > 1) {
         k.EnableGroupedConvolution();
     }
 

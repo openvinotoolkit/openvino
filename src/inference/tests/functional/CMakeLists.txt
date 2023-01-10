@@ -64,8 +64,13 @@ ov_add_test_target(
             funcTestUtils
         INCLUDES
             $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+        ADD_CLANG_FORMAT
         LABELS
             OV
 )
 
 add_compile_definitions(${TARGET_NAME} ${COMPILE_DEFINITIONS})
+
+set(legacy_tests "${CMAKE_CURRENT_SOURCE_DIR}/cnn_ngraph_impl_tests.cpp") #CVS-55375
+set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)

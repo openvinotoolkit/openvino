@@ -20,9 +20,19 @@ Intel® Distribution of OpenVINO™ toolkit is a comprehensive toolkit for devel
 * Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels.
 * Compatible with models from a wide variety of frameworks, including TensorFlow, PyTorch, PaddlePaddle, ONNX, and more.
 
+
 ## Install OpenVINO
 
-Since the 2022.1 release, the OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
+@sphinxdirective
+
+.. link-button:: https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html 
+   :type: url
+   :text: Check out the OpenVINO Download Page
+   :classes: btn-primary btn-block
+
+@endsphinxdirective
+
+OpenVINO installation package is distributed in two parts: OpenVINO Runtime and OpenVINO Development Tools.
 
 * **OpenVINO Runtime** contains the core set of libraries for running machine learning model inference on processor devices.
 * **OpenVINO Development Tools** is a set of utilities for working with OpenVINO and OpenVINO models. It includes the following tools:
@@ -50,7 +60,7 @@ OpenVINO Runtime may also be installed on its own without OpenVINO Development T
 
 The following methods are available to install OpenVINO Runtime:
 
-* Linux: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Linux](installing-openvino-linux-header.md).
+* Linux: You can install OpenVINO Runtime using APT, YUM, archive files or Docker. See [Install OpenVINO on Linux](installing-openvino-linux-header.md).
 * Windows: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on Windows](installing-openvino-windows-header.md).
 * macOS: You can install OpenVINO Runtime using archive files or Docker. See [Install OpenVINO on macOS](installing-openvino-macos-header.md).
 * [Raspbian OS](installing-openvino-raspbian.md)

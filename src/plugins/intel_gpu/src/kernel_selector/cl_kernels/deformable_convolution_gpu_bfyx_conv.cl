@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
 #define FEATURE_SLICE_SIZE 16
 
-#define GET_WEI(filter, id) AS_TYPE(UNIT_TYPE, intel_sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, filter), id))
+#define GET_WEI(filter, id) AS_TYPE(UNIT_TYPE, _sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, filter), id))
 
-__attribute__((intel_reqd_sub_group_size(16)))
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(deformable_convolution_gpu_bfyx_conv)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
     const uint lid = get_sub_group_local_id();
     const uint x = ((uint)get_global_id(0) * X_BLOCK_SIZE + lid) % OUTPUT_SIZE_X;

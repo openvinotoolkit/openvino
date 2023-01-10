@@ -4,14 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/log_softmax_decomposition.hpp>
+#include <string>
 #include <transformations/init_node_info.hpp>
+#include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"

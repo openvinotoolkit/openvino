@@ -13,6 +13,7 @@ public:
     virtual ~CumSumKernelPartialSum() = default;
 
     ParamsKey GetSupportedKey() const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
 protected:
     struct MultiDispatchData {
         DispatchData stage_1;
