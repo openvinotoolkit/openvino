@@ -92,12 +92,13 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void cache_output_descriptor();
-    void clone_to(FrameworkNode& dst) const;
 
 protected:
     FrameworkNode(const FrameworkNode&);
 
 private:
+    void clone_to(FrameworkNode& dst) const;
+    
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_output_desc;
 
