@@ -13,7 +13,7 @@ TemplateAsyncInferRequest::TemplateAsyncInferRequest(const TemplateInferRequest:
                                                      const InferenceEngine::ITaskExecutor::Ptr& cpuTaskExecutor,
                                                      const InferenceEngine::ITaskExecutor::Ptr& waitExecutor,
                                                      const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor)
-    : AsyncInferRequestThreadSafeDefault(inferRequest, cpuTaskExecutor, callbackExecutor),
+    : IAsyncInferRequest(inferRequest, cpuTaskExecutor, callbackExecutor),
       _inferRequest(inferRequest),
       _waitExecutor(waitExecutor) {
     // In current implementation we have CPU only tasks and no needs in 2 executors
@@ -24,28 +24,29 @@ TemplateAsyncInferRequest::TemplateAsyncInferRequest(const TemplateInferRequest:
     constexpr const auto remoteDevice = false;
 
     if (remoteDevice) {
-        _pipeline = {{cpuTaskExecutor,
-                      [this] {
-                          OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
-                                             "TemplateAsyncInferRequest::PreprocessingAndStartPipeline");
-                          _inferRequest->inferPreprocess();
-                          _inferRequest->startPipeline();
-                      }},
-                     {_waitExecutor,
-                      [this] {
-                          OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "TemplateAsyncInferRequest::WaitPipeline");
-                          _inferRequest->waitPipeline();
-                      }},
-                     {cpuTaskExecutor, [this] {
-                          OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "TemplateAsyncInferRequest::Postprocessing");
-                          _inferRequest->inferPostprocess();
-                      }}};
+        m_pipeline = {{cpuTaskExecutor,
+                       [this] {
+                           OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
+                                              "TemplateAsyncInferRequest::PreprocessingAndStartPipeline");
+                           _inferRequest->infer_preprocess();
+                           _inferRequest->start_pipeline();
+                       }},
+                      {_waitExecutor,
+                       [this] {
+                           OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "TemplateAsyncInferRequest::WaitPipeline");
+                           _inferRequest->wait_pipeline();
+                       }},
+                      {cpuTaskExecutor, [this] {
+                           OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin,
+                                              "TemplateAsyncInferRequest::Postprocessing");
+                           _inferRequest->infer_postprocess();
+                       }}};
     }
 }
 // ! [async_infer_request:ctor]
 
 // ! [async_infer_request:dtor]
 TemplateAsyncInferRequest::~TemplateAsyncInferRequest() {
-    InferenceEngine::AsyncInferRequestThreadSafeDefault::StopAndWait();
+    stop_and_wait();
 }
 // ! [async_infer_request:dtor]

@@ -21,331 +21,192 @@
 #include "ie_ngraph_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 #include "template_executable_network.hpp"
 #include "template_itt.hpp"
 #include "template_plugin.hpp"
 
 using namespace TemplatePlugin;
-using namespace InferenceEngine;
 
 using Time = std::chrono::high_resolution_clock;
 
+namespace {
+
+static void AllocateImplSingle(std::vector<ov::Tensor>& tensors,
+                               size_t idx,
+                               const ov::element::Type& element_type,
+                               const ov::Shape& shape) {
+    OPENVINO_ASSERT(idx < tensors.size());
+
+    if (tensors.at(idx).get_element_type() != element_type) {
+        tensors.at(idx) = ov::Tensor(element_type, shape);
+    } else {
+        tensors.at(idx).set_shape(shape);
+    }
+}
+
+static void AllocateImpl(std::vector<ov::Tensor>& tensors, const std::vector<ov::Output<const ov::Node>>& ports) {
+    OPENVINO_ASSERT(tensors.size() == ports.size());
+
+    for (size_t i = 0; i < tensors.size(); i++) {
+        AllocateImplSingle(tensors,
+                           i,
+                           ports.at(i).get_element_type(),
+                           ports.at(i).get_partial_shape().is_dynamic() ? ov::Shape{0} : ports.at(i).get_shape());
+    }
+}  // namespace
+
+}  // namespace
+
 // ! [infer_request:ctor]
-TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                                           const InferenceEngine::OutputsDataMap& networkOutputs,
-                                           const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
-    : IInferRequestInternal(networkInputs, networkOutputs),
-      _executableNetwork(executableNetwork) {
-    createInferRequest();
-}
-
-TemplateInferRequest::TemplateInferRequest(
-    const std::vector<ov::Output<const ov::Node>>& inputs,
-    const std::vector<ov::Output<const ov::Node>>& outputs,
-    const std::shared_ptr<const TemplatePlugin::ExecutableNetwork>& executableNetwork)
-    : IInferRequestInternal(inputs, outputs),
-      _executableNetwork(std::const_pointer_cast<ExecutableNetwork>(executableNetwork)) {
-    createInferRequest();
-}
-
-void TemplateInferRequest::createInferRequest() {
+TemplateInferRequest::TemplateInferRequest(const std::shared_ptr<TemplatePlugin::ExecutableNetwork>& executableNetwork)
+    : ov::IInferRequest(executableNetwork) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
+    auto requestID = std::to_string(get_template_model()->_requestId.fetch_add(1));
 
-    auto requestID = std::to_string(_executableNetwork->_requestId.fetch_add(1));
-
-    std::string name = _executableNetwork->m_model->get_friendly_name() + "_Req" + requestID;
+    std::string name = get_template_model()->m_model->get_friendly_name() + "_Req" + requestID;
     _profilingTask = {
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
                               "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
                               "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
                               "_StartPipline"),
-        openvino::itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.deviceId) + "_" + name +
                               "_WaitPipline"),
     };
 
-    _executable = _executableNetwork->_plugin->_backend->compile(_executableNetwork->m_model);
+    _executable = get_template_model()->_plugin->_backend->compile(get_template_model()->m_model);
 
-    allocateDeviceBuffers();
-    allocateBlobs();
+    // Allocate plugin backend specific memory handles
+    _inputTensors.resize(get_inputs().size());
+    _outputTensors.resize(get_outputs().size());
+
+    AllocateImpl(m_input_tensors, get_inputs());
+    AllocateImpl(m_output_tensors, get_outputs());
 }
+
 // ! [infer_request:ctor]
+
+std::shared_ptr<TemplatePlugin::ExecutableNetwork> TemplateInferRequest::get_template_model() const {
+    auto& compiled_model = get_compiled_model();
+
+    auto template_model = std::dynamic_pointer_cast<TemplatePlugin::ExecutableNetwork>(compiled_model);
+    OPENVINO_ASSERT(template_model);
+
+    return template_model;
+}
 
 // ! [infer_request:dtor]
 TemplateInferRequest::~TemplateInferRequest() {
-    _executableNetwork->_requestId--;
+    get_template_model()->_requestId--;
 }
 // ! [infer_request:dtor]
 
-void TemplateInferRequest::allocateDeviceBuffers() {
-    // Allocate plugin backend specific memory handles
-    _inputTensors.resize(_networkInputs.size());
-    _outputTensors.resize(_networkOutputs.size());
-}
-
-template <typename BlobData, typename GetNetworkPrecisionF>
-static void AllocateImplSingle(BlobMap& blobMap,
-                               BlobMap& networkBlobMap,
-                               const BlobData& blobData,
-                               GetNetworkPrecisionF&& GetNetworkPrecision,
-                               const SizeVector& dims) {
-    const auto& precision = blobData.second->getTensorDesc().getPrecision();
-    auto layout = blobData.second->getTensorDesc().getLayout();
-    const auto deviceLayout = TensorDesc::getLayoutByDims(dims);
-    Blob::Ptr& blob = blobMap[blobData.first];
-    if (!blob) {
-        blob = make_blob_with_precision({precision, dims, layout});
-        blob->allocate();
-    } else {
-        blob->setShape(dims);
-    }
-
-    auto networkPrecision = InferenceEngine::details::convertPrecision(GetNetworkPrecision(blobData.first));
-    Blob::Ptr networkBlob;
-    if (precision == networkPrecision && layout == deviceLayout) {
-        networkBlob = blob;
-    } else {
-        networkBlob = make_blob_with_precision({networkPrecision, dims, deviceLayout});
-        networkBlob->allocate();
-    }
-    networkBlobMap[blobData.first] = networkBlob;
-}
-
-template <typename BlobDataMap, typename GetNetworkPrecisionF>
-static void AllocateImpl(const BlobDataMap& userDataMap,
-                         BlobMap& userBlobMap,
-                         BlobMap& deviceBlobMap,
-                         GetNetworkPrecisionF&& GetNetworkPrecision,
-                         bool isInputBlob = true) {
-    for (const auto& userData : userDataMap) {
-        auto tensorDesc = userData.second->getTensorDesc();
-        AllocateImplSingle(userBlobMap, deviceBlobMap, userData, GetNetworkPrecision, tensorDesc.getDims());
-    }
-}
-
-void TemplateInferRequest::allocateBlobs() {
-    auto&& parameters = _executableNetwork->m_model->get_parameters();
-    AllocateImpl(_networkInputs, _inputs, _deviceInputs, [&](const std::string& blobName) {
-        return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
-    });
-    auto&& results = _executableNetwork->m_model->get_results();
-    AllocateImpl(
-        _networkOutputs,
-        _outputs,
-        _networkOutputBlobs,
-        [&](const std::string& blobName) {
-            return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
-        },
-        false);
-}
-
 // ! [infer_request:infer_impl]
-void TemplateInferRequest::InferImpl() {
+void TemplateInferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
-    inferPreprocess();
-    startPipeline();
-    waitPipeline();  // does nothing in current implementation
-    inferPostprocess();
+    infer_preprocess();
+    start_pipeline();
+    wait_pipeline();  // does nothing in current implementation
+    infer_postprocess();
 }
 // ! [infer_request:infer_impl]
-
-template <typename SrcT, typename DstT>
-static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
-    ngraph::runtime::reference::convert<SrcT, DstT>(
-        InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
-        InferenceEngine::as<InferenceEngine::MemoryBlob>(dst)->wmap().as<DstT*>(),
-        src->size());
-}
-
-static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
-    switch (src->getTensorDesc().getPrecision()) {
-    case Precision::U8: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::U8:
-            break;
-        case Precision::FP32: {
-            blobCopy<std::uint8_t, float>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    case Precision::FP32: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::FP32:
-            break;
-        case Precision::U8: {
-            blobCopy<float, std::uint8_t>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    case Precision::I64: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::I64:
-            break;
-        case Precision::I32: {
-            blobCopy<int64_t, int32_t>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    case Precision::I16: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::I16:
-            break;
-        case Precision::FP32: {
-            blobCopy<int16_t, float>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    case Precision::I8: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::I8:
-            break;
-        case Precision::FP32: {
-            blobCopy<int8_t, float>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    case Precision::BOOL: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::BOOL:
-            break;
-        case Precision::FP32: {
-            blobCopy<bool, float>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    case Precision::U16: {
-        switch (dst->getTensorDesc().getPrecision()) {
-        case Precision::U16:
-            break;
-        case Precision::FP32: {
-            blobCopy<uint16_t, float>(src, dst);
-        } break;
-        default: {
-            IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision()
-                                     << " to " << dst->getTensorDesc().getPrecision();
-        }
-        }
-    } break;
-    default: {
-        IE_THROW(NotImplemented) << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
-    }
-    }
-}
 
 // ! [infer_request:infer_preprocess]
-void TemplateInferRequest::inferPreprocess() {
+void TemplateInferRequest::infer_preprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Preprocess]);
     auto start = Time::now();
-    convertBatchedInputBlobs();
+    convert_batched_tensors();
     // NOTE: After IInferRequestInternal::execDataPreprocessing call
     //       input can points to other memory region than it was allocated in constructor.
     // IInferRequestInternal::execDataPreprocessing(_deviceInputs);
-    for (auto&& networkInput : _deviceInputs) {
-        auto index = _executableNetwork->_inputIndex[networkInput.first];
-        const auto& parameter = _executableNetwork->m_model->get_parameters()[index];
-        auto parameterShape = networkInput.second->getTensorDesc().getDims();
-        auto srcShape = networkInput.second->getTensorDesc().getBlockingDesc().getBlockDims();
-        const auto& parameterType = parameter->get_element_type();
-        auto mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second);
-        auto isNonRoiDesc = [](const BlockingDesc& desc) {
-            size_t exp_stride = 1;
-            for (size_t i = 0; i < desc.getBlockDims().size(); i++) {
-                size_t rev_idx = desc.getBlockDims().size() - i - 1;
-                OPENVINO_ASSERT(desc.getOrder()[rev_idx] == rev_idx,
-                                "Template plugin: unsupported tensors with mixed axes order: ",
-                                ngraph::vector_to_string(desc.getOrder()));
-                if (desc.getStrides()[rev_idx] != exp_stride || desc.getOffsetPaddingToData()[rev_idx] != 0) {
-                    return false;
-                }
-                exp_stride *= desc.getBlockDims()[rev_idx];
-            }
-            return true;
-        };
-        if (isNonRoiDesc(networkInput.second->getTensorDesc().getBlockingDesc())) {
-            // No ROI extraction is needed
-            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType,
-                                                                                        parameterShape,
-                                                                                        mem_blob->rmap().as<void*>());
-        } else {
-            OPENVINO_ASSERT(parameterType.bitwidth() % 8 == 0,
-                            "Template plugin: Unsupported ROI tensor with element type having ",
-                            std::to_string(parameterType.bitwidth()),
-                            " bits size");
-            // Perform manual extraction of ROI tensor
-            // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
-            // Performance of manual extraction is not optimal, but it is ok for template implementation
-            _inputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(parameterType, parameterShape);
-            auto desc = mem_blob->getTensorDesc();
-            auto* src_data = mem_blob->rmap().as<uint8_t*>();
-            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(_inputTensors[index]);
-            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
-            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
-            std::vector<size_t> indexes(parameterShape.size());
-            for (size_t dst_idx = 0; dst_idx < ov::shape_size(parameterShape); dst_idx++) {
-                size_t val = dst_idx;
-                size_t src_idx = 0;
-                for (size_t j1 = 0; j1 < indexes.size(); j1++) {
-                    size_t j = indexes.size() - j1 - 1;
-                    indexes[j] = val % parameterShape[j] + desc.getBlockingDesc().getOffsetPaddingToData()[j];
-                    val /= parameterShape[j];
-                    src_idx += indexes[j] * desc.getBlockingDesc().getStrides()[j];
-                }
-                memcpy(dst_data + dst_idx * parameterType.size(),
-                       src_data + src_idx * parameterType.size(),
-                       parameterType.size());
-            }
-        }
-    }
-    for (auto&& output : _outputs) {
-        auto outputBlob = output.second;
-        auto networkOutput = _networkOutputBlobs[output.first];
-        auto index = _executableNetwork->_outputIndex[output.first];
-        if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
-            networkOutput = outputBlob;
-        }
-        const auto& result = _executableNetwork->m_model->get_results()[index];
-        if (result->get_output_partial_shape(0).is_dynamic()) {
-            _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor();
-            continue;
-        }
-        const auto& resultShape = result->get_shape();
-        const auto& resultType = result->get_element_type();
-        _outputTensors[index] = _executableNetwork->_plugin->_backend->create_tensor(
-            resultType,
-            resultShape,
-            InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
-    }
+    // TODO: We don't need additional preprocessing
+    // for (auto&& networkInput : _deviceInputs) {
+    //     auto index = get_template_model()->_inputIndex[networkInput.first];
+    //     const auto& parameter = get_template_model()->m_model->get_parameters()[index];
+    //     auto parameterShape = networkInput.second->getTensorDesc().getDims();
+    //     auto srcShape = networkInput.second->getTensorDesc().getBlockingDesc().getBlockDims();
+    //     const auto& parameterType = parameter->get_element_type();
+    //     auto mem_blob = InferenceEngine::as<InferenceEngine::MemoryBlob>(networkInput.second);
+    //     auto isNonRoiDesc = [](const BlockingDesc& desc) {
+    //         size_t exp_stride = 1;
+    //         for (size_t i = 0; i < desc.getBlockDims().size(); i++) {
+    //             size_t rev_idx = desc.getBlockDims().size() - i - 1;
+    //             OPENVINO_ASSERT(desc.getOrder()[rev_idx] == rev_idx,
+    //                             "Template plugin: unsupported tensors with mixed axes order: ",
+    //                             ngraph::vector_to_string(desc.getOrder()));
+    //             if (desc.getStrides()[rev_idx] != exp_stride || desc.getOffsetPaddingToData()[rev_idx] != 0) {
+    //                 return false;
+    //             }
+    //             exp_stride *= desc.getBlockDims()[rev_idx];
+    //         }
+    //         return true;
+    //     };
+    //     if (isNonRoiDesc(networkInput.second->getTensorDesc().getBlockingDesc())) {
+    //         // No ROI extraction is needed
+    //         _inputTensors[index] = get_template_model()->_plugin->_backend->create_tensor(parameterType,
+    //                                                                                       parameterShape,
+    //                                                                                       mem_blob->rmap().as<void*>());
+    //     } else {
+    //         OPENVINO_ASSERT(parameterType.bitwidth() % 8 == 0,
+    //                         "Template plugin: Unsupported ROI tensor with element type having ",
+    //                         std::to_string(parameterType.bitwidth()),
+    //                         " bits size");
+    //         // Perform manual extraction of ROI tensor
+    //         // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
+    //         // Performance of manual extraction is not optimal, but it is ok for template implementation
+    //         _inputTensors[index] =
+    //             get_template_model()->_plugin->_backend->create_tensor(parameterType, parameterShape);
+    //         auto desc = mem_blob->getTensorDesc();
+    //         auto* src_data = mem_blob->rmap().as<uint8_t*>();
+    //         auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(_inputTensors[index]);
+    //         OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
+    //         auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
+    //         std::vector<size_t> indexes(parameterShape.size());
+    //         for (size_t dst_idx = 0; dst_idx < ov::shape_size(parameterShape); dst_idx++) {
+    //             size_t val = dst_idx;
+    //             size_t src_idx = 0;
+    //             for (size_t j1 = 0; j1 < indexes.size(); j1++) {
+    //                 size_t j = indexes.size() - j1 - 1;
+    //                 indexes[j] = val % parameterShape[j] + desc.getBlockingDesc().getOffsetPaddingToData()[j];
+    //                 val /= parameterShape[j];
+    //                 src_idx += indexes[j] * desc.getBlockingDesc().getStrides()[j];
+    //             }
+    //             memcpy(dst_data + dst_idx * parameterType.size(),
+    //                    src_data + src_idx * parameterType.size(),
+    //                    parameterType.size());
+    //         }
+    //     }
+    // }
+    // for (auto&& output : _outputs) {
+    //     auto outputBlob = output.second;
+    //     auto networkOutput = _networkOutputBlobs[output.first];
+    //     auto index = get_template_model()->_outputIndex[output.first];
+    //     if (outputBlob->getTensorDesc().getPrecision() == networkOutput->getTensorDesc().getPrecision()) {
+    //         networkOutput = outputBlob;
+    //     }
+    //     const auto& result = get_template_model()->m_model->get_results()[index];
+    //     if (result->get_output_partial_shape(0).is_dynamic()) {
+    //         _outputTensors[index] = get_template_model()->_plugin->_backend->create_tensor();
+    //         continue;
+    //     }
+    //     const auto& resultShape = result->get_shape();
+    //     const auto& resultType = result->get_element_type();
+    //     _outputTensors[index] = get_template_model()->_plugin->_backend->create_tensor(
+    //         resultType,
+    //         resultShape,
+    //         InferenceEngine::as<InferenceEngine::MemoryBlob>(networkOutput)->wmap().as<void*>());
+    // }
     _durations[Preprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_preprocess]
 
 // ! [infer_request:start_pipeline]
-void TemplateInferRequest::startPipeline() {
+void TemplateInferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[StartPipeline])
     auto start = Time::now();
     _executable->call(_outputTensors, _inputTensors);
@@ -353,7 +214,7 @@ void TemplateInferRequest::startPipeline() {
 }
 // ! [infer_request:start_pipeline]
 
-void TemplateInferRequest::waitPipeline() {
+void TemplateInferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[WaitPipeline])
     auto start = Time::now();
     // TODO: Wait pipeline using driver API or other synchronizations methods
@@ -362,223 +223,129 @@ void TemplateInferRequest::waitPipeline() {
 }
 
 // ! [infer_request:infer_postprocess]
-void TemplateInferRequest::inferPostprocess() {
+void TemplateInferRequest::infer_postprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, _profilingTask[Postprocess]);
     auto start = Time::now();
-    for (auto&& output : _networkOutputs) {
-        auto index = _executableNetwork->_outputIndex[output.first];
-        const auto& result = _executableNetwork->m_model->get_results()[index];
-        if (result->get_output_partial_shape(0).is_dynamic()) {
-            // Touch blob to allocate it
-            GetBlob(output.first);
-        }
-        auto outputBlob = _outputs.at(output.first);
-        auto networkOutput = _networkOutputBlobs[output.first];
-        if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
-            blobCopy(networkOutput, outputBlob);
-        } else if (result->get_output_partial_shape(0).is_dynamic()) {
-            auto tensor = _outputTensors[_executableNetwork->_outputIndex.at(output.first)];
-            tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(),
-                         tensor->get_size_in_bytes());
-        }
-    }
+    // FIXME: We don't need postprocessing anymore
+    // for (auto&& output : _networkOutputs) {
+    //     auto index = get_template_model()->_outputIndex[output.first];
+    //     const auto& result = get_template_model()->m_model->get_results()[index];
+    //     if (result->get_output_partial_shape(0).is_dynamic()) {
+    //         // Touch blob to allocate it
+    //         GetBlob(output.first);
+    //     }
+    //     auto outputBlob = _outputs.at(output.first);
+    //     auto networkOutput = _networkOutputBlobs[output.first];
+    //     if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
+    //         blobCopy(networkOutput, outputBlob);
+    //     } else if (result->get_output_partial_shape(0).is_dynamic()) {
+    //         auto tensor = _outputTensors[get_template_model()->_outputIndex.at(output.first)];
+    //         tensor->read(InferenceEngine::as<InferenceEngine::MemoryBlob>(outputBlob)->wmap().as<char*>(),
+    //                      tensor->get_size_in_bytes());
+    //     }
+    // }
     _durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
 
 // ! [infer_request:get_blob]
-InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name) {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "GetBlob");
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    Blob::Ptr data;
-    const SizeVector oneVector = {1};
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
-        auto it = _preProcData.find(name);
-        if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
+ov::Tensor TemplateInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "get_tensor");
+    auto found_port = find_port(port);
+    OPENVINO_ASSERT(found_port.found(), "Failed to get tensor, port ", port, " cannot be found.");
+
+    ov::Tensor data;
+    if (found_port.is_input()) {
+        data = m_input_tensors[found_port.idx];
+        ov::Shape shape;
+        if (!data.get_size()) {
+            auto&& parameters = get_template_model()->m_model->get_parameters();
+            const auto& pshape = parameters.at(found_port.idx)->get_partial_shape();
+            shape = pshape.is_dynamic() ? ov::Shape{0} : pshape.get_shape();
+            auto this_non_const = const_cast<TemplateInferRequest*>(this);
+            AllocateImplSingle(this_non_const->m_input_tensors, found_port.idx, port.get_element_type(), shape);
+            data = m_input_tensors[found_port.idx];
         } else {
-            data = _inputs[name];
-            SizeVector dims;
-            if (!data) {
-                auto&& parameters = _executableNetwork->m_model->get_parameters();
-                const auto& pshape = parameters.at(_executableNetwork->_inputIndex.at(name))->get_partial_shape();
-                dims = pshape.is_dynamic() ? SizeVector({0}) : pshape.get_shape();
-                AllocateImplSingle(
-                    _inputs,
-                    _deviceInputs,
-                    *_networkInputs.find(name),
-                    [&](const std::string& blobName) {
-                        return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();
-                    },
-                    dims);
-                data = _inputs[name];
-            } else {
-                dims = data->getTensorDesc().getDims();
-            }
-            checkBlob(data, name, true, foundInput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
-            auto& devBlob = _deviceInputs[name];
-            if (preProcessingRequired(foundInput, data, devBlob)) {
-                // if no devBlob, performs inplace
-                addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
-            }
+            shape = data.get_shape();
         }
+        check_tensor(port, data);
     } else {
-        data = _outputs[name];
-        SizeVector dims;
-        auto has_zeros = [](const SizeVector& vec) {
+        data = m_output_tensors[found_port.idx];
+        ov::Shape shape;
+        auto has_zeros = [](const ov::Shape& vec) {
             return std::any_of(vec.cbegin(), vec.cend(), [](size_t e) {
                 return e == 0;
             });
         };
-        if (!has_zeros(foundOutput->getTensorDesc().getDims())) {
-            dims = foundOutput->getTensorDesc().getDims();
-        } else if (_outputTensors[_executableNetwork->_outputIndex.at(name)] &&
-                   _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_partial_shape().is_static()) {
-            dims = _outputTensors[_executableNetwork->_outputIndex.at(name)]->get_shape();
+        if (port.get_partial_shape().is_static() && !has_zeros(port.get_shape())) {
+            shape = port.get_shape();
+        } else if (!has_zeros(data.get_shape())) {
+            shape = data.get_shape();
         } else {
-            auto rank = foundOutput->getTensorDesc().getDims().size();
-            dims = SizeVector(rank == 0 ? 1 : rank, 0);
+            shape = ov::Shape(
+                port.get_partial_shape().rank().is_dynamic() ? 1 : port.get_partial_shape().rank().get_length(),
+                0);
         }
 
-        if (data->getTensorDesc().getDims() != dims) {
-            auto&& results = _executableNetwork->m_model->get_results();
-            AllocateImplSingle(
-                _outputs,
-                _networkOutputBlobs,
-                *_networkOutputs.find(name),
-                [&](const std::string& blobName) {
-                    return results.at(_executableNetwork->_outputIndex.at(blobName))->get_element_type();
-                },
-                dims);
-            data = _outputs[name];
+        if (data.get_shape() != shape) {
+            auto&& results = get_template_model()->m_model->get_results();
+            auto this_non_const = const_cast<TemplateInferRequest*>(this);
+            AllocateImplSingle(this_non_const->m_output_tensors, found_port.idx, port.get_element_type(), shape);
+            data = m_output_tensors[found_port.idx];
         }
-        checkBlob(data, name, false, foundOutput->getTensorDesc().getLayout() != SCALAR ? dims : oneVector);
+        check_tensor(port, data);
     }
     return data;
 }
 // ! [infer_request:get_blob]
 
 // ! [infer_request:set_blob]
-void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "SetBlob");
-    if (name.empty()) {
-        IE_THROW(NotFound) << "Failed to set blob with empty name";
-    }
-    if (!userBlob)
-        IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    auto has_zeros = [](const SizeVector& vec) {
-        return std::any_of(vec.cbegin(), vec.cend(), [](size_t e) {
-            return e == 0;
-        });
-    };
-    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
-    const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
-    const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
-    if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
-        IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    bool input_dynamic = foundInput && has_zeros(foundInput->getInputData()->getDims());
-    bool output_dynamic = foundOutput && has_zeros(foundOutput->getDims());
-    if (userBlob->size() == 0 && !(input_dynamic || output_dynamic)) {
-        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
-    }
+void TemplateInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "set_tensor");
+    auto found_port = find_port(port);
+    OPENVINO_ASSERT(found_port.found(), "Failed to set tensor, port ", port, " cannot be found.");
 
-    size_t dataSize = userBlob->size();
-    if (isInput) {
-        // ilavreno: the condition below is obsolete, but we need an exact list of precisions
-        // which are supports by G-API preprocessing
-        if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch)
-                << "Failed to set Blob with precision not corresponding to user input precision";
-        }
+    OPENVINO_ASSERT(tensor.get_element_type() == port.get_element_type(),
+                    "Failed to set tensor with element type: ",
+                    tensor.get_element_type(),
+                    ", this element type is not corresponding to model element type: ",
+                    port.get_element_type());
+    OPENVINO_ASSERT(port.get_partial_shape().is_dynamic() || port.get_shape() == tensor.get_shape(),
+                    "Tensor shape (",
+                    tensor.get_shape(),
+                    ") doesn't match with model shape (",
+                    port.get_partial_shape(),
+                    ").");
 
-        auto& devBlob = _deviceInputs[name];
-        auto usrDims = userBlob->getTensorDesc().getDims();
-        auto usrLayout = userBlob->getTensorDesc().getLayout();
-        auto devDims = devBlob->getTensorDesc().getDims();
-        auto devLayout = devBlob->getTensorDesc().getLayout();
-        auto devPrecision = devBlob->getTensorDesc().getPrecision();
-        if (input_dynamic && (devDims != usrDims || devLayout != usrLayout)) {
-            devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
-            devBlob->allocate();
-            _deviceInputs[name] = devBlob;
-        }
-        const bool preProcRequired = preProcessingRequired(foundInput, userBlob, devBlob);
-        if (compoundBlobPassed && !preProcRequired) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
-        }
-
-        if (preProcRequired) {
-            addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
-        } else {
-            size_t inputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                                   ? InferenceEngine::details::product(devBlob->getTensorDesc().getDims())
-                                   : 1;
-            if (dataSize != inputSize) {
-                IE_THROW() << "Input blob size is not equal network input size (" << dataSize << "!=" << inputSize
-                           << ").";
-            }
-            _inputs[name] = userBlob;
-            devBlob = userBlob;
-        }
-        _batched_inputs.erase(name);
+    if (found_port.is_input()) {
+        m_input_tensors.at(found_port.idx) = tensor;
+        m_batched_tensors.erase(found_port.idx);
     } else {
-        if (compoundBlobPassed) {
-            IE_THROW(NotImplemented) << "cannot set compound blob: supported only for input pre-processing";
-        }
-        auto& devBlob = _networkOutputBlobs[name];
-        auto usrDims = userBlob->getTensorDesc().getDims();
-        auto usrLayout = userBlob->getTensorDesc().getLayout();
-        auto devDims = devBlob->getTensorDesc().getDims();
-        auto devLayout = devBlob->getTensorDesc().getLayout();
-        auto devPrecision = devBlob->getTensorDesc().getPrecision();
-        if (output_dynamic && (devDims != usrDims || devLayout != usrLayout)) {
-            devBlob = make_blob_with_precision({devPrecision, usrDims, TensorDesc::getLayoutByDims(usrDims)});
-            devBlob->allocate();
-            _networkOutputBlobs[name] = devBlob;
-        }
-        size_t outputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
-                                ? details::product(devBlob->getTensorDesc().getDims())
-                                : 1;
-        if (dataSize != outputSize) {
-            IE_THROW() << "Output blob size is not equal network output size (" << dataSize << "!=" << outputSize
-                       << ").";
-        }
-        if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
-            IE_THROW(ParameterMismatch)
-                << "Failed to set Blob with precision not corresponding to user output precision";
-        }
-        _outputs[name] = userBlob;
+        m_output_tensors.at(found_port.idx) = tensor;
     }
 }
 // ! [infer_request:set_blob]
 
 // ! [infer_request:set_blobs_impl]
-void TemplateInferRequest::SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) {
-    _batched_inputs[name] = batchedBlob;
+void TemplateInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                            const std::vector<ov::Tensor>& tensors) {
+    m_batched_tensors[find_port(port).idx] = tensors;
 }
 // ! [infer_request:set_blobs_impl]
 
 // ! [infer_request:get_performance_counts]
-std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {
-    std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    InferenceEngineProfileInfo info;
-    info.execution_index = 0;
-    info.status = InferenceEngineProfileInfo::EXECUTED;
-
-    info.cpu_uSec = info.realTime_uSec = static_cast<long long>(_durations[Preprocess].count());
-    perfMap["1. input preprocessing"] = info;
-    info.cpu_uSec = info.realTime_uSec = 0;
-    perfMap["2. input transfer to a device"] = info;
-    info.cpu_uSec = info.realTime_uSec = static_cast<long long>(_durations[StartPipeline].count());
-    perfMap["3. execution time"] = info;
-    info.cpu_uSec = info.realTime_uSec = 0;
-    perfMap["4. output transfer from a device"] = info;
-    info.cpu_uSec = info.realTime_uSec = static_cast<long long>(_durations[Postprocess].count());
-    perfMap["5. output postprocessing"] = info;
-    return perfMap;
+std::vector<ov::ProfilingInfo> TemplateInferRequest::get_profiling_info() const {
+    std::vector<ov::ProfilingInfo> info;
+    // const auto fill_profiling_info = [](const std::string& name, const std::chrono::microseconds& time) {
+    //     ov::ProfilingInfo p_info;
+    //     p_info.status = ov::ProfilingInfo::Status::EXECUTED;
+    //     p_info.node_name = name;
+    //     p_info.cpu_time = p_info.real_time = time;
+    //     return p_info;
+    // };
+    // info.emplace_back(fill_profiling_info("input preprocessing", _durations[Preprocess].count()));
+    // info.emplace_back(fill_profiling_info("execution time", _durations[StartPipeline]));
+    // info.emplace_back(fill_profiling_info("output postprocessing", _durations[Postprocess]));
+    return info;
 }
 // ! [infer_request:get_performance_counts]

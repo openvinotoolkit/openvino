@@ -40,7 +40,7 @@ public:
 
     virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const;
     virtual void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors);
-    virtual void set_tensors_imp(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
+    virtual void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
 
     virtual std::vector<ov::VariableState> query_state() const;
 
@@ -70,6 +70,8 @@ protected:
     };
 
     FoundPort find_port(const ov::Output<const ov::Node>& port) const;
+    void convert_batched_tensors();
+    void check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const;
 
     std::vector<ov::Tensor> m_input_tensors;
     std::vector<ov::Tensor> m_output_tensors;

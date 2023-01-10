@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
-
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "template_infer_request.hpp"
 
 namespace TemplatePlugin {
 
 // ! [async_infer_request:header]
-class TemplateAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class TemplateAsyncInferRequest : public ov::IAsyncInferRequest {
 public:
     TemplateAsyncInferRequest(const TemplateInferRequest::Ptr& inferRequest,
                               const InferenceEngine::ITaskExecutor::Ptr& taskExecutor,

@@ -7,8 +7,10 @@
 #include "cpp_interfaces/plugin_itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace {
@@ -76,23 +78,6 @@ void check_batched_tensors(const ov::Output<const ov::Node>& input, const std::v
     }
 }
 
-void check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
-    bool is_input = ov::op::util::is_parameter(port.get_node());
-    std::string tensor_type = is_input ? "input" : "output";
-
-    bool is_dynamic = port.get_partial_shape().is_dynamic();
-    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor.get_shape(),
-                    "The ",
-                    tensor_type,
-                    " tensor size is not equal to the model ",
-                    tensor_type,
-                    " type: got ",
-                    tensor.get_size(),
-                    " expecting ",
-                    port.get_shape(),
-                    ".");
-}
-
 }  // namespace
 
 ov::IInferRequest::IInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model)
@@ -137,6 +122,36 @@ ov::IInferRequest::FoundPort ov::IInferRequest::find_port(const ov::Output<const
         type = ov::IInferRequest::FoundPort::Type::Output;
     }
     return {0, ov::IInferRequest::FoundPort::Type::NotFound};
+}
+
+void ov::IInferRequest::convert_batched_tensors() {
+    for (const auto& item : m_batched_tensors) {
+        auto tmp_shape = item.second.at(0).get_shape();
+        auto tmp_et = item.second.at(0).get_element_type();
+        tmp_shape[0] = item.second.size();
+        ov::RemoteContext remote_context;
+        ov::Tensor input_tensor;
+        try {
+            auto net = get_compiled_model();
+            if (net) {
+                remote_context = net->get_context();
+            }
+        } catch (const ov::NotImplemented&) {
+        }
+        if (remote_context._impl) {
+            input_tensor = remote_context.create_host_tensor(tmp_et, tmp_shape);
+        } else {
+            input_tensor = ov::Tensor(tmp_et, tmp_shape);
+        }
+        auto ptr = input_tensor.data<uint8_t>();
+
+        // Perform memory copy
+        ov::parallel_for(input_tensor.get_size(), [&](size_t i) {
+            const auto& tensor = item.second.at(i);
+            memcpy(ptr + i * tensor.get_byte_size(), tensor.data<uint8_t>(), tensor.get_byte_size());
+        });
+        set_tensor(get_inputs()[item.first], input_tensor);
+    }
 }
 
 ov::Tensor ov::IInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
@@ -196,9 +211,11 @@ void ov::IInferRequest::set_tensors(const ov::Output<const ov::Node>& port, cons
     }
 
     check_batched_tensors(port, tensors);
-    set_tensors_imp(port, tensors);
+    set_tensors_impl(port, tensors);
 }
-void ov::IInferRequest::set_tensors_imp(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) {
+
+void ov::IInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                         const std::vector<ov::Tensor>& tensors) {
     OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
                            "",
                            false,
@@ -212,6 +229,23 @@ std::vector<ov::VariableState> ov::IInferRequest::query_state() const {
 
 void ov::IInferRequest::set_callback(std::function<void(std::exception_ptr)> callback) {
     m_callback = std::move(callback);
+}
+
+void ov::IInferRequest::check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const {
+    bool is_input = ov::op::util::is_parameter(port.get_node());
+    std::string tensor_type = is_input ? "input" : "output";
+
+    bool is_dynamic = port.get_partial_shape().is_dynamic();
+    OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor.get_shape(),
+                    "The ",
+                    tensor_type,
+                    " tensor size is not equal to the model ",
+                    tensor_type,
+                    " type: got ",
+                    tensor.get_size(),
+                    " expecting ",
+                    port.get_shape(),
+                    ".");
 }
 
 void ov::IInferRequest::check_tensors() const {

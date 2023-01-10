@@ -6,15 +6,15 @@
 
 #include <array>
 #include <chrono>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <executable.hpp>
-#include <ie_input_info.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/runtime/tensor.hpp>
-#include <openvino/itt.hpp>
 #include <string>
 #include <vector>
+
+#include "executable.hpp"
+#include "ngraph/runtime/tensor.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
 
 namespace TemplatePlugin {
 
@@ -22,40 +22,31 @@ namespace TemplatePlugin {
 class ExecutableNetwork;
 
 // ! [infer_request:header]
-class TemplateInferRequest : public InferenceEngine::IInferRequestInternal {
+class TemplateInferRequest : public ov::IInferRequest {
 public:
     typedef std::shared_ptr<TemplateInferRequest> Ptr;
 
-    TemplateInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-                         const InferenceEngine::OutputsDataMap& networkOutputs,
-                         const std::shared_ptr<ExecutableNetwork>& executableNetwork);
-    TemplateInferRequest(const std::vector<ov::Output<const ov::Node>>& inputs,
-                         const std::vector<ov::Output<const ov::Node>>& outputs,
-                         const std::shared_ptr<const ExecutableNetwork>& executableNetwork);
+    TemplateInferRequest(const std::shared_ptr<ExecutableNetwork>& executableNetwork);
     ~TemplateInferRequest();
 
-    void InferImpl() override;
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
+    void infer() override;
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
+    ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const override;
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override;
+    void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors) override;
 
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
-    void inferPreprocess();
-    void startPipeline();
-    void waitPipeline();
-    void inferPostprocess();
-
-    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
-    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& userBlob) override;
-
-    void SetBlobsImpl(const std::string& name, const InferenceEngine::BatchedBlob::Ptr& batchedBlob) override;
+    void infer_preprocess();
+    void start_pipeline();
+    void wait_pipeline();
+    void infer_postprocess();
 
 private:
-    void createInferRequest();
-    void allocateDeviceBuffers();
-    void allocateBlobs();
+    std::shared_ptr<ExecutableNetwork> get_template_model() const;
 
     enum { Preprocess, Postprocess, StartPipeline, WaitPipeline, numOfStages };
 
-    std::shared_ptr<ExecutableNetwork> _executableNetwork;
     std::array<openvino::itt::handle_t, numOfStages> _profilingTask;
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> _durations;

@@ -17,7 +17,7 @@
 
 namespace ov {
 
-class IAsyncInferRequest : public IInferRequest {
+class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
 public:
     enum InferState { Idle, Busy, Cancelled, Stop };
     IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
@@ -63,6 +63,9 @@ protected:
     virtual void infer_thread_unsafe();
     virtual void start_async_thread_unsafe();
     void CheckState() const;
+
+    Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
+    Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
 
 private:
     using Futures = std::vector<std::shared_future<void>>;
@@ -144,8 +147,6 @@ private:
         m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline
     InferenceEngine::ITaskExecutor::Ptr
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
-    Pipeline m_pipeline;           //!< Pipeline variable that should be filled by inherited class.
-    Pipeline m_sync_pipeline;      //!< Synchronous pipeline variable that should be filled by inherited class.
     mutable std::mutex m_mutex;
     std::function<void(std::exception_ptr)> m_callback;
 };

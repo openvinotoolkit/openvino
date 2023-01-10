@@ -28,6 +28,7 @@ namespace ov {
 class Core;
 class CoreImpl;
 class ICompiledModel;
+class IInferRequest;
 class CompiledModel;
 class IPlugin;
 class ExecNetworkWrapper;
@@ -58,6 +59,7 @@ protected:
     friend class InferenceEngine::Core;
     friend class ov::Core;
     friend class ov::CoreImpl;
+    friend class ov::IInferRequest;
     friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
     friend class ov::IPlugin;

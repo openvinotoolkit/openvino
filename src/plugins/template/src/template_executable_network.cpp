@@ -6,6 +6,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
+#include <memory>
 #include <threading/ie_executor_manager.hpp>
 
 #include "cpp/ie_cnn_network.h"
@@ -146,24 +147,19 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
 
 // ! [executable_network:create_infer_request_impl]
 std::shared_ptr<ov::IInferRequest> TemplatePlugin::ExecutableNetwork::create_infer_request_impl() const {
-    OPENVINO_NOT_IMPLEMENTED;
-    // return std::make_shared<TemplateInferRequest>(
-    //     inputs(),
-    //     outputs(),
-    //     std::static_pointer_cast<const ExecutableNetwork>(shared_from_this()));
+    return std::make_shared<TemplateInferRequest>(std::const_pointer_cast<ExecutableNetwork>(
+        std::static_pointer_cast<const ExecutableNetwork>(shared_from_this())));
 }
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
 std::shared_ptr<ov::IInferRequest> TemplatePlugin::ExecutableNetwork::create_infer_request() const {
-    OPENVINO_NOT_IMPLEMENTED;
-    // InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    // internalRequest = create_infer_request_impl();
-    // return
-    // std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
-    //                                                    m_task_executor,
-    //                                                    _plugin->_waitExecutor,
-    //                                                    m_callback_executor);
+    std::shared_ptr<ov::IInferRequest> internalRequest;
+    internalRequest = create_infer_request_impl();
+    return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
+                                                       m_task_executor,
+                                                       _plugin->_waitExecutor,
+                                                       m_callback_executor);
 }
 // ! [executable_network:create_infer_request]
 
