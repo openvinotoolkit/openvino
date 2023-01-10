@@ -88,7 +88,7 @@ class ConvertMVN1ToMVN6_OutOfFloat32Eps : public testing::WithParamInterface<Con
                                           public TransformationTestsF {};
 
 TEST_P(ConvertMVN1ToMVN6_OutOfFloat32Eps, Limits) {
-    manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+    manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
 
     const auto& params = GetParam();
     {

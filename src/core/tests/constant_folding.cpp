@@ -57,7 +57,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<std::string>& s) {
 
 void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(model);
 }
@@ -73,7 +73,7 @@ static void check_names(const std::shared_ptr<ov::Node>& node,
 
     // Check fused name
     ASSERT_TRUE(!expected_fused_names.empty());
-    std::vector<std::string> fused_names = ngraph::getFusedNamesVector(node);
+    std::vector<std::string> fused_names = ov::getFusedNamesVector(node);
     if (exact) {
         std::vector<std::string> expected_sorted = expected_fused_names;
         std::sort(fused_names.begin(), fused_names.end());

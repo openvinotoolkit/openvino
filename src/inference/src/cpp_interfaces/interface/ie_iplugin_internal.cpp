@@ -355,7 +355,7 @@ std::unordered_set<std::string> GetSupportedNodes(
     std::unordered_set<std::string> unsupported;
 
     auto get_names_set = [](const std::shared_ptr<ov::Node>& op) -> std::unordered_set<std::string> {
-        auto fused_names = ngraph::getFusedNamesVector(op);
+        auto fused_names = ov::getFusedNamesVector(op);
         std::unordered_set<std::string> names(fused_names.begin(), fused_names.end());
         names.insert(op->get_friendly_name());
         return names;
