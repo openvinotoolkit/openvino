@@ -150,10 +150,11 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
 void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
     const std::shared_ptr<ov::Model>& body,
     const ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& input_descriptors) {
+    const auto& params = body->get_parameters();
     for (const auto& input_description : input_descriptors) {
         auto index = input_description->m_input_index;
 
-        auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
+        auto body_parameter = params.at(input_description->m_body_parameter_index);
         auto input_partial_shape = input_value(index).get_partial_shape();
         body_parameter->set_partial_shape(input_partial_shape);
     }
@@ -166,8 +167,8 @@ ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapp
     std::unordered_set<int64_t> checked_results_in_body;
 
     for (const auto& output_description : output_descriptors) {
-        auto out_index = output_description->m_output_index;
-        auto internal_result_index = output_description->m_body_value_index;
+        const auto& out_index = output_description->m_output_index;
+        const auto& internal_result_index = output_description->m_body_value_index;
         NODE_VALIDATION_CHECK(this,
                               checked_results_in_body.count(internal_result_index) == 0,
                               "Incorrect associating in body! Result ",

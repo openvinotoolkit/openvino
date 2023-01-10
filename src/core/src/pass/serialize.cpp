@@ -391,8 +391,8 @@ public:
         if (!is_body_target) {
             std::string id = "input_descriptions";
             std::string od = "output_descriptions";
-            auto id_pos = name.find("input_descriptions");
-            auto od_pos = name.find("output_descriptions");
+            const auto& id_pos = name.find("input_descriptions");
+            const auto& od_pos = name.find("output_descriptions");
             auto id_str = name;
             size_t body_id;
             if (id_pos != std::string::npos) {

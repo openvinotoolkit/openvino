@@ -35,9 +35,9 @@ void ov::op::util::FrameworkNode::clone_to(ov::op::util::FrameworkNode& dst) con
     dst.m_input_descriptions.resize(m_num_bodies);
     dst.m_output_descriptions.resize(m_num_bodies);
 
-    for (int i = 0; i < m_num_bodies; i++) {
+    for (size_t i = 0; i < m_num_bodies; i++) {
         dst.m_bodies[i] = get_function(i)->clone();
-        for (auto& input_description : m_input_descriptions[i]) {
+        for (const auto& input_description : m_input_descriptions[i]) {
             dst.m_input_descriptions[i].push_back(input_description->copy());
         }
         for (auto& output_description : m_output_descriptions[i]) {
