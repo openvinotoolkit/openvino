@@ -192,10 +192,9 @@ TEST_P(weight_format_test_with_stride, test_match_data_format) {
     auto param = GetParam();
 
     dnnl::memory::desc test_desc(param.test_desc.dims, param.test_desc.data_type, param.test_desc.strides);
-    test_desc.data.format_desc.blocking.inner_nblks = param.inner_nblks;
     for (auto idx = 0; idx < param.inner_nblks; idx++) {
-        test_desc.data.format_desc.blocking.inner_idxs[idx] = param.inner_idxs[idx];
-        test_desc.data.format_desc.blocking.inner_blks[idx] = param.inner_blks[idx];
+        test_desc.get_inner_blks()[idx] = param.inner_idxs[idx];
+        test_desc.get_inner_idxs()[idx] = param.inner_blks[idx];
     }
 
     auto result = onednn::find_format(test_desc, false);
