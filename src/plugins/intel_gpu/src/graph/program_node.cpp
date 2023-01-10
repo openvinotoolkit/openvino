@@ -692,6 +692,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         // If prev_post_op_idx and cur_idx are same, add the last post-op to dnnl::post_ops
         if (prev_post_op_idx == post_ops_size - 1 && prev_post_op_idx == cur_post_op_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
@@ -707,6 +708,11 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         if (prev_post_op_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+        // If prev_post_op_idx and cur_idx are same, add the last post-op to dnnl::post_ops
+        if (prev_post_op_idx == post_ops_size - 1 && prev_post_op_idx == cur_post_op_idx && !type_is_any_optimized(prev_type)) {
+            add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
             break;
         }
 
@@ -746,6 +752,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             if (eltw_and_eltw) {
                 dnnl::algorithm cur_alg, prev_alg;
 <<<<<<< HEAD
+<<<<<<< HEAD
                 float cur_alpha, prev_alpha, cur_beta, prev_beta;
 
                 p_ops.get_params_eltwise(prev_post_op_idx, prev_alg, prev_alpha, prev_beta);
@@ -754,10 +761,12 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 auto eltw_linear_and_eltw_linear = type_is_eltwise_linear(cur_type) && type_is_eltwise_linear(prev_type);
 =======
                 float prev_scale = 1.f;
+=======
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
                 float cur_alpha, prev_alpha, cur_beta, prev_beta;
 
-                p_ops.get_params_eltwise(prev_idx, prev_alg, prev_alpha, prev_beta);
-                p_ops.get_params_eltwise(cur_idx, cur_alg, cur_alpha, cur_beta);
+                p_ops.get_params_eltwise(prev_post_op_idx, prev_alg, prev_alpha, prev_beta);
+                p_ops.get_params_eltwise(cur_post_op_idx, cur_alg, cur_alpha, cur_beta);
 
                 auto eltw_linear_and_eltw_linear = type_is_eltwise_linear(cur_type) && type_is_eltwise_linear(prev_type);
 <<<<<<< HEAD
@@ -771,12 +780,17 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 if (eltw_linear_and_eltw_linear) {
                     dnnl::post_ops eltw_p_op;
 <<<<<<< HEAD
+<<<<<<< HEAD
                     float optimized_alpha = cur_alpha * prev_alpha;
                     float optimized_beta = cur_alpha * prev_beta + cur_beta;
 =======
                     float optimized_alpha = cur_alpha * prev_alpha * prev_scale;
                     float optimized_beta = cur_alpha * prev_beta * prev_scale + cur_beta;
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                    float optimized_alpha = cur_alpha * prev_alpha;
+                    float optimized_beta = cur_alpha * prev_beta + cur_beta;
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
                     eltw_p_op.append_eltwise(cur_alg, optimized_alpha, optimized_beta);
 
                     // Combine 2 eltwises into one
@@ -811,13 +825,17 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
                 float scale = 1.f;
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
                 float alpha, beta;
 
                 cldnn::program_node& cur_node = get_dependency(cur_post_ops[cur_post_op_idx].mem_dep);
 
+<<<<<<< HEAD
 <<<<<<< HEAD
                 p_ops.get_params_binary(cur_post_op_idx, alg, desc);
                 p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
@@ -830,6 +848,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 =======
                 p_ops.get_params_eltwise(prev_idx, alg, alpha, beta);
 >>>>>>> 5c2cf1bbfb (clean up code)
+=======
+                p_ops.get_params_binary(cur_post_op_idx, alg, desc);
+                p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
@@ -879,6 +901,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
                 p_ops.get_params_binary(prev_post_op_idx, alg, desc);
 =======
@@ -889,6 +912,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 >>>>>>> 5c2cf1bbfb (clean up code)
                 p_ops.get_params_binary(prev_idx, alg, desc);
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
+                p_ops.get_params_binary(prev_post_op_idx, alg, desc);
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
@@ -1000,10 +1027,14 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 =======
                 p_ops.get_params_eltwise(cur_idx, alg, alpha, beta);
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
                 if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
@@ -1031,6 +1062,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         // If no optimizations have been applied then copy post-op info into the new optimized_p_ops structure
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         if (!cur_ops_pair_is_optimized) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
 =======
@@ -1040,6 +1072,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         if (!(has_out_scales() && prev_post_op_idx == 0) && !cur_ops_pair_is_optimized) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+        if (!cur_ops_pair_is_optimized) {
+            add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
+>>>>>>> 7446420755 (Apply code review comment and fix ci issue)
         }
 
         if (cur_post_op_idx == post_ops_size - 1 && !cur_ops_pair_is_optimized) {
@@ -1098,14 +1134,14 @@ void program_node::init_onednn_primitive_attributes() {
             memory_offset++;
     };
 
-    auto cant_use_output_scales = [&](size_t idx, data_types in_data_type, layout in_layout) {
-        return (idx != 0 ||
-                out_scales ||
-                in_layout.count() > 1 ||
-                is_type<pooling>() ||
-                is_type<reduce>() ||
-                (is_type<convolution>() && data_type_traits::is_floating_point(in_data_type)) ||
-                (is_type<deconvolution>() && data_type_traits::is_floating_point(in_data_type)));
+    auto cant_use_dst_scales = [&](size_t idx, size_t post_ops_size, data_types in_data_type, layout in_layout) {
+        return true;    // TODO check- scale dst issue
+        // return (idx != post_ops_size -1 ||
+        //         in_layout.count() > 1 ||
+        //         is_type<pooling>() ||
+        //         is_type<reduce>() ||
+        //         (is_type<convolution>() && data_type_traits::is_floating_point(in_data_type)) ||
+        //         (is_type<deconvolution>() && data_type_traits::is_floating_point(in_data_type)));
     };
 
     int32_t num_sum_post_ops = 0;
@@ -1177,14 +1213,13 @@ void program_node::init_onednn_primitive_attributes() {
 =======
                 auto in_data_type = get_dependency(0).get_output_layout().data_type;
                 // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
-                if (cant_use_output_scales(idx, in_data_type, in)) {
+                if (cant_use_dst_scales(idx, cldnn_post_ops.size(), in_data_type, in)) {
                     dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                     post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
                 } else {
                     attrs->set_scales_mask(DNNL_ARG_DST, 0);
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                    out_scales = true;
                 }
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
             } else {
@@ -1216,14 +1251,13 @@ void program_node::init_onednn_primitive_attributes() {
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
 =======
                             auto in_data_type = get_dependency(0).get_output_layout().data_type;
-                            if (cant_use_output_scales(idx, in_data_type, in_scale) || in_scale.data_type != data_types::f32) {
+                            if (cant_use_dst_scales(idx, cldnn_post_ops.size(), in_data_type, in_scale) || in_scale.data_type != data_types::f32) {
                                 dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                             } else {
                                 attrs->set_scales_mask(DNNL_ARG_DST, 0);
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                                out_scales = true;
                             }
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
                         }
@@ -1331,14 +1365,14 @@ void program_node::init_onednn_primitive_attributes() {
 =======
                             auto in_data_type = get_dependency(0).get_output_layout().data_type;
 
-                            if (cant_use_output_scales(idx, in_data_type, in_scale) || in_scale.data_type != data_types::f32 || q_param->has_clamp) {
+                            if (cant_use_dst_scales(idx, cldnn_post_ops.size(), in_data_type, in_scale) ||
+                                in_scale.data_type != data_types::f32 || q_param->has_clamp) {
                                 dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                             } else {
                                 attrs->set_scales_mask(DNNL_ARG_DST, 0);
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                                out_scales = true;
                             }
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
                         }
