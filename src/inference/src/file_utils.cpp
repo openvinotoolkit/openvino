@@ -78,7 +78,7 @@ static std::string getIELibraryPathA() {
     }
     GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
-#elif defined(__APPLE__) || defined(__linux__)
+#elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
 #    ifdef USE_STATIC_IE
 #        ifdef __APPLE__
     Dl_info info;
@@ -114,7 +114,7 @@ std::wstring getIELibraryPathW() {
     }
     GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
     return getPathName(std::wstring(ie_library_path));
-#    elif defined(__linux__) || defined(__APPLE__)
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     return ::ov::util::string_to_wstring(getIELibraryPathA().c_str());
 #    else
 #        error "Unsupported OS"

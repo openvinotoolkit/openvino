@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <limits>
 
 namespace ov {
 namespace intel_gna {
