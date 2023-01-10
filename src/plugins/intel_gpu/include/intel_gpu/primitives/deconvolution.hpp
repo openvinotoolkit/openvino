@@ -44,6 +44,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pad.size(), 0),
           out_padding(pad.size(), 0),
           grouped_weights_shape(false),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(bias) {}
     /// @brief Constructs deconvolution primitive.
@@ -75,6 +77,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pad.size(), 0),
           out_padding(pad.size(), 0),
           grouped_weights_shape(false),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(bias) {}
 
@@ -103,6 +107,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pad.size(), 0),
           out_padding(pad.size(), 0),
           grouped_weights_shape(false),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(std::vector<primitive_id>(0)) {}
 
@@ -133,6 +139,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pad.size(), 0),
           out_padding(pad.size(), 0),
           grouped_weights_shape(false),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(std::vector<primitive_id>(0)) {}
 
@@ -166,6 +174,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pad.size(), 0),
           out_padding(pad.size(), 0),
           grouped_weights_shape(false),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(bias) {}
 
@@ -202,6 +212,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pad.size(), 0),
           out_padding(pad.size(), 0),
           grouped_weights_shape(grouped_weights_shape),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(bias) {}
 
@@ -239,6 +251,8 @@ struct deconvolution : public primitive_base<deconvolution> {
           pads_end(pads_end),
           out_padding(out_padding),
           grouped_weights_shape(grouped_weights_shape),
+          output_partial_shape({}),
+          output_shape(""),
           weights(weights),
           bias(bias) {}
 
@@ -352,17 +366,23 @@ struct deconvolution : public primitive_base<deconvolution> {
     ov::CoordinateDiff out_padding;
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape;
+    /// @brief Defines spatial shape of the output.
+    ov::PartialShape output_partial_shape;
+    /// @brief Data primitive id containing spatial shape of the output.
+    primitive_id output_shape;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.reserve(weights.size() + bias.size());
+        ret.reserve(weights.size() + bias.size() + (output_shape.empty() ? 0 : 1));
         for (auto& w : weights) ret.push_back(std::ref(w));
         for (auto& b : bias) ret.push_back(std::ref(b));
+        if (!output_shape.empty()) ret.push_back(output_shape);
 
         return ret;
     }

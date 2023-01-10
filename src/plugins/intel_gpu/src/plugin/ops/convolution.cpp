@@ -182,23 +182,35 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
         p.add_primitive(*op, deconvPrim);
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
-                                               inputs[0],
-                                               weights,
-                                               {},
-                                               1,
-                                               strides,
-                                               pads_begin,
-                                               dilations,
-                                               pads_begin,
-                                               pads_end,
-                                               output_padding,
-                                               weights_have_group_dim);
+                                       inputs[0],
+                                       weights,
+                                       {},
+                                       1,
+                                       strides,
+                                       pads_begin,
+                                       dilations,
+                                       pads_begin,
+                                       pads_end,
+                                       output_padding,
+                                       weights_have_group_dim);
+        if (op->get_input_size() == 3) {
+            auto output_shape_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(2));
+            if (output_shape_constant) {
+                auto output_shape = output_shape_constant->cast_vector<int64_t>();
+                ov::Shape shape(output_shape.begin(), output_shape.end());
+                ov::PartialShape output_pshape(shape);
+                deconvPrim.output_partial_shape = output_pshape;
+            } else {
+                deconvPrim.output_shape = inputs[2].pid;
+            }
+        }
         p.add_primitive(*op, deconvPrim);
     }
 }
 
 static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
-    validate_inputs_count(op, {2});
+    // 3rd input is an optional output shape
+    validate_inputs_count(op, {2, 3});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -272,6 +284,17 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                                                pads_end,
                                                output_padding,
                                                weights_have_group_dim);
+        if (op->get_input_size() == 3) {
+            auto output_shape_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(2));
+            if (output_shape_constant) {
+                auto output_shape = output_shape_constant->cast_vector<int64_t>();
+                ov::Shape shape(output_shape.begin(), output_shape.end());
+                ov::PartialShape output_pshape(shape);
+                deconvPrim.output_partial_shape = output_pshape;
+            } else {
+                deconvPrim.output_shape = inputs[2].pid;
+            }
+        }
         p.add_primitive(*op, deconvPrim);
     }
 }
