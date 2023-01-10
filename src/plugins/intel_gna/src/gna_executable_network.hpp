@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ namespace intel_gna {
 
 class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
     std::shared_ptr<GNAPlugin> plg;
-    std::string networkName;
 
  public:
      GNAExecutableNetwork(const std::string& aotFileName, std::shared_ptr<GNAPlugin> plg)
@@ -52,7 +51,6 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     GNAExecutableNetwork(const InferenceEngine::CNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
         plg->LoadNetwork(network);
-        networkName = network.getName();
     }
 
     GNAExecutableNetwork(const std::string& aotFileName, const std::map<std::string, std::string>& config)
@@ -132,8 +130,6 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override {
         if (ov::supported_properties == name) {
             return Config::GetSupportedProperties(true);
-        } else if (ov::model_name == name) {
-            return networkName;
         } else {
             return plg->GetMetric(name, {});
         }
