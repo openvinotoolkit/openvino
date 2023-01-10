@@ -140,6 +140,7 @@ jobs:
         -o $(BUILD_DIR)\itt_stat ^
         ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe ^
           -nireq 1 ^
+          -t 1 ^
           -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml ^
           -d CPU
     workingDirectory: $(REPO_DIR)
