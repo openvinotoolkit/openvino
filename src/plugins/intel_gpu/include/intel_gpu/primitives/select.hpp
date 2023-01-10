@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs elementwise select operation on two input primitives with selector primitive (mask)
 /// @notes
@@ -48,7 +41,4 @@ struct select : public primitive_base<select> {
     /// @brief Define auto broadcast rule specification.
     ov::op::AutoBroadcastSpec broadcast_spec;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

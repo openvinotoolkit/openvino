@@ -46,8 +46,8 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Split::Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1, 2))) {
+Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

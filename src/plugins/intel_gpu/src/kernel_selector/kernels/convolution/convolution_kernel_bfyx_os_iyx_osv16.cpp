@@ -48,7 +48,6 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableDilation();
     k.EnableGroupedConvolution();
     return k;
