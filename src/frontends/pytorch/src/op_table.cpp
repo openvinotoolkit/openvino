@@ -46,6 +46,7 @@ OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
+OP_CONVERTER(translate_len);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_poolnd);
@@ -172,6 +173,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::layer_norm", op::translate_layer_norm},
         {"aten::leaky_relu", op::translate_1to1_match_2_inputs<opset8::PRelu>},
         {"aten::leaky_relu_", op::inplace_op<op::translate_1to1_match_2_inputs<opset8::PRelu>>},
+        {"aten::len", op::translate_len},
         {"aten::linear", op::translate_linear},
         {"aten::le", op::translate_1to1_match_2_inputs<opset8::LessEqual>},
         {"aten::lt", op::translate_1to1_match_2_inputs<opset8::Less>},
