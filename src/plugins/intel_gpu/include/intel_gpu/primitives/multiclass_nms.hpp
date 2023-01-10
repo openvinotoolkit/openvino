@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <vector>
@@ -12,12 +11,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief multiclass NMS
 struct multiclass_nms : public primitive_base<multiclass_nms> {
@@ -150,7 +143,4 @@ private:
     };
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

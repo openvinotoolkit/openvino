@@ -80,7 +80,6 @@ ParamsKey ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
     return k;
 }

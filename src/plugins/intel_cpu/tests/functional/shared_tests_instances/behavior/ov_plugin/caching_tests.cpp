@@ -173,4 +173,10 @@ namespace {
                                 ::testing::ValuesIn(TestTargets),
                                 ::testing::ValuesIn(LoadFromFileConfigs)),
                         CompileModelLoadFromFileTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_Auto_CachingSupportCase_CPU,
+                             CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::ValuesIn(TestTargets),
+                                                ::testing::ValuesIn(LoadFromFileConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
 } // namespace

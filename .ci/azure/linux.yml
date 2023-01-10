@@ -162,7 +162,11 @@ jobs:
       # For running TensorFlow frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
       # For MO unit tests
-      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_mxnet.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_caffe.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_kaldi.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_tf2.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
       # Speed up build
       sudo apt -y --no-install-recommends install unzip

@@ -23,7 +23,6 @@ ParamsKey BinaryConvolutionKernelRef::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     return k;
 }
 
