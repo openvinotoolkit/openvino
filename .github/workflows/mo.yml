@@ -44,7 +44,6 @@ jobs:
           # For UT
           pip install unittest-xml-reporting==3.0.2
           # MO requirements
-          pip install torch
           pip install -r requirements_mxnet.txt
           pip install -r requirements_caffe.txt
           pip install -r requirements_kaldi.txt
