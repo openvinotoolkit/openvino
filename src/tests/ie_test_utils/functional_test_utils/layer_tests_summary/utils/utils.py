@@ -4,6 +4,9 @@
 import logging
 import xml.etree.ElementTree as ET
 
+TEST_STATUS = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]", "interapted": "interapted"}
+RUN = "[ RUN      ]"
+
 def get_logger(app_name: str):
     logging.basicConfig()
     logger = logging.getLogger(app_name)
