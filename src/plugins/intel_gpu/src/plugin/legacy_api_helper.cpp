@@ -93,6 +93,8 @@ std::pair<std::string, ov::Any> LegacyAPIHelper::convert_legacy_property(const s
             converted_val = ov::hint::Priority::MEDIUM;
         } else if (legacy_val == InferenceEngine::GPUConfigParams::GPU_HOST_TASK_PRIORITY_LOW) {
             converted_val = ov::hint::Priority::LOW;
+        } else {
+            converted_val = legacy_val;
         }
         return { ov::intel_gpu::hint::host_task_priority.name(), converted_val };
     } else if (legacy_name == InferenceEngine::GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) {

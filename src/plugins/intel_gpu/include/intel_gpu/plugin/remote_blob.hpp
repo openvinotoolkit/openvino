@@ -83,6 +83,8 @@ protected:
 
     void lock() const;
     void unlock() const;
+
+    bool supports_caching() const;
 };
 
 template<typename TpublicAPI>

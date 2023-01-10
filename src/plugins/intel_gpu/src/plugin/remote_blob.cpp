@@ -36,13 +36,15 @@ RemoteBlobImpl::RemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
     , lockedCounter(0)
     , lockedHolder(nullptr)
     , _handle(nullptr) {
-    m_hash = cldnn::hash_combine(0, m_mem);
-    m_hash = cldnn::hash_combine(m_hash, m_surf);
-    m_hash = cldnn::hash_combine(m_hash, plane);
-    m_hash = cldnn::hash_combine(m_hash, static_cast<std::underlying_type<cldnn::format::type>::type>(layout.format));
-    m_hash = cldnn::hash_combine(m_hash, static_cast<std::underlying_type<cldnn::data_types>::type>(layout.data_type));
-    for (auto& d : layout.get_shape()) {
-        m_hash = cldnn::hash_combine(m_hash, d);
+    if (supports_caching()) {
+        m_hash = cldnn::hash_combine(0, m_mem);
+        m_hash = cldnn::hash_combine(m_hash, m_surf);
+        m_hash = cldnn::hash_combine(m_hash, plane);
+        m_hash = cldnn::hash_combine(m_hash, static_cast<std::underlying_type<cldnn::format::type>::type>(layout.format));
+        m_hash = cldnn::hash_combine(m_hash, static_cast<std::underlying_type<cldnn::data_types>::type>(layout.data_type));
+        for (auto& d : layout.get_shape()) {
+            m_hash = cldnn::hash_combine(m_hash, d);
+        }
     }
 }
 
@@ -123,11 +125,7 @@ void RemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "RemoteBlobImpl::Allocate");
 
     auto context = get_context_impl(m_context);
-    bool enable_caching = m_mem_type == BlobType::BT_BUF_SHARED ||
-                          m_mem_type == BlobType::BT_USM_SHARED ||
-                          m_mem_type == BlobType::BT_IMG_SHARED ||
-                          m_mem_type == BlobType::BT_SURF_SHARED ||
-                          m_mem_type == BlobType::BT_DX_BUF_SHARED;
+    auto enable_caching = supports_caching();
 
     if (enable_caching) {
         m_memory_object = context->try_get_cached_memory(m_hash);
@@ -273,6 +271,14 @@ LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
     } catch (...) {
         return LockedMemory<void>(nullptr, nullptr, 0);
     }
+}
+
+bool RemoteBlobImpl::supports_caching() const {
+    return m_mem_type == BlobType::BT_BUF_SHARED ||
+           m_mem_type == BlobType::BT_USM_SHARED ||
+           m_mem_type == BlobType::BT_IMG_SHARED ||
+           m_mem_type == BlobType::BT_SURF_SHARED ||
+           m_mem_type == BlobType::BT_DX_BUF_SHARED;
 }
 
 }  // namespace intel_gpu

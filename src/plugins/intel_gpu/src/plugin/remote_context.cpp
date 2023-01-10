@@ -249,9 +249,8 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_blob(InferenceEngine:
                       mem_type == GPU_PARAM_VALUE(USM_DEVICE_BUFFER) ||
                       mem_type == GPU_PARAM_VALUE(USM_USER_BUFFER);
 
-        if (is_usm && !m_engine->use_unified_shared_memory()) {
-            IE_THROW(NotAllocated) << "Can't create USM tensor as USM is not supported (or manually disabled) on current device";
-        }
+        OPENVINO_ASSERT(!is_usm || m_engine->use_unified_shared_memory(),
+                        "[GPU] Can't create USM tensor as USM is not supported (or manually disabled) on current device");
 
         if (GPU_PARAM_VALUE(VA_SURFACE) == mem_type) {
             check_if_shared();
@@ -280,7 +279,7 @@ InferenceEngine::RemoteBlob::Ptr RemoteContextImpl::create_blob(InferenceEngine:
                 check_if_shared();
 #endif
             } else {
-                IE_THROW() << "Unsupported shared object type " << mem_type;
+                OPENVINO_ASSERT(false, "[GPU] Unsupported shared object type ", mem_type);
             }
 
             return reuse_memory(public_context, desc, mem, blob_type);
