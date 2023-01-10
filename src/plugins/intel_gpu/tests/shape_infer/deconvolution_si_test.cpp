@@ -28,6 +28,8 @@ struct deconvolution_test_params {
     ov::CoordinateDiff pads_begin;
     ov::CoordinateDiff pads_end;
     ov::CoordinateDiff output_padding;
+    bool with_output_shape;
+    ov::PartialShape output_pshape;
     layout expected_layout;
 };
 
@@ -48,6 +50,9 @@ TEST_P(deconvolution_si_test, shape_infer) {
     auto deconv_prim = std::make_shared<deconvolution>("deconv", input_info("data"), weights, bias, p.groups,
                                                        p.stride, p.pads_begin, p.dilations, p.pads_begin,
                                                        p.pads_end, p.output_padding, false);
+    if (p.with_output_shape) {
+        deconv_prim->output_partial_shape = p.output_pshape;
+    }
 
     cldnn::program prog(engine);
 
@@ -72,6 +77,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
             1, {2, 2}, {1, 1},
             std::vector<ptrdiff_t>{1, 1}, std::vector<ptrdiff_t>{1, 1},
             std::vector<ptrdiff_t>{0, 0},
+            false, {},
             layout{ov::PartialShape{1, 10, 447, 447}, data_types::f32, format::bfyx}
         },
         // 2d deconv with output padding
@@ -80,6 +86,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
             1, {3, 3}, {1, 1},
             std::vector<ptrdiff_t>{0, 0}, std::vector<ptrdiff_t>{0, 0},
             std::vector<ptrdiff_t>{2, 2},
+            false, {},
             layout{ov::PartialShape{1, 10, 8, 8}, data_types::f32, format::bfyx}
         },
         // 2d deconv with dynamic shape
@@ -88,6 +95,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
             1, {3, 3}, {1, 1},
             std::vector<ptrdiff_t>{0, 0}, std::vector<ptrdiff_t>{0, 0},
             std::vector<ptrdiff_t>{2, 2},
+            false, {},
             layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}
         },
         // 1d groupdeconv
@@ -96,6 +104,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
             4, {2}, {1},
             std::vector<ptrdiff_t>{1}, std::vector<ptrdiff_t>{1},
             std::vector<ptrdiff_t>{0},
+            false, {},
             layout{ov::PartialShape{1, 8, 447}, data_types::f32, format::bfyx}
         },
         // 2d groupdeconv
@@ -104,7 +113,39 @@ INSTANTIATE_TEST_SUITE_P(smoke, deconvolution_si_test,
             4, {2, 2}, {1, 1},
             std::vector<ptrdiff_t>{1, 1}, std::vector<ptrdiff_t>{1, 1},
             std::vector<ptrdiff_t>{0, 0},
+            false, {},
             layout{ov::PartialShape{1, 8, 447, 447}, data_types::f32, format::bfyx}
+        },
+    }));
+
+INSTANTIATE_TEST_SUITE_P(smoke_with_output_shape, deconvolution_si_test,
+    testing::ValuesIn(std::vector<deconvolution_test_params>{
+        // 2d deconv with output shape
+        {
+            ov::PartialShape{1, 20, 224, 224}, ov::PartialShape{10, 20, 3, 3},
+            1, {2, 2}, {1, 1},
+            std::vector<ptrdiff_t>{1, 1}, std::vector<ptrdiff_t>{1, 1},
+            std::vector<ptrdiff_t>{0, 0},
+            true, ov::PartialShape{500, 500},
+            layout{ov::PartialShape{1, 10, 500, 500}, data_types::f32, format::bfyx}
+        },
+        // 1d groupdeconv with output shape
+        {
+            ov::PartialShape{1, 20, 224}, ov::PartialShape{4, 2, 5, 3},
+            4, {2}, {1},
+            std::vector<ptrdiff_t>{1}, std::vector<ptrdiff_t>{1},
+            std::vector<ptrdiff_t>{0},
+            true, ov::PartialShape{500},
+            layout{ov::PartialShape{1, 8, 500}, data_types::f32, format::bfyx}
+        },
+        // 2d groupdeconv with output shape
+        {
+            ov::PartialShape{1, 20, 224, 224}, ov::PartialShape{4, 2, 5, 3, 3},
+            4, {2, 2}, {1, 1},
+            std::vector<ptrdiff_t>{1, 1}, std::vector<ptrdiff_t>{1, 1},
+            std::vector<ptrdiff_t>{0, 0},
+            true, ov::PartialShape{500, 500},
+            layout{ov::PartialShape{1, 8, 500, 500}, data_types::f32, format::bfyx}
         },
     }));
 

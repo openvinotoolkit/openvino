@@ -182,17 +182,17 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
         p.add_primitive(*op, deconvPrim);
     } else {
         auto deconvPrim = cldnn::deconvolution(layerName,
-                                       inputs[0],
-                                       weights,
-                                       {},
-                                       1,
-                                       strides,
-                                       pads_begin,
-                                       dilations,
-                                       pads_begin,
-                                       pads_end,
-                                       output_padding,
-                                       weights_have_group_dim);
+                                               inputs[0],
+                                               weights,
+                                               {},
+                                               1,
+                                               strides,
+                                               pads_begin,
+                                               dilations,
+                                               pads_begin,
+                                               pads_end,
+                                               output_padding,
+                                               weights_have_group_dim);
         if (op->get_input_size() == 3) {
             auto output_shape_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(2));
             if (output_shape_constant) {
