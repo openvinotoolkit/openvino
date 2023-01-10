@@ -703,7 +703,7 @@ def parse_input_shapes(argv):
                 import torch
                 if isinstance(shapes, torch.Size):
                     return [shapes]
-            except ImportError::
+            except ImportError:
                 raise Error("Unknown type of input shape {}.".format(type(shapes)))
 
     return input_shapes
