@@ -162,7 +162,7 @@ void ov::op::v8::If::validate_and_infer_types() {
             // shape inference for output and associated with it body outputs
             auto partial_shape =
                 resolve_shape(then_node_result.get_partial_shape(), else_node_result.get_partial_shape());
-            set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
+            set_output_type(output_index, merged_type, partial_shape);
         }
     }
 }
