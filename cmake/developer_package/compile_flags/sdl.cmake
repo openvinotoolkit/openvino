@@ -5,8 +5,13 @@
 if(UNIX)
     set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -Wformat -Wformat-security")
     if (NOT ENABLE_SANITIZER)
-        # ASan does not support fortification https://github.com/google/sanitizers/issues/247
-        set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -D_FORTIFY_SOURCE=2")
+        if(EMSCRIPTEN)
+            # emcc does not support fortification, see:
+            # https://stackoverflow.com/questions/58854858/undefined-symbol-stack-chk-guard-in-libopenh264-so-when-building-ffmpeg-wit
+        else()
+            # ASan does not support fortification https://github.com/google/sanitizers/issues/247
+            set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -D_FORTIFY_SOURCE=2")
+        endif()
     endif()
     if(NOT APPLE)
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -pie")
@@ -24,7 +29,12 @@ if(UNIX)
             set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -s")
         endif()
     elseif(OV_COMPILER_IS_CLANG)
-        set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -fstack-protector-all")
+        if(EMSCRIPTEN)
+            # emcc does not support fortification 
+            # https://stackoverflow.com/questions/58854858/undefined-symbol-stack-chk-guard-in-libopenh264-so-when-building-ffmpeg-wit
+        else()
+            set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -fstack-protector-all")
+        endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         if (NOT ENABLE_SANITIZER)
             set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} -Wl,--strip-all")
