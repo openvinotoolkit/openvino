@@ -195,8 +195,6 @@ class AnalyzerConformanceLog:
             for test_name, devices_info in group_info.items():
                 if exclude_sw_plugins and re.search(exclude_sw_plugins, test_name):
                     continue
-                if  re.search(OLD_API_REG_EXP, test_name) and not args.old_api:
-                    continue
 
                 # if test pass on all devices, it is not need to analyze it here
                 all_pass = all([dev.lower() in devices_info and devices_info[dev.lower()]['pass'] for dev in expected_devices])
@@ -264,7 +262,6 @@ Example: 6030 6035')
                         nargs="*",
                         help='Setup hw devices name, if it is not be setup, all founded deviced will be presented in final report\
 Example: CPU TEMPLATE')
-    parser.add_argument('--old_api', action='store_true')
     parser.add_argument('--exclude_from_log',
                         type=str,
                         help='This arguments could be use to removing repeated pattern in log, for example long paths of files with code')
