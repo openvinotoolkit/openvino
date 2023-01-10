@@ -706,7 +706,7 @@ inline ngraph::HostTensorVector create_tmp_tensors(const ov::TensorVector& tenso
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        if (!tensor || tensor.get_shape() == ov::Shape{0, std::numeric_limits<size_t>::max()}) {
+        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
             auto el_type = ov::element::dynamic;
             if (tensor)
                 el_type = tensor.get_element_type();
