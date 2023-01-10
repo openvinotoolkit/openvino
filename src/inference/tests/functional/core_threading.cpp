@@ -30,22 +30,9 @@ protected:
     std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
 
 public:
-    static std::string generateTestFilePrefix() {
-        // Generate unique file names based on test name, thread id and timestamp
-        // This allows execution of tests in parallel (stress mode)
-        auto testInfo = ::testing::UnitTest::GetInstance()->current_test_info();
-        std::string testName = testInfo->test_case_name();
-        testName += testInfo->name();
-        testName = std::to_string(std::hash<std::string>()(testName));
-        std::stringstream ss;
-        auto ts = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now().time_since_epoch());
-        ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
-        testName = ss.str();
-        return testName;
-    }
+
     void SetUp() override {
-        auto prefix = generateTestFilePrefix();
+        auto prefix = CommonTestUtils::generateTestFilePrefix();
         modelName = prefix + modelName;
         weightsName = prefix + weightsName;
         FuncTestUtils::TestModel::generateTestModel(modelName, weightsName);

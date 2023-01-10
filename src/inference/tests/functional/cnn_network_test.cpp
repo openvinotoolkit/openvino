@@ -150,12 +150,16 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
 
 class CNNNetworkTests_LoadFromFileTest : public ::testing::Test {
 protected:
-    std::string modelName = "CNNNetworkTests_LoadFromFileTest.xml";
-    std::string weightsName = "CNNNetworkTests_LoadFromFileTest.bin";
+    std::string modelName {};
+    std::string weightsName {};
     InferenceEngine::Core core;
 
 public:
     void SetUp() override {
+        auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+        modelName = filePrefix + "_CNNNetworkTests_LoadFromFileTest.xml";
+        weightsName = filePrefix + "_CNNNetworkTests_LoadFromFileTest.bin";
+
         std::shared_ptr<ov::Model> model = CNNNetworkTests_create_model();
         ov::pass::Serialize(modelName, weightsName).run_on_model(model);
         ASSERT_NO_THROW(
