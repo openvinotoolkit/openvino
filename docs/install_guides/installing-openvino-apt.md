@@ -36,9 +36,9 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 1. Install the GPG key for the repository
 
-   a. Download the [GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB](https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB). You can also use the following command:
+   a. Download the `GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB <https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB>`_ . You can also use the following command:
 
-        .. code-block:: sh
+      .. code-block:: sh
 
            wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
         
@@ -71,16 +71,16 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 3.	Update the list of packages via the update command:
   
-   .. code-block:: sh
+.. code-block:: sh
 
-      sudo apt update
+   sudo apt update
    
 
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
    
-   .. code-block:: sh
-   
-      apt-cache search openvino
+.. code-block:: sh
+
+   apt-cache search openvino
    
 
 @endsphinxdirective
