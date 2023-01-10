@@ -23,12 +23,18 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::winograd_2x3_s1_data);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_Winograd_2x3_s1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -99,9 +105,8 @@ bool ConvolutionKernel_Winograd_2x3_s1::Validate(const Params& p, const optional
     const bool bStrideOK = (cp.stride.x == 1 && cp.stride.y == 1);
     const bool bDilationOK = (cp.stride.x == 1 && cp.stride.y == 1);
     const bool bFilter3x3 = (cp.filterSize.x == 3 && cp.filterSize.y == 3);
-    const bool bNoSplit = cp.split == 1;
 
-    if (!bStrideOK || !bDilationOK || !bFilter3x3 || !bNoSplit) {
+    if (!bStrideOK || !bDilationOK || !bFilter3x3) {
         return false;
     }
 

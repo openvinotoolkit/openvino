@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -99,7 +97,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -163,7 +161,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -229,7 +227,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -307,7 +305,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -397,7 +395,7 @@ TEST(quantize_gpu, quantize_levels_3) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
     }
 }
 
@@ -488,7 +486,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
     }
 }
 
@@ -580,7 +578,7 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
     }
 }
 
@@ -666,7 +664,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -687,13 +685,11 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
-                        EXPECT_EQ(opt_out_val, ref_out_val);
+                        ASSERT_EQ(opt_out_val, ref_out_val);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_compare(const quantize_random_test_params& params, bool check_result) {

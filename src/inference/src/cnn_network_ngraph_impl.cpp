@@ -430,6 +430,57 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
     return reshape(shapes, responseDesc);
 }
 
+namespace {
+void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
+                                std::map<std::string, std::map<std::string, size_t>>& signatures,
+                                bool obfuscate) {
+    for (const auto& op : ov_model->get_ordered_ops()) {
+        const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
+
+        std::stringstream shape_representation;
+        for (const auto& input : op->input_values()) {
+            bool first = true;
+            shape_representation << "{";
+            for (const auto& dimension : input.get_partial_shape()) {
+                if (!first)
+                    shape_representation << ",";
+                first = false;
+
+                if (obfuscate)
+                    shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                else
+                    shape_representation << dimension;
+            }
+            shape_representation << "} ";
+        }
+        shape_representation << "-> ";
+        for (const auto& output : op->outputs()) {
+            bool first = true;
+            shape_representation << "{";
+            for (const auto& dimension : output.get_partial_shape()) {
+                if (!first)
+                    shape_representation << ",";
+                first = false;
+
+                if (obfuscate)
+                    shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                else
+                    shape_representation << dimension;
+            }
+            shape_representation << "} ";
+        }
+        signatures[type_name][shape_representation.str()]++;
+
+        // collect dynamism signature for sub-graphs of multi-subgraph operation
+        if (const auto multi_sub_graph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
+            for (int i = 0; i < num_subgraphs; i++)
+                collect_dynamism_signature(multi_sub_graph_op->get_function(i), signatures, obfuscate);
+        }
+    }
+}
+}  // namespace
+
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
 
@@ -481,50 +532,16 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
         }
 
 #if 0
-        bool obfuscate = true; // set to false to get exact dimensions
+        bool obfuscate = true;  // set to false to get exact dimensions
         std::map<std::string, std::map<std::string, size_t>> signatures;
-        for (const auto& op : _ngraph_function->get_ordered_ops()) {
-            const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
 
-            std::stringstream shape_representation;
-            for (const auto& input : op->input_values()) {
-                bool first = true;
-                shape_representation << "{";
-                for (const auto& dimension : input.get_partial_shape()) {
-                    if (!first)
-                        shape_representation << ",";
-                    first = false;
-
-                    if (obfuscate)
-                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
-                    else
-                        shape_representation << dimension;
-                }
-                shape_representation << "} ";
-            }
-            shape_representation << "-> ";
-            for (const auto& output: op->outputs())  {
-                bool first = true;
-                shape_representation << "{";
-                for (const auto& dimension : output.get_partial_shape()) {
-                    if (!first)
-                        shape_representation << ",";
-                    first = false;
-
-                    if (obfuscate)
-                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
-                    else
-                        shape_representation << dimension;
-                }
-                shape_representation << "} ";
-            }
-            signatures[type_name][shape_representation.str()]++;
-        }
+        collect_dynamism_signature(_ngraph_function, signatures, obfuscate);
 
         for (const auto& item : signatures)
             for (const auto& shape_to_count : item.second)
                 std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
+
         std::unordered_set<std::string> opName;
         for (const auto& result : specialized_ngraph_function->get_results()) {
             addOutput(result->input_value(0));

@@ -37,11 +37,12 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32_depthwise::GetSupportedKey() const {
     k.EnableDilation();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    return get_common_subgroups_device_features_key(params, options);
 }
 
 size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getInputWidth(const convolution_params& arg, size_t blockWidth) const {
@@ -72,7 +73,7 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
     // Check if output can be evenly divided into large blocks
     for (auto w : optBlockWidths) {
         if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
-            return {w, AGE_BASED};
+            return {w, EXE_MODE_AGE_BASED};
     }
 
     // Try to find large blocks with smallest offset
@@ -86,16 +87,16 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
     }
 
     if (foundWidth != 0)
-        return {foundWidth, AGE_BASED};
+        return {foundWidth, EXE_MODE_AGE_BASED};
 
     // Check small and memory bound block sizes
     for (auto w : nonOptBlockWidths) {
         if (cp.outputs[0].X().v % w == 0 && getMinRegisterUsage(cp, w) < regThreshold)
-            return {w, AGE_BASED};
+            return {w, EXE_MODE_AGE_BASED};
     }
 
     // This means all previous block sizes consumed too much registers, fallback to block width = 1
-    return {1, AGE_BASED};
+    return {1, EXE_MODE_AGE_BASED};
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_depthwise::SetDefault(const convolution_params& arg,

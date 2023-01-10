@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -127,14 +125,14 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
     net.set_input_data("compare", compare);
     out = net.execute();
     auto out_data_true = out.at("output").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_true, {20.0f, 40.0f}));
+    ASSERT_TRUE(is_output_equal(out_data_true, {20.0f, 40.0f}));
 
     //WHEN FALSE
     set_values(compare, { 4.0f });
     net.set_input_data("compare", compare);
     out = net.execute();
     auto out_data_false = out.at("output").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_false, { 15.0f, 35.0f }));
+    ASSERT_TRUE(is_output_equal(out_data_false, { 15.0f, 35.0f }));
 
 }
 
@@ -200,7 +198,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     outputs = net.execute();
 
     auto out_data_true = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
+    ASSERT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
 
     //CHECK FALSE
     set_values(compare, compare_data_false);
@@ -208,7 +206,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     outputs = net.execute();
 
     auto out_data_false = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
+    ASSERT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
 }
 
 TEST(DISABLED_condition_gpu, generic_test_true_false) {
@@ -294,7 +292,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                 outputs = net.execute();
 
                 auto out_data_true = outputs.at("condi").get_memory();
-                EXPECT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
+                ASSERT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
 
                 //CHECK FALSE
                 set_values(compare, comp_values_false);
@@ -302,7 +300,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                 outputs = net.execute();
 
                 auto out_data_false = outputs.at("condi").get_memory();
-                EXPECT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
+                ASSERT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
 
             }
         }
@@ -376,7 +374,7 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
     auto outputs = net.execute();
 
     auto out_data = outputs.at("condi2").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data, {1.0f, 2.0f}));
+    ASSERT_TRUE(is_output_equal(out_data, {1.0f, 2.0f}));
 }
 
 TEST(DISABLED_condition_gpu, basic_nested_ifs) {
@@ -469,7 +467,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     auto outputs = net.execute();
 
     auto out_data = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data, { 10.0f, 20.0f }));
+    ASSERT_TRUE(is_output_equal(out_data, { 10.0f, 20.0f }));
 }
 
 TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {

@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "deformable_convolution_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -31,13 +29,11 @@ layout deformable_conv_inst::calc_output_layout(deformable_conv_node const& node
 
 std::string deformable_conv_inst::to_string(deformable_conv_node const& node) {
     auto desc = node.get_primitive();
-    auto split = node.get_split();
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
 
     json_composite conv_info;
-    conv_info.add("split", split);
     conv_info.add("groups", desc->groups);
 
     json_composite ud_out_size_info;
@@ -76,7 +72,6 @@ layout deformable_interp_inst::calc_output_layout(deformable_interp_node const& 
 std::string deformable_interp_inst::to_string(deformable_interp_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;
-    auto split = node.get_split();
     auto dilation = desc->dilation;
     auto node_info = node.desc_to_json();
 
@@ -85,7 +80,6 @@ std::string deformable_interp_inst::to_string(deformable_interp_node const& node
     json_composite interp_info;
     interp_info.add("stride", cldnn::to_string(strd));
     interp_info.add("pad", cldnn::to_string(desc->pad));
-    interp_info.add("split", split);
     interp_info.add("dilation", cldnn::to_string(dilation));
     interp_info.add("deformable_groups", desc->deformable_groups);
     interp_info.add("groups", desc->groups);

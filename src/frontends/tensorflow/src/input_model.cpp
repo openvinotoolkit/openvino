@@ -76,10 +76,11 @@ public:
     std::map<std::string, Output<Node>> get_tensor_values() const {
         return m_tensor_values;
     };
+    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_model_name) const;
 
 private:
     void loadPlaces();
-    std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
+    std::vector<std::shared_ptr<OpPlace>> topologically_sort_op_nodes() const;
 
     std::vector<std::shared_ptr<OpPlace>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlace>> m_op_places_map;
@@ -198,13 +199,10 @@ void InputModel::InputModelTFImpl::loadPlaces() {
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
-    if (m_graph_changed) {
-        return determine_cut_nodes();
-    }
-    return m_op_places;
+    return topologically_sort_op_nodes();
 }
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::determine_cut_nodes() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() const {
     std::vector<std::shared_ptr<OpPlace>> topologically_sorted_ops;
     std::stack<std::shared_ptr<OpPlace>> ops_to_do;
     std::unordered_set<std::shared_ptr<OpPlace>> ops_done;
@@ -315,6 +313,15 @@ InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_i
       m_graph_iterator(graph_iterator) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadPlaces();
+}
+
+std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
+    const std::string& body_model_name) const {
+    auto body_graph_iterator = m_graph_iterator->get_body_graph_iterator(body_model_name);
+    if (!body_graph_iterator) {
+        return nullptr;
+    }
+    return std::make_shared<InputModel>(body_graph_iterator, m_telemetry);
 }
 
 InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
@@ -428,6 +435,10 @@ InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shar
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
+}
+
+std::shared_ptr<InputModel> InputModel::get_body_input_model(const std::string& body_model_name) const {
+    return _impl->get_body_input_model(body_model_name);
 }
 
 std::map<std::string, std::shared_ptr<TensorPlace>> InputModel::get_tensor_places() const {

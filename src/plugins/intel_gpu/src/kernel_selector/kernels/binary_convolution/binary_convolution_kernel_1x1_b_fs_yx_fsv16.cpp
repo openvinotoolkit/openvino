@@ -33,6 +33,14 @@ ParamsKey BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey BinaryConvolutionKernel1x1_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroup_shuffle();
+    k.requires_blocked_read_write();
+
+    return k;
+}
+
 BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv16::SetDefault(
     const binary_convolution_params& params,
     int) const {
@@ -70,7 +78,7 @@ bool BinaryConvolutionKernel1x1_b_fs_yx_fsv16::Validate(const Params& p, const o
     const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
     const bool bStride = params.stride.x != 1 || params.stride.y != 1;
-    const bool bGroups = params.split > 1 || params.groups > 1 || params.depthwise_separable_opt;
+    const bool bGroups = params.groups > 1;
 
     if (bOutputSizes || bFilterSize || bStride || bGroups)
         return false;
@@ -122,14 +130,14 @@ JitConstants BinaryConvolutionKernel1x1_b_fs_yx_fsv16::GetFusedPrimitivesJitCons
 
         auto get_aligned_load = [&](std::string ptr, std::string byte_offset) -> std::string {
             if (fused_dep.tensors[0].GetDType() == Datatype::F32)
-                return "(intel_sub_group_block_read((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
+                return "(_sub_group_block_read((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
             else
-                return "(intel_sub_group_block_read_us((const __global ushort*)(" + ptr + ") + (" + byte_offset +
+                return "(_sub_group_block_read_us((const __global ushort*)(" + ptr + ") + (" + byte_offset +
                        ")))";
         };
 
         auto get_shuffle = [&](std::string var, std::string lid) -> std::string {
-            return "(intel_sub_group_shuffle(" + var + ", " + lid + "))";
+            return "(_sub_group_shuffle(" + var + ", " + lid + "))";
         };
 
         std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
