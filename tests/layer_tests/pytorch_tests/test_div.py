@@ -6,11 +6,9 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class Testdiv(PytorchLayerTest):
+class TestDiv(PytorchLayerTest):
     def _prepare_input(self):
-        # return (self.input_tensor, self.other_tensor)
-        return (np.random.rand(*self.input_shape).astype(self.input_type),
-                np.random.rand(*self.other_shape).astype(self.other_type))
+        return (self.input_array.astype(self.input_type), self.other_array.astype(self.other_type))
 
     def create_model(self, rounding_mode):
 
@@ -28,29 +26,37 @@ class Testdiv(PytorchLayerTest):
 
         return aten_div(rounding_mode), ref_net, "aten::div"
 
-    @pytest.mark.parametrize(("input_shape", "input_type"), [
-        [(5, 5), np.float32],
-        [(5, 5, 1), np.float32],
-        [(1, 1, 5, 5), np.float32],
-
+    @pytest.mark.parametrize(("input_array", "other_array"), [
+        [np.random.rand(5, 5), np.random.rand(1)],
+        [np.random.rand(5, 5, 1), np.random.rand(1)],
+        [np.random.rand(1, 1, 5, 5), np.random.rand(1)],
+        [np.random.rand(5, 5, 1), np.random.rand(5, 1)],
+        [np.random.rand(5, 5), np.random.rand(5, 5)],
+        [np.array([ 0.7620,  2.5548, -0.5944, -0.7438,  0.9274]), np.array(0.5)],
+        [np.array([[-0.3711, -1.9353, -0.4605, -0.2917],
+                   [ 0.1815, -1.0111,  0.9805, -1.5923],
+                   [ 0.1062,  1.4581,  0.7759, -1.2344],
+                   [-0.1830, -0.0313,  1.1908, -1.4757]]),
+         np.array([0.8032,  0.2930, -0.8113, -0.2308])]
     ])
-    @pytest.mark.parametrize(("other_shape", "other_type"), [
-        [(1, 1), np.int32],
-        [(5, 1), np.int32],
-        [(1, 5), np.int32],
-        [(1, 1), np.float32],
-        [(5, 1), np.float32],
-        [(1, 5), np.float32],
+    @pytest.mark.parametrize(("input_type"), [
+        np.int32,
+        np.float32
+    ])
+    @pytest.mark.parametrize(("other_type"), [
+        np.int32,
+        np.float32
     ])
     @pytest.mark.parametrize('rounding_mode', ([
         None,
         "floor",
+        "trunc"
     ]))
 
     @pytest.mark.nightly
-    def test_div(self, input_shape, input_type, other_shape, other_type, rounding_mode, ie_device, precision, ir_version):
-        self.input_shape = input_shape
+    def test_div(self, input_array, input_type, other_array, other_type, rounding_mode, ie_device, precision, ir_version):
+        self.input_array = input_array
         self.input_type = input_type
-        self.other_shape = other_shape
+        self.other_array = other_array
         self.other_type = other_type
         self._test(*self.create_model(rounding_mode), ie_device, precision, ir_version)
