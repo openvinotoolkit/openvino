@@ -68,19 +68,22 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
 
-@endsphinxdirective
-
 
 3.	Update the list of packages via the update command:
-   ```sh
-   sudo apt update
-   ```
+  
+   .. code-block:: sh
+
+      sudo apt update
+   
 
 4.	Verify that the APT repository is properly set up. Run the apt-cache command to see a list of all available OpenVINO packages and components:
-   ```sh
-   apt-cache search openvino
-   ```
+   
+   .. code-block:: sh
+   
+      apt-cache search openvino
+   
 
+@endsphinxdirective
 
 ### Step 2: Install OpenVINO Runtime Using the APT Package Manager
 
