@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -252,7 +252,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::GRUBlockCellReplacer>();
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    // manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
 }

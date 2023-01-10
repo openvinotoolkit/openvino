@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -2586,10 +2584,10 @@ public:
     layout get_input_layout(T& p) {
         auto pad = p.pad;
         std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
-        return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
+    return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 
-    layout get_weights_layout(T& p, const int32_t /* split */ = 1) {
+    layout get_weights_layout(T& p) {
         cldnn::tensor weights_tensor;
         weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]), spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
         return layout{p.weights_type, p.weights_format, weights_tensor};
