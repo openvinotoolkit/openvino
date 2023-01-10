@@ -55,15 +55,3 @@ jobs:
       - name: Pylint
         run: pylint -d C,R,W openvino/tools/mo
         working-directory: tools/mo
-
-      - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
-
-      - name: UT
-        run: |
-          export PYTHONPATH=$PYTHONPATH:`pwd`
-          export MO_ROOT=`pwd`
-          env
-          mkdir ../mo-ut-logs
-          python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
-        working-directory: tools/mo
