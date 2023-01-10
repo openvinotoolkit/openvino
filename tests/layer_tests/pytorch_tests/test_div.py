@@ -45,6 +45,7 @@ class Testdiv(PytorchLayerTest):
     @pytest.mark.parametrize('rounding_mode', ([
         None,
         "floor",
+        "trunc"
     ]))
 
     @pytest.mark.nightly
