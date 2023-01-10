@@ -20,7 +20,7 @@ std::vector<std::vector<ov::PartialShape>> input_shapes{
 };
 std::vector<element::Type> precisions{element::f32};
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, MatMul,
-                     ::testing::Combine(
+                         ::testing::Combine(
                              ::testing::ValuesIn(input_shapes),
                              ::testing::ValuesIn(precisions),
                              ::testing::Values(1), // MatMu;

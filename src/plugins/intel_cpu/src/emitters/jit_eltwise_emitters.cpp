@@ -2152,8 +2152,12 @@ jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t 
 size_t jit_select_emitter::get_inputs_num() const { return 3; }
 
 size_t jit_select_emitter::aux_vecs_count() const {
-    // mask should be xmm0 on sse41
-    return host_isa_ == x64::sse41 ? 1 : 0;
+    if (host_isa_ == x64::avx512_core)
+        return 0;
+    else if (host_isa_ == x64::avx2)  // tmp vec for mask
+        return 1;
+    else // mask should be xmm0 on sse41 +  tmp vec for mask
+        return 2;
 }
 
 void jit_select_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
@@ -2179,15 +2183,21 @@ void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     Vmm vmm_dst = Vmm(out_vec_idxs[0]);
 
     if (isa == x64::sse41) {
-        Vmm vmm_aux = Vmm(aux_vec_idxs[0]);
-        if (vmm_aux.getIdx() != vmm_cond.getIdx()) {
-            h->uni_vmovups(vmm_aux, vmm_cond);
+        Vmm vmm_mask = Vmm(aux_vec_idxs[0]);
+        Vmm vmm_zero = Vmm(aux_vec_idxs[1]);
+        h->uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        h->uni_vcmpps(vmm_cond, vmm_cond, vmm_zero, 0x4);
+        if (vmm_mask.getIdx() != vmm_cond.getIdx()) {
+            h->uni_vmovups(vmm_mask, vmm_cond);
         }
         if (vmm_src1.getIdx() != vmm_dst.getIdx()) {
             h->uni_vmovups(vmm_dst, vmm_src1);
         }
-        h->uni_vblendvps(vmm_dst, vmm_dst, vmm_src0, vmm_aux);
+        h->uni_vblendvps(vmm_dst, vmm_dst, vmm_src0, vmm_mask);
     } else if (isa == x64::avx2) {
+        Vmm vmm_zero = Vmm(aux_vec_idxs[0]);
+        h->uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        h->uni_vcmpps(vmm_cond, vmm_cond, vmm_zero, 0x4);
         h->uni_vblendvps(vmm_dst, vmm_src1, vmm_src0, vmm_cond);
     } else {
         h->vptestmd(k_mask, vmm_cond, vmm_cond);

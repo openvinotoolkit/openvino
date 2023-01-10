@@ -564,15 +564,15 @@ void Transformations::MainSnippets(void) {
         snippetsManager.register_pass<SnippetsMarkSkipped>();
     snippetsManager.register_pass<ngraph::snippets::pass::SnippetsTokenization>();
 
-    if (enableBF16) {
-        // TODO: Need to add BF16 support for MHA in Snippets
+    const bool isMHASupported =
+            !enableBF16 &&  // TODO: Need to add BF16 support for MHA in Snippets
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
+    if (!isMHASupported) {
         snippetsManager.get_pass_config()->disable<ngraph::snippets::pass::TokenizeMHASnippets>();
     }
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeMHASnippets>(
                 [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-                        return true;
                     const auto pshape = n->get_output_partial_shape(0);
                     const auto shape = pshape.get_shape();
                     const auto parallel_work_amount =
