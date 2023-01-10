@@ -21,7 +21,6 @@ public:
     static layout calc_output_layout(eye_node const& node, const kernel_impl_params& impl_param);
     static std::string to_string(eye_node const& node);
 
-public:
     typed_primitive_inst(network& network, eye_node const& desc);
 };
 

@@ -14,7 +14,7 @@
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include <description_buffer.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -206,7 +206,6 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
         static std::map<std::string, std::string> type_n2l {
                 { "activation", "Activation" },
                 { "arg_max_min", "ArgMax" },
-                { "average_unpooling", "AverageUnpooling" },
                 { "batch_norm", "BatchNormalization" },
                 { "binary_convolution", "BinaryConvolution" },
                 { "border", "Pad" },
