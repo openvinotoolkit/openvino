@@ -1248,7 +1248,8 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
             if ((!can_share_buffer()) || can_be_optimized() || is_output()) {
                 _outputs[0] = get_network().get_engine().allocate_memory(output_layout, _allocation_type);
             } else {
-                _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(), _node_mem_deps, _allocation_type, can_reuse_memory);
+                _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, id(), get_network_id(),
+                                                                         _node_mem_deps, _allocation_type, can_reuse_memory);
             }
         }
     }
