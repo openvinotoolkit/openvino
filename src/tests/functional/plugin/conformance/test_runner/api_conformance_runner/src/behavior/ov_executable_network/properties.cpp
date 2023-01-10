@@ -33,7 +33,7 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_AutoBatch, OVCompiledModelPropertiesI
 
 
 const std::vector<ov::AnyMap> default_properties = {
-        {ov::enable_profiling(true)},
+        {ov::enable_profiling(false)},
         {ov::device::id("0")},
 };
 
