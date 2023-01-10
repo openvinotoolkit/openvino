@@ -135,6 +135,13 @@ if(NOT BUILD_SHARED_LIBS)
     endif()
 endif()
 
+# this is to prevent GNA failing on pipeline until new style will be finalizeda and implemented in sources.
+if(ENABLE_GNA_NCC)
+    ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
+                        SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                        ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
+                        CUSTOM_STYLE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/tools/ncc_style_config/gna.style")
+endif()
+
 add_subdirectory(tests)
-
-

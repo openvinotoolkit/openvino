@@ -64,7 +64,11 @@ if(ENABLE_NCC_STYLE)
         find_host_package(Clang QUIET)
     endif()
 
-    if(Clang_FOUND AND TARGET libclang)
+    if(CUSTOM_CLANG_LIB_PATH)
+	    # ncc.py uses Config.set_library_file() so path has to containg libclang.dll
+	    # e.g. for Windows "C:\\Program Files\\LLVM\\bin\\libclang.dll"
+	    set(libclang_location ${CUSTOM_CLANG_LIB_PATH})
+    elseif(Clang_FOUND AND TARGET libclang)
         get_target_property(libclang_location libclang LOCATION)
     endif()
 
@@ -114,6 +118,7 @@ endif()
 # SOURCE_DIRECTORY - directory to check sources from
 # ADDITIONAL_INCLUDE_DIRECTORIES - additional include directories used in checked headers
 # DEFINITIONS - additional definitions passed to preprocessor stage
+# CUSTOM_STYLE_FILE - custom style file path
 #
 function(ov_ncc_naming_style)
     if(NOT ENABLE_NCC_STYLE)
@@ -121,13 +126,19 @@ function(ov_ncc_naming_style)
     endif()
 
     cmake_parse_arguments(NCC_STYLE "FAIL"
-        "FOR_TARGET;SOURCE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
+        "FOR_TARGET;SOURCE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;CUSTOM_STYLE_FILE;DEFINITIONS" ${ARGN})
 
     foreach(var FOR_TARGET SOURCE_DIRECTORY)
         if(NOT DEFINED NCC_STYLE_${var})
             message(FATAL_ERROR "${var} is not defined in ov_ncc_naming_style function")
         endif()
     endforeach()
+
+    if(NOT DEFINED NCC_STYLE_CUSTOM_STYLE_FILE)
+        set(NCC_STYLE_RULES_FILE ${ncc_style_dir}/openvino.style)
+    else()
+        set(NCC_STYLE_RULES_FILE ${NCC_STYLE_CUSTOM_STYLE_FILE} )
+    endif()
 
     file(GLOB_RECURSE sources
          RELATIVE "${NCC_STYLE_SOURCE_DIRECTORY}"
@@ -153,7 +164,7 @@ function(ov_ncc_naming_style)
                 -D "OUTPUT_FILE=${output_file}"
                 -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
                 -D "CLANG_LIB_PATH=${libclang_location}"
-                -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
+                -D "STYLE_FILE=${NCC_STYLE_RULES_FILE}"
                 -D "ADDITIONAL_INCLUDE_DIRECTORIES=${NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES}"
                 -D "EXPECTED_FAIL=${NCC_STYLE_FAIL}"
                 -P "${ncc_style_dir}/ncc_run.cmake"
