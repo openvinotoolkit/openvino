@@ -1,4 +1,4 @@
-mxnet~=1.2.0; sys_platform == 'win32'
+mxnet~=1.9.1; sys_platform == 'win32'
 mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
 networkx~=2.5; python_version <= "3.6"
 networkx<=2.8.8; python_version > "3.6"
