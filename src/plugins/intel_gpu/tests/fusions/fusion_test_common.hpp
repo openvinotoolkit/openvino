@@ -205,7 +205,7 @@ public:
         return layout{ p.data_type, p.input_format, p.out_shape };
     }
 
-    layout get_weights_layout(T& p, const int32_t /* split */ = 1) {
+    layout get_weights_layout(T& p) {
         cldnn::tensor weights_tensor;
         if (p.groups == 1) {
             weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]),
@@ -217,7 +217,7 @@ public:
         return layout{p.weights_type, p.weights_format, weights_tensor};
     }
 
-    layout get_weights_layout(T& p, const int32_t /* split */, cldnn::format f) {
+    layout get_weights_layout(T& p, cldnn::format f) {
         cldnn::tensor weights_tensor;
         weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(static_cast<int32_t>(p.in_shape.feature[0] / p.groups)),
                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));

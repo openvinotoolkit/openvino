@@ -8,7 +8,6 @@
 
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/strides.hpp"
-#include "openvino/op/op.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace ov {
@@ -63,10 +62,6 @@ public:
         return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == other.m_attrs;
     }
 
-    attrs_t::const_iterator find(const std::string& key) const {
-        return m_attrs.find(key);
-    }
-
 private:
     std::string m_type_name;
     std::string m_opset_name;
@@ -84,10 +79,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    bool visit_attributes(AttributeVisitor& visitor) override {
-        visitor.on_attribute("framework_node_attrs", m_attrs);
-        return true;
-    }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     const FrameworkNodeAttrs& get_attrs() const {
         return m_attrs;
@@ -100,16 +92,18 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     void cache_output_descriptor();
-    void clone_to(FrameworkNode& dst) const;
 
 protected:
     FrameworkNode(const FrameworkNode&);
 
 private:
+    void clone_to(FrameworkNode& dst) const;
+
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
     std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
+    size_t m_num_bodies;
 };
 }  // namespace util
 }  // namespace op

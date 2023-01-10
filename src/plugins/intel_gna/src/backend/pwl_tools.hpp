@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 
 namespace ov {
 namespace intel_gna {

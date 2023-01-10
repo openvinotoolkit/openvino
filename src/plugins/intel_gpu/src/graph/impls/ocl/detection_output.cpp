@@ -26,13 +26,6 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
         return make_unique<detection_output_impl>(*this);
     }
 
-protected:
-    bool optimized_out(detection_output_inst& instance) const override {
-        /// purpose: To optimize out detection_output for perf measurement.
-        /// how-to: update nms_threshold to '-100' from ir file.
-        return (instance.argument->nms_threshold < -1);
-    }
-
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<detection_output>();

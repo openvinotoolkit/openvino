@@ -388,6 +388,33 @@ public:
                 }
             }
         }
+        if (!is_body_target) {
+            std::string id = "input_descriptions";
+            std::string od = "output_descriptions";
+            const auto& id_pos = name.find("input_descriptions");
+            const auto& od_pos = name.find("output_descriptions");
+            auto id_str = name;
+            size_t body_id;
+            if (id_pos != std::string::npos) {
+                id_str.erase(id_pos, id.length());
+                std::stoi(id_str, &body_id);
+                is_body_target = true;
+            } else if (od_pos != std::string::npos) {
+                id_str.erase(od_pos, od.length());
+                std::stoi(id_str, &body_id);
+                is_body_target = true;
+            }
+            if (is_body_target) {
+                auto body_name = "body" + id_str;
+                if (m_xml_node.parent().child(body_name.c_str())) {
+                    bnames = BodyTargetNames{body_name,
+                                             "port_map" + id_str,
+                                             {"input_descriptions" + id_str, "output_descriptions" + id_str}};
+                } else {
+                    is_body_target = false;
+                }
+            }
+        }
         if (is_body_target) {
             auto body_name = std::get<0>(bnames);
             auto portmap_name = std::get<1>(bnames);
@@ -503,14 +530,8 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        if (name == "net") {
-            ngfunction_2_ir(m_xml_node,
-                            *adapter.get(),
-                            m_custom_opsets,
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
-        } else {
+        if (name.find("body") != std::string::npos) {
+            // name that contains subgraphs: body{n}, then_body, else_body
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
@@ -523,6 +544,15 @@ public:
                             m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
+        } else if (name == "net") {
+            ngfunction_2_ir(m_xml_node,
+                            *adapter.get(),
+                            m_custom_opsets,
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic);
+        } else {
+            NGRAPH_CHECK(false, "Unsupported Model name.");
         }
     }
 };
@@ -634,9 +664,7 @@ std::string get_precision_name(const ngraph::element::Type& elem_type) {
         return "BOOL";
     default:
         std::stringstream msg;
-        std::cerr << "[ ERROR ] Unsupported precision\n";
         msg << "Unsupported precision: " << elem_type;
-        std::cerr << "[ ERROR ] End of unsupported precision " << elem_type << "\n";
         throw ngraph_error(msg.str());
     }
 }
