@@ -51,6 +51,7 @@ struct Config {
     void AdjustKeyMapValues();
     InferenceEngine::Parameter GetParameter(const std::string& name) const;
     std::vector<std::string> GetSupportedKeys() const;
+    static const InferenceEngine::Parameter GetImpactingModelCompilationProperties(bool compiled);
     static const InferenceEngine::Parameter GetSupportedProperties(bool compiled = false);
 
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;

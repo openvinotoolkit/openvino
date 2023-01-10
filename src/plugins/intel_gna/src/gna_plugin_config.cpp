@@ -268,7 +268,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
-        } else if (key == CONFIG_KEY(CACHE_DIR) || key == ov::cache_dir) {
+        } else if (key == ov::cache_dir) {
             cacheDir = value;
         } else {
             IE_THROW(NotFound)
@@ -384,9 +384,23 @@ Parameter Config::GetParameter(const std::string& name) const {
     }
 }
 
-const Parameter Config::GetSupportedProperties(bool compiled) {
+const Parameter Config::GetImpactingModelCompilationProperties(bool compiled) {
     ov::PropertyMutability model_mutability = compiled ? ov::PropertyMutability::RO : ov::PropertyMutability::RW;
     const std::vector<ov::PropertyName> supported_properties = {
+        {ov::intel_gna::scale_factors_per_input.name(), model_mutability},
+        {ov::intel_gna::firmware_model_image_path.name(), model_mutability},
+        {ov::intel_gna::execution_target.name(), model_mutability},
+        {ov::intel_gna::compile_target.name(), model_mutability},
+        {ov::intel_gna::pwl_design_algorithm.name(), model_mutability},
+        {ov::intel_gna::pwl_max_error_percent.name(), model_mutability},
+        {ov::inference_precision.name(), model_mutability},
+        {ov::hint::num_requests.name(), model_mutability},
+    };
+    return supported_properties;
+}
+
+const Parameter Config::GetSupportedProperties(bool compiled) {
+    std::vector<ov::PropertyName> supported_properties = {
         { ov::supported_properties.name(), ov::PropertyMutability::RO },
         { ov::available_devices.name(), ov::PropertyMutability::RO },
         { ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO },
@@ -395,20 +409,19 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::device::full_name.name(), ov::PropertyMutability::RO },
         { ov::intel_gna::library_full_version.name(), ov::PropertyMutability::RO },
         { ov::caching_properties.name(), ov::PropertyMutability::RO},
-        { ov::intel_gna::scale_factors_per_input.name(), model_mutability },
-        { ov::intel_gna::firmware_model_image_path.name(), model_mutability },
         { ov::intel_gna::execution_mode.name(), ov::PropertyMutability::RW },
-        { ov::intel_gna::execution_target.name(), model_mutability },
-        { ov::intel_gna::compile_target.name(), model_mutability },
-        { ov::intel_gna::pwl_design_algorithm.name(), model_mutability },
-        { ov::intel_gna::pwl_max_error_percent.name(), model_mutability },
         { ov::hint::performance_mode.name(), ov::PropertyMutability::RW },
-        { ov::inference_precision.name(), model_mutability },
-        { ov::hint::num_requests.name(), model_mutability },
         { ov::log::level.name(), ov::PropertyMutability::RW },
         { ov::execution_devices.name(), ov::PropertyMutability::RO },
         { ov::cache_dir.name(), ov::PropertyMutability::RW },
     };
+
+    const std::vector<ov::PropertyName> impacting_model_compilation_properties =
+        GetImpactingModelCompilationProperties(compiled);
+
+    supported_properties.insert(supported_properties.end(),
+                                impacting_model_compilation_properties.begin(),
+                                impacting_model_compilation_properties.end());
     return supported_properties;
 }
 
