@@ -255,16 +255,18 @@ def test_query_model(device):
     assert [
         key for key in query_model.keys() if key not in ops_func_names
     ] == [], "Not all network layers present in query_model results"
-    assert next(iter(set(query_model.values()))) == device, "Wrong device for some layers"
+    assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
 
 
 @pytest.mark.dynamic_library()
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugin():
     core = Core()
-    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
-        pytest.skip("This test runs only on openvino intel cpu plugin")
-    core.register_plugin("openvino_intel_cpu_plugin", "BLA")
+    if "Intel" in core.get_property("CPU", "FULL_DEVICE_NAME"):
+        core.register_plugin("openvino_intel_cpu_plugin", "BLA")
+    else:
+        core.register_plugin("openvino_arm_cpu_plugin", "BLA")
+    
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, "BLA")
     assert isinstance(compiled_model, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
@@ -274,8 +276,6 @@ def test_register_plugin():
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
 def test_register_plugins():
     core = Core()
-    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
-        pytest.skip("This test runs only on openvino intel cpu plugin")
     if platform == "linux" or platform == "linux2":
         core.register_plugins(plugins_xml)
     elif platform == "darwin":

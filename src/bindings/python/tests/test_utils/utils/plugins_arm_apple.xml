@@ -1,0 +1,11 @@
+<!-- 
+Copyright (C) 2023 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+-->
+
+<ie>
+    <plugins>
+        <plugin location="libopenvino_arm_cpu_plugin.so" name="CUSTOM">
+        </plugin>
+    </plugins>
+</ie>

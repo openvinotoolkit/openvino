@@ -335,11 +335,6 @@ def test_properties_core(properties_to_set):
 
     core.set_property(properties_to_set)
 
-    device_name = core.get_property("CPU", "FULL_DEVICE_NAME")
-
-    if "Intel" not in device_name:
-        pytest.skip("Properties are Intel(R) CPU specific")
-
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True
     assert core.get_property("CPU", properties.cache_dir()) == "./"

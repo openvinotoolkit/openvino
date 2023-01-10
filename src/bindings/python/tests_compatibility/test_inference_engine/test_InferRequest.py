@@ -578,7 +578,6 @@ def test_set_blob_with_incorrect_size(device):
     tensor_desc = exec_net.requests[0].input_blobs["data"].tensor_desc
     tensor_desc.dims = [tensor_desc.dims[0]*2, 4, 20, 20]
     blob = ie.Blob(tensor_desc)
-    print(exec_net.requests[0].output_blobs)
     with pytest.raises(RuntimeError) as e:
         exec_net.requests[0].set_blob("data", blob)
     assert f"Input blob size is not equal network input size" in str(e.value)
