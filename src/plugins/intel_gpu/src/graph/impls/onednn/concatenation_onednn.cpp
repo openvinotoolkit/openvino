@@ -68,7 +68,7 @@ protected:
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_prim.get(true) == nullptr) {
             ob << false;
             return;
@@ -89,7 +89,7 @@ public:
     }
 
     void load(BinaryInputBuffer& ib) override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         bool has_prim;
         ib >> has_prim;
 

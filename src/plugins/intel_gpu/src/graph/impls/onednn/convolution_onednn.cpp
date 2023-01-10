@@ -89,11 +89,7 @@ protected:
         bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
         memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
         node.attach_memory(s32_mem, false);
-        if (is_per_tensor) {
-            attrs->set_zero_points_mask(DNNL_ARG_SRC, 0);
-        } else {
-            attrs->set_zero_points_mask(DNNL_ARG_SRC, 2);
-        }
+        attrs->set_zero_points_mask(DNNL_ARG_SRC, is_per_tensor ? 0 : 2);
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
@@ -163,7 +159,7 @@ protected:
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_convolution_desc_t));
@@ -175,7 +171,7 @@ public:
     }
 
     void load(BinaryInputBuffer& ib) override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
         const char dummy_mem[sizeof(dnnl::convolution_forward::desc)] = {};

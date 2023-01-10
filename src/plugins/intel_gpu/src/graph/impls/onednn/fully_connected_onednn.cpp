@@ -156,7 +156,7 @@ protected:
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_inner_product_desc_t));
@@ -168,7 +168,7 @@ public:
     }
 
     void load(BinaryInputBuffer& ib) override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
         const char dummy_mem[sizeof(dnnl::inner_product_forward::desc)] = {};

@@ -64,7 +64,7 @@ protected:
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         std::vector<uint8_t> prim_cache;
@@ -74,7 +74,7 @@ public:
     }
 
     void load(BinaryInputBuffer& ib) override {
-#if 0
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
