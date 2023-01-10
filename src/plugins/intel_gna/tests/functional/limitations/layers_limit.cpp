@@ -57,7 +57,7 @@ protected:
         std::vector<std::vector<std::shared_ptr<Add>>> branches;
 
         for (size_t i = 0; i < branch_count; ++i) {
-            configuration.insert({"GNA_SCALE_FACTOR_" + std::to_string(i), "3276"});
+            configuration.insert({"GNA_SCALE_FACTOR_" + std::to_string(i), "1"});
             std::vector<std::shared_ptr<Add>> add_nodes;
             add_nodes.push_back(std::make_shared<Add>(add_const, params[i]));
 
