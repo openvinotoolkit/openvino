@@ -138,6 +138,34 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
     return std::to_string(seed);
 }
 
+std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
+                                                   const ov::Tensor& tensor,
+                                                   const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
+    uint64_t seed = 0;
+    // model string
+    seed = hash_combine(seed, modelStr);
+
+    // tensor data
+    seed = hash_combine(seed, tensor.get_size());
+
+    auto ptr = static_cast<size_t*>(tensor.data());
+    size_t size = tensor.get_size() / sizeof(size_t);
+    for (size_t i = 0; i < size; i++)
+        seed = hash_combine(seed, ptr[i]);
+    auto size_done = size * sizeof(size_t);
+    auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
+    size_t size_left = tensor.get_size() - size_done;
+    for (size_t i = 0; i < size_left; i++)
+        seed = hash_combine(seed, ptr_left[i]);
+
+    // compile options
+    for (const auto& kvp : compileOptions) {
+        seed = hash_combine(seed, kvp.first + kvp.second);
+    }
+    return std::to_string(seed);
+}
+
 //////////////////////////////////////////////////
 
 CompiledBlobHeader::CompiledBlobHeader() {}

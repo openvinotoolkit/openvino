@@ -11,6 +11,10 @@
 
 #include "openvino/core/any.hpp"
 
+namespace ov {
+class Tensor;
+}  // namespace ov
+
 namespace InferenceEngine {
 
 class CNNNetwork;
@@ -21,6 +25,9 @@ struct NetworkCompilationContext final {
     static std::string computeHash(const CNNNetwork& network, const ov::AnyMap& compileOptions);
 
     static std::string computeHash(const std::string& modelName, const ov::AnyMap& compileOptions);
+    static std::string computeHash(const std::string& modeStr,
+                                   const ov::Tensor& data,
+                                   const ov::AnyMap& compileOptions);
 };
 
 class CompiledBlobHeader final {

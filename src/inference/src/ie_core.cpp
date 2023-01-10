@@ -569,6 +569,15 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
         return ie::NetworkCompilationContext::computeHash(modelName, compileConfig);
     }
 
+    std::string CalculateMemoryHash(const std::string& modelStr,
+                                    const ov::Tensor& weights,
+                                    const std::string& deviceFamily,
+                                    const ov::InferencePlugin& plugin,
+                                    const std::map<std::string, std::string>& config) const {
+        auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
+        return ie::NetworkCompilationContext::computeHash(modelStr, weights, compileConfig);
+    }
+
 public:
     CoreImpl(bool _newAPI) : newAPI(_newAPI) {
         add_mutex("");  // Register global mutex
@@ -1006,6 +1015,46 @@ public:
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, config);
 
         return {exec._ptr, exec._so};
+    }
+
+    ie::SoExecutableNetworkInternal LoadNetwork(const std::string& modelStr,
+                                                const ie::Blob::CPtr& weights,
+                                                const std::string& deviceName,
+                                                const std::map<std::string, std::string>& config,
+                                                const std::function<void(const CNNNetwork&)>& val = nullptr) override {
+        OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Memory");
+        auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+        auto plugin = GetCPPPluginByName(parsed._deviceName);
+        ov::SoPtr<ie::IExecutableNetworkInternal> res;
+
+        auto cacheManager =
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+                ._cacheManager;
+        auto cacheContent = CacheContent{cacheManager};
+        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+            bool loadedFromCache = false;
+            ov::Tensor tensor = ov::Tensor();
+            if (weights) {
+                tensor = ov::Tensor(element::u8, {weights->byteSize()}, weights->cbuffer().as<uint8_t*>());
+            }
+            cacheContent.blobId = CalculateMemoryHash(modelStr, tensor, parsed._deviceName, plugin, parsed._config);
+            auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
+            if (!loadedFromCache) {
+                auto cnnNetwork = ReadNetwork(modelStr, weights);
+                if (val) {
+                    val(cnnNetwork);
+                }
+                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+            }
+        } else {
+            auto cnnNetwork = ReadNetwork(modelStr, weights);
+            if (val) {
+                val(cnnNetwork);
+            }
+            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+        }
+        return {res._ptr, res._so};
     }
 
     ie::SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
@@ -2138,6 +2187,20 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(modelPath, deviceName, flatten_sub_properties(deviceName, config));
+        return {exec._ptr, exec._so};
+    });
+}
+
+CompiledModel Core::compile_model(const std::string& model,
+                                  const ov::Tensor& weights,
+                                  const std::string& deviceName,
+                                  const AnyMap& config) {
+    InferenceEngine::Blob::Ptr blob;
+    if (weights) {
+        blob = weights._impl;
+    }
+    OV_CORE_CALL_STATEMENT({
+        auto exec = _impl->LoadNetwork(model, blob, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
         return {exec._ptr, exec._so};
     });
 }

@@ -30,6 +30,15 @@ public:
     MOCK_METHOD4(
         LoadNetwork,
         InferenceEngine::SoExecutableNetworkInternal(const std::string&,
+    MOCK_METHOD4(LoadNetwork, InferenceEngine::SoExecutableNetworkInternal(
+            const std::string &,
+            const std::string &,
+            const std::map<std::string, std::string> &,
+            const std::function<void(const InferenceEngine::CNNNetwork&)> &));
+    MOCK_METHOD5(
+        LoadNetwork,
+        InferenceEngine::SoExecutableNetworkInternal(const std::string&,
+                                                     const InferenceEngine::Blob::CPtr&,
                                                      const std::string&,
                                                      const std::map<std::string, std::string>&,
                                                      const std::function<void(const InferenceEngine::CNNNetwork&)>&));

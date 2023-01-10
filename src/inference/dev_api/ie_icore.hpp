@@ -102,6 +102,27 @@ public:
                                                         const ov::AnyMap& config) = 0;
 
     /**
+     * @brief Creates an executable network from a model memory.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param modelStr String data of model
+     * @param weights Model's weights
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
+     * @return An executable network reference
+     */
+    virtual ie::SoExecutableNetworkInternal LoadNetwork(
+        const std::string& modelStr,
+        const ie::Blob::CPtr& weights,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        const std::function<void(const ie::CNNNetwork&)>& val = nullptr) = 0;
+
+    /**
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
