@@ -807,24 +807,25 @@ std::string get_extension(const std::string& name) {
 bool is_binary_file(const std::string& filePath) {
     auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-           supported_binary_extensions.end();
+    return supported_binary_extensions.find(extension) != supported_binary_extensions.end();
+}
+
+bool is_numpy_file(const std::string& filePath) {
+    auto extension = get_extension(filePath);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    return supported_numpy_extensions.find(extension) != supported_numpy_extensions.end();
 }
 
 bool is_image_file(const std::string& filePath) {
     auto extension = get_extension(filePath);
     std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-    return std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-           supported_binary_extensions.end();
+    return supported_image_extensions.find(extension) != supported_image_extensions.end();
 }
 
 bool contains_binaries(const std::vector<std::string>& filePaths) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
-        auto extension = get_extension(filePath);
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(supported_binary_extensions.begin(), supported_binary_extensions.end(), extension) !=
-            supported_binary_extensions.end()) {
+        if (is_binary_file(filePath)) {
             return true;
         }
     }
@@ -832,12 +833,12 @@ bool contains_binaries(const std::vector<std::string>& filePaths) {
 }
 
 std::vector<std::string> filter_files_by_extensions(const std::vector<std::string>& filePaths,
-                                                    const std::vector<std::string>& extensions) {
+                                                    const std::unordered_set<std::string>& extensions) {
     std::vector<std::string> filtered;
     for (auto& filePath : filePaths) {
         auto extension = get_extension(filePath);
         std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-        if (std::find(extensions.begin(), extensions.end(), extension) != extensions.end()) {
+        if (extensions.find(extension) != extensions.end()) {
             filtered.push_back(filePath);
         }
     }

@@ -778,6 +778,7 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
     std::map<std::string, ov::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
+    std::vector<std::vector<size_t>> net_input_numpy_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.partialShape.is_static() && item.second.is_image()) {
             net_input_im_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
