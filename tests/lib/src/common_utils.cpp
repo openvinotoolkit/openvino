@@ -30,6 +30,8 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
                 fillBlobImInfo<short>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
                 fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
+            } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+                fillBlobImInfo<int64_t>(inputBlob, batchSize, image_size);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
                 fillBlobImInfo<uint8_t>(inputBlob, batchSize, image_size);
             } else {
@@ -44,6 +46,8 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
             fillBlobRandom<short>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
             fillBlobRandom<int32_t>(inputBlob);
+        } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+            fillBlobRandom<int64_t>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
             fillBlobRandom<uint8_t>(inputBlob);
         } else if (item.second->getPrecision() == InferenceEngine::Precision::I8) {
