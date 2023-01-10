@@ -2880,6 +2880,91 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_scale, ::testing::ValuesIn(std::
     bc_force_kernel_params{ CASE_CONV_FP16_15, 2, 3, "convolution_gpu_bfyx_f16_depthwise" },
 }));
 
+class conv_activation_onednn : public ConvFusingTest {};
+TEST_P(conv_activation_onednn, relu) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::relu),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    execute(p);
+}
+TEST_P(conv_activation_onednn, relu_negative_slope) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::relu_negative_slope),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    execute(p);
+}
+TEST_P(conv_activation_onednn, hard_sigmoid) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::hard_sigmoid),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    execute(p);
+}
+TEST_P(conv_activation_onednn, hsigmoid) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::hsigmoid),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    execute(p);
+}
+TEST_P(conv_activation_onednn, negative) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::negative),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance=default_tolerance(data_types::i8);
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_activation_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
+}));
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------- reorder(bfyx to fs_b_yx_fsv32) + convolution kernel cases -------------------- */
