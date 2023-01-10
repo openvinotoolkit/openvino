@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "openvino/core/descriptor/tensor.hpp"
+#include "openvino/core/dimension.hpp"
 
 namespace ov {
 /// \brief Special label value indicate no label set.
@@ -23,7 +23,7 @@ public:
                         "Can not set nullptr as table of equivalence shared pointer for DimensionTracker");
     };
 
-    static void set_label(ov::Dimension& d, size_t label) {
+    static void set_label(ov::Dimension& d, label_t label) {
         OPENVINO_ASSERT(label != no_label, "Can not set zero as label for dimension -- it is reserved for no label");
         d.m_label = label;
     }
