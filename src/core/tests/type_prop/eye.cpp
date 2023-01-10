@@ -3,6 +3,7 @@
 //
 
 #include "dimension_tracker.hpp"
+#include "eye_shape_inference.hpp"
 #include "gtest/gtest.h"
 #include "openvino/opsets/opset10.hpp"
 #include "type_prop.hpp"
@@ -336,7 +337,6 @@ class TypePropEyeV9Test : public TypePropOpTest<op::v9::Eye> {};
 TEST_F(TypePropEyeV9Test, eye_batch_shape_param_other_ins_const) {
     auto num_rows = Constant::create(element::i64, Shape{1}, {5});
     auto num_columns = Constant::create(element::i64, Shape{1}, {6});
-    ;
     auto diagonal_index = Constant::create(element::i64, Shape{1}, {0});
     auto batch_shape = std::make_shared<Parameter>(element::i64, PartialShape{3});
 
@@ -345,4 +345,38 @@ TEST_F(TypePropEyeV9Test, eye_batch_shape_param_other_ins_const) {
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, -1, 5, 6}));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+}
+
+TEST_F(TypePropEyeV9Test, default_ctor) {
+    auto num_rows = Constant::create(element::i64, Shape{1}, {2});
+    auto num_columns = Constant::create(element::i64, Shape{1}, {16});
+    auto diagonal_index = Constant::create(element::i64, Shape{1}, {0});
+    auto batch_shape = Constant::create(element::i64, Shape{3}, {3, 1, 2});
+
+    auto op = make_op();
+
+    op->set_arguments(OutputVector{num_rows, num_columns, diagonal_index, batch_shape});
+    op->set_out_type(element::i32);
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({3, 1, 2, 2, 16}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+}
+
+TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
+    auto op = make_op();
+    op->set_out_type(element::i32);
+
+    int64_t rows = 8, cols = 5;
+    auto batch = std::array<int32_t, 3>{2, 4, 1};
+    const auto constant_map = std::map<size_t, HostTensorPtr>{
+        {0, std::make_shared<HostTensor>(element::i64, Shape{}, &rows)},
+        {1, std::make_shared<HostTensor>(element::i64, Shape{}, &cols)},
+        {3, std::make_shared<HostTensor>(element::i32, Shape{batch.size()}, batch.data())}};
+
+    const auto output_shapes = op::v9::shape_infer(op.get(), PartialShapes{{}, {}, {}, {3}}, constant_map);
+
+    EXPECT_EQ(op->get_out_type(), element::i32);
+    EXPECT_EQ(output_shapes.front(), PartialShape({2, 4, 1, 8, 5}));
 }
