@@ -36,14 +36,16 @@ public:
     MultiRemoteContext(const std::string pluginName) : m_plugin_name(pluginName) {}
 
     RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) override {
-        if (isEmpty()) {
+        std::lock_guard<std::mutex> locker(m_mutex);
+        if (m_contexts.size() == 0) {
             IE_THROW() << "no valid context available";
         }
         return m_contexts[0]->CreateBlob(tensorDesc, params);
     }
 
     ParamMap getParams() const override {
-        if (isEmpty()) {
+        std::lock_guard<std::mutex> locker(m_mutex);
+        if (m_contexts.size() == 0) {
             IE_THROW() << "no valid context available";
         }
         return m_contexts[0]->getParams();
@@ -55,6 +57,7 @@ public:
         std::string deviceIDLocal = parser.getDeviceID();
         if (deviceIDLocal.empty())
             deviceIDLocal = m_default_device_id;
+        std::lock_guard<std::mutex> locker(m_mutex);
         for (auto&& iter : m_contexts) {
             if (iter->getDeviceName() == parser.getDeviceName() + "." + deviceIDLocal) {
                 res = iter;
@@ -62,10 +65,6 @@ public:
             }
         }
         return res;
-    }
-
-    bool isEmpty() const {
-        return m_contexts.size() == 0;
     }
 
     std::string getDeviceName() const noexcept override {
@@ -79,6 +78,7 @@ public:
     }
 
     void AddContext(RemoteContext::Ptr hwcontext) {
+        std::lock_guard<std::mutex> locker(m_mutex);
         if (hwcontext) {
             m_contexts.push_back(hwcontext);
         }
