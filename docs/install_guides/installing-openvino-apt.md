@@ -39,7 +39,8 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 @sphinxdirective
 
         .. code-block:: sh
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+
+           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
         
 @endsphinxdirective
 
@@ -48,7 +49,8 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 @sphinxdirective
 
       .. code-block:: sh
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+        
+            sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
         
 
       .. note::
