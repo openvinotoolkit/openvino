@@ -19,6 +19,7 @@
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ie_system_conf.h"
 
 using namespace testing;
 using namespace ov::intel_cpu;
@@ -508,5 +509,45 @@ TEST(TransformationTests, ConvertMatMulToFCTest_second_input_rank_adj_3) {
     }
 
     auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ConvertMatMulToFCTest_4D_input) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    std::shared_ptr<ngraph::Node> fc(nullptr);
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape {1, 8, 7, 7});
+        std::vector<int32_t> reshape_value = {1, 392};
+        auto reshape_shape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, ov::Shape {2}, reshape_value);
+        auto reshape = std::make_shared<ngraph::opset1::Reshape>(input1, reshape_shape, true);
+
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape {6, 392}, {1});
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, true);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector {matmul}, ngraph::ParameterVector {input1});
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ConvertMatMulToFC>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape {1, 8, 7, 7});
+        std::vector<int32_t> reshape_value = {1, 392};
+        auto reshape_shape = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i32, ov::Shape {2}, reshape_value);
+        auto reshape = std::make_shared<ngraph::opset1::Reshape>(input1, reshape_shape, true);
+
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape {6, 392}, {1});
+
+        if (InferenceEngine::with_cpu_x86_avx512_core())
+            fc = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, true);
+        else
+            fc = std::make_shared<FullyConnectedNode>(reshape, input2, ngraph::Rank(2));
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector {fc}, ngraph::ParameterVector {input1});
+    }
+
+    auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
