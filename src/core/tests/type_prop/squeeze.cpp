@@ -55,7 +55,7 @@ protected:
 
     std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
         ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         std::set<int64_t> axes_to_remove;
         if (axes.empty()) {

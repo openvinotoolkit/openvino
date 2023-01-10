@@ -338,14 +338,14 @@ protected:
         std::tie(transpose_order, input_p_shape, exp_p_shape) = GetParam();
     }
 
-    ov::TensorLabel make_seq_labels(const size_t first, const size_t count) {
+    ov::TensorLabel make_seq_labels(const ov::label_t first, const size_t count) {
         ov::TensorLabel labels;
 
-        generate_n(std::back_inserter(labels), count, ov::SeqGen<size_t>(first));
+        generate_n(std::back_inserter(labels), count, ov::SeqGen<ov::label_t>(first));
         return labels;
     }
 
-    ov::TensorLabel make_seq_labels_by_order(const size_t first, const vector<int64_t> order) {
+    ov::TensorLabel make_seq_labels_by_order(const ov::label_t first, const vector<int64_t> order) {
         ov::TensorLabel labels;
         transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) {
             return dim + first;

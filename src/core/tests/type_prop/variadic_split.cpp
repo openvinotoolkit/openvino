@@ -36,7 +36,7 @@ protected:
 
     std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
         ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(10));
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(10));
 
         auto exp_labels = in_labels;
         const auto n_axis = normalize_axis("", axis, p_shape.rank());

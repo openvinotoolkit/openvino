@@ -164,7 +164,7 @@ protected:
                            labels.end(),
                            repeats.begin(),
                            labels.begin(),
-                           [](const size_t label, const int64_t repeat) {
+                           [](const ov::label_t label, const int64_t repeat) {
                                return (label != ov::no_label && repeat == 1) ? label : ov::no_label;
                            });
         }
