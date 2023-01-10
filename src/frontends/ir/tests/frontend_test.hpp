@@ -23,8 +23,8 @@ protected:
                                  std::vector<unsigned char> binFileContent = std::vector<unsigned char>()) {
         ASSERT_TRUE(xmlFileContent.size() > 0);
         auto filePrefix = CommonTestUtils::generateTestFilePrefix();
-        xmlFileName = filePrefix + ".xml";
-        binFileName = filePrefix + ".bin";
+        xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
+        binFileName = filePrefix + "_IrFrontendTestModel.bin";
 
         {
             std::ofstream xmlFile;
