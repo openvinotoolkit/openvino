@@ -9,11 +9,11 @@ __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_bfyx_iyxo_5x5)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* weights,
+    const __global UNIT_TYPE* weights
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    , const __global UNIT_TYPE* bias
 #endif
-    uint split_idx)
+)
 {
     const uint idx = 4 * ((uint)get_global_id(0) * 16 + (uint)get_global_id(2));
     const uint idy = (uint)get_global_id(1);

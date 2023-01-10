@@ -172,7 +172,7 @@ public:
         auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, op_params);
 
-        return make_unique<strided_slice_impl>(arg, best_kernel);
+        return make_unique<strided_slice_impl>(best_kernel);
     }
 };
 

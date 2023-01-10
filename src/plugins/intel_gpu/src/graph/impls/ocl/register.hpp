@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "generic_layer.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/arg_max_min.hpp"
-#include "intel_gpu/primitives/average_unpooling.hpp"
 #include "intel_gpu/primitives/batch_to_space.hpp"
 #include "intel_gpu/primitives/binary_convolution.hpp"
 #include "intel_gpu/primitives/border.hpp"
@@ -92,7 +90,6 @@ namespace detail {
 REGISTER_OCL(activation);
 REGISTER_OCL(adaptive_pooling);
 REGISTER_OCL(arg_max_min);
-REGISTER_OCL(average_unpooling);
 REGISTER_OCL(batch_to_space);
 REGISTER_OCL(binary_convolution);
 REGISTER_OCL(border);
