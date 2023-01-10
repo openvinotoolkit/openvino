@@ -243,10 +243,10 @@ macro(_ov_find_intel_myriad_dependencies)
                 set(pkg_config_required_arg REQUIRED)
             endif()
             pkg_search_module(libusb
-                            ${pkg_config_quiet_arg}
-                            ${pkg_config_required_arg}
-                            IMPORTED_TARGET
-                            libusb-1.0)
+                              ${pkg_config_quiet_arg}
+                              ${pkg_config_required_arg}
+                              IMPORTED_TARGET
+                              libusb-1.0)
             unset(pkg_config_quiet_arg)
             unset(pkg_config_required_arg)
         endif()
