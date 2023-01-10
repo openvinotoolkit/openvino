@@ -45,18 +45,17 @@ void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
-    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name = "");
+    Tensor(const element::Type& element_type,
+           const PartialShape& pshape,
+           const std::unordered_set<std::string>& names = {});
+    OPENVINO_DEPRECATED("This constructor is deprecated. Please use constructor with set of names")
+    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    OPENVINO_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
-    const std::string& get_name() const {
-        // TODO: remove after clean up of private plugins
-        return m_legacy_name;
-    }
-    std::string get_any_name() const;
+    const std::string& get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
@@ -135,6 +134,7 @@ protected:
     std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
+    std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 

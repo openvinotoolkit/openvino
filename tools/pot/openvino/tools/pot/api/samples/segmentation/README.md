@@ -1,7 +1,7 @@
 # Quantizing Semantic Segmentation Model {#pot_example_segmentation_README}
 
 This example demonstrates the use of the [Post-training Optimization Tool API](@ref pot_compression_api_README) for the task of quantizing a segmentation model.
-The [DeepLabV3](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/deeplabv3/deeplabv3.md) model from TensorFlow* is used for this purpose.
+The [DeepLabV3](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/deeplabv3) model from TensorFlow* is used for this purpose.
 A custom `DataLoader` is created to load the [Pascal VOC 2012](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/) dataset for semantic segmentation task 
 and the implementation of Mean Intersection Over Union metric is used for the model evaluation. The code of the example is available on [GitHub](https://github.com/openvinotoolkit/openvino/tree/master/tools/pot/openvino/tools/pot/api/samples/segmentation).
 

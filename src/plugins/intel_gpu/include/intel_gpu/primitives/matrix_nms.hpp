@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 
@@ -10,12 +9,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs matrix nms of input boxes and returns indices of selected boxes.
 struct matrix_nms : public primitive_base<matrix_nms> {
@@ -148,7 +141,4 @@ private:
         }
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

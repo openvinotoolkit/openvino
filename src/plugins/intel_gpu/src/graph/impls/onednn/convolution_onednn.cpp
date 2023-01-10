@@ -33,73 +33,50 @@ protected:
         return make_unique<convolution_onednn>(*this);
     }
 
-    bool validate_impl(const typed_primitive_inst<convolution>& instance) const override {
-        bool res = true;
-
-        auto outer_id = instance.id();
-        auto data_type = instance.node->input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for convoluiton
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory(0)->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
 
         {
-            auto weights = instance.weights_memory(0);
+            auto weights = instance.weights_memory();
             args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0))});
         }
 
         if (instance.bias_term()) {
-            auto bias = instance.bias_memory(0);
+            auto bias = instance.bias_memory();
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
         if (has_zero_points(DNNL_ARG_SRC, _attrs)) {
-            auto a_zp = instance.activations_zero_points_memory(0);
+            auto a_zp = instance.activations_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                auto dnnl_mem = a_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_COUT << instance.id() << " activations_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    std::cout << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
+            auto dnnl_mem = a_zp->get_onednn_memory(desc);
+            void *mapped_ptr = dnnl_mem.map_data();
+            if (mapped_ptr) {
+                GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: ";
+                for (size_t i = 0; i < desc.get_size(); ++i) {
+                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                 }
+                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 
         if (has_zero_points(DNNL_ARG_WEIGHTS, _attrs)) {
-            auto w_zp = instance.weights_zero_points_memory(0);
+            auto w_zp = instance.weights_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                auto dnnl_mem = w_zp->get_onednn_memory(desc);
-                void *mapped_ptr = dnnl_mem.map_data();
-                if (mapped_ptr) {
-                    GPU_DEBUG_COUT << instance.id() << " weights_zero_points: ";
-                    for (size_t i = 0; i < desc.get_size(); ++i) {
-                        std::cout << static_cast<int32_t*>(mapped_ptr)[i] << " ";
-                    }
-                    std::cout << std::endl;
-                    dnnl_mem.unmap_data(mapped_ptr);
+            auto dnnl_mem = w_zp->get_onednn_memory(desc);
+            void *mapped_ptr = dnnl_mem.map_data();
+            if (mapped_ptr) {
+                GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: ";
+                for (size_t i = 0; i < desc.get_size(); ++i) {
+                    GPU_DEBUG_TRACE_DETAIL << static_cast<int32_t*>(mapped_ptr)[i] << " ";
                 }
+                GPU_DEBUG_TRACE_DETAIL << std::endl;
+                dnnl_mem.unmap_data(mapped_ptr);
             }
         }
 

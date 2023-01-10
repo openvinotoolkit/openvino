@@ -9,9 +9,9 @@
 
 #include <utility>
 
-using namespace GNAPluginNS::GNALimitations;
-using GNAPluginNS::common::kGnaTarget3_0;
-using GNAPluginNS::common::kGnaTarget3_5;
+using namespace ov::intel_gna::limitations;
+using ov::intel_gna::common::kGnaTarget3_0;
+using ov::intel_gna::common::kGnaTarget3_5;
 
 struct GNACnn2DValidatorTestParam {
     std::string target;
@@ -216,13 +216,13 @@ const GNACnn2DValidatorTestParam target_35_psW{
 };
 
 
-struct ValidateCnn2DParams {
+struct Validatecnn2dParams {
     std::map<std::string, uint32_t> parameters;
     OvGnaType precission;
     static const bool exceptionMode = false;
 
-    static ValidateCnn2DParams GetValid() {
-        ValidateCnn2DParams v;
+    static Validatecnn2dParams GetValid() {
+        Validatecnn2dParams v;
         v.parameters["inH"] = 16;
         v.parameters["inW"] = 16;
         v.parameters["inC"] = 16;
@@ -237,8 +237,8 @@ struct ValidateCnn2DParams {
         return v;
     }
 
-    static ValidateCnn2DParams GetValidPooling() {
-        ValidateCnn2DParams v;
+    static Validatecnn2dParams GetValidPooling() {
+        Validatecnn2dParams v;
         v.parameters["windowH"] = 3;
         v.parameters["windowW"] = 3;
         v.parameters["strideH"] = 3;
@@ -246,7 +246,7 @@ struct ValidateCnn2DParams {
         return v;
     }
 
-    bool ValidateCnn2D(const Cnn2D::AbstractValidator& validator) {
+    bool Validatecnn2d(const cnn2d::AbstractValidator& validator) {
         return validator.ValidateCnn2D({},
             parameters["inH"],
             parameters["inW"],
@@ -261,7 +261,7 @@ struct ValidateCnn2DParams {
             precission, exceptionMode);
     }
 
-    bool ValidatePooling2D(const Cnn2D::AbstractValidator& validator) {
+    bool ValidatePooling2D(const cnn2d::AbstractValidator& validator) {
         return validator.ValidatePooling2D({},
             parameters["windowH"],
             parameters["windowW"],
@@ -279,16 +279,16 @@ struct ValidateCnn2DParams {
     }
 };
 
-class GNACnn2DValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
+class GNAcnn2dValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
 protected:
     void SetUp() override  {
-        validator = Cnn2D::AbstractValidator::Create(GetParam().target);
+        validator = cnn2d::AbstractValidator::Create(GetParam().target);
         ASSERT_TRUE(validator != nullptr);
     }
-    std::unique_ptr<Cnn2D::AbstractValidator> validator;
+    std::unique_ptr<cnn2d::AbstractValidator> validator;
 };
 
-class GNACnn2DValidatorTestPadding : public GNACnn2DValidatorTest {
+class GNAcnn2dValidatorTestPadding : public GNAcnn2dValidatorTest {
 protected:
     bool isPaddingSupported() {
         static const std::set<std::string> supported{kGnaTarget3_5};
@@ -296,35 +296,35 @@ protected:
     }
 };
 
-class GNACnn2DValidatorTestPooling2D : public GNACnn2DValidatorTest {};
+class GNAcnn2dValidatorTestPooling2D : public GNAcnn2dValidatorTest {};
 
 namespace {
-TEST_P(GNACnn2DValidatorTestPadding, testPaddingSupported) {
-    ASSERT_TRUE(validator->IsPaddingSupported() == isPaddingSupported());
+TEST_P(GNAcnn2dValidatorTestPadding, testPaddingSupported) {
+    ASSERT_TRUE(validator->ValidateInputPadding("", 1, 1, 1, 1, 2, 2, false) == isPaddingSupported());
 }
 
-TEST_P(GNACnn2DValidatorTest, testValidateCnn2DInvalid) {
-    auto valid = ValidateCnn2DParams::GetValid();
+TEST_P(GNAcnn2dValidatorTest, testValidatecnn2dInvalid) {
+    auto valid = Validatecnn2dParams::GetValid();
     for (const auto invalid : GetParam().invalid) {
         valid.set(GetParam().whatInvalid, invalid);
-        ASSERT_FALSE(valid.ValidateCnn2D(*validator));
+        ASSERT_FALSE(valid.Validatecnn2d(*validator));
     }
 }
 
-TEST_P(GNACnn2DValidatorTestPooling2D, testValidateCnn2DInvalid) {
-    auto valid = ValidateCnn2DParams::GetValidPooling();
+TEST_P(GNAcnn2dValidatorTestPooling2D, testValidatecnn2dInvalid) {
+    auto valid = Validatecnn2dParams::GetValidPooling();
     for (const auto invalid : GetParam().invalid) {
         valid.set(GetParam().whatInvalid, invalid);
         ASSERT_FALSE(valid.ValidatePooling2D(*validator));
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTestPadding,
-                         GNACnn2DValidatorTestPadding,
+INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTestPadding,
+                         GNAcnn2dValidatorTestPadding,
                          testing::Values(target_30, target_35));
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTest,
-                         GNACnn2DValidatorTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTest,
+                         GNAcnn2dValidatorTest,
                          testing::Values(target_30,
                                          target_35,
                                          target_30_inW,
@@ -347,8 +347,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTest,
                                          target_35_dW)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GNACnn2DValidatorTestPooling2D,
-                         GNACnn2DValidatorTestPooling2D,
+INSTANTIATE_TEST_SUITE_P(smoke_GNAcnn2dValidatorTestPooling2D,
+                         GNAcnn2dValidatorTestPooling2D,
                          testing::Values(target_30_pwH,
                                          target_30_pwW,
                                          target_30_psH,

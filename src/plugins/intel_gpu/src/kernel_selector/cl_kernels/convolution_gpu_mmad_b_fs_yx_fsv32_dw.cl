@@ -2,29 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(convolution_mmad_b_fs_yx_fsv32_dw)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #if COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint f = get_global_id(0);
     const uint b = get_global_id(2);
@@ -94,8 +93,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_dw)(
     OUTPUT_TYPE out = TO_OUTPUT_TYPE(res);
 #endif
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = OUTPUT_GET_INDEX(b, f, y, x) + out_split_offset;
+    const uint dst_index = OUTPUT_GET_INDEX(b, f, y, x);
 
     output[dst_index] = ACTIVATION(out, ACTIVATION_PARAMS);
 }

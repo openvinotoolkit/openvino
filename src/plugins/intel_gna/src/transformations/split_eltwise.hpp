@@ -9,6 +9,7 @@
 namespace ov {
 namespace intel_gna {
 namespace pass {
+
 /**
  * @brief Split over channels for Eltwise to avoid GNA-HW bufferMaxSize limitation per eltwise
  */
