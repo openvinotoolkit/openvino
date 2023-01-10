@@ -6,28 +6,19 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/test_constants.hpp>
-#include <ie_core.hpp>
-#include <ie_metric_helpers.hpp>
-#include <multi-device/multi_device_config.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
-#include <openvino/runtime/core.hpp>
 
 #include "cpp/ie_plugin.hpp"
-#include "mock_common.hpp"
 #include "plugin/mock_load_network_properties.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
-#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 using ::testing::_;
 using ::testing::MatcherCast;
 using ::testing::Matches;
 using ::testing::NiceMock;
 using ::testing::Return;
-using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
 using Config = std::map<std::string, std::string>;
