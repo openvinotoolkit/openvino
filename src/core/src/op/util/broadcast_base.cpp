@@ -18,8 +18,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::BroadcastBase);
-
 ov::op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
                                            const Output<Node>& target_shape,
                                            const Output<Node>& axes_mapping,

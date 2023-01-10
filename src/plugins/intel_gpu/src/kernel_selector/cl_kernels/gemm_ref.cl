@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
 // Required JIT definitions:
 // TRANSPOSE_INPUT0 [1/0]      - whether to tranpose first input.
@@ -74,22 +74,6 @@ inline uint FUNC(get_input2_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 #endif
 }
 #endif // INPUT2_TYPE
-
-inline uint FUNC(get_output_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
-#if OUTPUT_SIMPLE
-    return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
-#else
-#if OUTPUT_DIMS == 4
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#elif OUTPUT_DIMS == 6
-    return OUTPUT_GET_INDEX(b, f, w, z, y, x);
-#else
-#   error gemm_ref.cl : Unsupported output format
-#endif
-#endif
-}
 
 KERNEL(gemm_ref)(
     OPTIONAL_SHAPE_INFO_ARG

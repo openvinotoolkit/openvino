@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 #define INPUT0_GET_INDEX1(idx_order) INPUT0_GET_INDEX(idx_order)
 

@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
 #include <gtest/gtest.h>
+#include <ie_common.h>
 
 #include <ie_precision.hpp>
-#include <ie_common.h>
+#include <string>
 
 using Precision = InferenceEngine::Precision;
 
@@ -30,7 +30,7 @@ TEST_F(PrecisionTests, ShowsCorrectPrecisionNames) {
     EXPECT_STREQ(Precision(Precision::U8).name(), "U8");
     EXPECT_STREQ(Precision(Precision::MIXED).name(), "MIXED");
     EXPECT_STREQ(Precision(Precision::UNSPECIFIED).name(), "UNSPECIFIED");
-    EXPECT_STREQ(Precision(static_cast<Precision::ePrecision >(-3)).name(), "UNSPECIFIED");
+    EXPECT_STREQ(Precision(static_cast<Precision::ePrecision>(-3)).name(), "UNSPECIFIED");
     EXPECT_STREQ(Precision(1, "Custom Name").name(), "Custom Name");
 }
 
@@ -94,7 +94,7 @@ TEST_F(PrecisionTests, is_float) {
     EXPECT_FALSE(Precision(Precision::U8).is_float());
     EXPECT_FALSE(Precision(Precision::MIXED).is_float());
     EXPECT_FALSE(Precision(10).is_float());
-    EXPECT_FALSE(Precision(static_cast<Precision::ePrecision >(-3)).is_float());
+    EXPECT_FALSE(Precision(static_cast<Precision::ePrecision>(-3)).is_float());
     EXPECT_FALSE(Precision(Precision::UNSPECIFIED).is_float());
 }
 
@@ -115,7 +115,7 @@ TEST_F(PrecisionTests, constructFromSTR) {
     EXPECT_EQ(Precision(Precision::U4), Precision::FromStr("U4"));
     EXPECT_EQ(Precision(Precision::U8), Precision::FromStr("U8"));
     EXPECT_EQ(Precision(Precision::MIXED), Precision::FromStr("MIXED"));
-    EXPECT_EQ(Precision(static_cast<Precision::ePrecision >(-3)), Precision::FromStr("UNSPECIFIED"));
+    EXPECT_EQ(Precision(static_cast<Precision::ePrecision>(-3)), Precision::FromStr("UNSPECIFIED"));
     EXPECT_EQ(Precision(Precision::UNSPECIFIED), Precision::FromStr("UNSPECIFIED"));
 }
 
@@ -141,14 +141,13 @@ TEST_F(PrecisionTests, canCompareCustomPrecisions) {
     EXPECT_TRUE(p5 == p);
 }
 
-
 TEST_F(PrecisionTests, canUseInIfs) {
     Precision p;
     EXPECT_TRUE(!p);
     p = Precision::FP32;
     EXPECT_FALSE(!p);
     EXPECT_TRUE(p);
-    p = Precision(static_cast<Precision::ePrecision >(-3));
+    p = Precision(static_cast<Precision::ePrecision>(-3));
     EXPECT_TRUE(!p);
 }
 

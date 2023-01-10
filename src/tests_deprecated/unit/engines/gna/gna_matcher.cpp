@@ -4,7 +4,7 @@
 
 #include "gna_matcher.hpp"
 #include <gna/gna_config.hpp>
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include <gna_executable_network.hpp>
 #include "gna_plugin.hpp"
 #include "gna_mock_api.hpp"
@@ -34,7 +34,6 @@
 
 using namespace std;
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
 using namespace ::testing;
 
 #if USE_RANDOM_SEED
@@ -636,7 +635,7 @@ void GNADumpXNNMatcher::match() {
 
     try {
         // matching gna DumpXNN forward call.
-        auto plugin = std::make_shared<GNAPluginNS::GNAPlugin>();
+        auto plugin = std::make_shared<GNAPlugin>();
         load(plugin);
     }
     catch(std::exception &ex) {

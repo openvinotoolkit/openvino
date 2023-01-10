@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils/test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -181,8 +179,8 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "plane_output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -196,7 +194,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -241,8 +239,8 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "plane_output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -256,7 +254,7 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -303,8 +301,8 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Fil
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "plane_output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -318,7 +316,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Fil
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -370,7 +368,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_pad1) {
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(0.75f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.75f, output_ptr[0]);
 }
 
 TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
@@ -430,7 +428,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -494,7 +492,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -555,7 +553,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -622,7 +620,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -683,7 +681,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -732,8 +730,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -746,7 +744,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -801,8 +799,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -815,7 +813,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -877,7 +875,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) 
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -946,7 +944,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
+        ASSERT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1014,7 +1012,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1059,7 +1057,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1142,7 +1140,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1232,7 +1230,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1280,7 +1278,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2
     };
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1357,7 +1355,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1546,7 +1544,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1614,7 +1612,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) 
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1673,7 +1671,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 
 }
@@ -1747,15 +1745,15 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     network_act.set_input_data("input_act", input);
 
     auto outputs_act = network_act.execute();
-    EXPECT_EQ(outputs_act.size(), size_t(1));
-    EXPECT_EQ(outputs_act.begin()->first, "out");
+    ASSERT_EQ(outputs_act.size(), size_t(1));
+    ASSERT_EQ(outputs_act.begin()->first, "out");
     auto output_act_prim = outputs_act.begin()->second.get_memory();
     cldnn::mem_lock<FLOAT16> output_act_ptr(output_act_prim, get_test_stream());
 
     std::vector<float> output_vec;
     for (unsigned int i = 0; i < output_act_prim->get_layout().count(); i++) {
         float x = float_round(output_act_ptr[i]), y = float_round(output_vec_ref[i]);
-        EXPECT_NEAR(x, y, 1e-0f);
+        ASSERT_NEAR(x, y, 1e-0f);
     }
 }
 
@@ -1808,8 +1806,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1821,7 +1819,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1879,8 +1877,8 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1892,7 +1890,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
+        ASSERT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1928,8 +1926,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1941,7 +1939,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1976,8 +1974,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1989,7 +1987,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2022,8 +2020,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_b_fs_yx_fsv16_dw) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2041,7 +2039,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_b_fs_yx_fsv16_dw) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2076,15 +2074,15 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1_b_fs_yx_fsv16_dw) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(0.75f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.75f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.75f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.75f, output_ptr[1]);
 }
 
 
@@ -2118,8 +2116,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad_b_fs_yx_fsv
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2140,7 +2138,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad_b_fs_yx_fsv
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2174,8 +2172,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2193,7 +2191,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2230,8 +2228,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2259,7 +2257,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2315,8 +2313,8 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -2384,8 +2382,8 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
     network->set_input_data("input", input);
 
     auto outputs = network->execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2400,7 +2398,7 @@ void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1
     ASSERT_EQ(expected_output_vec.size(), output_prim->count());
 
     for (size_t i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]) << " index=" << i;
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]) << " index=" << i;
     }
 }
 
@@ -2996,8 +2994,8 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -3012,7 +3010,7 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 #endif

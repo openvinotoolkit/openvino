@@ -19,9 +19,14 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b8::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableDilation();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b8::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -63,11 +68,6 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_pa
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-
-    if (!CheckPitchForSplitOnly(params)) {
-        return false;
-    }
-
     const auto filterOfmNum = params.weights.OFM().v;
     const auto batchSize = params.outputs[0].Batch().v;
 

@@ -4,21 +4,18 @@
 
 #include <gtest/gtest.h>
 
+#include <compress_quantize_weights.hpp>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <compress_quantize_weights.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-
 using namespace testing;
 using namespace ngraph;
-
 
 struct CompressQuantizeWeightsParams {
     Shape shape;
@@ -34,9 +31,8 @@ struct CompressQuantizeWeightsParams {
     float zero_point_val;
 };
 
-class CompressQuantizeWeightsTests
-        : public testing::WithParamInterface<CompressQuantizeWeightsParams>,
-          public TransformationTestsF {
+class CompressQuantizeWeightsTests : public testing::WithParamInterface<CompressQuantizeWeightsParams>,
+                                     public TransformationTestsF {
     void SetUp() override {
         TransformationTestsF::SetUp();
         auto param = GetParam();
@@ -46,7 +42,12 @@ class CompressQuantizeWeightsTests
             auto input_high = opset8::Constant::create(element::f32, Shape{}, {param.in_high});
             auto output_low = opset8::Constant::create(element::f32, Shape{}, {param.out_low});
             auto output_high = opset8::Constant::create(element::f32, Shape{}, {param.out_high});
-            auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, param.levels);
+            auto fq = std::make_shared<opset8::FakeQuantize>(data,
+                                                             input_low,
+                                                             input_high,
+                                                             output_low,
+                                                             output_high,
+                                                             param.levels);
             function = std::make_shared<Function>(fq, ParameterVector{});
         }
 
@@ -66,18 +67,56 @@ class CompressQuantizeWeightsTests
     }
 };
 
-TEST_P(CompressQuantizeWeightsTests, FusionTest) {
-}
+TEST_P(CompressQuantizeWeightsTests, FusionTest) {}
 
 static std::vector<CompressQuantizeWeightsParams> params = {
-    {Shape{2, 3, 1, 1}, {-1, 2, 3, 4, 5, 11}, 0, 10, -1, 5, 3, element::i4, {-1, -1, 0, 0, 0, 1}, 3, -0.666667},
-    {Shape{2, 3, 1, 1}, {-1, 2, 3, 4, 5, 11}, 0, 10, -1, 4, 16, element::i4, {-8, -5, -4, -2, 0, 7}, 0.333333, -5},
-    {Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11}, 1, 9, -2, 6, 17, element::i8, {-8, -8, -8, -6, -4, -2, 0, 8}, 0.5, -4},
-    {Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11}, 1, 9, -2, 6, 256, element::i8, {-128, -128, -128, -96, -64, -32, 0, 127}, 0.0313725, -64.25},
+    {Shape{2, 3, 1, 1},
+     {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     0.0f,
+     10.0f,
+     -1.0f,
+     5.0f,
+     3,
+     element::i4,
+     {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+     3.0f,
+     -0.666667f},
+    {Shape{2, 3, 1, 1},
+     {-1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     0.0f,
+     10.0f,
+     -1.0f,
+     4.0f,
+     16,
+     element::i4,
+     {-8.0f, -5.0f, -4.0f, -2.0f, 0.0f, 7.0f},
+     0.333333f,
+     -5.0f},
+    {Shape{2, 4, 1, 1},
+     {-1.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     1.0f,
+     9.0f,
+     -2.0f,
+     6.0f,
+     17,
+     element::i8,
+     {-8.0f, -8.0f, -8.0f, -6.0f, -4.0f, -2.0f, 0.0f, 8.0f},
+     0.5f,
+     -4.0f},
+    {Shape{2, 4, 1, 1},
+     {-1.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 11.0f},
+     1.0f,
+     9.0f,
+     -2.0f,
+     6.0f,
+     256,
+     element::i8,
+     {-128.0f, -128.0f, -128.0f, -96.0f, -64.0f, -32.0f, 0.0f, 127.0f},
+     0.0313725f,
+     -64.25f},
 };
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, CompressQuantizeWeightsTests, ::testing::ValuesIn(params));
-
 
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) {
     {

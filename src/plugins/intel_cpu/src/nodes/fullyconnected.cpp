@@ -113,13 +113,16 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
 
         withBiases = inputShapes.size() == 3;
+
+        if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
+            minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -330,7 +333,7 @@ void FullyConnected::prepareParams() {
         return execPtr;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -817,12 +820,22 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
         const auto& srcDims = srcMemPtr->getStaticDims();
         auto weightMemPtr = getParentEdgesAtPort(1)[0]->getMemoryPtr();
         const auto& weightDims = weightMemPtr->getStaticDims();
-        Dim M, N, K;
-        M = srcDims[inRank - 2];
+        // for original inner product semantics:
+        //  when input is 2D tensor
+        //    M in oneDNN will map to widthInConv
+        //  when input is 3D tensor
+        //    M in oneDNN will map to widthInConv*minibatch
+        // currently nwc mapping in brg:
+        //  when input is 2D tensor
+        //    widthInConv will map to 'w', 'n' will be 1
+        //  when input is 3D tensor
+        //    widthInConv will map to 'w', 'n' will be minibatch
+        Dim widthInConv, N, K;
+        widthInConv = srcDims[inRank - 2];
         K = srcDims[inRank - 1];
         N = weightDims[0];
 
-        if (!(M >= 49 && M <= 3136 &&
+        if (!(widthInConv >= 2 && widthInConv <= 3136 &&
               K >= 96 && K <= 4096 &&
               N >= 96 && N <= K * 4))
             retVal = false;
@@ -857,7 +870,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
 
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
         _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, getRuntimeCache());
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
     };
@@ -868,6 +881,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     if (privateWeightCache.end() != itr) {
         ptr = itr->second;
     } else {
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
                                             + "_" + std::to_string(blob->GetSize())

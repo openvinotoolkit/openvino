@@ -134,9 +134,6 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
-    // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
-    //  This is needed so the model body will be created correctly
-    body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
         body_results.push_back(std::make_shared<ngraph::opset1::Result>(body_node->output(output.get_index())));
@@ -162,13 +159,13 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
 
 void snippets::op::Subgraph::fill_empty_output_names(const Output<Node>& target_output_node, const Output<Node>& replacement_output_node) {
     NGRAPH_SUPPRESS_DEPRECATED_START
-    auto out_tensor = target_output_node.get_tensor_ptr();
+    auto& out_tensor = target_output_node.get_tensor();
     const std::string new_name = ngraph::op::util::get_ie_output_name(replacement_output_node);
-    if (out_tensor->get_name().empty()) {
-        out_tensor->set_name(new_name);
+    if (ov::descriptor::get_ov_tensor_legacy_name(out_tensor).empty()) {
+        ov::descriptor::set_ov_tensor_legacy_name(out_tensor, new_name);
     }
     if (!replacement_output_node.get_names().empty()) {
-        out_tensor->set_names(replacement_output_node.get_names());
+        out_tensor.set_names(replacement_output_node.get_names());
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
@@ -220,7 +217,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                 startOffset--;
             }
             std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
-            inShape = move(newShape);
+            inShape = std::move(newShape);
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
             NODE_VALIDATION_CHECK(this,

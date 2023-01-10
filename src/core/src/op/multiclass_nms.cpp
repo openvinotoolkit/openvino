@@ -10,9 +10,6 @@
 using namespace ngraph;
 using namespace op::util;
 
-BWDCMP_RTTI_DEFINITION(op::v8::MulticlassNms);
-BWDCMP_RTTI_DEFINITION(op::v9::MulticlassNms);
-
 // ------------------------------ V8 ------------------------------
 
 op::v8::MulticlassNms::MulticlassNms(const Output<Node>& boxes, const Output<Node>& scores, const Attributes& attrs)

@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
-
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,
                                      const Output<Node>& split_lengths)

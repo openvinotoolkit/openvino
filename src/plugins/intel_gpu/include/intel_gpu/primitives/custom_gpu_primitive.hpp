@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -10,12 +9,6 @@
 #include <string>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief This primitive executes a custom kernel provided by the application
 /// @details The application is required to provide all relevant details for executing the custom kernel
@@ -81,7 +74,4 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

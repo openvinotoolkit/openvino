@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/loop.hpp"
@@ -51,36 +50,6 @@ public:
     program::ptr get_body_program() const { return body_program; }
     bool is_current_iteration_used() const { return use_current_iteration; }
     bool is_execution_condition_used() const { return use_execution_condition; }
-
-    std::vector<const loop::io_primitive_map*> find_io_primitive_maps(
-                                                            const primitive_id& prim_id,
-                                                            bool is_external) const {
-        std::vector<const loop::io_primitive_map*> ret;
-        if (is_external) {
-            for (const auto& it : input_primitive_maps) {
-                if (it.external_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-            for (const auto& it : output_primitive_maps) {
-                if (it.external_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-        } else {
-            for (const auto& it : input_primitive_maps) {
-                if (it.internal_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-            for (const auto& it : output_primitive_maps) {
-                if (it.internal_id == prim_id) {
-                    ret.push_back(&it);
-                }
-            }
-        }
-        return ret;
-    }
 
     static size_t convert_to_raw_axis(size_t axis, size_t ndim) {
         // convert between bfyx, bfzyx, bfzyxw and tensor.size.raw
@@ -572,11 +541,22 @@ public:
         }
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
 private:
     network::ptr body_network;
     memory::ptr get_external_memory(const primitive_id& external_id) const;
     std::vector<memory::ptr> get_sliced_mem(const primitive_id& internal_id) const;
+    std::vector<loop::io_primitive_map> _input_primitive_maps;
+    std::vector<loop::io_primitive_map> _output_primitive_maps;
+    std::vector<loop::backedge_mapping> _back_edges;
+    primitive_id _trip_count_id;
+    primitive_id _initial_execution_id;
+    primitive_id _current_iteration_id;
+    primitive_id _condition_id;
+    primitive_id _num_iteration_id;
+    int64_t _max_iteration;
 };
 
 using loop_inst = typed_primitive_inst<loop>;

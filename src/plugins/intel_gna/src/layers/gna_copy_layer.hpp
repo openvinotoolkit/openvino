@@ -4,7 +4,9 @@
 
 #pragma once
 
-namespace  GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
  * GNA primitive created in sorting order for this copy layer
  */
@@ -14,4 +16,5 @@ static constexpr auto CopyLayerName = "Copy";
  */
 static constexpr auto DelayedCopyLayerName = "DelayedCopy";
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

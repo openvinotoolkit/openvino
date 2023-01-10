@@ -11,8 +11,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::RegionYolo);
-
 op::RegionYolo::RegionYolo(const Output<Node>& input,
                            const size_t coords,
                            const size_t classes,

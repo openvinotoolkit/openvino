@@ -5,7 +5,7 @@
 #pragma once
 
 #include "nnet_base_matcher.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 
 class CopyLayerMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;

@@ -3,7 +3,8 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/imad.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/imad.cl"
 #if QUANTIZATION_TERM
 #    define ACCUMULATOR_TYPE int
 #    define TO_ACCUMULATOR_TYPE(x) convert_int(x)
@@ -40,9 +41,6 @@
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
-#define ALIGN(a, b) ((a % b == 0) ? a : a - a % b + b)
-
 #if INPUT0_PAD_BEFORE_SIZE_X != 0 || INPUT0_PAD_BEFORE_SIZE_Y != 0
     #define NON_ZERO_INPUT0_PAD_BEFORE
 #endif
@@ -68,7 +66,7 @@
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SIMD_SIZE)))
 KERNEL (fused_convolution_eltwise_gpu_imad)(
 #if INPUT0_LAYOUT_B_FS_YX_FSV16
@@ -77,23 +75,23 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     const __global PACKED_TYPE   *conv_input,
 #endif
     __global OUTPUT_TYPE         *restrict output,
-    const __global int           *weights,
+    const __global int           *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE     *biases,
+    , const __global BIAS_TYPE     *biases
 #endif
 #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #ifdef ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #ifdef COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint oc = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;  // oc = Output Column
     const uint or = (uint)get_global_id(1) * OUT_BLOCK_HEIGHT; // or = Output Row
@@ -134,8 +132,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             int weights_zp_vec_partial;
             weights_zp_vec_partial = weights_zp_val;
             FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial;
-            __attribute__((opencl_unroll_hint))
-            for (uint in_f = FILTER_IFM_NUM % PACK; in_f < PACK; in_f++) {
+            unroll_for (uint in_f = FILTER_IFM_NUM % PACK; in_f < PACK; in_f++) {
                 wzp_p[in_f] = 0;
             }
         #endif
@@ -237,7 +234,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                  #endif
             #else
                 #ifdef BLOCK_LOAD_INPUTS
-                    in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
+                    in[reg] = AS_PACKED_TYPE(_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
                     #ifdef SHOULD_USE_DATA_ZP
                         if (input_on_padding)
                             in[reg] = data_zp_val;
@@ -255,8 +252,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
         }
 
         #ifdef BLOCK_LOAD_WEIGHTS
-            *((int8*)&w[0]) = as_int8(intel_sub_group_block_read8((const __global uint*) &weights[weight_addr]));
-            w[8] = as_int(intel_sub_group_block_read((const __global uint*) &weights[weight_addr + (SIMD_SIZE<<3)]));
+            *((int8*)&w[0]) = as_int8(_sub_group_block_read8((const __global uint*) &weights[weight_addr]));
+            w[8] = as_int(_sub_group_block_read((const __global uint*) &weights[weight_addr + (SIMD_SIZE<<3)]));
             weight_addr += SIMD_SIZE*NUM_FILTERS;
         #else
             for(int pf = 0; pf < NUM_FILTERS; pf++) {
@@ -278,10 +275,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     dotProdAZPxW = TO_ACCUMULATOR_TYPE(IMAD(dotProdAZPxW, AS_INPUT0_TYPE_4(data_zp_val), AS_FILTER_TYPE_4(w[wi])));
                 #endif
 
-                __attribute__((opencl_unroll_hint))
-                for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
-                    __attribute__((opencl_unroll_hint))
-                    for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
+                unroll_for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
+                    unroll_for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
                         INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(sub_group_broadcast(in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y],
                                                                                     bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X));
 
@@ -403,5 +398,3 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 #undef FILTER_TYPE_4
 #undef AS_FILTER_TYPE_4
 #undef NUM_FILTERS
-#undef CEIL_DIV
-#undef ALIGN

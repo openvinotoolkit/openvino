@@ -22,7 +22,7 @@
 
 **ONNX, PaddlePaddle** - formats supported directly, which means they can be used with OpenVINO Runtime without any prior conversion. For a guide on how to run inference on ONNX and PaddlePaddle, see how to [Integrate OpenVINO™ with Your Application](../../../OV_Runtime_UG/integrate_with_your_application.md).
 
-**TensorFlow, PyTorch, MXNet, Caffe, Kaldi** - formats supported indirectly, which means they need to be converted to one of the formats listed before. Conversion from these formats to OpenVINO IR is performed with Model Optimizer. In some cases other converters need to be used as intermediaries.
+**TensorFlow, PyTorch, MXNet, Caffe, Kaldi** - formats supported indirectly, which means they need to be converted to OpenVINO IR before running inference. The conversion is done with Model Optimizer and in some cases may involve intermediate steps.
 
 Refer to the following articles for details on conversion for different formats and models:
 

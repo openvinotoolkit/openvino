@@ -80,7 +80,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
     bool is_dynamic = orgParams.outputs[0].is_dynamic();
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      1,
@@ -124,7 +124,7 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) co
         case SoftmaxDim::X:
             return input.Y().v == 1 && input.Z().v == 1 && input.Feature().v == 1;
         case SoftmaxDim::Y:
-            return input.X().v == 1 && input.Z().v == 1 && input.Feature().v == 1;
+            return input.X().v == 1 && input.Z().v == 1 && (input.Feature().v == 1 || input.GetLayout() == DataLayout::bfyx);
         case SoftmaxDim::Z:
             return input.X().v == 1 && input.Y().v == 1 && input.Feature().v == 1;
         case SoftmaxDim::FEATURE:
@@ -139,9 +139,16 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBaseBF::SetDefault(const softmax_pa
 
     DispatchData dispatchData = Parent::SetDefault(params);
 
-    auto flatten_input = input.FlattenFeatureAndSpatials();
-    dispatchData.dataSetSize = flatten_input.Feature().v;
-    dispatchData.dataSetsCount = input.Batch().v;
+    if (params.dim == SoftmaxDim::Y && input.Feature().v > 1 && input.GetLayout() == DataLayout::bfyx) {
+        // Flatten BF for such case, X is expected to be 1
+        OPENVINO_ASSERT(input.X().v == 1, "[GPU] SoftmaxKernelBaseBF: input.X() is expected to be 1 while actual value is ", input.X().v);
+        dispatchData.dataSetSize = input.Y().v;
+        dispatchData.dataSetsCount = input.Batch().v * input.Feature().v;
+    } else {
+        auto flatten_input = input.FlattenFeatureAndSpatials();
+        dispatchData.dataSetSize = flatten_input.Feature().v;
+        dispatchData.dataSetsCount = input.Batch().v;
+    }
 
     return dispatchData;
 }

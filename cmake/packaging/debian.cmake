@@ -92,8 +92,8 @@ macro(ov_cpack_settings)
         # 2022 release series
         # - 2022.1.0 is the last public release with debian packages from Intel install team
         # - 2022.1.1, 2022.2 do not have debian packages enabled, distributed only as archives
-        # - 2022.3 is the first release where RPM updated packages are introduced
-        2022.1.0)
+        # - 2022.3 is the first release where Debian updated packages are introduced
+        2022.3.0)
 
     #
     # core: base dependency for each component
@@ -318,7 +318,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.27)
         # Ubuntu 18.04, Debian 9 cases

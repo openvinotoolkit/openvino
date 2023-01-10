@@ -406,3 +406,85 @@ TEST_F(MetaDataSerialize, get_meta_serialized_changed_meta) {
         check_meta_info(s_model);
     }
 }
+
+TEST_F(MetaDataSerialize, set_complex_meta_information) {
+    const auto check_rt_info = [](const std::shared_ptr<ov::Model>& model) {
+        EXPECT_TRUE(model->has_rt_info("config", "type_of_model"));
+        EXPECT_TRUE(model->has_rt_info("config", "converter_type"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "threshold"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "min"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "max"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "type"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "directed"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "nodes"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "float_empty"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_groups", "ids"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "mean_values"));
+
+        EXPECT_EQ("classification", model->get_rt_info<std::string>("config", "type_of_model"));
+        EXPECT_EQ("classification", model->get_rt_info<std::string>("config", "converter_type"));
+        EXPECT_GE(0.0001f, model->get_rt_info<float>("config", "model_parameters", "threshold") - 13.23f);
+        EXPECT_GE(0.0001f, model->get_rt_info<float>("config", "model_parameters", "min") - (-3.245433f));
+        EXPECT_GE(0.0001f, model->get_rt_info<float>("config", "model_parameters", "max") - 3.2342233f);
+        EXPECT_EQ("tree",
+                  model->get_rt_info<std::string>("config", "model_parameters", "labels", "label_tree", "type"));
+        EXPECT_EQ(true, model->get_rt_info<bool>("config", "model_parameters", "labels", "label_tree", "directed"));
+        EXPECT_EQ(std::vector<std::string>{},
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_tree",
+                                                               "nodes"));
+        EXPECT_EQ(std::vector<float>{},
+                  model->get_rt_info<std::vector<float>>("config",
+                                                         "model_parameters",
+                                                         "labels",
+                                                         "label_tree",
+                                                         "float_empty"));
+        std::vector<std::string> str_vec{"sasd", "fdfdfsdf"};
+        EXPECT_EQ(str_vec,
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_groups",
+                                                               "ids"));
+        std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
+        EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
+    };
+
+    auto model = ov::test::readModel(ir_with_meta);
+
+    {
+        auto& rt_info = model->get_rt_info();
+        ASSERT_FALSE(rt_info.empty());
+        check_meta_info(model);
+        // Fill meta data
+        model->set_rt_info("classification", "config", "type_of_model");
+        model->set_rt_info("classification", "config", "converter_type");
+        model->set_rt_info(13.23f, "config", "model_parameters", "threshold");
+        model->set_rt_info(-3.245433f, "config", "model_parameters", "min");
+        model->set_rt_info(3.2342233f, "config", "model_parameters", "max");
+        model->set_rt_info("tree", "config", "model_parameters", "labels", "label_tree", "type");
+        model->set_rt_info(true, "config", "model_parameters", "labels", "label_tree", "directed");
+        model->set_rt_info(std::vector<float>{}, "config", "model_parameters", "labels", "label_tree", "float_empty");
+        model->set_rt_info(std::vector<std::string>{}, "config", "model_parameters", "labels", "label_tree", "nodes");
+        model->set_rt_info(std::vector<std::string>{"sasd", "fdfdfsdf"},
+                           "config",
+                           "model_parameters",
+                           "labels",
+                           "label_groups",
+                           "ids");
+        model->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
+
+        check_rt_info(model);
+    }
+
+    // Serialize the model
+    ov::serialize(model, m_out_xml_path, m_out_bin_path);
+
+    auto s_model = ov::test::readModel(m_out_xml_path, m_out_bin_path);
+    {
+        check_meta_info(s_model);
+        check_rt_info(s_model);
+    }
+}

@@ -109,7 +109,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
     else
         apt-get install -y nlohmann-json-dev
     fi
-elif [ -f /etc/redhat-release ]; then
+elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
     # RHEL 8 / CentOS 7
     yum update
     yum install -y centos-release-scl epel-release

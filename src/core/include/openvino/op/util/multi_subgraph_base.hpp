@@ -17,7 +17,6 @@ namespace util {
 class OPENVINO_API MultiSubGraphOp : public Op {
 public:
     OPENVINO_OP("MultiSubGraphOp", "util");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Abstract class describes a connection between a MultiSubGraphOp input and
     /// the body.
     class InputDescription {
@@ -74,7 +73,6 @@ public:
     class OPENVINO_API SliceInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("SliceInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -109,7 +107,6 @@ public:
     class OPENVINO_API MergedInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("MergedInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -131,7 +128,6 @@ public:
     class OPENVINO_API ConcatOutputDescription : public OutputDescription {
     public:
         OPENVINO_RTTI("ConcatOutputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -164,7 +160,6 @@ public:
     class OPENVINO_API InvariantInputDescription : public InputDescription {
     public:
         OPENVINO_RTTI("InvariantInputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -180,7 +175,6 @@ public:
     class OPENVINO_API BodyOutputDescription : public MultiSubGraphOp::OutputDescription {
     public:
         OPENVINO_RTTI("BodyOutputDescription");
-        BWDCMP_RTTI_DECLARATION;
         ///
         /// \brief      Constructs a new instance.
         ///
@@ -314,6 +308,11 @@ protected:
     MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies);
     explicit MultiSubGraphOp(const OutputVector& args);
 
+    using OutputMap = std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
+    void validate_and_infer_type_body(const std::shared_ptr<ov::Model>& body,
+                                      const MultiSubgraphInputDescriptionVector& input_descriptors);
+    OutputMap get_mapping_outputs_on_body_description(const MultiSubgraphOutputDescriptionVector& output_descriptors);
+
     std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;
@@ -330,7 +329,6 @@ public:
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>")
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -341,7 +339,6 @@ public:
         : DirectValueAccessor<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

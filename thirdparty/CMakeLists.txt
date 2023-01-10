@@ -186,10 +186,11 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(LINUX OR APPLE)
-        if(OV_OS_RHEL OR APPLE)
+    # on Windows and macOS we don't use gflags, because will be dynamically linked
+    if(CMAKE_HOST_LINUX AND LINUX OR APPLE)
+        if(OV_OS_RHEL)
             set(gflag_component nothreads_shared)
-        elseif(OV_OS_DEBIAN)
+        elseif(OV_OS_DEBIAN OR APPLE)
             set(gflag_component nothreads_static)
         endif()
         find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflag_component})

@@ -79,7 +79,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
   set(ARM ON)
 endif()
 if(ARM AND NOT CMAKE_CROSSCOMPILING)
-    add_compile_options(-march=armv7-a)
+    add_compile_options(-march=armv7-a+fp)
 endif()
 
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
