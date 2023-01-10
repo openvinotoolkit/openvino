@@ -1006,6 +1006,15 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['layout'].description.format(
                                   mo_convert_params_common['layout'].possible_types_command_line),
                               default=())
+    # TODO: isn't it a weights precision type
+    common_group.add_argument('--data_type',
+                              help='[DEPRECATED] Data type for model weights and biases. '
+                                   'If original model has FP32 weights or biases and --data_type=FP16 is specified, '
+                                   'FP32 model weights and biases are compressed to FP16. '
+                                   'All intermediate data is kept in original precision.',
+                              choices=["FP16", "FP32", "half", "float"],
+                              default='float',
+                              action=DeprecatedOptionCommon)
     common_group.add_argument('--compress_to_fp16',
                               help=mo_convert_params_common['compress_to_fp16'].description,
                               type=check_bool,

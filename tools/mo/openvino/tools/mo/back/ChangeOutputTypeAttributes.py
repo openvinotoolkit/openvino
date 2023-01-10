@@ -37,7 +37,7 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
         return []
 
     def find_and_replace_pattern(self, graph: Graph):
-        compress_to_fp16 = graph.graph['cmd_params'].compress_to_fp16
+        ir_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
         for node in graph.get_op_nodes():
             if node.op in operations_with_data_type_attributes:
@@ -49,7 +49,7 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
                 if node[dst_type] == np.float64:
                     final_type = np.float32
 
-                if node[dst_type] in [np.float32, np.float64] and compress_to_fp16 and \
+                if node[dst_type] in [np.float32, np.float64] and ir_data_type == np.float16 and \
                         not node.has_and_set('returns_shape_value'):
                     final_type = np.float16
                 elif node.has_and_set('returns_shape_value') and node[dst_type] == np.float16:
@@ -75,8 +75,8 @@ def assert_that_is_castable_to_fp16(node: Node):
             return
 
         if np.any(val > np.finfo(np.float16).max) or np.any(val < np.finfo(np.float16).min):
-            raise Error("Try to convert without --compress_to_fp16 argument. "
-                        "This model can not be compressed to FP16 precision, since "
+            raise Error("Try to convert with --data_type=FP32 argument. "
+                        "This model can not be converted to FP16 precision, since "
                         "'{}' node value {} exceeds FP16 allowed limits: [{}, {}]"
                         .format(node_name, val, np.finfo(np.float16).min, np.finfo(np.float16).max))
         # further this input values will be rewritten since force_shape_inference=True
