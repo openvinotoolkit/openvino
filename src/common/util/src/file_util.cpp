@@ -415,7 +415,7 @@ static std::string get_ov_library_path_a() {
     }
     GetModuleFileNameA(hm, (LPSTR)ov_library_path, sizeof(ov_library_path));
     return get_path_name(std::string(ov_library_path));
-#elif defined(__APPLE__) || defined(__linux__)
+#elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
     return get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
@@ -449,7 +449,7 @@ std::wstring ov::util::get_ov_lib_path_w() {
     }
     GetModuleFileNameW(hm, (LPWSTR)ov_library_path, sizeof(ov_library_path) / sizeof(ov_library_path[0]));
     return get_path_name(std::wstring(ov_library_path));
-#    elif defined(__linux__) || defined(__APPLE__)
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     return ov::util::string_to_wstring(get_ov_library_path_a());
 #    else
 #        error "Unsupported OS"
