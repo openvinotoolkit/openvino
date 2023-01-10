@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -103,10 +103,16 @@ ov::frontend::tensorflow::pass::EmbeddingSegmentSingleFeatureFusion::EmbeddingSe
     auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
     auto new_subshape = make_shared<Broadcast>(const_one, num_new_axes);
     auto cond_shape = make_shared<ShapeOf>(tile, element::i32);
-    auto new_cond_shape = make_shared<Concat>(OutputVector{cond_shape, new_subshape}, 0);
+    // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
+    // remove this workaround once 100671 is resolved
+    auto const_1 = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto new_cond_shape = make_shared<Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
 
     // prepare the condition to have the same rank as operands `x` and `y`
-    auto prep_cond = make_shared<Reshape>(tile, new_cond_shape, false);
+    auto prep_cond = make_shared<Reshape>(tile, new_cond_shape, false)->output(0);
+    // squeeze prep_cond by one extra dimension specially added
+    auto const_0 = make_shared<Constant>(element::i32, Shape{1}, 0);
+    prep_cond = make_shared<Squeeze>(prep_cond, const_0);
 
     auto select_pattern = make_shared<Select>(prep_cond, zeros_like, sparse_segment_op);
 
