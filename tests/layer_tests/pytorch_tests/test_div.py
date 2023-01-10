@@ -6,9 +6,8 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class Testdiv(PytorchLayerTest):
+class TestDiv(PytorchLayerTest):
     def _prepare_input(self):
-        # return (self.input_tensor, self.other_tensor)
         return (self.input_array.astype(self.input_type), self.other_array.astype(self.other_type))
 
     def create_model(self, rounding_mode):
@@ -55,7 +54,7 @@ class Testdiv(PytorchLayerTest):
     ]))
 
     @pytest.mark.nightly
-    def test_div_random(self, input_array, input_type, other_array, other_type, rounding_mode, ie_device, precision, ir_version):
+    def test_div(self, input_array, input_type, other_array, other_type, rounding_mode, ie_device, precision, ir_version):
         self.input_array = input_array
         self.input_type = input_type
         self.other_array = other_array
