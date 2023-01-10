@@ -6,7 +6,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "utils.hpp"
 
-
 namespace ov {
 namespace frontend {
 namespace pytorch {
@@ -23,6 +22,11 @@ OutputVector translate_div(NodeContext& context) {
         } else if (rounding_mode == "trunc") {
             const auto convert = context.mark_node(std::make_shared<opset8::Convert>(res, element::i64));
             res = context.mark_node(std::make_shared<opset8::ConvertLike>(convert, x));
+        } else {
+            FRONT_END_OP_CONVERSION_CHECK(false,
+                                          "Openvino Pytorch Frontend doesn't support rounding mode ",
+                                          rounding_mode,
+                                          " for aten::div");
         }
     }
     return {res};
