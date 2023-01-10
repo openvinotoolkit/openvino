@@ -152,10 +152,11 @@ jobs:
       cmake ^
         -DSELECTIVE_BUILD=ON ^
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
+        -S $(REPO_DIR)
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 
-  - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel
     displayName: 'Build CC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s
