@@ -12,7 +12,7 @@ from unit_tests.utils.graph import build_graph
 class TestXor(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(np.bool)
+            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(bool)
         return inputs_dict
 
     def create_net(self, shape1, shape2, ir_version):
@@ -90,7 +90,7 @@ class TestXor(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.BOOL, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.BOOL, shape1)
 
-        const = np.random.randint(0, 2, shape2).astype(np.bool)
+        const = np.random.randint(0, 2, shape2).astype(bool)
 
         node_const_def = helper.make_node(
             'Constant',
@@ -167,8 +167,8 @@ class TestXor(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.BOOL, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.BOOL, output_shape)
 
-        const1 = np.random.randint(0, 2, shape1).astype(np.bool)
-        const2 = np.random.randint(0, 2, shape2).astype(np.bool)
+        const1 = np.random.randint(0, 2, shape1).astype(bool)
+        const2 = np.random.randint(0, 2, shape2).astype(bool)
 
         node_const1_def = helper.make_node(
             'Constant',

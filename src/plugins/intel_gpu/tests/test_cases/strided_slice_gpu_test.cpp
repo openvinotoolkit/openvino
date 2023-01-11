@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -13,7 +11,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
+TEST(strided_slice_gpu, test_2x2x2x2_full) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 0x0x0x0
     // End (BFYX): 2x2x2x2
@@ -21,31 +19,19 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx,  });
-    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx,  });
-    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
-    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
+    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
-            0, 0, 0, 0
-    });
-    set_values(end, {
-            2, 2, 2, 2
-    });
-    set_values(strides, {
-            1, 1, 1, 1
-    });
+    std::vector<int64_t> begin_data = { 0, 0, 0, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -53,8 +39,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -66,11 +52,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
+TEST(strided_slice_gpu_constants, test_2x2x2x2_full) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 0x0x0x0
     // End (BFYX): 2x2x2x2
@@ -110,8 +96,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -123,11 +109,11 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
+TEST(strided_slice_gpu, test_2x2x2x2_ignore) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 1x1x1x1
     // End (BFYX): 2x2x2x2
@@ -136,30 +122,18 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
-            1, 1, 1, 1
-    });
-    set_values(end, {
-            2, 2, 2, 2
-    });
-    set_values(strides, {
-            1, 1, 1, 1
-    });
+    std::vector<int64_t> begin_data = { 1, 1, 1, 1 };
+    std::vector<int64_t> end_data = { 2, 2, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -167,8 +141,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -182,11 +156,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
+TEST(strided_slice_gpu_constants, test_2x2x2x2_ignore) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 1x1x1x1
     // End (BFYX): 2x2x2x2
@@ -226,8 +200,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -241,11 +215,11 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
+TEST(strided_slice_gpu, test_2x2x2x2_single) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 1x1x1x1
     // End (BFYX): 2x2x2x2
@@ -254,30 +228,18 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
-               });
-    set_values(begin, {
-            1, 1, 1, 1
-               });
-    set_values(end, {
-            2, 2, 2, 2
-               });
-    set_values(strides, {
-            1, 1, 1, 1
-               });
+    });
+    std::vector<int64_t> begin_data = { 1, 1, 1, 1 };
+    std::vector<int64_t> end_data = { 2, 2, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -285,8 +247,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -297,11 +259,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
+TEST(strided_slice_gpu_constants, test_2x2x2x2_single) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 1x1x1x1
     // End (BFYX): 2x2x2x2
@@ -341,8 +303,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -353,11 +315,11 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
+TEST(strided_slice_gpu, test_2x2x4x3_stride) {
     // Input (BFYX): 2x2x4x3
     // Begin (BFYX): 0x0x0x0
     // End (BFYX): 2x2x4x3
@@ -366,9 +328,6 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
 
     set_values(input, {
             0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
@@ -378,22 +337,13 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
             36.f, 37.f, 38.f, 39.f, 40.f, 41.f, 42.f, 43.f, 44.f,
             45.f, 46.f, 47.f
     });
-    set_values(begin, {
-            0, 0, 0, 0
-    });
-    set_values(end, {
-            2, 2, 4, 3
-    });
-    set_values(strides, {
-            1, 1, 2, 1
-    });
+    std::vector<int64_t> begin_data = { 0, 0, 0, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 4, 3 };
+    std::vector<int64_t> strides_data = { 1, 1, 2, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 1, 1, 1}, {1, 1, 1, 1}, {}, {}, {}, {2, 2, 2, 3}));
 
     network network(engine, topology);
 
@@ -401,8 +351,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -416,11 +366,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
+TEST(strided_slice_gpu_constants, test_2x2x4x3_stride) {
     // Input (BFYX): 2x2x4x3
     // Begin (BFYX): 0x0x0x0
     // End (BFYX): 2x2x4x3
@@ -464,8 +414,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -479,11 +429,11 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
+TEST(strided_slice_gpu, test_2x2x4x4_part_stride) {
     // Input (BFYX): 2x2x4x4
     // Begin (BFYX): 1x0x0x1
     // End (BFYX): 2x2x4x4
@@ -492,9 +442,6 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 4, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f,
@@ -517,22 +464,13 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
             56.0f, 57.0f, 58.0f, 59.0f,
             60.0f, 61.0f, 62.0f, 63.0f
     });
-    set_values(begin, {
-            1, 0, 0, 1
-    });
-    set_values(end, {
-            2, 2, 4, 4
-    });
-    set_values(strides, {
-            1, 1, 1, 2
-    });
+    std::vector<int64_t> begin_data = { 1, 0, 0, 1 };
+    std::vector<int64_t> end_data = { 2, 2, 4, 4 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 2 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
 
     network network(engine, topology);
 
@@ -540,8 +478,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -562,11 +500,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
+TEST(strided_slice_gpu_constants, test_2x2x4x4_part_stride) {
     // Input (BFYX): 2x2x4x4
     // Begin (BFYX): 1x0x0x1
     // End (BFYX): 2x2x4x4
@@ -612,19 +550,22 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
+    topology.add(input_layout("input2", begin->get_layout()));
+    topology.add(input_layout("input3", end->get_layout()));
+    topology.add(input_layout("input4", strides->get_layout()));
     topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {0, 1, 1, 0}, {}, {}, {}, {}, {1, 2, 4, 2}));
 
     network network(engine, topology);
 
     network.set_input_data("input", input);
+    network.set_input_data("input2", begin);
+    network.set_input_data("input3", end);
+    network.set_input_data("input4", strides);
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -645,41 +586,29 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
+TEST(strided_slice_gpu, test_2x2x4x1_new_axis_mask) {
     // Input (BFYX): 2x2x4x1
     // New_axis_mask: 1
     // Output (BFYX): 1x2x2x4
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
             10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
-            1, 0, 1, 0
-    });
-    set_values(end, {
-            2, 2, 4, 4
-    });
-    set_values(strides, {
-            1, 1, 1, 2
-    });
+    std::vector<int64_t> begin_data = { 1, 0, 1, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 4, 4 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 2 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
 
     network network(engine, topology);
 
@@ -687,8 +616,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -701,11 +630,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
+TEST(strided_slice_gpu_constants, test_2x2x4x1_new_axis_mask) {
     // Input (BFYX): 2x2x4x1
     // New_axis_mask: 1
     // Output (BFYX): 1x2x2x4
@@ -743,8 +672,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -757,40 +686,87 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
+TEST(strided_slice_gpu_four_inputs, test_2x2x4x1_new_axis_mask) {
+    // Input (BFYX): 2x2x4x1
+    // New_axis_mask: 1
+    // Output (BFYX): 1x2x2x4
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
+            10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+    });
+    set_values<int64_t>(begin, {
+            1, 0, 1, 0
+    });
+    set_values<int64_t>(end, {
+            2, 2, 4, 4
+    });
+    set_values<int64_t>(strides, {
+            1, 1, 1, 2
+    });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", begin->get_layout()));
+    topology.add(input_layout("input3", end->get_layout()));
+    topology.add(input_layout("input4", strides->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1 }, {}, {}, {2, 2, 4, 1}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", begin);
+    network.set_input_data("input3", end);
+    network.set_input_data("input4", strides);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
+            10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu, test_2x2x1x1_new_axis_mask_2) {
     // Input (BFYX): 2x2x1x1
     // New_axis_mask: 101
     // Output (BFYX): 1x2x1x2
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 4, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
     });
-    set_values(begin, {
-            1, 0, 1, 0
-    });
-    set_values(end, {
-            2, 2, 4, 4
-    });
-    set_values(strides, {
-            1, 1, 1, 2
-    });
+    std::vector<int64_t> begin_data = { 1, 0, 1, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 4, 4 };
+    std::vector<int64_t> strides_data = { 1, 1, 1, 2 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -798,8 +774,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -811,11 +787,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
+TEST(strided_slice_gpu_constants, test_2x2x1x1_new_axis_mask_2) {
     // Input (BFYX): 2x2x1x1
     // New_axis_mask: 101
     // Output (BFYX): 1x2x1x2
@@ -852,8 +828,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -865,39 +841,84 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
+TEST(strided_slice_gpu_four_inputs, test_2x2x1x1_new_axis_mask_2) {
+    // Input (BFYX): 2x2x1x1
+    // New_axis_mask: 101
+    // Output (BFYX): 1x2x1x2
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f
+    });
+    set_values<int64_t>(begin, {
+            1, 0, 1, 0
+    });
+    set_values<int64_t>(end, {
+            2, 2, 4, 4
+    });
+    set_values<int64_t>(strides, {
+            1, 1, 1, 2
+    });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input2", begin->get_layout()));
+    topology.add(input_layout("input3", end->get_layout()));
+    topology.add(input_layout("input4", strides->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, { 1, 0, 1 }, {}, {}, {2, 2, 1, 1}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("input2", begin);
+    network.set_input_data("input3", end);
+    network.set_input_data("input4", strides);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 1.0f, 2.0f, 3.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu, test_2x2x1x1) {
     // Input (BFYX): 2x2x1x1
     // Output (BFYX): 2x2x1x1
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
-    auto begin = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i32, format::bfyx, { 2, 1, 1, 1 } });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
     });
-    set_values(begin, {
-            0, 0
-    });
-    set_values(end, {
-            2, 2
-    });
-    set_values(strides, {
-            1, 1
-    });
+    std::vector<int64_t> begin_data = { 0, 0 };
+    std::vector<int64_t> end_data = { 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {1, 0}, {}, {}, {}, {}, {2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -905,8 +926,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -918,11 +939,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
+TEST(strided_slice_gpu_constants, test_2x2x1x1) {
     // Input (BFYX): 2x2x1x1
     // Output (BFYX): 2x2x1x1
 
@@ -935,6 +956,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
     });
+
     set_values<int64_t>(begin, {
             0, 0
     });
@@ -958,8 +980,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -971,39 +993,27 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
+TEST(strided_slice_gpu, test_2x2x2x1x1) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 1x2x2x1x1
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
-    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
-    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
-    set_values(begin, {
-            0, 0, 0
-    });
-    set_values(end, {
-            1, 2, 2
-    });
-    set_values(strides, {
-            1, 1, 1
-    });
+    std::vector<int64_t> begin_data = { 0, 0, 0 };
+    std::vector<int64_t> end_data = { 1, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 1, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
     network network(engine, topology);
 
@@ -1011,8 +1021,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1024,11 +1034,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
+TEST(strided_slice_gpu_constants, test_2x2x2x1x1) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 1x2x2x1x1
 
@@ -1064,8 +1074,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1077,40 +1087,27 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-
-TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
+TEST(strided_slice_gpu_i8, test_2x2x2x1x1) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 1x2x2x1x1
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::i8, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
-    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
 
     set_values<int8_t>(input, {
             0, 1, 2, 3, 4, 5, 6, 7
     });
-    set_values<int64_t>(begin, {
-            0, 0, 0
-    });
-    set_values<int64_t>(end, {
-            1, 2, 2
-    });
-    set_values<int64_t>(strides, {
-            1, 1, 1
-    });
+    std::vector<int64_t> begin_data = { 0, 0, 0 };
+    std::vector<int64_t> end_data = { 1, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 1, 1 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {1, 2, 2, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 2, 2, 1}));
 
     network network(engine, topology);
 
@@ -1118,8 +1115,8 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1130,39 +1127,27 @@ TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
+TEST(strided_slice_gpu, test_2x2x2x1x1_2) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
-    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
-    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
-    set_values(begin, {
-            0, 0, 0
-    });
-    set_values(end, {
-            2, 2, 2
-    });
-    set_values(strides, {
-            1, 2, 2
-    });
+    std::vector<int64_t> begin_data = { 0, 0, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 2, 2 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1170,8 +1155,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1183,11 +1168,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
+TEST(strided_slice_gpu_constants, test_2x2x2x1x1_2) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1
 
@@ -1223,8 +1208,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1236,35 +1221,31 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
-    // Input (BFYX): 2x2x2x2
-    // Begin (BFYX): 0x0x0x0
-    // End (BFYX): 2x2x2x2
-    // Stride (BFYX): -1x1x1x1
-    // Output (BFYX): 2x2x2x2
+TEST(strided_slice_gpu_f32_i32, test_1x1x1x8x1_new_axis_5d) {
+    // Input (BFYX): 1x8x1x1
+    // Output (BFZYX): 1x1x1x8x1
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
-    auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
-    auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
-    auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i32, format::bfyx });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 1, 1 } });
+    auto begin = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
+    auto end = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
+    auto strides = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
 
     set_values(input, {
-            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
-            9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
     set_values(begin, {
-            0, 0, 0, 0
+            0, 0, 0, 0, 0
     });
     set_values(end, {
-            2, 2, 2, 2
+            0, 0, 0, 0, 0
     });
     set_values(strides, {
-            -1, -1, 1, 1
+            1, 1, 1, 1, 1
     });
 
     topology topology;
@@ -1272,7 +1253,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {1, 0, 0, 1, 0}, {1, 0, 0, 1, 0}, {0, 1, 1, 0, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {1, 1, 1, 8, 1}));
 
     network network(engine, topology);
 
@@ -1282,6 +1263,51 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
 
     EXPECT_EQ(outputs.size(), size_t(1));
     EXPECT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu, test_2x2x2x2_full_negative_stride) {
+    // Input (BFYX): 2x2x2x2
+    // Begin (BFYX): 0x0x0x0
+    // End (BFYX): 2x2x2x2
+    // Stride (BFYX): -1x-1x1x1
+    // Output (BFYX): 2x2x2x2
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+            9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+    });
+    std::vector<int64_t> begin_data = { 0, 0, 0, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 2, 2 };
+    std::vector<int64_t> strides_data = { -1, -1, 1, 1 };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 2, 2, 2}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1293,15 +1319,15 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
+TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride) {
     // Input (BFYX): 2x2x2x2
     // Begin (BFYX): 0x0x0x0
     // End (BFYX): 2x2x2x2
-    // Stride (BFYX): -1x1x1x1
+    // Stride (BFYX): -1x-1x1x1
     // Output (BFYX): 2x2x2x2
 
     auto& engine = get_test_engine();
@@ -1337,8 +1363,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1350,39 +1376,27 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
     ASSERT_EQ(output_ptr.size(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
+TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
-    auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
-    auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
-    auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i32, format::bfyx });
 
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
-    set_values(begin, {
-            0, 0, 0
-    });
-    set_values(end, {
-            2, 2, 2
-    });
-    set_values(strides, {
-            1, 2, 2
-    });
+    std::vector<int64_t> begin_data = { 0, 0, 0 };
+    std::vector<int64_t> end_data = { 2, 2, 2 };
+    std::vector<int64_t> strides_data = { 1, 2, 2 };
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(data("input2", begin));
-    topology.add(data("input3", end));
-    topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 1, 1, 1}));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1390,8 +1404,8 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1403,11 +1417,11 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
+TEST(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1
 
@@ -1443,8 +1457,8 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1456,19 +1470,17 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-
-
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
+TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1
 
     auto& engine = get_test_engine();
     auto input_lay = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
-    auto input = engine.allocate_memory({  ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx, });
+    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
     auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
     auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
     auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
@@ -1485,16 +1497,16 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
     topology.add(data("input4", strides));
     topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1506,13 +1518,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
 
-TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
+TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({  ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx, });
+    auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
     auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
     auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
     auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
@@ -1529,16 +1541,16 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     topology.add(data("input4", strides));
     topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input2", begin);
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
 
     auto output = outputs.at("strided_slice").get_memory();
 
@@ -1550,6 +1562,6 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
 
     for (size_t i = 0; i < answers.size(); ++i)
     {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }

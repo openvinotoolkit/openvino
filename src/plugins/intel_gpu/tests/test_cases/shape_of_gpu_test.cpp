@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -39,7 +37,7 @@ TEST(shape_of_gpu, bfyx) {
     std::vector<int32_t> expected_results = {1, 2, 3, 3};
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
 
@@ -64,7 +62,7 @@ TEST(shape_of_gpu, bfyx_i64) {
     std::vector<int64_t> expected_results = {1, 2, 3, 3};
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
 
@@ -89,7 +87,7 @@ TEST(shape_of_gpu, yxfb) {
     std::vector<int32_t> expected_results = {1, 2, 3, 3};
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
 
@@ -114,7 +112,7 @@ TEST(shape_of_gpu, bfzyx) {
     std::vector<int32_t> expected_results = {1, 2, 4, 3, 3};
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
     }
 }
 
@@ -131,9 +129,9 @@ TEST(shape_of_gpu, dynamic) {
     topology.add(input_layout("input", in_layout));
     topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     auto inst = network.get_primitive("shape_of");
     auto impl = inst->get_impl();
@@ -151,7 +149,7 @@ TEST(shape_of_gpu, dynamic) {
         std::vector<int32_t> expected_results = {1, 2, 3, 4};
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+            ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
         }
     }
 
@@ -166,7 +164,7 @@ TEST(shape_of_gpu, dynamic) {
         std::vector<int32_t> expected_results = {4, 3, 2, 1};
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
-            EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i]));
+            ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i]));
         }
     }
 }

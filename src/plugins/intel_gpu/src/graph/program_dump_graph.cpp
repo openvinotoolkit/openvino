@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "program_dump_graph.h"
 #include "to_string_utils.h"
 #include "data_inst.h"
@@ -141,8 +139,8 @@ std::string get_node_id(const program_node* ptr) { return "node_" + std::to_stri
 void dump_full_node(std::ofstream& out, const program_node* node) { out << node->type()->to_string(*node); }
 }  // namespace
 
-std::string get_dir_path(build_options opts) {
-    auto path = opts.get<build_option_type::graph_dumps_dir>()->directory_path;
+std::string get_dir_path(const ExecutionConfig& config) {
+    auto path = config.get_property(ov::intel_gpu::dump_graphs);
     if (path.empty()) {
         return {};
     }
@@ -151,15 +149,6 @@ std::string get_dir_path(build_options opts) {
         path += "/";
     }
     return path;
-}
-
-/// Returns given name for serialization process.
-inline std::string get_serialization_network_name(build_options opts) {
-    return opts.get<build_option_type::serialize_network>()->serialization_network_name;
-}
-
-inline std::string get_load_program_name(build_options opts) {
-    return opts.get<build_option_type::load_program>()->load_program_name;
 }
 
 void dump_graph_init(std::ofstream& graph,

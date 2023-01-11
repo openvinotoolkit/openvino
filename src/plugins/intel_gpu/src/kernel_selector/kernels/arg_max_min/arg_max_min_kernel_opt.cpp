@@ -17,6 +17,16 @@ ParamsKey ArgMaxMinKernelOpt::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ArgMaxMinKernelOpt::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_reqd_subgroup_size();
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+    k.requires_subgroup_shuffle_relative();
+
+    return k;
+}
+
 KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};

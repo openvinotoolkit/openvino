@@ -76,12 +76,16 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
 }
 
 bool less_by_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_friendly_name() < r->get_friendly_name();
+    const auto& l_name = l->get_friendly_name();
+    const auto& r_name = r->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
                          const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_input_node_shared_ptr(0)->get_friendly_name() < r->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
@@ -837,10 +841,8 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     static const std::vector<std::string> attrs_to_check{"fused_names_0"};
 
     std::ostringstream err_log;
-    for (auto& op : f->get_ops()) {
-        if (ov::op::util::is_constant(op))
-            continue;
 
+    for (auto& op : f->get_ops()) {
         const auto& rt_info = op->get_rt_info();
         for (const auto& attr_name : attrs_to_check) {
             if (!rt_info.count(attr_name)) {

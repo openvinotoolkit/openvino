@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
@@ -10,17 +12,17 @@ __attribute__((reqd_work_group_size(LOCAL_WORK_GROUP_SIZE, 1, 1)))
 KERNEL(convolution_gpu_yxfb_yxio_b8)(
     const __global float* input,
     __global float* output,
-    const __global float* filter,
+    const __global float* filter
 #if BIAS_TERM
-    const __global float* bias,
+    , const __global float* bias
 #endif
-    uint split_idx)
+)
 {
     const uint batch_num = INPUT0_BATCH_NUM;
 
     const uint linear_id_xy = (uint)get_global_id(1) + (uint)get_global_size(1) * (uint)get_global_id(2);
     // we're computing 8 OUTPUT_FEATURE_MAP so we must divide by 8, but we got 8 batches, so no division is needed.
-    uint global_id = ((uint)get_global_id(0) / batch_num) * batch_num + (linear_id_xy * FILTER_ARRAY_NUM + split_idx) * (FILTER_OFM_NUM / OFM_PER_WORK_ITEM) * batch_num;
+    uint global_id = ((uint)get_global_id(0) / batch_num) * batch_num + (linear_id_xy * FILTER_ARRAY_NUM) * (FILTER_OFM_NUM / OFM_PER_WORK_ITEM) * batch_num;
 
     const uint out_batch_id = get_local_id(0);
     const uint out_x = get_global_id(1);
@@ -55,7 +57,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b8)(
                 if(!zero)
                 {
                     uint input_idx = input_offset_x*INPUT0_X_PITCH + input_offset_y*INPUT0_Y_PITCH;
-                    input_idx += INPUT0_OFFSET + split_idx * FILTER_IFM_NUM * INPUT0_FEATURE_PITCH;
+                    input_idx += INPUT0_OFFSET;
                     input_idx += out_batch_id;
 
                     //sub_group_id used as offset to make each workitem load different filter, and then shuffle it
@@ -65,7 +67,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b8)(
 #endif
                     for (uint h = 0; h < FILTER_IFM_NUM / 8; h++)
                     {
-                        float8 _input = as_float8(intel_sub_group_block_read8((const __global uint*)input + input_idx));
+                        float8 _input = as_float8(_sub_group_block_read8((const __global uint*)input + input_idx));
 
                         DOT_PRODUCT_8(_data0, _input.s0, filter[filter_idx]) filter_idx += FILTER_OFM_NUM;
 #if OFM_PER_WORK_ITEM == 16
@@ -128,8 +130,8 @@ KERNEL(convolution_gpu_yxfb_yxio_b8)(
 #endif
 
     const uint _out_id = OUTPUT_OFFSET + out_id;
-    intel_sub_group_block_write8((__global uint*)output + _out_id, as_uint8(_data0));
+    _sub_group_block_write8((__global uint*)output + _out_id, as_uint8(_data0));
 #if OFM_PER_WORK_ITEM == 16
-    intel_sub_group_block_write8((__global uint*)output + _out_id + 8 * INPUT0_FEATURE_PITCH, as_uint8(_data1));
+    _sub_group_block_write8((__global uint*)output + _out_id + 8 * INPUT0_FEATURE_PITCH, as_uint8(_data1));
 #endif
 }

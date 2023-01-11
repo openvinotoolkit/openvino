@@ -53,10 +53,10 @@ public:
         topology.add(input_layout("shape", shape->get_layout()));
         topology.add(input_layout("min_val", min_val->get_layout()));
         topology.add(input_layout("max_val", max_val->get_layout()));
-        build_options bo;
-        bo.set_option(build_option::optimize_data(true));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network net{engine, topology, bo};
+        cldnn::network net{engine, topology, config};
 
         net.set_input_data("shape", shape);
         net.set_input_data("min_val", min_val);
@@ -69,7 +69,7 @@ public:
 
         ASSERT_EQ(params.expected_out.size(), out_ptr.size());
         for (size_t i = 0; i < params.expected_out.size(); ++i) {
-            EXPECT_NEAR(params.expected_out[i], out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(params.expected_out[i], out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };

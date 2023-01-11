@@ -332,11 +332,15 @@ def main():
 
         ## If set batch size, disable the auto batching
         if args.batch_size:
+            logger.warning("Batch size is set. Auto batching will be disabled")
             benchmark.set_allow_auto_batching(False)
 
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
         if load_from_file_enabled and not is_network_compiled:
+            if not args.mean_values or not args.scale_values:
+                raise RuntimeError("--mean_values and --scale_values aren't supported with --load_from_file. "
+                    "The values can be set via model_optimizer while generating xml")
             next_step()
             print("Skipping the step for loading model from file")
             next_step()
@@ -356,7 +360,7 @@ def main():
                                           [
                                               ('compile model time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.scale_values, args.mean_values, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
         elif not is_network_compiled:
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
@@ -381,7 +385,7 @@ def main():
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, model.inputs)
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.scale_values, args.mean_values, model.inputs)
 
             # use batch size according to provided layout and shapes
             batch_size = get_network_batch_size(app_inputs_info)
@@ -420,6 +424,9 @@ def main():
                                               ('compile model time (ms)', duration_ms)
                                           ])
         else:
+            if not args.mean_values or not args.scale_values:
+                raise RuntimeError("--mean_values and --scale_values aren't supported for compiled model. "
+                    "The values can be set via model_optimizer while generating xml")
             next_step()
             print("Skipping the step for compiled model")
             next_step()
@@ -439,7 +446,7 @@ def main():
                                           [
                                               ('import model time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, compiled_model.inputs)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.scale_values, args.mean_values, compiled_model.inputs)
             batch_size = get_network_batch_size(app_inputs_info)
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------

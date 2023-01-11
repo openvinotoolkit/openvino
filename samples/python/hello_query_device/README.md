@@ -87,7 +87,7 @@ For example:
 
 - [Using OpenVINO™ Toolkit Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 
-<!-- [openvino.runtime.Core]:
-[openvino.runtime.Core.available_devices]:
-[openvino.runtime.Core.get_metric]:
-[openvino.runtime.Core.get_config]: -->
+[openvino.runtime.Core]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html
+[openvino.runtime.Core.available_devices]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Core.html#openvino.runtime.Core.available_devices
+[openvino.runtime.Core.get_metric]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_metric
+[openvino.runtime.Core.get_config]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.get_config

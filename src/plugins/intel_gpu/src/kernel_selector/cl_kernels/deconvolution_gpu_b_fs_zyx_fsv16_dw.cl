@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #include "deconvolution_gpu_imad_common.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 #define FEATURE_SLICE_SIZE 16
 
 #if X_BLOCK_SIZE == 1
@@ -54,19 +52,19 @@ DECLARE_READ_BLOCK_8(preload_weights, FILTER_TYPE)
 #   endif
 #endif
 
-__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE))) // attr:no-format
+REQD_SUB_GROUP_SIZE(FEATURE_SLICE_SIZE) // attr:no-format
 __attribute__((reqd_work_group_size(1, FEATURE_SLICE_SIZE, 1)))
 KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
         const  __global INPUT0_TYPE *input,
         __global OUTPUT_TYPE *output,
-        const __global FILTER_TYPE *weights,
+        const __global FILTER_TYPE *weights
 #if BIAS_TERM
-        const __global BIAS_TYPE *bias,
+        , const __global BIAS_TYPE *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-        FUSED_OPS_DECLS,
+        , FUSED_OPS_DECLS
 #endif
-        uint split_idx
+
         )
 {
     const uint zyx = (uint)get_global_id(0);
@@ -272,7 +270,6 @@ KERNEL(deconvolution_gpu_b_fs_zyx_fsv16_dw)(
     }
 }
 
-#undef unroll_for
 #undef FEATURE_SLICE_SIZE
 
 #undef GET_VEC_ELEM

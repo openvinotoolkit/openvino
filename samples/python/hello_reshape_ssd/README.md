@@ -89,7 +89,7 @@ The sample application logs each step in a standard output stream and creates an
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.Model.reshape]:
-[openvino.runtime.Model.input]:
-[openvino.runtime.Output.get_any_name]:
-[openvino.runtime.PartialShape]: -->
+[openvino.runtime.Model.reshape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape
+[openvino.runtime.Model.input]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.input
+[openvino.runtime.Output.get_any_name]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.Output.html#openvino.runtime.Output.get_any_name
+[openvino.runtime.PartialShape]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.PartialShape.html

@@ -33,11 +33,15 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableGroupedConvolution();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
     k.EnableDifferentTypes();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 

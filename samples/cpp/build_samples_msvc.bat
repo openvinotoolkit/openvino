@@ -56,8 +56,8 @@ echo.
 echo ###############^|^| Build OpenVINO Runtime samples using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
 
-echo cmake --build . --config Release
-cmake --build . --config Release
+echo cmake --build . --config Release --parallel
+cmake --build . --config Release --parallel
 if ERRORLEVEL 1 GOTO errorHandling
 
 if NOT "%SAMPLE_INSTALL_DIR%"=="" cmake -DCMAKE_INSTALL_PREFIX="%SAMPLE_INSTALL_DIR%" -DCOMPONENT=samples_bin -P cmake_install.cmake

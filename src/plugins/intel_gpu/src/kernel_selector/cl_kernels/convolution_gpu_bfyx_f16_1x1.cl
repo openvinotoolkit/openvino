@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
 #if X_BLOCK_SIZE > 1
 #   define GET_SRC(data, id)    AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \
-                                    intel_sub_group_shuffle(                                                   \
+                                    _sub_group_shuffle(                                                   \
                                     AS_TYPE(MAKE_VECTOR_TYPE(UNIT_BLOCK_RW_TYPE, X_BLOCK_SIZE), data),         \
                                     id))
 #else
-#   define GET_SRC(data, id)    AS_TYPE(UNIT_TYPE, intel_sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, data), id))
+#   define GET_SRC(data, id)    AS_TYPE(UNIT_TYPE, _sub_group_shuffle(AS_TYPE(UNIT_BLOCK_RW_TYPE, data), id))
 #endif
 
 #define FEATURE_SLICE_SIZE 16
@@ -22,19 +23,19 @@
 #   define UNIT_BLOCK_WRITE_VEC(ptr, offset, val)   CAT(UNIT_BLOCK_WRITE, X_BLOCK_SIZE)(ptr, offset, val)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE * SLM_DIV_FACTOR, 1)))
 KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx) {
+) {
 #if X_BLOCK_SIZE > 1
     const uint xy = (int)get_global_id(0);
     const uint x = (xy * X_BLOCK_SIZE) % OUTPUT_SIZE_X;
@@ -211,8 +212,7 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     if (feature_sub_block == 0) {
-        __attribute__((opencl_unroll_hint))
-        for (int i = 1; i < SLM_DIV_FACTOR; i++)
+        unroll_for(int i = 1; i < SLM_DIV_FACTOR; i++)
             dst += partial_summ[lid1 % feature_per_wg + i * feature_per_wg];
 #endif // SLM_DIV_FACTOR > 1
 

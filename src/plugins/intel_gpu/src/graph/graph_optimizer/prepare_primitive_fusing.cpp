@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "program_helpers.h"
 #include "pass_manager.h"
 
@@ -229,13 +227,12 @@ void prepare_primitive_fusing::fuse_reorders(program &p) {
 }
 
 void prepare_primitive_fusing::fuse_activations(program &p) {
-    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
     bool use_onednn_impls = false;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = p.get_engine();
-    if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
+    if (engine.get_device_info().supports_immad && p.get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
         use_onednn_impls = true;
 #endif
 
@@ -244,7 +241,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        program_helpers::do_for_types<activation>(*node, [&p, &is_debug, &fusing_history, &use_onednn_impls](activation_node& node) {
+        program_helpers::do_for_types<activation>(*node, [&p, &fusing_history, &use_onednn_impls](activation_node& node) {
             auto& input = node.input();
             auto id = node.id();
             // Restrictions:
@@ -253,7 +250,7 @@ void prepare_primitive_fusing::fuse_activations(program &p) {
             // - no activation additional input
             // - input was optimized
             // - can't have fused primitives
-            if (node.has_padded_dependency() || (input.is_output() && !is_debug) || node.is_output() ||
+            if (node.has_padded_dependency() || input.is_output() || node.is_output() ||
                 node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant() ||
                 node.has_fused_primitives())
                 return;
@@ -528,6 +525,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
+                                                                         desc->dilations,
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 
@@ -579,8 +577,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
             auto in_layout = node.get_dependency(0).get_output_layout();
-            return (node.get_split() > 1 && node.get_split() != in_layout.feature()) ||
-                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_layout.feature()));
+            return (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_layout.feature()));
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
@@ -590,6 +587,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (node.get_output_layout().is_dynamic()) {
                 return true;
             }
+
+            if (node.get_primitive()->deformable_mode)
+                return false;
 
             // Since reorder inputs is called after this pass
             // we have to check that blocked formats can be used in the network and layer is optimized for it.
