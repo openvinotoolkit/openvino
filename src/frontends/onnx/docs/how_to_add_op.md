@@ -1,7 +1,7 @@
 # How to add a new operation
 
 ## How to implement a new operation in ONNX FE codebase
-ONNX operations can be distinguished into two main categories: [official ops defined in ONNX standard](https://github.com/onnx/onnx/blob/main/docs/Operators.md) and custom-domain ops (like ops from `org.openvinotoolkit`, `com.microsoft` or `org.pytorch.aten` domains). Each operation can be defined in one or more versions. Note that ONNX Frontend tries to use a version of operation defined in the opset of a model at first. If such implementation doesn't exist, the fallback to the most previous existed version is called. What's important, the new operation which has only one implementation has to be registered in version `1` (it's a implementation detail of ONNX FE).
+ONNX operations can be distinguished into two main categories: [official ops defined in ONNX standard](https://github.com/onnx/onnx/blob/main/docs/Operators.md) and custom-domain ops (like ops from `org.openvinotoolkit`, `com.microsoft` or `org.pytorch.aten` domains). Multiple operator handlers for different versions of an op can be defined. When importing a model the ONNX FE tries to use a handler which matches the version of the opset in the model. If such implementation doesn't exist, it tries to use any of the existing handlers starting with the greatest opset number. When adding a new operator's implementation it has to be registered using version `1` (it's a implementation detail of ONNX FE) even if the operation has been added to the ONNX standard in an opset greater than 1.
 
 Let's say, that we want to implement our new `org.openvinotoolkit.CustomAdd` operation in version `1`.
 The first step should be adding `.cpp` and `.hpp` files in [ops folder](../../../../src/frontends/onnx/frontend/src/op) (for this particular case, it should be [op/org.openvinotoolkit](../../../../src/frontends/onnx/frontend/src/op/org.openvinotoolkit) to be consistent with op folder layout).
@@ -80,7 +80,7 @@ If an OV Core operation provides exactly what you need (without decomposition to
 ```cpp
 core.add_extension(ov::frontend::onnx::OpExtension<ov::opset9::Add>("org.openvinotoolkit", "CustomAdd"));
 ```
-If you need to register an custom operation for a [Model Optmizer](../../../../tools/mo) scenario, you should consider `SOExtension`. More details about it can be found in [Library with Extensions](../../../../docs/Extensibility_UG/Intro.md#create-a-library-with-extensions).
+If you need to register an custom operation for a [Model Optimizer](../../../../tools/mo) scenario, you should consider `SOExtension`. More details about it can be found in [Library with Extensions](../../../../docs/Extensibility_UG/Intro.md#create-a-library-with-extensions).
 ### Python based extensions
 C++ based extensions have their equivalents in Python. For `ConversionExtension` an example of usage can look like:
 ```python
