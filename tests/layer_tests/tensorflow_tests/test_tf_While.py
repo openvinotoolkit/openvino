@@ -10,7 +10,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestWhile(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
         x_shape = inputs_info['x']
         y_shape = inputs_info['y']
         inputs_data = {}
@@ -59,7 +59,7 @@ class TestWhile(CommonTFLayerTest):
 class TestWhileShapeVariant(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
         x_shape = inputs_info['x']
         y_shape = inputs_info['y']
         inputs_data = {}

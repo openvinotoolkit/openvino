@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,8 @@ using namespace ov::frontend::tensorflow;
 
 namespace {
 template <typename T>
-T reorder_ops_by_names(const std::vector<std::string>& names, const T& ops) {
-    T resulted_ops(ops.size(), nullptr);
+std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const std::vector<T>& ops) {
+    std::vector<T> resulted_ops(ops.size(), nullptr);
     if (names.size() == ops.size()) {
         for (const auto& op : ops) {
             const auto& op_name = op->get_friendly_name();
