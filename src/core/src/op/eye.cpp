@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,6 @@ bool evaluate_eye(const ov::HostTensorPtr& out, const int64_t diagonal_index) {
 }
 }  // namespace
 }  // namespace eye
-}  // namespace op
-}  // namespace ov
 
 ov::op::v9::Eye::Eye(const Output<Node>& num_rows,
                      const Output<Node>& num_columns,
@@ -153,3 +151,5 @@ bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::Ho
 
     return eye::evaluate_eye(outputs[0], diagonal_index);
 }
+}  // namespace op
+}  // namespace ov

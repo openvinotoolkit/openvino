@@ -74,8 +74,8 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_rows) {
     input_shapes = ShapeVector{{}, {1}, {1}, {3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_data),
-                    NodeValidationFailure,
-                    HasSubstr("'num_rows' must be non-negative value. Got: "));
+                    AssertFailure,
+                    HasSubstr("Value -3 not in range [0:"));
 }
 
 TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_columns) {
@@ -96,8 +96,8 @@ TEST_F(EyeV9StaticShapeInferenceTest, assert_on_negative_columns) {
     input_shapes = ShapeVector{{}, {1}, {1}, {3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_data),
-                    NodeValidationFailure,
-                    HasSubstr("'num_columns' must be non-negative value. Got: "));
+                    AssertFailure,
+                    HasSubstr("Value -8 not in range [0:"));
 }
 
 TEST_F(EyeV9StaticShapeInferenceTest, assert_on_rows_not_1D) {

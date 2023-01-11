@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -66,19 +66,17 @@ std::vector<TShape> shape_infer(const Eye* op,
         }
     }
 
+    using TDimValue = typename TShape::value_type::value_type;
+    constexpr auto get_non_negatives = sh_infer::tr::InTypeRange<TDimValue>(0, std::numeric_limits<TDimValue>::max());
+
     for (size_t i = 0; i < 2; ++i) {
-        if (auto eye_dim_size = get_input_const_data_as<TShape, int64_t>(op, i, constant_data)) {
+        if (auto eye_dim = get_input_const_data_as_shape<TShape>(op, i, constant_data, get_non_negatives)) {
             NODE_VALIDATION_CHECK(op,
-                                  eye_dim_size->size() == 1,
+                                  eye_dim->size() == 1,
                                   eye::shape_names[i],
                                   " value must be a scalar or 1D tensor. Got: ",
-                                  eye_dim_size->size());
-            NODE_VALIDATION_CHECK(op,
-                                  eye_dim_size->front() >= 0,
-                                  eye::shape_names[i],
-                                  " must be non-negative value. Got: ",
-                                  eye_dim_size->front());
-            output_shape.emplace_back(eye_dim_size->front());
+                                  eye_dim->size());
+            output_shape.push_back(std::move((*eye_dim)[0]));
         } else {
             output_shape.emplace_back(-1);
         }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "dimension_tracker.hpp"
 #include "eye_shape_inference.hpp"
 #include "gtest/gtest.h"
@@ -101,32 +102,30 @@ TEST(type_prop, eye_batch_shape_params) {
 }
 
 TEST(type_prop, eye_batch_shape_shape_of) {
-    auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
+    auto batch_shape = PartialShape{{1, 10}, {10, 25}};
+    set_shape_labels(batch_shape, 10);
+
+    auto num_rows = Constant::create(element::i64, Shape{}, {10});
     auto num_columns = num_rows;
-    auto diagonal_index = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
-    auto batch_shape = make_shared<op::v0::Parameter>(element::i64, PartialShape({{1, 10}, {10, 25}}));
-    auto shape_of = make_shared<op::v0::ShapeOf>(batch_shape);
+    auto diagonal_index = make_shared<Parameter>(element::i64, PartialShape{1});
+    auto batch = make_shared<Parameter>(element::i64, batch_shape);
+    auto shape_of = make_shared<ShapeOf>(batch);
 
     auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, shape_of, element::f64);
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f64);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({{1, 10}, {10, 25}, 10, 10}));
+    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), ElementsAre(10, 11, no_label, no_label));
 }
 
 TEST(type_prop, eye_invalid_num_rows_value) {
-    auto num_rows = op::v0::Constant::create(element::i64, Shape{1}, {-6});
+    auto num_rows = op::v0::Constant::create(element::i64, Shape{1}, {-4});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {2});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
 
-    try {
-        auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid num rows value.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_rows' must be non-negative value. Got: -6"));
-    } catch (...) {
-        FAIL() << "Check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32),
+                    AssertFailure,
+                    HasSubstr("Value -4 not in range [0:"));
 }
 
 TEST(type_prop, eye_invalid_num_columns_value) {
@@ -134,15 +133,9 @@ TEST(type_prop, eye_invalid_num_columns_value) {
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {-6});
     auto diagonal_index = op::v0::Constant::create(element::i64, Shape{}, {2});
 
-    try {
-        auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Unexpected pass with invalid num columns value.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("'num_columns' must be non-negative value. Got: -6"));
-    } catch (...) {
-        FAIL() << "Check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(auto eye = make_shared<op::v9::Eye>(num_rows, num_columns, diagonal_index, element::i32),
+                    AssertFailure,
+                    HasSubstr("Value -6 not in range [0:"));
 }
 
 TEST(type_prop, eye_invalid_num_rows_type) {
@@ -379,4 +372,28 @@ TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
 
     EXPECT_EQ(op->get_out_type(), element::i32);
     EXPECT_EQ(output_shapes.front(), PartialShape({2, 4, 1, 8, 5}));
+}
+
+TEST_F(TypePropEyeV9Test, preserve_partial_values_and_labels) {
+    auto rows_shape = PartialShape{{2, 5}};
+    set_shape_labels(rows_shape, 30);
+    auto rows = std::make_shared<Parameter>(element::i64, rows_shape);
+    auto num_rows = make_shared<ShapeOf>(rows);
+
+    auto columns_shape = PartialShape{{1, 3}};
+    set_shape_labels(columns_shape, 40);
+    auto columns = std::make_shared<Parameter>(element::i64, columns_shape);
+    auto shape_of_columns = make_shared<ShapeOf>(columns);
+    auto num_columns = std::make_shared<Squeeze>(shape_of_columns, Constant::create(element::i64, Shape{}, {0}));
+
+    auto batch_shape = PartialShape{{1, 10}, {10, 25}};
+    set_shape_labels(batch_shape, 10);
+
+    auto diagonal_index = make_shared<Parameter>(element::i64, PartialShape{1});
+    auto batch = make_shared<ShapeOf>(make_shared<Parameter>(element::i64, batch_shape));
+
+    auto op = make_op(num_rows, num_columns, diagonal_index, batch, element::i32);
+
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 10}, {10, 25}, {2, 5}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 30, 40));
 }
