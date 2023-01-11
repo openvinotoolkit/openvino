@@ -14,6 +14,7 @@
 #include "loop_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "border_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -362,7 +363,9 @@ void prepare_buffer_fusing::run(program& p) {
                     if (can_reshape_be_optimized(reshape_node))
                         return;
                 }
-                if (user->is_type<experimental_detectron_roi_feature_extractor>())
+                if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
+                    return;
+                if (user->is_type<border>())
                     return;
             }
 
@@ -428,6 +431,10 @@ void prepare_buffer_fusing::run(program& p) {
                                  out_padd.upper_size().spatial[0],
                                  out_padd.upper_size().spatial[1]}));
                     node.can_be_optimized(true);
+                    printf("opt_out::node(%s)\n", node.id().c_str());
+                    for (auto& usr : node.get_users()) {
+                        printf("    user(%s) index(%ld)\n", usr->id().c_str(), usr->get_dependency_index(node));
+                    }
                 }
             }
         });
