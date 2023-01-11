@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,33 @@
 #include "utils.hpp"
 
 using namespace ov::frontend::tensorflow;
+
+namespace {
+template <typename T>
+std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const std::vector<T>& ops) {
+    if (names.empty()) {
+        // in case unspecified names, return the initial order of operations
+        return ops;
+    }
+    FRONT_END_GENERAL_CHECK(names.size() == ops.size(),
+                            "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The number "
+                            "of names mismatches the number of operations.");
+    std::vector<T> resulted_ops(ops.size(), nullptr);
+    for (const auto& op : ops) {
+        const auto& op_name = op->get_friendly_name();
+        auto iter = std::find(names.begin(), names.end(), op_name);
+        FRONT_END_GENERAL_CHECK(iter != names.end(),
+                                "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The "
+                                "requested name is not found among operations.");
+        auto ind = std::distance(names.begin(), iter);
+        FRONT_END_GENERAL_CHECK(resulted_ops[ind] == nullptr,
+                                "[TensorFlow Frontend] Internal error: incorrect reordering of operations. "
+                                "Found two operations that are mapped to the same name.");
+        resulted_ops[ind] = op;
+    }
+    return resulted_ops;
+};
+}  // namespace
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                                    const std::shared_ptr<TranslatorDictionaryType>& translator_map,
@@ -305,10 +332,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    // TODO: reorder results and params according to indices given in RT info (if any)
+    // reorder Parameter and Result nodes according to the requested order
+    // of input and output names from the original model
+    // during translation and topologically sorting this order could be lost
+    auto input_names = model_tf->get_input_names();
+    auto output_names = model_tf->get_output_names();
+    ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
+    ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
-    // create the OV Model
-    ov_model = std::make_shared<ov::Model>(results, params, m_model_name);
+    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {
