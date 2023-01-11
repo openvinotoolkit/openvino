@@ -76,12 +76,16 @@ bool compare_rt_keys(const T& node1, const T& node2, std::ostream& err_log) {
 }
 
 bool less_by_name(const std::shared_ptr<ngraph::op::v0::Result>& l, const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_friendly_name() < r->get_friendly_name();
+    const auto& l_name = l->get_friendly_name();
+    const auto& r_name = r->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
                          const std::shared_ptr<ngraph::op::v0::Result>& r) {
-    return l->get_input_node_shared_ptr(0)->get_friendly_name() < r->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& l_name = l->get_input_node_shared_ptr(0)->get_friendly_name();
+    const auto& r_name = r->get_input_node_shared_ptr(0)->get_friendly_name();
+    return l_name.size() < r_name.size() || (l_name.size() == r_name.size() && l_name < r_name);
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
