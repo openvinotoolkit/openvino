@@ -169,7 +169,6 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        -DENABLE_CPPLINT=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
         -DOpenCV_DIR=$(INSTALL_OPENCV)/cmake
@@ -208,7 +207,6 @@ jobs:
       source $(CROSSENV_DIR)/bin/activate
       cmake \
         -GNinja \
-        -DENABLE_CPPLINT=OFF \
         -DENABLE_PYTHON=ON \
         -DENABLE_WHEEL=ON \
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake \
