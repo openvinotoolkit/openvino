@@ -819,6 +819,65 @@ std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
 
 }  // namespace output_transpose_mult_consumers
 
+namespace output_transpose_mult_transposes {
+
+std::shared_ptr<Model> CreateFunction(size_t num_concat_ops,
+                                      element::Type input_type,
+                                      size_t concat_transpose_input_idx,
+                                      size_t num_concat_inputs) {
+    const Shape input_shape{1, 96, 55, 55};
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto concat = CreateConcatChain(X,
+                                    num_concat_ops,
+                                    input_type,
+                                    concat_transpose_input_idx,
+                                    num_concat_inputs,
+                                    input_shape,
+                                    /* axis */ 1);
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(concat, ng_order0);
+
+    auto tanh0 = std::make_shared<Tanh>(transpose0);
+
+    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose1 = std::make_shared<Transpose>(concat, ng_order1);
+
+    auto tanh1 = std::make_shared<Tanh>(transpose1);
+
+    return std::make_shared<Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<Model> CreateReferenceFunction(size_t num_concat_ops,
+                                               element::Type input_type,
+                                               size_t concat_transpose_input_idx,
+                                               size_t num_concat_inputs) {
+    const Shape input_shape{1, 96, 55, 55};
+
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+    auto concat = CreateConcatTransposedChain(transpose0,
+                                              num_concat_ops,
+                                              input_type,
+                                              concat_transpose_input_idx,
+                                              num_concat_inputs,
+                                              input_shape,
+                                              /* axis */ 3,
+                                              /* transpose order */ Shape{0, 2, 3, 1});
+
+    auto tanh0 = std::make_shared<Tanh>(concat);
+    auto tanh1 = std::make_shared<Tanh>(concat);
+
+    return std::make_shared<Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
+}
+
+}  // namespace output_transpose_mult_transposes
+
 }  // namespace backward
 
 using CreateGraphF = std::function<std::shared_ptr<Model>(size_t num_concat_ops,
@@ -903,7 +962,8 @@ std::vector<CreateGraphFunctionDesc> forward_subtests = {
 
 std::vector<CreateGraphFunctionDesc> backward_subtests = {
     SUBTEST(backward::input_node_consumers, "backwardInputNodeConsumers"),
-    SUBTEST(backward::output_transpose_mult_consumers, "backwardOutputTransposeMultConsumers")};
+    SUBTEST(backward::output_transpose_mult_consumers, "backwardOutputTransposeMultConsumers"),
+    SUBTEST(backward::output_transpose_mult_transposes, "outputTransposeMultTransposes")};
 
 #undef SUBTEST
 
