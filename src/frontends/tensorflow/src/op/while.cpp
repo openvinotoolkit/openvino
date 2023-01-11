@@ -15,7 +15,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_while_op(const NodeContext& node) {
-    default_op_checks(node, 0, {"While", "StatelessWhile"});
+    default_op_checks(node, 1, {"While", "StatelessWhile"});
     auto node_name = node.get_name();
     auto translate_session = node.get_translate_session();
     auto input_size_t = node.get_input_size();
