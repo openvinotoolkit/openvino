@@ -928,21 +928,11 @@ void program_node::init_onednn_primitive_attributes() {
             memory_offset++;
     };
 
-    auto cant_use_dst_scales = [&](size_t idx, size_t post_ops_size, data_types in_data_type, layout in_layout) {
-        return true;    // TODO check- scale dst issue
-        // return (idx != post_ops_size -1 ||
-        //         in_layout.count() > 1 ||
-        //         is_type<pooling>() ||
-        //         is_type<reduce>() ||
-        //         (is_type<convolution>() && data_type_traits::is_floating_point(in_data_type)) ||
-        //         (is_type<deconvolution>() && data_type_traits::is_floating_point(in_data_type)));
-    };
-
     int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
-            auto fused_desc = desc.typed_desc<activation>();;
+            auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
@@ -992,16 +982,9 @@ void program_node::init_onednn_primitive_attributes() {
                 post_ops.append_binary(dnnl::algorithm::binary_sub, in_desc);
                 update_onednn_post_op_list(onednn_post_op_type::binary_sub, dep_idx);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                auto in_data_type = get_dependency(0).get_output_layout().data_type;
-                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
-                if (cant_use_dst_scales(idx, cldnn_post_ops.size(), in_data_type, in)) {
-                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
-                    post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
-                    update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
-                } else {
-                    attrs->set_scales_mask(DNNL_ARG_DST, 0);
-                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                }
+                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
+                post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
+                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
@@ -1025,15 +1008,9 @@ void program_node::init_onednn_primitive_attributes() {
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            auto in_data_type = get_dependency(0).get_output_layout().data_type;
-                            if (cant_use_dst_scales(idx, cldnn_post_ops.size(), in_data_type, in_scale) || in_scale.data_type != data_types::f32) {
-                                dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
-                                post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
-                            } else {
-                                attrs->set_scales_mask(DNNL_ARG_DST, 0);
-                                update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                            }
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                         }
 
                         if (q_param->has_pre_shift) {
@@ -1132,17 +1109,9 @@ void program_node::init_onednn_primitive_attributes() {
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            auto in_data_type = get_dependency(0).get_output_layout().data_type;
-
-                            if (cant_use_dst_scales(idx, cldnn_post_ops.size(), in_data_type, in_scale) ||
-                                in_scale.data_type != data_types::f32 || q_param->has_clamp) {
-                                dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
-                                post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
-                            } else {
-                                attrs->set_scales_mask(DNNL_ARG_DST, 0);
-                                update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                            }
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                         }
 
                         if (q_param->has_pre_shift) {
