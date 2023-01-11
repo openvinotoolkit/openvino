@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from platform import processor
 import pytest
 
 import tests
@@ -84,18 +83,6 @@ def model_onnx_path():
     base_path = os.path.dirname(__file__)
     test_onnx = os.path.join(base_path, "test_utils", "utils", "test_model.onnx")
     return test_onnx
-
-
-def plugins_path():
-    base_path = os.path.dirname(__file__)
-    plugins_xml = os.path.join(base_path, "test_utils", "utils", "plugins.xml")
-    plugins_win_xml = os.path.join(base_path, "test_utils", "utils", "plugins_win.xml")
-    arch = processor()
-    if arch == "x86_64":
-        plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_x86_apple.xml")
-    else:
-        plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_arm_apple.xml")
-    return (plugins_xml, plugins_win_xml, plugins_osx_xml)
 
 
 def _get_default_model_zoo_dir():

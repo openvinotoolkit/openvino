@@ -273,17 +273,16 @@ def test_properties_hint_model():
     assert property_tuple[0] == "MODEL_PTR"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_single_cpu_property_setting():
+def test_single_property_setting(device):
     core = Core()
 
-    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
         pytest.skip("This test runs only on openvino intel cpu plugin")
 
-    core.set_property("CPU", properties.streams.num(properties.streams.Num.AUTO))
+    core.set_property(device, properties.streams.num(properties.streams.Num.AUTO))
 
     assert properties.streams.Num.AUTO.to_integer() == -1
-    assert type(core.get_property("CPU", properties.streams.num())) == int
+    assert type(core.get_property(device, properties.streams.num())) == int
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")

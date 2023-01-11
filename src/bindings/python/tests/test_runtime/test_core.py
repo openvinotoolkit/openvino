@@ -5,10 +5,8 @@
 import pytest
 import numpy as np
 import os
-from sys import platform
 from pathlib import Path
 
-import openvino.runtime.opset8 as ov
 from openvino.runtime import (
     Model,
     Core,
@@ -23,7 +21,6 @@ from openvino.runtime import (
 from tests.conftest import (
     model_path,
     model_onnx_path,
-    plugins_path,
     get_model_with_template_extension,
 )
 
@@ -31,10 +28,11 @@ from tests.test_utils.test_utils import (
     generate_image,
     generate_relu_compiled_model,
     get_relu_model,
+    generate_lib_name,
+    plugins_path,
 )
 
 
-plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
 
@@ -259,31 +257,25 @@ def test_query_model(device):
 
 
 @pytest.mark.dynamic_library()
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
-def test_register_cpu_plugin():
+def test_register_plugin(device):
     core = Core()
-    if "Intel" in core.get_property("CPU", "FULL_DEVICE_NAME"):
-        core.register_plugin("openvino_intel_cpu_plugin", "BLA")
-    else:
-        core.register_plugin("openvino_arm_cpu_plugin", "BLA")
+    full_device_name = core.get_property(device, "FULL_DEVICE_NAME")
+    lib_name = generate_lib_name(device, full_device_name)
+    core.register_plugin(lib_name, "BLA")
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, "BLA")
     assert isinstance(compiled_model, CompiledModel), "Cannot load the network to the registered plugin with name 'BLA'"
 
 
 @pytest.mark.dynamic_library()
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device independent test")
-def test_register_cpu_plugins():
+def test_register_plugins(device):
     core = Core()
-    if platform == "linux" or platform == "linux2":
-        core.register_plugins(plugins_xml)
-    elif platform == "darwin":
-        core.register_plugins(plugins_osx_xml)
-    elif platform == "win32":
-        core.register_plugins(plugins_win_xml)
-
+    full_device_name = core.get_property(device, "FULL_DEVICE_NAME")
+    plugins_xml = plugins_path(device, full_device_name)
+    core.register_plugins(plugins_xml)
     model = core.read_model(model=test_net_xml, weights=test_net_bin)
     compiled_model = core.compile_model(model, "CUSTOM")
+    os.remove(plugins_xml)
     assert isinstance(compiled_model, CompiledModel), (
         "Cannot load the network to "
         "the registered plugin with name 'CUSTOM' "

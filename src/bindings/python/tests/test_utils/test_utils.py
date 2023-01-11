@@ -4,10 +4,13 @@
 
 from typing import Tuple, Union, List
 
+import os
 import sys
-from pathlib import Path
 import numpy as np
 import pytest
+
+from pathlib import Path
+from platform import processor
 
 import openvino
 import openvino.runtime.opset8 as ops
@@ -23,6 +26,41 @@ def test_compare_models():
         assert status
     except RuntimeError:
         print("openvino.test_utils.compare_models is not available")  # noqa: T201
+
+
+def generate_lib_name(device, full_device_name):
+    lib_name = ""
+    arch = processor()
+    if arch == "x86_64" or device in ["GNA", "HDDL", "MYRIAD", "VPUX"]:
+        lib_name = "openvino_intel_" + device.lower() + "_plugin"
+    elif arch != "x86_64" and device == "CPU":
+        lib_name = "openvino_arm_cpu_plugin"
+    elif device in ["HETERO", "MULTI", "AUTO"]:
+        lib_name = "openvino_" + device.lower() + "_plugin"
+    return lib_name
+
+
+def plugins_path(device, full_device_name):
+    lib_name = generate_lib_name(device, full_device_name)
+    full_lib_name = ""
+
+    if sys.platform == "win32":
+        full_lib_name = lib_name + ".dll"
+    else:
+        full_lib_name = "lib" + lib_name + ".so"
+
+    plugin_xml = f"""<ie>
+    <plugins>
+        <plugin location="{full_lib_name}" name="CUSTOM">
+        </plugin>
+    </plugins>
+    </ie>"""
+
+    with open("plugin_path.xml", "w") as f:
+        f.write(plugin_xml)
+
+    plugins_paths = os.path.join(os.getcwd(), "plugin_path.xml")
+    return plugins_paths
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
