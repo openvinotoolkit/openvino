@@ -201,7 +201,7 @@ static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ng
                 ov::PartialShape output_pshape(shape);
                 deconvPrim.output_partial_shape = output_pshape;
             } else {
-                deconvPrim.output_shape = inputs[2].pid;
+                deconvPrim.output_shape_id = inputs[2].pid;
             }
         }
         p.add_primitive(*op, deconvPrim);
@@ -292,7 +292,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
                 ov::PartialShape output_pshape(shape);
                 deconvPrim.output_partial_shape = output_pshape;
             } else {
-                deconvPrim.output_shape = inputs[2].pid;
+                deconvPrim.output_shape_id = inputs[2].pid;
             }
         }
         p.add_primitive(*op, deconvPrim);
