@@ -1497,9 +1497,9 @@ TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic) {
     topology.add(data("input4", strides));
     topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
@@ -1541,9 +1541,9 @@ TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     topology.add(data("input4", strides));
     topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input2", begin);
 
