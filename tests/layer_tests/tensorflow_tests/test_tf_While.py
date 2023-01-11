@@ -86,7 +86,8 @@ class TestWhileShapeVariant(CommonTFLayerTest):
                 return x_new, y_new
 
             tf.while_loop(cond, body, [x, y],
-                          shape_invariants=[tf.TensorShape([]), tf.TensorShape([None] + y_shape[1:])])
+                          shape_invariants=[tf.TensorShape([]),
+                                            tf.TensorShape([None] + y_shape[1:])])
             tf.compat.v1.global_variables_initializer()
 
             tf_net = sess.graph_def
