@@ -49,8 +49,8 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         if (instance.node->has_second_output()) {
             args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
@@ -102,7 +102,7 @@ public:
         auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
 
-        return make_unique<arg_max_min_impl>(arg, best_kernel);
+        return make_unique<arg_max_min_impl>(best_kernel);
     }
 };
 

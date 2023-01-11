@@ -28,6 +28,7 @@
 
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
+#include "transformations/decompose_reduce_for_false_keepdims.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -102,7 +103,7 @@
 #include "transformations/op_conversions/eye_decomposition.hpp"
 #include <low_precision/recurrent_cell.hpp>
 
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 namespace {
 template<typename T>
@@ -266,6 +267,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<ngraph::pass::ConvertReduceMeanToPooling>();
             pass_config->disable<ngraph::pass::ConvertReduceMaxToPooling>();
             manager.register_pass<ConvertAvgPoolingToReduce>();
+            manager.register_pass<DecomposeReduceForFalseKeepDims>();
         } else {
             pass_config->set_callback<ngraph::pass::ConvertReduceSumToPooling>(
             [](const_node_ptr &node) -> bool {

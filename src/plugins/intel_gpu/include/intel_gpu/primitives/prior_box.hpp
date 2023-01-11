@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
@@ -12,12 +11,6 @@
 #include <limits>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Generates a set of default bounding boxes with different sizes and aspect ratios.
 /// @details The prior-boxes are shared across all the images in a batch (since they have the same width and height).
@@ -217,7 +210,4 @@ private:
         }
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
