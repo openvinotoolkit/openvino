@@ -14,8 +14,8 @@
 #include "cpp/ie_cnn_network.h"
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "intel_gpu/plugin/graph.hpp"
-#include "intel_gpu/plugin/device_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -24,8 +24,8 @@ class CompiledModel : public InferenceEngine::ExecutableNetworkThreadSafeDefault
 public:
     typedef std::shared_ptr<CompiledModel> Ptr;
 
-    CompiledModel(InferenceEngine::CNNNetwork &network, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
-    CompiledModel(std::istream& networkModel, std::shared_ptr<InferenceEngine::RemoteContext> context, Config config);
+    CompiledModel(InferenceEngine::CNNNetwork &network, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
+    CompiledModel(std::istream& networkModel, InferenceEngine::RemoteContext::Ptr context, const ExecutionConfig& config);
 
     void Export(std::ostream& networkModel) override;
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
@@ -42,8 +42,8 @@ public:
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
 
     std::vector<std::shared_ptr<Graph>> m_graphs;
-    InferenceEngine::gpu::ClContext::Ptr m_context;
-    Config m_config;
+    InferenceEngine::RemoteContext::Ptr m_context;
+    ExecutionConfig m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
 

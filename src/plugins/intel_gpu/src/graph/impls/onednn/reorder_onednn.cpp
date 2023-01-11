@@ -86,12 +86,13 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
         auto desc = get_reorder_descriptor(impl_params, *attr, impl_params.prog->get_engine());
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return cldnn::make_unique<reorder_onednn>(engine, dummy, attr, *desc);
+        return cldnn::make_unique<reorder_onednn>(engine, config, dummy, attr, *desc);
     }
 };
 

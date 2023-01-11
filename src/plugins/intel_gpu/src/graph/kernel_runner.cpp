@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "kernel_runner.h"
 #include "runtime/kernels_cache.hpp"
 #include "intel_gpu/runtime/stream.hpp"
@@ -159,14 +157,12 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
             }
         }
     }
-
-    args.split = 0;
 }
 
 std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_selector::KernelsData& kernels_data) {
     std::vector<std::chrono::nanoseconds> run_times;
 
-    stream::ptr stream = _engine.create_stream();
+    stream::ptr stream = _engine.create_stream({});
 
     int num_of_kernels_to_run = static_cast<int>(kernels_data.size());
     int num_of_kernels_run = 0;
@@ -178,7 +174,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         batch_end = batch_start + current_compilation_batch;
 
         std::vector<kernel::ptr> kernels;
-        kernels_cache cache(_engine, program_id);
+        kernels_cache cache(_engine, {}, program_id);
 
         for (auto it = batch_start; it < batch_end; it++) {
             auto kernel_id = cache.set_kernel_source(it->kernels[0].code.kernelString, false);

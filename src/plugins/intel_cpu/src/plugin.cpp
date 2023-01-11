@@ -187,55 +187,40 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         ov::MemBandwidthPressure networkToleranceForLowCache = ov::MemBandwidthPressureTolerance(
             ngraphFunc,
             L2_cache_size, memThresholdAssumeLimitedForISA);
-        // num of phys CPU cores (most aggressive value for #streams)
-        const auto num_cores = getNumberOfCPUCores();
-        // less aggressive
-        const auto num_streams_less_aggressive = num_cores / 2;
-        // default #streams value (most conservative)
-        const auto default_num_streams =
-            engConfig.streamExecutorConfig._threadBindingType ==
-                    InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                ? IStreamsExecutor::Config::GetHybridNumStreams(config, IStreamsExecutor::Config::StreamMode::DEFAULT)
-                : IStreamsExecutor::Config::GetDefaultNumStreams(engConfig.streamExecutorConfig._enable_hyper_thread);
-        int num_streams = default_num_streams;
+        const auto default_streams = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+                                                   IStreamsExecutor::Config::StreamMode::DEFAULT,
+                                                   engConfig.streamExecutorConfig._enable_hyper_thread);
+        auto streams_info = default_streams;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL)
                 || (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                num_streams = engConfig.streamExecutorConfig._threadBindingType ==
-                                      InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                                  ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                        config,
-                                        IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
-                                  : num_cores;
+                streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+                                             IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
+                                             engConfig.streamExecutorConfig._enable_hyper_thread);
             }   // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            num_streams = engConfig.streamExecutorConfig._threadBindingType ==
-                                  InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                    config,
-                                    IStreamsExecutor::Config::StreamMode::AGGRESSIVE)
-                              : num_cores;
+            streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+                                         IStreamsExecutor::Config::StreamMode::AGGRESSIVE,
+                                         engConfig.streamExecutorConfig._enable_hyper_thread);
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            num_streams = engConfig.streamExecutorConfig._threadBindingType ==
-                                  InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
-                              ? IStreamsExecutor::Config::GetHybridNumStreams(
-                                    config,
-                                    IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE)
-                              : std::max(default_num_streams, num_streams_less_aggressive);
+            streams_info = GetNumStreams(engConfig.streamExecutorConfig._threadBindingType,
+                                         IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE,
+                                         engConfig.streamExecutorConfig._enable_hyper_thread);
+            streams_info.num_streams = std::max(default_streams.num_streams, streams_info.num_streams);
         }
         auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
             auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
             if (val > 0)
-                num_streams = std::min(num_streams, val);
-        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  //set thru SetConfig to the plugin, 2nd priority
-            num_streams = std::min(num_streams,
-                                   engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                streams_info.num_streams = std::min(streams_info.num_streams, val);
+        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
+            streams_info.num_streams =
+                std::min(streams_info.num_streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
-        return std::pair<std::string, std::string>(std::to_string(num_streams), ov::util::to_string(num_streams));
+        return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
     auto getPerfHintName = [&]() {
@@ -267,28 +252,105 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     const auto latency_name = std::string(CONFIG_VALUE(LATENCY)) + "_" + std::string(ov::num_streams.name());
     const auto tput_name = std::string(CONFIG_VALUE(THROUGHPUT)) + "_" + std::string(ov::num_streams.name());
     hints_props.insert({latency_name, latency_hints.second});
-    hints_props.insert({tput_name, tput_hints.second});
+    hints_props.insert({tput_name, std::to_string(tput_hints.second.num_streams)});
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
-
-    auto resetHybridParam = [&]() {
-        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(0);
-        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(0);
-        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(0);
-        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] = std::to_string(0);
-        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(0);
-    };
 
     const auto perf_hint_name = getPerfHintName();
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
         config[ov::num_streams.name()] = latency_hints.second;
-        resetHybridParam();
     } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
         config[ov::num_streams.name()] = tput_hints.first;
-    } else {
-        resetHybridParam();
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(tput_hints.second.big_core_streams);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(tput_hints.second.small_core_streams);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(tput_hints.second.threads_per_stream_big);
+        config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
+            std::to_string(tput_hints.second.threads_per_stream_small);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(tput_hints.second.small_core_offset);
     }
+}
+
+Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
+                                        int stream_mode,
+                                        const bool enable_hyper_thread) const {
+    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+    const int num_cores =
+        thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
+            ? parallel_get_max_threads()
+            : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
+                            : getNumberOfCPUCores());
+    const int num_cores_phy = getNumberOfCPUCores();
+    const int num_big_cores_phy = getNumberOfCPUCores(true);
+    const int num_small_cores = num_cores_phy - num_big_cores_phy;
+    const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
+    StreamCfg stream_cfg = {0};
+
+    if (stream_mode == DEFAULT) {
+        // bare minimum of streams (that evenly divides available number of core)
+        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+            if (0 == num_big_cores_phy % 4) {
+                stream_cfg.threads_per_stream_big = 4;
+            } else if (0 == num_big_cores_phy % 5) {
+                stream_cfg.threads_per_stream_big = 5;
+            } else if (0 == num_big_cores_phy % 3) {
+                stream_cfg.threads_per_stream_big = 3;
+            } else {  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+                stream_cfg.threads_per_stream_big = num_big_cores_phy;
+            }
+
+            stream_cfg.big_core_streams = num_big_cores / stream_cfg.threads_per_stream_big;
+            stream_cfg.threads_per_stream_small = stream_cfg.threads_per_stream_big;
+            if (num_small_cores == 0) {
+                stream_cfg.threads_per_stream_small = 0;
+            } else if (num_small_cores < stream_cfg.threads_per_stream_small) {
+                stream_cfg.small_core_streams = 1;
+                stream_cfg.threads_per_stream_small = num_small_cores;
+                stream_cfg.threads_per_stream_big = stream_cfg.threads_per_stream_small;
+                // Balance the computation of physical core and logical core, the number of threads on the physical core
+                // and logical core should be equal
+                stream_cfg.big_core_streams = num_big_cores_phy / stream_cfg.threads_per_stream_big * 2;
+            } else {
+                stream_cfg.small_core_streams = num_small_cores / stream_cfg.threads_per_stream_small;
+            }
+        } else {
+            if (0 == num_cores % 4)
+                stream_cfg.num_streams = std::max(4, num_cores / 4);
+            else if (0 == num_cores % 5)
+                stream_cfg.num_streams = std::max(5, num_cores / 5);
+            else if (0 == num_cores % 3)
+                stream_cfg.num_streams = std::max(3, num_cores / 3);
+            else  // if user disables some cores say in BIOS, so we got weird #cores which is not easy to divide
+                stream_cfg.num_streams = 1;
+        }
+    } else if (stream_mode == AGGRESSIVE) {
+        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+            stream_cfg.big_core_streams = num_big_cores;
+            stream_cfg.small_core_streams = num_small_cores;
+            stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
+            stream_cfg.threads_per_stream_small =
+                num_small_cores == 0 ? 0 : num_small_cores / stream_cfg.small_core_streams;
+        } else {
+            stream_cfg.num_streams = num_cores_phy;
+        }
+    } else if (stream_mode == LESSAGGRESSIVE) {
+        if (thread_binding_type == InferenceEngine::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+            stream_cfg.big_core_streams = num_big_cores / 2;
+            stream_cfg.small_core_streams = num_small_cores / 2;
+            stream_cfg.threads_per_stream_big = num_big_cores / stream_cfg.big_core_streams;
+            stream_cfg.threads_per_stream_small =
+                num_small_cores == 0 ? 0 : num_small_cores / stream_cfg.small_core_streams;
+        } else {
+            stream_cfg.num_streams = num_cores_phy / 2;
+        }
+    } else {
+        IE_THROW() << "Wrong stream mode to get num of streams: " << stream_mode;
+    }
+    stream_cfg.num_streams = stream_cfg.num_streams > 0
+                                 ? stream_cfg.num_streams
+                                 : stream_cfg.big_core_streams + stream_cfg.small_core_streams;
+    stream_cfg.small_core_offset = num_small_cores == 0 ? 0 : num_big_cores;
+    return stream_cfg;
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr
@@ -594,6 +656,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         IE_THROW() << "Only ngraph-based models are supported!";
     }
 
+    auto context =
+        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, std::make_shared<std::mutex>(), false);
+
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
                                            Transformations transformation(model, enableLPT, enableSnippets, conf.enforceBF16, isLegacyAPI(), engConfig);
@@ -603,7 +668,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
                                            std::unique_ptr<Node> ptr;
                                            try {
-                                               ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                                               ptr.reset(Node::factory().create(op, context));
                                            } catch (const InferenceEngine::Exception&) {
                                                return false;
                                            }
