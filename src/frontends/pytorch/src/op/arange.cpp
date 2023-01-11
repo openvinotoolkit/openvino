@@ -59,7 +59,7 @@ OutputVector translate_arange(NodeContext& context) {
         step = context.get_input(2);
         out_tensor = end;
         if (!context.input_is_none(3)) {
-            dtype = convert_dtype(context, 2);
+            dtype = convert_dtype(context, 3);
             dtype_applied = true;
         }
     }
