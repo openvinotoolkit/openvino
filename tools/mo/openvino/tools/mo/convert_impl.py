@@ -219,6 +219,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
             ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
         argv.data_type = 'FP32'
+        argv.compress_fp16 = True
     else:
         argv.compress_fp16 = False
 
