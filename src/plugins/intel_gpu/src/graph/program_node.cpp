@@ -1134,16 +1134,6 @@ void program_node::init_onednn_primitive_attributes() {
             memory_offset++;
     };
 
-    auto cant_use_dst_scales = [&](size_t idx, size_t post_ops_size, data_types in_data_type, layout in_layout) {
-        return true;    // TODO check- scale dst issue
-        // return (idx != post_ops_size -1 ||
-        //         in_layout.count() > 1 ||
-        //         is_type<pooling>() ||
-        //         is_type<reduce>() ||
-        //         (is_type<convolution>() && data_type_traits::is_floating_point(in_data_type)) ||
-        //         (is_type<deconvolution>() && data_type_traits::is_floating_point(in_data_type)));
-    };
-
     int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
         auto& desc = cldnn_post_ops[idx];
@@ -1207,6 +1197,7 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::binary_sub, dep_idx);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
 <<<<<<< HEAD
+<<<<<<< HEAD
                 dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
@@ -1222,6 +1213,11 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
                 }
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
+                post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
+                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
+>>>>>>> 0903198ab7 (Remove setting dst scale)
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
@@ -1246,6 +1242,7 @@ void program_node::init_onednn_primitive_attributes() {
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
 <<<<<<< HEAD
+<<<<<<< HEAD
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
@@ -1260,6 +1257,11 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
                             }
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
+>>>>>>> 0903198ab7 (Remove setting dst scale)
                         }
 
                         if (q_param->has_pre_shift) {
@@ -1359,6 +1361,7 @@ void program_node::init_onednn_primitive_attributes() {
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
 <<<<<<< HEAD
+<<<<<<< HEAD
                             dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
@@ -1375,6 +1378,11 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
                             }
 >>>>>>> 2388ca972e ([GPU] The draft for integration oneDNN3.0)
+=======
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
+>>>>>>> 0903198ab7 (Remove setting dst scale)
                         }
 
                         if (q_param->has_pre_shift) {
