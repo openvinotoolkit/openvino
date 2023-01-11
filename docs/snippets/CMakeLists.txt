@@ -24,7 +24,7 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 find_package(OpenCL)
 find_path(OpenCL_HPP_INCLUDE_DIR
     NAMES
-      CL/cl2.hpp OpenCL/cl2.hpp
+      CL/opencl.hpp OpenCL/opencl.hpp
     HINTS
       ${opencl_root_hints}
       ENV "PROGRAMFILES(X86)"

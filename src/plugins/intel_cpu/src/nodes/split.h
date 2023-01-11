@@ -14,7 +14,7 @@ namespace node {
 
 class Split : public Node {
 public:
-    Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -31,7 +31,6 @@ public:
 
     bool needPrepareParams() const override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
 private:

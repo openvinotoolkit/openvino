@@ -73,9 +73,9 @@ TEST_P(format_mismatch_fusing, single_fused_node) {
         // Fused eltwise contains format mismatch between data input of resample(input_format) and fused eltwise input(default_format)
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(get_default_layout(p), -10, 10)),
-        resample("resample_opt", "input", p.out_shape, 1, p.type),
-        eltwise("eltwise", { "eltwise_data", "resample_opt" }, eltwise_mode::sum),
-        reorder("reorder_bfyx", "eltwise", p.output_format, data_types::f32)
+        resample("resample_opt", input_info("input"), p.out_shape, 1, p.type),
+        eltwise("eltwise", { input_info("eltwise_data"), input_info("resample_opt") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.output_format, data_types::f32)
     );
 
     implementation_desc resample_impl = { p.input_format, "resample_opt" };
@@ -105,11 +105,11 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         data("eltwise_data", get_mem(get_default_layout(p), -10, 10)),
-        resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
-        eltwise("scale", { "resample_prim", "scale_data" }, eltwise_mode::prod, p.default_type),
-        activation("activation", "scale", activation_func::abs),
-        eltwise("eltwise", { "activation", "eltwise_data" }, eltwise_mode::sum),
-        reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+        resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+        eltwise("scale", { input_info("resample_prim"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
+        activation("activation", input_info("scale"), activation_func::abs),
+        eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
     implementation_desc resample_impl = { p.input_format, "resample_opt" };

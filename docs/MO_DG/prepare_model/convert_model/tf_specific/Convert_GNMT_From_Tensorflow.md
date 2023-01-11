@@ -198,7 +198,7 @@ tgt_vocab_size -= 1
 ```sh
 mo
 --input_model /path/to/dump/model/frozen_GNMT_inference_graph.pb
---input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1 50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
+--input "IteratorGetNext:1{i32}[1],IteratorGetNext:0{i32}[1,50],dynamic_seq2seq/hash_table_Lookup_1:0[1]->[2],dynamic_seq2seq/hash_table_Lookup:0[1]->[1]"
 --output dynamic_seq2seq/decoder/decoder/GatherTree
 --output_dir /path/to/output/IR/
 ```
@@ -273,4 +273,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to the [OpenVINO Runtime Python API](https://docs.openvino.ai/2022.2/api/api_reference.html) guide.
+For more information about Python API, refer to the [OpenVINO Runtime Python API](https://docs.openvino.ai/latest/api/api_reference.html) guide.

@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Normalizes results so they sum to 1.
 /// @details
@@ -30,10 +23,10 @@ struct softmax : public primitive_base<softmax> {
     /// @param input Input primitive id.
     /// @param dimension Defines a scope of normalization
     softmax(const primitive_id& id,
-            const primitive_id& input,
+            const input_info& input,
             const int64_t dimension = 1,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), dimension(dimension) {}
+        : primitive_base(id, {input}, {output_padding}), dimension(dimension) {}
 
     /// @brief Defines a scope of a single softmax normalization.
     /// @details
@@ -46,7 +39,4 @@ struct softmax : public primitive_base<softmax> {
 
     int64_t dimension;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

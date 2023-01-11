@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/condition.hpp"
@@ -43,8 +42,8 @@ private:
                 _topology.add_primitive(std::make_shared<input_layout>(input_id, layout));
                 for (auto& prim : _topology.get_primitives()) {
                     for (auto& inp : prim.second->input) {
-                        if (inp == node.id())
-                            inp = input_id;
+                        if (inp.pid == node.id())
+                            inp.pid = input_id;
                     }
                 }
             } else {

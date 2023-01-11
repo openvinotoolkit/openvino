@@ -41,8 +41,11 @@ bool ScatterUpdate::isExecutable() const {
     return !isInputTensorAtPortEmpty(DATA_ID);
 }
 
-ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache), dataSize(0lu), indicesSize(0lu), axisSize(0lu), dataPrec(Precision::UNSPECIFIED), indicesPrec(Precision::UNSPECIFIED),
+ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+          dataSize(0lu), indicesSize(0lu), axisSize(0lu),
+          dataPrec(Precision::UNSPECIFIED),
+          indicesPrec(Precision::UNSPECIFIED),
           axisPrec(Precision::UNSPECIFIED) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {

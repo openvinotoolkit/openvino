@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <limits>
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select method for coding the prior-boxes in the @ref detection output layer.
 enum class prior_box_code_type : int32_t {
@@ -44,9 +37,9 @@ struct detection_output : public primitive_base<detection_output> {
     /// @param variance_encoded_in_target If true, variance is encoded in target; otherwise we need to adjust the predicted offset accordingly.
     /// @param confidence_threshold Only keep detections with confidences larger than this threshold.
     detection_output(const primitive_id& id,
-                     const primitive_id& input_location,
-                     const primitive_id& input_confidence,
-                     const primitive_id& input_prior_box,
+                     const input_info& input_location,
+                     const input_info& input_confidence,
+                     const input_info& input_prior_box,
                      const uint32_t num_classes,
                      const uint32_t keep_top_k,
                      const bool share_location = true,
@@ -66,7 +59,7 @@ struct detection_output : public primitive_base<detection_output> {
                      const bool clip_before_nms = false,
                      const bool clip_after_nms = false,
                      const padding& output_padding = padding())
-        : primitive_base(id, {input_location, input_confidence, input_prior_box}, output_padding),
+        : primitive_base(id, {input_location, input_confidence, input_prior_box}, {output_padding}),
           num_classes(num_classes),
           keep_top_k(keep_top_k),
           share_location(share_location),
@@ -130,7 +123,4 @@ struct detection_output : public primitive_base<detection_output> {
 protected:
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -43,8 +43,14 @@ class TestUpsample2D(PytorchLayerTest):
         ('bilinear', (128, 480), None),
         ('bilinear', None, 2.5,), 
         ('bilinear', None, 0.75),
-        ('bilinear', None, (1.2, 0.8))]
+        ('bilinear', None, (1.2, 0.8)),
+        ('bicubic', 300, None),
+        ('bicubic', 200, None), 
+        ('bicubic', (128, 480), None),
+        ('bicubic', None, 2.5,), 
+        ('bicubic', None, 0.75),
+        ('bicubic', None, (1.2, 0.8))]
     )
     @pytest.mark.nightly
-    def test_upsample_nearest2d(self, mode, size, scale, ie_device, precision, ir_version):
+    def test_upsample(self, mode, size, scale, ie_device, precision, ir_version):
         self._test(*self.create_model(size, scale, mode), ie_device, precision, ir_version, trace_model=True)

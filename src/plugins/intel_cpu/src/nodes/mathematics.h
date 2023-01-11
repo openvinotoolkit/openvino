@@ -13,14 +13,13 @@ namespace node {
 
 class Math : public Node {
 public:
-    Math(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Math(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
 
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(dnnl::stream strm) override;
 

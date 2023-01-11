@@ -16,7 +16,7 @@ namespace node {
 
 class SoftMax : public Node {
 public:
-    SoftMax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    SoftMax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -28,7 +28,6 @@ public:
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     size_t axis = 0;

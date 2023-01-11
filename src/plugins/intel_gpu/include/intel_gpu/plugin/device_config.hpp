@@ -24,20 +24,15 @@ struct Config {
                                           useProfiling(false),
                                           dumpCustomKernels(false),
                                           exclusiveAsyncRequests(false),
-                                          memory_pool_on(true),
                                           enableDynamicBatch(false),
                                           enableInt8(true),
                                           nv12_two_inputs(false),
-                                          enable_fp16_for_quantized_models(true),
                                           queuePriority(cldnn::priority_mode_types::med),
                                           queueThrottle(cldnn::throttle_mode_types::med),
                                           max_dynamic_batch(1),
                                           customLayers({}),
-                                          tuningConfig(),
-                                          graph_dumps_dir(""),
-                                          sources_dumps_dir(""),
                                           kernels_cache_dir(""),
-                                          inference_precision(ov::element::undefined),
+                                          inference_precision(ov::element::f16),
                                           task_exec_config({"GPU plugin internal task executor",                        // name
                                                     std::max(1, static_cast<int>(std::thread::hardware_concurrency())), // # of streams
                                                     1,                                                                  // # of threads per streams
@@ -58,7 +53,7 @@ struct Config {
     uint32_t GetDefaultNStreamsForThroughputMode() const {
         return 2;
     }
-    void UpdateFromMap(const std::map<std::string, std::string>& configMap);
+    void UpdateFromMap(const std::map<std::string, std::string>& configMap, const cldnn::device_info& info);
     void adjustKeyMapValues();
     static bool isNewApiProperty(std::string property);
     static std::string ConvertPropertyToLegacy(const std::string& key, const std::string& value);
@@ -70,18 +65,13 @@ struct Config {
     bool useProfiling;
     bool dumpCustomKernels;
     bool exclusiveAsyncRequests;
-    bool memory_pool_on;
     bool enableDynamicBatch;
     bool enableInt8;
     bool nv12_two_inputs;
-    bool enable_fp16_for_quantized_models;
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;
     CustomLayerMap customLayers;
-    cldnn::tuning_config_options tuningConfig;
-    std::string graph_dumps_dir;
-    std::string sources_dumps_dir;
     std::string kernels_cache_dir;
     ov::element::Type inference_precision;
     InferenceEngine::IStreamsExecutor::Config task_exec_config;

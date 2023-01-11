@@ -12,20 +12,14 @@ using namespace std;
 using namespace ngraph;
 
 snippets::op::BroadcastLoad::BroadcastLoad(const Output<Node>& x, Shape shape)
-: BroadcastMove(x, shape), broadcast_info(x.get_shape().size(), 0) {
+: BroadcastMove(x, shape) {
     constructor_validate_and_infer_types();
-}
-
-bool snippets::op::BroadcastLoad::visit_attributes(AttributeVisitor& visitor) {
-    return true;
 }
 
 std::shared_ptr<Node> snippets::op::BroadcastLoad::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BroadcastLoad);
     check_new_args_count(this, new_args);
-    auto other = std::make_shared<BroadcastLoad>(new_args.at(0), output_shape);
-    other->set_broadcast_info(this->broadcast_info);
-    return other;
+    return std::make_shared<BroadcastLoad>(new_args.at(0), output_shape);
 }
 
 void snippets::op::BroadcastLoad::validate_and_infer_types() {

@@ -32,7 +32,8 @@ public:
     static std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
             TransformationContext& context,
             MatcherPass* matcherPass,
-            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize);
+            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize,
+            const bool updatePrecisions);
 };
 
 } // namespace low_precision

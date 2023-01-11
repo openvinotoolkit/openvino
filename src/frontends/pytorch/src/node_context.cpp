@@ -59,7 +59,11 @@ std::string NodeContext::const_input<std::string>(size_t index) const {
     OV_FRONTEND_REQUIRE(!input_is_none(index));
     auto input_node = get_input_from_visible_context(index).get_node_shared_ptr();
     auto input = std::dynamic_pointer_cast<PtFrameworkNode>(input_node);
-    FRONT_END_GENERAL_CHECK(input, "Input node with index ", index, " cannot be interpreted as FrameworkNode with string constant: ", input_node);
+    FRONT_END_GENERAL_CHECK(input,
+                            "Input node with index ",
+                            index,
+                            " cannot be interpreted as FrameworkNode with string constant: ",
+                            input_node);
     return input->get_decoder()->as_string();
 }
 

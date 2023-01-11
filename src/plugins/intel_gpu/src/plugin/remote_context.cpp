@@ -4,8 +4,8 @@
 
 #include <memory>
 #include "intel_gpu/plugin/remote_context.hpp"
-#include "intel_gpu/plugin/itt.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 
 using namespace InferenceEngine;
@@ -36,16 +36,16 @@ RemoteBlobImpl::RemoteBlobImpl(ClContext::Ptr context,
     , _handle(nullptr)
     , _allocator(nullptr) {
     auto _impl = getContextImpl(m_context.lock());
-    auto eng = _impl->GetEngine();
+    m_engine = _impl->GetEngine();
 
     // Verify shared buffer/usm memory and ensure that requested byte size is not greater than allocated one
     switch (m_mem_type) {
     case BlobType::BT_BUF_SHARED: {
-        eng->share_buffer(m_layout, m_mem);
+        m_engine->share_buffer(m_layout, m_mem);
         break;
     }
     case BlobType::BT_USM_SHARED: {
-        eng->share_usm(m_layout, m_mem);
+        m_engine->share_usm(m_layout, m_mem);
         break;
     }
     default: break;
@@ -130,53 +130,51 @@ void RemoteBlobImpl::allocate() {
     assert(m_memObject == nullptr);
 
     auto _impl = getContextImpl(m_context.lock());
-    _impl->acquire_lock();
-    std::shared_ptr<cldnn::engine> eng = _impl->GetEngine();
+    std::lock_guard<ExecutionContextImpl> locker(*_impl);
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
-        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
+        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
         break;
     }
     case BlobType::BT_USM_HOST_INTERNAL: {
-        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
+        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
         break;
     }
     case BlobType::BT_USM_DEVICE_INTERNAL: {
-        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
+        m_memObject = m_engine->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
         break;
     }
     case BlobType::BT_BUF_SHARED: {
-        m_memObject = eng->share_buffer(m_layout, m_mem);
+        m_memObject = m_engine->share_buffer(m_layout, m_mem);
         break;
     }
     case BlobType::BT_USM_SHARED: {
-        m_memObject = eng->share_usm(m_layout, m_mem);
+        m_memObject = m_engine->share_usm(m_layout, m_mem);
         break;
     }
 #ifdef _WIN32
     case BlobType::BT_SURF_SHARED: {
-        m_memObject = eng->share_surface(m_layout, m_mem, m_plane);
+        m_memObject = m_engine->share_surface(m_layout, m_mem, m_plane);
         break;
     }
     case BlobType::BT_DX_BUF_SHARED: {
-        m_memObject = eng->share_dx_buffer(m_layout, m_mem);
+        m_memObject = m_engine->share_dx_buffer(m_layout, m_mem);
         break;
     }
 #else
     case BlobType::BT_SURF_SHARED: {
-        m_memObject = eng->share_surface(m_layout, m_surf, m_plane);
+        m_memObject = m_engine->share_surface(m_layout, m_surf, m_plane);
         break;
     }
 #endif
     case BlobType::BT_IMG_SHARED: {
-        m_memObject = eng->share_image(m_layout, m_mem);
+        m_memObject = m_engine->share_image(m_layout, m_mem);
         break;
     }
     default:
         m_memObject.reset();
     }
-    _impl->release_lock();
 }
 
 const std::shared_ptr<IAllocator>& RemoteBlobImpl::getAllocator() const noexcept {
@@ -270,22 +268,20 @@ LockedMemory<void> RemoteBlobImpl::wmap() noexcept {
 }
 
 void RemoteAllocator::regLockedBlob(void* handle, const RemoteBlobImpl* blob) {
-    acquire_lock();
+    std::lock_guard<RemoteAllocator> locker(*this);
     auto iter = m_lockedBlobs.find(handle);
     if (iter == m_lockedBlobs.end()) {
         m_lockedBlobs.emplace(handle, blob);
     }
-    release_lock();
 }
 
 void RemoteAllocator::unlock(void* handle) noexcept {
-    acquire_lock();
+    std::lock_guard<RemoteAllocator> locker(*this);
     auto iter = m_lockedBlobs.find(handle);
     if (iter != m_lockedBlobs.end()) {
         iter->second->unlock();
         m_lockedBlobs.erase(iter);
     }
-    release_lock();
 }
 
 ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugin> plugin,
@@ -296,7 +292,7 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
         , m_config(config)
         , m_type(ContextType::OCL)
         , m_plugin(plugin) {
-    lock.clear(std::memory_order_relaxed);
+    m_lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
     int ctx_device_id = 0;
@@ -340,19 +336,15 @@ ExecutionContextImpl::ExecutionContextImpl(const std::shared_ptr<IInferencePlugi
         iter = device_map.begin();
     auto& dev = iter->second;
 
-    bool enable_profiling = (m_config.useProfiling ||
-                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-
     auto engine_params = Plugin::GetParams(m_config, dev, m_external_queue);
     m_engine = cldnn::engine::create(engine_params.engine_type,
                                      engine_params.runtime_type, dev,
-                                     cldnn::engine_configuration(enable_profiling,
+                                     cldnn::engine_configuration(m_config.useProfiling,
                                          engine_params.queue_type,
-                                         m_config.sources_dumps_dir,
+                                         std::string(),
                                          m_config.queuePriority,
                                          m_config.queueThrottle,
-                                         m_config.memory_pool_on,
+                                         true,
                                          engine_params.use_unified_shared_memory,
                                          m_config.kernels_cache_dir,
                                          m_config.throughput_streams),

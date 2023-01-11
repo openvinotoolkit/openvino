@@ -327,8 +327,8 @@ bool ExtractImagePatchesKey::operator==(const ExtractImagePatchesKey& rhs) const
 }
 }  // namespace
 
-ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -398,7 +398,7 @@ void ExtractImagePatches::prepareParams() {
                                                                     key.prcSize);
         }
     };
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }

@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if defined(__unix__) && !defined(__ANDROID__)
+#include <malloc.h>
+#endif
+
 #include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -305,6 +309,14 @@ void Program::CleanupBuild() {
     m_topology.reset();
     m_networkInputs.clear();
     m_networkOutputs.clear();
+    #if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+    malloc_trim(0);
+    #endif
 }
 
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
@@ -314,9 +326,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
     cldnn::build_options options;
 
-    if (!m_config.graph_dumps_dir.empty()) {
-        options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
-    }
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
             allow_new_shape_infer = true;
@@ -326,13 +335,15 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
 
     options.set_option(cldnn::build_option::allow_new_shape_infer(allow_new_shape_infer));
     options.set_option(cldnn::build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::tuning_config(m_config.tuningConfig));
     if (partialBuild) {
         options.set_option(cldnn::build_option::partial_build_program(true));
     }
     PrepareBuild(networkInputs, networkOutputs);
-    for (const auto& op : ops) {
-        CreateSingleLayerPrimitive(*m_topology, op);
+    {
+        GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        for (const auto& op : ops) {
+            CreateSingleLayerPrimitive(*m_topology, op);
+        }
     }
     if (createTopologyOnly) {
         return {};
@@ -379,11 +390,8 @@ bool Program::IsOpSupported(const InferenceEngine::CNNNetwork& network, const st
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateSingleLayerPrimitive");
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
-                       << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
-    }
+    GPU_DEBUG_LOG << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+                  << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
 
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
@@ -410,16 +418,22 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     }
 }
 
-std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const {
+std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const {
     if (!op) {
         return {};
     }
 
-    std::vector<cldnn::primitive_id> inputPrimitives;
+    // Currently multiple outputs are supported only in the dynamic shape case,
+    // So the output index of the dependency is not processed
+    std::vector<cldnn::input_info> inputInfo;
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
-        if (prevOp->get_output_size() > 1 && !allow_new_shape_infer) {
+        bool is_legacy_multiple_outputs = !allow_new_shape_infer
+                                          // Note:: Currently Split/Variadic Split are divided to multiple crops
+                                          || ngraph::is_type<ngraph::op::v1::Split>(prevOp)
+                                          || ngraph::is_type<ngraph::op::v1::VariadicSplit>(prevOp);
+        if (prevOp->get_output_size() > 1 && is_legacy_multiple_outputs) {
             prevName += ".out" + std::to_string(op->get_input_source_output(i).get_index());
         }
 
@@ -427,12 +441,12 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputPrimitives.push_back(primitive_ids.at(prevName));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: op->get_input_source_output(i).get_index()));
         } else {
-            inputPrimitives.push_back(prevName);
+            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : op->get_input_source_output(i).get_index()));
         }
     }
-    return inputPrimitives;
+    return inputInfo;
 }
 
 void Program::init_profile_info(const cldnn::primitive& prim) {

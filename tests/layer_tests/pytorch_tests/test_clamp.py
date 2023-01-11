@@ -30,7 +30,7 @@ class TestClamp(PytorchLayerTest):
         op_name = "aten::clamp"
         return aten_clamp(minimum, maximum, as_tensors), ref_net, op_name
 
-    @pytest.mark.parametrize("minimum,maximum", [(0., 1.), (-0.5, 1.5), (None, 10.), (None, -10.), (10., None), (-10., None)])
+    @pytest.mark.parametrize("minimum,maximum", [(0., 1.), (-0.5, 1.5), (None, 10.), (None, -10.), (10., None), (-10., None), (100, 200)])
     @pytest.mark.parametrize("as_tensors", [True, False])
     @pytest.mark.nightly
     def test_clamp(self, minimum, maximum, as_tensors, ie_device, precision, ir_version):

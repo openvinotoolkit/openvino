@@ -7,14 +7,13 @@
 #include <ie_system_conf.h>
 #include <sys/stat.h>
 
-#include <cldnn/cldnn_config.hpp>
 #include <gpu/gpu_config.hpp>
 #include <thread>
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "file_utils.h"
 #include "ie_api.h"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include <openvino/util/common_util.hpp>
 
@@ -61,7 +60,7 @@ static int getNumberOfCores(const IStreamsExecutor::Config::PreferredCoreType co
 }
 
 IE_SUPPRESS_DEPRECATED_START
-void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) {
+void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap, const cldnn::device_info& info) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Config::UpdateFromMap");
     for (auto& kvp : configMap) {
         std::string key = kvp.first;
@@ -92,16 +91,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
-        } else if (key.compare(PluginConfigParams::KEY_DUMP_KERNELS) == 0) {
-            if (val.compare(PluginConfigParams::YES) == 0) {
-                dumpCustomKernels = true;
-            } else if (val.compare(PluginConfigParams::NO) == 0) {
-                dumpCustomKernels = false;
-            } else {
-                IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
-            }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) == 0 ||
-                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
@@ -160,8 +150,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 task_exec_config._streams =
                     std::min(task_exec_config._streams, static_cast<int>(std::thread::hardware_concurrency()));
             }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) == 0 ||
-                   key.compare(CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE) == 0) {
             std::stringstream ss(val);
             uint32_t uVal(0);
             ss >> uVal;
@@ -200,44 +189,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             for (auto& file : configFiles) {
                 CustomLayer::LoadFromFile(file, customLayers);
             }
-        } else if (key.compare(PluginConfigParams::KEY_TUNING_MODE) == 0) {
-            if (val.compare(PluginConfigParams::TUNING_DISABLED) == 0) {
-                tuningConfig.mode = cldnn::tuning_mode::tuning_disabled;
-            } else if (val.compare(PluginConfigParams::TUNING_CREATE) == 0) {
-                tuningConfig.mode = cldnn::tuning_mode::tuning_tune_and_cache;
-            } else if (val.compare(PluginConfigParams::TUNING_USE_EXISTING) == 0) {
-                tuningConfig.mode = cldnn::tuning_mode::tuning_use_cache;
-            } else if (val.compare(PluginConfigParams::TUNING_UPDATE) == 0) {
-                tuningConfig.mode = cldnn::tuning_mode::tuning_use_and_update;
-            } else if (val.compare(PluginConfigParams::TUNING_RETUNE) == 0) {
-                tuningConfig.mode = cldnn::tuning_mode::tuning_retune_and_cache;
-            } else {
-                IE_THROW(NotFound) << "Unsupported tuning mode value by plugin: " << val;
-            }
-        } else if (key.compare(PluginConfigParams::KEY_TUNING_FILE) == 0) {
-            tuningConfig.cache_file_path = val;
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_MEM_POOL) == 0) {
-            if (val.compare(PluginConfigParams::YES) == 0) {
-                memory_pool_on = true;
-            } else if (val.compare(PluginConfigParams::NO) == 0) {
-                memory_pool_on = false;
-            } else {
-                IE_THROW(NotFound) << "Unsupported memory pool flag value: " << val;
-            }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR) == 0) {
-            if (!val.empty()) {
-                graph_dumps_dir = val;
-                createDirectory(graph_dumps_dir);
-            }
         } else if (key.compare(PluginConfigParams::KEY_CACHE_DIR) == 0 || key == ov::cache_dir) {
             if (!val.empty()) {
                 kernels_cache_dir = val;
                 createDirectory(kernels_cache_dir);
-            }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR) == 0) {
-            if (!val.empty()) {
-                sources_dumps_dir = val;
-                createDirectory(sources_dumps_dir);
             }
         } else if (key.compare(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
@@ -250,7 +205,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
         } else if (key.compare(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS) == 0 || key == ov::num_streams) {
             if (val.compare(PluginConfigParams::GPU_THROUGHPUT_AUTO) == 0 ||
                 val.compare(ov::util::to_string(ov::streams::AUTO)) == 0) {
-                throughput_streams = GetDefaultNStreamsForThroughputMode();
+                throughput_streams = std::max(GetDefaultNStreamsForThroughputMode(), info.num_ccs);
             } else {
                 int val_i;
                 try {
@@ -282,22 +237,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 IE_THROW(NotFound) << "Unsupported property value by plugin: " << val;
             }
-        } else if (key.compare(GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS) == 0 ||
-                   key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
+        } else if (key.compare(GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 nv12_two_inputs = true;
             } else if (val.compare(PluginConfigParams::NO) == 0) {
                 nv12_two_inputs = false;
             } else {
                 IE_THROW(NotFound) << "Unsupported NV12 flag value: " << val;
-            }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS) == 0) {
-            if (val.compare(PluginConfigParams::YES) == 0) {
-                enable_fp16_for_quantized_models = true;
-            } else if (val.compare(PluginConfigParams::NO) == 0) {
-                enable_fp16_for_quantized_models = false;
-            } else {
-                IE_THROW(NotFound) << "Unsupported KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS flag value: " << val;
             }
         } else if (key.compare(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS) == 0 || key == ov::compilation_num_threads) {
             int max_threads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()));
@@ -353,20 +299,10 @@ void Config::adjustKeyMapValues() {
         key_config_map[ov::enable_profiling.name()] = PluginConfigParams::NO;
     }
 
-    if (dumpCustomKernels)
-        key_config_map[PluginConfigParams::KEY_DUMP_KERNELS] = PluginConfigParams::YES;
-    else
-        key_config_map[PluginConfigParams::KEY_DUMP_KERNELS] = PluginConfigParams::NO;
-
     if (exclusiveAsyncRequests)
         key_config_map[PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS] = PluginConfigParams::YES;
     else
         key_config_map[PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS] = PluginConfigParams::NO;
-
-    if (memory_pool_on)
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_MEM_POOL] = PluginConfigParams::YES;
-    else
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_MEM_POOL] = PluginConfigParams::NO;
 
     if (enableDynamicBatch)
         key_config_map[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::YES;
@@ -374,17 +310,10 @@ void Config::adjustKeyMapValues() {
         key_config_map[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::NO;
 
     if (nv12_two_inputs) {
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::YES;
         key_config_map[GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS] = PluginConfigParams::YES;
     } else {
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::NO;
         key_config_map[GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS] = PluginConfigParams::NO;
     }
-
-    if (enable_fp16_for_quantized_models)
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::YES;
-    else
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_ENABLE_FP16_FOR_QUANTIZED_MODELS] = PluginConfigParams::NO;
 
     key_config_map[ov::hint::inference_precision.name()] = inference_precision.get_type_name();
 
@@ -420,7 +349,6 @@ void Config::adjustKeyMapValues() {
         default:
             break;
         }
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_PRIORITY] = qp;
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_PRIORITY] = qp;
     }
     {
@@ -448,7 +376,6 @@ void Config::adjustKeyMapValues() {
         default:
             break;
         }
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_PLUGIN_THROTTLE] = qt;
         key_config_map[GPUConfigParams::KEY_GPU_PLUGIN_THROTTLE] = qt;
     }
     {
@@ -471,30 +398,7 @@ void Config::adjustKeyMapValues() {
             hostTaskPriority = ov::util::to_string(ov::hint::Priority::MEDIUM);
         key_config_map[ov::intel_gpu::hint::host_task_priority.name()] = hostTaskPriority;
     }
-    {
-        std::string tm = PluginConfigParams::TUNING_DISABLED;
-        switch (tuningConfig.mode) {
-        case cldnn::tuning_mode::tuning_tune_and_cache:
-            tm = PluginConfigParams::TUNING_CREATE;
-            break;
-        case cldnn::tuning_mode::tuning_use_cache:
-            tm = PluginConfigParams::TUNING_USE_EXISTING;
-            break;
-        case cldnn::tuning_mode::tuning_use_and_update:
-            tm = PluginConfigParams::TUNING_UPDATE;
-            break;
-        case cldnn::tuning_mode::tuning_retune_and_cache:
-            tm = PluginConfigParams::TUNING_RETUNE;
-            break;
-        default:
-            break;
-        }
-        key_config_map[PluginConfigParams::KEY_TUNING_MODE] = tm;
-        key_config_map[PluginConfigParams::KEY_TUNING_FILE] = tuningConfig.cache_file_path;
-    }
 
-    key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
-    key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
     key_config_map[PluginConfigParams::KEY_CACHE_DIR] = kernels_cache_dir;
     key_config_map[ov::cache_dir.name()] = kernels_cache_dir;
 
@@ -560,12 +464,8 @@ bool Config::CanShareContextWith(const Config& other) const {
     return this->throughput_streams == other.throughput_streams &&
            this->useProfiling == other.useProfiling &&
            this->dumpCustomKernels == other.dumpCustomKernels &&
-           this->memory_pool_on == other.memory_pool_on &&
            this->queueThrottle == other.queueThrottle &&
            this->queuePriority == other.queuePriority &&
-           this->sources_dumps_dir == other.sources_dumps_dir &&
-           this->tuningConfig.mode == other.tuningConfig.mode &&
-           this->tuningConfig.cache_file_path == other.tuningConfig.cache_file_path &&
            this->kernels_cache_dir == other.kernels_cache_dir &&
            this->device_id == other.device_id &&
            this->task_exec_config._streams == other.task_exec_config._streams &&

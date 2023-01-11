@@ -23,13 +23,13 @@ ParamsKey SoftmaxKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableDynamicShapesSupport();
 
     return k;
 }
 
-SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softmax_params& params,
-                                                                    const optional_params& optParams) const {
-    auto dispatchData = Parent::SetDefault(params, optParams);
+SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softmax_params& params) const {
+    auto dispatchData = Parent::SetDefault(params);
 
     dispatchData.gws = GetSoftmaxDimGlobalSizes(params.dim, params.outputs[0]);
 

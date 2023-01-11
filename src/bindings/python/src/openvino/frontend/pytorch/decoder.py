@@ -69,6 +69,8 @@ pt_to_ov_type_map = {
     'int': OVType.i32,
     'torch.float32': OVType.f32,
     'torch.int32': OVType.i32,
+    "torch.bool": OVType.boolean,
+    "torch.int64": OVType.i64,
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
@@ -80,6 +82,7 @@ pt_to_py_type_map = {
     'int': 'int',
     'torch.float32': 'float',
     'torch.int32': 'int',
+    'torch.int64': 'int',
     'torch.bool': 'bool'
 }
 
@@ -306,7 +309,7 @@ class TorchScriptPythonDecoder (Decoder):
                 ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
             except:
                 print("[ WARNING ] Tensor couldn't detach")
-            if str(pt_value.type().dtype()) in pt_to_py_type_map:
+            if str(pt_value.type().dtype()) in pt_to_ov_type_map:
                 # Constant interpretation doesn't respect new-full type of PT
                 # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
                 # So only tensor-type constants are supported

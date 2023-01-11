@@ -42,12 +42,12 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
     auto mem = p.GetEngine().allocate_memory(output_layout);
-    auto md = cldnn::mutable_data(id, {input}, mem); // cldnn::data cannot set dependency
+    auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
     return md;
 }
 
 static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorIterator> &op) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
 
     // get body topology from ngraph function
     InferenceEngine::CNNNetwork body_network(op->get_body());
@@ -67,7 +67,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 
     // set input mapping & back edges
     for (const auto& loop_input_desc : loop_input_descs) {
-        const cldnn::primitive_id& external_id = inputPrimitives.at(loop_input_desc->m_input_index);
+        const cldnn::primitive_id& external_id = inputs.at(loop_input_desc->m_input_index).pid;
         auto& body_input = body_inputs.at(loop_input_desc->m_body_parameter_index);
         cldnn::primitive_id internal_id = layer_type_name_ID(body_input);
 
@@ -98,7 +98,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
                 const auto from_prim = body_topology.at(from_id);
                 const auto& to_ngraph_type = to->get_element_type();
                 const auto to_cldnn_type = cldnn::element_type_to_data_type(to_ngraph_type);
-                from_prim->output_data_type = to_cldnn_type;
+                from_prim->output_data_types = {to_cldnn_type};
             }
             back_edges.emplace_back(from_id, to_id);
         }
@@ -163,7 +163,7 @@ static void CreateTensorIteratorOp(Program &p, const std::shared_ptr<TensorItera
 
     const cldnn::loop loopPrimitive(
         layerName,              /* layer name of this primitive (output id) */
-        inputPrimitives,        /* inputs of this layer */
+        inputs,        /* inputs of this layer */
         body_topology,          /* body network */
         trip_count_id,          /* trip_count data in outer network, always same as num_iterations in TI */
         execution_condition_id, /* initial_execution_condition data in outer network, always true in TI */

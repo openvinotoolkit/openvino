@@ -25,7 +25,7 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<non_max_suppression>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<non_max_suppression>& instance) const override {
         kernel_arguments_data args;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
@@ -147,7 +147,7 @@ public:
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
 
-        return make_unique<non_max_suppression_impl>(arg, best_kernel);
+        return make_unique<non_max_suppression_impl>(best_kernel);
     }
 
 private:
@@ -213,4 +213,4 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::non_max_suppression_impl, cldnn::object_type::NON_MAX_SUPPRESSION_IMPL_OCL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::non_max_suppression_impl)

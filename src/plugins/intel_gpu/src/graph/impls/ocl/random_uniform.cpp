@@ -61,4 +61,4 @@ attach_random_uniform_impl::attach_random_uniform_impl() {
 } // namespace ocl
 } // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl, cldnn::object_type::RANDOM_UNIFORM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl)

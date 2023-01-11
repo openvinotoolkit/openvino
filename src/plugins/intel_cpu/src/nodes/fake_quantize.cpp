@@ -914,8 +914,8 @@ struct FakeQuantKey {
 };
 }  // namespace
 
-FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
@@ -1433,7 +1433,7 @@ void FakeQuantize::prepareParams() {
         key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
         key.jqp.op_type = getAlgorithm();
 
-        auto cache = getRuntimeCache();
+        auto cache = context->getParamsCache();
         auto buildExecutor = [](const FakeQuantKey& key) {
             return std::make_shared<FakeQuantizeJitExecutor>(key.jqp);
         };

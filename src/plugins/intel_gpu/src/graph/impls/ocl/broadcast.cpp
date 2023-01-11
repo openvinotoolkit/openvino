@@ -28,7 +28,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<broadcast>();
-        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::broadcast_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::broadcast_optional_params>(impl_param.get_program());
 
         const auto format = impl_param.get_output_layout().format;
@@ -51,12 +51,38 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_broadcast_impl::attach_broadcast_impl() {
-    implementation_map<broadcast>::add(impl_types::ocl, typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>, {
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32,
+        data_types::i64
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<broadcast>::add(impl_types::ocl,
+                                       shape_types::dynamic_shape,
+                                       typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>,
+                                       dyn_types,
+                                       dyn_formats);
+
+    implementation_map<broadcast>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<broadcast>::create<broadcast_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
@@ -168,4 +194,4 @@ attach_broadcast_impl::attach_broadcast_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl, cldnn::object_type::BROADCAST_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::broadcast_impl)

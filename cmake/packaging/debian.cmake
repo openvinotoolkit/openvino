@@ -52,6 +52,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
+           # myriad is EOL in 2023.0
+           NOT item STREQUAL "myriad" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -90,8 +92,8 @@ macro(ov_cpack_settings)
         # 2022 release series
         # - 2022.1.0 is the last public release with debian packages from Intel install team
         # - 2022.1.1, 2022.2 do not have debian packages enabled, distributed only as archives
-        # - 2022.3 is the first release where RPM updated packages are introduced
-        2022.1.0)
+        # - 2022.3 is the first release where Debian updated packages are introduced
+        2022.3.0)
 
     #
     # core: base dependency for each component
@@ -181,13 +183,12 @@ macro(ov_cpack_settings)
     endif()
 
     # intel-myriad
-    if(ENABLE_INTEL_MYRIAD)
+    if(ENABLE_INTEL_MYRIAD AND "myriad" IN_LIST CPACK_COMPONENTS_ALL)
         set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU plugin")
         set(CPACK_COMPONENT_MYRIAD_DEPENDS "${OV_CPACK_COMP_CORE}")
         set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-plugin-${cpack_name_ver}")
         set(CPACK_DEBIAN_MYRIAD_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(myriad OFF)
-        # TODO: replace with myriad once copyright is ready
         set(myriad_copyright "generic")
     endif()
 
@@ -317,15 +318,21 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
+    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.27)
+        # Ubuntu 18.04, Debian 9 cases
+        set(json_library "nlohmann-json-dev")
+    else()
+        set(json_library "nlohmann-json3-dev")
+    endif()
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "${OV_CPACK_COMP_CORE_DEV}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, zlib1g-dev, ${json_library}")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")

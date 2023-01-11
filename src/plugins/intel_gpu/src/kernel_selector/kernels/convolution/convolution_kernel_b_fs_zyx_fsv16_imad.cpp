@@ -81,7 +81,7 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
 
     // Use default block parameters for asymmetric weights quantization for devices with immad support due to unoptimized tuning
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) &&
-        params.engineInfo.bIMMADSupport) {
+        params.engineInfo.supports_immad) {
         return test_block_params;
     }
 
@@ -191,7 +191,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateBlockParamsRatio(const con
     auto& output = params.outputs[0];
     float feature_block_32 = static_cast<float>(block.output_block_features == 32);
     float fb32_factor = -5.f;
-    if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.bIMADSupport) {
+    if (params.engineInfo.deviceType == dev_type::discrete_gpu && params.engineInfo.supports_imad) {
         // Known cases where fb32 for discrete GPU works better
         bool fb32_exception_1 = output.X().v % 13 == 0 && output.X().v * output.Feature().v == 13312;
         bool fb32_exception_2 = (output.X().v % 28 == 0 && output.X().v * output.Feature().v == 14336) || (output.X().v == 14 && output.Feature().v == 512);
@@ -379,6 +379,13 @@ ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey Convolution_kernel_b_fs_zyx_fsv16_imad::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
     return GetCommonKernelsData(params, options);
@@ -483,9 +490,6 @@ bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, cons
 
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& conv_params = *static_cast<convolution_params*>(kd.params.get());
-
-    if (conv_params.split != 1)
-        return false;
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
         if ((conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) &&

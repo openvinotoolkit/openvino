@@ -7,12 +7,13 @@
 #include "ocl/ocl_kernel.hpp"
 #include "ocl/ocl_engine.hpp"
 #include "ocl/ocl_common.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/map_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "openvino/util/file_util.hpp"
-#include "serialization/set_serializer.hpp"
-#include "serialization/vector_serializer.hpp"
-#include "serialization/map_serializer.hpp"
-#include "serialization/string_serializer.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -24,7 +25,6 @@
 #include <memory>
 #include <utility>
 
-#include "cldnn_itt.hpp"
 #if defined(__unix__) && !defined(__ANDROID__)
 #include <malloc.h>
 #endif
@@ -89,7 +89,7 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
     for (const auto& code : kernels_source_code) {
@@ -184,7 +184,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 
 // TODO: This build_batch method should be backend specific
 void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::build_batch");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
@@ -239,7 +239,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (precompiled_kernels.empty()) {
             cl::Program program(cl_build_engine.get_cl_context(), batch.source);
             {
-                OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
+                OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildProgram::RunCompilation");
                 if (program.build(cl_build_engine.get_cl_device(), batch.options.c_str()) != CL_SUCCESS)
                     throw std::runtime_error("Failed in building program.");
             }
@@ -299,12 +299,9 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             dump_file << "*/\n";
     }
     if (!err_log.empty()) {
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose) {
-            std::cout << "-------- OpenCL build error" << std::endl;
-            std::cout << err_log << std::endl;
-            std::cout << "-------- End of OpenCL build error" << std::endl;
-        }
+        GPU_DEBUG_INFO << "-------- OpenCL build error" << std::endl;
+        GPU_DEBUG_INFO << err_log << std::endl;
+        GPU_DEBUG_INFO << "-------- End of OpenCL build error" << std::endl;
         std::stringstream err_ss(err_log);
         std::string line;
         int cnt = 0;
@@ -370,7 +367,7 @@ bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
 }
 
 void kernels_cache::build_all() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
     if (!_pending_compilation)
         return;
 
@@ -447,8 +444,17 @@ std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared
     return kernel_ids;
 }
 
+void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels) {
+    OPENVINO_ASSERT(kernel_ids.size() == kernels.size(), "[GPU] The sizes of kernel_ids and kernels are different.");
+
+    for (size_t i = 0; i < kernel_ids.size(); i++) {
+        const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
+        _kernels.insert(kmap);
+    }
+}
+
 void kernels_cache::compile() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
 
     std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
     if (_engine.type() == engine_types::ocl) {
@@ -477,10 +483,7 @@ void kernels_cache::compile() {
 #endif
 }
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] not supported engine type");
-
-    ob << _prog_id;
-    ob << batch_header_str;
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::map<std::string, std::string> entry_point_to_id;
     for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
@@ -534,7 +537,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] not supported engine type");
+    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::unique_ptr<ocl::ocl_engine> build_engine =
         cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
@@ -562,8 +565,6 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                     cl_context cl_context = build_engine->get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
                     _kernels.insert({k_id->second, kernel});
-                } else {
-                    throw std::runtime_error("Could not find entry point");
                 }
             }
         }

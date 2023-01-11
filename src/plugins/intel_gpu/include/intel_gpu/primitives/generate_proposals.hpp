@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief generate proposals
 struct generate_proposals
@@ -36,7 +29,7 @@ struct generate_proposals
     /// @param nms_eta eta parameter for adaptive NMS
     /// @param roi_num_type type of 3rd output elements
     generate_proposals(const primitive_id& id,
-                       const std::vector<primitive_id>& inputs,
+                       const std::vector<input_info>& inputs,
                        float min_size,
                        float nms_threshold,
                        int64_t pre_nms_count,
@@ -45,9 +38,9 @@ struct generate_proposals
                        float nms_eta,
                        const data_types roi_num_type,
                        const padding& output_padding = {}) :
-            primitive_base{id, inputs, output_padding},
-            output_rois_scores{inputs[4]},
-            output_rois_num{inputs[5]},
+            primitive_base{id, inputs, {output_padding}},
+            output_rois_scores{inputs[4].pid},
+            output_rois_num{inputs[5].pid},
             min_size{min_size},
             nms_threshold{nms_threshold},
             pre_nms_count{pre_nms_count},
@@ -76,7 +69,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-# IntervalsAlignment attribute {#openvino_docs_OV_UG_lpt_IntervalsAlignment}
+# IntervalsAlignment Attribute {#openvino_docs_OV_UG_lpt_IntervalsAlignment}
 
 ngraph::IntervalsAlignmentAttribute class represents the `IntervalsAlignment` attribute.
 

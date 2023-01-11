@@ -14,8 +14,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::util::GatherNDBase);
-
 ov::op::util::GatherNDBase::GatherNDBase(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : Op({data, indices}),
       m_batch_dims(batch_dims) {

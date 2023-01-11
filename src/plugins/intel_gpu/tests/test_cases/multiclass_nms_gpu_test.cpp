@@ -137,20 +137,20 @@ public:
             topology.add(mutable_data("output_selected_indices", output_selected_indices));
             topology.add(mutable_data("output_selected_num", output_selected_num));
 
-            topology.add(reorder("input_boxes_reordered", "input_boxes", target_format, data_type));
-            topology.add(reorder("input_scores_reordered", "input_scores", target_format, data_type));
+            topology.add(reorder("input_boxes_reordered", input_info("input_boxes"), target_format, data_type));
+            topology.add(reorder("input_scores_reordered", input_info("input_scores"), target_format, data_type));
             if (param.has_roisnum) {
-                topology.add(reorder("input_roisnum_reordered", "input_roisnum", target_format, index_data_type));
+                topology.add(reorder("input_roisnum_reordered", input_info("input_roisnum"), target_format, index_data_type));
             }
 
             const auto primitive = multiclass_nms{
                     "multiclass_nms_reordered",
-                    std::vector<cldnn::primitive_id>{
-                        "input_boxes_reordered",
-                        "input_scores_reordered",
-                        param.has_roisnum ? "input_roisnum_reordered" : "",
-                        "output_selected_indices",
-                        "output_selected_num"
+                    std::vector<cldnn::input_info>{
+                        input_info("input_boxes_reordered"),
+                        input_info("input_scores_reordered"),
+                        param.has_roisnum ? input_info("input_roisnum_reordered") : input_info(""),
+                        input_info("output_selected_indices"),
+                        input_info("output_selected_num")
                     },
                     cldnn::multiclass_nms::attributes{
                         param.sort_result_type,
@@ -167,7 +167,7 @@ public:
             };
 
             topology.add(primitive);
-            topology.add(reorder("multiclass_nms", "multiclass_nms_reordered", plain_format, data_type));
+            topology.add(reorder("multiclass_nms", input_info("multiclass_nms_reordered"), plain_format, data_type));
             build_options bo;
             bo.set_option(build_option::optimize_data(false));
             network network(engine, topology, bo);
@@ -191,7 +191,7 @@ public:
                 }
                 cldnn::topology reorder_topology;
                 reorder_topology.add(input_layout("data", from_layout));
-                reorder_topology.add(reorder("plane_data", "data", plain_format, data_type));
+                reorder_topology.add(reorder("plane_data", input_info("data"), plain_format, data_type));
                 cldnn::network reorder_net{engine, reorder_topology};
                 reorder_net.set_input_data("data", mem);
                 const auto second_output_result = reorder_net.execute();
@@ -210,16 +210,16 @@ public:
             ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches) << "format=" << fmt_to_str(target_format);
 
             for (size_t i = 0; i < param.num_batches; ++i) {
-                EXPECT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
+                ASSERT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
                                     << "format=" << fmt_to_str(target_format) << " i=" << i;
             }
 
             for (size_t box = 0; box < dim; ++box) {
-                EXPECT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
+                ASSERT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
 
                 for (size_t j = 0; j < 6; ++j) {
                     const auto idx = box * 6 + j;
-                    EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
+                    ASSERT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
                                         << "format=" << fmt_to_str(target_format) << " box=" << box << ", j=" << j;
                 }
             }

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -35,10 +33,10 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
-                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                           tensor(format::bfyx, {8,1,1,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
+                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                       tensor(format::bfyx, {8,1,1,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -55,7 +53,7 @@ TEST(space_to_batch_fp16_gpu, i1222_bs1222_pb0000_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -79,10 +77,10 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,1}, 1),
-                                                           tensor(format::bfyx, {0,0,2,0}, 0),
-                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                           tensor(format::bfyx, {4,1,3,2}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,1}, 1),
+                                                                       tensor(format::bfyx, {0,0,2,0}, 0),
+                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                       tensor(format::bfyx, {4,1,3,2}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -102,7 +100,7 @@ TEST(space_to_batch_fp16_gpu, i1242_bs1221_pb0020_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -125,10 +123,10 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
-                                                           tensor(format::bfyx, {0,0,1,0}, 0),
-                                                           tensor(format::bfyx, {0,1,0,0}, 0),
-                                                           tensor(format::bfyx, {16,1,2,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
+                                                                       tensor(format::bfyx, {0,0,1,0}, 0),
+                                                                       tensor(format::bfyx, {0,1,0,0}, 0),
+                                                                       tensor(format::bfyx, {16,1,2,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -148,7 +146,7 @@ TEST(space_to_batch_fp16_gpu, i2132_bs1222_pb0010_pe0100) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -171,10 +169,10 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfzyx, {1,2,1,2,2}, 1),
-                                                           tensor(format::bfzyx, {0,0,0,1,0}, 0),
-                                                           tensor(format::bfzyx, {0,0,0,0,0}, 0),
-                                                           tensor(format::bfzyx, {8,1,1,2,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfzyx, {1,2,1,2,2}, 1),
+                                                                       tensor(format::bfzyx, {0,0,0,1,0}, 0),
+                                                                       tensor(format::bfzyx, {0,0,0,0,0}, 0),
+                                                                       tensor(format::bfzyx, {8,1,1,2,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -192,7 +190,7 @@ TEST(space_to_batch_fp16_gpu, i12132_bs12122_pb00010_pe00000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -219,10 +217,10 @@ TEST(space_to_batch_fp16_gpu, i134121_bs142121_pb010100_pe000000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
-                                                           tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
-                                                           tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
-                                                           tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
+                                                                       tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
+                                                                       tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
+                                                                       tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -246,7 +244,7 @@ TEST(space_to_batch_fp16_gpu, i134121_bs142121_pb010100_pe000000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -270,12 +268,12 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f16));
-    topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,2,2,2}, 1),
-                                                               tensor(format::bfyx, {0,0,1,0}, 0),
-                                                               tensor(format::bfyx, {0,0,0,1}, 0),
-                                                               tensor(format::bfyx, {8,8,1,1}, 1)));
-    topology.add(reorder("stb_to_bfyx", "space_to_batch", format::bfyx, data_types::f16));
+    topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f16));
+    topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,2,2,2}, 1),
+                                                                           tensor(format::bfyx, {0,0,1,0}, 0),
+                                                                           tensor(format::bfyx, {0,0,0,1}, 0),
+                                                                           tensor(format::bfyx, {8,8,1,1}, 1)));
+    topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f16));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -299,7 +297,7 @@ TEST(space_to_batch_fp16_gpu, i11611_bs1222_pb0010_pe0001_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -323,12 +321,12 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f16));
-    topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,2,2,1}, 1),
-                                                               tensor(format::bfyx, {0,0,1,0}, 0),
-                                                               tensor(format::bfyx, {0,2,0,0}, 0),
-                                                               tensor(format::bfyx, {4,5,1,2}, 1)));
-    topology.add(reorder("stb_to_bfyx", "space_to_batch", format::bfyx, data_types::f16));
+    topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f16));
+    topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,2,2,1}, 1),
+                                                                           tensor(format::bfyx, {0,0,1,0}, 0),
+                                                                           tensor(format::bfyx, {0,2,0,0}, 0),
+                                                                           tensor(format::bfyx, {4,5,1,2}, 1)));
+    topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f16));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -348,7 +346,7 @@ TEST(space_to_batch_fp16_gpu, i1812_bs1221_pb0010_pe0200_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -370,10 +368,10 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
-                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                           tensor(format::bfyx, {8,1,1,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
+                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                       tensor(format::bfyx, {8,1,1,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -390,7 +388,7 @@ TEST(space_to_batch_fp32_gpu, i1222_bs1222_pb0000_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -414,10 +412,10 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,1}, 1),
-                                                           tensor(format::bfyx, {0,0,2,0}, 0),
-                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                           tensor(format::bfyx, {4,1,3,2}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,1}, 1),
+                                                                       tensor(format::bfyx, {0,0,2,0}, 0),
+                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                       tensor(format::bfyx, {4,1,3,2}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -437,7 +435,7 @@ TEST(space_to_batch_fp32_gpu, i1242_bs1221_pb0020_pe0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -460,10 +458,10 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfyx, {1,2,2,2}, 1),
-                                                           tensor(format::bfyx, {0,0,1,0}, 0),
-                                                           tensor(format::bfyx, {0,1,0,0}, 0),
-                                                           tensor(format::bfyx, {16,1,2,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
+                                                                       tensor(format::bfyx, {0,0,1,0}, 0),
+                                                                       tensor(format::bfyx, {0,1,0,0}, 0),
+                                                                       tensor(format::bfyx, {16,1,2,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -483,7 +481,7 @@ TEST(space_to_batch_fp32_gpu, i2132_bs1222_pb0010_pe0100) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -506,10 +504,10 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfzyx, {1,2,1,2,2}, 1),
-                                                           tensor(format::bfzyx, {0,0,0,1,0}, 0),
-                                                           tensor(format::bfzyx, {0,0,0,0,0}, 0),
-                                                           tensor(format::bfzyx, {8,1,1,2,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfzyx, {1,2,1,2,2}, 1),
+                                                                       tensor(format::bfzyx, {0,0,0,1,0}, 0),
+                                                                       tensor(format::bfzyx, {0,0,0,0,0}, 0),
+                                                                       tensor(format::bfzyx, {8,1,1,2,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -527,7 +525,7 @@ TEST(space_to_batch_fp32_gpu, i12132_bs12122_pb00010_pe00000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -552,10 +550,10 @@ TEST(space_to_batch_fp32_gpu, i134121_bs142121_pb010100_pe000000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(space_to_batch("space_to_batch", "Input", tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
-                                                           tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
-                                                           tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
-                                                           tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
+    topology.add(space_to_batch("space_to_batch", input_info("Input"), tensor(format::bfwzyx, {1,4,2,1,2,1}, 1),
+                                                                       tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
+                                                                       tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
+                                                                       tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -579,7 +577,7 @@ TEST(space_to_batch_fp32_gpu, i134121_bs142121_pb010100_pe000000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -607,12 +605,12 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f32));
-    topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,4,2,1}, 1),
-                                                               tensor(format::bfyx, {0,0,0,0}, 0),
-                                                               tensor(format::bfyx, {0,0,0,0}, 0),
-                                                               tensor(format::bfyx, {8,4,1,2}, 1)));
-    topology.add(reorder("stb_to_bfyx", "space_to_batch", format::bfyx, data_types::f32));
+    topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,4,2,1}, 1),
+                                                                           tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                           tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                           tensor(format::bfyx, {8,4,1,2}, 1)));
+    topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f32));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -636,7 +634,7 @@ TEST(space_to_batch_fp32_gpu, i11622_bs1421_pb0000_pe0000_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -661,12 +659,12 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(reorder("input_fsv", "Input", format::b_fs_yx_fsv16, data_types::f32));
-    topology.add(space_to_batch("space_to_batch", "input_fsv", tensor(format::bfyx, {1,3,1,2}, 1),
-                                                               tensor(format::bfyx, {0,0,0,1}, 0),
-                                                               tensor(format::bfyx, {0,0,0,0}, 0),
-                                                               tensor(format::bfyx, {6,2,2,2}, 1)));
-    topology.add(reorder("stb_to_bfyx", "space_to_batch", format::bfyx, data_types::f32));
+    topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(space_to_batch("space_to_batch", input_info("input_fsv"), tensor(format::bfyx, {1,3,1,2}, 1),
+                                                                           tensor(format::bfyx, {0,0,0,1}, 0),
+                                                                           tensor(format::bfyx, {0,0,0,0}, 0),
+                                                                           tensor(format::bfyx, {6,2,2,2}, 1)));
+    topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f32));
     network network(engine, topology);
 
     network.set_input_data("Input", input);
@@ -688,6 +686,6 @@ TEST(space_to_batch_fp32_gpu, i1623_bs1312_pb0001_pe0000_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }

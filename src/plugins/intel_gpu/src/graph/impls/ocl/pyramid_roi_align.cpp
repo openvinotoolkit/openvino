@@ -29,7 +29,7 @@ struct pyramid_roi_align_impl : typed_primitive_impl_ocl<pyramid_roi_align> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<pyramid_roi_align>();
-        auto params = get_default_params<kernel_selector::PyramidROIAlign_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::PyramidROIAlign_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::PyramidROIAlign_optional_params>(impl_param.get_program());
 
         const auto P2_idx = 1;
@@ -73,4 +73,4 @@ attach_pyramid_roi_align_impl::attach_pyramid_roi_align_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pyramid_roi_align_impl, cldnn::object_type::PYRAMID_ROI_ALIGN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pyramid_roi_align_impl)

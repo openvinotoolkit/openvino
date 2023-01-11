@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 #include "openvino/core/shape.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -30,14 +23,14 @@ struct gather : public primitive_base<gather> {
     /// @param batch_dim Batch_dim
     /// @param support_neg_ind Support negative indexes
     gather(const primitive_id& id,
-           const primitive_id& dict,
-           const primitive_id& idx,
+           const input_info& dict,
+           const input_info& idx,
            const int64_t axis,
            const ov::Shape& output_shape,
            const int64_t batch_dim = 0,
            const bool support_neg_ind = false,
            const padding& output_padding = padding())
-        : primitive_base(id, {dict, idx}, output_padding)
+        : primitive_base(id, {dict, idx}, {output_padding})
         , axis(axis)
         , output_shape(output_shape)
         , batch_dim(batch_dim)
@@ -52,7 +45,4 @@ struct gather : public primitive_base<gather> {
     /// @brief Support negative indexes
     bool support_neg_ind;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils/test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -170,19 +168,19 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1,1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "plane_output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -196,7 +194,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -231,18 +229,18 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
-        deconvolution("deconv", "reordered_input", { "weights" }),
-        reorder("plane_output", "deconv", format::bfyx, data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "plane_output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -256,7 +254,7 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -292,19 +290,19 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Fil
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1,1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "plane_output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -318,7 +316,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_nopad_bfyx) {    //  Fil
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -354,11 +352,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1, 1 }, { 1, 1}),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1, 1 }, { 1, 1}),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -370,7 +368,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_pad1) {
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(0.75f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.75f, output_ptr[0]);
 }
 
 TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
@@ -405,11 +403,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2,2 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2,2 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -430,7 +428,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -470,11 +468,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, {4, 4 }, { 2, 2 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, {4, 4 }, { 2, 2 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -494,7 +492,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x1_stride4_pad2) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -532,11 +530,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::yxfb, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::yxfb, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -555,7 +553,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -599,11 +597,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::yxfb, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::yxfb, cldnn::data_types::f32)
     );
 
     network network(engine, topology, options);
@@ -622,7 +620,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -660,11 +658,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -683,7 +681,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -722,18 +720,18 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", input_info("reorder"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
     );
 
     network network(engine, topology);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -746,7 +744,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_input_p
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -791,18 +789,18 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
+        reorder("reorder", input_info("input"), input->get_layout().with_padding(padding{ { 0, 0, 1, 2 }, 0 })),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reorder", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
+        deconvolution("deconv", input_info("reorder"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 })
     );
 
     network network(engine, topology, options);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -815,7 +813,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2x2_in2x2x1x1_stride2_pad1_input_padd
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -853,11 +851,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) 
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -877,7 +875,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) 
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -923,11 +921,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f16),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f16),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f16)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f16)
     );
 
     network network(engine, topology, options);
@@ -946,7 +944,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pa
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
+        ASSERT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -991,11 +989,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1014,7 +1012,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_split2
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1036,11 +1034,11 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2
 
     topology topology(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1059,7 +1057,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group2
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1116,9 +1114,9 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
     );
 
     topology.add(
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32));
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1142,7 +1140,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1206,9 +1204,9 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
     );
 
     topology.add(
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32));
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "bias" }, 16, { 2, 2 }, { 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1232,7 +1230,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x2x2x2_bfyx_stride2_pad1_group1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1261,9 +1259,9 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, 2, { 1, 1 }, { 0, 0 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f32)
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, 2, { 1, 1 }, { 0, 0 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1280,7 +1278,7 @@ TYPED_TEST(deconvolution_basic, basic_wsiz2x2_in1x6x1x1_bfyx_stride2_pad1_group2
     };
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1334,9 +1332,9 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 1,1,1 }, {0, 0, 0}),
-        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 1,1,1 }, {0, 0, 0}),
+        reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1357,7 +1355,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x1_in1x1x2x2x1_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1486,9 +1484,9 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, {1, 1, 1}, {0, 0, 0}),
-        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, {1, 1, 1}, {0, 0, 0}),
+        reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1546,7 +1544,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz3x3x3_in1x1x4x4x4_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1580,9 +1578,9 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) 
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { 2,2,2 }, {0, 0, 0}),
-        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { 2,2,2 }, {0, 0, 0}),
+        reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1614,7 +1612,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_nopad) 
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1653,9 +1651,9 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
     topology topology(
         input_layout("input", input->get_layout()),
         data("weights", weights),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f32),
-        deconvolution("deconv", "reordered_input", { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
-        reorder("plane_output", "deconv", format::bfzyx, cldnn::data_types::f32)
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+        reorder("plane_output", input_info("deconv"), format::bfzyx, cldnn::data_types::f32)
     );
 
     network network(engine, topology);
@@ -1673,7 +1671,7 @@ TYPED_TEST(deconvolution_basic_3d, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 
 }
@@ -1714,11 +1712,11 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
 
     topology topology_ref(
         input_layout("input", input->get_layout()),
-        reorder("reordered_input", "input", this->input_layout_format, data_types::f16),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f16),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "reordered_input", { "weights" }, { "biases" }, { 2, 2 }, { 4, 4 }, tensor{ 1, 1, 32, 32 }),
-        reorder("plane_output", "deconv", format::bfyx, cldnn::data_types::f16)
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 4, 4 }, tensor{ 1, 1, 32, 32 }),
+        reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f16)
     );
 
     network network_ref(engine, topology_ref);
@@ -1737,8 +1735,8 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
         input_layout("input_act", input->get_layout()),
         data("weights_f32", weights_f32),
         data("biases_f32", biases_f32),
-        deconvolution("deconv_act", "input_act", { "weights_f32" }, { "biases_f32" }, { 2, 2 }, { 4, 4 }),
-        reorder("out", "deconv_act", format::bfyx, data_types::f16)
+        deconvolution("deconv_act", input_info("input_act"), { "weights_f32" }, { "biases_f32" }, { 2, 2 }, { 4, 4 }),
+        reorder("out", input_info("deconv_act"), format::bfyx, data_types::f16)
     );
 
     cldnn::build_options options;
@@ -1747,15 +1745,15 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
     network_act.set_input_data("input_act", input);
 
     auto outputs_act = network_act.execute();
-    EXPECT_EQ(outputs_act.size(), size_t(1));
-    EXPECT_EQ(outputs_act.begin()->first, "out");
+    ASSERT_EQ(outputs_act.size(), size_t(1));
+    ASSERT_EQ(outputs_act.begin()->first, "out");
     auto output_act_prim = outputs_act.begin()->second.get_memory();
     cldnn::mem_lock<FLOAT16> output_act_ptr(output_act_prim, get_test_stream());
 
     std::vector<float> output_vec;
     for (unsigned int i = 0; i < output_act_prim->get_layout().count(); i++) {
         float x = float_round(output_act_ptr[i]), y = float_round(output_vec_ref[i]);
-        EXPECT_NEAR(x, y, 1e-0f);
+        ASSERT_NEAR(x, y, 1e-0f);
     }
 }
 
@@ -1795,8 +1793,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -1808,8 +1806,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1821,7 +1819,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1866,8 +1864,8 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
-            reorder("out", "deconv", format::bfyx, data_types::f16)
+            deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f16)
     );
 
     cldnn::build_options options;
@@ -1879,8 +1877,8 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1892,7 +1890,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
+        ASSERT_FLOAT_EQ(expected_output_vec[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -1915,8 +1913,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -1928,8 +1926,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1941,7 +1939,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -1963,8 +1961,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, 2, { 2, 2 }, { 1, 1 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -1976,8 +1974,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -1989,7 +1987,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in1x2x2x2_b_fs_yx_fsv16_stride2_pad
     };
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2008,9 +2006,9 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_b_fs_yx_fsv16_dw) {
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            reorder("input_fsv16", "input", format::b_fs_yx_fsv16, data_types::f32),
-            deconvolution("deconv", "input_fsv16", { "weights" }, { "biases" }, 2, { 1, 1 }, { 0, 0 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            reorder("input_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+            deconvolution("deconv", input_info("input_fsv16"), { "weights" }, { "biases" }, 2, { 1, 1 }, { 0, 0 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -2022,8 +2020,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_b_fs_yx_fsv16_dw) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2041,7 +2039,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_nopad_b_fs_yx_fsv16_dw) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2062,9 +2060,9 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1_b_fs_yx_fsv16_dw) {
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            reorder("input_fsv16", "input", format::b_fs_yx_fsv16, data_types::f32),
-            deconvolution("deconv", "input_fsv16", { "weights" }, { "biases" }, 2, { 1, 1 }, { 1, 1 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            reorder("input_fsv16", input_info("input"), format::b_fs_yx_fsv16, data_types::f32),
+            deconvolution("deconv", input_info("input_fsv16"), { "weights" }, { "biases" }, 2, { 1, 1 }, { 1, 1 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -2076,15 +2074,15 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_pad1_b_fs_yx_fsv16_dw) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
 
-    EXPECT_FLOAT_EQ(0.75f, output_ptr[0]);
-    EXPECT_FLOAT_EQ(0.75f, output_ptr[1]);
+    ASSERT_FLOAT_EQ(0.75f, output_ptr[0]);
+    ASSERT_FLOAT_EQ(0.75f, output_ptr[1]);
 }
 
 
@@ -2105,8 +2103,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad_b_fs_yx_fsv
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 2,2 }),
-        reorder("out", "deconv", format::bfyx, data_types::f32)
+        deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, 2, { 2,2 }),
+        reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -2118,8 +2116,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad_b_fs_yx_fsv
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2140,7 +2138,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride2_nopad_b_fs_yx_fsv
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2161,8 +2159,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 4, 4 }, { 2, 2 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, 2, { 4, 4 }, { 2, 2 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -2174,8 +2172,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2193,7 +2191,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2217,8 +2215,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
             input_layout("input", input->get_layout()),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "input", { "weights" }, { "biases" }, 2, { 4, 4 }, { 2, 2 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, 2, { 4, 4 }, { 2, 2 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -2230,8 +2228,8 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2259,7 +2257,7 @@ TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x1_stride4_pad2_b_fs_yx_fsv1
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 
@@ -2302,8 +2300,8 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            deconvolution("deconv", "input", { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
-            reorder("out", "deconv", format::bfzyx, data_types::f32)
+            deconvolution("deconv", input_info("input"), { "weights" }, { 2,2,2 }, { 1, 1, 1 }),
+            reorder("out", input_info("deconv"), format::bfzyx, data_types::f32)
     );
 
     cldnn::build_options options;
@@ -2315,8 +2313,8 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
     cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
@@ -2333,7 +2331,8 @@ TEST(deconvolution_f32_fw_gpu, bs_fs_zyx_bsv16_fsv16_wsiz2x2x2_in1x1x2x2x2_strid
     }
 }
 
-TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv) {
+template <typename T>
+void test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx,{ 2, 1, 2, 2 } });
@@ -2351,28 +2350,46 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", "input", format::fs_b_yx_fsv32, data_types::f16),
+            reorder("reorder", input_info("input"), format::fs_b_yx_fsv32, data_types::f16),
             data("weights", weights),
             data("biases", biases),
-            deconvolution("deconv", "reorder", { "weights" }, { "biases" }, 1, { 1, 1 }, { 0, 0 }),
-            reorder("out", "deconv", format::bfyx, data_types::f32)
+            deconvolution("deconv", input_info("reorder"), { "weights" }, { "biases" }, 1, { 1, 1 }, { 0, 0 }),
+            reorder("out", input_info("deconv"), format::bfyx, data_types::f32)
     );
 
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
 
-    network network(engine, topology, options);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network;
 
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "out");
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, options);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, options);
+    }
+
+    network->set_input_data("input", input);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+    cldnn::mem_lock<T> output_ptr (output_prim, get_test_stream());
 
-    std::vector<float> expected_output_vec = {
+    std::vector<T> expected_output_vec = {
             -15.f, 16.f, 2.f, 45.f, -5.5f, 18.75f, 43.f, 61.f, -3.5f,
             -33.f, 5.f, -0.5f, -97.f, -91.5f, 4.5f, -55.f, -124.f, -64.f,
             -1.f, -3.f, 7.f, 4.f, 17.5f, 7.5f, 15.f, 28.f, -1.f,
@@ -2381,8 +2398,16 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad
     ASSERT_EQ(expected_output_vec.size(), output_prim->count());
 
     for (size_t i = 0; i < expected_output_vec.size(); i++) {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]) << " index=" << i;
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]) << " index=" << i;
     }
+}
+
+TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv) {
+    test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>(false);
+}
+
+TEST(export_import_deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv) {
+    test_deconvolution_f16_fw_gpu_basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad1_replace_to_conv<float>(true);
 }
 
 struct deconvolution_random_test_params {
@@ -2606,9 +2631,9 @@ public:
             bias_data = generate_random_1d<OutputT>(bias_lay.feature(), -1, 1);
             set_values(bias_mem, bias_data);
             topo.add(cldnn::data("bias", bias_mem));
-            topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, { "bias" }, groups, params.strides, params.pad));
+            topo.add(cldnn::deconvolution("deconv", input_info("input"), { "weights" }, { "bias" }, groups, params.strides, params.pad));
         } else {
-            topo.add(cldnn::deconvolution("deconv", "input", { "weights" }, groups, params.strides, params.pad));
+            topo.add(cldnn::deconvolution("deconv", input_info("input"), { "weights" }, groups, params.strides, params.pad));
         }
 
         // turn off optimizer to check blocked format without reordering to plane format
@@ -2958,7 +2983,7 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
         input_layout("input", input->get_layout()),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 2,2 })
+        deconvolution("deconv", input_info("input"), { "weights" }, { "biases" }, { 2,2 })
     );
 
     build_options bo;
@@ -2969,8 +2994,8 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "deconv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "deconv");
 
     auto output_prim = outputs.begin()->second.get_memory();
 
@@ -2985,7 +3010,7 @@ TEST(deconvolution_f32_fw_gpu_onednn, basic_wsiz2x2_in2x2x1x1_stride2_nopad) {
 
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
     {
-        EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
 #endif

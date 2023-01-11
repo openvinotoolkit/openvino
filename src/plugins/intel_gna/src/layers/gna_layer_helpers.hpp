@@ -6,8 +6,10 @@
 
 #include "gna_layer_info.hpp"
 
-namespace GNAPluginNS {
-namespace LayerUtils {
+namespace ov {
+namespace intel_gna {
+namespace layer_utils {
+
 /**
  * @brief retrievs blob from const layer connected to certain layer
  * @param input
@@ -38,5 +40,7 @@ inline InferenceEngine::Blob::Ptr getParamFromInputAsBlob(InferenceEngine::CNNLa
 
     return iLayer->blobs["custom"];
 }
-}  // namespace LayerUtils
-}  // namespace GNAPluginNS
+
+}  // namespace layer_utils
+}  // namespace intel_gna
+}  // namespace ov

@@ -14,8 +14,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator);
-
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
     const Output<Node>& feature_map,

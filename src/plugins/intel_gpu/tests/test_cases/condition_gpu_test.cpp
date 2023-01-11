@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -108,10 +106,10 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
         input_layout("scale_data", scale_mem->get_layout())
     );
     topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
     topology.add(
-        eltwise("output", { "condi", "scale_data" }, eltwise_mode::prod)
+        eltwise("output", { input_info("condi"), input_info("scale_data") }, eltwise_mode::prod)
     );
 
     network net(engine, topology, bs);
@@ -127,14 +125,14 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
     net.set_input_data("compare", compare);
     out = net.execute();
     auto out_data_true = out.at("output").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_true, {20.0f, 40.0f}));
+    ASSERT_TRUE(is_output_equal(out_data_true, {20.0f, 40.0f}));
 
     //WHEN FALSE
     set_values(compare, { 4.0f });
     net.set_input_data("compare", compare);
     out = net.execute();
     auto out_data_false = out.at("output").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_false, { 15.0f, 35.0f }));
+    ASSERT_TRUE(is_output_equal(out_data_false, { 15.0f, 35.0f }));
 
 }
 
@@ -161,10 +159,10 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        concatenation("concat", { "input0", "input1" }, 3)
+        concatenation("concat", { input_info("input0"), input_info("input1") }, 3)
     );
     topology.add(
-        condition("condi", "concat", branch_true, branch_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("concat"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
     std::vector<float> input0_data = {
@@ -200,7 +198,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     outputs = net.execute();
 
     auto out_data_true = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
+    ASSERT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
 
     //CHECK FALSE
     set_values(compare, compare_data_false);
@@ -208,7 +206,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     outputs = net.execute();
 
     auto out_data_false = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
+    ASSERT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
 }
 
 TEST(DISABLED_condition_gpu, generic_test_true_false) {
@@ -265,10 +263,10 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                 topology branch_true;
                 topology branch_false;
                 branch_true.add(
-                    pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 1, 1, 3, 1 }, { 1, 1, 2, 1 })
+                    pooling("pooling_when_true", input_info("condi"), cldnn::pooling_mode::max, { 1, 1, 3, 1 }, { 1, 1, 2, 1 })
                 );
                 branch_false.add(
-                    pooling("pooling_when_false", "condi", cldnn::pooling_mode::average, { 1, 1, 3, 1 }, { 1, 1, 2, 1 })
+                    pooling("pooling_when_false", input_info("condi"), cldnn::pooling_mode::average, { 1, 1, 3, 1 }, { 1, 1, 2, 1 })
                 );
 
                 topology topology;
@@ -279,7 +277,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                     input_layout("compare", compare->get_layout())
                 );
                 topology.add(
-                    condition("condi", "input", branch_true, branch_false, "compare", func, offset)
+                    condition("condi", input_info("input"), branch_true, branch_false, "compare", func, offset)
                 );
 
                 set_values(input, input_data);
@@ -294,7 +292,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                 outputs = net.execute();
 
                 auto out_data_true = outputs.at("condi").get_memory();
-                EXPECT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
+                ASSERT_TRUE(is_output_equal(out_data_true, pooling_when_true_data));
 
                 //CHECK FALSE
                 set_values(compare, comp_values_false);
@@ -302,7 +300,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                 outputs = net.execute();
 
                 auto out_data_false = outputs.at("condi").get_memory();
-                EXPECT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
+                ASSERT_TRUE(is_output_equal(out_data_false, pooling_when_false_data));
 
             }
         }
@@ -332,11 +330,11 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
     topology condi_1_false = generate_simple_branch(false, "condi");
     topology condi_2_true;
     condi_2_true.add(
-        activation("activ_when_true", "condi2", activation_func::log2)
+        activation("activ_when_true", input_info("condi2"), activation_func::log2)
     );
     topology condi_2_false;
     condi_2_false.add(
-        activation("activ_when_false", "condi2", activation_func::relu)
+        activation("activ_when_false", input_info("condi2"), activation_func::relu)
     );
 
     topology topology;
@@ -347,13 +345,13 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        condition("condi", "input", condi_1_true, condi_1_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("input"), condi_1_true, condi_1_false, "compare", cond_functions::EQUAL)
     );
     topology.add(
         input_layout("compare2", compare2->get_layout())
     );
     topology.add(
-        condition("condi2", "condi", condi_2_true, condi_2_false, "compare2", cond_functions::GREATER)
+        condition("condi2", input_info("condi"), condi_2_true, condi_2_false, "compare2", cond_functions::GREATER)
     );
 
     std::vector<float> input_data = {
@@ -376,7 +374,7 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
     auto outputs = net.execute();
 
     auto out_data = outputs.at("condi2").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data, {1.0f, 2.0f}));
+    ASSERT_TRUE(is_output_equal(out_data, {1.0f, 2.0f}));
 }
 
 TEST(DISABLED_condition_gpu, basic_nested_ifs) {
@@ -404,18 +402,18 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology nested_true;
     {
-        nested_true.add(eltwise("scale_5", { "condi_nested", "scale_5_data" }, eltwise_mode::prod),
+        nested_true.add(eltwise("scale_5", { input_info("condi_nested"), input_info("scale_5_data") }, eltwise_mode::prod),
             data("scale_5_data", scale_5_mem));
     }
     topology nested_false;
     {
-        nested_false.add(eltwise("scale_10", { "condi_nested", "scale_10_data" }, eltwise_mode::prod),
+        nested_false.add(eltwise("scale_10", { input_info("condi_nested"), input_info("scale_10_data") }, eltwise_mode::prod),
             data("scale_10_data", scale_10_mem));
     }
 
     topology branch_true;
     branch_true.add(
-        pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_when_true", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
     branch_true.add(
         input_layout("compare2", compare2->get_layout())
@@ -424,7 +422,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     branch_true.add(
         condition(
         "condi_nested",
-        "pooling_when_true",
+        input_info("pooling_when_true"),
         nested_true,
         nested_false,
         "compare2",
@@ -433,7 +431,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
     topology branch_false;
     branch_false.add(
-        pooling("pooling_when_false", "condi", cldnn::pooling_mode::average, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_when_false", input_info("condi"), cldnn::pooling_mode::average, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
 
     topology topology;
@@ -446,7 +444,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     );
 
     topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
     std::vector<float> input_data = {
@@ -469,7 +467,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     auto outputs = net.execute();
 
     auto out_data = outputs.at("condi").get_memory();
-    EXPECT_TRUE(is_output_equal(out_data, { 10.0f, 20.0f }));
+    ASSERT_TRUE(is_output_equal(out_data, { 10.0f, 20.0f }));
 }
 
 TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
@@ -490,7 +488,7 @@ TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, bs););
@@ -514,7 +512,7 @@ TEST(DISABLED_condition_gpu, negative_too_big_offset) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL, {1, 1, 2, 1})
+        condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL, {1, 1, 2, 1})
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, bs););
@@ -529,12 +527,12 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
 
     topology branch_true;
     branch_true.add(
-        pooling("pooling_when_true", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_when_true", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
 
     topology branch_false;
     branch_false.add(
-        pooling("pooling_when_false", "condi", cldnn::pooling_mode::max, { 0, 0, 4, 1 }, { 0, 0, 4, 1 })
+        pooling("pooling_when_false", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 4, 1 }, { 0, 0, 4, 1 })
     );
 
     topology topology;
@@ -545,7 +543,7 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, bs););
@@ -560,12 +558,12 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
 
     topology branch_true;
     branch_true.add(
-        pooling("pooling_check_name", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_check_name", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
 
     topology branch_false;
     branch_false.add(
-        pooling("pooling_when_false", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_when_false", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
 
     topology topology;
@@ -576,10 +574,10 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
         input_layout("compare", compare->get_layout())
     );
     topology.add(
-        condition("condi", "input", branch_true, branch_false, "compare", cond_functions::EQUAL)
+        condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
     topology.add(
-        pooling("pooling_check_name", "condi", cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
+        pooling("pooling_check_name", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
 
     EXPECT_ANY_THROW(network net(engine, topology, bs););

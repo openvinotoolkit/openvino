@@ -85,7 +85,7 @@ struct jit_uni_reduce_post_kernel {
 
 class Reduce : public Node {
 public:
-    Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -93,7 +93,6 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(dnnl::stream strm) override;
-    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
     int getFusingAxis() const override;
     bool canFuse(const NodePtr& node) const override;

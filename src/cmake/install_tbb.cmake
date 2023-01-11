@@ -92,15 +92,17 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND NOT ENABLE_SYSTEM_TBB AND NOT LINUX_OS_NAME STREQUAL "CentOS 7")
+    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.26)
+        set(_ov_system_tbb_is_obsolete ON)
+    endif()
+
+    if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$" AND
+        NOT ENABLE_SYSTEM_TBB AND
+        NOT _ov_system_tbb_is_obsolete)
         message(FATAL_ERROR "Debian | RPM | Conda-forge | Brew packages can be built only with system TBB. Use -DENABLE_SYSTEM_TBB=ON")
     endif()
 
     if(ENABLE_SYSTEM_TBB)
-        # TODO: what's about tbbbind for cases U22 with >= TBB 20221
-        # it seems that oneTBB from U22 distro does not contains tbbbind library
-        # the same situation for conda-forge distribution of TBB / oneTBB
-
         # for system libraries we still need to install TBB libraries
         # so, need to take locations of actual libraries and install them
         foreach(tbb_target IN LISTS TBB_IMPORTED_TARGETS)
@@ -119,6 +121,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
             # to ignore from IRC / apt / yum distribution;
             # but they will be present in .wheel
             foreach(tbb_file IN LISTS tbb_files)
+                # TODO: check by what name TBB loads the libraries
                 ov_install_with_name("${tbb_file}" tbb)
             endforeach()
         endforeach()

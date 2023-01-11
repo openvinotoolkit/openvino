@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <string>
 
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -15,17 +13,21 @@
 #include "unsqueeze_shape_inference.hpp"
 
 namespace cldnn {
-
-primitive_type_id reshape::type_id() {
-    static primitive_type_base<reshape> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reshape)
 
 layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto input_layout = impl_param.get_non_padded_input_layout();
     auto desc = impl_param.typed_desc<reshape>();
+    if (desc->output_shape.count() == 0) {
+        if (desc->output_partial_shape.size() != 0) {
+            return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
+        } else {
+            OPENVINO_ASSERT("[GPU] Output shape is not provided");
+        }
+    }
+
     auto sizes = desc->output_shape.sizes();
     auto input_sizes = input_layout.get_tensor().sizes();
     size_t need_recalc = 0;
@@ -52,7 +54,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
 
 template<typename ShapeType>
 std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
-    assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto prim = impl_param.typed_desc<reshape>();
     auto input_layout = impl_param.get_input_layout(0);
@@ -139,6 +141,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     json_composite reshape_info;
     reshape_info.add("input id", input.id());
     reshape_info.add("output shape", desc->output_shape);
+    reshape_info.add("output pshape", desc->output_partial_shape);
 
     node_info->add("reshape info", reshape_info);
     node_info->dump(primitive_description);

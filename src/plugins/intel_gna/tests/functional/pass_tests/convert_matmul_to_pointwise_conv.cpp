@@ -8,6 +8,8 @@
 #include <vector>
 #include <string>
 
+#include <gmock/gmock.h>
+
 #include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
@@ -32,7 +34,7 @@ typedef std::tuple<
     std::map<std::string, std::string>, // Configuration
     std::vector<size_t>,                // Input Shape
     std::pair<float, float>             // Input Min and Max
-> convertMatmulToPointwiseConvWithFqParams;
+> ConvertMatmulToPointwiseConvWithFqNegParams;
 
 namespace LayerTestsDefinitions {
 
@@ -96,14 +98,14 @@ protected:
     }
 };
 
-class ConvertMatmulToPointwiseConvWithFq : public testing::WithParamInterface<convertMatmulToPointwiseConvWithFqParams>,
+class ConvertMatmulToPointwiseConvWithFqNeg : public testing::WithParamInterface<ConvertMatmulToPointwiseConvWithFqNegParams>,
     public LayerTestsUtils::LayerTestsCommon {
     float inputDataMin = -10.0f;
     float inputDataMax = 10.0f;
     float inputDataResolution = 1.0f;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convertMatmulToPointwiseConvWithFqParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<ConvertMatmulToPointwiseConvWithFqNegParams> obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
@@ -184,8 +186,17 @@ TEST_P(ConvertMatmulToPointwiseConv, CompareWithRefImpl) {
     Run();
 };
 
-TEST_P(ConvertMatmulToPointwiseConvWithFq, CompareWithRefImpl) {
-    Run();
+TEST_P(ConvertMatmulToPointwiseConvWithFqNeg, CompareWithRefImpl) {
+    std::stringstream what;
+    std::streambuf* sbuf = std::cout.rdbuf();
+    std::streambuf* ebuf = std::cerr.rdbuf();
+    std::cout.rdbuf(what.rdbuf());
+    std::cerr.rdbuf(what.rdbuf());
+    LoadNetwork();
+    const auto expected = "Potential overload correction issue at layer ";
+    EXPECT_THAT(what.str(), ::testing::HasSubstr(expected));
+    std::cout.rdbuf(sbuf);
+    std::cerr.rdbuf(ebuf);
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -195,7 +206,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+    }
+};
+
+const std::vector<std::map<std::string, std::string>> configs_neg = {
+    {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"LOG_LEVEL", "LOG_WARNING"}
     }
 };
 
@@ -217,13 +235,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulTo
         ::testing::ValuesIn(inputShape)),
     ConvertMatmulToPointwiseConv::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConvWithFq,
+INSTANTIATE_TEST_SUITE_P(smoke_ConvertMatmulToPointwiseConvTest, ConvertMatmulToPointwiseConvWithFqNeg,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs),
+        ::testing::ValuesIn(configs_neg),
         ::testing::ValuesIn(inputShape),
         ::testing::ValuesIn(fqStats)),
-    ConvertMatmulToPointwiseConvWithFq::getTestCaseName);
+    ConvertMatmulToPointwiseConvWithFqNeg::getTestCaseName);
 
 } // namespace LayerTestsDefinitions

@@ -25,8 +25,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::BatchToSpace);
-
 ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
                                            const ngraph::Output<ngraph::Node>& crops_begin,

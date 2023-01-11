@@ -105,4 +105,4 @@ attach_reorder_onednn::attach_reorder_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reorder_onednn, cldnn::object_type::REORDER_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reorder_onednn)

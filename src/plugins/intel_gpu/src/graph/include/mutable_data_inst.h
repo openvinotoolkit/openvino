@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "primitive_inst.h"
@@ -44,9 +43,12 @@ public:
 
     typed_primitive_inst(network& network, mutable_data_node const& node);
     void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
+    const std::list<primitive_id>& get_user_ids() const { return _user_ids; }
+    void save(BinaryOutputBuffer& ob) const override;
+    void load(BinaryInputBuffer& ib) override;
 
-    void save(cldnn::BinaryOutputBuffer& ob) const override;
-    void load(cldnn::BinaryInputBuffer& ib) override;
+private:
+    std::list<primitive_id> _user_ids;
 };
 
 using mutable_data_inst = typed_primitive_inst<mutable_data>;

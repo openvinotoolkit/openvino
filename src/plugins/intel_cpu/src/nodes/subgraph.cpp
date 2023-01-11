@@ -36,8 +36,8 @@ namespace intel_cpu {
 namespace node {
 
 
-Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
@@ -55,13 +55,10 @@ void Snippet::copy_snippet() {
     std::shared_ptr<ov::Model> new_body = nullptr;
     // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
     if (original_snippet->has_type_relaxed_ops()) {
-        if (!sharedMutex) {
-            IE_THROW() << "Subgraph doesn't have shared mutex";
-        }
-        std::lock_guard<std::mutex> lock(*sharedMutex.get());
-        new_body = ov::clone_model(*original_snippet->get_body().get());
+        std::lock_guard<std::mutex> lock(*context->getSharedMutex());
+        new_body = ov::clone_model(*original_snippet->body_ptr());
     } else {
-        new_body = ov::clone_model(*original_snippet->get_body().get());
+        new_body = ov::clone_model(*original_snippet->body_ptr());
     }
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
@@ -320,13 +317,13 @@ void Snippet::define_schedule() {
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
     // prepend to enable 6D scheduler
     exec_domain = prependWithOnes(exec_domain);
-    const auto &body = snippet->get_body();
-    for (const auto& p : body->get_parameters()) {
+    const auto &body = snippet->body();
+    for (const auto& p : body.get_parameters()) {
         dims_in.emplace_back(prependWithOnes(p->get_shape()));
     }
 
-    for (size_t i = 0; i < body->get_output_size(); i++) {
-        dims_out.push_back(prependWithOnes(body->get_output_shape(i)));
+    for (size_t i = 0; i < body.get_output_size(); i++) {
+        dims_out.push_back(prependWithOnes(body.get_output_shape(i)));
     }
 
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();

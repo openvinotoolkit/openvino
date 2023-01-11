@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Mean Variance Normalization primitive.
 /// @details Normalizes the input to have 0-mean and/or unit (1) variance.
@@ -27,13 +20,13 @@ struct mvn : public primitive_base<mvn> {
     /// @param epsilon Epsilon for not dividing by zero while normalizing.
     /// @param eps_inside_sqrt The mode of applying epsilon.
     mvn(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         const bool normalize_variance,
         const float epsilon,
         const bool eps_inside_sqrt,
         const bool across_channels = false,
         const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           normalize_variance(normalize_variance),
           epsilon(epsilon),
           eps_inside_sqrt(eps_inside_sqrt),
@@ -48,7 +41,4 @@ struct mvn : public primitive_base<mvn> {
     /// @brief Determines if the normalization is done across or within channels.
     bool across_channels;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

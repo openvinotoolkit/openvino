@@ -20,7 +20,7 @@ The `plugins.xml` file with information about inference devices must also be tak
 
 The picture below presents dependencies between the OpenVINO Runtime core and pluggable libraries:
 
-![deployment_full]
+![](../../img/deployment_full.svg)
 
 ### Libraries for Compute Devices
 
@@ -120,12 +120,13 @@ The `HETERO`, `MULTI`, `BATCH` and `AUTO` execution modes can also be used expli
 
 OpenVINO Runtime uses frontend libraries dynamically to read models in different formats:
 - `openvino_ir_frontend` is used to read OpenVINO IR.
+- `openvino_tensorflow_frontend` is used to read TensorFlow file format. Check [TensorFlow Frontend Capabilities and Limitations](../../resources/tensorflow_frontend.md).
 - `openvino_onnx_frontend` is used to read ONNX file format.
 - `openvino_paddle_frontend` is used to read Paddle file format.
 
 Depending on the model format types that are used in the application in `ov::Core::read_model`, pick up the appropriate libraries.
 
-> **NOTE**: To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using [Model Optimizer](../../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). This way you don't have to keep ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
+> **NOTE**: To optimize the size of final distribution package, you are recommended to convert models to OpenVINO IR by using [Model Optimizer](../../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). This way you don't have to keep TensorFlow, ONNX, PaddlePaddle, and other frontend libraries in the distribution package.
 
 ### (Legacy) Preprocessing via G-API
 
@@ -159,5 +160,3 @@ In this example, the application is written in C++, performs inference with the 
 - `openvino_auto_plugin` is used to enable Automatic Device Selection.
 - `openvino_intel_hddl_plugin` and `openvino_intel_cpu_plugin` are used for inference. AUTO selects between CPU and HDDL devices according to their physical existence on the deployed machine.
 - No frontend library is needed because `ov::Model` is created in code.
-
-[deployment_full]: ../../img/deployment_full.png

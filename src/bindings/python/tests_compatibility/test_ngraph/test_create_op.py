@@ -259,7 +259,7 @@ def test_deformable_psroi_pooling(dtype):
         ([2, 3, 5, 6], [7, 4], [7], 2, 2, 1, 1.0, "avg", "asymmetric", [7, 3, 2, 2]),
         ([10, 3, 5, 5], [7, 4], [7], 3, 4, 1, 1.0, "avg", "half_pixel_for_nn", [7, 3, 3, 4]),
         ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, 1.0, "avg", "half_pixel", [3, 3, 3, 4]),
-        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, np.float(1), "avg", "half_pixel", [3, 3, 3, 4]),
+        ([10, 3, 5, 5], [3, 4], [3], 3, 4, 1, np.float32(1), "avg", "half_pixel", [3, 3, 3, 4]),
     ],
 )
 def test_roi_align(data_shape, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale, mode, aligned_mode, expected_shape):
@@ -832,7 +832,7 @@ def test_loop():
         TensorIteratorConcatOutputDesc,
     )
 
-    condition = ng.constant(True, dtype=np.bool)
+    condition = ng.constant(True, dtype=bool)
     trip_count = ng.constant(16, dtype=np.int32)
     #  Body parameters
     body_timestep = ng.parameter([], np.int32, "timestep")
@@ -855,7 +855,7 @@ def test_loop():
     initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
     iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
-    body_const_condition = ng.constant(True, dtype=np.bool)
+    body_const_condition = ng.constant(True, dtype=bool)
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
                            [curr_cma, cma_hist, body_const_condition])
@@ -1882,11 +1882,11 @@ def test_multiclass_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float)
+    box = ng.constant(boxes_data, dtype=np.float32)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float)
+    score = ng.constant(scores_data, dtype=np.float32)
 
     nms_node = ng.multiclass_nms(box, score, None, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
@@ -1907,13 +1907,13 @@ def test_multiclass_nms():
                             [9.66, 3.36, 18.57, 13.26]],
                            [[6.50, 7.00, 13.33, 17.63],
                             [0.73, 5.34, 19.97, 19.97]]]).astype("float32")
-    box = ng.constant(boxes_data, dtype=np.float)
+    box = ng.constant(boxes_data, dtype=np.float32)
     scores_data = np.array([[0.34, 0.66],
                             [0.45, 0.61],
                             [0.39, 0.59]]).astype("float32")
-    score = ng.constant(scores_data, dtype=np.float)
+    score = ng.constant(scores_data, dtype=np.float32)
     rois_num_data = np.array([3]).astype("int32")
-    roisnum = ng.constant(rois_num_data, dtype=np.int)
+    roisnum = ng.constant(rois_num_data, dtype=np.int32)
     nms_node = ng.multiclass_nms(box, score, roisnum, output_type="i32", nms_top_k=3,
                                  iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
                                  nms_eta=1.0)
@@ -1933,11 +1933,11 @@ def test_matrix_nms():
                            0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
                            0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
     boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float)
+    box = ng.constant(boxes_data, dtype=np.float32)
     scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
                             0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
     scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float)
+    score = ng.constant(scores_data, dtype=np.float32)
 
     nms_node = ng.matrix_nms(box, score, output_type="i32", nms_top_k=3,
                              score_threshold=0.0, sort_result_type="score", background_class=0,
@@ -2268,7 +2268,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
 
 def test_is_finite_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ng.parameter(input_shape, np.float, name="InputData")
+    input_node = ng.parameter(input_shape, np.float32, name="InputData")
     node = ng_opset10.is_finite(input_node)
 
     assert node.get_type_name() == "IsFinite"
@@ -2278,7 +2278,7 @@ def test_is_finite_opset10():
 
 def test_is_inf_opset10_default():
     input_shape = [2, 2, 2, 2]
-    input_node = ng.parameter(input_shape, dtype=np.float, name="InputData")
+    input_node = ng.parameter(input_shape, dtype=np.float32, name="InputData")
     node = ng_opset10.is_inf(input_node)
 
     assert node.get_type_name() == "IsInf"
@@ -2292,7 +2292,7 @@ def test_is_inf_opset10_default():
 
 def test_is_inf_opset10_custom_attribute():
     input_shape = [2, 2, 2]
-    input_node = ng.parameter(input_shape, dtype=np.float, name="InputData")
+    input_node = ng.parameter(input_shape, dtype=np.float32, name="InputData")
     attributes = {
         "detect_positive": False,
     }
@@ -2309,7 +2309,7 @@ def test_is_inf_opset10_custom_attribute():
 
 def test_is_inf_opset10_custom_all_attributes():
     input_shape = [2, 2, 2]
-    input_node = ng.parameter(input_shape, dtype=np.float, name="InputData")
+    input_node = ng.parameter(input_shape, dtype=np.float32, name="InputData")
     attributes = {
         "detect_negative": False,
         "detect_positive": True,
@@ -2327,10 +2327,67 @@ def test_is_inf_opset10_custom_all_attributes():
 
 def test_is_nan_opset10():
     input_shape = [1, 2, 3, 4]
-    input_node = ng.parameter(input_shape, np.float, name="InputData")
+    input_node = ng.parameter(input_shape, np.float32, name="InputData")
     node = ng_opset10.is_nan(input_node)
 
     assert node.get_type_name() == "IsNaN"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == input_shape
     assert node.get_output_element_type(0) == Type.boolean
+
+
+def test_unique_opset10():
+    input_shape = [1, 2, 3, 4]
+    input_node = ng.parameter(input_shape, np.float32, name="input_data")
+    axis = ng.constant([1], np.int32, [1])
+
+    node = ng_opset10.unique(input_node, axis, False, "i32")
+
+    assert node.get_type_name() == "Unique"
+    assert node.get_sorted() is False
+    assert node.get_output_size() == 4
+
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(1), Dimension(1, 2),
+                                                             Dimension(3), Dimension(4)])
+    assert node.get_output_partial_shape(1) == PartialShape([Dimension(1, 24)])
+    assert node.get_output_partial_shape(2) == PartialShape([2])
+    assert node.get_output_partial_shape(3) == PartialShape([Dimension(1, 24)])
+
+    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
+    assert node.get_output_element_type(2) == Type.i32
+    assert node.get_output_element_type(3) == Type.i64
+
+    # Axis default, means flattened result
+    node = ng_opset10.unique(input_node, None, False, "i32", "i32")
+
+    assert node.get_type_name() == "Unique"
+    assert node.get_sorted() is False
+    assert node.get_output_size() == 4
+
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(1, 24)])
+    assert node.get_output_partial_shape(1) == PartialShape([Dimension(1, 24)])
+    assert node.get_output_partial_shape(2) == PartialShape([24])
+    assert node.get_output_partial_shape(3) == PartialShape([Dimension(1, 24)])
+
+    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i32
+    assert node.get_output_element_type(2) == Type.i32
+    assert node.get_output_element_type(3) == Type.i32
+
+    # All arguments default
+    node = ng_opset10.unique(input_node)
+
+    assert node.get_type_name() == "Unique"
+    assert node.get_output_size() == 4
+    assert node.get_sorted() is True
+
+    assert node.get_output_partial_shape(0) == PartialShape([Dimension(1, 24)])
+    assert node.get_output_partial_shape(1) == PartialShape([Dimension(1, 24)])
+    assert node.get_output_partial_shape(2) == PartialShape([24])
+    assert node.get_output_partial_shape(3) == PartialShape([Dimension(1, 24)])
+
+    assert node.get_output_element_type(0) == Type.f32
+    assert node.get_output_element_type(1) == Type.i64
+    assert node.get_output_element_type(2) == Type.i64
+    assert node.get_output_element_type(3) == Type.i64

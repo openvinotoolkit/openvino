@@ -17,7 +17,7 @@ namespace node {
 
 class OneHot : public Node {
 public:
-    OneHot(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -26,7 +26,6 @@ public:
     bool created() const override;
 
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override { return false; };
     void executeDynamicImpl(dnnl::stream strm) override;
 

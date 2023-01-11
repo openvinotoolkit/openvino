@@ -25,19 +25,13 @@ const std::vector<ngraph::op::EpsMode> epsMode = {
         ngraph::op::EpsMode::MAX,
 };
 
-const auto normL2params = testing::Combine(
-        testing::ValuesIn(axes),
-        testing::ValuesIn(eps),
-        testing::ValuesIn(epsMode),
-        testing::Values(std::vector<size_t>{1, 3, 10, 5}),
-        testing::ValuesIn(netPrecisions),
-        testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_NormalizeL2,
-        NormalizeL2LayerTest,
-        normL2params,
-        NormalizeL2LayerTest::getTestCaseName
-);
+INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2,
+                         NormalizeL2LayerTest,
+                         testing::Combine(testing::ValuesIn(axes),
+                                          testing::ValuesIn(eps),
+                                          testing::ValuesIn(epsMode),
+                                          testing::Values(std::vector<size_t>{1, 3, 10, 5}),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         NormalizeL2LayerTest::getTestCaseName);
 }  // namespace

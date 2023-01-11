@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -66,7 +64,7 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "to_string_utils.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "runtime/kernels_cache.hpp"
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
@@ -174,18 +172,23 @@ void program::init_primitives() {
 }
 
 void program::compile() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
     _kernels_cache->build_all();
 }
 
 void program::init_kernels() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
     for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl())
+        if (n->get_selected_impl()) {
             n->get_selected_impl()->init_kernels(*_kernels_cache);
+            n->get_selected_impl()->reset_kernels_source();
+        }
     }
 }
 
 void program::load_tuning_cache() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::LoadTuningCache");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
     try {
         tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
     } catch (...) {
@@ -239,6 +242,7 @@ program_node const& program::get_node(primitive_id const& id) const {
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("analyze_output_size_handling_need");
     bool handling_needed = false;
 
     // Calculate output size and compare with specified.
@@ -254,7 +258,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
@@ -276,7 +280,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
@@ -300,7 +304,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
@@ -405,19 +409,9 @@ void program::add_node_dependencies(program_node* node) {
     // add pointers to node's dependencies
     for (auto& dep : deps) {
         try {
-            auto dep_node = nodes_map.at(dep);
-            node->dependencies.push_back(dep_node.get());
-            dep_node->users.push_back(node);
-        } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + dep +
-                                     " that is input to: " + node->get_primitive()->id);
-        }
-    }
-    auto deps_new = node->get_primitive()->dependencies_new();
-    for (auto& dep : deps_new) {
-        try {
             auto dep_node = nodes_map.at(dep.pid);
-            node->dependencies_new.push_back({dep_node.get(), dep.idx});
+            node->dependencies.push_back({dep_node.get(), dep.idx});
+            dep_node->users.push_back(node);
         } catch (...) {
             throw std::runtime_error("Program doesn't contain primitive: " + dep.pid +
                                      " that is input to: " + node->get_primitive()->id);
@@ -437,15 +431,15 @@ void program::copy_node_dependencies(program_node* dest_node, program_node* src_
     // add pointers to node's dependencies
     for (auto& src_dep : src_deps) {
         // do not copy dependencies to nodes which does not belong to the new (subgraph) topology
-        if (nodes_map.find(src_dep->get_primitive()->id) == nodes_map.end())
+        if (nodes_map.find(src_dep.first->get_primitive()->id) == nodes_map.end())
             continue;
 
         try {
-            auto dest_dep = nodes_map.at(src_dep->get_primitive()->id);
-            dest_node->dependencies.push_back(dest_dep.get());
+            auto dest_dep = nodes_map.at(src_dep.first->get_primitive()->id);
+            dest_node->dependencies.push_back({dest_dep.get(), src_dep.second});
             dest_dep->users.push_back(dest_node);
         } catch (...) {
-            throw std::runtime_error("Program doesn't contain primitive: " + src_dep->get_primitive()->id +
+            throw std::runtime_error("Program doesn't contain primitive: " + src_dep.first->get_primitive()->id +
                                      " that is input to: " + src_node->get_primitive()->id);
         }
     }
@@ -556,7 +550,7 @@ void program::build_program(bool is_internal) {
 }
 
 void program::init_graph() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<calculate_prior_boxes>();
@@ -567,7 +561,7 @@ void program::init_graph() {
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
 
     if (!is_internal)
         load_tuning_cache();
@@ -649,7 +643,7 @@ void program::pre_optimize_graph(bool is_internal) {
 }
 
 void program::post_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PostOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PostOptimizeGraph");
     // input reorder for fully connected if necessary
     apply_opt_pass<post_input_reorder>();
 
@@ -684,7 +678,7 @@ void program::mark_if_constant(program_node& node) {
     }
     node.constant = true;
     for (auto& dep : node.get_dependencies()) {
-        if (!dep->is_constant()) {
+        if (!dep.first->is_constant()) {
             node.constant = false;
             return;
         }
@@ -710,7 +704,8 @@ void program::mark_if_data_flow(program_node& node) {
 }
 
 void program::transfer_memory_to_device() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::TransferMemory");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
@@ -729,17 +724,12 @@ void program::transfer_memory_to_device() {
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -749,6 +739,7 @@ void program::transfer_memory_to_device() {
 }
 
 void program::cleanup() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
 
@@ -763,8 +754,7 @@ void program::cleanup() {
         }
     }
 
-    if (_engine.configuration().kernels_cache_path.empty())
-        _kernels_cache->reset();
+    _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {
@@ -775,7 +765,7 @@ void program::add_split_outputs() {
 
         if (node->is_type<split>()) {
             auto split_prim = node->as<split>().typed_desc();
-            primitive_id input_id = split_prim->input[0];
+            input_info input(split_prim->input[0]);
             auto split_num = split_prim->output_offsets.size();
 
             // create crop for each split output provided
@@ -784,7 +774,7 @@ void program::add_split_outputs() {
 
                 // create dummy crop primitive and add it to nodes map
                 auto crop_prim =
-                    std::make_shared<crop>(output_id, input_id, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
+                    std::make_shared<crop>(output_id, input, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
                 get_or_create(crop_prim);
             }
         }
@@ -925,23 +915,27 @@ void program::add_intermediate(program_node& node,
 
 void program::add_connection(program_node& prev, program_node& next) {
     prev.users.push_back(&next);
-    next.dependencies.push_back(&prev);
+    next.dependencies.push_back({&prev, 0});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
     prev.users.remove(&next);
-    next.dependencies.erase(std::remove(next.dependencies.begin(), next.dependencies.end(), &prev),
-                            next.dependencies.end());
+    next.dependencies.erase(std::remove_if(next.dependencies.begin(), next.dependencies.end(),
+    [&](const std::pair<program_node*, int32_t>& dep) {
+        return &prev == dep.first;
+    }), next.dependencies.end());
 }
 
 void program::remove_all_connections(program_node& node) {
     // since the graph is not topological sorted, we need to remove the node from both dependencies and users
     for (auto& e : node.users) {
-        e->dependencies.erase(std::remove(e->dependencies.begin(), e->dependencies.end(), &node),
-                              e->dependencies.end());
+        e->dependencies.erase(std::remove_if(e->dependencies.begin(), e->dependencies.end(),
+        [&](const std::pair<program_node*, int32_t>& dep) {
+            return &node == dep.first;
+        }), e->dependencies.end());
     }
     for (auto& e : node.dependencies) {
-        e->users.remove(&node);
+        e.first->users.remove(&node);
     }
     node.dependencies.clear();
     node.users.clear();
@@ -997,7 +991,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
 
     // copy old's dependencies
     while (!old_node.dependencies.empty()) {
-        auto& dep = old_node.dependencies.front();
+        auto& dep = old_node.dependencies.front().first;
         add_connection(*dep, new_node);
         remove_connection(*dep, old_node);
     }
@@ -1006,8 +1000,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     for (auto& user : old_node.users) {
         new_node.users.push_back(user);
         for (auto& users_dep : user->dependencies) {
-            if (users_dep == &old_node) {
-                users_dep = &new_node;
+            if (users_dep.first == &old_node) {
+                users_dep.first = &new_node;
                 break;
             }
         }
@@ -1093,15 +1087,14 @@ bool program::extract(program_node& node) {
         }
 
         for (auto& dep : node.dependencies) {
-            if (dep->is_type<loop>()) {
-                loop_node& loop = *dep;
+            if (dep.first->is_type<loop>()) {
+                loop_node& loop = *dep.first;
                 loop.update_primitive_map(node.id(), user->id());
             }
         }
     }
     input.users.remove(&node);
     node.dependencies.clear();
-    node.dependencies_new.clear();
 
     if (!node.is_endpoint())
         replace_all_usages(node, input, false);
@@ -1193,7 +1186,7 @@ void program::fuse_nodes(program_node &fused_node,
                     continue;
             }
         }
-        fused_node.dependencies.push_back(&dep);
+        fused_node.dependencies.push_back({&dep, 0});
         local_desc.deps.emplace_back(dep.id(), deps_idx++);
         dep.users.push_back(&fused_node);
     }
@@ -1209,7 +1202,7 @@ void program::fuse_nodes(program_node &fused_node,
     for (auto& user : peer_node.users) {
         size_t dep_idx = 0;
         for (auto& dep : user->dependencies) {
-            if (dep->id() == peer_node.id())
+            if (dep.first->id() == peer_node.id())
                 break;
             dep_idx++;
         }
@@ -1235,12 +1228,14 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
             get_inputs().remove(node);
         } else {
             for (auto& dep : node->dependencies) {
-                dep->users.remove(node);
+                dep.first->users.remove(node);
             }
         }
         for (auto& user : node->users) {
-            user->dependencies.erase(std::remove(user->dependencies.begin(), user->dependencies.end(), node),
-                                     user->dependencies.end());
+            user->dependencies.erase(std::remove_if(user->dependencies.begin(), user->dependencies.end(),
+            [&](const std::pair<program_node*, int32_t>& dep) {
+                return node == dep.first;
+            }), user->dependencies.end());
         }
         get_processing_order().erase(node);
         optimized_out.push_back(node->id());
@@ -1277,8 +1272,8 @@ data_types program::get_inference_precision(const program_node& node) const {
     }
     std::vector<data_types> input_dts;
     for (auto& dep : node.get_dependencies()) {
-        if (dep->is_valid_output_layout())
-            input_dts.push_back(dep->get_output_layout().data_type);
+        if (dep.first->is_valid_output_layout())
+            input_dts.push_back(dep.first->get_output_layout().data_type);
     }
 
     // Return f32 data_type as default inference precision if any layout is invalid
@@ -1338,7 +1333,7 @@ program::primitives_info program::get_current_stage_info() const {
         }
         std::vector<primitive_id> dependencies;
         for (auto& a : p->dependencies) {
-            dependencies.push_back(a->id());
+            dependencies.push_back(a.first->id());
         }
 
         std::vector<primitive_id> fused;
@@ -1424,9 +1419,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
-            if (conv.get_primitive()->split() > 1)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::splitted_convolution, 1);
-
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
@@ -1442,7 +1434,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
                     total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
                                                       // heuristics
-                else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
+                else if (conv.get_primitive()->groups > 1)
                     total_grouped_conv_layers++;
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
@@ -1525,7 +1517,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::scatter_elements_update::type_id() &&
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
-            prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
             prim.type() != cldnn::convert_color::type_id() &&
             prim.type() != cldnn::experimental_detectron_generate_proposals_single_image::type_id()) {
             can_use_fsv16 = false;
@@ -1577,8 +1568,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::gather_tree::type_id() &&
             prim.type() != cldnn::experimental_detectron_detection_output::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
-            prim.type() != cldnn::arg_max_min::type_id() &&
-            prim.type() != cldnn::experimental_detectron_topk_rois::type_id() &&
             prim.type() != cldnn::multiclass_nms::type_id() &&
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
@@ -1665,7 +1654,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               });
     auto& engine = get_engine();
     int64_t host_alloc = 0;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
@@ -1685,10 +1673,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
         if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                    << cur_vmem << ")" << std::endl;
-            }
+            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                           << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
         #endif

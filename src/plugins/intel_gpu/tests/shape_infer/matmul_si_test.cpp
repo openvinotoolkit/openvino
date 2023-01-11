@@ -40,7 +40,7 @@ TEST_P(gemm_test, shape_infer) {
 
     auto matrix_a_layout_prim = std::make_shared<input_layout>("matrix_a", p.matrix_a_layout);
     auto matrix_b_layout_prim = std::make_shared<input_layout>("matrix_b", p.matrix_b_layout);
-    auto gemm_prim = std::make_shared<gemm>("output", std::vector<primitive_id>{"matrix_a", "matrix_b"},
+    auto gemm_prim = std::make_shared<gemm>("output", std::vector<input_info>{ input_info("matrix_a"), input_info("matrix_b") },
                                             p.data_type, p.transpose_a, p.transpose_b);
 
     cldnn::program prog(engine);
@@ -82,7 +82,7 @@ TEST_P(fully_connected_test, shape_infer) {
 
     auto matrix_a_layout_prim = std::make_shared<input_layout>("matrix_a", p.matrix_a_layout);
     auto matrix_b_layout_prim = std::make_shared<input_layout>("matrix_b", p.matrix_b_layout);
-    auto fully_connected_prim = std::make_shared<fully_connected>("output", "matrix_a", "matrix_b", "", p.data_type);
+    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("matrix_a"), "matrix_b", "", p.data_type);
 
     cldnn::program prog(engine);
 

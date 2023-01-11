@@ -67,8 +67,6 @@ protected:
 };
 
 TEST_P(CumSumLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "CumSum");
 }

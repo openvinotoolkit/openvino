@@ -13,10 +13,13 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::Eltwise);
-
-op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const ELTWISE_TYPE eltwise_type, const element::Type output_type)
-    : Op({data1, data2}), eltwise_type(eltwise_type), m_output_type(output_type) {
+op::Eltwise::Eltwise(const Output<Node>& data1,
+                     const Output<Node>& data2,
+                     const ELTWISE_TYPE eltwise_type,
+                     const element::Type output_type)
+    : Op({data1, data2}),
+      eltwise_type(eltwise_type),
+      m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -35,14 +38,17 @@ void op::Eltwise::validate_and_infer_types() {
 
     element::Type et_result;
     if (m_output_type == element::undefined) {
-        NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
-                              "Element types for first and second do not match :", data1_et, " and ", data2_et);
+        NODE_VALIDATION_CHECK(this,
+                              element::Type::merge(et_result, data1_et, data2_et),
+                              "Element types for first and second do not match :",
+                              data1_et,
+                              " and ",
+                              data2_et);
     } else {
         et_result = m_output_type;
     }
 
-    if (get_input_partial_shape(0).rank().is_dynamic() ||
-        get_input_partial_shape(1).rank().is_dynamic()) {
+    if (get_input_partial_shape(0).rank().is_dynamic() || get_input_partial_shape(1).rank().is_dynamic()) {
         set_output_type(0, et_result, PartialShape::dynamic());
         return;
     }
@@ -65,8 +71,10 @@ void op::Eltwise::validate_and_infer_types() {
             *output_shape_it = *shape2_it;
         }
 
-        if (shape1_it != shape1.rend()) ++shape1_it;
-        if (shape2_it != shape2.rend()) ++shape2_it;
+        if (shape1_it != shape1.rend())
+            ++shape1_it;
+        if (shape2_it != shape2.rend())
+            ++shape2_it;
         ++output_shape_it;
         if (output_shape_it == output_shape.rend()) {
             break;
@@ -76,26 +84,24 @@ void op::Eltwise::validate_and_infer_types() {
     set_output_type(0, et_result, output_shape);
 }
 
-bool op::Eltwise::visit_attributes(AttributeVisitor &visitor) {
-  visitor.on_attribute("operation", eltwise_type);
-  return true;
+bool op::Eltwise::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("operation", eltwise_type);
+    return true;
 }
-std::ostream &ngraph::operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
-  return s << as_string(type);
+std::ostream& ngraph::operator<<(std::ostream& s, const ELTWISE_TYPE& type) {
+    return s << as_string(type);
 }
 
 namespace ov {
-template <> EnumNames<ELTWISE_TYPE> &EnumNames<ELTWISE_TYPE>::get() {
-  static auto enum_names =
-      EnumNames<ELTWISE_TYPE>("ELTWISE_TYPE", {{"sum", ELTWISE_TYPE::Sum},
-                                               {"prod", ELTWISE_TYPE::Prod},
-                                               {"max", ELTWISE_TYPE::Max},
-                                               {"sub", ELTWISE_TYPE::Sub},
-                                               {"min", ELTWISE_TYPE::Min},
-                                               {"div", ELTWISE_TYPE::Div}});
-  return enum_names;
+template <>
+EnumNames<ELTWISE_TYPE>& EnumNames<ELTWISE_TYPE>::get() {
+    static auto enum_names = EnumNames<ELTWISE_TYPE>("ELTWISE_TYPE",
+                                                     {{"sum", ELTWISE_TYPE::Sum},
+                                                      {"prod", ELTWISE_TYPE::Prod},
+                                                      {"max", ELTWISE_TYPE::Max},
+                                                      {"sub", ELTWISE_TYPE::Sub},
+                                                      {"min", ELTWISE_TYPE::Min},
+                                                      {"div", ELTWISE_TYPE::Div}});
+    return enum_names;
 }
-
-constexpr DiscreteTypeInfo AttributeAdapter<ELTWISE_TYPE>::type_info;
-
-} // namespace ov
+}  // namespace ov

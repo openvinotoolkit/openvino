@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_conditional_complilation_tests)
+set(TARGET_NAME ov_conditional_compilation_tests)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}

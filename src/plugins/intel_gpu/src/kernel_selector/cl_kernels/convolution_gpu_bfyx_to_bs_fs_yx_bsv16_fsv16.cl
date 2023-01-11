@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
@@ -10,19 +12,19 @@
 #define FEATURE_SLICE_SIZE 16
 #define INPUT_FEATURE_NUM 3
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
 KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const int xy = get_global_id(0);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
@@ -46,14 +48,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     const uint input_f_pitch = INPUT0_FEATURE_PITCH;
     const uint input_b_pitch = INPUT0_BATCH_PITCH;
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (f_block / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#else
-    const uint in_split_offset = split_idx * FILTER_IFM_NUM * input_f_pitch;
-#endif // DEPTHWISE_SEPARABLE_OPT
-
-    const uint input_offset = in_split_offset +
-                              INPUT0_OFFSET +
+    const uint input_offset = INPUT0_OFFSET +
                               b * input_b_pitch +
                               input_y * input_y_pitch +
                               input_x * input_x_pitch;
@@ -67,10 +62,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
 
     const uint output_fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
-    const uint out_split_offset = split_idx * (OUTPUT_FEATURE_NUM / FEATURE_SLICE_SIZE) * output_fs_pitch;
-
-    const uint output_offset = out_split_offset +
-                               (b_block * output_b_pitch) + ((b % BATCH_SLICE_SIZE) * FEATURE_SLICE_SIZE) +
+    const uint output_offset = (b_block * output_b_pitch) + ((b % BATCH_SLICE_SIZE) * FEATURE_SLICE_SIZE) +
                                (f_block + output_fs_pad_before) * output_fs_pitch +
                                (y + OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
                                (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
@@ -82,18 +74,10 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
     const uint filter_is_pitch = filter_y_pitch * FILTER_SIZE_Y;
     const uint filter_os_pitch = filter_is_pitch * ((FILTER_IFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE);
 
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint filter_offset = f_block * filter_os_pitch + split_idx * FILTER_LENGTH;
-#else
     const uint filter_offset = f_block * filter_os_pitch;
-#endif
 
 #if BIAS_TERM
     uint bias_offset = f_block * FEATURE_SLICE_SIZE;
-
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    bias_offset += split_idx * BIAS_LENGTH;
-#endif
 
     vec_t dst = (vec_t)(UNIT_BLOCK_READ(biases, bias_offset));
 #else
@@ -142,7 +126,7 @@ KERNEL(convolution_gpu_bfyx_to_bs_fs_yx_bsv16_fsv16)(
 
                 __attribute__((opencl_unroll_hint(INPUT_FEATURE_NUM)))
                 for (int ic = 0; ic < INPUT_FEATURE_NUM; ic++) {
-                    UNIT_TYPE src = intel_sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
+                    UNIT_TYPE src = _sub_group_shuffle(line_cache[ic * INPUT_BLOCK_SIZE + buf_offset], buf_group);
                     dst[i] = mad(w[ic], src, dst[i]);
                 }
             }

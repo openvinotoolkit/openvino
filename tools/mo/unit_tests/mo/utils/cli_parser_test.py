@@ -1561,6 +1561,16 @@ class TestLayoutParsing(unittest.TestCase):
         for i in exp_res.keys():
             assert np.array_equal(result[i], exp_res[i])
 
+    def test_get_layout_source_target_layout_6(self):
+        argv_source_layout = "name1.0:a/b(nhwc),name2\\d\\[n,h,w,c]"
+        argv_target_layout = "name1.0:a/b(nchw),name2\\d\\[n,c,h,w]"
+        result = get_layout_values(argv_source_layout=argv_source_layout, argv_target_layout=argv_target_layout)
+        exp_res = {'name1.0:a/b': {'source_layout': 'nhwc', 'target_layout': 'nchw'},
+                   'name2\\d\\': {'source_layout': '[n,h,w,c]', 'target_layout': '[n,c,h,w]'}}
+        self.assertEqual(list(exp_res.keys()), list(result.keys()))
+        for i in exp_res.keys():
+            assert np.array_equal(result[i], exp_res[i])
+
     def test_get_layout_source_target_layout_scalar(self):
         argv_source_layout = "name1(nhwc),name2[]"
         argv_target_layout = "name1(nchw),name2[]"

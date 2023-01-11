@@ -48,15 +48,14 @@ const std::vector<ParamsWhichSizeDepends> specificParams3In = {
     ParamsWhichSizeDepends{false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {}, {}}
 };
 
-const auto params3Inputs = ::testing::Combine(
-        commonAttributes,
-        ::testing::ValuesIn(specificParams3In),
-        ::testing::ValuesIn(numberBatch),
-        ::testing::Values(0.0f),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In, DetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In,
+                         DetectionOutputLayerTest,
+                         ::testing::Combine(commonAttributes,
+                                            ::testing::ValuesIn(specificParams3In),
+                                            ::testing::ValuesIn(numberBatch),
+                                            ::testing::Values(0.0f),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         DetectionOutputLayerTest::getTestCaseName);
 
 /* =============== 5 inputs cases =============== */
 
@@ -72,14 +71,13 @@ const std::vector<ParamsWhichSizeDepends> specificParams5In = {
     ParamsWhichSizeDepends{false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {1, 30}, {1, 660}}
 };
 
-const auto params5Inputs = ::testing::Combine(
-        commonAttributes,
-        ::testing::ValuesIn(specificParams5In),
-        ::testing::ValuesIn(numberBatch),
-        ::testing::Values(objectnessScore),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In, DetectionOutputLayerTest, params5Inputs, DetectionOutputLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In,
+                         DetectionOutputLayerTest,
+                         ::testing::Combine(commonAttributes,
+                                            ::testing::ValuesIn(specificParams5In),
+                                            ::testing::ValuesIn(numberBatch),
+                                            ::testing::Values(objectnessScore),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                         DetectionOutputLayerTest::getTestCaseName);
 
 }  // namespace

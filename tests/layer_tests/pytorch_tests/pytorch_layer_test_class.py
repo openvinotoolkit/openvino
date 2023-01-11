@@ -89,7 +89,7 @@ class PytorchLayerTest:
         torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
 
-        if not isinstance(fw_res, tuple):
+        if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
 
         output_list = list(infer_res.values())
@@ -101,9 +101,12 @@ class PytorchLayerTest:
                 if np.isscalar(fw_tensor):
                     assert fw_tensor == np.array(ov_tensor).item()
                 else:
+                    if isinstance(fw_tensor, list):
+                        ov_tensor = ov_tensor.tolist()
+                        assert ov_tensor == fw_tensor
                     assert type(fw_tensor) == type(ov_tensor)
                 continue
-            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype
+            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']

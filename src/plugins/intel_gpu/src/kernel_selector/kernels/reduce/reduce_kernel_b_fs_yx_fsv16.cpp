@@ -99,6 +99,15 @@ ParamsKey ReduceKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ReduceKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_reduce();
+    k.requires_subgroup_shuffle();
+    k.requires_subgroup_shuffle_relative();
+
+    return k;
+}
+
 CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& params, const optional_params&) const {
     CommonDispatchData dispatchData;
 

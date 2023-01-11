@@ -24,14 +24,12 @@
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
-#include "progress_bar.hpp"
 #include "remote_tensors_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
 // clang-format on
 
-static const size_t progressBarDefaultTotalCount = 1000;
-
+namespace {
 bool parse_and_check_command_line(int argc, char* argv[]) {
     // ---------------------------Parsing and validating input
     // arguments--------------------------------------
@@ -95,7 +93,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     return true;
 }
 
-static void next_step(const std::string additional_info = "") {
+void next_step(const std::string additional_info = "") {
     static size_t step_id = 0;
     static const std::map<size_t, std::string> step_names = {{1, "Parsing and validating input arguments"},
                                                              {2, "Loading OpenVINO Runtime"},
@@ -160,6 +158,7 @@ void setDeviceProperty(ov::Core& core,
                        std::string& device,
                        ov::AnyMap& device_config,
                        const std::pair<std::string, ov::Any>& property,
+                       std::map<std::string, bool>& is_dev_set_property,
                        const std::pair<std::string, ov::Any>& config = {}) {
     auto supported_properties = core.get_property(device, ov::supported_properties);
     auto supported = [&](const std::string& key) {
@@ -175,13 +174,62 @@ void setDeviceProperty(ov::Core& core,
 
     if (device_property.first.empty())
         return;
-    if (device_config.find(device) == device_config.end()) {
+
+    if (device_config.find(device) == device_config.end() ||  // device properties not existed
+        config.first.empty() &&                               // not setting default value to property
+            (!FLAGS_load_config.empty() &&
+             is_dev_set_property[device])) {  // device properties loaded from file and overwrite is not happened
+        is_dev_set_property[device] = false;
+        device_config.erase(device);
         device_config.insert(ov::device::properties(device, device_property));
     } else {
         auto& properties = device_config[device].as<ov::AnyMap>();
+        // property present in device properties has higher priority than property set with default value
         properties.emplace(device_property);
     }
 }
+
+void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
+    if (!std::any_of(first_inputs.begin(),
+                     first_inputs.end(),
+                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
+                         return ov::layout::has_batch(info.second.layout);
+                     })) {
+        slog::warn
+            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
+            << slog::endl;
+    }
+}
+
+void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_app::InputsInfo& app_inputs_info) {
+    // TODO: remove warning after 23.3 release
+    bool warned = false;
+    constexpr char warn_msg[] = "Mean/scale values are fused into the model. This slows down performance compared to "
+                                "--imean and --iscale which existed before";
+    for (const std::pair<std::string, benchmark_app::InputInfo>& input_info : app_inputs_info) {
+        if (!input_info.second.mean.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .mean(input_info.second.mean);
+        }
+        if (!input_info.second.scale.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .scale(input_info.second.scale);
+        }
+    }
+}
+}  // namespace
 
 /**
  * @brief The entry point of the benchmark application
@@ -233,6 +281,10 @@ int main(int argc, char* argv[]) {
         // Parse devices
         auto devices = parse_devices(device_name);
 
+        std::map<std::string, bool> is_dev_set_property = {};
+        // initialize flags to ensure ov::device::properties should only be set once per device.
+        for (auto& dev : devices)
+            is_dev_set_property[dev] = true;
         // Parse nstreams per device
         std::map<std::string, std::string> device_nstreams = parse_value_per_device(devices, FLAGS_nstreams);
         std::map<std::string, std::string> device_infer_precision =
@@ -240,8 +292,10 @@ int main(int argc, char* argv[]) {
 
         // Load device config file if specified
         std::map<std::string, ov::AnyMap> config;
+        bool is_load_config = false;
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
+            is_load_config = true;
         }
 
         /** This vector stores paths to the processed images with input names**/
@@ -325,7 +379,7 @@ int main(int argc, char* argv[]) {
             auto ov_perf_hint = get_performance_hint(device, core);
             device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
             if (FLAGS_nireq != 0)
-                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
+                device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -384,10 +438,17 @@ int main(int argc, char* argv[]) {
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
                             for (auto it : devices_property) {
-                                if (device_config.find(it.first) == device_config.end())
+                                if (device_config.find(it.first) == device_config.end() ||
+                                    (is_load_config && is_dev_set_property[it.first])) {
+                                    // Create ov::device::properties with ov::num_stream and
+                                    // 1. Insert this ov::device::properties into device config if this
+                                    // ov::device::properties isn't existed. Otherwise,
+                                    // 2. Replace the existed ov::device::properties within device config.
+                                    is_dev_set_property[it.first] = false;
+                                    device_config.erase(it.first);
                                     device_config.insert(
                                         ov::device::properties(it.first, ov::num_streams(std::stoi(it.second))));
-                                else {
+                                } else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::num_streams(std::stoi(it.second)));
                                 }
@@ -419,13 +480,14 @@ int main(int argc, char* argv[]) {
                             device_config[key] = ov::streams::AUTO;
                         } else if (device == "MULTI" || device == "AUTO") {
                             // Set nstreams to default value auto if no nstreams specified from cmd line.
-                            std::string key = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS");
                             for (auto& hwdevice : hardware_devices) {
+                                std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
                                 auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
                                 setDeviceProperty(core,
                                                   hwdevice,
                                                   device_config,
                                                   ov::num_streams(ov::streams::AUTO),
+                                                  is_dev_set_property,
                                                   std::make_pair(key, value));
                             }
                         }
@@ -454,10 +516,17 @@ int main(int argc, char* argv[]) {
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
                             for (auto it : devices_property) {
-                                if (device_config.find(it.first) == device_config.end())
+                                if (device_config.find(it.first) == device_config.end() ||
+                                    (is_load_config && is_dev_set_property[it.first])) {
+                                    // Create ov::device::properties with ov::inference_precision and
+                                    // 1. Insert this ov::device::properties into device config if this
+                                    // ov::device::properties isn't existed. Otherwise,
+                                    // 2. Replace the existed ov::device::properties within device config.
+                                    is_dev_set_property[it.first] = false;
+                                    device_config.erase(it.first);
                                     device_config.insert(
                                         ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
-                                else {
+                                } else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
                                     property.emplace(ov::hint::inference_precision(it.second));
                                 }
@@ -484,7 +553,7 @@ int main(int argc, char* argv[]) {
 
             auto set_nthreads_pin = [&](const std::string& str) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
-                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
@@ -494,7 +563,7 @@ int main(int argc, char* argv[]) {
                     // list specified by -d.
                     for (auto& device : hardware_devices) {
                         if (device == "CPU")
-                            setDeviceProperty(core, device, device_config, property);
+                            setDeviceProperty(core, device, device_config, property, is_dev_set_property);
                     }
                 }
             };
@@ -560,12 +629,17 @@ int main(int argc, char* argv[]) {
 
         // If set batch size, disable the auto batching
         if (FLAGS_b > 0) {
+            slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             core.set_property(ov::hint::allow_auto_batching(false));
         }
 
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
@@ -582,7 +656,7 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->add_parameters(
                     StatisticsReport::Category::EXECUTION_RESULTS,
-                    {StatisticsVariant("сompile model time (ms)", "load_model_time", duration_ms)});
+                    {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
 
             convert_io_names_in_map(inputFiles, compiledModel.inputs());
             app_inputs_info = get_inputs_info(FLAGS_shape,
@@ -590,8 +664,8 @@ int main(int argc, char* argv[]) {
                                               batchSize,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -637,8 +711,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               inputInfo,
                                               reshape);
             if (reshape) {
@@ -711,6 +785,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            fuse_mean_scale(preproc, app_inputs_info.at(0));
+
             const auto& outs = model->outputs();
             for (int i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
@@ -741,14 +817,9 @@ int main(int argc, char* argv[]) {
 
             topology_name = model->get_friendly_name();
 
-            // Calculate batch size according to provided layout and shapes (static case)
-            if (!isDynamicNetwork && app_inputs_info.size()) {
-                batchSize = get_batch_size(app_inputs_info.front());
-
-                slog::info << "Model batch size: " << batchSize << slog::endl;
-            } else if (batchSize == 0) {
-                batchSize = 1;
-            }
+            batchSize = get_batch_size(app_inputs_info.at(0));
+            warn_if_no_batch(app_inputs_info.at(0));
+            slog::info << "Model batch size: " << batchSize << slog::endl;
 
             printInputAndOutputsInfoShort(*model);
             // ----------------- 7. Loading the model to the device
@@ -763,6 +834,10 @@ int main(int argc, char* argv[]) {
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
         } else {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported for compiled model. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
@@ -797,8 +872,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -846,7 +921,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -863,7 +938,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
             if (shape_groups_num > nireq) {
@@ -883,7 +958,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;
@@ -970,8 +1045,6 @@ int main(int argc, char* argv[]) {
         }
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
-        size_t progressCnt = 0;
-        size_t progressBarTotalCount = progressBarDefaultTotalCount;
         size_t iteration = 0;
 
         std::stringstream ss;
@@ -997,9 +1070,6 @@ int main(int argc, char* argv[]) {
             ss << get_duration_in_milliseconds(duration_seconds) << " ms duration";
         }
         if (niter != 0) {
-            if (duration_seconds == 0) {
-                progressBarTotalCount = niter;
-            }
             if (duration_seconds > 0) {
                 ss << ", ";
             }
@@ -1098,7 +1168,6 @@ int main(int argc, char* argv[]) {
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
-        ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds) ||
                (FLAGS_api == "async" && iteration % nireq != 0)) {
@@ -1116,16 +1185,6 @@ int main(int argc, char* argv[]) {
 
                 if (isDynamicNetwork) {
                     batchSize = get_batch_size(inputs);
-                    if (!std::any_of(inputs.begin(),
-                                     inputs.end(),
-                                     [](const std::pair<const std::string, benchmark_app::InputInfo>& info) {
-                                         return ov::layout::has_batch(info.second.layout);
-                                     })) {
-                        slog::warn
-                            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect "
-                               "FPS calculation."
-                            << slog::endl;
-                    }
                 }
 
                 for (auto& item : inputs) {
@@ -1152,19 +1211,6 @@ int main(int argc, char* argv[]) {
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
             processedFramesN += batchSize;
-
-            if (niter > 0) {
-                progressBar.add_progress(1);
-            } else {
-                // calculate how many progress intervals are covered by current
-                // iteration. depends on the current iteration time and time of each
-                // progress interval. Previously covered progress intervals must be
-                // skipped.
-                auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
-                size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                progressBar.add_progress(newProgress);
-                progressCnt += newProgress;
-            }
         }
 
         // wait the latest inference executions
@@ -1179,7 +1225,7 @@ int main(int argc, char* argv[]) {
 
                 std::string data_shapes_string = "";
                 for (auto& item : app_inputs_info[i]) {
-                    data_shapes_string += item.first + get_shape_string(item.second.dataShape) + ",";
+                    data_shapes_string += item.first + item.second.dataShape.to_string() + ",";
                 }
                 data_shapes_string =
                     data_shapes_string == "" ? "" : data_shapes_string.substr(0, data_shapes_string.size() - 1);
@@ -1221,8 +1267,6 @@ int main(int argc, char* argv[]) {
             statistics->add_parameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                        {StatisticsVariant("throughput", "throughput", fps)});
         }
-        progressBar.finish();
-
         // ----------------- 11. Dumping statistics report
         // -------------------------------------------------------------
         next_step();
@@ -1235,7 +1279,7 @@ int main(int argc, char* argv[]) {
         if (!FLAGS_exec_graph_path.empty()) {
             try {
                 ov::serialize(compiledModel.get_runtime_model(), FLAGS_exec_graph_path);
-                slog::info << "executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
+                slog::info << "Executable graph is stored to " << FLAGS_exec_graph_path << slog::endl;
             } catch (const std::exception& ex) {
                 slog::err << "Can't get executable graph: " << ex.what() << slog::endl;
             }
@@ -1273,8 +1317,8 @@ int main(int argc, char* argv[]) {
         } catch (const ov::Exception&) {
         }
 
-        slog::info << "Count:             " << iteration << " iterations" << slog::endl;
-        slog::info << "Duration:          " << double_to_string(totalDuration) << " ms" << slog::endl;
+        slog::info << "Count:               " << iteration << " iterations" << slog::endl;
+        slog::info << "Duration:            " << double_to_string(totalDuration) << " ms" << slog::endl;
 
         if (device_name.find("MULTI") == std::string::npos) {
             slog::info << "Latency:" << slog::endl;
@@ -1289,7 +1333,7 @@ int main(int argc, char* argv[]) {
                         auto shape = item.second.dataShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<size_t>(input_shape, ","));
                         input_shape << shape.back();
-                        slog::info << " " << item.first << ": " << get_shape_string(item.second.dataShape);
+                        slog::info << " " << item.first << " : " << item.second.dataShape;
                     }
                     slog::info << slog::endl;
 
@@ -1298,7 +1342,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        slog::info << "Throughput:   " << double_to_string(fps) << " FPS" << slog::endl;
+        slog::info << "Throughput:          " << double_to_string(fps) << " FPS" << slog::endl;
 
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;

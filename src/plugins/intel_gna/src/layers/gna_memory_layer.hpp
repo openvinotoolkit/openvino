@@ -4,9 +4,12 @@
 
 #pragma once
 
-#include <legacy/ie_layers.h>
+#include "legacy/ie_layers.h"
+#include "debug.h"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
 * maps type of connection to input and output layers also stores gna_pointer for alloc request
 */
@@ -24,6 +27,12 @@ public:
     InferenceEngine::CNNLayerPtr getOutput() const { return outputLayer; }
     InferenceEngine::SizeVector getDims() const {
         return inputLayer->outData.front()->getDims();
+    }
+    /**
+     * @brief Get size requred for the gna memory buffer
+     */
+    size_t getByteSize() const {
+        return InferenceEngine::details::product(getDims()) * elementSizeBytes();
     }
     /**
      * @brief Reset the gna memory
@@ -56,4 +65,6 @@ public:
      */
     float scale_factor = 1.0f;
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

@@ -11,18 +11,15 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id shape_of::type_id() {
-    static primitive_type_base<shape_of> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(shape_of)
 
 layout shape_of_inst::calc_output_layout(shape_of_node const& node, kernel_impl_params const& impl_param) {
     auto prim = impl_param.typed_desc<shape_of>();
 
     data_types dt = data_types::i32;
 
-    if (prim->output_data_type)
-        dt = *prim->output_data_type;
+    if (prim->output_data_types[0])
+        dt = *prim->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         dt = impl_param.get_fused_output_layout().data_type;
@@ -37,7 +34,7 @@ template<typename ShapeType>
 std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto prim = impl_param.typed_desc<shape_of>();
 
-    data_types output_dt = prim->output_data_type.value_or(data_types::i32);
+    data_types output_dt = prim->output_data_types[0].value_or(data_types::i32);
     if (impl_param.has_fused_primitives()) {
         output_dt = impl_param.get_fused_output_layout().data_type;
     }
@@ -57,8 +54,8 @@ std::string shape_of_inst::to_string(shape_of_node const& node) {
     std::stringstream primitive_description;
 
     json_composite shape_of_info;
-    if (desc->output_data_type.has_value())
-        shape_of_info.add("out dt: ", dt_to_str(*desc->output_data_type));
+    if (desc->output_data_types[0].has_value())
+        shape_of_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
     node_info->add("shape_of info", shape_of_info);
     node_info->dump(primitive_description);
 

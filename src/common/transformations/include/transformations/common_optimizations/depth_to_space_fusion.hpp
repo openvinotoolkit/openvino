@@ -29,8 +29,8 @@ class TRANSFORMATIONS_API DepthToSpaceFusion;
  * Callback example:
  *
  *     // This callback enables DepthToSpaceFusion transformation
- *     auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
- *         return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
+ *     auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
+ *         return std::dynamic_pointer_cast<const ov::opset3::DepthToSpace>(node) != nullptr;
  *     };
  *
  *     auto p = ov::pass::DepthToSpaceFusion();

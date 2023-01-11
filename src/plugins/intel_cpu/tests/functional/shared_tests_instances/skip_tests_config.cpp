@@ -38,7 +38,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
-        R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse|ref).*)",
+        R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
@@ -153,6 +153,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*LoopLayerCPUTest.*trip_count=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*exec_cond=0.*)",
         R"(.*LoopForDiffShapesLayerCPUTest.*trip_count=0.*)",
+        R"(.*LoopForConcatLayerCPUTest.*exec_cond=0.*)",
+        R"(.*LoopForConcatLayerCPUTest.*trip_count=0.*)",
         // [ INFO ] Can't compile network without cache for ..  with precision ..
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*KSOFunction.*)",
         R"(.*CompileModelCacheTestBase.*CompareWithRefImpl.*NonMaxSuppression.*)",
@@ -167,13 +169,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 95590
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(u|i).*)",
         // Issue: 95607
-        R"(.*OVClass.*QueryNetwork.*QueryNetwork.*)",
-        R"(.*OVClass.*LoadNetwork*(HETERO|MULTI).*)",
+        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROAndDeviceIDThrows|MULTIwithAUTONoThrow|HETEROwithMULTINoThrow|MULTIwithHETERONoThrow).*)",
+        R"(.*OVClass.*LoadNetwork.*LoadNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
+        R"(.*OVClass.*QueryNetwork.*QueryNetwork(HETEROWithDeviceIDNoThrow|WithDeviceID|WithBigDeviceIDThrows|WithInvalidDeviceIDThrows|HETEROWithBigDeviceIDThrows).*)",
         R"(.*OVClass.*LoadNetwork.*(DeviceID|MultiWithoutSettingDevicePrioritiesThrows).*)",
         R"(.*OVClassLoadNetworkTest.*QueryNetwork(MULTIWithHETERO|HETEROWithMULTI)NoThrow_V10.*)",
-        R"(.*OVClassNetworkTestP.*QueryNetworkMultiThrows.*)",
         R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*(TIwithLSTMcell1|MatMulBias|2InputSubtract)_(i|u).*)",
-        R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*ReadConcatSplitAssign.*)",
+        R"(.*CachingSupportCase.*ReadConcatSplitAssign.*)",
         R"(.*IEClassQueryNetworkTest.*QueryNetwork.*)",
         R"(.*IEClassLoadNetworkTest.*(Load|Query)Network.*)",
         // Issue: 95239
@@ -184,7 +186,15 @@ std::vector<std::string> disabledTestPatterns() {
         // Reorder->GridSample->Reorder also does not work here. Potential fix is to use nearest conversion instead of truncation.
         R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*(i32|i8).*)",
         // 94989. BF16 Reference produces different results.
-        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*gridPrc=bf16.*)",
+        // GridSample regression on bf16 data.
+        R"(.*GridSampleLayerTestCPU.*(BILINEAR|BICUBIC).*bf16.*)",
+        // // Issue: 95915
+        R"(smoke_dynamic/AUGRUCellCPUTest.CompareWithRefs/IS=\(\[\?\.1\]_\[\?\.1\]_\[\?\.1\]_\)_TS=\{\(1\.1\)_\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        R"(smoke_dynamic/GRUCellCPUTest.CompareWithRefs/IS=\(\[\?.1\]_\[\?\.1\]_\)_TS=\{\(1\.1\)_\(1\.1\)\}_\{\(3\.1\)_\(3\.1\)\}_\{\(5\.1\)_\(5\.1\)\}_decompose=0_activations=\(sigmoid\.tanh\)_clip=0_linear=0_netPrec=f32__inFmts=nc\.nc_outFmts=nc_primitive=ref_any_PluginConf_ENFORCE_BF16=YES)", // NOLINT
+        R"(nightly_dynamic_bf16/RNNSequenceCPUTest.*activations=\(relu\).*)",
+        R"(smoke_dynamic_BatchSizeOne/RNNSequenceCPUTest.*IS=\(\[1\.\?\.10\]_\[1\.1\.10\]_\[\?\]_\)_TS=\{\(1\.2\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.4\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.8\.10\)_\(1\.1\.10\)_\(1\)\}_seqMode=PURE_SEQ_activations=\(relu\)_clip=0_direction=forward_netPrec=f32__inFmts=ncw\.ntc_outFmts=ncw\.ncw_primitive=ref_any)", // NOLINT
+        // 98151. Not valid sorting for slices in reference.
+        R"(.*UniqueLayerTestCPU.*axis.*True.*)"
     };
 
 #define FIX_62820 0

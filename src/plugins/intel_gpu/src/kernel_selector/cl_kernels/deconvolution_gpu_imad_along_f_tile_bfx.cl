@@ -4,8 +4,10 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/imad.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #include "deconvolution_gpu_imad_common.cl"
 
@@ -31,18 +33,18 @@ DECLARE_STORE_BLOCK_4(store_output, OUTPUT_TYPE)
 #define WEIGHTS_IN_TILE_OFM_PITCH               (TILE_IFM * SIMD)
 
 __attribute__((reqd_work_group_size(1, SIMD, 1)))
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(deconvolution_gpu_imad_ref)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output,
-    const __global FILTER_TYPE* weights,
+    const __global FILTER_TYPE* weights
 #if BIAS_TERM
-    const __global BIAS_TYPE* bias,
+    , const __global BIAS_TYPE* bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
+
 ) {
     const __global uint* input_ui = (const __global uint*)input;
     const __global uint* weights_ui = (const __global uint*)weights;
@@ -127,8 +129,7 @@ KERNEL(deconvolution_gpu_imad_ref)(
 
                 for (uint fi = 0; fi < FILTER_IFM_NUM; fi += TILE_IFM) {
                     // Load weights [TILE_OFM, TILE_IFM, 1, 1]
-                    __attribute__((opencl_unroll_hint))
-                    for (uint of = 0; of < TILE_OFM; ++of) {
+                    unroll_for (uint of = 0; of < TILE_OFM; ++of) {
                         uint weights_idx = weights_offset + of * WEIGHTS_IN_TILE_OFM_PITCH / 4;
                         FUNC_CALL(load_weights_ui)(weights_ui, weights_idx, TILE_IFM / 4, wei[of]);
                     }
@@ -142,8 +143,7 @@ KERNEL(deconvolution_gpu_imad_ref)(
                     uint input_offset = INPUT0_GET_INDEX(out_b, if_start + fi, fixed_in_z, fixed_in_y, fixed_in_x) / 4;
 #   endif
 #endif
-                    __attribute__((opencl_unroll_hint))
-                    for (uint ob = 0; ob < TILE_B; ++ob) {
+                    unroll_for (uint ob = 0; ob < TILE_B; ++ob) {
                         uint input_idx = input_offset + ob * INPUT_IN_TILE_B_PITCH / 4;
                         FUNC_CALL(load_input_ui)(input_ui, input_idx, TILE_IFM / 4, in[ob]);
                     }
@@ -151,24 +151,18 @@ KERNEL(deconvolution_gpu_imad_ref)(
                     input_offset += INPUT_TILE_IFM_PITCH / 4;
 #endif
                     if (zero_x) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint ob = 0; ob < TILE_B; ++ob) {
-                            __attribute__((opencl_unroll_hint))
-                            for (uint ifp = 0; ifp < TILE_IFM / 4; ++ifp) {
+                        unroll_for (uint ob = 0; ob < TILE_B; ++ob) {
+                            unroll_for(uint ifp = 0; ifp < TILE_IFM / 4; ++ifp) {
                                 in[ob][ifp] = 0;
                             }
                         }
                     }
 
-                    __attribute__((opencl_unroll_hint))
-                    for (uint ob = 0; ob < TILE_B; ++ob) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint of = 0; of < TILE_OFM; ++of) {
-                            __attribute__((opencl_unroll_hint))
-                            for (uint tx = 0; tx < TILE_X; ++tx) {
-                                __attribute__((opencl_unroll_hint))
-                                for (uint imad_it = 0; imad_it < TILE_IFM / 4; ++imad_it) {
-                                    uint in_val = intel_sub_group_shuffle(in[ob][imad_it], tx);
+                    unroll_for (uint ob = 0; ob < TILE_B; ++ob) {
+                        unroll_for (uint of = 0; of < TILE_OFM; ++of) {
+                            unroll_for(uint tx = 0; tx < TILE_X; ++tx) {
+                                unroll_for (uint imad_it = 0; imad_it < TILE_IFM / 4; ++imad_it) {
+                                    uint in_val = _sub_group_shuffle(in[ob][imad_it], tx);
                                     acc[ob][of][tx] = IMAD(acc[ob][of][tx], AS_INPUT_TYPE4(in_val), AS_FILTER_TYPE4(wei[of][imad_it]));
                                 }
                             }
@@ -180,25 +174,19 @@ KERNEL(deconvolution_gpu_imad_ref)(
     }
 
     ACTIVATION_TYPE dequantized[TILE_B][TILE_OFM][TILE_X];
-    __attribute__((opencl_unroll_hint))
-    for (uint ob = 0; ob < TILE_B; ++ob) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of = 0; of < TILE_OFM; ++of) {
-            __attribute__((opencl_unroll_hint))
-            for (uint tx = 0; tx < TILE_X; ++tx) {
+    unroll_for (uint ob = 0; ob < TILE_B; ++ob) {
+        unroll_for(uint of = 0; of < TILE_OFM; ++of) {
+            unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
                 dequantized[ob][of][tx] = TO_ACTIVATION_TYPE(acc[ob][of][tx]);
             }
         }
     }
 
 #if BIAS_TERM
-    __attribute__((opencl_unroll_hint))
-    for (uint of = 0; of < TILE_OFM; ++of) {
+    unroll_for (uint of = 0; of < TILE_OFM; ++of) {
         BIAS_TYPE bias_val = bias[out_f + of * SIMD];
-        __attribute__((opencl_unroll_hint))
-        for (uint ob = 0; ob < TILE_B; ++ob) {
-            __attribute__((opencl_unroll_hint))
-            for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint ob = 0; ob < TILE_B; ++ob) {
+            unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
                 dequantized[ob][of][tx] += TO_ACTIVATION_TYPE(bias_val);
             }
         }
@@ -206,15 +194,12 @@ KERNEL(deconvolution_gpu_imad_ref)(
 #endif
 
     OUTPUT_TYPE result[TILE_B][TILE_OFM][TILE_X];
-    __attribute__((opencl_unroll_hint))
-    for (uint of = 0; of < TILE_OFM; ++of) {
+    unroll_for (uint of = 0; of < TILE_OFM; ++of) {
 #if FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_PRELOAD;
 #endif
-        __attribute__((opencl_unroll_hint))
-        for (uint ob = 0; ob < TILE_B; ++ob) {
-            __attribute__((opencl_unroll_hint))
-            for (uint tx = 0; tx < TILE_X; ++tx) {
+        unroll_for(uint ob = 0; ob < TILE_B; ++ob) {
+            unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
 #if HAS_FUSED_OPS
 #   if FUSED_OPS_CAN_USE_PRELOAD
                 FUSED_OPS_CALC;
@@ -233,12 +218,9 @@ KERNEL(deconvolution_gpu_imad_ref)(
     bool leftovers_f = OUTPUT_FEATURE_NUM % SIMD != 0 && out_f + SIMD >= OUTPUT_FEATURE_NUM;
 
 #if OUTPUT_NAIVE_STORE
-    __attribute__((opencl_unroll_hint))
-    for (uint ob = 0; ob < TILE_B; ++ob) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of = 0; of < TILE_OFM; ++of) {
-            __attribute__((opencl_unroll_hint))
-            for (uint tx = 0; tx < TILE_X; ++tx) {
+    unroll_for (uint ob = 0; ob < TILE_B; ++ob) {
+        unroll_for(uint of = 0; of < TILE_OFM; ++of) {
+            unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
                 if ((leftovers_x && tx >= OUTPUT_SIZE_X % TILE_X) ||
                     (leftovers_f && out_f + of * SIMD >= OUTPUT_FEATURE_NUM))
                     break;
@@ -252,10 +234,8 @@ KERNEL(deconvolution_gpu_imad_ref)(
         }
     }
 #elif OUTPUT_BLOCK_X_STORE
-    __attribute__((opencl_unroll_hint))
-    for (uint ob = 0; ob < TILE_B; ++ob) {
-        __attribute__((opencl_unroll_hint))
-        for (uint of = 0; of < TILE_OFM; ++of) {
+    unroll_for (uint ob = 0; ob < TILE_B; ++ob) {
+        unroll_for(uint of = 0; of < TILE_OFM; ++of) {
 #if OUTPUT_DIMS <= 4
             uint output_idx = OUTPUT_GET_INDEX(out_b + ob, out_fg + of * SIMD, out_y, out_x);
 #elif OUTPUT_DIMS == 5
@@ -266,8 +246,7 @@ KERNEL(deconvolution_gpu_imad_ref)(
             } else if (!leftovers_f) {
                 FUNC_CALL(store_output)(output, output_idx, OUTPUT_SIZE_X % TILE_X, result[ob][of]);
             } else {
-                __attribute__((opencl_unroll_hint))
-                for (uint tx = 0; tx < TILE_X; ++tx) {
+                unroll_for (uint tx = 0; tx < TILE_X; ++tx) {
                     if (out_f + of * SIMD < OUTPUT_FEATURE_NUM && out_x + tx < OUTPUT_SIZE_X) {
                         output[output_idx + sglid + tx * SIMD] = result[ob][of][tx];
                     }

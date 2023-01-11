@@ -41,8 +41,9 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
-Gather::Gather(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache), batchDims(0) {
+Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(GATHER_AXIS))),
+      batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -472,10 +473,6 @@ void Gather::execReference() {
             }
         }
     });
-}
-
-std::vector<VectorDims> Gather::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1, 2, 3));
 }
 
 bool Gather::created() const {

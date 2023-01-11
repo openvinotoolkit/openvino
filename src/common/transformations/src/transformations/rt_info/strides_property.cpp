@@ -4,19 +4,19 @@
 
 #include "transformations/rt_info/strides_property.hpp"
 
-bool ov::has_strides_prop(const ngraph::Input<ngraph::Node>& node) {
+bool ov::has_strides_prop(const ov::Input<ov::Node>& node) {
     return node.get_rt_info().count(StridesPropagation::get_type_info_static());
 }
 
-ngraph::Strides ov::get_strides_prop(const ngraph::Input<ngraph::Node>& node) {
+ov::Strides ov::get_strides_prop(const ov::Input<ov::Node>& node) {
     return node.get_rt_info().at(StridesPropagation::get_type_info_static()).as<StridesPropagation>().value;
 }
 
-void ov::insert_strides_prop(ngraph::Input<ngraph::Node>& node, const ngraph::Strides& strides) {
+void ov::insert_strides_prop(ov::Input<ov::Node>& node, const ov::Strides& strides) {
     node.get_rt_info().emplace(StridesPropagation::get_type_info_static(), StridesPropagation{strides});
 }
 
-void ov::remove_strides_prop(ngraph::Input<ngraph::Node>& node) {
+void ov::remove_strides_prop(ov::Input<ov::Node>& node) {
     auto& rt_info = node.get_rt_info();
     auto it = rt_info.find(StridesPropagation::get_type_info_static());
     if (it != rt_info.end()) {

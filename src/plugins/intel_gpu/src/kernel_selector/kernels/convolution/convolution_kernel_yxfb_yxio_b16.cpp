@@ -23,10 +23,15 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b16::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableGroupedConvolution();
     k.EnableDilation();
-    k.EnableSubGroup();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 

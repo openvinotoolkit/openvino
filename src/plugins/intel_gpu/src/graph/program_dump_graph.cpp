@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "program_dump_graph.h"
 #include "to_string_utils.h"
 #include "data_inst.h"
@@ -254,8 +252,13 @@ void dump_graph_init(std::ofstream& graph,
                 continue;
             }
             bool doubled = true;
-            if (std::find(user->get_dependencies().begin(), user->get_dependencies().end(), node) ==
-                user->get_dependencies().end())
+            auto it = user->get_dependencies().begin();
+            while (it != user->get_dependencies().end()) {
+                if (it->first == node)
+                    break;
+                ++it;
+            }
+            if (it == user->get_dependencies().end())
                 doubled = false;
             graph << "    " << get_node_id(node) << " -> " << get_node_id(user);
 
@@ -273,15 +276,15 @@ void dump_graph_init(std::ofstream& graph,
         }
 
         for (auto& dep : node->get_dependencies()) {
-            if (filter && !filter(*dep)) {
+            if (filter && !filter(*dep.first)) {
                 continue;
             }
 
-            if (std::find(dep->get_users().begin(), dep->get_users().end(), node) != dep->get_users().end()) {
+            if (std::find(dep.first->get_users().begin(), dep.first->get_users().end(), node) != dep.first->get_users().end()) {
                 continue;
             }
 
-            graph << "   " << get_node_id(node) << " -> " << get_node_id(dep)
+            graph << "   " << get_node_id(node) << " -> " << get_node_id(dep.first)
                   << " [style=dashed, label=\"dep\", constraint=false];\n";
         }
     }

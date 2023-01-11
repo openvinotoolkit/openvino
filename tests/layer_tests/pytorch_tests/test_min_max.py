@@ -1,5 +1,6 @@
 import pytest
 from pytorch_layer_test_class import PytorchLayerTest
+from typing import List
 
 
 class TestMinMax(PytorchLayerTest):
@@ -65,3 +66,64 @@ class TestMinMax(PytorchLayerTest):
     def test_min_max(self, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, None, None, single_input=False),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={"second_input": True})
+
+
+class TestPrimMax(PytorchLayerTest):
+    def _prepare_input(self, first_input, second_input, dtype="float"):
+        import numpy as np
+        first_array = np.array(first_input).astype(dtype)
+        if not second_input:
+            return (first_array, )
+        second_array = np.array(second_input).astype(dtype)
+        return (first_array, second_array)
+
+    def create_model(self, case):
+        import torch
+
+        class prim_max_2_values(torch.nn.Module):
+
+            def forward(self, x:float,  y:float):
+                return max(x, y)
+
+        class prim_max_2_list_values(torch.nn.Module):
+            def forward(self, x:float,  y:float):
+                return max([x, x+y], [y, y-x])
+
+        class prim_max_1list_several_values(torch.nn.Module):
+
+            def forward(self, x:float,  y:float):
+                return max([x, y, x+y])
+    
+        class prim_max_one_value(torch.nn.Module):
+            def forward(self, x:float,  y:float):
+                return max(x)
+        cases = {
+            "2_values": prim_max_2_values,
+            "2_list_values": prim_max_2_list_values,
+            "list_several_values": prim_max_1list_several_values,
+            "one_value": prim_max_one_value
+        }
+        model_cls = cases[case]()
+
+
+        ref_net = None
+        
+
+        return model_cls, ref_net, f"prim::max"
+
+    @pytest.mark.parametrize("case", ["2_values", "2_list_values", "list_several_values", "one_value"])
+    @pytest.mark.parametrize("kwargs_to_prepare_input", [
+        {"first_input": 0, "second_input": 1, "dtype": "float"},
+        {"first_input": 1, "second_input": 1, "dtype": "float"},
+        {"first_input": 2, "second_input": 1, "dtype": "float"},
+        {"first_input": 0, "second_input": 1, "dtype": "int"},
+        {"first_input": 1, "second_input": 1, "dtype": "int"},
+        {"first_input": 2, "second_input": 1, "dtype": "int"},
+        # {"first_input": 0, "second_input": 1, "dtype": "bool"}, does not supported by OV
+        # {"first_input": 1, "second_input": 1, "dtype": "bool"},
+        # {"first_input": 2, "second_input": 1, "dtype": "bool"},
+    ])
+    @pytest.mark.nightly
+    def test_min_max(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
+        self._test(*self.create_model(case),
+                   ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)

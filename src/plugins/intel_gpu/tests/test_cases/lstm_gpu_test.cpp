@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -244,7 +242,7 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
         topology.add(input_layout("hidden", hidden->get_layout()));
     }
 
-    topology.add(lstm_gemm("lstm_gemm", "input", "weights", "recurrent", hasBias ? "biases" : "", hasHidden ? "hidden" : ""));
+    topology.add(lstm_gemm("lstm_gemm", input_info("input"), "weights", "recurrent", hasBias ? "biases" : "", hasHidden ? "hidden" : ""));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -253,14 +251,14 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
     int i = 0;
     for (int b = 0; b < batch_size; ++b) {
         for (int x = 0; x < 4 * hidden_size; ++x)
-            EXPECT_FLOAT_EQ(ref_output[b][0][0][x], output_ptr[i++]);
+            ASSERT_FLOAT_EQ(ref_output[b][0][0][x], output_ptr[i++]);
     }
 }
 
@@ -307,7 +305,7 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
     if (hasCell) {
         topology.add(input_layout("cell", cell->get_layout()));
     }
-    topology.add(lstm_elt("lstm_elt", "tempGEMM", hasCell ? "cell" : "", clip_threshold, input_forget));
+    topology.add(lstm_elt("lstm_elt", input_info("tempGEMM"), hasCell ? "cell" : "", clip_threshold, input_forget));
 
     network network(engine, topology);
     network.set_input_data("tempGEMM", tempGEMM);
@@ -316,7 +314,7 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
@@ -346,10 +344,10 @@ void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, 
     auto hidden_size = hidden->get_layout().get_tensor();
     t.add(input_layout("input", input->get_layout()));
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
-    std::vector<primitive_id> output_ids_offsets;
+    std::vector<input_info> output_ids_offsets;
     for (int i = 0; i < sequence_len; ++i)
         input_ids_offsets.push_back({ get_string_id(i),{ 0, i, 0, 0 } });
-    t.add(split("inputSplit", "input", input_ids_offsets));
+    t.add(split("inputSplit", input_info("input"), input_ids_offsets));
     t.add(data("weights", weights));
     t.add(data("recurrent", recurrent));
 
@@ -376,16 +374,16 @@ void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, 
         std::string lstm_elt_id = "lstm_elt" + get_string_id(i);
         std::string crop_id = "crop" + get_string_id(i);
 
-        t.add(lstm_gemm(lstm_gemm_id, "inputSplit:" + get_string_id(i), "weights", "recurrent", biasStr, hiddenStr));
-        t.add(lstm_elt(lstm_elt_id, lstm_gemm_id, cellStr));
+        t.add(lstm_gemm(lstm_gemm_id, input_info("inputSplit:" + get_string_id(i)), "weights", "recurrent", biasStr, hiddenStr));
+        t.add(lstm_elt(lstm_elt_id, input_info(lstm_gemm_id), cellStr));
 
         hiddenStr = crop_id + ":hidden";
-        t.add(crop(hiddenStr, lstm_elt_id, hidden_size, tensor{ 0,0,0,0 }));
+        t.add(crop(hiddenStr, input_info(lstm_elt_id), hidden_size, tensor{ 0,0,0,0 }));
         if (i < sequence_len - 1) {
             cellStr = crop_id + ":cell";
-            t.add(crop(cellStr, lstm_elt_id, hidden_size, tensor{ 0,1,0,0 }));
+            t.add(crop(cellStr, input_info(lstm_elt_id), hidden_size, tensor{ 0,1,0,0 }));
         }
-        output_ids_offsets.push_back(hiddenStr);
+        output_ids_offsets.push_back(input_info(hiddenStr));
     }
     t.add(concatenation("concatenation", output_ids_offsets, 1));
 }
@@ -557,15 +555,15 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
 
     topology topology;
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
-    std::vector<primitive_id> lstm_inputs;
+    std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
     for (int i = 0; i < sequence_len; ++i) {
         input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
-        lstm_inputs.push_back("inputSplit:"+get_string_id(i));
+        lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
     }
-    topology.add(split("inputSplit", "input", input_ids_offsets));
+    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     cldnn::primitive_id prev_lstm_id;
     for(int i = 0; i < layers; ++i) {
         std::string sid = get_string_id(i);
@@ -589,7 +587,7 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
                             lstm_output_selection::sequence, default_offset_type));
         }
         else {
-            topology.add(lstm(lstm_id, { prev_lstm_id }, weights_id, recurrent_id,
+            topology.add(lstm(lstm_id, { input_info(prev_lstm_id) }, weights_id, recurrent_id,
                             hasBias ? biases_id : "", hasInitialHidden ? hidden_id : "", hasInitialCell ? cell_id : "", "",
                             clip_threshold, input_forget,
                             { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
@@ -696,16 +694,16 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
 
     topology topology;
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
-    std::vector<primitive_id> lstm_inputs;
+    std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
     for (int i = 0; i < sequence_len; ++i)
     {
         input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
-        lstm_inputs.push_back("inputSplit:"+get_string_id(i));
+        lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
     }
-    topology.add(split("inputSplit", "input", input_ids_offsets));
+    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     topology.add(data("weights", weights));
     topology.add(data("recurrent", recurrent));
     topology.add(data("biases", biases));
@@ -720,8 +718,8 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
         int32_t concatenation_len = emit_last_hidden ? 2 : sequence_len + 1;
         tensor hidden_tensor {batch_size, concatenation_len - 1, hidden_size, directions};
         tensor cell_tensor {batch_size, 1, hidden_size, directions};
-        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", "lstm", hidden_tensor, tensor{0, 0, 0, 0}));
-        topology.add(crop("crop:last_cell", "lstm", cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
+        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", input_info("lstm"), hidden_tensor, tensor{0, 0, 0, 0}));
+        topology.add(crop("crop:last_cell", input_info("lstm"), cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
     network network(engine, topology);
@@ -859,16 +857,16 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
 
     topology topology;
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
-    std::vector<primitive_id> lstm_inputs;
+    std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
     for (int i = 0; i < sequence_len; ++i)
     {
         input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
-        lstm_inputs.push_back("inputSplit:"+get_string_id(i));
+        lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
     }
-    topology.add(split("inputSplit", "input", input_ids_offsets));
+    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     topology.add(data("weights", weights));
     topology.add(data("recurrent", recurrent));
     topology.add(data("biases", biases));
@@ -884,8 +882,8 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
         int32_t concatenation_len = emit_last_hidden ? 2 : sequence_len + 1;
         tensor hidden_tensor {batch_size, concatenation_len - 1, hidden_size, directions};
         tensor cell_tensor {batch_size, 1, hidden_size, directions};
-        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", "lstm", hidden_tensor, tensor{0, 0, 0, 0}));
-        topology.add(crop("crop:last_cell", "lstm", cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
+        topology.add(crop(emit_last_hidden ? "crop:last_hidden" : "crop:sequence", input_info("lstm"), hidden_tensor, tensor{0, 0, 0, 0}));
+        topology.add(crop("crop:last_cell", input_info("lstm"), cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
     network network(engine, topology);
@@ -1033,15 +1031,15 @@ void lstm_gpu_users_test() {
 
     topology topology;
     std::vector<std::pair<primitive_id, tensor>> input_ids_offsets;
-    std::vector<primitive_id> lstm_inputs;
+    std::vector<input_info> lstm_inputs;
 
     topology.add(input_layout("input", input->get_layout()));
     for (int i = 0; i < sequence_len; ++i)
     {
         input_ids_offsets.push_back({get_string_id(i), {0, i, 0, 0}});
-        lstm_inputs.push_back("inputSplit:"+get_string_id(i));
+        lstm_inputs.push_back(input_info("inputSplit:"+get_string_id(i)));
     }
-    topology.add(split("inputSplit", "input", input_ids_offsets));
+    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
     topology.add(data("weights", weights));
     topology.add(data("recurrent", recurrent));
     topology.add(data("biases", biases));
@@ -1051,7 +1049,7 @@ void lstm_gpu_users_test() {
                       "biases", "hidden", "cell", "", 0, false,
                       { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                       lstm_output_selection::hidden, default_offset_type));
-    std::vector<primitive_id> output_ids_offsets {"lstm", "hidden"};
+    std::vector<input_info> output_ids_offsets { input_info("lstm"), input_info("hidden") };
     topology.add(concatenation("concatenation", output_ids_offsets, 1));
 
     network network(engine, topology);
@@ -1191,14 +1189,14 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 		if (has_initial_hidden) topology.add(input_layout(hidden_id, hidden[i]->get_layout()));
 		if (has_initial_cell) topology.add(input_layout(cell_id, cell[i]->get_layout()));
 		if (i == 0) {
-            topology.add(lstm(lstm_id, { "input" }, weights_id, recurrent_id,
+            topology.add(lstm(lstm_id, { input_info("input") }, weights_id, recurrent_id,
 				has_bias ? biases_id : "", has_initial_hidden ? hidden_id : "", has_initial_cell ? cell_id : "", "",
 				clip_threshold, input_forget,
                 { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
 				lstm_output_selection::sequence_cell, default_offset_type));
 		}
 		else {
-			topology.add(lstm(lstm_id, { prev_node_id }, weights_id, recurrent_id,
+			topology.add(lstm(lstm_id, { input_info(prev_node_id) }, weights_id, recurrent_id,
 				has_bias ? biases_id : "", has_initial_hidden ? hidden_id : "", has_initial_cell ? cell_id : "", "",
 				clip_threshold, input_forget,
                 { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
@@ -1206,7 +1204,7 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 		}
 
         // Crop out the whole output sequence element
-		topology.add(crop(output_crop_id, lstm_id, {batch_size, sequence_len, hidden_size, direction}, {0, 0, 0, 0}));
+		topology.add(crop(output_crop_id, input_info(lstm_id), {batch_size, sequence_len, hidden_size, direction}, {0, 0, 0, 0}));
 
        // Save the node id to provide it as input to the next lstm layer
 		prev_node_id = output_crop_id;
@@ -1434,16 +1432,16 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
     // Start creating the topology
     cldnn::topology topology;
     std::vector<std::pair<primitive_id, cldnn::tensor>> input_ids_offsets;
-    std::vector<primitive_id> lstm_inputs;
+    std::vector<input_info> lstm_inputs;
     std::vector<primitive_id> output_ids_offsets;
 
     topology.add(input_layout("input", input->get_layout()));
 
     for (int feature = 0; feature < sequence_len; feature++) {
         input_ids_offsets.push_back({ get_string_id(feature), {0, feature, 0, 0} });
-        lstm_inputs.push_back("inputSplit:" + get_string_id(feature));
+        lstm_inputs.push_back(input_info("inputSplit:" + get_string_id(feature)));
     }
-    topology.add(split("inputSplit", "input", input_ids_offsets));
+    topology.add(split("inputSplit", input_info("input"), input_ids_offsets));
 
     bool emit_last_hidden = output_selection == lstm_output_selection::hidden
         || output_selection == lstm_output_selection::hidden_cell;
@@ -1526,7 +1524,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
             }
             else
             {
-                topology.add(lstm(lstm_id, { output_sequence_ids[layer - 1] }, weights_id, recurrent_id,
+                topology.add(lstm(lstm_id, { input_info(output_sequence_ids[layer - 1]) }, weights_id, recurrent_id,
                     has_bias ? biases_id : "",
                     initial_hidden_id, initial_cell_id,
                     "", clip_threshold, input_forget,
@@ -1543,9 +1541,9 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
             // The output sequence goes into the next layer of lstm in a chain link
             // The last cell state and last hidden go to the lstm node in the same layer
             // next in chain
-            topology.add(crop(crop_seq_id, lstm_id, sequence_tensor, tensor{ 0, 0, 0, 0 }));  // Add crop to get the sequence
-            topology.add(crop(crop_last_hidden_id, lstm_id, last_hidden_tensor, tensor{ 0, sequence_len - 1, 0, 0 }));  // Add crop to get the last hidden element
-            topology.add(crop(crop_last_cell_id, lstm_id, cell_tensor, tensor{ 0, sequence_len, 0, 0 }));  // Add crop to get the last cell element
+            topology.add(crop(crop_seq_id, input_info(lstm_id), sequence_tensor, tensor{ 0, 0, 0, 0 }));  // Add crop to get the sequence
+            topology.add(crop(crop_last_hidden_id, input_info(lstm_id), last_hidden_tensor, tensor{ 0, sequence_len - 1, 0, 0 }));  // Add crop to get the last hidden element
+            topology.add(crop(crop_last_cell_id, input_info(lstm_id), cell_tensor, tensor{ 0, sequence_len, 0, 0 }));  // Add crop to get the last cell element
 
             // Keep a copy of the sequence, last hidden and last cell primitve id for each layer
             output_sequence_ids.push_back(crop_seq_id);
