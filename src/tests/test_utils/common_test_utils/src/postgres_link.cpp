@@ -41,9 +41,11 @@ typedef enum {
 #    endif
 #    include <limits.h>
 #    include <sys/utsname.h>
+#    include <unistd.h>
 #elif defined(__APPLE__)
 #    include <sys/param.h>
 #    include <sys/utsname.h>
+#    include <unistd.h>
 #    ifndef HOST_NAME_MAX
 #        define HOST_NAME_MAX MAXHOSTNAMELEN
 #    endif
@@ -97,21 +99,25 @@ typedef PGconn* (*fnPQconnectdb)(const char* conninfo);
 typedef ConnStatusType (*fnPQstatus)(const PGconn* conn);
 typedef size_t (*fnPQescapeStringConn)(PGconn* conn, char* to, const char* from, size_t length, int* error);
 typedef void (*fnPQfinish)(PGconn* conn);
+typedef char* (*fnPQerrorMessage)(const PGconn* conn);
 
 typedef PGresult* (*fnPQexec)(PGconn* conn, const char* query);
 typedef ExecStatusType (*fnPQresultStatus)(const PGresult* res);
 typedef char* (*fnPQgetvalue)(const PGresult* res, int tup_num, int field_num);
 typedef void (*fnPQclear)(PGresult* res);
+typedef char* (*fnPQresultErrorMessage)(const PGresult* res);
 
 static fnPQconnectdb PQconnectdb;
 static fnPQescapeStringConn PQescapeStringConn;
 static fnPQstatus PQstatus;
 static fnPQfinish PQfinish;
+static fnPQerrorMessage PQerrorMessage;
 
 static fnPQexec PQexec;
 static fnPQresultStatus PQresultStatus;
 static fnPQgetvalue PQgetvalue;
 static fnPQclear PQclear;
+static fnPQresultErrorMessage PQresultErrorMessage;
 #endif
 
 char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
@@ -122,6 +128,9 @@ char* PGPrefix(const char* text, ::testing::internal::GTestColor color) {
 #define PG_ERR PGPrefix("[ PG ERROR ] ", ::testing::internal::COLOR_RED)
 #define PG_WRN PGPrefix("[ PG WARN  ] ", ::testing::internal::COLOR_YELLOW)
 #define PG_INF PGPrefix("[ PG INFO  ] ", ::testing::internal::COLOR_GREEN)
+
+/// \brief Count of tries when serialization error is detected after query
+const uint8_t serializationTryiesCount = 30;  // Pause between each attempt is not less than 50ms
 
 namespace CommonTestUtils {
 
@@ -240,13 +249,36 @@ public:
     /// error.
     PGresultHolder Query(const char* query, const ExecStatusType expectedStatus = PGRES_TUPLES_OK) {
         PGresultHolder result = CommonQuery(query);
-        if (result.get() != nullptr) {
+        uint8_t queryCounter = 1;
+
+        while (result.get() != nullptr && queryCounter < serializationTryiesCount) {
             ExecStatusType execStatus = PQresultStatus(result.get());
-            if (execStatus != expectedStatus) {
-                std::cerr << PG_ERR << "Received unexpected result (" << static_cast<unsigned int>(execStatus)
-                          << ") from PostgreSQL, expected: " << static_cast<unsigned int>(expectedStatus) << std::endl;
+            if (execStatus == expectedStatus) {
+                break;
+            }
+            std::string errStr = PQresultErrorMessage(result.get());
+            std::cerr << PG_WRN << "Received unexpected result (" << static_cast<unsigned int>(execStatus)
+                        << ") from PostgreSQL, expected: " << static_cast<unsigned int>(expectedStatus) << std::endl;
+
+            // After transactional queries were introduced - we need to check error message and try
+            // do a query again if it is expected serialization error.
+            // More about serialization: https://www.postgresql.org/docs/9.5/transaction-iso.html
+            if (errStr.find("could not serialize access") != std::string::npos) {
+                std::cerr << PG_WRN << "Serialization error, trying again, try attempt: " << queryCounter++
+                            << std::endl;
+#ifdef _WIN32
+                Sleep(50);  // Wait some time for the next attempt
+#else
+                usleep(50000);
+#endif
+            } else {
+                std::cerr << PG_ERR << "Error message: " << errStr << std::endl;
                 result.reset(nullptr);
             }
+        }
+        if (queryCounter >= serializationTryiesCount) {
+            std::cerr << PG_ERR << "Cannot execute query due to serialization error, failing" << std::endl;
+            result.reset(nullptr);
         }
         return result;
     }
@@ -352,10 +384,12 @@ bool PostgreSQLConnection::Initialize() {
     GETPROC(PQstatus);
     GETPROC(PQescapeStringConn);
     GETPROC(PQfinish);
+    GETPROC(PQerrorMessage);
     GETPROC(PQexec);
     GETPROC(PQresultStatus);
     GETPROC(PQgetvalue);
     GETPROC(PQclear);
+    GETPROC(PQresultErrorMessage);
 #endif
 
     const char* envConnString = nullptr;
@@ -837,8 +871,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
              << ", skipped_count=" << test_suite.skipped_test_count()
              << ", failed_count=" << test_suite.failed_test_count()
              << ", disabled_count=" << test_suite.disabled_test_count()
-             << ", run_count=" << test_suite.test_to_run_count()
-             << ", total_count=" << test_suite.total_test_count() << " WHERE sr_id=" << this->testSuiteId;
+             << ", run_count=" << test_suite.test_to_run_count() << ", total_count=" << test_suite.total_test_count()
+             << " WHERE sr_id=" << this->testSuiteId;
         auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
         CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
         this->testSuiteId = 0;
