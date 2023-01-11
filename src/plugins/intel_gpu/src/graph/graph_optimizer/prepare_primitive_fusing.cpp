@@ -526,6 +526,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
+                                                                         desc->dilations,
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);
 

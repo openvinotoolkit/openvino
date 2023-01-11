@@ -34,10 +34,14 @@ static void ApplyScaleFactorsLegacy(const std::vector<float>& input_scale_factor
         IE_THROW() << "Configuration input scale factors count is bigger than inputs count";
     }
 
-    for (size_t id = 0; id < input_scale_factors.size(); ++id) {
-        ::log::warning() << "Using input scale factor: " << input_scale_factors[id]
+    for (size_t id = 0; id < inputs.size(); ++id) {
+        log::warning() << "Using input scale factor: " << input_scale_factors[id]
                          << ", defined in configuration for input id: " << id << std::endl;
-        inputs.Get().at(id).scale_factor = input_scale_factors[id];
+        if (input_scale_factors.size() > id) {
+            inputs.Get().at(id).scale_factor = input_scale_factors[id];
+        } else {
+            log::warning() << "Using default input scale factor: " << kScaleFactorDefault << " for input id: " << id << std::endl;
+        }
     }
 }
 
@@ -64,7 +68,11 @@ static void ApplyScaleFactorsPerInput(const std::map<std::string, float>& per_in
     }
 
     for (auto&& sf : per_input_scale_factors) {
-        auto input_it = inputs.find(sf.first);
+        // to support the both legacy and 2.0 API we need to check all possible names in the configuration
+        auto input_it = std::find_if(inputs.Get().begin(), inputs.Get().end(), [&](const InputDesc& input_desc) {
+                return sf.first == input_desc.name || input_desc.tensor_names.count(sf.first);
+            });
+
         if (input_it == inputs.end()) {
             IE_THROW() << "Given scale factor for invalid input: " << sf.first;
         }
@@ -85,16 +93,11 @@ static bool CheckIfCanApplyCustomScaleFactor(const header_latest::ModelHeader& h
     return true;
 }
 
-void ApplyInputScaleFactors(const Config& config,
-                            const header_latest::ModelHeader& header,
-                            GnaInputs& inputs) {
-    // If scale factors are defined in configuration we still need to use them instead of imported values,
-    // for example to change the scale factors for the old models.
-    const bool custom_scale_factor_per_input =
-        IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput);
-    const bool custom_scale_factor_legacy = IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors);
-
-    if (!custom_scale_factor_per_input && !custom_scale_factor_legacy) {
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config, const header_latest::ModelHeader& header) {
+    // we have to check that SF exist in the configuration and values are not default
+    const bool custom_scale_factors = IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput);
+    const bool custom_scale_factors_legacy = IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors);
+    if (!custom_scale_factors && !custom_scale_factors_legacy) {
         return;
     }
 
@@ -102,14 +105,23 @@ void ApplyInputScaleFactors(const Config& config,
         return;
     }
 
-    // Due the fact inputScaleFactors is set by defuault construcor of Config
-    // we need to check is_intput_scale_factor_per_input_given as first.
-    if (custom_scale_factor_per_input) {
+    if (custom_scale_factors) {
         ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);
-        return;
+    } else if (custom_scale_factors_legacy) {
+        ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
     }
 
-    ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
+    return;
+}
+
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config) {
+    if (IsCustomInputScaleFactorPerInputAvailable(config.inputScaleFactorsPerInput)) {
+        ApplyScaleFactorsPerInput(config.inputScaleFactorsPerInput, inputs);
+    } else if (IsCustomInputScaleFactorAvailableLegacy(config.inputScaleFactors)) {
+        ApplyScaleFactorsLegacy(config.inputScaleFactors, inputs);
+    }
+
+    return;
 }
 
 }  // namespace helpers
