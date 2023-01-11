@@ -80,14 +80,13 @@ REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(convolution_gpu_b_fs_yx_fsv4_dw)(
     const __global INPUT_TYPE4   *input,
     __global OUTPUT_TYPE4        *output,
-    const __global FILTER_TYPE4  *weights,
+    const __global FILTER_TYPE4  *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE   *biases,
+    , const __global BIAS_TYPE   *biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
 ) {
 #if TILED
     uint x = get_group_id(0) * TILE_X;

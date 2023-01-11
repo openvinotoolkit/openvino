@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include <list>
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+
+#include "kernel.hpp"
 
 namespace cldnn {
 

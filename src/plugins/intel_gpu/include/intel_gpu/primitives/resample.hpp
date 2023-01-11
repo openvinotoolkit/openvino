@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -10,12 +9,6 @@
 #include <map>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs nearest neighbor/bilinear resample
 /// Also supports built-in Relu @ref activation available by setting it in arguments.
@@ -157,7 +150,4 @@ struct resample : public primitive_base<resample> {
     /// @param round_mode specifies round mode when mode == nearest and is used only when mode == nearest.
     InterpolateOp::NearestMode round_mode;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
