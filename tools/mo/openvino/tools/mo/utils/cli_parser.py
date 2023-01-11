@@ -1251,6 +1251,10 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           help=mo_convert_params_tf['tensorflow_custom_layer_libraries'].description,
                           default=None,
                           action=CanonicalizePathCheckExistenceAction)
+    tf_group.add_argument('--disable_nhwc_to_nchw',
+                          help='[DEPRECATED] Disables the default translation from NHWC to NCHW. Since 2022.1 this option '
+                               'is deprecated and used only to maintain backward compatibility with previous releases.',
+                          action=DeprecatedStoreTrue, default=False)
     return parser
 
 
