@@ -1196,7 +1196,6 @@ TEST_P(TransposeBinaryMultiSinkingBinaryMultiConsumersFixture, CompareFunctions)
 
     model = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
     model_ref = model->clone();
-    // model_ref = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
     pass_factory->registerPass(manager);
 }
 
