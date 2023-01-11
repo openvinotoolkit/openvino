@@ -143,14 +143,17 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
 
     const auto is_start_max = ov::internal::is_max(start);
     const auto is_start_limit = is_start_max || ov::internal::is_min(start);
-    const auto any_bound_max = is_start_max || ov::internal::is_max(stop);
+    const auto is_stop_max = ov::internal::is_max(stop);
+    const auto any_bound_max = is_start_max || is_stop_max;
     // Prepare bounds for sliced value calculation.
     int64_t lb, ub;
     if (is_norm_dim_max && (are_bounds_diff_sign || any_bound_max || is_start_limit)) {
         if (is_reverse_step) {
             ub = (is_start_lt_min_bound || any_bound_max) ? inf_bound : inf_bound - start;
+        } else if (is_start_lt_min_bound && !is_start_limit) {
+            ub = is_stop_max ? -start : stop;
         } else {
-            ub = (is_start_lt_min_bound && !is_start_limit) ? stop : inf_bound;
+            ub = inf_bound;
         }
         lb = min_bound;
     } else {

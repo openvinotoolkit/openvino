@@ -430,6 +430,22 @@ TEST(type_prop, strided_slice_use_default_ctor) {
     ASSERT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 5, 12}));
 }
 
+TEST(type_prop, strided_slice_inf_dim_start_from_last_N_to_end) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
+    auto start = op::Constant::create(element::i64, Shape{3}, {0, 0, -7});
+    auto stop = op::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{0, 0, INT64_MAX});
+    auto step = op::Constant::create(element::i64, Shape{3}, {1, 1, 1});
+
+    const auto slice = std::make_shared<op::v1::StridedSlice>(data,
+                                                              start,
+                                                              stop,
+                                                              step,
+                                                              std::vector<int64_t>{1, 1, 0},
+                                                              std::vector<int64_t>{1, 1, 0});
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
+}
+
 struct StridedSliceTestParams {
     std::string case_name;
     PartialShape input_shape;

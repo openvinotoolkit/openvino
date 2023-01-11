@@ -1099,7 +1099,7 @@ TEST(type_prop, slice_v8_dynamic_dimension_but_slice_min_is_lt_input_min_size) {
     const auto op = make_slice_op_const_inputs(input_vals, data_shape, et);
 
     EXPECT_EQ(op->get_element_type(), et);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{7, -1}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{7}}));
 }
 
 TEST(type_prop, slice_v8_use_default_ctor) {
@@ -1178,4 +1178,16 @@ TEST(type_prop, slice_v8_unknowns_axes) {
     auto slice = std::make_shared<op::v8::Slice>(data, start, stop, steps, axes);
 
     EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({{0, 5}, {0, 10}, {0, 15}}));
+}
+
+TEST(type_prop, slice_v8_inf_dim_start_from_last_N_to_end) {
+    auto data = std::make_shared<op::Parameter>(element::f32, PartialShape{1, 256, -1});
+    auto start = op::Constant::create(element::i64, Shape{1}, {-7});
+    auto stop = op::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{INT64_MAX});
+    auto step = op::Constant::create(element::i64, Shape{1}, {1});
+    auto axes = op::Constant::create(element::i64, Shape{1}, {2});
+
+    auto slice = std::make_shared<op::v8::Slice>(data, start, stop, step, axes);
+
+    EXPECT_EQ(slice->get_output_partial_shape(0), PartialShape({1, 256, {0, 7}}));
 }
