@@ -14,27 +14,25 @@ using namespace ov::frontend::tensorflow;
 namespace {
 template <typename T>
 std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const std::vector<T>& ops) {
-    std::vector<T> resulted_ops(ops.size(), nullptr);
-    if (names.size() == ops.size()) {
-        for (const auto& op : ops) {
-            const auto& op_name = op->get_friendly_name();
-            auto iter = std::find(names.begin(), names.end(), op_name);
-            if (iter != names.end()) {
-                auto ind = std::distance(names.begin(), iter);
-                if (resulted_ops[ind]) {
-                    // found two operations that are mapped to the same name
-                    // do not re-order in this case
-                    return ops;
-                }
-                resulted_ops[ind] = op;
-            } else {
-                // not found operation with the requested name
-                // do not re-order then
-                return ops;
-            }
-        }
-    } else {
+    if (names.empty()) {
+        // in case unspecified names, return the initial order of operations
         return ops;
+    }
+    FRONT_END_GENERAL_CHECK(names.size() == ops.size(),
+                            "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The number "
+                            "of names mismatches the number of operations.");
+    std::vector<T> resulted_ops(ops.size(), nullptr);
+    for (const auto& op : ops) {
+        const auto& op_name = op->get_friendly_name();
+        auto iter = std::find(names.begin(), names.end(), op_name);
+        FRONT_END_GENERAL_CHECK(iter != names.end(),
+                                "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The "
+                                "requested name is not found among operations.");
+        auto ind = std::distance(names.begin(), iter);
+        FRONT_END_GENERAL_CHECK(resulted_ops[ind] == nullptr,
+                                "[TensorFlow Frontend] Internal error: incorrect reordering of operations. "
+                                "Found two operations that are mapped to the same name.");
+        resulted_ops[ind] = op;
     }
     return resulted_ops;
 };
