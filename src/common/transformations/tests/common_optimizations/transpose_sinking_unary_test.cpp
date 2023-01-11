@@ -320,6 +320,54 @@ std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
 
 }  // namespace backward
 
+namespace backward_mult_transposes {
+
+std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
+                                          size_t num_unary_ops,
+                                          const Shape& input_shape,
+                                          element::Type input_type) {
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    NodePtr in_op = X;
+    for (size_t i = 0; i < num_unary_ops; ++i) {
+        in_op = unary_factory->create(in_op);
+    }
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
+
+    auto tanh0 = std::make_shared<Tanh>(transpose0);
+
+    auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose1 = std::make_shared<Transpose>(in_op, ng_order1);
+
+    auto tanh1 = std::make_shared<Tanh>(transpose1);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
+}
+
+std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory,
+                                                   size_t num_unary_ops,
+                                                   const Shape& input_shape,
+                                                   element::Type input_type) {
+    auto X = std::make_shared<Parameter>(input_type, input_shape);
+
+    auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
+    auto transpose0 = std::make_shared<Transpose>(X, ng_order0);
+
+    NodePtr in_op = transpose0;
+    for (size_t i = 0; i < num_unary_ops; ++i) {
+        in_op = unary_factory->create(in_op);
+    }
+
+    auto tanh0 = std::make_shared<Tanh>(in_op);
+    auto tanh1 = std::make_shared<Tanh>(in_op);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
+}
+
+}  // namespace backward_mult_transposes
+
 namespace forward {
 
 std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
@@ -486,3 +534,15 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteFirs
                                             ::testing::Values(Shape{1, 96, 55, 55}),
                                             ::testing::Values(element::f32)),
                          TransposeSinkingUnaryTestFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingUnaryBackwardMultTransposeConsumersTestSuiteFirstNode,
+    TransposeSinkingUnaryTestFixture,
+    ::testing::Combine(::testing::ValuesIn(unary_factories),
+                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward)),
+                       ::testing::ValuesIn(unary_operations_numbers),
+                       ::testing::Values(mult_consumers_first_node::backward_mult_transposes::CreateFunction),
+                       ::testing::Values(mult_consumers_first_node::backward_mult_transposes::CreateReferenceFunction),
+                       ::testing::Values(Shape{1, 96, 55, 55}),
+                       ::testing::Values(element::f32)),
+    TransposeSinkingUnaryTestFixture::get_test_name);
