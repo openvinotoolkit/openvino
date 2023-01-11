@@ -19,9 +19,9 @@ OutputVector translate_nms(NodeContext& context) {
     auto boxes_shape = context.mark_node(opset8::Constant::create(element::i64, Shape{3}, {1, -1, 4}));
 
     auto boxes = context.mark_node(std::make_shared<opset8::Reshape>(context.get_input(0), boxes_shape, false));
-    // Unsqueeze operators are also used to align shapes required by PyTorch and OpenVino
-    auto unsqueeze = context.mark_node(std::make_shared<opset8::Unsqueeze>(context.get_input(1), const_0));
-    auto scores = context.mark_node(std::make_shared<opset8::Unsqueeze>(unsqueeze, const_0));
+    // Unsqueeze operator is also used to align shapes required by PyTorch and OpenVino
+    auto axis_01 = context.mark_node(opset8::Constant::create(element::i64, Shape{2}, {0, 1}));
+    auto scores = context.mark_node(std::make_shared<opset8::Unsqueeze>(context.get_input(1), axis_01));
     auto max_output_per_class =
         context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()}));
     auto iou_threshold = context.get_input(2);
