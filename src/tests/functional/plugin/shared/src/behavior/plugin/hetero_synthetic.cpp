@@ -165,19 +165,26 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     auto& pluginParameters = std::get<Plugin>(param);
     affinities += "\n{\n";
     for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
-        if (!ngraph::op::is_constant(node) &&
-                !(ngraph::op::is_parameter(node)) &&
-                !(ngraph::op::is_output(node))) {
-            std::string affinity;
+        std::string affinity;
+        auto get_affinity = [&](const std::string& name) {
             if (std::get<Function>(param)._majorPluginNodeIds.end() !=
-                std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {
-                affinity = pluginParameters.at(0)._name;
+                std::get<Function>(param)._majorPluginNodeIds.find(name)) {
+                return pluginParameters.at(0)._name;
             } else {
-                affinity = pluginParameters.at(1)._name;
+                return pluginParameters.at(1)._name;
             }
-            node->get_rt_info()["affinity"] = affinity;
-            affinities += "\t{\"" + node->get_friendly_name() + "\",\t\t\"" + affinity + "\"}\n";
+        };
+        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
+            auto& node_with_affinity_name =
+                ngraph::op::is_output(node)
+                    ? node->input_value(0).get_node()->get_friendly_name()
+                    : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
+            affinity = get_affinity(node_with_affinity_name);
+        } else {
+            affinity = get_affinity(node->get_friendly_name());
         }
+        node->get_rt_info()["affinity"] = affinity;
+        affinities += "\t{\"" + node->get_friendly_name() + "\",\t\t\"" + affinity + "\"}\n";
     }
     affinities += "}";
     affinities += "\nseed = " + std::to_string(std::get<Function>(param)._seed);
