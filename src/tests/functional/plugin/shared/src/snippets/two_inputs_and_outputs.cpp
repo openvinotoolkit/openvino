@@ -28,7 +28,7 @@ std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test
 void TwoInputsAndOutputs::SetUp() {
     std::vector<ov::PartialShape> inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
     auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputShape);
     function = f.getOriginal();
 }

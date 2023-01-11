@@ -32,7 +32,7 @@ void MatMul::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
     ov::element::Type elem_type;
     std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(input_shapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::MatMulFunction(input_shapes);
     function = f.getOriginal();
@@ -46,7 +46,7 @@ void MatMulBias::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
     ov::element::Type elem_type;
     std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(input_shapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::MatMulBiasFunction(input_shapes);
     function = f.getOriginal();
@@ -60,7 +60,7 @@ void ExplicitTransposeMatMul::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
     ov::element::Type elem_type;
     std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(input_shapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::TransposeMatMulFunction(input_shapes);
     function = f.getOriginal();
@@ -74,7 +74,7 @@ void ExplicitTransposeMatMulBias::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
     ov::element::Type elem_type;
     std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(input_shapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::TransposeMatMulBiasFunction(input_shapes);
     function = f.getOriginal();
@@ -88,7 +88,7 @@ void ExplicitTransposeMulMatMulBias::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
     ov::element::Type elem_type;
     std::tie(input_shapes, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(input_shapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::TransposeMulMatMulBiasFunction(input_shapes);
     function = f.getOriginal();
@@ -123,7 +123,7 @@ void TransposeMatMul::SetUp() {
     size_t transpose_position;
     ov::element::Type elem_type;
     std::tie(input_shapes, transpose_position, elem_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(input_shapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     auto f = ov::test::snippets::Transpose0213MatMulFunction(input_shapes, transpose_position);
     function = f.getOriginal();

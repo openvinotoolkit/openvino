@@ -34,7 +34,7 @@ void MHA::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
     bool withMul;
     std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(inputShapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
     auto f = ov::test::snippets::MHAFunction(inputDynamicShapes, withMul);
     function = f.getOriginal();
@@ -60,7 +60,7 @@ void MHASelect::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
     bool withMul;
     std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(inputShapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
     auto f = ov::test::snippets::MHASelectFunction(inputDynamicShapes);
     function = f.getOriginal();
@@ -92,7 +92,7 @@ void MHAWOTransposeOnInputs::SetUp() {
     std::vector<ov::PartialShape> inputShapes;
     bool withMul;
     std::tie(inputShapes, withMul, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(dynamic_shapes_to_test_representation(inputShapes));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShapes));
 
     auto f = ov::test::snippets::MHAWOTransposeOnInputsFunction(inputDynamicShapes);
     function = f.getOriginal();

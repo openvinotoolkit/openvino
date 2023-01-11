@@ -335,10 +335,30 @@ std::string CompileModelLoadFromMemoryTestBase::getTestCaseName(
     return result.str();
 }
 
+bool CompileModelLoadFromMemoryTestBase::importExportSupported(ov::Core& core) const {
+    auto supportedProperties = core.get_property(targetDevice, ov::supported_properties);
+    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) ==
+        supportedProperties.end()) {
+        return false;
+    }
+    auto device_capabilities = core.get_property(targetDevice, ov::device::capabilities);
+    if (std::find(device_capabilities.begin(),
+                  device_capabilities.end(),
+                  std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
+        return false;
+    }
+    return true;
+}
+
 void CompileModelLoadFromMemoryTestBase::SetUp() {
     ovModelWithName funcPair;
     std::tie(targetDevice, configuration) = GetParam();
     target_device = targetDevice;
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "1", 1);
+#endif
+    }
     APIBaseTest::SetUp();
     std::stringstream ss;
     auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
@@ -392,20 +412,39 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     core->set_property(ov::cache_dir());
     APIBaseTest::TearDown();
     weights_vector.clear();
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "", 1);
+#endif
+    }
 }
 
 void CompileModelLoadFromMemoryTestBase::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     core->set_property(ov::cache_dir(m_cacheFolderName));
-    try {
-        compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
-        inferRequest = compiledModel.create_infer_request();
-        inferRequest.infer();
-    } catch (const Exception& ex) {
-        GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
-                     << std::endl;
-    } catch (...) {
-        GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+    for (int i = 0; i < 2; i++) {
+        try {
+            compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
+            if (importExportSupported(*core)) {
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            }
+            inferRequest = compiledModel.create_infer_request();
+            inferRequest.infer();
+        } catch (const Exception& ex) {
+            GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
+                         << std::endl;
+        } catch (...) {
+            GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+        }
+
+        // For GPU plugin, KEY_GPU_THROUGHPUT_STREAMS will lead to config.throughput_streams==2, and Export stops.
+        if (targetDevice.find("GPU") != std::string::npos) {
+            auto item = configuration.find(ov::hint::performance_mode.name());
+            if (item != configuration.end() &&
+                item->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT) {
+                break;
+            }
+        }
     }
 }
 

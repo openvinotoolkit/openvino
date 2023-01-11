@@ -66,7 +66,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
                                                         tensor_from_dims(op->get_output_shape(1)));
 
             GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-            auto shared_memory = p.GetEngine().allocate_memory(mutableLayout);
+            auto shared_memory = p.get_engine().allocate_memory(mutableLayout);
 
             cldnn::primitive_id argmax_mutable_id_w = layer_type_name_ID(op) + "_md_write";
             auto argmax_mutable_prim = cldnn::mutable_data(argmax_mutable_id_w,

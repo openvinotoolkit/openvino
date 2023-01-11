@@ -50,7 +50,6 @@ namespace Activation {
 //  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-//                             InputGenerateData inGenData = InputGenerateData(10, 20, 32768, 1)) {
                              InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;

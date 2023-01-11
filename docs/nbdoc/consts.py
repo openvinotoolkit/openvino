@@ -8,7 +8,7 @@ repo_owner = "openvinotoolkit"
 
 repo_name = "openvino_notebooks"
 
-artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20230104220806/dist/rst_files/"
+artifacts_link = "http://repository.toolbox.iotg.sclab.intel.com/projects/ov-notebook/0.1.0-latest/20230109220810/dist/rst_files/"
 
 blacklisted_extensions = ['.xml', '.bin']
 
@@ -18,8 +18,8 @@ section_names = ["Getting Started", "Convert & Optimize",
 # Templates
 
 binder_template = """
-This tutorial is also available as a Jupyter notebook that can be cloned directly from GitHub. 
-See the |installation_link| for instructions to run this tutorial locally on Windows, Linux or macOS. 
+This tutorial is also available as a Jupyter notebook that can be cloned directly from GitHub.
+See the |installation_link| for instructions to run this tutorial locally on Windows, Linux or macOS.
 To run without installing anything, click the launch binder button.
 
 |binder_link| |github_link|
@@ -28,7 +28,7 @@ To run without installing anything, click the launch binder button.
 
    <a href="https://github.com/{{ owner }}/{{ repo }}#-installation-guide" target="_blank">installation guide</a>
 
-.. |binder_link| raw:: html 
+.. |binder_link| raw:: html
 
    <a href="https://mybinder.org/v2/gh/{{ owner }}/{{ repo }}/HEAD?filepath={{ folder }}%2F{{ notebook }}%2F{{ notebook }}.ipynb" target="_blank"><img src="https://mybinder.org/badge_logo.svg" alt="Binder"></a>
 
@@ -39,7 +39,7 @@ To run without installing anything, click the launch binder button.
 \n
 """
 no_binder_template = """
-This tutorial is also available as a Jupyter notebook that can be cloned directly from GitHub. 
+This tutorial is also available as a Jupyter notebook that can be cloned directly from GitHub.
 See the |installation_link| for instructions to run this tutorial locally on Windows, Linux or macOS.
 
 |github_link|
