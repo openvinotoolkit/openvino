@@ -141,7 +141,11 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
 #if INPUT0_IS_FP && !OUTPUT_IS_FP
+#if CONVERT_TRUNCATE
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(convert_long(res)), ACTIVATION_PARAMS_TYPED);
+#else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+#endif
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif

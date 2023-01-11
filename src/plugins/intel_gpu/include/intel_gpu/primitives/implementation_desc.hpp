@@ -49,6 +49,25 @@ inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) 
     return out;
 }
 
+inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
+    std::string str;
+    is >> str;
+    if (str == "cpu") {
+        impl_type = impl_types::cpu;
+    } else if (str == "common") {
+        impl_type = impl_types::common;
+    } else if (str == "ocl") {
+        impl_type = impl_types::ocl;
+    } else if (str == "onednn") {
+        impl_type = impl_types::onednn;
+    } else if (str == "any") {
+        impl_type = impl_types::any;
+    } else {
+        throw ov::Exception{"Unsupported impl type: " + str};
+    }
+    return is;
+}
+
 /// @brief Possible supported shape types.
 enum class shape_types : uint8_t {
     static_shape = 1 << 0,
@@ -82,25 +101,35 @@ inline std::ostream& operator<<(std::ostream& out, const shape_types& shape_type
     return out;
 }
 
-/// @brief Description of primitives implementation.
-struct implementation_desc {
-    format::type output_format;  ///< Output format.
-    std::string kernel_name;     ///< GPU kernel name.
-    impl_types impl_type;        ///< GPU implementation type.
+}  // namespace cldnn
 
-    implementation_desc() :
-        output_format(format::any),
+namespace ov {
+namespace intel_gpu {
+
+struct ImplementationDesc {
+    cldnn::format::type output_format;  ///< Output format.
+    std::string kernel_name;            ///< GPU kernel name.
+    cldnn::impl_types impl_type;        ///< GPU implementation type.
+
+    ImplementationDesc() :
+        output_format(cldnn::format::any),
         kernel_name(""),
-        impl_type(impl_types::any) {}
+        impl_type(cldnn::impl_types::any) {}
 
-    implementation_desc(format::type output_format,
+    ImplementationDesc(cldnn::format::type output_format,
                         std::string kernel_name,
-                        impl_types impl_type = impl_types::any) :
+                        cldnn::impl_types impl_type = cldnn::impl_types::any) :
         output_format(output_format),
         kernel_name(kernel_name),
         impl_type(impl_type) {}
 };
 
-using implementation_forcing_map = std::map<primitive_id, implementation_desc>;
+inline std::ostream& operator<<(std::ostream& out, const ImplementationDesc& desc) {
+    out << desc.impl_type << ":" << desc.kernel_name << ":" << desc.output_format;
+    return out;
+}
 
-}  // namespace cldnn
+using ImplForcingMap = std::map<cldnn::primitive_id, ImplementationDesc>;
+
+}  // namespace intel_gpu
+}  // namespace ov
