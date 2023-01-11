@@ -60,6 +60,7 @@ OP_CONVERTER(translate_norm);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
 OP_CONVERTER(translate_new_zeros);
+OP_CONVERTER(translate_nms);
 OP_CONVERTER(translate_numel);
 OP_CONVERTER(translate_ones);
 OP_CONVERTER(translate_ones_like);
@@ -256,6 +257,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::TupleConstruct", op::translate_tuple_construct},
+        {"torchvision::nms", op::translate_nms},
     };
 };
 
