@@ -40,6 +40,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Lin
   strategy:
@@ -98,6 +101,15 @@ jobs:
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: true
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
