@@ -135,16 +135,20 @@ sudo modprobe myd_ion
 1. Change the DIP switch on the target PCIE card
 2. Disable autoscan for the reset device by setting `"autoscan": false` in `${HDDL_INSTALL_DIR}/config/bsl.json`
 3. Set the correct address of the I2C reset device (for example, `0x21`) in `${HDDL_INSTALL_DIR}/config/bsl.json`
+   @sphinxdirective
 
-```sh
-{
-  "autoscan": false,
-  "ioexpander": {
-    "enabled": true,
-    "i2c_addr": [ 33 ]
-  }
-}
-```
+   .. code-block:: sh
+
+      {
+        "autoscan": false,
+        "ioexpander": {
+          "enabled": true,
+          "i2c_addr": [ 33 ]
+        }
+      }
+
+   @endsphinxdirective
+
 
 ---
 ### Cannot reset VPU device and cannot find any 0x20-0x27 (Raw data card with HW version Fab-B and before) I2C addresses on SMBUS (using i2c-tools)
