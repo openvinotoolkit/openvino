@@ -29,14 +29,14 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
-    const __global FILTER_TYPE *weights,
+    const __global FILTER_TYPE *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE *biases,
+    , const __global BIAS_TYPE *biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint out_x = (uint)get_global_id(0);
     const uint out_y = (uint)get_global_id(1);

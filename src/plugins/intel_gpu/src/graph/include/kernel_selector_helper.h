@@ -101,8 +101,8 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
-kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
+kernel_selector::tuning_mode to_tuning_mode(ov::intel_gpu::TuningMode mode);
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
@@ -237,7 +237,7 @@ inline void convert_new_activation_func(const p_type primitive, std::vector<kern
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 
 template <typename params_t>
-inline params_t get_default_params(const kernel_impl_params& param_info, uint32_t split = 1) {
+inline params_t get_default_params(const kernel_impl_params& param_info) {
     params_t params;
 
     set_params(param_info, params);
@@ -245,8 +245,8 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
     const auto& input_layout = param_info.get_input_layout(0);
     const auto& output_layout = param_info.get_output_layout(0);
 
-    params.inputs[0] = convert_data_tensor(input_layout, split);
-    params.outputs[0] = convert_data_tensor(output_layout, split);
+    params.inputs[0] = convert_data_tensor(input_layout);
+    params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
 
     convert_fused_activation_func_params(param_info, params.activations);
@@ -303,18 +303,12 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
 }
 
 template <typename params_t>
-inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, uint32_t split = 1, uint32_t groups = 1,
-                                                bool has_group_dimension = false) {
-    params_t params = get_default_params<params_t>(param_info, split);
+inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false) {
+    params_t params = get_default_params<params_t>(param_info);
     params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
 
     if (param_info.bias_layout) {
         auto bias_layout = *param_info.bias_layout;
-        if (groups != 1) {
-            auto bias_size = bias_layout.get_tensor();
-            bias_size.feature[0] /= static_cast<int>(groups);
-            bias_layout.set_tensor(bias_size);
-        }
         params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
     }
 
@@ -322,9 +316,8 @@ inline params_t get_weights_bias_default_params(const kernel_impl_params& param_
 }
 
 template <typename params_t>
-params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, uint32_t split = 1, uint32_t groups = 1,
-                                                   bool has_group_dimension = false) {
-    params_t params = get_weights_bias_default_params<params_t>(param_info, split, groups, has_group_dimension);
+params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false) {
+    params_t params = get_weights_bias_default_params<params_t>(param_info, has_group_dimension);
 
     if (param_info.weights_zero_points_layout) {
         params.weights_zero_points.push_back(

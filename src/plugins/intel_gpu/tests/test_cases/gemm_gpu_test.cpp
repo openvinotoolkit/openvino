@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -274,9 +272,9 @@ TEST(gemm_gpu, basic_bfyx_t2_inplace_crop_with_pad) {
         gemm("output", { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true)
     );
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
@@ -321,10 +319,10 @@ TEST(gemm_gpu, dynamic) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
     );
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    options.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -1004,13 +1002,9 @@ public:
     }
 
     void execute(gemm_params& p) {
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        auto& engine = get_onednn_test_engine();
+        auto& engine = get_test_engine();
         if (!engine.get_device_info().supports_immad)
             return;
-#else
-        auto& engine = get_test_engine();
-#endif
         auto y0_size = p.m_size;
         auto y0_pitch = p.k_size;
         auto x0_size = p.k_size;
@@ -1110,15 +1104,16 @@ public:
         }
         topology.add(reorder("reorder_bfyx", input_info("gemm_bfyx"), format::bfyx, data_types::f32));
 
-        build_options options;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        implementation_desc gemm_impl = { format::bfyx, "", impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::onednn };
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 #else
-        implementation_desc gemm_impl = { format::bfyx, p.kernel_name };
+        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, p.kernel_name };
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
 #endif
-        options.set_option(build_option::force_implementations({ {"gemm_bfyx", gemm_impl} }));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
-        network network(engine, topology, options);
+        network network(engine, topology, cfg);
         network.set_input_data("input0", input0_mem);
         network.set_input_data("input1", input1_mem);
         if (p.beta != 0) {

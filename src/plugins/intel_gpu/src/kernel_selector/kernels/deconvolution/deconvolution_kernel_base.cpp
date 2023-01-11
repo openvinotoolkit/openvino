@@ -23,7 +23,7 @@ std::string deconvolution_params::to_string() const {
     s << stride.x << "_" << stride.y << "_";
     s << dilation.x << "_" << dilation.y << "_";
     s << padding.x << "_" << padding.y << "_";
-    s << split;
+    s << 1;
 
     return s.str();
 }
@@ -65,9 +65,8 @@ JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params
     jit.AddConstants({ MakeJitConstant("STRIDE", dp.stride),
                        MakeJitConstant("PADDING", dp.padding),
                        MakeJitConstant("DILATION", dp.dilation),
-                       MakeJitConstant("FILTER_ARRAY_NUM", dp.split),
+                       MakeJitConstant("FILTER_ARRAY_NUM", 1),
                        MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-                       MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", dp.depthwise_separable_opt),
                        MakeJitConstant("GROUPED", (dp.groups > 1) ? 1 : 0) });
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(dp), "ACCUMULATOR"));
     jit.Merge(MakeTypeJitConstants(GetActivationType(dp), "ACTIVATION"));
@@ -137,7 +136,6 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
                      !newParams.bias.empty(),
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
     return {kd};
 }
