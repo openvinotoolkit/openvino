@@ -581,6 +581,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},

@@ -326,6 +326,22 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::performance_mode);
 }
 
+TEST_P(OVClassGetPropertyTest_GPU, GetAndSetExecutionModeNoThrow) {
+    ov::Core ie;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::execution_mode);
+
+    ov::hint::ExecutionMode defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
+
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
+    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
+    ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
+    ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {
     ov::Core ie;
 
@@ -722,6 +738,9 @@ const std::vector<ov::AnyMap> gpuCorrectConfigs = {
 
 auto gpuCorrectConfigsWithSecondaryProperties = []() {
     return std::vector<ov::AnyMap>{
+        {ov::device::properties(CommonTestUtils::DEVICE_GPU,
+                                ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE),
+                                ov::inference_precision(ov::element::f32))},
         {ov::device::properties(CommonTestUtils::DEVICE_GPU,
                                 ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                 ov::hint::allow_auto_batching(false))},
