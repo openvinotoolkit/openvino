@@ -512,7 +512,7 @@ def serialize_network(graph, net_element, unsupported):
             check_and_add_result_name(node.soft_get('name'), ordered_results)
             continue
 
-        # Here output data node count is checked. Each port cannot have more than one data node.
+        # Here output data node count is checked. Output Op nodes must have at least one data node
         assert len(node.out_nodes()) >= 1, "Incorrect graph. Non-Result node with name {} " \
                                            "has no output data node.".format(output_name)
 
