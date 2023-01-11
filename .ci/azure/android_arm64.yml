@@ -37,9 +37,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-variables:
-  - group: github
-
 jobs:
 - job: android_arm64
   # About 150% of total time
@@ -65,15 +62,6 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10'
-      addToPath: true
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
-    name: setupPython
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
