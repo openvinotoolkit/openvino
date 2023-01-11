@@ -28,7 +28,7 @@ bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngr
 }
 
 EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+    : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, EMPTY_PORT_MASK)),
       EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

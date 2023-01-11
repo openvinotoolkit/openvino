@@ -343,7 +343,7 @@ private:
 } // namespace
 
 RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, RnnShapeInferFactory(op)) {
+        Node(op, context, std::make_shared<RnnShapeInferFactory>(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

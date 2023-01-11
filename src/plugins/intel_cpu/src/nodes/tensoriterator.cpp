@@ -351,7 +351,7 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 }
 
 TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, InternalDynShapeInferFactory()), ngraphOp(op) {
+        Node(op, context, std::make_shared<InternalDynShapeInferFactory>()), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

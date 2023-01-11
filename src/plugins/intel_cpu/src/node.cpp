@@ -79,7 +79,7 @@ Node::NodesFactory & Node::factory() {
 
 Node::Node(const std::shared_ptr<ngraph::Node>& op,
            const GraphContext::CPtr ctx,
-           const ShapeInferFactory& shapeInferFactory)
+           const ShapeInferFactory::Ptr &shapeInferFactory)
     : selectedPrimitiveDescriptorIndex(-1),
       permanent(false),
       temporary(false),
@@ -124,8 +124,8 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op,
     isDynamic = std::any_of(inputShapes.begin(), inputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); }) ||
                 std::any_of(outputShapes.begin(), outputShapes.end(), [](const Shape& shape){ return shape.isDynamic(); });
 
-    if (isDynamic) {
-        shapeInference = shapeInferFactory.makeShapeInfer();
+    if (isDynamic && shapeInferFactory != nullptr) {
+        shapeInference = shapeInferFactory->makeShapeInfer();
     }
 
     const auto& rtInfo = op->get_rt_info();

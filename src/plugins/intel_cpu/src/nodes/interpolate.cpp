@@ -1577,7 +1577,7 @@ private:
 } // namespace
 
 Interpolate::Interpolate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, InterpolateShapeInferFactory(op)) {
+        : Node(op, context, std::make_shared<InterpolateShapeInferFactory>(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Interpolate node with name '" + getName() + "'";

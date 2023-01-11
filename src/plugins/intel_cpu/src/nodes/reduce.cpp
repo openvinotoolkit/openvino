@@ -1739,7 +1739,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
+        : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";

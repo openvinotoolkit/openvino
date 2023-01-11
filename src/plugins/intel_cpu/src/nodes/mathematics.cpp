@@ -40,7 +40,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
 }
 
 Math::Math(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, PassThroughShapeInferFactory()),
+    : Node(op, context, std::make_shared<PassThroughShapeInferFactory>()),
       alpha(0.f),
       beta(0.f),
       gamma(0.f) {

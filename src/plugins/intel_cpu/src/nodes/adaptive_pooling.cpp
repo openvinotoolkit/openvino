@@ -99,7 +99,7 @@ bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ngraph::N
 }
 
 AdaptivePooling::AdaptivePooling(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, AdaptivePoolingShapeInferFactory(op)) {
+    : Node(op, context, std::make_shared<AdaptivePoolingShapeInferFactory>(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
       errorPrefix = "Adaptive Pooling layer with name '" + getName() + "' ";

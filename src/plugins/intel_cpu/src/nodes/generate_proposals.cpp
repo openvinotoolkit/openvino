@@ -290,7 +290,7 @@ bool GenerateProposals::isSupportedOperation
 }
 
 GenerateProposals::GenerateProposals(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+    : Node(op, context, std::make_shared<InternalDynShapeInferFactory>()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

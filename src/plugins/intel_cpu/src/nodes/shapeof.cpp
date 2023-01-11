@@ -56,7 +56,7 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, ShapeOfShapeInferFactory()) {
+    : Node(op, context, std::make_shared<ShapeOfShapeInferFactory>()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";

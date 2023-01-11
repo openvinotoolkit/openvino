@@ -89,7 +89,7 @@ bool PriorBox::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
 }
 
 PriorBox::PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, PriorBoxShapeInferFactory(op)) {
+    : Node(op, context, std::make_shared<PriorBoxShapeInferFactory>(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -61,7 +61,7 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
 }
 
 Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
+        : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

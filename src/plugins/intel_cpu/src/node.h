@@ -340,7 +340,7 @@ public:
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
-    bool outputShapeDataDependency() const;
+    virtual bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
 
@@ -603,7 +603,8 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
+    Node(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx,
+        const ShapeInferFactory::Ptr &shapeInferFactory = nullptr);
     Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx);
 
     int selectedPrimitiveDescriptorIndex = -1;
@@ -684,7 +685,7 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    virtual std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
     virtual std::vector<VectorDims> shapeInfer() const;
     // TODO [DS] : make pure after all nodes will be support dynamic shapes
     virtual void executeDynamicImpl(dnnl::stream strm) {

@@ -739,7 +739,7 @@ bool MHA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 }
 
 MHA::MHA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

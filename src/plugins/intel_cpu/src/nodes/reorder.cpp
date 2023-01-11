@@ -56,7 +56,7 @@ bool Reorder::isExecutable() const {
 }
 
 Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, PassThroughShapeInferFactory()) {
+        Node(op, context, std::make_shared<PassThroughShapeInferFactory>()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 

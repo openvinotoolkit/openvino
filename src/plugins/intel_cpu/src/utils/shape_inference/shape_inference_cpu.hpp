@@ -75,6 +75,7 @@ constexpr IShapeInfer::port_mask_t FULL_PORT_MASK = 0xffffffff;
 
 class ShapeInferFactory {
 public:
+    typedef std::shared_ptr<ShapeInferFactory> Ptr;
     ~ShapeInferFactory() = default;
     virtual ShapeInferPtr makeShapeInfer() const = 0;
 };

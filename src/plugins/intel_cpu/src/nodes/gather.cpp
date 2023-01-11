@@ -42,7 +42,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, PortMask(GATHER_AXIS))),
+    : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, PortMask(GATHER_AXIS))),
       batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {

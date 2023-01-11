@@ -59,7 +59,7 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
 }
 
 If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, InternalDynShapeInferFactory()), ovOp(op) {
+        Node(op, context, std::make_shared<InternalDynShapeInferFactory>()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

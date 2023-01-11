@@ -67,7 +67,7 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, PassThroughShapeInferFactory()) {
+        Node(op, context, std::make_shared<PassThroughShapeInferFactory>()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

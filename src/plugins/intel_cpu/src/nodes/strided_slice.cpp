@@ -39,7 +39,7 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
 }
 
 StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3, 4))) {
+        Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, PortMask(1, 2, 3, 4))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

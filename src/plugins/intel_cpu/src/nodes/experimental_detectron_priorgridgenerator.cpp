@@ -31,7 +31,7 @@ bool ExperimentalDetectronPriorGridGenerator::isSupportedOperation(const std::sh
 ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const std::shared_ptr<ngraph::Node>& op,
     const GraphContext::CPtr context)
-    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+    : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -223,7 +223,7 @@ bool Convolution::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
 }
 
 Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
+        : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, EMPTY_PORT_MASK)), withBiases(false), withSum(false), withDWConv(false),
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::undef),
           groupNum(1lu), IC(1), groupIC(1), groupOC(1), eltwisePrecision(Precision::FP32) {
     std::string errorMessage;

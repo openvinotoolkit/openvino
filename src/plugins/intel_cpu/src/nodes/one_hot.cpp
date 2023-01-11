@@ -95,7 +95,7 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, OneHotShapeInferFactory(op)) {
+    : Node(op, context, std::make_shared<OneHotShapeInferFactory>(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

@@ -111,7 +111,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
 }
 
 MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-    Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+    Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     errorPrefix = "MatMul node with name '" + getName() + "'";
 

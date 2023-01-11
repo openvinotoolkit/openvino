@@ -42,7 +42,7 @@ bool ScatterUpdate::isExecutable() const {
 }
 
 ScatterUpdate::ScatterUpdate(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
+        : Node(op, context, std::make_shared<NgraphShapeInferFactory>(op, EMPTY_PORT_MASK)),
           dataSize(0lu), indicesSize(0lu), axisSize(0lu),
           dataPrec(Precision::UNSPECIFIED),
           indicesPrec(Precision::UNSPECIFIED),

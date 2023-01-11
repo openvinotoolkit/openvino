@@ -54,6 +54,9 @@ public:
 
     std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
+    std::vector<VectorDims> shapeInfer() const override;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& shapes) const override;
+    bool outputShapeDataDependency() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
@@ -114,6 +117,9 @@ private:
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();
+
+    size_t outputRank = 0;
+    inline std::vector<VectorDims> shapeInferExec(const VectorDims& activationShape, const VectorDims& weightShape) const;
 };
 
 }   // namespace node

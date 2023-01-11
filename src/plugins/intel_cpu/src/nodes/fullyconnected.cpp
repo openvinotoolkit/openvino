@@ -83,38 +83,6 @@ bool FCKey::operator==(const FCKey &rhs) const {
     return retVal;
 }
 
-class FCShapeInfer : public ShapeInferEmptyPads {
-public:
-    std::vector<VectorDims> infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        VectorDims activationShape = input_shapes[0].get();
-        VectorDims weightShape = input_shapes[1].get();
-        size_t activationRank = activationShape.size();
-        if (one_of(activationRank, 2, 3)) {
-            VectorDims output_shape = activationShape;
-            output_shape[activationRank - 1] = weightShape[0];
-            return { output_shape };
-        } else if (activationRank == 4) {
-            VectorDims output_shape{activationShape[0], weightShape[0]};
-            return { output_shape };
-        } else {
-            IE_THROW() << "FullyConnected layer has unsupported input rank(" << activationRank << "), 2 or 3 or 4 is expected.";
-        }
-    }
-
-    port_mask_t get_port_mask() const override {
-        return EMPTY_PORT_MASK;
-    }
-};
-
-class FCShapeInferFactory : public ShapeInferFactory {
-public:
-    ShapeInferPtr makeShapeInfer() const override {
-        return std::make_shared<FCShapeInfer>();
-    }
-};
-
 } // namespace
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
@@ -152,7 +120,7 @@ FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const Gr
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
 
         withBiases = inputShapes.size() == 3;
-
+        outputRank = getOutputShapeAtPort(0).getRank();
         if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
             minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
     } else {
@@ -248,6 +216,59 @@ void FullyConnected::getSupportedDescriptors() {
 
         createDescriptorInternal(in_candidate, out_candidate);
     }
+}
+
+inline std::vector<VectorDims> FullyConnected::shapeInferExec(const VectorDims& activationShape, const VectorDims& weightShape) const {
+    // only activation and weight shape is needed for output shape infer
+    // avtivation: (T)NCi weight:CoCi Out:(T)NCo
+    // avtivation: NCiHW weight:CoCiHW Out:NCo
+    size_t activationRank = activationShape.size();
+    size_t channelRank = weightShape.size() - 1;
+    VectorDims outputShape;
+    // set batch dims
+    for (size_t i = 0; i < activationRank - channelRank; ++i) {
+        outputShape.push_back(activationShape[i]);
+    }
+    // append Co
+    outputShape.push_back(weightShape[0]);
+
+    while (outputShape.size() < outputRank) {
+        outputShape.insert(outputShape.begin(), 1);
+    }
+
+    return {outputShape};
+}
+
+std::vector<VectorDims> FullyConnected::shapeInfer() const {
+    try {
+        VectorDims activationShape = getParentEdgesAtPort(DATA_ID)[0]->getMemory().getStaticDims();
+        VectorDims weightShape = getParentEdgesAtPort(WEIGHTS_ID)[0]->getMemory().getStaticDims();
+
+        return shapeInferExec(activationShape, weightShape);
+    }
+    catch (const std::runtime_error& exp) {
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
+    }
+}
+
+std::vector<VectorDims> FullyConnected::shapeInferGeneric(const std::vector<Shape>& shapes) const {
+    try {
+        int inputNumNeed = 2;
+        std::vector<std::reference_wrapper<const VectorDims>> inputShapes;
+        inputShapes.reserve(inputNumNeed);
+
+        for (size_t i = 0; i < inputNumNeed; i++)
+            inputShapes.emplace_back(std::ref(shapes[i].getStaticDims()));
+
+        return shapeInferExec(inputShapes[0], inputShapes[1]);
+    }
+    catch (const std::runtime_error& exp) {
+        IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
+    }
+}
+
+bool FullyConnected::outputShapeDataDependency() const {
+    return false;
 }
 
 void FullyConnected::prepareParams() {

@@ -33,7 +33,7 @@ bool NonZero::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
 }
 
 NonZero::NonZero(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, InternalDynShapeInferFactory()) {
+    : Node(op, context, std::make_shared<InternalDynShapeInferFactory>()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "NonZero layer with name '" + getName() + "' ";

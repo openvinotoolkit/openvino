@@ -44,7 +44,7 @@ public:
 } // namespace
 
 Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, GenericShapeInferFactory()), ngraphOp(op) {
+    : Node(op, context, std::make_shared<GenericShapeInferFactory>()), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {
