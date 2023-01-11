@@ -115,11 +115,12 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         auto desc = get_deconvolution_descriptor(impl_params);
         auto attr = get_primitive_attributes(arg);
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return cldnn::make_unique<deconvolution_onednn>(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
+        return cldnn::make_unique<deconvolution_onednn>(engine, config, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
     }
 };
 

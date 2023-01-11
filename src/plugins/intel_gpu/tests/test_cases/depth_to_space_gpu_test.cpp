@@ -245,10 +245,8 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
         reshape("reshape2", input_info("perm"), tensor(1, 3, 2 * 960, 2 * 540))
     );
 
-    build_options build_opt;
-
-    build_opt.set_option(build_option::optimize_data(true));
-    network network_ref(engine, topology_ref, build_opt);
+    ExecutionConfig config(ov::intel_gpu::optimize_data(true));
+    network network_ref(engine, topology_ref, config);
     network_ref.set_input_data("Input0", input1);
 
     auto outputs_ref = network_ref.execute();

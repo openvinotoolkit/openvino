@@ -30,6 +30,7 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {

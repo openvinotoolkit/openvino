@@ -17,7 +17,7 @@ public:
     virtual void cancel() noexcept = 0;
     virtual ~ICompilationContext() = default;
 
-    static std::unique_ptr<ICompilationContext> create(cldnn::engine& engine, size_t program_id);
+    static std::unique_ptr<ICompilationContext> create(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id);
 };
 
 }  // namespace cldnn

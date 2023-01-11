@@ -8,8 +8,7 @@
 #include <string>
 
 namespace cldnn {
-std::string get_dir_path(build_options);
-std::string get_serialization_network_name(build_options);
+std::string get_dir_path(const ExecutionConfig& config);
 
 void dump_graph_optimized(std::ofstream&, const program&);
 void dump_graph_processing_order(std::ofstream&, const program&);

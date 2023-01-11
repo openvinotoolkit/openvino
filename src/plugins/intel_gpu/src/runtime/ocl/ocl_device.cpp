@@ -288,7 +288,7 @@ bool ocl_device::is_same(const device::ptr other) {
     if (!casted)
         return false;
 
-    return _context == casted->get_context() && _device == casted->get_device() && _platform == casted->get_platform();
+    return _device == casted->get_device() && _platform == casted->get_platform();
 }
 
 }  // namespace ocl

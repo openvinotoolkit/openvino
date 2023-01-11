@@ -24,8 +24,8 @@ add_reorders optimization pass.
 //concatenation of incompatible convolutions
 TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(false));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(false));
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
@@ -46,7 +46,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
 
     topology.add(cldnn::concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     //concatenation accepts inputs in different formats, so no reorders should be added here

@@ -62,10 +62,10 @@ TEST(removing_output_node, multiple_outputs) {
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::outputs({ "shuffle_channels", "reshape", "strided_slice" }));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "shuffle_channels", "reshape", "strided_slice" }));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 

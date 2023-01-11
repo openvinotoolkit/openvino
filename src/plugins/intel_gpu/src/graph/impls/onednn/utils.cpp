@@ -113,7 +113,7 @@ dnnl::memory::desc create_memory_desc_from_format_string(dnnl::memory::dims dims
 template <typename T>
 cldnn::memory::ptr convert_zp_data_to_s32(const memory::ptr zp_memory) {
     auto engine = zp_memory->get_engine();
-    auto& stream = engine->get_program_stream();
+    auto& stream = engine->get_service_stream();
 
     auto zp_s32_layout = zp_memory->get_layout();
     zp_s32_layout.data_type = data_types::i32;
@@ -493,7 +493,7 @@ template <typename T>
 bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
     auto ptr = node.get_attached_memory_ptr();
     auto engine = ptr->get_engine();
-    auto& stream = engine->get_program_stream();
+    auto& stream = engine->get_service_stream();
     auto num_elems = node.get_output_layout().count();
     mem_lock<T, mem_lock_type::read> old_data {ptr, stream};
     auto val = old_data[0];

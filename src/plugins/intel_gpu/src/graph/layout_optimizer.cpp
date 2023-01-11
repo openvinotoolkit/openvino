@@ -1416,7 +1416,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 const size_t kBatchNum = scores_layout.batch();
                 const size_t kClassNum = scores_layout.feature();
                 const size_t kNStreams =
-                    static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+                    static_cast<size_t>(node.get_program().get_config().get_property(ov::streams::num));
                 const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
                 preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
             }
@@ -1668,7 +1668,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     auto output_layout = node.get_output_layout();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
-    bool allow_new_shape_infer = node.get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (allow_new_shape_infer) {
         if (node.is_type<shape_of>())
@@ -2013,7 +2013,7 @@ bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const
     }
 }
 
-void layout_optimizer::set_implementation_forcing(const implementation_forcing_map& map) {
+void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map) {
     for (const auto& kv : map) {
         _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }

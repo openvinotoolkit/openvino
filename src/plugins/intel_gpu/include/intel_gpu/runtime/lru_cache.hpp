@@ -9,6 +9,8 @@
 #include <functional>
 #include <iostream>
 
+#include "kernel.hpp"
+
 namespace cldnn {
 
 struct primitive_impl;

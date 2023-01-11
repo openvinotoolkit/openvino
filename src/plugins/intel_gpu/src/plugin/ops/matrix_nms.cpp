@@ -34,7 +34,7 @@ void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ngraph::op::int
                                                      cldnn::format::bfyx,
                                                      cldnn::tensor(static_cast<int32_t>(outputIndices), 1, 1, 1));
 
-    shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutFirst));
+    shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutFirst));
 
     cldnn::primitive_id matrix_nms_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";
     auto matrix_nms_mutable_prim_first = cldnn::mutable_data(matrix_nms_mutable_id_w_first, shared_memory.back());
@@ -46,7 +46,7 @@ void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ngraph::op::int
                                                       cldnn::format::bfyx,
                                                       cldnn::tensor(static_cast<int32_t>(batches_num), 1, 1, 1));
 
-    shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutSecond));
+    shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutSecond));
 
     cldnn::primitive_id matrix_nms_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
     auto matrix_nms_mutable_prim_second = cldnn::mutable_data(matrix_nms_mutable_id_w_second, shared_memory.back());
