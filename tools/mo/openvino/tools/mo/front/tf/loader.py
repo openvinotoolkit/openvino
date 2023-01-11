@@ -200,7 +200,7 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
 
 def prepare_graph_def(model):
-    from tensorflow.python.training.tracking.base import Trackable
+    from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
     if isinstance(model, tf_v1.GraphDef):
         nodes_to_clear_device = model.node
         for node in nodes_to_clear_device:

@@ -18,7 +18,7 @@ except ImportError:
 tf_v1.get_logger().setLevel("ERROR")
 
 from google.protobuf import text_format
-from tensorflow.python.eager.context import graph_mode
+from tensorflow.python.eager.context import graph_mode  # pylint: disable=no-name-in-module,import-error
 
 from openvino.tools.mo.front.extractor import node_defs_to_str
 from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
