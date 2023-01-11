@@ -35,18 +35,12 @@ std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
 }
 
 std::vector<ov::Output<const ov::Node>> CompiledModel::inputs() const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        std::vector<ov::Output<const ov::Node>> inputs;
-        for (const auto& input : _impl->inputs()) {
-            inputs.emplace_back(input);
-        }
-        return inputs;
-    });
+    OV_EXEC_NET_CALL_STATEMENT({ return _impl->inputs(); });
 }
 
 ov::Output<const ov::Node> CompiledModel::input() const {
     OV_EXEC_NET_CALL_STATEMENT({
-        const auto inputs = _impl->inputs();
+        const auto& inputs = _impl->inputs();
         if (inputs.size() != 1) {
             throw ov::Exception("input() must be called on a function with exactly one parameter.");
         }
@@ -70,17 +64,11 @@ ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) 
 }
 
 std::vector<ov::Output<const ov::Node>> CompiledModel::outputs() const {
-    OV_EXEC_NET_CALL_STATEMENT({
-        std::vector<ov::Output<const ov::Node>> outputs;
-        for (const auto& output : _impl->outputs()) {
-            outputs.emplace_back(output);
-        }
-        return outputs;
-    });
+    OV_EXEC_NET_CALL_STATEMENT({ return _impl->outputs(); });
 }
 ov::Output<const ov::Node> CompiledModel::output() const {
     OV_EXEC_NET_CALL_STATEMENT({
-        const auto outputs = _impl->outputs();
+        const auto& outputs = _impl->outputs();
         if (outputs.size() != 1) {
             throw ov::Exception("output() must be called on a function with exactly one result.");
         }
