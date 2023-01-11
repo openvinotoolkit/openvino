@@ -10,11 +10,9 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
-#include "strided_slice_inst.h"
 #include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
-#include "strided_slice_inst.h"
 #include "gemm_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
@@ -170,19 +168,7 @@ void primitive_inst::update_shape() {
     if (_node->is_type<shape_of>() && !input_shape_changed)
         return;
 
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    bool strided_slice_wa = false;
-    if (_node->is_type<strided_slice>()) {
-        for (size_t i = 1; i < _node->get_dependencies().size(); i++) {
-            if (!_node->get_dependency(i).is_type<data>())
-                strided_slice_wa = true;
-        }
-    }
-
-    if (!strided_slice_wa && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -1154,8 +1140,6 @@ void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_argu
             args_idx.fused_op_inputs[idx] = get_index_in_deps(args.fused_op_inputs[idx]);
         }
     }
-
-    args_idx.split = args.split;
 }
 
 int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {

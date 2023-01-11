@@ -25,45 +25,12 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         return make_unique<reorder_impl>(*this);
     }
 
-    reorder_impl() : parent() {}
-
-    explicit reorder_impl(const reorder_impl& other) : parent(other),
-        _can_be_optimized(other._can_be_optimized),
-        _has_mean(other._has_mean) {}
-
-    reorder_impl(const reorder_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<reorder>());
-        const auto& node = arg.as<reorder>();
-        _can_be_optimized = node.can_be_optimized();
-        _has_mean = node.has_mean();
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _can_be_optimized;
-        ob << _has_mean;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _can_be_optimized;
-        ib >> _has_mean;
-    }
-
 protected:
-    bool optimized_out(reorder_inst& instance) const override {
-        return parent::optimized_out(instance) || _can_be_optimized;
-    }
-
-    kernel_arguments_data get_arguments(const reorder_inst& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const reorder_inst& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         auto input = &instance.input_memory();
         auto input_layout = input->get_layout();
-        if (_has_mean) {
+        if (instance.has_mean()) {
             if (input_layout.format == cldnn::format::nv12) {
                 args.bias = instance.mean_nv12_memory();
             } else {
@@ -134,6 +101,8 @@ public:
         }
 
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
+        params.truncate = impl_param.typed_desc<reorder>()->truncate;
+
         return {params, optional_params};
     }
 
@@ -141,10 +110,6 @@ public:
         auto kernel_params = get_kernel_params(impl_param);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
-
-private:
-    bool _can_be_optimized;
-    bool _has_mean;
 };
 
 namespace detail {

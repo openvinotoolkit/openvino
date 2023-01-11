@@ -46,7 +46,7 @@ struct roi_pooling_impl : typed_primitive_impl_ocl<roi_pooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance) const override {
         kernel_arguments_data args;
 
         if (instance.argument->mode == pooling_mode::deformable_bilinear && !instance.argument->no_trans)

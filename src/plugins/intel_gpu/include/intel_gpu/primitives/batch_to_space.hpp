@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief The BatchToSpace operation reshapes the "batch" dimension 0 into N - 1, N ∈ {4,5,6} dimensions of shape block_shape + [batch]
 /// and interleaves these blocks back into the grid defined by the spatial dimensions [1, ..., N - 1], N ∈ {4,5,6}
@@ -71,7 +64,4 @@ struct batch_to_space : public primitive_base<batch_to_space> {
     tensor crops_end;
     tensor out_size;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -30,8 +30,8 @@ struct normalize_impl : typed_primitive_impl_ocl<normalize> {
     }
 
 protected:
-     kernel_arguments_data get_arguments(const typed_primitive_inst<normalize>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+     kernel_arguments_data get_arguments(const typed_primitive_inst<normalize>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         args.scale_table = instance.scale_memory();
         return args;
     }
