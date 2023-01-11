@@ -22,7 +22,6 @@ auto device_names_and_support_for_remote_blobs = []() {
         {{GPU, CPU}, true, {}},  // GPU+CPU
         {{CPU, GPU}, true, {}},  // CPU+GPU
         {{GPU, CPU}, true, {ov::intel_auto::device_bind_buffer(true)}},  // GPU+CPU
-        //{{CPU, GPU}, true, {ov::intel_auto::device_bind_buffer(true)}},  // CPU+GPU hang
 #endif
     };
 };
@@ -137,8 +136,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteBlobOversubsciptionInferRequest,
 auto multi_device_names_and_support_for_remote_blobs = []() {
     return std::vector<DevicesNames>{
 #ifdef ENABLE_INTEL_CPU
-        {CPU, "GPU.0"},
-        {CPU, "GPU.0", "GPU.1"},  // another GPU (the test will test its presence), different OCL contexts
+        {"GPU.0", CPU},
+        {"GPU.0", "GPU.1", CPU},  // another GPU (the test will test its presence), different OCL contexts
 #endif
         {"GPU.0", "GPU.1"}};
 };
