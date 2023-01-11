@@ -56,11 +56,7 @@ find_path(OpenCL_HPP_INCLUDE_DIR
     HINTS
     ${opencl_root_hints}
     ENV "PROGRAMFILES(X86)"
-    ENV AMDAPPSDKROOT
     ENV INTELOCLSDKROOT
-    ENV NVSDKCOMPUTE_ROOT
-    ENV CUDA_PATH
-    ENV ATISTREAMSDKROOT
     ENV OCL_ROOT
     PATH_SUFFIXES
     include
@@ -76,13 +72,12 @@ elseif(OpenCL_HPP_INCLUDE_DIR)
     set(OpenCL_HEADERS ${OpenCL_INCLUDE_DIR} ${OpenCL_HPP_INCLUDE_DIR})
     set(OpenCL_LIB "OpenCL::OpenCL")
 else()
-    MESSAGE(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
+    message(WARNING "OpenCL CPP header is not found, ${TARGET_NAME} will be built without OpenCL support. Download it from: https://github.com/KhronosGroup/OpenCL-CLHPP and set -Dopencl_root_hints=[PATH]/OpenCL-CLHPP/include to cmake.")
 endif()
 
 if(NOT OpenCL_FOUND OR NOT OpenCL_HEADERS)
     list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
 endif()
-list(FILTER SOURCES EXCLUDE REGEX ov_remote_context_test.cpp)
 
 add_executable(${TARGET_NAME} ${SOURCES} ${HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_c openvino::util

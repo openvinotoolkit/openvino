@@ -393,6 +393,7 @@ ov_status_e ov_core_compile_model_from_file_unicode(const ov_core_t* core,
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
+#endif
 
 ov_status_e ov_core_compile_model_with_context(const ov_core_t* core,
                                                const ov_model_t* model,
@@ -438,5 +439,3 @@ ov_status_e ov_core_get_default_context(const ov_core_t* core, const char* devic
     CATCH_OV_EXCEPTIONS
     return ov_status_e::OK;
 }
-
-#endif
