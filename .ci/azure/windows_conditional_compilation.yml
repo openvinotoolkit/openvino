@@ -108,7 +108,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -G "Ninja" ^
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
         -DENABLE_CPPLINT=OFF ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
@@ -137,9 +137,9 @@ jobs:
     displayName: 'List temp SDKs'
 
   - script: |
-      cmake --build . --config $(BUILD_TYPE) --parallel
-      cmake --build . --config $(BUILD_TYPE) --parallel --target sea_itt_lib
-    workingDirectory: $(BUILD_DIR)
+      call "$(MSVS_VARS_PATH)"
+      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel
+      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel --target sea_itt_lib
     displayName: 'Build CC COLLECT'
 
   - script: dir $(REPO_DIR)\bin\ /s
@@ -147,7 +147,14 @@ jobs:
 
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
-      call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
+      python thirdparty\itt_collector\runtool\sea_runtool.py ^
+        --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) ^
+        -o $(BUILD_DIR)\itt_stat ^
+        ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe ^
+          -nireq 1 ^
+          -t 1 ^
+          -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml ^
+          -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
@@ -158,10 +165,11 @@ jobs:
       cmake ^
         -DSELECTIVE_BUILD=ON ^
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
+        -S $(REPO_DIR) ^
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 
-  - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE)
+  - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel
     displayName: 'Build CC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s

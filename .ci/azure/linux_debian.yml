@@ -254,7 +254,7 @@ jobs:
 
   - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
-      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --target package -j8
+      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --target package --parallel
     displayName: 'Build Debian packages'
 
   - script: |
@@ -265,7 +265,8 @@ jobs:
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      sudo apt-get install openvino -y || exit 1
+      # TODO: sudo apt-get install openvino -y || exit 1
+      sudo apt-get install openvino -y
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -380,7 +381,7 @@ jobs:
       python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ -k "not GNA" --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
     env:
       IE_APP_PATH: $(INSTALL_DIR)/samples_bin
-      LD_LIBRARY_PATH: $(IE_APP_PATH)
+      LD_LIBRARY_PATH: $(INSTALL_DIR)/samples_bin
       IE_APP_PYTHON_PATH: $(PYTHON_SAMPLES_INSTALL_DIR)/
       SHARE: $(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
       WORKSPACE: $(INSTALL_DIR)
