@@ -155,15 +155,10 @@ apt list --installed | grep openvino
 
 @endsphinxdirective
 
-### Step 3 (Optional): Install Software Dependencies
+### Step 3 (Optional): Install Additional Components
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using APT, OpenVINO Development Tools must be installed separately.
 
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
-
-OpenVINO provides a script in the installation directory. Run the following commands:
-```sh
-cd <INSTALL_DIR>/install_dependencies
-sudo -E ./install_openvino_dependencies.sh
-```
+See the **For C++ Developers** section in [Install OpenVINO Development Tools](installing-model-dev-tools.md) for instructions.
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
@@ -190,15 +185,6 @@ To build the C++ or C sample applications for Linux, run the `build_samples.sh` 
 @endsphinxdirective
 
 For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
-
-## Installing OpenVINO Development Tools
-
-> **NOTE**: From the 2022.1 release, the OpenVINO™ Development Tools can be installed via PyPI only.
-
-To install OpenVINO Development Tools, do the following steps:
-1. [Install OpenVINO Runtime](#installing-openvino-runtime) if you haven't done it yet.
-2. <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a>.
-3. See the **For C++ Developers** section in [Install OpenVINO Development Tools](installing-model-dev-tools.md) for detailed steps.
 
 ## What's Next?
 

@@ -140,15 +140,10 @@ Run the following command:
 @endsphinxdirective
 
 
-### Step 3 (Optional): Install Software Dependencies
+### Step 3 (Optional): Install Additional Components
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
 
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
-
-OpenVINO provides a script in the installation directory. Run the following commands:
-```sh
-cd <INSTALL_DIR>/install_dependencies
-sudo -E ./install_openvino_dependencies.sh
-```
+See the **For C++ Developers** section in [Install OpenVINO Development Tools](installing-model-dev-tools.md) for instructions.
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
