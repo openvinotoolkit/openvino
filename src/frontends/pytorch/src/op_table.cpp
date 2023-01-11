@@ -40,6 +40,7 @@ OP_CONVERTER(translate_floor_divide);
 OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
+OP_CONVERTER(translate_get_attr);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
@@ -48,6 +49,7 @@ OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
 OP_CONVERTER(translate_len);
 OP_CONVERTER(translate_linear);
+OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_max);
@@ -96,6 +98,7 @@ OP_CONVERTER(translate_zeros_like);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"aten::__not__", op::translate_1to1_match_1_inputs<opset8::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset8::Abs>},
@@ -145,6 +148,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::inplace_op<op::translate_div>},
+        {"aten::dropout", op::skip_node},
+        {"aten::dropout_", op::skip_node},
         {"aten::elu", op::translate_elu},
         {"aten::embedding", op::translate_embedding},
         {"aten::eq", op::translate_1to1_match_2_inputs<opset8::Equal>},
@@ -250,8 +255,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
+        {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
+        {"prim::ListConstruct", op::translate_list_construct},
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},

@@ -109,6 +109,8 @@ public:
     // TODO: required? can be implemented in the context of a single node?
     virtual bool input_is_none(size_t index) const = 0;
 
+    virtual ov::OutputVector try_decode_get_attr() = 0;
+
     // Work for natural constant nodes, e.g. for prim::Constant; don't know other nodes kinds that fit
     // TODO: why OutputVector instead of just single output?
     virtual OutputVector as_constant() = 0;

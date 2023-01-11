@@ -47,10 +47,11 @@ class PytorchLayerTest:
         with torch.no_grad():
             model.eval()
             if not kwargs.get('trace_model', False):
-                model = torch.jit.freeze(torch.jit.script(model))
+                model = torch.jit.script(model)
             else:
                 torch_inputs = [torch.from_numpy(inp) for inp in inputs]
-                model = torch.jit.freeze(torch.jit.trace(model, torch_inputs))
+                model = torch.jit.trace(model, torch_inputs)
+            model = torch.jit.freeze(model)
             graph = model.inlined_graph
             print(graph)
 
@@ -60,7 +61,7 @@ class PytorchLayerTest:
             fe_manager = FrontEndManager()
             fe = fe_manager.load_by_framework('pytorch')
 
-            decoder = TorchScriptPythonDecoder(graph)
+            decoder = TorchScriptPythonDecoder(model)
 
             im = fe.load(decoder)
             om = fe.convert(im)

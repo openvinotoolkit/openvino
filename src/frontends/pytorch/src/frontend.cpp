@@ -73,22 +73,6 @@ std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputMode
         auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
         auto model = convert_pytorch_model(pytorch_model->m_model);
 
-        // TODO: Propose better solution for the next code block
-        // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
-        // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
-        // inference if model is completelly frozed and all methods are inlined. So we check if it doesn't have any
-        // consumers in the finally converted model and remove this parameter. This parameter should have index 0.
-        if (model->get_parameters().size() > 0) {
-            auto self = model->get_parameters()[0];
-            if (self->output(0).get_target_inputs().empty()) {
-                // There is no consumers: safe to remove
-                // std::cout << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never "
-                //             "used and treated as `self`\n";
-                model->remove_parameter(self);
-            } else {
-                std::cout << "[ WARNING ] Couldn't remove parameter[0] in converted Pytorch model\n";
-            }
-        }
         return model;
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << "\n";
@@ -104,6 +88,10 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::UnrollIf>();
+    // Have to run UnrollIf second time, because conditions are defined outside of nested If (ticket 98155)
+    manager.register_pass<ngraph::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
     manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
@@ -116,6 +104,23 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.run_passes(model);
 
     apply_pytorch_conversion_transforms(model);
+
+    // TODO: Propose better solution for the next code block
+    // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
+    // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
+    // inference if model is completelly frozed and all methods are inlined. So we check if it doesn't have any
+    // consumers in the finally converted model and remove this parameter. This parameter should have index 0.
+    if (model->get_parameters().size() > 0) {
+        auto self = model->get_parameters()[0];
+        if (self->output(0).get_target_inputs().empty()) {
+            // There is no consumers: safe to remove
+            // std::cout << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never "
+            //             "used and treated as `self`\n";
+            model->remove_parameter(self);
+        } else {
+            std::cout << "[ WARNING ] Couldn't remove parameter[0] in converted Pytorch model\n";
+        }
+    }
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

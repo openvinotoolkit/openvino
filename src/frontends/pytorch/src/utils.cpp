@@ -404,7 +404,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                 OV_FRONTEND_REQUIRE(tensor_map.count(tensor_id));
                 // model input was mutated we need to make a result for it
                 auto mutated_tensor = tensor_map.at(tensor_id);
-                // empty external_tensor_map means this is main body of the model and we don't want to creatre
+                // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
                 if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
                     results.push_back(std::make_shared<opset8::Result>(tensor_map.at(tensor_id)));
