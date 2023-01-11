@@ -52,7 +52,7 @@ inline int parseInteger(const char* str) {
     std::string var(str ? str : "");
     try {
         return std::stoi(var);
-    } catch (std::exception&) {
+    } catch (const std::exception&) {
         return INT32_MAX;
     }
 }
