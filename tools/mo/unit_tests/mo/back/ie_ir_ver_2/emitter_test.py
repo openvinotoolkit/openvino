@@ -193,8 +193,8 @@ class TestSerialize(unittest.TestCase):
                 ('input', 'input_data'),
                 ('input_data', 'pool'),
                 ('pool', 'pool_data', {'out': 0}),
-                ('pool_data', 'result', {'out': 1}),
-                ('pool', 'pool_data_added'),
+                ('pool_data', 'result'),
+                ('pool', 'pool_data_added', {'out': 1}),
                 ('pool_data_added', 'result_added')
             ]
         )
