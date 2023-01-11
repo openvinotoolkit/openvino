@@ -5,8 +5,7 @@ import os
 
 from common.layer_test_class import CommonLayerTest
 
-from tests.layer_tests.common.tf_layer_test_class import transpose_nhwc_to_nchw
-from tests.layer_tests.common.utils.tf_utils import summarize_graph
+from tests.layer_tests.common.utils.tf_utils import get_tflite_results
 
 
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
@@ -47,7 +46,7 @@ class CommonTF2LayerTest(CommonLayerTest):
             return self.get_tf2_keras_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return self.get_tflite_results(inputs_dict, model_path)
+            return get_tflite_results(self.use_new_frontend, self.use_old_api, inputs_dict, model_path)
 
     def get_tf2_keras_results(self, inputs_dict, model_path):
         import tensorflow as tf
@@ -99,30 +98,3 @@ class CommonTF2LayerTest(CommonLayerTest):
             else:
                 result[output] = tf_res
         return result
-
-    def get_tflite_results(self, inputs_dict, model_path):
-        import tensorflow as tf
-        interpreter = tf.compat.v1.lite.Interpreter(model_path=model_path)
-        interpreter.allocate_tensors()
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
-
-        input_name_to_id_mapping = {input['name']: input['index'] for input in input_details}
-
-        for layer, data in inputs_dict.items():
-            tensor_index = input_name_to_id_mapping[layer]
-            tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
-            interpreter.set_tensor(input_details[tensor_id]['index'], data.astype(tensor['dtype']))
-
-        interpreter.invoke()
-        tf_result = dict()
-        for output in output_details:
-            tf_result[output['name']] = interpreter.get_tensor(output['index'])
-
-        result = dict()
-        for out in tf_result.keys():
-            _tf_res = tf_result[out]
-            result[out] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
-                                                 self.use_old_api)
-
-        return tf_result
