@@ -25,7 +25,7 @@ Example command:
 ## Pre-steps for all Python tests:
 1. Build OpenVINO with `-DENABLE_PYTHON=ON`, preferably in a `Python` virtual environment. In order to avoid problems with many Python interpreters installed on the host, it is worth to set also `-DPYTHON_EXECUTABLE=PYTHON_INTERPRETER_PATH` build option.
 Note: if you want to run the tests from installation directory location (like in the CI), you should add `-P cmake_install.cmake` and `-DCOMPONENT=tests` cmake build options and install OpenVINO (via `cmake --build . --target install`) as additional steps.
-2. Set-up `Python` paths via `source <OV_INSTALL_DIR>/setupvars.sh` (or `sh <INSTALL_DIR>\setupvars.bat` for `Windows`) or set `export PYTHONPATH=<OV_REPO_DIR>/bin/intel64/<BUILD_TYPE>/python_api/python<PYTHON_VERSION>` (note that `set` instead of `export` should be used for `Windows`).
+2. Set-up `Python` paths via `source <OV_INSTALL_DIR>/setupvars.sh` (or `sh <INSTALL_DIR>\setupvars.bat` for `Windows`).
 3. Instal `Python` dependencies:
 ```
 pip install -r <OV_REPO_DIR>/src/bindings/python/requirements.txt
