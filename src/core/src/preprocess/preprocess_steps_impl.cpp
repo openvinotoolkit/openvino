@@ -456,6 +456,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     is_converted = true;
                 }
 
+                // RGB coefficients were used from https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
                 auto weights_data = context.color_format() == ColorFormat::RGB
                                         ? std::vector<float>{0.299f, 0.587f, 0.114f}
                                         : std::vector<float>{0.114f, 0.587f, 0.299f};
