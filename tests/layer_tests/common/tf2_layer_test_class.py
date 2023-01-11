@@ -112,7 +112,7 @@ class CommonTF2LayerTest(CommonLayerTest):
         for layer, data in inputs_dict.items():
             tensor_index = input_name_to_id_mapping[layer]
             tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
-            interpreter.set_tensor(input_details[tensor_id]['index'], data)
+            interpreter.set_tensor(input_details[tensor_id]['index'], data.astype(tensor['dtype']))
 
         interpreter.invoke()
         tf_result = dict()
