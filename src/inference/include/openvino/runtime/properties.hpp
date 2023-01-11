@@ -238,13 +238,12 @@ static constexpr Property<element::Type, PropertyMutability::RW> inference_preci
  * @brief Namespace with hint properties
  */
 namespace hint {
-
-    /**
-     * @brief Hint for device to use specified precision for inference
-     * @ingroup ov_runtime_cpp_prop_api
-     */
-    OPENVINO_DEPRECATED("This was moved to ov:: namespace. Please use ov::inference_precision instead")
-    static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+/**
+ * @brief Hint for device to use specified precision for inference
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+OPENVINO_DEPRECATED("This was moved to ov:: namespace. Please use ov::inference_precision instead")
+static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 /**
  * @brief Enum to define possible priorities hints
  * @ingroup ov_runtime_cpp_prop_api
@@ -372,9 +371,9 @@ static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALL
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class ExecutionMode {
-    UNDEFINED = -1,             //!<  Undefined value, settings may vary from device to device
-    PERFORMANCE = 1,            //!<  Optimize for max performance
-    ACCURACY = 2,               //!<  Optimize for max accuracy
+    UNDEFINED = -1,   //!<  Undefined value, settings may vary from device to device
+    PERFORMANCE = 1,  //!<  Optimize for max performance
+    ACCURACY = 2,     //!<  Optimize for max accuracy
 };
 
 /** @cond INTERNAL */
