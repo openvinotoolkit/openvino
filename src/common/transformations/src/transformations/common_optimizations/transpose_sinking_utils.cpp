@@ -270,18 +270,6 @@ void UpdateForwardSinkingAbility(NodePtr node) {
 
 namespace {
 
-std::shared_ptr<Constant> GetTransposeConstant(Input<Node> input) {
-    auto transpose_node = dynamic_cast<Transpose*>(input.get_node());
-    if (!transpose_node)
-        return {};
-
-    auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-    if (!constant_node)
-        return {};
-
-    return constant_node;
-}
-
 std::shared_ptr<Constant> GetTransposeConstant(Node* node) {
     auto transpose_node = dynamic_cast<Transpose*>(node);
     if (!transpose_node)
@@ -318,7 +306,7 @@ bool HasSameOutputTransposeNodes(NodePtr main_node) {
 
     for (size_t output_idx = 0; output_idx < main_node->get_output_size(); ++output_idx) {
         for (auto& input : main_node->get_output_target_inputs(output_idx)) {
-            auto constant_node = GetTransposeConstant(input);
+            auto constant_node = GetTransposeConstant(input.get_node());
             if (!constant_node)
                 return false;
 
