@@ -179,4 +179,15 @@ namespace {
                              ::testing::Combine(::testing::ValuesIn(TestTargets),
                                                 ::testing::ValuesIn(LoadFromFileConfigs)),
                              CompileModelLoadFromMemoryTestBase::getTestCaseName);
+
+    const std::vector<ov::AnyMap> CpuConfigs = {
+        {ov::num_streams(2)},
+    };
+    const std::vector<std::string> TestCpuTargets = {
+        CommonTestUtils::DEVICE_CPU,
+    };
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU,
+                             CompileModelLoadFromMemoryTestBase,
+                             ::testing::Combine(::testing::ValuesIn(TestCpuTargets), ::testing::ValuesIn(CpuConfigs)),
+                             CompileModelLoadFromMemoryTestBase::getTestCaseName);
 } // namespace

@@ -101,6 +101,7 @@ public:
     void SetUp() override;
     void TearDown() override;
     void run() override;
+    bool importExportSupported(ov::Core &core) const;
 };
 
 using compileKernelsCacheParams = std::tuple<

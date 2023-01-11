@@ -69,6 +69,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
         R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadNetworkFromMemory.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
