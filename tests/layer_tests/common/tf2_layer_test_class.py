@@ -5,6 +5,9 @@ import os
 
 from common.layer_test_class import CommonLayerTest
 
+from tests.layer_tests.common.tf_layer_test_class import transpose_nhwc_to_nchw
+from tests.layer_tests.common.utils.tf_utils import summarize_graph
+
 
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
     import tensorflow as tf
@@ -15,13 +18,38 @@ def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
     return path_to_saved_tf2_model
 
 
+def save_tf2_saved_model_to_tflite(savedmodel):
+    import tensorflow as tf
+
+    converter = tf.compat.v1.lite.TFLiteConverter.from_saved_model(savedmodel)
+    tflite_model = converter.convert()
+
+    tflite_model_path = os.path.join(os.path.dirname(savedmodel), 'model.tflite')
+    with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
+        f.write(tflite_model)
+
+    return tflite_model_path
+
+
 class CommonTF2LayerTest(CommonLayerTest):
     input_model_key = "saved_model_dir"
 
     def produce_model_path(self, framework_model, save_path):
-        return save_to_tf2_savedmodel(framework_model, save_path)
+        if not getattr(self, 'tflite', False):
+            return save_to_tf2_savedmodel(framework_model, save_path)
+        else:
+            self.input_model_key = 'input_model'
+            tf2_saved_model = save_to_tf2_savedmodel(framework_model, save_path)
+            return save_tf2_saved_model_to_tflite(tf2_saved_model)
 
     def get_framework_results(self, inputs_dict, model_path):
+        if not getattr(self, 'tflite', False):
+            return self.get_tf2_keras_results(inputs_dict, model_path)
+        else:
+            # get results from tflite
+            return self.get_tflite_results(inputs_dict, model_path)
+
+    def get_tf2_keras_results(self, inputs_dict, model_path):
         import tensorflow as tf
         import numpy as np
 
@@ -71,3 +99,30 @@ class CommonTF2LayerTest(CommonLayerTest):
             else:
                 result[output] = tf_res
         return result
+
+    def get_tflite_results(self, inputs_dict, model_path):
+        import tensorflow as tf
+        interpreter = tf.compat.v1.lite.Interpreter(model_path=model_path)
+        interpreter.allocate_tensors()
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        input_name_to_id_mapping = {input['name']: input['index'] for input in input_details}
+
+        for layer, data in inputs_dict.items():
+            tensor_index = input_name_to_id_mapping[layer]
+            tensor_id = next(i for i, tensor in enumerate(input_details) if tensor['index'] == tensor_index)
+            interpreter.set_tensor(input_details[tensor_id]['index'], data)
+
+        interpreter.invoke()
+        tf_result = dict()
+        for output in output_details:
+            tf_result[output['name']] = interpreter.get_tensor(output['index'])
+
+        result = dict()
+        for out in tf_result.keys():
+            _tf_res = tf_result[out]
+            result[out] = transpose_nhwc_to_nchw(_tf_res, self.use_new_frontend,
+                                                 self.use_old_api)
+
+        return tf_result
