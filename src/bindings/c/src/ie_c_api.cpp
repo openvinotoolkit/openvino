@@ -189,7 +189,7 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
     CATCH_IE_EXCEPTION(INFER_NOT_STARTED, InferNotStarted)    \
     CATCH_IE_EXCEPTION(NETWORK_NOT_READ, NetworkNotRead)      \
     CATCH_IE_EXCEPTION(INFER_CANCELLED, InferCancelled)       \
-    catch (const std::exception&) {                                 \
+    catch (const std::exception&) {                           \
         return IEStatusCode::UNEXPECTED;                      \
     }
 
