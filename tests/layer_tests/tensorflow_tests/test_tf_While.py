@@ -14,8 +14,8 @@ class TestWhile(CommonTFLayerTest):
         x_shape = inputs_info['x']
         y_shape = inputs_info['y']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(1, 10, x_shape)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape)
+        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
         return inputs_data
 
     def create_while_net(self, y_shape, data_type):
@@ -63,7 +63,7 @@ class TestWhileShapeVariant(CommonTFLayerTest):
         x_shape = inputs_info['x']
         y_shape = inputs_info['y']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(1, 10, x_shape)
+        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.int32)
         inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
