@@ -150,7 +150,7 @@ auto output_shape_2 = output_tensor.get_shape();
 //! [ov_dynamic_shapes:get_input_tensor]
 }
 
-int main() {
+int ov_dynamic_shapes_cpp() {
 reshape_with_dynamics();
 get_tensor();
 set_tensor();

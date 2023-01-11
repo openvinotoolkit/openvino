@@ -6,7 +6,7 @@
 #include <openvino/openvino.hpp>
 //! [include]
 
-int main() {
+int src_main_cpp() {
 //! [part1]
 ov::Core core;
 //! [part1]
