@@ -48,7 +48,7 @@ StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
     auto waitStatus = StatusCode::OK;
     try {
         waitStatus = AsyncInferRequestThreadSafeDefault::Wait(millis_timeout);
-    } catch (const InferenceEngine::Exception&) {
+    } catch (const ov::Exception&) {
         for (auto&& requestDesc : _heteroInferRequest->_inferRequests) {
             requestDesc._request->Wait(InferRequest::RESULT_READY);
         }
