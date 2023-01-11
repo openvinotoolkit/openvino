@@ -37,6 +37,7 @@
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -532,8 +533,7 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 }
 
 std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from) {
-    std::shared_ptr<::ov::IPlugin> plugin(new ::ov::IPlugin(from));
-    return plugin;
+    return ov::legacy_convert::convert_plugin(from);
 }
 
 }  //  namespace InferenceEngine

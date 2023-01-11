@@ -31,15 +31,16 @@ class ICompiledModel;
 namespace legacy_convert {
 
 std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(const std::shared_ptr<::ov::IPlugin>& plugin);
+std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
 
-}
+}  // namespace legacy_convert
 
 }  // namespace ov
 
 namespace InferenceEngine {
+
 class IExtension;
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
-convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
+
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -235,8 +236,8 @@ private:
     friend ::ov::IInferencePluginWrapper;
     friend std::shared_ptr<::InferenceEngine::IInferencePlugin> ov::legacy_convert::convert_plugin(
         const std::shared_ptr<::ov::IPlugin>& plugin);
-    friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
-        InferenceEngine::convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
+    friend std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
+        const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
     OPENVINO_DEPRECATED("Constructor is deprecated. Please do not use or re-implement it")
     IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
 };

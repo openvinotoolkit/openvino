@@ -776,7 +776,8 @@ std::shared_ptr<::InferenceEngine::IInferencePlugin> ov::legacy_convert::convert
 
 std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
     const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) {
-    return InferenceEngine::convert_plugin(plugin);
+    std::shared_ptr<::ov::IPlugin> ov_plugin(new ::ov::IPlugin(plugin));
+    return ov_plugin;
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::legacy_convert::convert_compiled_model(
