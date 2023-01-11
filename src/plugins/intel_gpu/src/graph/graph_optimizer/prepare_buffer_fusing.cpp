@@ -13,6 +13,7 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "non_max_suppression_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -361,6 +362,8 @@ void prepare_buffer_fusing::run(program& p) {
                     if (can_reshape_be_optimized(reshape_node))
                         return;
                 }
+                if (user->is_type<experimental_detectron_roi_feature_extractor>())
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
