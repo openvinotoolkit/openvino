@@ -347,7 +347,7 @@ protected:
 
     ov::TensorLabel make_seq_labels_by_order(const ov::label_t first, const vector<int64_t> order) {
         ov::TensorLabel labels;
-        transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) {
+        transform(order.cbegin(), order.cend(), back_inserter(labels), [&first](const int64_t& dim) -> ov::label_t {
             return dim + first;
         });
         return labels;

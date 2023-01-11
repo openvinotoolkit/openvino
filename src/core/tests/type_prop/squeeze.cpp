@@ -251,7 +251,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(SqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;

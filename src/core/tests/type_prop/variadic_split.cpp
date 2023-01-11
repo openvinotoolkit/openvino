@@ -149,7 +149,7 @@ class VariadicSplitBoundTest : public VariadicSplitTest {
 protected:
     std::pair<ov::TensorLabel, std::vector<ov::TensorLabel>> make_in_exp_labels() const {
         ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(8));
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(8));
 
         std::vector<ov::TensorLabel> exp_labels;
 

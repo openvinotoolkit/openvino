@@ -94,7 +94,7 @@ protected:
 
     std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
         ov::TensorLabel in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         auto unique_axes = std::set<int64_t>(axes.begin(), axes.end());
         auto out_rank = unique_axes.size() + p_shape.size();
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(UnsqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;
