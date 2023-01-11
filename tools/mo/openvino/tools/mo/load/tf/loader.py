@@ -91,7 +91,7 @@ class TFLoader(Loader):
         graph.__setattr__('name', argv.model_name)
         # 'layout' parameter change may cause an issue in EltwiseInputReshape replacer
         # and convert_nhwc_to_nchw(graph)
-        graph.graph['layout'] = 'NCHW'
+        graph.graph['layout'] = 'NHWC'
         graph.graph['fw'] = 'tf'
 
         graph.graph['variables_values'] = variables_values

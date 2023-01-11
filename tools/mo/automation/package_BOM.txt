@@ -716,6 +716,7 @@ openvino/tools/mo/middle/BiasAddBroadcasting.py
 openvino/tools/mo/middle/BinarizeWeightsM1P1.py
 openvino/tools/mo/middle/BlockLSTMtoLSTMSequence.py
 openvino/tools/mo/middle/CheckForCycle.py
+openvino/tools/mo/middle/ConcatOptimization.py
 openvino/tools/mo/middle/ConstSwitchResolver.py
 openvino/tools/mo/middle/ConvertGroupedStridedSlice.py
 openvino/tools/mo/middle/ConvertLayoutDependentOperations.py
