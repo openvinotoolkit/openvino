@@ -16,24 +16,31 @@ OutputVector translate_batch_norm(NodeContext& context) {
     // bool training, float momentum, float eps, bool cudnn_enabled) -> Tensor
     auto input = context.get_input(0);
     auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(input));
-    auto one_f = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {1}));
-    auto zero_f = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {0}));
-    auto one_i = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {1}));
-    auto minus_one_i = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {-1}));
-    auto zero_i = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
-    auto channel_dim = context.mark_node(std::make_shared<opset8::Gather>(input_shape, one_i, zero_i));
-    auto channel_dim_exp = context.mark_node(std::make_shared<opset8::Unsqueeze>(channel_dim, zero_i));
-    auto batch_dim = context.mark_node(std::make_shared<opset8::Gather>(input_shape, zero_i, zero_i));
-    auto batch_dim_exp = context.mark_node(std::make_shared<opset8::Unsqueeze>(batch_dim, zero_i));
-    Output<Node> weight = context.mark_node(std::make_shared<opset8::Broadcast>(one_f, channel_dim_exp));
-    Output<Node> bias = context.mark_node(std::make_shared<opset8::Broadcast>(zero_f, channel_dim_exp));
+    Output<Node> weight;
+    Output<Node> bias;
     if (!context.input_is_none(1)){ 
         weight = context.get_input(1);
+    }
+    else {
+        auto zero_i = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
+        auto one_i = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {1}));
+        auto one_f = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {1}));
+        auto channel_dim = context.mark_node(std::make_shared<opset8::Gather>(input_shape, one_i, zero_i));
+        auto channel_dim_exp = context.mark_node(std::make_shared<opset8::Unsqueeze>(channel_dim, zero_i));
+        weight = context.mark_node(std::make_shared<opset8::Broadcast>(one_f, channel_dim_exp));
     }
     if (!context.input_is_none(2)){
         bias = context.get_input(2);
     }
-    // index 3 running_mean and index 4 running_var can be none for training case only, chack that not training before
+    else {
+        auto zero_i = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
+        auto one_i = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {1}));
+        auto channel_dim = context.mark_node(std::make_shared<opset8::Gather>(input_shape, one_i, zero_i));
+        auto channel_dim_exp = context.mark_node(std::make_shared<opset8::Unsqueeze>(channel_dim, zero_i));
+        auto zero_f = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {0}));
+        bias = context.mark_node(std::make_shared<opset8::Broadcast>(zero_f, channel_dim_exp));
+    }
+    // index 3 running_mean and index 4 running_var can be none for training case only, check that not training before
     auto training = context.const_input<bool>(5);
     FRONT_END_OP_CONVERSION_CHECK(!training, "Translation for aten::batch_norm do not support training mode.");
     auto running_mean = context.get_input(3);
