@@ -431,10 +431,6 @@ void prepare_buffer_fusing::run(program& p) {
                                  out_padd.upper_size().spatial[0],
                                  out_padd.upper_size().spatial[1]}));
                     node.can_be_optimized(true);
-                    printf("opt_out::node(%s)\n", node.id().c_str());
-                    for (auto& usr : node.get_users()) {
-                        printf("    user(%s) index(%ld)\n", usr->id().c_str(), usr->get_dependency_index(node));
-                    }
                 }
             }
         });
