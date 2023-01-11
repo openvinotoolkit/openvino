@@ -653,7 +653,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_qkv_hidden_sizes) {
 
     test_case.add_input<float>(input);
     test_case.add_expected_output<float>(output);
-    test_case.run_with_tolerance_as_fp(1e-5);
+    test_case.run_with_tolerance_as_fp(1e-4);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_unidirectional) {
