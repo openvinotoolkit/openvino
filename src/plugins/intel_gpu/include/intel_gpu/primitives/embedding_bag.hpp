@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 /// @details For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each bag.
@@ -46,7 +39,4 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     /// @brief Default index
     int32_t default_index;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

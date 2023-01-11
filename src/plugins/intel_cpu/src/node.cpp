@@ -77,10 +77,19 @@ Node::NodesFactory & Node::factory() {
     return factoryInstance;
 }
 
-Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache, const ShapeInferFactory& shapeInferFactory)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), name(op->get_friendly_name()), typeStr(op->get_type_name()),
-          type(TypeFromName(op->get_type_name())), profiling(op->get_friendly_name()) {
+Node::Node(const std::shared_ptr<ngraph::Node>& op,
+           const GraphContext::CPtr ctx,
+           const ShapeInferFactory& shapeInferFactory)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      engine(ctx->getEngine()),
+      name(op->get_friendly_name()),
+      typeStr(op->get_type_name()),
+      type(TypeFromName(op->get_type_name())),
+      profiling(op->get_friendly_name()) {
     algorithm = Algorithm::Default;
     fusingPort = -1;
     const std::string errorPrefix = "Ngraph operation " + std::string(op->get_type_name()) + " with name " + op->get_friendly_name();
@@ -170,10 +179,18 @@ Node::Node(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
     }
 }
 
-Node::Node(const std::string& type, const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache)
-        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
-          type(TypeFromName(type)), profiling(name) {
+Node::Node(const std::string& type, const std::string& name, const GraphContext::CPtr ctx)
+    : selectedPrimitiveDescriptorIndex(-1),
+      permanent(false),
+      temporary(false),
+      constant(ConstantType::Unknown),
+      context(ctx),
+      engine(ctx->getEngine()),
+      fusingPort(-1),
+      name(name),
+      typeStr(type),
+      type(TypeFromName(type)),
+      profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
 
@@ -795,6 +812,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
         };
 
         MemoryPtr ptr;
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const uint64_t data_hash = weightCache->GetHashFunc().hash(
                     internalBlob->buffer(), internalBlob->byteSize());
@@ -1206,8 +1224,7 @@ InferenceEngine::Precision Node::getRuntimePrecision() const {
     return runtimePrecision;
 }
 
-Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                             const ExtensionManager::Ptr& extMgr, WeightsSharing::Ptr &w_cache) {
+Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) {
     // getExceptionDescWithoutStatus removes redundant information from the exception message. For instance, the NotImplemented
     // exception is generated in the form: full_path_to_src_file:line_number [ NOT_IMPLEMENTED ] reason.
     // An example for gather node:
@@ -1229,15 +1246,15 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
     Node *newNode = nullptr;
     std::string errorMessage;
     {
-        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, eng, w_cache));
-        if (ol != nullptr && ol->created(extMgr))
+        std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, Type::Generic, op, context));
+        if (ol != nullptr && ol->created(context->getExtensionManager()))
             newNode = ol.release();
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr))
+            std::unique_ptr<Node> ol(createNodeIfRegistered(intel_cpu, TypeFromName(op->get_type_name()), op, context));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
@@ -1250,8 +1267,8 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<Node> ol(new Reference(op, eng, w_cache, errorMessage));
-            if (ol != nullptr && ol->created(extMgr))
+            std::unique_ptr<Node> ol(new Reference(op, context, errorMessage));
+            if (ol != nullptr && ol->created(context->getExtensionManager()))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
             if (dynamic_cast<const InferenceEngine::NotImplemented*>(&ex) != nullptr) {
@@ -1263,19 +1280,6 @@ Node* Node::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const 
             }
         }
     }
-
-    //  WA-start : TI node requires all attributes to construct internal subgpath
-    //             including extManager, socket and dnnl::eng.
-    if (newNode) {
-        if (newNode->getType() == Type::TensorIterator) {
-            if (auto ti = dynamic_cast<TensorIterator*>(newNode))
-                ti->setExtManager(extMgr);
-        } else if (newNode->getType() == Type::If) {
-            if (auto ifNode = dynamic_cast<If*>(newNode))
-                ifNode->setExtManager(extMgr);
-        }
-    }
-//    //  WA-end
 
     if (!newNode) {
         std::string errorDetails;
