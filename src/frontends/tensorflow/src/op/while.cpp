@@ -101,8 +101,7 @@ OutputVector translate_while_op(const NodeContext& node) {
     // set external outputs for Loop node
     // do not get execution condition outside of the Loop node
     for (size_t output_ind = 0; output_ind < input_size_t; ++output_ind) {
-        loop->set_body_outputs({body_results[output_ind]});
-        loop->set_output_size(output_ind + 1);
+        loop->get_iter_value(body_results[output_ind]);
     }
     loop->validate_and_infer_types();
 
