@@ -75,6 +75,7 @@ OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_select);
+OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
 OP_CONVERTER(translate_softmax);
@@ -220,6 +221,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::roll", op::translate_roll},
         {"aten::rsqrt", op::translate_rsqrt},
         {"aten::select", op::translate_select},
+        {"aten::selu", op::translate_selu},
+        {"aten::selu_", op::inplace_op<op::translate_selu>},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset8::Sigmoid>},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset8::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset8::Swish>>},
