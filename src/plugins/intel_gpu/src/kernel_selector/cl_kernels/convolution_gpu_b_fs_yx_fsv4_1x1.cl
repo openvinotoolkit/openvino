@@ -63,14 +63,13 @@ __attribute__((reqd_work_group_size(SIMD, 1, LWG_DEPTH)))
 KERNEL(convolution)(
     const __global uint          *input,
     __global OUTPUT_TYPE4        *output,
-    const __global int           *weights,
+    const __global int           *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE   *biases,
+    , const __global BIAS_TYPE   *biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
 ) {
     const uint f = (uint)get_global_id(1) * FEATURES_PER_WI;
 #if LWG_DEPTH == 1

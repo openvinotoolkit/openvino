@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -875,6 +873,53 @@ TEST(reorder_gpu, basic_convert_int8) {
     for (const auto& exp : final_results)
     {
         ASSERT_EQ(exp, interm_ptr[cntr++]);
+    }
+}
+
+TEST(reorder_gpu, basic_convert_uint8) {
+
+    auto& engine = get_test_engine();
+    layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1, 1, 3, 3 } };
+    layout byte_layout = { type_to_data_type<uint8_t>::value, format::bfyx,{ 1, 1, 3, 3 } };
+    std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
+    std::list<float> final_results = { 1.0f, 254.0f, 3.0f, 252.0f, 5.0f, 250.0f, 7.0f, 248.0f, 9.0f };
+
+    // Allocate memory for input image.
+    auto input_memory = engine.allocate_memory(in_layout);
+    set_values(input_memory, input_f);
+
+    // Create input_layout description
+    input_layout input("input", in_layout);
+
+    topology topology(
+        input,
+        reorder("reorder_input",
+            input_info(input),
+            cldnn::format::any,
+            cldnn::data_types::u8,
+            std::vector<float>(),
+            cldnn::reorder_mean_mode::subtract,
+            cldnn::padding(),
+            true),
+        reorder("reorder2", input_info("reorder_input"), in_layout)
+    );
+
+    network network(
+        engine,
+        topology,
+        build_options{
+            build_option::outputs({ "reorder_input", "reorder2"})
+        });
+
+    network.set_input_data("input", input_memory);
+
+    auto outputs = network.execute();
+
+    auto interm = outputs.at("reorder2").get_memory();
+    cldnn::mem_lock<float> interm_ptr(interm, get_test_stream());
+    unsigned int cntr = 0;
+    for (const auto& exp : final_results) {
+        EXPECT_EQ(exp, interm_ptr[cntr++]);
     }
 }
 
@@ -2586,10 +2631,10 @@ public:
     layout get_input_layout(T& p) {
         auto pad = p.pad;
         std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
-        return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
+    return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 
-    layout get_weights_layout(T& p, const int32_t /* split */ = 1) {
+    layout get_weights_layout(T& p) {
         cldnn::tensor weights_tensor;
         weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]), spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));
         return layout{p.weights_type, p.weights_format, weights_tensor};

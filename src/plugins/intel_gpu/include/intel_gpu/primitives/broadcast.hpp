@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "openvino/op/broadcast.hpp"
@@ -11,12 +10,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Broadcasts input to defined by @p broadcast_sizes output. @p broadcast_axes are used to
 ///        reinterpret input (reshape) inside algorithm.
@@ -136,7 +129,4 @@ struct broadcast : public primitive_base<broadcast> {
     ///        along which broadcast should happen.
     std::vector<uint16_t> broadcast_axes;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief The ExtractImagePatches operation collects patches from the input tensor, as if applying a convolution.
 /// All extracted patches are stacked in the depth dimension of the output.
@@ -62,7 +55,4 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
     /// @brief Shape of output layout
     tensor output_shape;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
