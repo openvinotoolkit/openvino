@@ -13,7 +13,7 @@ namespace intel_gpu {
 class VariableState : public InferenceEngine::IVariableStateInternal {
 public:
     VariableState(const std::string& name, const std::vector<cldnn::network::VariableState::Ptr>& states,
-                  std::shared_ptr<cldnn::engine> engine, int currentBatch);
+                  cldnn::engine& engine, int currentBatch);
 
     /**
      * @brief Reset internal variable state for relevant infer request, to a value specified as
@@ -41,7 +41,7 @@ private:
     int currentBatch_;
     std::vector<cldnn::network::VariableState::Ptr> states_;
     InferenceEngine::TensorDesc desc_;
-    std::shared_ptr<cldnn::engine> engine_;
+    cldnn::engine& engine_;
 };
 
 }  // namespace intel_gpu

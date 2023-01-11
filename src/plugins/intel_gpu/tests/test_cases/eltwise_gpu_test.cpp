@@ -1126,9 +1126,9 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -1182,9 +1182,9 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
 
     set_values(input2, { 0.5f, -0.5f });
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
 
@@ -3527,10 +3527,10 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum);
         topo.add(prim);
 
-        auto build_ops = build_options();
-        build_ops.set_option(build_option::outputs({"eltwise"}));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise"}));
 
-        cldnn::network net(engine, topo, build_ops);
+        cldnn::network net(engine, topo, config);
         net.set_input_data("input1", input);
         net.set_input_data("input2", input);
 
@@ -3691,9 +3691,9 @@ TEST_P(eltwise_test, fsv16) {
     topology.add(reorder("out", input_info("eltwise"), fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -3797,9 +3797,9 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     topology.add(reorder("out", input_info("eltwise"), format::bfwzyx, data_types::f32));
     primitive_id out_id = "out";
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -3882,9 +3882,9 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
     topology.add(reorder("out", input_info("eltwise"), fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -4117,11 +4117,11 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, params.mode);
         topo.add(prim);
 
-        auto build_ops = build_options();
-        build_ops.set_option(build_option::outputs({"eltwise"}));
-        build_ops.set_option(build_option::force_implementations({ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise"}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
 
-        cldnn::network net(engine, topo, build_ops);
+        cldnn::network net(engine, topo, config);
         net.set_input_data("input1", input1);
         net.set_input_data("input2", input2);
 
@@ -4134,15 +4134,15 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto prim_opt = eltwise("eltwise_opt", { input_info("input1"), input_info("input2") }, params.mode);
         topo_opt.add(prim_opt);
 
-        auto buildops_opt = build_options();
-        buildops_opt.set_option(build_option::outputs({"eltwise_opt"}));
+        ExecutionConfig config_opt;
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise_opt"}));
 
         std::shared_ptr<cldnn::network> net_opt;
 
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, topo_opt, buildops_opt);
+                cldnn::network _network(engine, topo_opt, config_opt);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -4150,10 +4150,10 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net_opt = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                net_opt = std::make_shared<cldnn::network>(ib, config_opt, get_test_stream_ptr(), engine);
             }
         } else {
-            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, buildops_opt);
+            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, config_opt);
         }
 
         net_opt->set_input_data("input1", input1);

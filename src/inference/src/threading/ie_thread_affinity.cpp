@@ -11,13 +11,13 @@
 
 #include "ie_system_conf.h"
 
-#if !(defined(__APPLE__) || defined(_WIN32))
+#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
 #    include <unistd.h>
 #endif
 
 namespace InferenceEngine {
-#if !(defined(__APPLE__) || defined(_WIN32))
+#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 std::tuple<CpuSet, int> GetProcessMask() {
     for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
         CpuSet mask{CPU_ALLOC(ncpus)};
@@ -113,5 +113,5 @@ bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
 bool PinCurrentThreadToSocket(int socket) {
     return false;
 }
-#endif  // !(defined(__APPLE__) || defined(_WIN32))
+#endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 }  //  namespace InferenceEngine
