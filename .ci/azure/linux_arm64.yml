@@ -3,7 +3,6 @@ trigger:
     include:
     - 'master'
     - 'releases/*'
-    - 'tj/*'
   paths:
     exclude:
     - '*/docs/*'
@@ -35,8 +34,8 @@ resources:
   - repository: openvino_contrib
     type: github
     endpoint: openvinotoolkit
-    name: t-jankowski/openvino_contrib
-    ref: tj/arm/use-ov_op_util
+    name: openvinotoolkit/openvino_contrib
+    ref: master
 
 jobs:
 - job: linux_arm64

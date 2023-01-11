@@ -48,7 +48,7 @@ resources:
 
 jobs:
 - job: CUDAPlugin_Lin
-  timeoutInMinutes: '120'
+  timeoutInMinutes: '60'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
