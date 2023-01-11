@@ -17,7 +17,7 @@ In case of any questions, review and merge requests, contact the [AUTO Plugin ma
 
 The AUTO plugin follows the OpenVINO™ plugin architecture and consists of several main components:
  * [docs](./docs) contains developer documentation pages for AUTO plugin.
- * [src](./) folder contains sources of the core component.
+ * [current](./) folder contains sources of the core component.
 
 Learn more in the [OpenVINO™ Plugin Developer Guide](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html).
 
