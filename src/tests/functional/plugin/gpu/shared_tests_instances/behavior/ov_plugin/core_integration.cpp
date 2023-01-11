@@ -88,6 +88,10 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("MULTI", "AUTO"));
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetExecutionModeHintConfigTest, OVClassSetExecutionModeHintConfigTest,
+        ::testing::Values(CommonTestUtils::DEVICE_GPU));
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
         ::testing::Values("CPU", "GPU"));
 
@@ -324,22 +328,6 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetPerformanceModeNoThrow) {
     ASSERT_EQ(ov::hint::PerformanceMode::THROUGHPUT, ie.get_property(target_device, ov::hint::performance_mode));
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::performance_mode);
-}
-
-TEST_P(OVClassGetPropertyTest_GPU, GetAndSetExecutionModeNoThrow) {
-    ov::Core ie;
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::execution_mode);
-
-    ov::hint::ExecutionMode defaultMode{};
-    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
-
-    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
-    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
-    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
-    ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
-    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
-    ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetEnableProfilingNoThrow) {

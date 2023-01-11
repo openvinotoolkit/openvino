@@ -119,6 +119,7 @@ using OVClassLoadNetworkAfterCoreRecreateTest = OVClassBaseTestP;
 using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
+using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -415,6 +416,22 @@ TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
 }
 
 TEST_P(OVClassSetModelPriorityConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::execution_mode);
+
+    ov::hint::ExecutionMode defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::execution_mode));
+
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::UNDEFINED));
+    ASSERT_EQ(ov::hint::ExecutionMode::UNDEFINED, ie.get_property(target_device, ov::hint::execution_mode));
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY));
+    ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
+    ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
+    ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     // priority config test
