@@ -22,7 +22,7 @@ void StatisticsReport::add_parameters(const Category& category, const Parameters
 }
 
 void StatisticsReport::dump() {
-    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_report.csv");
+    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_report.csv", 3);
 
     auto dump_parameters = [&dumper](const Parameters& parameters) {
         for (auto& parameter : parameters) {
@@ -88,7 +88,7 @@ void StatisticsReport::dump_performance_counters_request(CsvDumper& dumper, cons
                        ? status_names[(int)layer.status]
                        : "INVALID_STATUS");
         dumper << layer.node_type << layer.exec_type;
-        dumper << std::to_string(layer.real_time.count() / 1000.0) << std::to_string(layer.cpu_time.count() / 1000.0);
+        dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
         total += layer.real_time;
         total_cpu += layer.cpu_time;
         dumper.endLine();
@@ -135,8 +135,7 @@ void StatisticsReport::dump_sort_performance_counters_request(CsvDumper& dumper,
                            ? status_names[(int)layer.status]
                            : "INVALID_STATUS");
             dumper << layer.node_type << layer.exec_type;
-            dumper << std::to_string(layer.real_time.count() / 1000.0)
-                   << std::to_string(layer.cpu_time.count() / 1000.0);
+            dumper << layer.real_time.count() / 1000.0 << layer.cpu_time.count() / 1000.0;
             dumper << (layer.real_time * 1.0 / total) * 100;
             dumper.endLine();
             layersize += 1;
@@ -191,7 +190,7 @@ void StatisticsReport::dump_performance_counters(const std::vector<PerformanceCo
         slog::info << "Performance counters are empty. No reports are dumped." << slog::endl;
         return;
     }
-    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv");
+    CsvDumper dumper(true, _config.report_folder + _separator + "benchmark_" + _config.report_type + "_report.csv", 3);
     if (_config.report_type == detailedCntReport) {
         for (auto& pc : perfCounts) {
             dump_performance_counters_request(dumper, pc);
