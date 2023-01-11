@@ -6,15 +6,14 @@
 #include "behavior/plugin/configuration_tests.hpp"
 #include "openvino/runtime/properties.hpp"
 
-const std::vector<bool>   get_vs_set{ true, false };
-const std::vector<size_t> num_streams{ 1, 2 };
-const std::vector<size_t> num_requests{ 1, 3, 8, 9, 16, 64 };
-const std::vector<size_t> num_batch{ 1, 4, 8, 16, 32, 64, 128, 256 };
 using namespace AutoBatchingTests;
 using namespace BehaviorTestsDefinitions;
 
 namespace {
-
+const std::vector<bool> get_vs_set{true, false};
+const std::vector<size_t> num_streams{1, 2};
+const std::vector<size_t> num_requests{1, 3, 8, 9, 16, 64};
+const std::vector<size_t> num_batch{1, 4, 8, 16, 32, 64, 128, 256};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
@@ -32,7 +31,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU, AutoBatching_Test_DetectionOutp
                                  ::testing::ValuesIn(num_requests),
                                  ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
-
 
 const std::vector<size_t> gpu_num_streams{ 2 };
 const std::vector<bool>   gpu_get_vs_set{ true, false };

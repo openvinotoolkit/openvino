@@ -432,6 +432,9 @@ jobs:
     displayName: 'CPU FuncTests'
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_batch_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_batch_func_tests.xml
+    displayName: 'AutoBatch FuncTests'
+
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
