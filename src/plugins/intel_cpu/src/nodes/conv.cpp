@@ -1602,22 +1602,19 @@ void Convolution::appendZeroPointsArgs() {
 
 void Convolution::initTryBrgconvFlag() {
     // Due to performance issue, brgconv will only be enabled by default:
-    // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
-    // 2, support amx except having input zero point.
-    // 3, support avx512 without legacy postops/per channel zero point when avx512
-    if (!isDynamicNode()) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-            shouldTryBrgconv = true;
-        } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-            shouldTryBrgconv = true;
-            // should remove after binary postops performance issue resolved
-            // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
-            dnnl::primitive_attr attr;
-            setPostOps(attr, outputStaticShape(), false);
-            const auto& ops = attr.get_post_ops();
-            if (ops.get()->find(dnnl::impl::primitive_kind::binary) != -1) {
-                shouldTryBrgconv = false;
-            }
+    // 1, support amx except having input zero point.
+    // 2, support avx512 without legacy postops/per channel zero point when avx512
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+        shouldTryBrgconv = true;
+    } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+        shouldTryBrgconv = true;
+        // should remove after binary postops performance issue resolved
+        // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
+        dnnl::primitive_attr attr;
+        setPostOps(attr, outputStaticShape(), false);
+        const auto& ops = attr.get_post_ops();
+        if (ops.get()->find(dnnl::impl::primitive_kind::binary) != -1) {
+            shouldTryBrgconv = false;
         }
     }
 }
