@@ -60,7 +60,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
             </output>
         </layer>
         <layer name="operation" id="1" type="Template" version="custom_opset">
-            <data  add="11"/>
+            <data num_bodies="0" add="11"/>
             <input>
                 <port id="1" precision="FP32">
                     <dim>2</dim>

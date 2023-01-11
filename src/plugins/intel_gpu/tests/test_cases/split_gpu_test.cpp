@@ -223,9 +223,9 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
     topology.add(concatenation("concat", inputs, 1));
     topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
 
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network(engine, topology, opts);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
@@ -263,9 +263,9 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
     topology.add(concatenation("concat", inputs, 1));
     topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::i64));
 
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network(engine, topology, opts);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
