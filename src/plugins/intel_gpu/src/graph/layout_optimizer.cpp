@@ -1673,6 +1673,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     if (allow_new_shape_infer) {
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_dependency(0).get_output_layout(false).get_rank());
+
+        // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
+        auto out_lay_rank = node.get_output_layout(false).get_rank();
+        auto in_lay_rank = node.get_dependencies().size() > 0 ? node.get_dependency(0).get_output_layout(false).get_rank() : out_lay_rank;
+        if (in_lay_rank != out_lay_rank)
+            node.set_preferred_input_fmt(0, get_preferred_format(node.get_dependency(0)));
+
+        // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
         for (auto u : node.get_users()) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {
                 if (u->get_dependencies().size() <= dep_idx)
@@ -1828,6 +1836,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
     }
 
+    if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
+        node.set_preferred_output_fmt(0, expected);
     return expected;
 }
 

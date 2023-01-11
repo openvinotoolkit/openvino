@@ -113,8 +113,9 @@ struct travel_direction_wrapper<direction_e::backwards> {
 static format get_target_output_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, program_node *next) {
     auto user_idx = node->get_user_index(*next);
 
+    bool allow_new_shape_infer = node->get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
     // 1. Check selected preferred_output_format
-    if (lo.get_optimization_attributes().use_onednn_impls) {
+    if (lo.get_optimization_attributes().use_onednn_impls || allow_new_shape_infer) {
         // If onednn is not used, need to ignore get_preferred_output_fmt result as it is from onednn
         auto ret = node->get_preferred_output_fmt(user_idx);
 
@@ -133,8 +134,9 @@ static format get_target_output_format(layout_optimizer& lo, const std::map<prog
 static format get_target_input_format(layout_optimizer& lo, const std::map<program_node*, format::type>& fmt_map, program_node *node, program_node *prev) {
     auto dep_idx = node->get_dependency_index(*prev);
 
+    bool allow_new_shape_infer = node->get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
     // 1. Check selected preferred_input_format
-    if (lo.get_optimization_attributes().use_onednn_impls) {
+    if (lo.get_optimization_attributes().use_onednn_impls || allow_new_shape_infer) {
         // If onednn is not used, need to ignore get_preferred_input_fmt result as it is from onednn
         auto ret = node->get_preferred_input_fmt(dep_idx);
         if (ret != format::any)
