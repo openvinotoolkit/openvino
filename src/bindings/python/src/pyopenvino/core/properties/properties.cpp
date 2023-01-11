@@ -57,7 +57,7 @@ void regmodule_properties(py::module m) {
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
     // Submodule hint - properties
-    wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
+    wrap_property_RW(m_hint, ov::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");

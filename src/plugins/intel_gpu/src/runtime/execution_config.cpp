@@ -40,7 +40,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::cache_dir, ""),
         std::make_tuple(ov::num_streams, 1),
         std::make_tuple(ov::compilation_num_threads, std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
-        std::make_tuple(ov::hint::inference_precision, ov::element::f16, InferencePrecisionValidator()),
+        std::make_tuple(ov::inference_precision, ov::element::f16, InferencePrecisionValidator()),
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY, PerformanceModeValidator()),
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
@@ -123,14 +123,14 @@ Any ExecutionConfig::get_property(const std::string& name) const {
 void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
     if (is_set_by_user(ov::hint::execution_mode)) {
         const auto mode = get_property(ov::hint::execution_mode);
-        if (!is_set_by_user(ov::hint::inference_precision)) {
+        if (!is_set_by_user(ov::inference_precision)) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
-                set_property(ov::hint::inference_precision(ov::element::f32));
+                set_property(ov::inference_precision(ov::element::f32));
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
                 if (info.supports_fp16)
-                    set_property(ov::hint::inference_precision(ov::element::f16));
+                    set_property(ov::inference_precision(ov::element::f16));
                 else
-                    set_property(ov::hint::inference_precision(ov::element::f32));
+                    set_property(ov::inference_precision(ov::element::f32));
             }
         }
     }

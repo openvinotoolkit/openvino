@@ -305,7 +305,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::affinity.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
-            RO_property(ov::hint::inference_precision.name()),
+            RO_property(ov::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::execution_devices.name()),
@@ -341,10 +341,10 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = config.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
-    } else if (name == ov::hint::inference_precision) {
+    } else if (name == ov::inference_precision) {
         const auto enforceBF16 = config.enforceBF16;
         const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
+        return decltype(ov::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;

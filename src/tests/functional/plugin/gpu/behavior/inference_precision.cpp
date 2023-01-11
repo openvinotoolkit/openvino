@@ -39,7 +39,7 @@ TEST_P(InferencePrecisionTests, smoke_canSetInferencePrecisionAndInfer) {
     std::tie(model_precision, inference_precision) = GetParam();
     auto function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice("GPU", {1, 1, 32, 32}, model_precision);
     ov::CompiledModel compiled_model;
-    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(function, "GPU", ov::hint::inference_precision(inference_precision)));
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(function, "GPU", ov::inference_precision(inference_precision)));
     auto req = compiled_model.create_infer_request();
     OV_ASSERT_NO_THROW(req.infer());
 }

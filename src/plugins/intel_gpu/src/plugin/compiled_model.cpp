@@ -476,7 +476,7 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };

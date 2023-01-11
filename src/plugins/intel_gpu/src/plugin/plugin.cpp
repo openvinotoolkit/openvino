@@ -584,7 +584,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
     };
 

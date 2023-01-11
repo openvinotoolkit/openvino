@@ -229,16 +229,22 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
- * @brief Namespace with hint properties
- */
-namespace hint {
-
-/**
  * @brief Hint for device to use specified precision for inference
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 
+/**
+ * @brief Namespace with hint properties
+ */
+namespace hint {
+
+    /**
+     * @brief Hint for device to use specified precision for inference
+     * @ingroup ov_runtime_cpp_prop_api
+     */
+    OPENVINO_DEPRECATED("This was moved to ov:: namespace. Please use ov::inference_precision instead")
+    static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
 /**
  * @brief Enum to define possible priorities hints
  * @ingroup ov_runtime_cpp_prop_api
