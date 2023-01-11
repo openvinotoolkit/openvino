@@ -308,6 +308,11 @@ protected:
     MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies);
     explicit MultiSubGraphOp(const OutputVector& args);
 
+    using OutputMap = std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;
+    void validate_and_infer_type_body(const std::shared_ptr<ov::Model>& body,
+                                      const MultiSubgraphInputDescriptionVector& input_descriptors);
+    OutputMap get_mapping_outputs_on_body_description(const MultiSubgraphOutputDescriptionVector& output_descriptors);
+
     std::vector<std::shared_ptr<Model>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
     std::vector<MultiSubgraphOutputDescriptionVector> m_output_descriptions;

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 
 #include "intel_gpu/runtime/compounds.hpp"
@@ -18,11 +16,6 @@
 #include <utility>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-
-/// @addtogroup cpp_topology Network Topology
-/// @{
 
 /// @brief Globally unique primitive's type id
 using primitive_type_id = struct primitive_type *;
@@ -218,6 +211,4 @@ struct prim_map_storage {
 private:
     std::unordered_map<std::string, cldnn::primitive_type_id> map;
 };
-/// @}
-/// @}
 }  // namespace cldnn

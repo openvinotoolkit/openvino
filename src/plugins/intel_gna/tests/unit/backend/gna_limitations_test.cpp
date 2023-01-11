@@ -13,7 +13,7 @@ using namespace ov::intel_gna::limitations;
 using ov::intel_gna::common::kGnaTarget3_0;
 using ov::intel_gna::common::kGnaTarget3_5;
 
-struct GNAcnn2dValidatorTestParam {
+struct GNACnn2DValidatorTestParam {
     std::string target;
     std::string whatInvalid;
     std::vector<uint32_t> invalid;
@@ -49,167 +49,167 @@ const std::vector<uint32_t> kInvaliddH_35 = {0, 2, 2049};
 const std::vector<uint32_t> kInvaliddW_30 = {0, 2, 400};
 const std::vector<uint32_t> kInvaliddW_35 = {0, 2, 2049};
 
-const GNAcnn2dValidatorTestParam target_30 {
+const GNACnn2DValidatorTestParam target_30 {
     kGnaTarget3_0,
     "inH",
     kInvalidH_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35 {
+const GNACnn2DValidatorTestParam target_35 {
     kGnaTarget3_5,
     "inH",
     kInvalidH_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_inW{
+const GNACnn2DValidatorTestParam target_30_inW{
     kGnaTarget3_0,
     "inW",
     kInvalidW_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_inW{
+const GNACnn2DValidatorTestParam target_35_inW{
     kGnaTarget3_5,
     "inW",
     kInvalidW_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_inC{
+const GNACnn2DValidatorTestParam target_30_inC{
     kGnaTarget3_0,
     "inC",
     kInvalidC_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_inC{
+const GNACnn2DValidatorTestParam target_35_inC{
     kGnaTarget3_5,
     "inC",
     kInvalidC_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_kH{
+const GNACnn2DValidatorTestParam target_30_kH{
     kGnaTarget3_0,
     "kH",
     kInvalidkH_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_kH{
+const GNACnn2DValidatorTestParam target_35_kH{
     kGnaTarget3_5,
     "kH",
     kInvalidkH_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_kW{
+const GNACnn2DValidatorTestParam target_30_kW{
     kGnaTarget3_0,
     "kW",
     kInvalidkW_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_kW{
+const GNACnn2DValidatorTestParam target_35_kW{
     kGnaTarget3_5,
     "kW",
     kInvalidkW_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_kN{
+const GNACnn2DValidatorTestParam target_30_kN{
     kGnaTarget3_0,
     "inC",
     kInvalidkN_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_kN{
+const GNACnn2DValidatorTestParam target_35_kN{
     kGnaTarget3_5,
     "inC",
     kInvalidkN_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_sH{
+const GNACnn2DValidatorTestParam target_30_sH{
     kGnaTarget3_0,
     "sH",
     kInvalidsH_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_sH{
+const GNACnn2DValidatorTestParam target_35_sH{
     kGnaTarget3_5,
     "sH",
     kInvalidsH_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_sW{
+const GNACnn2DValidatorTestParam target_30_sW{
     kGnaTarget3_0,
     "sW",
     kInvalidsW_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_sW{
+const GNACnn2DValidatorTestParam target_35_sW{
     kGnaTarget3_5,
     "sW",
     kInvalidsW_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_dH{
+const GNACnn2DValidatorTestParam target_30_dH{
     kGnaTarget3_0,
     "dH",
     kInvaliddH_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_dH{
+const GNACnn2DValidatorTestParam target_35_dH{
     kGnaTarget3_5,
     "dH",
     kInvaliddH_35,
 };
 
-const GNAcnn2dValidatorTestParam target_30_dW{
+const GNACnn2DValidatorTestParam target_30_dW{
     kGnaTarget3_0,
     "dW",
     kInvaliddW_30,
 };
 
-const GNAcnn2dValidatorTestParam target_35_dW{
+const GNACnn2DValidatorTestParam target_35_dW{
     kGnaTarget3_5,
     "dW",
     kInvaliddW_35,
 };
 
 const std::vector<uint32_t> kInvalidpw_30 = {0, 2, 10};
-const GNAcnn2dValidatorTestParam target_30_pwH{
+const GNACnn2DValidatorTestParam target_30_pwH{
     kGnaTarget3_0,
     "windowH",
     kInvalidpw_30,
 };
-const GNAcnn2dValidatorTestParam target_30_pwW{
+const GNACnn2DValidatorTestParam target_30_pwW{
     kGnaTarget3_0,
     "windowW",
     kInvalidpw_30,
 };
 
 const std::vector<uint32_t> kInvalidps_30 = {0, 4, 10};
-const GNAcnn2dValidatorTestParam target_30_psH{
+const GNACnn2DValidatorTestParam target_30_psH{
     kGnaTarget3_0,
     "strideH",
     kInvalidps_30,
 };
-const GNAcnn2dValidatorTestParam target_30_psW{
+const GNACnn2DValidatorTestParam target_30_psW{
     kGnaTarget3_0,
     "strideW",
     kInvalidps_30,
 };
 
 const std::vector<uint32_t> kInvalidPoolingRange35 = {0, 256};
-const GNAcnn2dValidatorTestParam target_35_pwH{
+const GNACnn2DValidatorTestParam target_35_pwH{
     kGnaTarget3_5,
     "windowH",
     kInvalidPoolingRange35,
 };
-const GNAcnn2dValidatorTestParam target_35_pwW{
+const GNACnn2DValidatorTestParam target_35_pwW{
     kGnaTarget3_5,
     "windowW",
     kInvalidPoolingRange35,
 };
-const GNAcnn2dValidatorTestParam target_35_psH{
+const GNACnn2DValidatorTestParam target_35_psH{
     kGnaTarget3_5,
     "strideH",
     kInvalidPoolingRange35,
 };
-const GNAcnn2dValidatorTestParam target_35_psW{
+const GNACnn2DValidatorTestParam target_35_psW{
     kGnaTarget3_5,
     "strideW",
     kInvalidPoolingRange35,
@@ -279,7 +279,7 @@ struct Validatecnn2dParams {
     }
 };
 
-class GNAcnn2dValidatorTest : public ::testing::TestWithParam<GNAcnn2dValidatorTestParam> {
+class GNAcnn2dValidatorTest : public ::testing::TestWithParam<GNACnn2DValidatorTestParam> {
 protected:
     void SetUp() override  {
         validator = cnn2d::AbstractValidator::Create(GetParam().target);

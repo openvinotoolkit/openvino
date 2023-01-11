@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils/test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -1717,7 +1715,7 @@ TYPED_TEST(deconvolution_basic, basic_f16_k9x9_s2x2_pad4x4) {
         reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f16),
         data("weights", weights),
         data("biases", biases),
-        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 4, 4 }, tensor{ 1, 1, 32, 32 }),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }, { "biases" }, { 2, 2 }, { 4, 4 }, { 1, 1 }, tensor{ 1, 1, 32, 32 }),
         reorder("plane_output", input_info("deconv"), format::bfyx, cldnn::data_types::f16)
     );
 

@@ -693,10 +693,15 @@ def parse_input_shapes(argv):
                 return [input_shapes]
             else:
                 return input_shapes
-        elif isinstance(shapes, PartialShape) or isinstance(shapes, torch.Size):
+        elif isinstance(shapes, PartialShape):
             return [shapes]
         else:
-            raise Error("Unknown type of input shape {}.".format(type(shapes)))
+            try:
+                import torch
+                if isinstance(shapes, torch.Size):
+                    return [shapes]
+            except ImportError:
+                raise Error("Unknown type of input shape {}.".format(type(shapes)))
 
     return input_shapes
 

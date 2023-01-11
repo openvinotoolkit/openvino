@@ -42,11 +42,11 @@ KERNEL(convolution_gpu_winograd_2x3_s1_fused)
 (
     __global INPUT0_TYPE* I,
     __global OUTPUT_TYPE* O,
-    __global FILTER_TYPE* U,
+    __global FILTER_TYPE* U
 #if BIAS_TERM
-    const __global UNIT_TYPE * bias,
+    , const __global UNIT_TYPE * bias
 #endif
-    uint split_idx)
+)
 {
     //               (DxC2)x(UxWx8c)
 	const uint slmSize = (4*2)*(2*16*2);

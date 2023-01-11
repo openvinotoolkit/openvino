@@ -19,7 +19,6 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b8::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableDilation();
     return k;
 }
@@ -69,11 +68,6 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_pa
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);
-
-    if (!CheckPitchForSplitOnly(params)) {
-        return false;
-    }
-
     const auto filterOfmNum = params.weights.OFM().v;
     const auto batchSize = params.outputs[0].Batch().v;
 
