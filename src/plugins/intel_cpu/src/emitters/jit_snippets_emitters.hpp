@@ -395,7 +395,7 @@ private:
                                  Reg64 addr_A, Reg64 addr_B,
                                  const brgemm_batch_element_t *batch, Reg64 addr_C, void *scratch,
                                  const size_t in0_kernel_offset, const size_t in1_kernel_offset, const size_t out0_kernel_offset) const;
-
+    static void kernel_execute(const brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C);
     static constexpr size_t BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     brgemmCtx brgCtxs0[BRGEMM_KERNELS_NUM];

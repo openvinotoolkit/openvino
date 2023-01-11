@@ -13,7 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t {
-    return allocation_rank < 0 ? allocation_rank + shape_rank : allocation_rank;
+    return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) : allocation_rank;
 }
 
 snippets::op::Buffer::Buffer(const Output<Node>& x, const int32_t allocation_rank) : Op({x}), m_allocation_rank(allocation_rank) {
