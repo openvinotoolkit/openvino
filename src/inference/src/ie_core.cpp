@@ -572,8 +572,8 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     std::string CalculateMemoryHash(const std::string& modelStr,
                                     const ov::Tensor& weights,
                                     const std::string& deviceFamily,
-                                    const ov::InferencePlugin& plugin,
-                                    const std::map<std::string, std::string>& config) const {
+                                    const ov::Plugin& plugin,
+                                    const ov::AnyMap& config) const {
         auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
         return ie::NetworkCompilationContext::computeHash(modelStr, weights, compileConfig);
     }
@@ -976,7 +976,7 @@ public:
         auto cacheContent = CacheContent{cacheManager, modelPath};
         if (cacheManager && device_supports_import_export(plugin)) {
             bool loadedFromCache = false;
-            cacheContent.blobId = CalculateFileHash(modelPath, parsed._deviceName, plugin, any_copy(parsed._config));
+            cacheContent.blobId = CalculateFileHash(modelPath, parsed._deviceName, plugin, conf);
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
             res = LoadNetworkFromCache(cacheContent, plugin, conf, {}, loadedFromCache);
             if (!loadedFromCache) {
@@ -1026,33 +1026,42 @@ public:
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto plugin = GetCPPPluginByName(parsed._deviceName);
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
+        auto conf = any_copy(parsed._config);
 
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig.getCacheConfigForDevice(parsed._deviceName, device_supports_cache_dir(plugin), conf)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
-        if (cacheManager && DeviceSupportsImportExport(plugin)) {
+        if (cacheManager && device_supports_import_export(plugin)) {
             bool loadedFromCache = false;
             ov::Tensor tensor = ov::Tensor();
             if (weights) {
                 tensor = ov::Tensor(element::u8, {weights->byteSize()}, weights->cbuffer().as<uint8_t*>());
             }
-            cacheContent.blobId = CalculateMemoryHash(modelStr, tensor, parsed._deviceName, plugin, parsed._config);
+            cacheContent.blobId = CalculateMemoryHash(modelStr, tensor, parsed._deviceName, plugin, conf);
             auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-            res = LoadNetworkFromCache(cacheContent, plugin, parsed._config, nullptr, loadedFromCache);
+            res = LoadNetworkFromCache(cacheContent, plugin, conf, {}, loadedFromCache);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelStr, weights);
                 if (val) {
                     val(cnnNetwork);
                 }
-                res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+                res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                         plugin,
+                                         conf,
+                                         {},
+                                         cacheContent);
             }
         } else {
             auto cnnNetwork = ReadNetwork(modelStr, weights);
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                     plugin,
+                                     conf,
+                                     {},
+                                     cacheContent);
         }
         return {res._ptr, res._so};
     }
@@ -2201,7 +2210,7 @@ CompiledModel Core::compile_model(const std::string& model,
     }
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->LoadNetwork(model, blob, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
-        return {exec._ptr, exec._so};
+        return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
     });
 }
 

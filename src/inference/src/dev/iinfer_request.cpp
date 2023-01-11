@@ -112,16 +112,16 @@ const std::shared_ptr<ov::ICompiledModel>& ov::IInferRequest::get_compiled_model
 }
 
 ov::IInferRequest::FoundPort ov::IInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
-    ov::IInferRequest::FoundPort::Type type = ov::IInferRequest::FoundPort::Type::Input;
+    ov::IInferRequest::FoundPort::Type type = ov::IInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
             if (ports[i] == port) {
                 return {i, type};
             }
         }
-        type = ov::IInferRequest::FoundPort::Type::Output;
+        type = ov::IInferRequest::FoundPort::Type::OUTPUT;
     }
-    return {0, ov::IInferRequest::FoundPort::Type::NotFound};
+    return {0, ov::IInferRequest::FoundPort::Type::NOT_FOUND};
 }
 
 void ov::IInferRequest::convert_batched_tensors() {

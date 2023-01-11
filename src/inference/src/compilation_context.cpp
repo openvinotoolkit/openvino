@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <openvino/core/any.hpp>
+
 #ifndef _WIN32
 #    include <unistd.h>
 #endif
@@ -140,7 +142,7 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
 
 std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
                                                    const ov::Tensor& tensor,
-                                                   const std::map<std::string, std::string>& compileOptions) {
+                                                   const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
     uint64_t seed = 0;
     // model string
@@ -161,7 +163,7 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
 
     // compile options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }

@@ -56,13 +56,13 @@ public:
 protected:
     struct FoundPort {
         size_t idx;
-        enum class Type { NotFound = 0, Input, Output } type;
+        enum class Type { NOT_FOUND = 0, INPUT, OUTPUT } type;
 
         bool found() {
-            return type != Type::NotFound;
+            return type != Type::NOT_FOUND;
         }
         bool is_input() {
-            return type == Type::Input;
+            return type == Type::INPUT;
         }
         bool is_output() {
             return !is_input();
