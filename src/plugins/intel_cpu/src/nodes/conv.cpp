@@ -49,6 +49,8 @@ struct ConvKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
+    bool constWeight;
+
     size_t hash() const;
     bool operator==(const ConvKey& rhs) const;
 };
@@ -72,6 +74,7 @@ size_t ConvKey::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, implType);
+    seed = hash_combine(seed, constWeight);
     return seed;
 }
 
@@ -95,7 +98,7 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
     retVal = retVal && paddingL == rhs.paddingL;
     retVal = retVal && paddingR == rhs.paddingR;
 
-    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
+    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType && constWeight == rhs.constWeight;
     return retVal;
 }
 
@@ -1327,7 +1330,8 @@ void Convolution::prepareParams() {
                    paddingL,
                    paddingR,
                    *pAttrLocal,
-                   selected_pd->getImplementationType()};
+                   selected_pd->getImplementationType(),
+                   getParentEdgeAt(1)->getParent()->isConstant()};
 
     auto engine = getEngine();
     auto builder = [&engine](const ConvKey& key) -> executorPtr {
@@ -1381,7 +1385,8 @@ void Convolution::prepareParams() {
                                                                 key.inp0->getDnnlDesc(),
                                                                 key.inp1->getDnnlDesc(),
                                                                 key.out->getDnnlDesc(),
-                                                                engine);
+                                                                engine,
+                                                                key.constWeight);
                 break;
             }
 
@@ -1418,13 +1423,15 @@ void Convolution::prepareParams() {
                                                                 key.inp0->getDnnlDesc(),
                                                                 key.inp1->getDnnlDesc(),
                                                                 key.out->getDnnlDesc(),
-                                                                engine);
+                                                                engine,
+                                                                key.constWeight);
             }
         }
 
         return execPtr;
     };
 
+    auto prevExecPtr = execPtr;
     execPtr = nullptr;
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
@@ -1435,6 +1442,12 @@ void Convolution::prepareParams() {
         primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
         primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
         primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+
+        if (key.constWeight) {
+            if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
+                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
+            }
+        }
 
         if (withBiases) {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
@@ -1460,18 +1473,79 @@ void Convolution::prepareParams() {
     }
 }
 
+void Convolution::initOptimalPrimitiveDescriptor() {
+    Node::initOptimalPrimitiveDescriptor();
+    auto selectedPD = getSelectedPrimitiveDescriptor();
+    // Will do the reoder for const weight in prepareParams
+    auto constParent = getParentEdgeAt(1)->getParent();
+    if (constParent->isConstant()) {
+        auto selectedParentPD = constParent->getSelectedPrimitiveDescriptor();
+        auto config = selectedPD->getConfig();
+        config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
+        selectedPD->setConfig(config);
+    }
+}
+
+MemoryPtr Convolution::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    auto blob = getParentEdgeAt(1)->getMemoryPtr();
+    if (!blob)
+        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
+
+    auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
+    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
+    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().dims());
+    auto create = [&] () {
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+
+        Memory srcMemory{ getEngine() };
+        srcMemory.Create(newSrcDesc, blob->GetData());
+
+        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
+        _ptr->Create(weightDesc);
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+
+        DEBUG_LOG("Convolution::prepareWeightMemory", *newSrcDesc, " -> ", *weightDesc);
+        return _ptr;
+    };
+
+    MemoryPtr ptr;
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        ptr = itr->second;
+    } else {
+        auto weightCache = context->getWeightsCache();
+        if (weightCache != nullptr) {
+            const std::string string_hash = getName() + "_" + format
+                                            + "_" + std::to_string(blob->GetSize())
+                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
+
+            ptr = *weightCache->findOrCreate(string_hash, create);
+        } else {
+            ptr = create();
+        }
+        privateWeightCache[format] = ptr;
+    }
+
+    return ptr;
+}
+
 Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
                                                                 const dnnl::memory::desc& inMemDesc,
                                                                 const dnnl::memory::desc& weightMemDesc,
                                                                 const dnnl::memory::desc& outMemDesc,
-                                                                const dnnl::engine& engine) {
+                                                                const dnnl::engine& engine,
+                                                                bool constWeight) {
     execPrim.reset(new dnnl::convolution_forward(pd));
 
     if (inMemDesc != pd.src_desc()) {
         inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
     }
 
-    if (weightMemDesc != pd.weights_desc()) {
+    if (weightMemDesc != pd.weights_desc() && !constWeight) {
+        // const weight will be reordered in prepareParams()
         inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
     }
 

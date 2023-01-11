@@ -29,6 +29,7 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -87,6 +88,11 @@ private:
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
+    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
+    // different shapes. Weights will be cached in privateWeightCache.
+    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
+    // reference
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
@@ -94,7 +100,8 @@ private:
                                 const dnnl::memory::desc& inMemDesc,
                                 const dnnl::memory::desc& weightMemDesc,
                                 const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine);
+                                const dnnl::engine& engine,
+                                bool constWeight);
     };
 
     void prepareParams() override;
@@ -117,6 +124,7 @@ private:
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
     void initTryBrgconvFlag();
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
 
     bool withBiases;
     bool withSum;
