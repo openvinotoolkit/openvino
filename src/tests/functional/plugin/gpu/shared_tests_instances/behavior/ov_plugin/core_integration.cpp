@@ -362,17 +362,19 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
     ov::hint::Priority defaultValue{};
     ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, ov::hint::model_priority));
 
-    std::cout << "Default PERF_COUNT: " << defaultValue << std::endl;
+    std::cout << "Default model_priority: " << defaultValue << std::endl;
 
     ie.set_property(target_device, ov::hint::model_priority(ov::hint::Priority::HIGH));
     ASSERT_EQ(ov::hint::Priority::HIGH, ie.get_property(target_device, ov::hint::model_priority));
-    ASSERT_EQ(ov::hint::Priority::HIGH, ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
+    ASSERT_EQ(ov::hint::Priority::MEDIUM, ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
     ie.set_property(target_device, ov::hint::model_priority(ov::hint::Priority::LOW));
     ASSERT_EQ(ov::hint::Priority::LOW, ie.get_property(target_device, ov::hint::model_priority));
-    ASSERT_EQ(ov::hint::Priority::LOW, ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
+    ASSERT_EQ(ov::hint::Priority::MEDIUM, ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
     ie.set_property(target_device, ov::hint::model_priority(ov::hint::Priority::MEDIUM));
     ASSERT_EQ(ov::hint::Priority::MEDIUM, ie.get_property(target_device, ov::hint::model_priority));
     ASSERT_EQ(ov::hint::Priority::MEDIUM, ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
+    ie.set_property(target_device, ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH));
+    ASSERT_EQ(ov::hint::Priority::HIGH, ie.get_property(target_device, ov::intel_gpu::hint::queue_priority));
 
     OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::model_priority);
 }

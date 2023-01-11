@@ -15,7 +15,7 @@
 
 pass_manager::pass_manager(program& p) {
     pass_count = 0;
-    auto path = get_dir_path(p.get_options());
+    auto path = get_dir_path(p.get_config());
     if (!path.empty()) {
         graph_opt_log.open(path + std::to_string(p.get_prog_id()) + "_cldnn_graph_optimizer.log");
         if (graph_opt_log.is_open()) {

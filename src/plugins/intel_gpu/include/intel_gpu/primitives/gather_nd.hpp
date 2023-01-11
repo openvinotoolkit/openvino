@@ -6,12 +6,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -56,7 +50,4 @@ struct gather_nd : public primitive_base<gather_nd> {
     /// @brief GatherND batch_merged_output
     bool batch_merged_output;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

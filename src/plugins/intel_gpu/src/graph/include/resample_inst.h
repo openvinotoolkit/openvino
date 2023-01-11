@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/resample.hpp"
 #include "primitive_inst.h"
@@ -22,7 +21,6 @@ public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
-    program_node& input2() const { return get_dependency(1); }
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2}; }
 };

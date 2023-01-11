@@ -22,8 +22,6 @@ layout bucketize_inst::calc_output_layout(const bucketize_node& node, kernel_imp
 std::string bucketize_inst::to_string(const bucketize_node& node) {
     auto primitive = node.get_primitive();
     json_composite bucketize_info;
-    bucketize_info.add("input id", node.input().id());
-    bucketize_info.add("buckets id", node.buckets().id());
     bucketize_info.add("output_type", dt_to_str(*primitive->output_data_types[0]));
     bucketize_info.add("with_right_bound", primitive->with_right_bound);
 

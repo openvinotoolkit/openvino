@@ -108,6 +108,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         if (arg.can_be_optimized())
             return make_unique<concatenation_onednn>(engine);
         auto prim = impl_params.typed_desc<concatenation>();
@@ -116,7 +117,7 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return cldnn::make_unique<concatenation_onednn>(engine, dummy, attr, *desc);
+        return cldnn::make_unique<concatenation_onednn>(engine, config, dummy, attr, *desc);
     }
 };
 

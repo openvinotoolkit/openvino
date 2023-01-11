@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 #include "network_test.h"
 #include <intel_gpu/runtime/utils.hpp>
@@ -801,9 +799,9 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     topology.add(reorder_gold, reorder_imad);
 
     // Network build
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(true));
-    network network(engine, topology, build_opt);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     // Network execuiton
     network.set_input_data("input", input);
@@ -870,10 +868,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b12) {
     );
 
     // Set data optimization to allow weights reordering to optimal format
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, opts);
+    network network(engine, topology, config);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -946,10 +944,10 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
     );
 
     // Set data optimization to allow weights reordering to optimal format
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, opts);
+    network network(engine, topology, config);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1006,9 +1004,9 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
         auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
-        auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel });
+        auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, ov::intel_gpu::ImplementationDesc{ output_format, kernel });
 
-        net.run(build_options(build_option::optimize_data(true)), is_caching_test);
+        net.run(ExecutionConfig(ov::intel_gpu::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1129,9 +1127,9 @@ struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected
         auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
         auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
-        auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
+        auto fc = net.add_fully_connected_3d<OutputT>("fc_prim", input, weights, bias, ov::intel_gpu::ImplementationDesc{ output_format, kernel }, 3);
 
-        net.run(build_options(build_option::optimize_data(true)), is_caching_test);
+        net.run(ExecutionConfig(ov::intel_gpu::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1395,10 +1393,10 @@ public:
 
         topo.add(reorder("output", input_info("quantization_prim"), format::bfyx, output_data_type()));
 
-        build_options build_opts;
-        build_opts.set_option(build_option::optimize_data(true));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
 
-        network net(engine, topo, build_opts);
+        network net(engine, topo, config);
         net.set_input_data("input", input_prim);
 
         auto output = net.execute();
@@ -1663,7 +1661,7 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     const int32_t input_f = 3, input_b = 1,     // size of the whole input buffer
                   weight_b = 4, weight_f = 3;   // size of the whole weights buffer
 
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -1686,11 +1684,12 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     topology.add(ri);
     topology.add(rf);
 
-    cldnn::build_options force_options;
-    implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
-    force_options.set_option(build_option::force_implementations({ {"fc_prim", fc_impl} }));
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
 
-    network network(engine, topology, force_options);
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} })
+    };
+    network network(engine, topology, cfg);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1716,7 +1715,7 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
                   weight_o = 4, weight_i = 3,             // size of the whole weights buffer
                   output_b = 2, output_f = 4;
 
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -1738,11 +1737,10 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     topology.add(ri);
     topology.add(rf);
 
-    cldnn::build_options force_options;
-    implementation_desc fc_impl = { format::bfyx, "", impl_types::onednn };
-    force_options.set_option(build_option::force_implementations({ { "fc_prim", fc_impl } }));
+    ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order), ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } })};
 
-    network network(engine, topology, force_options);
+    network network(engine, topology, cfg);
     network.set_input_data("input", input_prim);
 
     auto outputs = network.execute();
@@ -1780,10 +1778,10 @@ TEST(fully_connected_gpu, dynamic) {
         fully_connected("fc", input_info("input"), "weights")
     };
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input_data);
 
     auto outputs = network.execute();
@@ -1830,10 +1828,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_same_shape) {
         fully_connected("fc", input_info("input"), "weights")
     };
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     {
         network.set_input_data("input", input_data1);
@@ -1910,10 +1908,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_different_shape) {
         fully_connected("fc", input_info("input"), "weights")
     };
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     auto inst = network.get_primitive("fc");
     auto impl = inst->get_impl();
@@ -2000,10 +1998,10 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
         fully_connected("fc", input_info("input"), "weights")
     };
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    options.set_option(cldnn::build_option::allow_new_shape_infer(true));
-    network network(engine, topology, options);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     // Call different shape multiple times to ensure caching works fine
     for (size_t i = 0; i < 2; i++) {
