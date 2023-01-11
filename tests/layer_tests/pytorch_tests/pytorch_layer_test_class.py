@@ -88,7 +88,7 @@ class PytorchLayerTest:
         torch_inps = [torch.from_numpy(inp) for inp in inputs]
         fw_res = model(*torch_inps)
 
-        if not isinstance(fw_res, (tuple, list)):
+        if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
 
         output_list = list(infer_res.values())
