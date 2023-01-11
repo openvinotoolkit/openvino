@@ -143,10 +143,14 @@ void fillTensorsWithSpecifiedShape(ov::InferRequest& infer_request, std::vector<
 
         if (inputs[i].get_element_type() == ov::element::f32) {
             input_tensor = fillTensorRandomDynamic<float>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::f64) {
+            input_tensor = fillTensorRandomDynamic<double>(inputs[i], inputShape);
         } else if (inputs[i].get_element_type() == ov::element::f16) {
             input_tensor = fillTensorRandomDynamic<short>(inputs[i], inputShape);
         } else if (inputs[i].get_element_type() == ov::element::i32) {
             input_tensor = fillTensorRandomDynamic<int32_t>(inputs[i], inputShape);
+        } else if (inputs[i].get_element_type() == ov::element::i64) {
+            input_tensor = fillTensorRandomDynamic<int64_t>(inputs[i], inputShape);
         } else if (inputs[i].get_element_type() == ov::element::u8) {
             input_tensor = fillTensorRandomDynamic<uint8_t>(inputs[i], inputShape);
         } else if (inputs[i].get_element_type() == ov::element::i8) {
