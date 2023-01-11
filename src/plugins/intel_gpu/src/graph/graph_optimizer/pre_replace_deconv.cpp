@@ -27,6 +27,8 @@ void pre_replace_deconv::run(program& p) {
         auto& node = (*node_itr).second;
         // find deconvolution primitives with stride 1 and change them to convolution with trasposed weights
         if (node->is_type<deconvolution>()) {
+            if (node->is_dynamic())
+                continue;
             if (!p.get_options().get<build_option_type::optimize_data>()->enabled())
                 continue;
 
