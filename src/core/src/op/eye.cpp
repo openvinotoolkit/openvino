@@ -112,8 +112,8 @@ bool ov::op::v9::Eye::has_evaluate() const {
 
 bool ov::op::v9::Eye::evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const {
     OV_OP_SCOPE(v9_Eye_evaluate);
-    OPENVINO_ASSERT(validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
-    OPENVINO_ASSERT(validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(inputs, get_input_size()), "Invalid Eye input TensorVector.");
+    OPENVINO_ASSERT(ngraph::validate_host_tensor_vector(outputs, 1), "Invalid Eye output TensorVector.");
 
     int64_t diagonal_index;
 

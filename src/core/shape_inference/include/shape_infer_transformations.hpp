@@ -12,7 +12,7 @@ namespace sh_infer {
 namespace tr {
 
 /**
- * \brief Trnsform tensor data by cast them to type T
+ * \brief Transform tensor data by cast them to type T
  *
  * \tparam T Type of returned value.
  */
@@ -35,21 +35,14 @@ struct Cast {
  */
 template <class T>
 struct InTypeRange {
-    const std::pair<T, T> m_range{std::numeric_limits<T>::min(), std::numeric_limits<T>::max()};
+    const T m_min{std::numeric_limits<T>::min()}, m_max{std::numeric_limits<T>::max()};
 
     constexpr InTypeRange() = default;
-    constexpr InTypeRange(T min, T max) : m_range{std::move(min), std::move(max)} {};
+    constexpr InTypeRange(const T& min, const T& max) : m_min{min}, m_max{max} {};
 
     template <class U>
     T operator()(const U u) const {
-        OPENVINO_ASSERT(cmp::le(m_range.first, u) && cmp::le(u, m_range.second),
-                        "Value ",
-                        u,
-                        " not in range [",
-                        m_range.first,
-                        ":",
-                        m_range.second,
-                        "]");
+        OPENVINO_ASSERT(cmp::le(m_min, u) && cmp::le(u, m_max), "Value ", u, " not in range [", m_min, ":", m_max, "]");
         return static_cast<T>(u);
     }
 };
