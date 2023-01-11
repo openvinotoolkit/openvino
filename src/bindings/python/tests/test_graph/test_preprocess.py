@@ -400,6 +400,7 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
         for op in expected_ops:
             assert op in model_operators
 
+
 @pytest.mark.parametrize(
     ("color_format1", "color_format2", "tensor_in_shape", "model_in_shape"),
     [(ColorFormat.RGB, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
