@@ -16,6 +16,17 @@
 namespace ov {
 namespace intel_cpu {
 
+namespace {
+    size_t replace_all(std::string & inout, std::string what, std::string with) {
+        std::size_t count{};
+        for (std::string::size_type pos{}; inout.npos != (pos = inout.find(what.data(), pos, what.length()));
+             pos += with.length(), ++count) {
+            inout.replace(pos, what.length(), with.data(), with.length());
+        }
+        return count;
+    }
+}
+
 DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, const char* name) {
     // check ENV
     const char* p_filters = std::getenv("OV_CPU_DEBUG_LOG");
@@ -123,19 +134,27 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtyp
 }
 
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
-    os << "    ImplementationType: " << impl_type_to_string(desc.getImplementationType()) << std::endl;
+    std::stringstream ss;
+    ss << "  " << impl_type_to_string(desc.getImplementationType()) << "(";
+    const char * sep = "";
     for (auto & conf : desc.getConfig().inConfs) {
-        os << "    inConfs: " << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) os << " inPlace:" << conf.inPlace();
-        if (conf.constant()) os << " constant";
-        os << std::endl;
+        ss << sep << *conf.getMemDesc();
+        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
+        if (conf.constant()) ss << " constant";
+        sep = ",";
     }
+    ss << ") -> (";
+    sep = "";
     for (auto & conf : desc.getConfig().outConfs) {
-        os << "    outConfs: " << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) os << " inPlace:" << conf.inPlace();
-        if (conf.constant()) os << " constant";
-        os << std::endl;
+        ss << sep << *conf.getMemDesc();
+        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
+        if (conf.constant()) ss << " constant";
+        sep = ",";
     }
+    ss << ")" << std::endl;
+    auto str = ss.str();
+    replace_all(str, "0 - ?", "?");
+    os << str;
     return os;
 }
 
@@ -164,15 +183,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         }
         return true;
     };
-    auto replace_all = [](std::string& inout, std::string what, std::string with) {
-        std::size_t count{};
-        for (std::string::size_type pos{};
-            inout.npos != (pos = inout.find(what.data(), pos, what.length()));
-            pos += with.length(), ++count) {
-            inout.replace(pos, what.length(), with.data(), with.length());
-        }
-        return count;
-    };
+
     auto nodeDesc = node.getSelectedPrimitiveDescriptor();
     std::stringstream leftside;
 
