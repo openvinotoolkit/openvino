@@ -150,8 +150,8 @@ TEST_F(CNNNetworkTests, throwsHasDynamicInputs_queryNetwork) {
 
 class CNNNetworkTests_LoadFromFileTest : public ::testing::Test {
 protected:
-    std::string modelName {};
-    std::string weightsName {};
+    std::string modelName{};
+    std::string weightsName{};
     InferenceEngine::Core core;
 
 public:

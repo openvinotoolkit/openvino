@@ -30,7 +30,6 @@ protected:
     std::string modelName = "CoreThreadingTests.xml", weightsName = "CoreThreadingTests.bin";
 
 public:
-
     void SetUp() override {
         auto prefix = CommonTestUtils::generateTestFilePrefix();
         modelName = prefix + modelName;
