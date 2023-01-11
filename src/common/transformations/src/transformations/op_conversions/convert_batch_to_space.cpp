@@ -16,9 +16,9 @@
 void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
     auto batch_to_space = ngraph::pattern::wrap_type<ov::opset3::BatchToSpace>();
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ov::opset3::BatchToSpace>(m.get_match_root());
-        if (!batch_to_space) {
+        if (!batch_to_space || transformation_callback(batch_to_space)) { // is callback needed here at all?
             return false;
         }
 
@@ -34,28 +34,25 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         }
 
         const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
-        const auto crops_begin_const = std::dynamic_pointer_cast<opset3::Constant>(crops_begin.get_node_shared_ptr());
-        const auto crops_end_const = std::dynamic_pointer_cast<opset3::Constant>(crops_end.get_node_shared_ptr());
 
-        if (!block_const || !crops_begin_const || !crops_end_const) {
+        if (!block_const) {
             return false;
         }
 
         const std::vector<int64_t>& block_values = block_const->cast_vector<int64_t>();
-        const std::vector<int64_t>& crops_end_values = crops_end_const->cast_vector<int64_t>();
 
         // First we have to disperse the data from batch, then rearrange them
         // so as appropriate chunks of data where close to their destination place.
         // Finally squeeze data from respective dimensions
 
-        const auto shape_of_data = std::make_shared<opset3::ShapeOf>(data);
-        new_ops.push_back(shape_of_data);
         const auto zero = opset3::Constant::create(element::i64, Shape{1}, {0});
+        const auto shape_of_data = std::make_shared<opset3::ShapeOf>(data);
         const auto batch = std::make_shared<opset3::Gather>(shape_of_data, zero, zero);
-        new_ops.push_back(batch);
         const auto block_prod = std::make_shared<opset3::ReduceProd>(block, zero);
-        new_ops.push_back(block_prod);
         const auto batch_div = std::make_shared<opset3::Divide>(batch, block_prod);
+        new_ops.push_back(shape_of_data);
+        new_ops.push_back(batch);
+        new_ops.push_back(block_prod);
         new_ops.push_back(batch_div);
 
         //   note: B_0 is expected to be 1.
@@ -68,14 +65,14 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         const auto& stop = max;
         const auto& step = one;
         const auto block_tail = std::make_shared<opset8::Slice>(block, start, stop, step);
-        new_ops.push_back(block_tail);
         const auto data_shape_tail = std::make_shared<opset8::Slice>(shape_of_data, start, stop, step);
-        new_ops.push_back(data_shape_tail);
         const auto dispersed_shape =
             std::make_shared<opset3::Concat>(OutputVector{block_tail, batch_div, data_shape_tail}, 0);
-        new_ops.push_back(dispersed_shape);
         const bool special_zero = false;
         std::shared_ptr<Node> flat_node = std::make_shared<ov::opset3::Reshape>(data, dispersed_shape, special_zero);
+        new_ops.push_back(block_tail);
+        new_ops.push_back(data_shape_tail);
+        new_ops.push_back(dispersed_shape);
         new_ops.push_back(flat_node);
 
         // calculate axes to transpose
@@ -94,12 +91,11 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
         //   x''' = reshape(x'', [batch / (B_1 * ... * B_{N - 1}), D_1 * B_1, D_2 * B_2, ... , D_{N - 1}
         //   * B_{N - 1}])
-        const auto DYN_mul = std::make_shared<opset3::Multiply>(block_tail, data_shape_tail);
-        new_ops.push_back(DYN_mul);
-        const auto squeezed_shape = std::make_shared<opset3::Concat>(OutputVector{batch_div, DYN_mul}, 0);
-        new_ops.push_back(squeezed_shape);
-
+        const auto squeezed_shape_tail = std::make_shared<opset3::Multiply>(block_tail, data_shape_tail);
+        const auto squeezed_shape = std::make_shared<opset3::Concat>(OutputVector{batch_div, squeezed_shape_tail}, 0);
         flat_node = std::make_shared<opset3::Reshape>(flat_node, squeezed_shape, special_zero);
+        new_ops.push_back(squeezed_shape_tail);
+        new_ops.push_back(squeezed_shape);
         new_ops.push_back(flat_node);
 
         //    Crop the start and end of dimensions according to `crops_begin`, `crops_end` to produce
@@ -108,20 +104,15 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         //    `y = [batch / (B_1 * ... * B_{N - 1}), crop(D_1 * B_1, crops_begin[1], crops_end[1]),
         //          crop(D_2 * B_2, crops_begin[2], crops_end[2]), ... ,
         //          crop(D_{N - 1} * B_{N - 1}, crops_begin[N - 1], crops_end[N - 1])]`
-        std::vector<int64_t> upperbounds_values;
-        auto flat_node_shape = flat_node->get_shape();
-        for (size_t i = 0; i < flat_node_shape.size(); ++i) {
-            upperbounds_values.push_back(flat_node_shape.at(i) - crops_end_values.at(i));
-        }
-
-        const auto upperbounds = opset3::Constant::create(crops_end.get_element_type(),
-                                                          Shape{upperbounds_values.size()},
-                                                          upperbounds_values);
+        const auto shape_of_flat_node = std::make_shared<opset3::ShapeOf>(flat_node);
+        const auto upperbounds = std::make_shared<opset3::Subtract>(shape_of_flat_node, crops_end);
+        new_ops.push_back(shape_of_flat_node);
+        new_ops.push_back(upperbounds);
 
         const auto begin_mask = std::vector<int64_t>(data_shape_rank.get_length(), 0);
         const auto& end_mask = begin_mask;
         flat_node =
-            std::make_shared<opset3::StridedSlice>(flat_node, crops_begin_const, upperbounds, begin_mask, end_mask);
+            std::make_shared<opset3::StridedSlice>(flat_node, crops_begin, upperbounds, begin_mask, end_mask);
         new_ops.push_back(flat_node);
 
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
