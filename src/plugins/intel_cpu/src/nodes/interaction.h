@@ -46,7 +46,7 @@ struct jit_uni_move_scale_kernel {
 
 class Interaction : public Node {
 public:
-    Interaction(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;

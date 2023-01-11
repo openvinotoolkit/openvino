@@ -84,11 +84,15 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSplitSupport();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableGroupedConvolution();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_zyx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -325,7 +329,6 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("DW", params.dilation.x - 1));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("FWD_DATA", 1));
-    jit.AddConstant(MakeJitConstant("IS_DW", "DEPTHWISE_SEPARABLE_OPT"));
     jit.AddConstant(MakeJitConstant("WITH_BIAS", "BIAS_TERM"));
 
     if (is_1stconv || params.groups > 1) {

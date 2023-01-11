@@ -4,8 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/imad.cl"
 
 // ======================================================================================
 // Host side jit-constants:
@@ -22,8 +21,6 @@
 // FORCE_PREFETCH { 0, 1 }   - flag to force the compiler to generate explicit
 //                             data prefetching; requires additional global barrier
 // ======================================================================================
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define FSV 4
 #define WEIGHTS_OSV 16
@@ -61,19 +58,18 @@
 // WI: 1 x FEATURES_PER_WI x 1
 // SG: 1 x FEATURES_PER_WI x SIMD
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(SIMD, 1, LWG_DEPTH)))
 KERNEL(convolution)(
     const __global uint          *input,
     __global OUTPUT_TYPE4        *output,
-    const __global int           *weights,
+    const __global int           *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE   *biases,
+    , const __global BIAS_TYPE   *biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
 ) {
     const uint f = (uint)get_global_id(1) * FEATURES_PER_WI;
 #if LWG_DEPTH == 1
@@ -134,7 +130,7 @@ KERNEL(convolution)(
         weights_offset += WEIGHTS_IS_PITCH / FSV * LWG_DEPTH;
 
         unroll_for (uint out_fi = 0; out_fi < FEATURES_PER_WI; ++out_fi) {
-            int wei_i = intel_sub_group_shuffle(wei_sg[out_fi / SIMD], out_fi % SIMD);
+            int wei_i = _sub_group_shuffle(wei_sg[out_fi / SIMD], out_fi % SIMD);
             FILTER_TYPE4 wei_val = AS_FILTER_TYPE4(wei_i);
 
             dotProd[out_fi] = IMAD(dotProd[out_fi], in_val, wei_val);
@@ -222,8 +218,6 @@ KERNEL(convolution)(
         output[output_offset] = out;
     }
 }
-
-#undef unroll_for
 
 #undef FSV
 #undef WEIGHTS_OSV

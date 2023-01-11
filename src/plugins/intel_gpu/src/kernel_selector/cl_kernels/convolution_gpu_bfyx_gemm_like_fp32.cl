@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
@@ -10,15 +10,15 @@
 #define TILE_K          FILTER_SIZE_X
 #define TILE_N          32
 
-__attribute__((intel_reqd_sub_group_size(8)))
+REQD_SUB_GROUP_SIZE(8)
 KERNEL(convolution_f32)(
     const __global float *src0,
     __global float *dst,
-    const __global float *src1,
+    const __global float *src1
 #if BIAS_TERM
-    const __global float *bias,
+    , const __global float *bias
 #endif
-    uint split_idx)
+)
 {
 #include "include/batch_headers/vec_typedefs.cl"
 
@@ -149,12 +149,12 @@ KERNEL(convolution_f32)(
             interleaved_y = 0;
             LOOP(FILTER_SIZE_X_DIV2, interleaved_y,
             {
-                p8BlockB00[interleaved_y] = as_float8( intel_sub_group_block_read8( (const __global uint*)src1 + src1_read_offset ) );
+                p8BlockB00[interleaved_y] = as_float8( _sub_group_block_read8( (const __global uint*)src1 + src1_read_offset ) );
                 src1_read_offset += ALIGNED_OFM_PER_GROUP * 2;
             } )
             if ( kernel_width_is_odd )
             {
-                p4BlockB00[FILTER_SIZE_X - 1] = as_float4( intel_sub_group_block_read4( (const __global uint*)src1 + src1_read_offset ) );
+                p4BlockB00[FILTER_SIZE_X - 1] = as_float4( _sub_group_block_read4( (const __global uint*)src1 + src1_read_offset ) );
                 src1_read_offset += ALIGNED_OFM_PER_GROUP * 2;
             }
 

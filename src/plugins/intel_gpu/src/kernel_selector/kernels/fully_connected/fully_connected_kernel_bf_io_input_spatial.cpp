@@ -21,6 +21,15 @@ ParamsKey FullyConnected_bf_io_input_spatial::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey FullyConnected_bf_io_input_spatial::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_reqd_subgroup_size();
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spatial::SetDefault(
     const fully_connected_params& arg,
     int) const {

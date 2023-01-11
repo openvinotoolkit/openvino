@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "program_helpers.h"
 #include "pass_manager.h"
 
@@ -579,8 +577,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto is_grouped_conv = [](convolution_node& node) -> bool {
             auto in_layout = node.get_dependency(0).get_output_layout();
-            return (node.get_split() > 1 && node.get_split() != in_layout.feature()) ||
-                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_layout.feature()));
+            return (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_layout.feature()));
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
@@ -590,6 +587,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (node.get_output_layout().is_dynamic()) {
                 return true;
             }
+
+            if (node.get_primitive()->deformable_mode)
+                return false;
 
             // Since reorder inputs is called after this pass
             // we have to check that blocked formats can be used in the network and layer is optimized for it.

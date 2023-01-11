@@ -36,6 +36,10 @@ public:
 
     /// \brief Destructor
     virtual ~GraphIterator() = default;
+
+    /// \brief Checks if the main model graph contains a function of the requested name in the library
+    /// Returns GraphIterator to this function and nullptr, if it does not exist
+    virtual std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const = 0;
 };
 
 }  // namespace tensorflow

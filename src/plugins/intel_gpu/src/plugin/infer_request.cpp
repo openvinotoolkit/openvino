@@ -11,7 +11,7 @@
 #include "intel_gpu/plugin/infer_request.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/preprocess/input_tensor_info.hpp"
@@ -493,7 +493,7 @@ void InferRequest::enqueue() {
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
-        GPU_DEBUG_COUT << "Only run first inference to dump layers." << std::endl;
+        GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
 }
@@ -760,10 +760,7 @@ void InferRequest::allocate_inputs() {
             OPENVINO_ASSERT(litr != inputLayouts.end(), "[GPU] Input layout for ", name, " is not found");
             const auto input_layout = litr->second;
 
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                GPU_DEBUG_COUT << "[" << name << ": input blob]" << std::endl;
-            }
+            GPU_DEBUG_LOG << "[" << name << ": input blob]" << std::endl;
             if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 TensorDesc desc_fp32 = desc;
                 desc_fp32.setPrecision(Precision::FP32);
@@ -796,10 +793,7 @@ void InferRequest::allocate_outputs() {
         if (output_layout.is_static())
             desc.setDims(m_graph->GetOutputSize(no.first));
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
-        GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << no.first << ": output blob]" << std::endl;
-        }
+        GPU_DEBUG_LOG << "[" << no.first << ": output blob]" << std::endl;
 
         outputsMap[no.first] = outputID;
         if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16 ||

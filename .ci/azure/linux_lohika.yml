@@ -9,7 +9,7 @@
 jobs:
 - job: Lin_lohika
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_LOHIKA
@@ -29,9 +29,9 @@ jobs:
     displayName: fetch
 
 #  - checkout: self
-#    clean: true
-#    lfs: false
-#    submodules: recursive
+#    clean: 'true'
+#    fetchDepth: '1'
+#    submodules: 'true'
 #    path: openvino
 
   - checkout: none
@@ -41,8 +41,10 @@ jobs:
 
     # Should be after 'Install dependencies' because Git lfs is not installed
 #  - checkout: testdata
-#    clean: true
-#    lfs: true
+#    clean: 'true'
+#    fetchDepth: '1'
+#    submodules: 'true'
+#    lfs: 'true'
 #    path: testdata
 
   - script: env -C ~/work ./configreleasenolto.sh
@@ -61,7 +63,6 @@ jobs:
 #        -DENABLE_OV_ONNX_FRONTEND=ON
 #        -DENABLE_FASTER_BUILD=ON
 #        -DENABLE_STRICT_DEPENDENCIES=OFF
-#        -DENABLE_REQUIREMENTS_INSTALL=OFF
 #        -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
 #        $(REPO_DIR)
 #      workingDirectory: $(BUILD_DIR)

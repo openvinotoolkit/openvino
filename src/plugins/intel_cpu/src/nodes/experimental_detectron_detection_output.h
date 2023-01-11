@@ -13,7 +13,7 @@ namespace node {
 
 class ExperimentalDetectronDetectionOutput : public Node {
 public:
-    ExperimentalDetectronDetectionOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    ExperimentalDetectronDetectionOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
