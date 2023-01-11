@@ -11,6 +11,35 @@
 
 using namespace ov::frontend::tensorflow;
 
+namespace {
+template <typename T>
+T reorder_ops_by_names(const std::vector<std::string>& names, const T& ops) {
+    T resulted_ops(ops.size(), nullptr);
+    if (names.size() == ops.size()) {
+        for (const auto& op : ops) {
+            const auto& op_name = op->get_friendly_name();
+            auto iter = std::find(names.begin(), names.end(), op_name);
+            if (iter != names.end()) {
+                auto ind = std::distance(names.begin(), iter);
+                if (resulted_ops[ind]) {
+                    // found two operations that are mapped to the same name
+                    // do not re-order in this case
+                    return ops;
+                }
+                resulted_ops[ind] = op;
+            } else {
+                // not found operation with the requested name
+                // do not re-order then
+                return ops;
+            }
+        }
+    } else {
+        return ops;
+    }
+    return resulted_ops;
+};
+}  // namespace
+
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                                    const std::shared_ptr<TranslatorDictionaryType>& translator_map,
                                    const std::string& model_name,
@@ -305,10 +334,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    // TODO: reorder results and params according to indices given in RT info (if any)
+    // reorder Parameter and Result nodes according to the requested order
+    // of input and output names from the original model
+    // during translation and topologically sorting this order could be lost
+    auto input_names = model_tf->get_input_names();
+    auto output_names = model_tf->get_output_names();
+    ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
+    ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
-    // create the OV Model
-    ov_model = std::make_shared<ov::Model>(results, params, m_model_name);
+    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {
