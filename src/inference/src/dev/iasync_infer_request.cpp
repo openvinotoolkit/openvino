@@ -32,16 +32,17 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
                                            const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                            const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
     : IInferRequest(*request),
-      m_sync_request(request),
-      m_request_executor(task_executor),
-      m_callback_executor(callback_executor),
       m_pipeline{{m_request_executor,
                   [this] {
                       m_sync_request->infer();
                   }}},
-      m_sync_pipeline{{std::make_shared<InferenceEngine::ImmediateExecutor>(), [this] {
+      m_sync_pipeline{{std::make_shared<InferenceEngine::ImmediateExecutor>(),
+                       [this] {
                            m_sync_request->infer();
-                       }}} {
+                       }}},
+      m_sync_request(request),
+      m_request_executor(task_executor),
+      m_callback_executor(callback_executor) {
     auto streams_executor = std::dynamic_pointer_cast<InferenceEngine::IStreamsExecutor>(m_request_executor);
     if (streams_executor != nullptr) {
         m_sync_pipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streams_executor)), [this] {
