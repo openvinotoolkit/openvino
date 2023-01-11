@@ -291,7 +291,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
         // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
         // from plugin in the furture. It is a whitelist to check.
-        bool plugin_config_is_supported(ov::InferencePlugin& plugin, const std::string& config_name) const {
+        bool plugin_config_is_supported(const ov::InferencePlugin& plugin, const std::string& config_name) const {
             std::string device_name = plugin.get_name();
             auto supported = false;
 
@@ -1070,7 +1070,10 @@ public:
         ov::SoPtr<ie::IExecutableNetworkInternal> res;
 
         auto cacheManager =
-            coreConfig.getCacheConfigForDevice(parsed._deviceName, DeviceSupportsCacheDir(plugin), parsed._config)
+            coreConfig
+                .getCacheConfigForDevice(parsed._deviceName,
+                                         coreConfig.plugin_config_is_supported(plugin, ov::cache_dir.name()),
+                                         parsed._config)
                 ._cacheManager;
         auto cacheContent = CacheContent{cacheManager};
         if (cacheManager && DeviceSupportsImportExport(plugin)) {

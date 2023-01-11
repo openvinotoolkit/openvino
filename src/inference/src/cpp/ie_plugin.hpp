@@ -168,7 +168,7 @@ public:
         OV_PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
 
-    std::string get_name() {
+    std::string get_name() const {
         OV_PLUGIN_CALL_STATEMENT(return _ptr->GetName());
     }
 
