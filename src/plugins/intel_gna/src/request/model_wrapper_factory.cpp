@@ -9,7 +9,8 @@
 #include "backend/am_intel_dnn.hpp"
 #include "gna2_model_helper.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 std::shared_ptr<ModelWrapper> ModelWrapperFactory::createTrivial() {
@@ -49,4 +50,5 @@ std::shared_ptr<ModelWrapper> ModelWrapperFactory::createInitialized(ModelInitia
 }
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

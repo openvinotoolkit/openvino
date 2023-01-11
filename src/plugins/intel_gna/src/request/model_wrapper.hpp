@@ -6,8 +6,10 @@
 
 #include <gna2-model-api.h>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
+
 class ModelWrapperFactory;
 
 /**
@@ -58,4 +60,5 @@ private:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

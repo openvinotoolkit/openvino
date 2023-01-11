@@ -10,7 +10,7 @@
 #include "ngraph/ops.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"

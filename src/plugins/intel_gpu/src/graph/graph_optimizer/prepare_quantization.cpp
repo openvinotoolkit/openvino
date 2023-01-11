@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reshape_inst.h"
@@ -595,11 +593,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         return;
 
     auto old_conv_prim = convolution_node.get_primitive();
-
-    // Split is not supported
-    if (old_conv_prim->weights.size() > 1)
-        return;
-
 
     primitive_id input = old_conv_prim->input[0].pid;
     std::vector<primitive_id> a_zero_points = {};

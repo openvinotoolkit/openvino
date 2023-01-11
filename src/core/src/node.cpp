@@ -223,14 +223,10 @@ void ov::Node::constructor_validate_and_infer_types() {
 }
 
 void ov::Node::set_output_size(size_t n) {
-    // NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
-    if (n < m_outputs.size()) {
-        m_outputs.resize(n);
-    } else {
-        for (size_t i = m_outputs.size(); i < n; ++i) {
-            // create the descriptors
-            get_output_descriptor(i);
-        }
+    NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
+    for (size_t i = m_outputs.size(); i < n; ++i) {
+        // create the descriptors
+        get_output_descriptor(i);
     }
 }
 

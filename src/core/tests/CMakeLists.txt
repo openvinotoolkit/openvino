@@ -16,10 +16,6 @@ endif()
 
 message(STATUS "OpenVINO Core unit tests enabled")
 
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
-
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
