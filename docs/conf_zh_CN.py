@@ -87,10 +87,10 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_language': 'English',
+    'current_language': '中文',
     'languages': (('English', '/latest'), ('中文', '/cn/latest')),
-    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
-    'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
+    'doxygen_mapping_file': '',
+    'doxygen_snippet_root': '/mnt/c/Users/kputnam/work_dir/git_repos/openvino'
 }
 
 repositories = {
@@ -127,7 +127,7 @@ repositories = {
 }
 
 try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    doxygen_mapping_file = ''
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
@@ -166,7 +166,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return name in exclude_pyapi_methods
 
 
-shutil.copy("../../../docs/home.rst",".")
+shutil.copy("../../../docs/index_zh_CN.rst","home.rst")
 
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
