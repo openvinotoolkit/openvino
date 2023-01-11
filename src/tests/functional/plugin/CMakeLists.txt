@@ -12,4 +12,5 @@ if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(myriad)
 endif()
 
+add_subdirectory(meta)
 add_subdirectory(conformance)

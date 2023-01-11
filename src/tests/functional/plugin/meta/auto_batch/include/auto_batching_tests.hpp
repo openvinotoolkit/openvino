@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,6 +31,8 @@ class AutoBatching_Test : public BehaviorTestsUtils::IEPluginTestBase,
                           public testing::WithParamInterface<AutoBatchTwoNetsParams> {
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         fn_ptrs = {ngraph::builder::subgraph::makeSingleConv(),
                    ngraph::builder::subgraph::makeMultiSingleConv()};
     };
@@ -148,6 +151,8 @@ class AutoBatching_Test_DetectionOutput : public AutoBatching_Test {
 public:
     void SetUp() override {
         std::tie(target_device, use_get_blob, num_streams, num_requests, num_batch) = this->GetParam();
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         fn_ptrs = {ngraph::builder::subgraph::makeDetectionOutput(),
                    ngraph::builder::subgraph::makeDetectionOutput()};
     };
