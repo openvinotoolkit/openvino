@@ -234,6 +234,9 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
 
+    if is_tf and argv.tensorflow_use_custom_operations_config is not None:
+        argv.transformations_config = argv.tensorflow_use_custom_operations_config
+
     if argv.scale and argv.scale_values:
         raise Error(
             'Both --scale and --scale_values are defined. Specify either scale factor or scale values per input ' +

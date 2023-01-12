@@ -1118,6 +1118,7 @@ def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
+        'tensorflow_use_custom_operations_config': '- Use the config file',
         'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
                                                            'Object Detection API',
         'tensorflow_custom_layer_libraries': '- List of shared libraries with TensorFlow custom layers implementation',
@@ -1161,7 +1162,7 @@ def get_params_with_paths_list():
             'input_checkpoint', 'input_meta_graph', 'input_proto', 'input_symbol',
             'pretrained_model_name', 'saved_model_dir', 'tensorboard_logdir',
             'tensorflow_custom_layer_libraries', 'tensorflow_custom_operations_config_update',
-            'tensorflow_object_detection_api_pipeline_config',
+            'tensorflow_object_detection_api_pipeline_config', 'tensorflow_use_custom_operations_config',
             'transformations_config']
 
 
@@ -1240,6 +1241,9 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
                           help=mo_convert_params_tf['tensorflow_custom_operations_config_update'].description,
                           action=CanonicalizePathCheckExistenceAction)
+    tf_group.add_argument('--tensorflow_use_custom_operations_config',
+                          help='Use the configuration file with custom operation description.',
+                          action=DeprecatedCanonicalizePathCheckExistenceAction)
     tf_group.add_argument('--tensorflow_object_detection_api_pipeline_config',
                           help=mo_convert_params_tf['tensorflow_object_detection_api_pipeline_config'].description,
                           action=CanonicalizePathCheckExistenceAction)

@@ -98,7 +98,7 @@ def _value_or_raise(match: SubgraphMatch, pipeline_config: PipelineConfig, key: 
         raise Error('The sub-graph replacer "[REPLACEMENT_ID]" was not able to find the value for key "{}" in the '
                     'pipeline configuration file specified with the --tensorflow_object_detection_api_pipeline_config '
                     'command line parameter. Update the sub-graph replacement configuration file specified with the '
-                    '--transformations_config command line parameter by adding key "{}" with required '
+                    '--tensorflow_use_custom_operations_config command line parameter by adding key "{}" with required '
                     'value to the "custom_attributes" dictionary of the "[REPLACEMENT_ID]" replacer.'.format(key, key))
     return value
 
