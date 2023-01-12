@@ -58,14 +58,6 @@ auto autoConfig = []() {
     };
 };
 
-auto autoBatchConfig = []() {
-    return std::vector<std::map<std::string, std::string>>{
-        // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), std::string(CommonTestUtils::DEVICE_GPU) + "(4)"},
-         // no timeout to avoid increasing the test time
-         {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "0 "}}};
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                          ::testing::Combine(
                                  ::testing::ValuesIn(netPrecisions),
@@ -85,12 +77,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                  ::testing::ValuesIn(autoConfig())),
-                         ExecNetSetPrecision::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, ExecNetSetPrecision,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                 ::testing::ValuesIn(autoBatchConfig())),
                          ExecNetSetPrecision::getTestCaseName);
 }  // namespace

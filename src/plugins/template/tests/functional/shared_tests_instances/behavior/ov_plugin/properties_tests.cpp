@@ -21,13 +21,7 @@ const std::vector<ov::AnyMap> multi_inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
-
 const std::vector<ov::AnyMap> auto_inproperties = {
-        {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
-};
-
-
-const std::vector<ov::AnyMap> auto_batch_inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
@@ -53,12 +47,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Auto_BehaviorTests, OVPropertiesIncorrec
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(auto_inproperties)),
-                        OVPropertiesIncorrectTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests, OVPropertiesIncorrectTests,
-                        ::testing::Combine(
-                                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                                ::testing::ValuesIn(auto_batch_inproperties)),
                         OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
@@ -88,12 +76,6 @@ const std::vector<ov::AnyMap> multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE), ov::device::id(0)},
 };
 
-const std::vector<ov::AnyMap> auto_batch_properties = {
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_TEMPLATE}},
-        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , CommonTestUtils::DEVICE_TEMPLATE},
-         {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
@@ -112,9 +94,4 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_Multi_BehaviorTests, OVPropertiesTests,
                 ::testing::ValuesIn(multi_properties)),
         OVPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests, OVPropertiesTests,
-        ::testing::Combine(
-                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
-                ::testing::ValuesIn(auto_batch_properties)),
-        OVPropertiesTests::getTestCaseName);
 } // namespace
