@@ -18,7 +18,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
     auto batch_to_space = ngraph::pattern::wrap_type<ov::opset3::BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ov::opset3::BatchToSpace>(m.get_match_root());
-        if (!batch_to_space || transformation_callback(batch_to_space)) { // is callback needed here at all?
+        if (!batch_to_space) {
             return false;
         }
 
@@ -33,13 +33,8 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
             return false;  // beacuse StridedSlice masks are std::vector
         }
 
-        const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
-
-        if (!block_const) {
-            return false;
-        }
-
-        const std::vector<int64_t>& block_values = block_const->cast_vector<int64_t>();
+        // static data shape rank implies static block shape
+        const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
 
         // First we have to disperse the data from batch, then rearrange them
         // so as appropriate chunks of data where close to their destination place.
@@ -47,7 +42,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
         const auto zero = opset3::Constant::create(element::i64, Shape{1}, {0});
         const auto shape_of_data = std::make_shared<opset3::ShapeOf>(data);
-        const auto batch = std::make_shared<opset3::Gather>(shape_of_data, zero, zero);
+        const auto batch = std::make_shared<opset8::Gather>(shape_of_data, zero, zero);
         const auto block_prod = std::make_shared<opset3::ReduceProd>(block, zero);
         const auto batch_div = std::make_shared<opset3::Divide>(batch, block_prod);
         new_ops.push_back(shape_of_data);
@@ -59,13 +54,10 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         //      x' = reshape(`data`, [B_1, ..., B_{N - 1}, batch / (B_1 * ... B_{N - 1}), D_1, D_2, ...,
         //      D_{N - 1}]),
         //      where B_i = block_shape[i]
-        const auto one = opset8::Constant::create(element::i64, Shape{1}, {1});
-        const auto max = opset8::Constant::create(element::i64, Shape{1}, {INT64_MAX});
-        const auto& start = one;
-        const auto& stop = max;
-        const auto& step = one;
-        const auto block_tail = std::make_shared<opset8::Slice>(block, start, stop, step);
-        const auto data_shape_tail = std::make_shared<opset8::Slice>(shape_of_data, start, stop, step);
+        const auto one = opset3::Constant::create(element::i64, Shape{1}, {1});
+        const auto end = opset3::Constant::create(element::i64, Shape{1}, {block_lenght});
+        const auto block_tail = std::make_shared<opset8::Slice>(block, one, end, one);
+        const auto data_shape_tail = std::make_shared<opset8::Slice>(shape_of_data, one, end, one);
         const auto dispersed_shape =
             std::make_shared<opset3::Concat>(OutputVector{block_tail, batch_div, data_shape_tail}, 0);
         const bool special_zero = false;
@@ -77,9 +69,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
         // calculate axes to transpose
         //      x'' = transpose(x', [N, N + 1, 0, N + 2, 1, ..., N + N - 1, N - 1])
-        std::vector<size_t> axes_order{block_values.size() - 1};
-        for (size_t i = 0; i < block_values.size() - 1; ++i) {
-            axes_order.push_back(i + block_values.size());
+        std::vector<int64_t> axes_order{block_lenght - 1};
+        for (int64_t i = 0; i < block_lenght - 1; ++i) {
+            axes_order.push_back(i + block_lenght);
             axes_order.push_back(i);
         }
         const auto axes_order_const =
