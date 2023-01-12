@@ -10,7 +10,6 @@
 
    openvino_docs_model_inputs_outputs
    openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model
-   openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques 
    openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model
    openvino_docs_MO_DG_Additional_Optimization_Use_Cases
    openvino_docs_MO_DG_FP16_Compression

@@ -82,7 +82,6 @@ class CompressQuantizeWeights(BackReplacementPattern):
     """
 
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_weights_compression]
 
     force_clean_up = True
 

@@ -21,7 +21,6 @@ class ReluFakeQuantizeMark(MiddleReplacementPattern):
 
     """
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
         return [BinarizeWeightsM1P1]
