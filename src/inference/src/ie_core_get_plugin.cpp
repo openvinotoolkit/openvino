@@ -48,7 +48,7 @@ ov::util::FilePath ov::getPluginPath(const std::string& pluginName) {
     }
 
     // For 1st-3rd cases - make path absolute
-    return ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName, false));
+    return ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
 }
 
 ov::util::FilePath ov::getPluginPathFromXML(const std::string& pluginPath) {

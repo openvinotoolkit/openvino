@@ -353,35 +353,19 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 }
 #endif
 
-std::string ov::util::get_absolute_file_path(const std::string& path, bool strict) {
+std::string ov::util::get_absolute_file_path(const std::string& path) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
-    if (strict) {
-        char* absPath;
-        // canonicalize path and check file existence and accessibility
-        absPath = get_absolute_path(&absolutePath[0], path);
-        if (!absPath) {
-            std::stringstream ss;
-            ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
-            throw std::runtime_error(ss.str());
-        }
-        absolutePath.resize(strlen(absPath));
-        return absolutePath;
-    } else {
-        if (is_absolute_file_path(path))
-            return path;
-        char* cwdPath = get_cwd(&absolutePath[0]);
-        if (!cwdPath) {
-            std::stringstream ss;
-            ss << "Can't determine current working directory to get absolute file path for [" << path
-               << "], err = " << strerror(errno);
-            throw std::runtime_error(ss.str());
-        }
-        absolutePath.resize(strlen(cwdPath));
-        // TODO: add canonicalization of the path
-        absolutePath += ov::util::FileTraits<char>::file_separator + path;
-        return absolutePath;
+    (void*) get_absolute_path(&absolutePath[0], path);
+    if (!absolutePath.empty()) {
+        // on Linux if file not exist or no access, function will return NULL, but 
+        // `absolutePath` will contain resolved path
+        absolutePath.resize(absolutePath.find('\0'));
+        return std::string(absolutePath);
     }
+    std::stringstream ss;
+    ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
+    throw std::runtime_error(ss.str());
 }
 
 bool ov::util::is_absolute_file_path(const std::string& path) {

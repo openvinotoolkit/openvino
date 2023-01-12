@@ -96,11 +96,10 @@ std::string get_file_name(const std::string& path);
 /**
  * @brief Interface function to get absolute path of file
  * @param path - path to file, can be relative to current working directory
- * @param strict - bool value, enables check file existence and accessibility
  * @return Absolute path of file
- * @throw runtime_error if any error occurred
+ * @throw runtime_error if absolute path can't be resolved
  */
-std::string get_absolute_file_path(const std::string& path, bool strict = true);
+std::string get_absolute_file_path(const std::string& path);
 
 /**
  * @brief Interface function to check path to file is absolute or not
