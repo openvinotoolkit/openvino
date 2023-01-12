@@ -32,6 +32,7 @@ namespace ov {
 
 class IPlugin;
 class ICompiledModel;
+class CompiledModelWrapper;
 class ExecNetworkWrapper;
 
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
@@ -68,6 +69,7 @@ private:
 
     friend IPlugin;
     friend ExecNetworkWrapper;
+    friend CompiledModelWrapper;
     friend InferenceEngine::Core;
 
 protected:
@@ -77,11 +79,6 @@ protected:
         std::shared_ptr<ov::IInferRequest> syncRequestImpl = this->create_infer_request_impl();
         return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
     }
-
-    // Functions are needed for import model because on the moment of contructor call we don't have a model
-    // Cannot use constructor instead of because these fields are not available on the moment of constructor call
-    void set_inputs(const std::vector<ov::Output<const ov::Node>>& inputs);
-    void set_outputs(const std::vector<ov::Output<const ov::Node>>& outputs);
 
     InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
     InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor

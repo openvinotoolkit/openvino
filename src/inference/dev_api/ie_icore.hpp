@@ -19,11 +19,12 @@
 #include "ie_remote_context.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 namespace ov {
+
+class ICompiledModel;
 
 /**
  * @interface ICore

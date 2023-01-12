@@ -644,8 +644,8 @@ public:
         for (const auto& output : m_model->getOutputs()) {
             outputs.emplace_back(output->output(0));
         }
-        set_inputs(inputs);
-        set_outputs(inputs);
+        m_inputs = inputs;
+        m_outputs = inputs;
     }
     std::shared_ptr<ov::IInferRequest> create_infer_request() const override {
         return ov::legacy_convert::convert_infer_request(m_model->CreateInferRequest());

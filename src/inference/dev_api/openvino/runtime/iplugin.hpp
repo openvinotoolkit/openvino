@@ -13,6 +13,7 @@
 #include <openvino/core/deprecated.hpp>
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "ie_icore.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
@@ -22,7 +23,6 @@
 
 namespace ov {
 
-class ICore;
 class IPlugin;
 class CoreImpl;
 class IInferencePluginWrapper;

@@ -28,8 +28,6 @@ public:
                       const Configuration& cfg,
                       const std::shared_ptr<const Plugin>& plugin);
 
-    ExecutableNetwork(std::istream& model, const Configuration& cfg, const std::shared_ptr<const Plugin>& plugin);
-
     // Methods from a base class ExecutableNetworkThreadSafeDefault
 
     void export_model(std::ostream& model) const override;

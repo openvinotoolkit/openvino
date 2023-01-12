@@ -68,14 +68,6 @@ ov::RemoteContext ov::ICompiledModel::get_context() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void ov::ICompiledModel::set_inputs(const std::vector<ov::Output<const ov::Node>>& inputs) {
-    m_inputs = inputs;
-}
-
-void ov::ICompiledModel::set_outputs(const std::vector<ov::Output<const ov::Node>>& outputs) {
-    m_outputs = outputs;
-}
-
 std::shared_ptr<ov::IInferRequest> ov::ICompiledModel::create_infer_request_impl() const {
     OPENVINO_NOT_IMPLEMENTED;
 }

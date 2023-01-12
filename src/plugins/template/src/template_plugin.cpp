@@ -119,7 +119,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& modelStre
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{config, _cfg};
-    auto exec = std::make_shared<ExecutableNetwork>(modelStream,
+    // read XML content
+    std::string xmlString;
+    std::uint64_t dataSize = 0;
+    modelStream.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    xmlString.resize(dataSize);
+    modelStream.read(const_cast<char*>(xmlString.c_str()), dataSize);
+
+    // read blob content
+    ov::Tensor data_tensor;
+    modelStream.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    if (0 != dataSize) {
+        data_tensor = std::move(ov::Tensor(ov::element::i8, {dataSize}));
+        modelStream.read(data_tensor.data<char>(), dataSize);
+    }
+
+    auto model = get_core()->read_model(xmlString, data_tensor);
+    auto exec = std::make_shared<ExecutableNetwork>(model,
                                                     fullConfig,
                                                     std::static_pointer_cast<const Plugin>(shared_from_this()));
     return exec;

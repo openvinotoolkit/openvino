@@ -54,40 +54,6 @@ std::shared_ptr<const Plugin> ExecutableNetwork::get_template_plugin() const {
     return template_plugin;
 }
 
-// ! [executable_network:ctor_import_stream]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
-                                                     const Configuration& cfg,
-                                                     const std::shared_ptr<const Plugin>& plugin)
-    : ov::ICompiledModel(nullptr, plugin),
-      _cfg(cfg) {
-    // read XML content
-    std::string xmlString;
-    std::uint64_t dataSize = 0;
-    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    xmlString.resize(dataSize);
-    model.read(const_cast<char*>(xmlString.c_str()), dataSize);
-
-    // read blob content
-    ov::Tensor data_tensor;
-    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    if (0 != dataSize) {
-        data_tensor = std::move(ov::Tensor(ov::element::i8, {dataSize}));
-        model.read(data_tensor.data<char>(), dataSize);
-    }
-
-    m_model = get_template_plugin()->get_core()->read_model(xmlString, data_tensor);
-    try {
-        InitExecutor();  // creates thread-based executor using for async requests
-    } catch (const InferenceEngine::Exception&) {
-        throw;
-    } catch (const std::exception& e) {
-        IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
-    } catch (...) {
-        IE_THROW(Unexpected) << "Generic exception is thrown";
-    }
-}
-// ! [executable_network:ctor_import_stream]
-
 // ! [executable_network:init_executor]
 void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // Default multi-threaded configuration is balanced for throughtput and latency cases and takes into account
