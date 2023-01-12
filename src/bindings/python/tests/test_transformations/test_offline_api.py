@@ -22,7 +22,7 @@ import openvino.runtime as ov
 from tests.test_utils.test_utils import create_filename_for_test
 
 
-def get_test_model():
+def get_relu_model():
     param = ov.opset8.parameter(PartialShape([1, 3, 22, 22]), name="parameter")
     param.get_output_tensor(0).set_names({"parameter"})
     relu = ov.opset8.relu(param)
@@ -96,7 +96,7 @@ def get_gru_sequence_model():
 
 
 def test_moc_transformations():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_moc_transformations(model, False)
 
@@ -105,7 +105,7 @@ def test_moc_transformations():
 
 
 def test_moc_with_smart_reshape():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_moc_transformations(model, cf=False, smart_reshape=True)
 
@@ -114,7 +114,7 @@ def test_moc_with_smart_reshape():
 
 
 def test_pot_transformations():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_pot_transformations(model, "GNA")
 
@@ -123,7 +123,7 @@ def test_pot_transformations():
 
 
 def test_low_latency_transformation():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_low_latency_transformation(model, True)
 
@@ -132,7 +132,7 @@ def test_low_latency_transformation():
 
 
 def test_pruning_transformation():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_pruning_transformation(model)
 
@@ -141,7 +141,7 @@ def test_pruning_transformation():
 
 
 def test_make_stateful_transformations():
-    model = get_test_model()
+    model = get_relu_model()
 
     apply_make_stateful_transformation(model, {"parameter": "result"})
 
@@ -151,7 +151,7 @@ def test_make_stateful_transformations():
 
 
 def test_fused_names_cleanup():
-    model = get_test_model()
+    model = get_relu_model()
 
     for node in model.get_ops():
         node.get_rt_info()["fused_names_0"] = "test_op_name"
@@ -222,9 +222,18 @@ def test_version_default(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_default_bin(request):
-    xml_path, bin_path = create_filename_for_test(request.node.name)
-    model = get_test_model()
+@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
+    (True, True),
+    (True, False),
+    (False, True),
+    (False, False),
+],
+)
+def test_serialize_default_bin(request, is_path_xml, is_path_bin):
+    xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  is_path_xml,
+                                                  is_path_bin)
+    model = get_relu_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)
     os.remove(xml_path)
