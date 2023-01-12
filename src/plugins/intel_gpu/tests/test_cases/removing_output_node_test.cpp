@@ -62,10 +62,10 @@ TEST(removing_output_node, multiple_outputs) {
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::outputs({ "shuffle_channels", "reshape", "strided_slice" }));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "shuffle_channels", "reshape", "strided_slice" }));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -75,7 +75,7 @@ TEST(removing_output_node, multiple_outputs) {
     ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
     for (size_t i = 0; i < out_vec.size(); i++)
-        EXPECT_EQ(output_ptr[i], out_vec[i]);
+        ASSERT_EQ(output_ptr[i], out_vec[i]);
 
     // checking the output node has the same name after output node deleting due to StridedSlice optimization
     ASSERT_TRUE(outputs.find("strided_slice") != outputs.end());
@@ -85,7 +85,7 @@ TEST(removing_output_node, multiple_outputs) {
     ASSERT_TRUE(output2->get_layout().get_tensor() == after_strided_slice);
 
     for (size_t i = 0; i < out_vec.size(); i++)
-        EXPECT_EQ(output_ptr2[i], out_vec[i]);
+        ASSERT_EQ(output_ptr2[i], out_vec[i]);
 }
 
 TEST(removing_output_node, output_node_optimization) {
@@ -130,8 +130,8 @@ TEST(removing_output_node, output_node_optimization) {
 
     // checking the output node has the same name after output node deleting due to ReLU optimization
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "relu");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -141,14 +141,14 @@ TEST(removing_output_node, output_node_optimization) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 3);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
     for (int y = 0; y < y_size; ++y) {
         for (int x = 0; x < x_size; ++x) {
-            EXPECT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
+            ASSERT_EQ(output_vec[y][x], output_ptr[y * x_size + x]);
         }
     }
 }

@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "test_utils/test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -15,7 +13,7 @@ using namespace std;
 namespace {
 // Run some topology too see if command queue does work correctly
 // Coppied from arg_max_gpu.base test.
-void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
+void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_caching_test=false) {
     //  Input  : 2x4x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 4, batch_num = 2;
     const int top_k = 2;
@@ -43,7 +41,7 @@ void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
     if (is_caching_test) {
         membuf mem_buf;
         {
-            cldnn::network _network(engine, topology);
+            cldnn::network _network(engine, topology, cfg);
             std::ostream out_mem(&mem_buf);
             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
             _network.save(ob);
@@ -51,17 +49,17 @@ void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
         {
             std::istream in_mem(&mem_buf);
             BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+            network = std::make_shared<cldnn::network>(ib, cfg, get_test_stream_ptr(), engine);
         }
     } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
+        network = std::make_shared<cldnn::network>(engine, topology, cfg);
     }
 
     network->set_input_data("input", input);
     auto outputs = network->execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -70,55 +68,37 @@ void exexute_network(cldnn::engine& engine, bool is_caching_test=false) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
+        ASSERT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
     }
 }
 }  // namespace
 
 TEST(command_queue_test, test_priority_hints) {
-    engine_configuration configuration =
-        engine_configuration(
-            false,          // profiling
-            queue_types::out_of_order,
-            "",             // sources_dumps_dir
-            priority_mode_types::low,
-            throttle_mode_types::disabled);
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
-    exexute_network(*engine);
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::LOW)};
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    exexute_network(*engine, cfg);
 }
 
 TEST(command_queue_test, test_throttle_hints) {
-    engine_configuration configuration =
-        engine_configuration(
-            false,          // profiling
-            queue_types::out_of_order,
-            "",             // sources_dumps_dir
-            priority_mode_types::disabled,
-            throttle_mode_types::high);
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
-    exexute_network(*engine);
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::HIGH)};
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    exexute_network(*engine, cfg);
 }
 
 TEST(command_queue_test, test_priority_and_throttle_hints) {
-    engine_configuration configuration =
-        engine_configuration(
-            false,          // profiling
-            queue_types::out_of_order,
-            "",             // sources_dumps_dir
-            priority_mode_types::high,
-            throttle_mode_types::low);
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
-    exexute_network(*engine);
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH),
+                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW)};
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    exexute_network(*engine, cfg);
 }
 
 TEST(export_import_command_queue_test, test_priority_and_throttle_hints) {
-    engine_configuration configuration =
-        engine_configuration(
-            false,          // profiling
-            queue_types::out_of_order,
-            "",             // sources_dumps_dir
-            priority_mode_types::high,
-            throttle_mode_types::low);
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, configuration);
-    exexute_network(*engine, true);
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                        ov::intel_gpu::hint::queue_priority(ov::hint::Priority::HIGH),
+                        ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW)};
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
+    exexute_network(*engine, cfg, true);
 }

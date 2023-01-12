@@ -71,12 +71,58 @@ void SwapNames(NodePtr node1, NodePtr node2) {
     SwapOutputNames(node1->output(0), node2->output(0));
 }
 
+namespace {
+
+bool HasDynamicRankInput(NodePtr node) {
+    for (auto& input_node : node->input_values()) {
+        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return true;
+    }
+    return false;
+}
+
+ov::Rank::value_type GetMaxInputRank(const NodePtr& node) {
+    ov::Rank::value_type max_input_rank = 0;
+    for (auto& input_node : node->input_values()) {
+        const ov::Rank output_rank = input_node.get_partial_shape().rank();
+        if (output_rank.is_dynamic())
+            return -1;
+        const ov::Rank::value_type output_rank_len = output_rank.get_length();
+        if (output_rank_len > max_input_rank)
+            max_input_rank = output_rank_len;
+    }
+    return max_input_rank;
+}
+
+NodePtr InsertUnsqueeze(Output<Node> node, size_t n_dims) {
+    std::vector<size_t> dims(n_dims);
+    std::iota(dims.begin(), dims.end(), 0);
+    auto unsqueeze_const = std::make_shared<Constant>(ov::element::i64, Shape{dims.size()}, dims);
+    auto unsqueeze = std::make_shared<Unsqueeze>(node, unsqueeze_const);
+    copy_runtime_info(node.get_node_shared_ptr(), {unsqueeze, unsqueeze_const});
+    return unsqueeze;
+}
+
+ov::Output<ov::Node> FixInputNodeRank(ov::Output<ov::Node> input_node, ov::Rank::value_type required_rank) {
+    const ov::Rank::value_type output_rank = input_node.get_partial_shape().rank().get_length();
+    if (output_rank >= required_rank)
+        return input_node;
+    return InsertUnsqueeze(input_node, required_rank - output_rank)->output(0);
+}
+
+}  // namespace
+
 namespace sink_forward {
 
-// insert input reversed transposes, remove first input tranpose
-void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
-    if (transpose_input_info.isEmpty())
+void UpdateInputTransposes(NodePtr main_node, const TransposeInputsInfo& transpose_input_info) {
+    if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return;
+
+    const auto max_input_rank = GetMaxInputRank(main_node);
+    if (max_input_rank < 0)
+        return;
+
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
     const size_t tranpose_input_index = transpose_input_info.input_idx;
@@ -88,6 +134,8 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
             auto transpose_parent = input_node.get_node()->input_value(0);
             main_node->input(i).replace_source_output(transpose_parent);
         } else {
+            input_node = FixInputNodeRank(input_node, max_input_rank);
+
             auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
                                                                   Shape{reversed_traspose_axis_order.size()},
                                                                   reversed_traspose_axis_order);
@@ -100,15 +148,15 @@ void UpdateInputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_inp
     }
 }
 
-void RemoveZeroInputNode(NodePtr main_node) {
-    auto input_node = main_node->input_value(0);
-    if (input_node.get_node()->get_input_size() < 1)
+void RemoveInputNode(NodePtr main_node, size_t input_idx) {
+    auto input_node = main_node->input_value(input_idx);
+    if (input_node.get_node()->get_input_size() < (input_idx + 1))
         return;
-    auto parent_node = input_node.get_node()->input_value(0);
-    main_node->input(0).replace_source_output(parent_node);
+    auto parent_node = input_node.get_node()->input_value(input_idx);
+    main_node->input(input_idx).replace_source_output(parent_node);
 }
 
-NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transpose_input_info) {
+NodeVector InsertOutputTransposes(NodePtr main_node, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty())
         return {};
     const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
@@ -146,14 +194,23 @@ NodeVector InsertOutputTransposes(NodePtr main_node, TransposeInputsInfo& transp
 }  // namespace sink_forward
 
 namespace sink_backward {
+
 NodeVector InsertTransposeBeforeNode(NodePtr main_node, std::shared_ptr<Constant> transpose_const) {
     const auto transpose_axis_order = transpose_const->get_axis_vector_val();
     const auto transpose_element_type = transpose_const->get_element_type();
 
+    if (HasDynamicRankInput(main_node))
+        return {};
+
     NodeVector new_nodes;
 
+    const auto max_input_rank = GetMaxInputRank(main_node);
+    if (max_input_rank < 0)
+        return {};
+
     for (size_t i = 0; i < main_node->get_input_size(); ++i) {
-        auto input_node = main_node->input_value(i);
+        auto input_node = FixInputNodeRank(main_node->input_value(i), max_input_rank);
+
         auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
                                                               Shape{transpose_axis_order.size()},
                                                               transpose_axis_order);
@@ -188,6 +245,7 @@ bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Concat, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(PRelu, node);
 
     return false;
 }
@@ -208,6 +266,78 @@ bool CanPropagateForward(NodePtr node) {
 void UpdateForwardSinkingAbility(NodePtr node) {
     if (!CanPropagateForward(node))
         mark_as_no_sinking_node(node);
+}
+
+namespace {
+
+std::shared_ptr<Constant> GetTransposeConstant(Node* node) {
+    auto transpose_node = dynamic_cast<Transpose*>(node);
+    if (!transpose_node)
+        return {};
+
+    auto constant_node = as_type_ptr<Constant>(transpose_node->input_value(1).get_node_shared_ptr());
+    if (!constant_node)
+        return {};
+
+    return constant_node;
+}
+
+Node* FindFirstConsumer(NodePtr node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        auto inputs = node->get_output_target_inputs(output_idx);
+        if (inputs.empty())
+            continue;
+        return inputs.begin()->get_node();
+    }
+    return nullptr;
+}
+
+bool HasSameOutputTransposeNodes(NodePtr main_node) {
+    AxisVector first_transpose_axis_order;
+    {
+        Node* first_consumer = FindFirstConsumer(main_node);
+        if (!first_consumer)
+            return false;
+        auto constant_node = GetTransposeConstant(first_consumer);
+        if (!constant_node)
+            return false;
+        first_transpose_axis_order = constant_node->get_axis_vector_val();
+    }
+
+    for (size_t output_idx = 0; output_idx < main_node->get_output_size(); ++output_idx) {
+        for (auto& input : main_node->get_output_target_inputs(output_idx)) {
+            auto constant_node = GetTransposeConstant(input.get_node());
+            if (!constant_node)
+                return false;
+
+            AxisVector transpose_axis_order = constant_node->get_axis_vector_val();
+            if (transpose_axis_order.size() != first_transpose_axis_order.size())
+                return false;
+            if (!std::equal(transpose_axis_order.begin(),
+                            transpose_axis_order.end(),
+                            first_transpose_axis_order.begin()))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
+
+bool HasSameOutputTransposeNodes(const Output<Node>& output) {
+    return HasSameOutputTransposeNodes(output.get_node_shared_ptr());
+}
+
+void RemoveSingleOutputConsumers(NodePtr node) {
+    for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
+        for (auto& input : node->get_output_target_inputs(output_idx)) {
+            Node* consumer = input.get_node();
+            if (consumer->get_output_size() != 1)
+                continue;
+            consumer->output(0).replace(node->output(output_idx));
+        }
+    }
 }
 
 }  // namespace transpose_sinking

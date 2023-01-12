@@ -56,10 +56,8 @@ static size_t get_cpu_ram_size() {
 
 namespace cldnn {
 
-engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
-: _task_executor(task_executor)
-, _device(device)
-, _configuration(configuration) {}
+engine::engine(const device::ptr device)
+    : _device(device) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -74,7 +72,7 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(debug_config->disable_usm) {
         return false;
     }
-    if (_device->get_mem_caps().supports_usm() && _configuration.use_unified_shared_memory) {
+    if (_device->get_mem_caps().supports_usm()) {
         return true;
     }
     return false;
@@ -248,42 +246,28 @@ void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
     }
 }
 
-const InferenceEngine::ITaskExecutor::Ptr engine::get_task_executor() {
-    return _task_executor;
-}
-
-std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
-                                              runtime_types runtime_type,
-                                              const device::ptr device,
-                                              const engine_configuration& configuration,
-                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
     case engine_types::ocl:
-        ret = ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
+        ret = ocl::create_ocl_engine(device, runtime_type);
         break;
     default:
         throw std::runtime_error("Invalid engine type");
     }
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->verbose >= 1) {
-        const auto& info = device->get_info();
-        GPU_DEBUG_COUT << "Selected Device: " << info.dev_name << std::endl;
-    }
+    const auto& info = device->get_info();
+    GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
     return ret;
 }
 
-std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
-                                              runtime_types runtime_type,
-                                              const engine_configuration& configuration,
-                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type) {
     device_query query(engine_type, runtime_type);
     auto devices = query.get_available_devices();
 
     auto iter = devices.find(std::to_string(device_query::device_id));
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
 
-    return engine::create(engine_type, runtime_type, device, configuration, task_executor);
+    return engine::create(engine_type, runtime_type, device);
 }
 
 }  // namespace cldnn

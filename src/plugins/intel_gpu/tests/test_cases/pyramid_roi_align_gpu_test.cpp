@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -127,6 +125,6 @@ TYPED_TEST(pyramid_roi_align_typed_test, smoke_4levels) {
 
     ASSERT_EQ(expected_out.size(), out_ptr.size());
     for (size_t i = 0; i < expected_out.size(); ++i) {
-        EXPECT_EQ(expected_out[i], static_cast<float>(out_ptr[i])) << "at i = " << i;
+        ASSERT_EQ(expected_out[i], static_cast<float>(out_ptr[i])) << "at i = " << i;
     }
 }

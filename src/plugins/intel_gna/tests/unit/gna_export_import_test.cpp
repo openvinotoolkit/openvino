@@ -15,7 +15,7 @@
 #include "any_copy.hpp"
 
 using namespace ::testing;
-using GNAPluginNS::GNAPlugin;
+using ov::intel_gna::GNAPlugin;
 using ::testing::InSequence;
 using namespace InferenceEngine;
 

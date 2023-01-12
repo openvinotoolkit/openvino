@@ -28,8 +28,8 @@ using namespace ::tests;
    in similar way as it is done in tests utilizing clDNN API */
 TEST(basic, test1) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
@@ -49,7 +49,7 @@ TEST(basic, test1) {
     topology.add(concatenation("concat", { input_info("reorder1"), input_info("weights2") }, 3));
     topology.add(convolution("conv2", { input_info("reorder2") }, { "concat" }));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false);
+    program::ptr prog = program::build_program(engine, topology, config, false);
     network::ptr network = network::allocate_network(engine, prog);
     network->set_input_data("input", input);
 
@@ -59,7 +59,7 @@ TEST(basic, test1) {
     for (auto& it : outputs)
     {
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
-        EXPECT_NEAR(7.8f, output[0], epsilon);
+        ASSERT_NEAR(7.8f, output[0], epsilon);
     }
 }
 
@@ -67,7 +67,7 @@ TEST(basic, test1) {
 // Thus, a single method from program like add_intermediate might be tested separately.
 TEST(add_intermediate_gpu, test1)
 {
-    build_options build_opt;
+    ExecutionConfig config;
     topology topology;
     auto& engine = get_test_engine();
 
@@ -92,7 +92,7 @@ TEST(add_intermediate_gpu, test1)
     topology.add(cldnn::convolution("conv1b", { input_info("input") }, { "weights" }));
     topology.add(cldnn::convolution("conv2a", { input_info("conv1a") }, { "weights2" }));
     auto new_reorder = std::make_shared<reorder>("reorder", input_info("nothing"), input->get_layout());
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    program::ptr prog = program::build_program(engine, topology, config, false, true);
     prog->add_intermediate(new_reorder, prog->get_node("conv1a"), 0);
     prog->dump_program("custom_dump", true);
 
@@ -114,7 +114,7 @@ TEST(add_intermediate_gpu, test1)
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (uint32_t x = 0; x < output_size; x++)
         {
-            EXPECT_FLOAT_EQ(expected_output_vec[x+output_size*output_index], output[x]);
+            ASSERT_FLOAT_EQ(expected_output_vec[x+output_size*output_index], output[x]);
         }
         output_index++;
     }
@@ -124,7 +124,7 @@ TEST(add_intermediate_gpu, test1)
 // Disabled for now as it produces wrong results
 TEST(add_intermediate_gpu, test2)
 {
-    build_options build_opt;
+    ExecutionConfig config;
     topology topology;
     auto& engine = get_test_engine();
 
@@ -153,7 +153,7 @@ TEST(add_intermediate_gpu, test2)
     w_vec.push_back("weights");
     auto new_conv = std::make_shared<convolution>("conv1a", input_info("input"), w_vec);
     auto weights_node = std::make_shared<data>("weights", weights);
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    program::ptr prog = program::build_program(engine, topology, config, false, true);
 
     prog->add_intermediate(new_conv, prog->get_node("conv2a"), 0, true, true);
     program_wrapper::add_connection(*prog, prog->get_or_create(weights_node), prog->get_or_create(new_conv));
@@ -175,7 +175,7 @@ TEST(add_intermediate_gpu, test2)
         cldnn::mem_lock<float> output(it.second.get_memory(), get_test_stream());
         for (uint32_t x = 0; x < output_size; x++)
         {
-            EXPECT_FLOAT_EQ(expected_output_vec[x], output[x]);
+            ASSERT_FLOAT_EQ(expected_output_vec[x], output[x]);
         }
     }
 }

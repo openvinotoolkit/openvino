@@ -23,6 +23,8 @@
 
 #include <fstream>
 
+#define GPU_DEBUG_LOG_PASS    GPU_DEBUG_LOG << "[" << get_name() << "] "
+
 namespace cldnn {
 class base_pass {
     friend class pass_manager;
@@ -274,7 +276,9 @@ public:
 
 private:
     void run(program& p) override;
-    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine, build_options bo);
+    std::list<std::pair<primitive_id, memory::ptr>> calculate(engine& engine,
+                                                              const ExecutionConfig& config,
+                                                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);

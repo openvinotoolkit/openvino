@@ -41,7 +41,9 @@ static void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Co
                                       cldnn::format::any,
                                       outDataType,
                                       std::vector<float>(),
-                                      cldnn::reorder_mean_mode::subtract);
+                                      cldnn::reorder_mean_mode::subtract,
+                                      cldnn::padding(),
+                                      true);
 
     p.add_primitive(*op, reorderPrim);
 }

@@ -168,9 +168,9 @@ public:
 
             topology.add(primitive);
             topology.add(reorder("multiclass_nms", input_info("multiclass_nms_reordered"), plain_format, data_type));
-            build_options bo;
-            bo.set_option(build_option::optimize_data(false));
-            network network(engine, topology, bo);
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(false));
+            network network(engine, topology, config);
 
             network.set_input_data("input_boxes", input_boxes);
             network.set_input_data("input_scores", input_scores);
@@ -210,16 +210,16 @@ public:
             ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches) << "format=" << fmt_to_str(target_format);
 
             for (size_t i = 0; i < param.num_batches; ++i) {
-                EXPECT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
+                ASSERT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
                                     << "format=" << fmt_to_str(target_format) << " i=" << i;
             }
 
             for (size_t box = 0; box < dim; ++box) {
-                EXPECT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
+                ASSERT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
 
                 for (size_t j = 0; j < 6; ++j) {
                     const auto idx = box * 6 + j;
-                    EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
+                    ASSERT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
                                         << "format=" << fmt_to_str(target_format) << " box=" << box << ", j=" << j;
                 }
             }

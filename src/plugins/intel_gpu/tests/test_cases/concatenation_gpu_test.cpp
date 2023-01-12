@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 #include "concatenation_inst.h"
 
@@ -69,8 +67,8 @@ TEST(concat_gpu, mixed_input_types) {
     network.set_input_data("input4", input4);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -80,14 +78,14 @@ TEST(concat_gpu, mixed_input_types) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 4);
-    EXPECT_EQ(f_size, 5);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 4);
+    ASSERT_EQ(f_size, 5);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -141,8 +139,8 @@ TEST(concat_gpu, mixed_input_types_5d) {
     network.set_input_data("input3", input3);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -153,15 +151,15 @@ TEST(concat_gpu, mixed_input_types_5d) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfzyx);
-    EXPECT_EQ(z_size, 3);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 1);
-    EXPECT_EQ(f_size, 4);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfzyx);
+    ASSERT_EQ(z_size, 3);
+    ASSERT_EQ(y_size, 4);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 4);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -207,15 +205,15 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                                     data_types::i8,
                                     padding{{0, 0, 0, 0}, 0}),
                       reorder("reorder", input_info("concat"), reorder_layout));
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input0", input0);
     network.set_input_data("input1", input1);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "reorder");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
 
     auto output_memory = outputs.at("reorder").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -225,14 +223,14 @@ TEST(concat_gpu, i8_optimization_with_pool) {
     int x_size = output_layout.spatial(1);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 7);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 2);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::yxfb);
+    ASSERT_EQ(y_size, 7);
+    ASSERT_EQ(x_size, 2);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -309,16 +307,16 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                       data("weights", weights),
                       convolution("conv", input_info("concat"), { "weights" }, { 2, 1 }),
                       reorder("output", input_info("conv"), reorder_layout));
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input0", input0);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -328,14 +326,14 @@ TEST(concat_gpu, i8_optimization_with_conv) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 3);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -410,15 +408,15 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                       data("weights", weights),
                       convolution("conv", input_info("concat"), {"weights"}, {1, 1}, {0, 1}),
                       reorder("output", input_info("conv"), reorder_layout) );
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
-    network network(engine, topology, options);
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input0", input0);
     network.set_input_data("input1", input1);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "output");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output_memory = outputs.at("output").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -428,14 +426,14 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
     int x_size = output_layout.spatial(1);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 1);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 1);
+    ASSERT_EQ(f_size, 1);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
@@ -587,9 +585,9 @@ public:
 
         topology.add(concatenation("concat", input_ids, 1));
 
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        network network(engine, topology, options);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
 
         for (size_t i = 0; i < in_features.size(); i++) {
             network.set_input_data(input_ids[i].pid, in_memory[i]);
@@ -611,7 +609,7 @@ public:
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
-                            EXPECT_EQ(ref_val, actual_val)
+                            ASSERT_EQ(ref_val, actual_val)
                                 << " b=" << bi << ", f=" << f_sum + fi << "(input " << in_i << "), y=" << yi << ", x=" << xi;
                         }
                     }
@@ -677,9 +675,9 @@ public:
 
         topology.add(concatenation("concat", input_ids, 3));
 
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        network network(engine, topology, options);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
 
         for (size_t i = 0; i < input_x.size(); i++) {
             network.set_input_data(input_ids[i].pid, in_memory[i]);
@@ -701,7 +699,7 @@ public:
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
-                            EXPECT_EQ(ref_val, actual_val)
+                            ASSERT_EQ(ref_val, actual_val)
                                 << " b=" << bi << ", f=" << fi << ", y=" << yi << ", x=" << x_sum + xi << "(input " << in_i << ")";
                         }
                         x_sum += input_x[in_i];
@@ -841,11 +839,11 @@ public:
         topology.add(data("weights", weights_mem));
         topology.add(convolution("conv", input_info("concat"), { "weights" }));
 
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        auto conv_forcing = implementation_desc{ fmt, std::string() };
-        options.set_option(build_option::force_implementations({ {primitive_id("conv"), conv_forcing} }));
-        network network(engine, topology, options);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        auto conv_forcing = ov::intel_gpu::ImplementationDesc{ fmt, std::string() };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("conv"), conv_forcing} }));
+        network network(engine, topology, config);
 
         for (size_t i = 0; i < in_features.size(); i++) {
             network.set_input_data(input_ids[i].pid, in_memory[i]);
@@ -915,7 +913,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
 template <typename Type>
 struct concat_gpu_4d_implicit : public concat_gpu {
 public:
-    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, build_options options) {
+    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
         auto data_type = type_to_data_type<Type>::value;
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -988,7 +986,7 @@ public:
         if (is_caching_test) {
             membuf mem_buf;
             {
-                cldnn::network _network(engine, topology, options);
+                cldnn::network _network(engine, topology, config);
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
                 _network.save(ob);
@@ -996,10 +994,10 @@ public:
             {
                 std::istream in_mem(&mem_buf);
                 BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                concat_network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+                concat_network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
             }
         } else {
-            concat_network = std::make_shared<cldnn::network>(engine, topology, options);
+            concat_network = std::make_shared<cldnn::network>(engine, topology, config);
         }
 
         for (size_t i = 0; i < in_features.size(); i++) {
@@ -1007,9 +1005,9 @@ public:
         }
         concat_network->execute();
 
-        bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
+        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
-        EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
+        EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
         return concat_network->get_output("reorder").get_memory();
     }
@@ -1031,23 +1029,23 @@ public:
         auto input = generate_input();
 
         // implicit concat
-        build_options options1;
-        options1.set_option(build_option::optimize_data(true));
-        auto out_mem1 = run_concat_network(input, fmt, options1);
+        ExecutionConfig config1;
+        config1.set_property(ov::intel_gpu::optimize_data(true));
+        auto out_mem1 = run_concat_network(input, fmt, config1);
         cldnn::mem_lock<Type> out_ptr1(out_mem1, get_test_stream());
 
         // explicit concat
-        build_options options2;
-        options2.set_option(build_option::optimize_data(false));
-        auto out_mem2 = run_concat_network(input, fmt, options2);
+        ExecutionConfig config2;
+        config2.set_property(ov::intel_gpu::optimize_data(false));
+        auto out_mem2 = run_concat_network(input, fmt, config2);
         cldnn::mem_lock<Type> out_ptr2(out_mem2, get_test_stream());
 
-        EXPECT_EQ(out_ptr1.size(), out_ptr2.size());
+        ASSERT_EQ(out_ptr1.size(), out_ptr2.size());
         size_t diff_count = 0;
         for (size_t i = 0; i < out_ptr1.size(); ++i) {
             if (out_ptr1[i] != out_ptr2[i]) diff_count++;
         }
-        EXPECT_EQ(diff_count, 0);
+        ASSERT_EQ(diff_count, 0);
     }
 };
 
@@ -1080,7 +1078,7 @@ TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(concat_gpu_onednn, basic_input_types) {
-    auto& engine = get_onednn_test_engine();
+    auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         return;
 
@@ -1116,12 +1114,12 @@ TEST(concat_gpu_onednn, basic_input_types) {
                           padding{ { 0,0,0,0 }, 0 })
     );
 
-    build_options options_target;
-    options_target.set_option(build_option::outputs({ "concat" }));
-    implementation_desc impl = { format::bfyx, std::string(""), impl_types::onednn };
-    options_target.set_option(build_option::force_implementations({ {"concat", impl} }));
+    ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
 
-    network network(engine, topology, options_target);
+    ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                        ov::intel_gpu::custom_outputs(std::vector<std::string>{ "concat" }),
+                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl} })};
+    network network(engine, topology, cfg);
     network.set_input_data("input0", input0);
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1129,8 +1127,8 @@ TEST(concat_gpu_onednn, basic_input_types) {
     network.set_input_data("input4", input4);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
 
     auto output_memory = outputs.at("concat").get_memory();
     auto output_layout = output_memory->get_layout();
@@ -1140,23 +1138,23 @@ TEST(concat_gpu_onednn, basic_input_types) {
     int x_size = output_layout.spatial(0);
     int f_size = output_layout.feature();
     int b_size = output_layout.batch();
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(y_size, 3);
-    EXPECT_EQ(x_size, 4);
-    EXPECT_EQ(f_size, 5);
-    EXPECT_EQ(b_size, 1);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 3);
+    ASSERT_EQ(x_size, 4);
+    ASSERT_EQ(f_size, 5);
+    ASSERT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
-        EXPECT_EQ(output_vec[x], output_ptr[x]);
+        ASSERT_EQ(output_vec[x], output_ptr[x]);
     }
 }
 
 template <typename Type>
 struct concat_gpu_4d_implicit_onednn : public concat_gpu {
 public:
-    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, build_options options) {
+    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
         auto data_type = type_to_data_type<Type>::value;
-        auto& engine = get_onednn_test_engine();
+        auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
@@ -1206,10 +1204,11 @@ public:
         topology.add(concatenation("concat", pooling_ids, 1));
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
         auto weights_mem = engine.allocate_memory(weights_lay);
-        weights_mem->fill(get_test_stream());
-        get_test_stream().finish();
+        auto& stream = get_test_stream();
+        weights_mem->fill(stream);
+        stream.finish();
         {
-            cldnn::mem_lock<Type> weights_ptr(weights_mem, get_test_stream());
+            cldnn::mem_lock<Type> weights_ptr(weights_mem, stream);
             for (size_t fi = 0; fi < output_f; ++fi) {
                 auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
                 auto offset = weights_lay.get_linear_offset(coords);
@@ -1221,15 +1220,15 @@ public:
         topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
-        network concat_network(engine, topology, options);
+        network concat_network(engine, topology, config);
         for (size_t i = 0; i < in_features.size(); i++) {
             concat_network.set_input_data(input_ids[i], in_memory[i]);
         }
         concat_network.execute();
 
-        bool concat_opt_enabled = options.get<build_option_type::optimize_data>()->enabled();
+        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
-        EXPECT_TRUE(concat_opt_enabled==concat_opt_result);
+        EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
         return concat_network.get_output("reorder").get_memory();
     }
@@ -1248,7 +1247,8 @@ public:
     }
 
     void test(format::type fmt) {
-        auto& engine = get_onednn_test_engine();
+        auto& engine = get_test_engine();
+        auto& stream = get_test_stream();
         if (!engine.get_device_info().supports_immad) {
             // This case is only for device that uses onednn.
             return;
@@ -1256,25 +1256,28 @@ public:
         auto input = generate_input();
 
         // implicit concat
-        build_options options1;
-        options1.set_option(build_option::optimize_data(true));
-        implementation_desc impl = { fmt, std::string(""), impl_types::onednn };
-        options1.set_option(build_option::force_implementations({ {"conv", impl} }));
-        auto out_mem1 = run_concat_network(input, fmt, options1);
-        cldnn::mem_lock<Type> out_ptr1(out_mem1, get_test_stream());
+        ExecutionConfig config1;
+        config1.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
+        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
+        config1.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+        auto out_mem1 = run_concat_network(input, fmt, config1);
+        cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
 
         // explicit concat
-        build_options options2;
-        options2.set_option(build_option::optimize_data(false));
-        auto out_mem2 = run_concat_network(input, fmt, options2);
-        cldnn::mem_lock<Type> out_ptr2(out_mem2, get_test_stream());
+        ExecutionConfig config2;
+        config2.set_property(ov::intel_gpu::optimize_data(false));
+        config2.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        auto out_mem2 = run_concat_network(input, fmt, config2);
+        cldnn::mem_lock<Type> out_ptr2(out_mem2, stream);
 
-        EXPECT_EQ(out_ptr1.size(), out_ptr2.size());
+        ASSERT_EQ(out_ptr1.size(), out_ptr2.size());
         size_t diff_count = 0;
         for (size_t i = 0; i < out_ptr1.size(); ++i) {
             if (out_ptr1[i] != out_ptr2[i]) diff_count++;
         }
-        EXPECT_EQ(diff_count, 0);
+        ASSERT_EQ(diff_count, 0);
     }
 };
 

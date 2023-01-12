@@ -40,6 +40,14 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_blocked_read_write();
+    k.requires_blocked_read_write_short();
+
+    return k;
+}
+
 bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p, const optional_params &o) const {
     if (!Parent::Validate(p, o)) {
         return false;
@@ -59,7 +67,7 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_mm
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     auto &params = dynamic_cast<const convolution_params &>(p);
     auto &output = params.outputs[0];

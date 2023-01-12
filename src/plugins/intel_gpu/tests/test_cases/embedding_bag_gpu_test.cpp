@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/data.hpp>
@@ -72,7 +70,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -125,7 +123,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -219,7 +217,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -360,7 +358,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -424,7 +422,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -489,7 +487,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -554,7 +552,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -612,7 +610,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -758,7 +756,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -823,7 +821,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -888,7 +886,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -953,7 +951,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -1011,7 +1009,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
@@ -1157,7 +1155,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]), static_cast<float>(1e-2))) << i;
     }
 }
 
@@ -1218,7 +1216,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
@@ -1359,7 +1357,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
@@ -1433,7 +1431,7 @@ void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 

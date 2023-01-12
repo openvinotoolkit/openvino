@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@ OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
+OP_CONVERTER(translate_assert_op);
 OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
@@ -63,6 +64,9 @@ OP_CONVERTER(translate_gather_nd_op);
 OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
+OP_CONVERTER(translate_input_arg_op);
+OP_CONVERTER(translate_output_arg_op);
+OP_CONVERTER(translate_if_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_is_inf_op);
@@ -81,6 +85,7 @@ OP_CONVERTER(translate_mirror_pad_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
+OP_CONVERTER(translate_partitioned_call_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
@@ -126,6 +131,7 @@ OP_CONVERTER(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_where_op);
+OP_CONVERTER(translate_while_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
 
@@ -204,6 +210,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AddN", translate_add_n_op},
         {"ArgMax", translate_arg_max_op},
         {"ArgMin", translate_arg_min_op},
+        {"Assert", translate_assert_op},
         {"AvgPool", translate_avg_pool_op},
         {"AvgPool3D", translate_avg_pool_op},
         {"BatchMatMul", translate_batch_mat_mul_op},
@@ -244,6 +251,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"GatherNd", translate_gather_nd_op},
         {"Identity", translate_identity_op},
         {"IdentityN", translate_identity_n_op},
+        {"If", translate_if_op},
+        {"input_arg", translate_input_arg_op},
+        {"output_arg", translate_output_arg_op},
         {"L2Loss", translate_l2_loss_op},
         {"LeakyRelu", translate_leaky_relu_op},
         {"LinSpace", translate_linspace_op},
@@ -270,6 +280,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"PadV2", translate_padv2_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
+        {"PartitionedCall", translate_partitioned_call_op},
         {"Placeholder", translate_placeholder_op},
         {"PlaceholderWithDefault", translate_placeholder_with_default_op},
         {"PreventGradient", translate_identity_op},
@@ -308,12 +319,16 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Square", translate_square_op},
         {"Squeeze", translate_squeeze_op},
         {"SpaceToBatchND", translate_space_to_batch_nd_op},
+        {"StatefulPartitionedCall", translate_partitioned_call_op},
+        {"StatelessIf", translate_if_op},
+        {"StatelessWhile", translate_while_op},
         {"StridedSlice", translate_strided_slice_op},
         {"Tile", translate_tile_op},
         {"TopK", translate_top_k_op},
         {"TopKV2", translate_top_k_v2_op},
         {"Transpose", translate_transpose_op},
         {"Unpack", translate_unpack_op},
+        {"While", translate_while_op},
         {"Where", translate_where_op},
         {"Xdivy", translate_x_div_y_op},
         {"ZerosLike", translate_zeros_like_op},
