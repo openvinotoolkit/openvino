@@ -8,6 +8,6 @@
 
 namespace ov {
 ov::util::FilePath getFilePathFromLibDir(const std::string& filePath);
-ov::util::FilePath getPluginPath(const std::string& pluginName);
-ov::util::FilePath getPluginPathFromXML(const std::string& pluginPath);
+ov::util::FilePath getPluginPath(const std::string& plugin);
+ov::util::FilePath getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly = false);
 }  // namespace ov

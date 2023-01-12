@@ -33,33 +33,59 @@ ov::util::FilePath ov::getFilePathFromLibDir(const std::string& filePath) {
     return absFilePath;
 }
 
-ov::util::FilePath ov::getPluginPath(const std::string& pluginName) {
-    // Assume pluginName may contain:
+ov::util::FilePath ov::getPluginPath(const std::string& plugin) {
+    // Assume `plugin` may contain:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to working directory
-    // 3. libexample.so path relative to working directory
-    // 4. example library name - will be searched in library directory
+    // 3. example library name - to be converted to 4th case
+    // 4. libexample.so - path relative to working directory (if exists) or file to be found in ENV
 
-    // For 4th case - try to find in library directory
-    if (!ov::util::ends_with(pluginName, ov::util::FileTraits<char>::library_ext())) {
-        auto libName = FileUtils::makePluginLibraryName({}, pluginName);
-        // TODO: search as 3rd case, don't force user to put libs in library directory
-        return getFilePathFromLibDir(libName);
-    }
+    // For 1-2 cases
+    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos)
+        return ov::util::to_file_path(ov::util::get_absolute_file_path(plugin));
 
-    // For 1st-3rd cases - make path absolute
-    return ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
+    auto libName = plugin;
+    // For 3rd case - convert to 4th case
+    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
+        libName = FileUtils::makePluginLibraryName({}, plugin);
+
+    // For 4th case
+    auto libPath = ov::util::to_file_path(ov::util::get_absolute_file_path(libName));
+    if (ov::util::file_exists(libPath))
+        return libPath;
+    return ov::util::to_file_path(libName);
 }
 
-ov::util::FilePath ov::getPluginPathFromXML(const std::string& pluginPath) {
-    // Assume plugins.xml "location" record contains only:
+ov::util::FilePath ov::getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly) {
+    // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
-    // 2. ../path/to/libexample.so path relative to library directory
-    // 3. libexample.so path relative to library directory
+    // 2. ../path/to/libexample.so path relative to XML directory
+    // 3. example library name - to be converted to 4th case
+    // 4. libexample.so - path relative to XML directory (if exists) or file to be found in ENV (if `load_as_abs_only is False`)
 
-    if (ov::util::is_absolute_file_path(pluginPath))
-        return ov::util::to_file_path(pluginPath);
+    // For 1st case
+    if (ov::util::is_absolute_file_path(plugin))
+        return ov::util::to_file_path(plugin);
 
-    // TODO: for cases 2-3 search relative to XML file instead of LibDir
-    return ov::getFilePathFromLibDir(pluginPath);
+    auto xmlPath_ = xmlPath;
+    if (xmlPath.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
+        xmlPath_ = FileUtils::makePath(std::string("."), xmlPath);    // treat plugins.xml as CWD/plugins.xml
+
+    // For 2nd case
+    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
+        auto path_ = FileUtils::makePath(ov::util::get_directory(xmlPath_), plugin);
+        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
+    }
+
+    auto libFileName = plugin;
+    // For 3rd case - convert to 4th case
+    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
+        libFileName = FileUtils::makePluginLibraryName({}, plugin);
+
+    // For 4th case
+    auto libPath = FileUtils::makePath(ov::util::get_directory(xmlPath_), libFileName);
+    libPath = ov::util::get_absolute_file_path(libPath);  // canonicalize path
+    if (asAbsOnly || ov::util::file_exists(libPath))
+        return ov::util::to_file_path(libPath);
+    return ov::util::to_file_path(libFileName);
 }

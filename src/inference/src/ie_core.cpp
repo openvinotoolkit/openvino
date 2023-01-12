@@ -503,8 +503,9 @@ public:
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param ByAbsPath A boolean value - register plugins by absolute file path or not
      */
-    void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
+    void RegisterPluginsInRegistry(const std::string& xmlConfigFile, bool ByAbsPath = false) {
         std::lock_guard<std::mutex> lock(get_mutex());
 
         auto parse_result = ParseXml(xmlConfigFile.c_str());
@@ -520,7 +521,7 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            ov::util::FilePath pluginPath = getPluginPathFromXML(GetStrAttr(pluginNode, "location"));
+            ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"), xmlConfigFile, ByAbsPath);
 
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
@@ -1597,7 +1598,7 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
-    RegisterPlugins(ov::findPluginXML(xmlConfigFile));
+    _impl->RegisterPluginsInRegistry(ov::findPluginXML(xmlConfigFile), true);
 #endif
 }
 
