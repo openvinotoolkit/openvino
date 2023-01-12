@@ -4,8 +4,7 @@
 import os
 
 from common.layer_test_class import CommonLayerTest
-
-from tests.layer_tests.common.utils.tf_utils import get_tflite_results
+from common.utils.tflite_utils import get_tflite_results, save_tf2_saved_model_to_tflite
 
 
 def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
@@ -15,19 +14,6 @@ def save_to_tf2_savedmodel(tf2_model, path_to_saved_tf2_model):
     assert os.path.isdir(path_to_saved_tf2_model), "the model haven't been saved " \
                                                    "here: {}".format(path_to_saved_tf2_model)
     return path_to_saved_tf2_model
-
-
-def save_tf2_saved_model_to_tflite(savedmodel):
-    import tensorflow as tf
-
-    converter = tf.compat.v1.lite.TFLiteConverter.from_saved_model(savedmodel)
-    tflite_model = converter.convert()
-
-    tflite_model_path = os.path.join(os.path.dirname(savedmodel), 'model.tflite')
-    with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:
-        f.write(tflite_model)
-
-    return tflite_model_path
 
 
 class CommonTF2LayerTest(CommonLayerTest):

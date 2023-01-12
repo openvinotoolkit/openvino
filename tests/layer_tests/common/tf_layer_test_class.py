@@ -1,13 +1,11 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-
 from common.layer_test_class import CommonLayerTest
 from common.utils.tf_utils import summarize_graph
 
-from tests.layer_tests.common.utils.tf_utils import get_tflite_results, save_pb_to_tflite, save_to_pb, \
-    transpose_nhwc_to_nchw, transpose_nchw_to_nhwc
+from common.utils.tflite_utils import get_tflite_results, save_pb_to_tflite
+from common.utils.tf_utils import save_to_pb, transpose_nhwc_to_nchw, transpose_nchw_to_nhwc
 
 
 class CommonTFLayerTest(CommonLayerTest):
