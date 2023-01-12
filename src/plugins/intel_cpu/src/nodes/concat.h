@@ -15,7 +15,7 @@ namespace node {
 
 class Concat : public Node {
 public:
-    Concat(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -45,9 +45,12 @@ private:
     std::vector<VectorDims> inputStrides;
     std::vector<size_t> nelemToCopy; // byte moved in each iter
     std::vector<size_t> dstOffset; // dst offset for each input
+    std::vector<const uint8_t*> srcPtrs;
+    bool hasOuterLoop = false;
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
     bool canExecRef = false;
+    static constexpr size_t MAX_RANK_REF = 6;
 };
 
 }   // namespace node

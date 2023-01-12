@@ -25,22 +25,25 @@ using namespace testing;
 TEST(test_select_preferred_formats, setting_target_conv_format) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 64, 64 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 64, 64 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 32, 32, 3, 3 } });
 
     topology topology;
     topology.add(data("weights", weights));
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", format::b_fs_yx_fsv16, data_types::f16)),
-    topology.add(convolution("conv1", "reorder", { "weights" }));
+    topology.add(reorder("reorder", input_info("input"), format::b_fs_yx_fsv16, data_types::f16));
+    topology.add(convolution("conv1", input_info("reorder"), { "weights" }));
 
-    build_options build;
-    build.set_option(build_option::allow_new_shape_infer(true));
-    implementation_desc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
-    build.set_option(build_option::force_implementations({ {"conv1", impl} }));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv1", impl} }));
 
     layout_optimizer lo(true);
-    auto prog = program::build_program(engine, topology, build, false, true);
+    auto prog = program::build_program(engine, topology, config, false, true);
 
+    // It initializes output_layout.
+    // It's necessary because this test runs select_preferred_formats pass alone.
+    prog->get_node("conv1").get_output_layouts(false);
     program_wrapper::apply_opt_pass<select_preferred_formats>(*prog, lo);
 
     ASSERT_NE(prog, nullptr);
@@ -59,7 +62,7 @@ TEST(test_select_preferred_formats, setting_target_conv_format) {
             ASSERT_EQ(output_fmt, format::b_fs_yx_fsv16);
         } else {
             ASSERT_EQ(input_fmt, format::any);
-            ASSERT_EQ(output_fmt, format::any);            
+            ASSERT_EQ(output_fmt, format::any);
         }
     }
 }

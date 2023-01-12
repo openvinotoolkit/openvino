@@ -66,11 +66,19 @@ public:
 
     // Apply callback to materialize RIC inside graph
     void materialize(Input<Node> input, const ov::NodeVector& nodes) const {
-        if (get_axis() >= input.get_partial_shape().size()) {
+        const auto& input_pshape = input.get_partial_shape();
+        const auto input_rank = input_pshape.rank();
+        if (input_rank.is_dynamic()) {
+            NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: input rank is dynamic";
+            return;
+        }
+        const auto axis = get_axis();
+        // Despite of m_axis is signed integer this transformartion does not handle negative axes values
+        if (axis < 0 || axis >= static_cast<int64_t>(input_pshape.size())) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is out of range";
             return;
         }
-        const auto& axis_dim = input.get_partial_shape()[get_axis()];
+        const auto& axis_dim = input_pshape[axis];
         if (axis_dim.is_dynamic()) {
             NGRAPH_DEBUG << "Axis calculated to materialize RIC on input: " << input << " is dynamic";
             return;
@@ -823,28 +831,41 @@ bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov
     NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
     auto ric_prop = m.register_pass<GraphRewrite>();
-    ric_prop->add_matcher<init::SplitConcat>(nodes_to_fuse);
-    ric_prop->add_matcher<init::Gather>(nodes_to_fuse);
-    ric_prop->add_matcher<prop::Convolution>();
-    ric_prop->add_matcher<prop::GroupConvolution>();
-    ric_prop->add_matcher<prop::Binary>();
-    ric_prop->add_matcher<prop::ShapeOf>();
-    ric_prop->add_matcher<prop::Transpose>();
-    ric_prop->add_matcher<prop::PassThrough>();
-    ric_prop->add_matcher<prop::Unsupported>();
+    {
+        using namespace init;
+        ADD_MATCHER(ric_prop, SplitConcat, nodes_to_fuse)
+        ADD_MATCHER(ric_prop, Gather, nodes_to_fuse)
+    }
+
+    {
+        using namespace prop;
+        ADD_MATCHER(ric_prop, Convolution)
+        ADD_MATCHER(ric_prop, GroupConvolution)
+        ADD_MATCHER(ric_prop, Binary)
+        ADD_MATCHER(ric_prop, ShapeOf)
+        ADD_MATCHER(ric_prop, Transpose)
+        ADD_MATCHER(ric_prop, PassThrough)
+        ADD_MATCHER(ric_prop, Unsupported)
+    }
 
     // Handle quantized weights case (dequantize sub-graph is on the weights path)
     auto ric_back_prop = m.register_pass<ov::pass::BackwardGraphRewrite>();
-    ric_back_prop->add_matcher<back_prop::Binary>();
-    ric_back_prop->add_matcher<back_prop::ConvertPassThrough>();
-    m.register_pass<back_prop::Constant>();
+    {
+        using namespace back_prop;
+        ADD_MATCHER(ric_back_prop, Binary)
+        ADD_MATCHER(ric_back_prop, ConvertPassThrough)
+        REGISTER_PASS(m, Constant)
+    }
     // TODO: validate attributes by request
 
     // Second we fuse available RIC into nodes and remove original nodes related to fused RIC
     auto ric_fuse = m.register_pass<GraphRewrite>();
-    ric_fuse->add_matcher<fuse::InsertReverseInputChannel>(nodes_to_fuse);
-    ric_fuse->add_matcher<fuse::EraseSplitConcat>();
-    ric_fuse->add_matcher<fuse::EraseGather>();
+    {
+        using namespace fuse;
+        ADD_MATCHER(ric_fuse, InsertReverseInputChannel, nodes_to_fuse)
+        ADD_MATCHER(ric_fuse, EraseSplitConcat)
+        ADD_MATCHER(ric_fuse, EraseGather)
+    }
 
     m.run_passes(model);
     return false;

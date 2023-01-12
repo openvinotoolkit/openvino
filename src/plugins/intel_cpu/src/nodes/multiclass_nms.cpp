@@ -3,7 +3,7 @@
 //
 
 #include "multiclass_nms.hpp"
-#include "ngraph_ops/multiclass_nms_ie_internal.hpp"
+#include "ov_ops/multiclass_nms_ie_internal.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -17,6 +17,7 @@
 
 #include "ie_parallel.hpp"
 #include "utils/general_utils.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace InferenceEngine;
 
@@ -41,8 +42,8 @@ bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr& cache)
-    : Node(op, eng, cache) {
+MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

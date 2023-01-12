@@ -34,7 +34,7 @@ def test_test_descriptor_tensor():
     assert "relu_t1" in td.names
     assert td.element_type == Type.f32
     assert td.partial_shape == PartialShape([1])
-    assert repr(td.shape) == "<Shape: {1}>"
+    assert repr(td.shape) == "<Shape: [1]>"
     assert td.size == 4
     assert td.any_name == "relu_t1"
 
@@ -275,7 +275,7 @@ def test_evaluate_invalid_input_shape():
             [Tensor("float32", Shape([2, 1]))],
             [Tensor("float32", Shape([3, 1])), Tensor("float32", Shape([3, 1]))],
         )
-    assert "must be compatible with the partial shape: {2,1}" in str(e.value)
+    assert "must be compatible with the partial shape: [2,1]" in str(e.value)
 
 
 def test_get_batch():
@@ -411,7 +411,7 @@ def test_reshape_with_python_types(device):
     model.reshape(new_shapes)
     check_shape(PartialShape(shape6))
 
-    shape7 = "1..10, ?"
+    shape7 = "[1..10, ?]"
     new_shapes = {input: shape7 for input in model.inputs}
     model.reshape(new_shapes)
     check_shape(PartialShape(shape7))
@@ -430,7 +430,7 @@ def test_reshape_with_python_types(device):
     model.reshape(shape9)
     check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
 
-    shape10 = "?,3,..224,..224"
+    shape10 = "[?,3,..224,..224]"
     model.reshape(shape10)
     check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
 
@@ -512,6 +512,85 @@ def test_serialize_rt_info(request):
     res_model = core.read_model(model=xml_path, weights=bin_path)
 
     check_rt_info(res_model)
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
+# request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
+def test_serialize_complex_rt_info(request):
+    def check_rt_info(model, serialized):
+        if serialized:
+            threshold = "13.23"
+            min_val = "-3.24543"
+            max_val = "3.23422"
+            directed = "YES"
+            empty = ""
+            ids = "sasd fdfdfsdf"
+            mean = "22.3 33.11 44"
+        else:
+            threshold = 13.23
+            min_val = -3.24543
+            max_val = 3.234223
+            directed = True
+            empty = []
+            ids = ["sasd", "fdfdfsdf"]
+            mean = [22.3, 33.11, 44.0]
+        assert model.has_rt_info(["config", "type_of_model"]) is True
+        assert model.has_rt_info(["config", "converter_type"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "threshold"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "min"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "max"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) is True
+        assert model.has_rt_info(["config", "model_parameters", "mean_values"]) is True
+
+        assert model.get_rt_info(["config", "type_of_model"]) == "classification"
+        assert model.get_rt_info(["config", "converter_type"]) == "classification"
+        assert model.get_rt_info(["config", "model_parameters", "threshold"]) == threshold
+        assert model.get_rt_info(["config", "model_parameters", "min"]) == min_val
+        assert model.get_rt_info(["config", "model_parameters", "max"]) == max_val
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]) == "tree"
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]) == directed
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]) == empty
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]) == empty
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_groups", "ids"]) == ids
+        assert model.get_rt_info(["config", "model_parameters", "mean_values"]) == mean
+
+    core = Core()
+    xml_path, bin_path = create_filename_for_test(request.node.name)
+    input_shape = PartialShape([1])
+    param = ops.parameter(input_shape, dtype=np.float32, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    assert "relu_t1" in relu1.get_output_tensor(0).names
+    relu2 = ops.relu(relu1, name="relu2")
+    model = Model(relu2, [param], "TestFunction")
+
+    assert model is not None
+
+    model.set_rt_info("classification", ["config", "type_of_model"])
+    model.set_rt_info("classification", ["config", "converter_type"])
+    model.set_rt_info(13.23, ["config", "model_parameters", "threshold"])
+    model.set_rt_info(-3.24543, ["config", "model_parameters", "min"])
+    model.set_rt_info(3.234223, ["config", "model_parameters", "max"])
+    model.set_rt_info("tree", ["config", "model_parameters", "labels", "label_tree", "type"])
+    model.set_rt_info(True, ["config", "model_parameters", "labels", "label_tree", "directed"])
+    model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "float_empty"])
+    model.set_rt_info([], ["config", "model_parameters", "labels", "label_tree", "nodes"])
+    model.set_rt_info(["sasd", "fdfdfsdf"], ["config", "model_parameters", "labels", "label_groups", "ids"])
+    model.set_rt_info([22.3, 33.11, 44.0], ["config", "model_parameters", "mean_values"])
+
+    check_rt_info(model, False)
+
+    serialize(model, xml_path, bin_path)
+
+    res_model = core.read_model(model=xml_path, weights=bin_path)
+
+    check_rt_info(res_model, True)
 
     os.remove(xml_path)
     os.remove(bin_path)

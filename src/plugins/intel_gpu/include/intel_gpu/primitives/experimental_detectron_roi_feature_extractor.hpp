@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief experimental detectron ROI feature extractor
 struct experimental_detectron_roi_feature_extractor : public primitive_base<experimental_detectron_roi_feature_extractor> {
@@ -27,13 +20,13 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
     /// @param sampling_ratio Attribute specifies the number of sampling points per the output value
     /// @param aligned Attribute specifies add offset (-0.5) to ROIs sizes or not
     experimental_detectron_roi_feature_extractor(const primitive_id& id,
-                                                 const std::vector<primitive_id>& inputs,
+                                                 const std::vector<input_info>& inputs,
                                                  int output_dim,
                                                  const std::vector<int64_t>& pyramid_scales,
                                                  int sampling_ratio,
                                                  bool aligned,
                                                  const padding& output_padding = padding()) :
-            primitive_base(id, inputs, output_padding),
+            primitive_base(id, inputs, {output_padding}),
             output_dim(output_dim),
             pooled_height(output_dim),
             pooled_width(output_dim),
@@ -49,7 +42,4 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
     bool aligned = false;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

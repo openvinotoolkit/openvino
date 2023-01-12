@@ -295,7 +295,7 @@ enum class PerformanceMode {
     UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
@@ -373,6 +373,11 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
  */
 namespace log {
 
+#ifdef DEBUG
+#    define _OV_WAS_DEBUG DEBUG
+#    undef DEBUG
+#endif
+
 /**
  * @brief Enum to define possible log levels
  * @ingroup ov_runtime_cpp_prop_api
@@ -433,6 +438,11 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
+
+#ifdef _OV_WAS_DEBUG
+#    define DEBUG _OV_WAS_DEBUG
+#    undef _OV_WAS_DEBUG
+#endif
 }  // namespace log
 
 /**
@@ -455,6 +465,12 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
  * @endcode
  */
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
+
+/**
+ * @brief Read-only property to notify user that compiled model was loaded from the cache
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
@@ -889,5 +905,5 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @brief The devices that the inference task been executed.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<std::string> execution_devices{"EXECUTION_DEVICES"};
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov

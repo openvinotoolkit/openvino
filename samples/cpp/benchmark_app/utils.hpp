@@ -15,22 +15,16 @@
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
-inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
+inline uint64_t get_duration_in_milliseconds(uint64_t duration) {
     return duration * 1000LL;
 }
 
-inline uint64_t get_duration_in_nanoseconds(uint32_t duration) {
+inline uint64_t get_duration_in_nanoseconds(uint64_t duration) {
     return duration * 1000000000LL;
 }
 
 inline double get_duration_ms_till_now(Time::time_point& startTime) {
     return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-};
-
-inline std::string double_to_string(const double number) {
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(2) << number;
-    return ss.str();
 };
 
 namespace benchmark_app {
@@ -59,14 +53,11 @@ uint32_t device_default_device_duration_in_seconds(const std::string& device);
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
                                                           const std::string& values_string);
 void parse_value_for_virtual_device(const std::string& device, std::map<std::string, std::string>& values_string);
-std::string get_shape_string(const ov::Shape& shape);
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes);
 size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                               const benchmark_app::InputsInfo& inputs_info);
-std::vector<ngraph::Dimension> parse_partial_shape(const std::string& partial_shape);
-ov::Shape parse_data_shape(const std::string& dataShapeStr);
 std::pair<std::string, std::vector<std::string>> parse_input_files(const std::string& file_paths_string);
 std::map<std::string, std::vector<std::string>> parse_input_arguments(const std::vector<std::string>& args);
 

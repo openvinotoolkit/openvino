@@ -5,7 +5,7 @@
 #include "lpt_ngraph_functions/align_concat_quantization_parameters_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"

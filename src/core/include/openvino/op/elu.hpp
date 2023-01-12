@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -14,10 +14,9 @@ namespace v0 {
 /// x >= 0 => f(x) = x
 ///
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API Elu : public Op {
+class OPENVINO_API Elu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_OP("Elu", "opset1");
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Elu", "opset1", util::UnaryElementwiseArithmetic);
 
     Elu() = default;
     /// \brief Constructs an Elu operation.
@@ -33,6 +32,9 @@ public:
 
     double get_alpha() const {
         return m_alpha;
+    }
+    void set_alpha(const double& alpha) {
+        m_alpha = alpha;
     }
 
 private:

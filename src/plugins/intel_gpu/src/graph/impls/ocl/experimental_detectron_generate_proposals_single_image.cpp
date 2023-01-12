@@ -27,7 +27,7 @@ struct experimental_detectron_generate_proposals_single_image_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_generate_proposals_single_image>& instance) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -83,5 +83,4 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl,
-                             cldnn::object_type::EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)

@@ -5,8 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/pass.hpp>
-#include <ngraph/util.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
@@ -64,11 +62,7 @@ public:
 class ov::pass::StridesOptimization : public ov::pass::BackwardGraphRewrite {
 public:
     OPENVINO_RTTI("StridesOptimization", "0");
-    StridesOptimization() {
-        add_matcher<ov::pass::ConvStridesPropagation>();
-        add_matcher<ov::pass::SupportedNodesStridesPropagation>();
-        add_matcher<ov::pass::UnsupportedNodesStridesPropagation>();
-    }
+    StridesOptimization();
 };
 
 namespace ngraph {

@@ -4,33 +4,63 @@
 
 from typing import Tuple, Union, List
 
+import os
 import sys
 import numpy as np
+import pytest
+
+from pathlib import Path
+from platform import processor
+
 import openvino
 import openvino.runtime.opset8 as ops
-import pytest
-from openvino.runtime import Model, Core, Shape, Type
-from openvino.runtime.op import Parameter
+from openvino.runtime import Model, Core, Shape
 from openvino.utils import deprecated
-
-
-def get_test_model():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ops.relu(param)
-    model = Model([relu], [param], "test")
-    assert model is not None
-    return model
 
 
 def test_compare_models():
     try:
         from openvino.test_utils import compare_models
-        model = get_test_model()
+        model = get_relu_model()
         status, _ = compare_models(model, model)
         assert status
     except RuntimeError:
         print("openvino.test_utils.compare_models is not available")  # noqa: T201
+
+
+def generate_lib_name(device, full_device_name):
+    lib_name = ""
+    arch = processor()
+    if arch == "x86_64" or "Intel" in full_device_name or device in ["GNA", "HDDL", "MYRIAD", "VPUX"]:
+        lib_name = "openvino_intel_" + device.lower() + "_plugin"
+    elif arch != "x86_64" and device == "CPU":
+        lib_name = "openvino_arm_cpu_plugin"
+    elif device in ["HETERO", "MULTI", "AUTO"]:
+        lib_name = "openvino_" + device.lower() + "_plugin"
+    return lib_name
+
+
+def plugins_path(device, full_device_name):
+    lib_name = generate_lib_name(device, full_device_name)
+    full_lib_name = ""
+
+    if sys.platform == "win32":
+        full_lib_name = lib_name + ".dll"
+    else:
+        full_lib_name = "lib" + lib_name + ".so"
+
+    plugin_xml = f"""<ie>
+    <plugins>
+        <plugin location="{full_lib_name}" name="CUSTOM">
+        </plugin>
+    </plugins>
+    </ie>"""
+
+    with open("plugin_path.xml", "w") as f:
+        f.write(plugin_xml)
+
+    plugins_paths = os.path.join(os.getcwd(), "plugin_path.xml")
+    return plugins_paths
 
 
 def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = "float32") -> np.array:
@@ -38,14 +68,30 @@ def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 
     return np.random.rand(*shape).astype(dtype)
 
 
-def generate_relu_model(input_shape: List[int]) -> openvino.runtime.ie_api.CompiledModel:
-    param = ops.parameter(input_shape, np.float32, name="parameter")
+def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    param = ops.parameter(input_shape, np.float32, name="data")
     relu = ops.relu(param, name="relu")
-    model = Model([relu], [param], "test")
+    model = Model([relu], [param], "test_model")
     model.get_ordered_ops()[2].friendly_name = "friendly"
 
+    assert model is not None
+    return model
+
+
+def generate_relu_compiled_model(device, input_shape: List[int] = None) -> openvino.runtime.CompiledModel:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    model = get_relu_model(input_shape)
     core = Core()
-    return core.compile_model(model, "CPU", {})
+    return core.compile_model(model, device, {})
+
+
+def generate_model_and_image(device, input_shape: List[int] = None):
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    return (generate_relu_compiled_model(device, input_shape), generate_image(input_shape))
 
 
 def generate_add_model() -> openvino._pyopenvino.Model:
@@ -82,7 +128,17 @@ def test_deprecation_decorator():
         deprecated_function4()
 
 
-def create_filename_for_test(test_name):
+def create_filename_for_test(test_name, is_xml_path=False, is_bin_path=False):
+    """Return a tuple with automatically generated paths for xml and bin files.
+
+    :param test_name: Name used in generating.
+    :param is_xml_path: True if xml file should be pathlib.Path object, otherwise return string.
+    :param is_bin_path: True if bin file should be pathlib.Path object, otherwise return string.
+    :return: Tuple with two objects representing xml and bin files.
+    """
     python_version = str(sys.version_info.major) + "_" + str(sys.version_info.minor)
-    filename = "./" + test_name.replace("test_", "") + "_" + python_version
-    return (filename + ".xml", filename + ".bin")
+    filename = "./" + test_name.replace("test_", "").replace("[", "_").replace("]", "_")
+    filename = filename + "_" + python_version
+    _xml = Path(filename + ".xml") if is_xml_path else filename + ".xml"
+    _bin = Path(filename + ".bin") if is_bin_path else filename + ".bin"
+    return (_xml, _bin)

@@ -9,6 +9,20 @@
 #include <vector>
 #include <string>
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef NOGDI
+#define NOGDI
+#endif
+
+#include <windows.h>
+#include "Psapi.h"
+#elif !defined(__APPLE__) && !defined(__MACOSX)
+#include <fstream>
+#endif
+
 #include "layout.hpp"
 #include "utils.hpp"
 #include "debug_configuration.hpp"
@@ -101,6 +115,7 @@ inline std::ostream& operator<<(std::ostream& os, const pipeline_stage& stage) {
 }
 
 struct perf_counter_key {
+    std::vector<layout> network_input_layouts;
     std::vector<layout> input_layouts;
     std::vector<layout> output_layouts;
     std::string impl_name;
@@ -113,6 +128,11 @@ struct perf_counter_hash {
         size_t seed = 0;
         seed = hash_combine(seed, static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(k.stage));
         seed = hash_combine(seed, static_cast<int>(k.cache_hit));
+        for (auto& layout : k.network_input_layouts) {
+            for (auto& d : layout.get_shape()) {
+                seed = hash_combine(seed, d);
+            }
+        }
         for (auto& layout : k.input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
@@ -155,6 +175,83 @@ private:
     ProfiledObjectType& _obj;
     instrumentation::pipeline_stage _stage;
     bool cache_hit = false;
+};
+
+class mem_usage_logger {
+public:
+    struct memory_footprint {
+        memory_footprint() : rss(0), peak_rss(0) {}
+        memory_footprint(int64_t rss, int64_t peak_rss) : rss(rss), peak_rss(peak_rss) {}
+        int64_t rss;
+        int64_t peak_rss;
+    };
+
+    mem_usage_logger(const std::string& stage_name, bool lifetime_logging_mode = true, bool print_mem_usage = true)
+        : _stage_name(stage_name)
+        , _lifetime_logging_mode(lifetime_logging_mode)
+        , _print_mem_usage(print_mem_usage) {
+        if (_lifetime_logging_mode)
+            start_logging();
+    }
+
+    ~mem_usage_logger() {
+        if (_lifetime_logging_mode)
+            stop_logging();
+        if (_print_mem_usage && _is_active)
+            print_mem_usage_info();
+    }
+
+    void start_logging() {
+        _is_active = true;
+        _before = get_memory_footprint();
+    }
+
+    void stop_logging() {
+        _after = get_memory_footprint();
+    }
+
+    memory_footprint get_elapsed_mem_usage() {
+        return memory_footprint{ _after.rss - _before.rss, _after.peak_rss - _before.peak_rss };
+    }
+
+    void print_mem_usage_info() {
+        auto mem_usage = get_elapsed_mem_usage();
+        GPU_DEBUG_LOG << "Memory usage for " << _stage_name << ": " << mem_usage.rss << " KB (current RSS: "
+                      << _after.rss << " KB; peak RSS: " << _after.peak_rss << " KB)" << std::endl;
+    }
+
+private:
+    memory_footprint get_memory_footprint() {
+        memory_footprint footprint;
+#if defined(_WIN32)
+        PROCESS_MEMORY_COUNTERS pmc;
+        GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
+        footprint.rss = (int64_t)(pmc.WorkingSetSize/1024);
+        footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize/1024);
+#elif !defined(__APPLE__) && !defined(__MACOSX)
+        std::ifstream status("/proc/self/status");
+        if (!status.is_open())
+            return footprint;
+
+        std::string line, title;
+        while (std::getline(status, line)) {
+            std::istringstream iss(line);
+            iss >> title;
+            if (title == "VmHWM:")
+                iss >> footprint.peak_rss;
+            else if (title == "VmRSS:")
+                iss >> footprint.rss;
+        }
+#endif
+        return footprint;
+    }
+
+    std::string _stage_name = {};
+    bool _lifetime_logging_mode = false;
+    bool _print_mem_usage = false;
+    bool _is_active = false;
+    memory_footprint _before;
+    memory_footprint _after;
 };
 
 /// @}

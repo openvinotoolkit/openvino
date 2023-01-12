@@ -127,6 +127,8 @@ enum WeightsLayout {
     g_os_is_yx_osa2_isa8_osv8_isv2,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_yx_osa4_isa8_osv8_isv4,          // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     g_os_is_zyx_osa4_isa8_osv8_isv4,         // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+    g_os_is_zyx_isa8_osv8_isv2,
+    g_os_is_zyx_isa8_osv8_isv4,
     os_is_yx_osa4_isa8_osv8_isv2,            // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_zyx_osa4_isa8_osv8_isv2,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
     os_is_zyx_osa4_isa8_osv8_isv4,           // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
@@ -182,6 +184,7 @@ enum WeightsLayout {
     goizyx,
     giozyx,
     gyxio,
+    g_os_iyx_osv8,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
     gs_oiyx_gsv16,
@@ -197,6 +200,10 @@ enum WeightsLayout {
     g_os_is_zyx_isv8_osv16_isv2,
     g_os_is_yx_isv8_osv16_isv2,
     g_os_is_zyx_isv16_osv16,
+    g_os_zy_is_x_osv8_isv2,
+    g_os_zy_is_x_osv8_isv4,
+    g_os_zyx_is_osv8_isv2,
+    g_os_zyx_is_osv8_isv4,
     g_os_is_zyx_osv16_isv16,
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
@@ -240,6 +247,7 @@ struct Dim {
     size_t v;
     size_t pitch;
     Pad pad;
+    bool is_dynamic;
 
     size_t LogicalDimPadded() const { return v + pad.Total(); }
 };
@@ -482,6 +490,10 @@ public:
         return differ;
     }
 
+    bool is_dynamic() const {
+        return std::any_of(dims.begin(), dims.end(), [](const Dim& d) { return d.is_dynamic; });
+    }
+
     virtual ~TensorBase() = default;
 };
 
@@ -604,6 +616,7 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     DataTensor TransformIgnorePadding(DataLayout l) const;
     DataTensor FlattenFeatureAndSpatials() const;
     DataTensor FlattenEverything() const;
+    void SwapXY();
 
     static inline Dim Extract(DataLayout l, DataChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(dataChannelArray, l, channel, d);
@@ -645,6 +658,8 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
     Dim IFM() const { return Extract(layout, WeightsChannelName::IFM, dims); }
     Dim OFM() const { return Extract(layout, WeightsChannelName::OFM, dims); }
     Dim G() const { return Extract(layout, WeightsChannelName::G, dims); }
+
+    void SwapXY();
 
     static inline Dim Extract(WeightsLayout l, WeightsChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(weightsChannelArray, l, channel, d);

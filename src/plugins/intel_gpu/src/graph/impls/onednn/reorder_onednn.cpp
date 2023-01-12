@@ -49,7 +49,7 @@ protected:
         auto prim = impl_params.typed_desc<reorder>();
 
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
@@ -86,12 +86,13 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
         auto desc = get_reorder_descriptor(impl_params, *attr, impl_params.prog->get_engine());
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return cldnn::make_unique<reorder_onednn>(engine, dummy, attr, *desc);
+        return cldnn::make_unique<reorder_onednn>(engine, config, dummy, attr, *desc);
     }
 };
 
@@ -105,4 +106,4 @@ attach_reorder_onednn::attach_reorder_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reorder_onednn, cldnn::object_type::REORDER_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reorder_onednn)

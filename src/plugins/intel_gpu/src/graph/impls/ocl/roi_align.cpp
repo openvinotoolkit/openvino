@@ -50,7 +50,7 @@ struct roi_align_impl : typed_primitive_impl_ocl<roi_align> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_align>& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.rois_memory(), instance.batches_memory()};
         args.outputs = {instance.output_memory_ptr()};
@@ -98,4 +98,4 @@ attach_roi_align_impl::attach_roi_align_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl, cldnn::object_type::ROI_ALIGN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_align_impl)

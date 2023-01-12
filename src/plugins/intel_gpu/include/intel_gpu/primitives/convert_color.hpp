@@ -7,12 +7,6 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs image conversion from one format to another
 struct convert_color : public primitive_base<convert_color> {
@@ -40,13 +34,13 @@ struct convert_color : public primitive_base<convert_color> {
     /// @param mem_type Memory type.
     /// @param output_layout Requested memory layout.
     convert_color(const primitive_id& id,
-                  const std::vector<primitive_id>& inputs,
+                  const std::vector<input_info>& inputs,
                   const color_format input_color_format,
                   const color_format output_color_format,
                   const memory_type mem_type,
                   const layout& output_layout,
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, {output_padding}),
           input_color_format(input_color_format),
           output_color_format(output_color_format),
           mem_type(mem_type),
@@ -57,7 +51,4 @@ struct convert_color : public primitive_base<convert_color> {
     memory_type mem_type;
     layout output_layout;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

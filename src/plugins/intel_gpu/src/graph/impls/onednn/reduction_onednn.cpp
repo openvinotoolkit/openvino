@@ -51,7 +51,7 @@ protected:
     static std::shared_ptr<dnnl::reduction::desc> get_reduction_descriptor(const kernel_impl_params& impl_params) {
         auto prim = impl_params.typed_desc<reduce>();
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
         // oneDNN reduction does not allow this. So this function reverts it.
@@ -118,11 +118,12 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         auto desc = get_reduction_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return cldnn::make_unique<reduction_onednn>(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<reduction_onednn>(engine, config, desc, attr, prim_desc);
     }
 };
 
@@ -158,4 +159,4 @@ attach_reduction_onednn::attach_reduction_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reduction_onednn, cldnn::object_type::REDUCTION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reduction_onednn)

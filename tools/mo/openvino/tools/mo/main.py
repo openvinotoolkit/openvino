@@ -2,24 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import logging as log
 import os
 import sys
-import logging as log
 
 try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
-from openvino.tools.mo.convert import convert
+from openvino.tools.mo.convert import convert_model
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name_from_args, get_meta_info
+from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message
+from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+    get_tf_fe_message, get_tf_fe_legacy_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
-from openvino.tools.mo.back.ie_ir_ver_2.emitter import append_ir_info
+from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
@@ -28,26 +29,33 @@ from openvino.runtime import serialize
 
 
 def main(cli_parser: argparse.ArgumentParser, framework=None):
-    argv = cli_parser.parse_args()
-    argv.model_name = get_model_name_from_args(argv)
-    argv = vars(argv)
-
     # Initialize logger with 'ERROR' as default level to be able to form nice messages
     # before arg parser deliver log_level requested by user
     init_logger('ERROR', False)
+    logger = log.getLogger()
+    # Disable logging for parse_args() as inner convert runs parse_args() second time
+    # which result in duplicating of warnings
+    logger.disabled = True
+    argv = cli_parser.parse_args()
+    logger.disabled = False
+    argv.model_name = get_model_name_from_args(argv)
+    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+    argv = vars(argv)
 
     if framework is not None:
         argv['framework'] = framework
 
     ngraph_function = None
     try:
-        ngraph_function = convert(**argv)
+        ngraph_function = convert_model(**argv)
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
             print(ov_update_message)
         if ov_api20_message is not None and ngraph_function is not None:
             print(ov_api20_message)
+        if argv['use_new_frontend'] and is_tf:
+            print(get_tf_fe_message())
 
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -58,6 +66,8 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
             for el in analysis_results.get_messages():
                 log.error(el, extra={'analysis_info': True})
         log.error(err)
+        if not argv['use_new_frontend'] and is_tf:
+            print(get_tf_fe_legacy_message())
         log.debug(traceback.format_exc())
     except FrameworkError as err:
         log.error(err, extra={'framework_error': True})
@@ -71,6 +81,8 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
+        if not argv['use_new_frontend'] and is_tf:
+            print(get_tf_fe_legacy_message())
 
     if ngraph_function is None:
         return 1
@@ -80,9 +92,6 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
     model_path = model_path_no_ext + '.xml'
 
     serialize(ngraph_function, model_path.encode('utf-8'), model_path.replace('.xml', '.bin').encode('utf-8'))
-
-    # add meta information to IR
-    append_ir_info(file=model_path_no_ext, meta_info=get_meta_info(argv))
 
     # generate .mapping file
     path_to_mapping = model_path_no_ext + ".mapping"

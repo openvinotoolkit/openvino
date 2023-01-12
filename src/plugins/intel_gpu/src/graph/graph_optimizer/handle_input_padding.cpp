@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "border_inst.h"
 #include "convolution_inst.h"
@@ -88,7 +86,7 @@ void handle_input_padding::run(program& p) {
                 convolution_prim->padding_below = ov::CoordinateDiff(spatial_rank, 0);
 
                 // create border primitive
-                primitive_id input_id = convolution_prim->input[0];
+                primitive_id input_id = convolution_prim->input[0].pid;
                 primitive_id border_id = input_id + "_border_" + convolution_prim->id;
 
                 size_t rank = node->get_input_layouts().front().get_rank();

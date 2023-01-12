@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/device.hpp"
 #include "kernel_base_opencl.h"
 #include <iostream>
 #include <string>
@@ -126,8 +127,12 @@ Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
                                           bool use_weights,
                                           bool use_bias,
                                           uint32_t number_of_inputs_for_fused_prim,
-                                          uint32_t num_of_output) const {
+                                          uint32_t num_of_output,
+                                          bool is_dynamic) const {
     Arguments args;
+
+    if (is_dynamic)
+        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
 
     for (uint32_t i = 0; i < num_of_input; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
@@ -165,11 +170,18 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
         kernel_string->str = codes[0];
         kernel_string->jit = jit.first;
         kernel_string->undefs = jit.second;
-        kernel_string->options = exe_mode + " -cl-mad-enable";
-        if (engine_info.bOptHintsSupport)
-            kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
-        if (engine_info.bLocalBlockIOSupport)
-            kernel_string->options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+        if (engine_info.vendor_id == cldnn::INTEL_VENDOR_ID) {
+            kernel_string->options = exe_mode + " -cl-mad-enable";
+            if (engine_info.bOptHintsSupport)
+                kernel_string->options += " -DOPT_HINTS_SUPPORTED=1";
+            if (engine_info.bLocalBlockIOSupport)
+                kernel_string->options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+        }
+
+#if CL_TARGET_OPENCL_VERSION >= 200
+        kernel_string->options += " -cl-std=CL2.0";
+#endif
+
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;
     }
@@ -198,11 +210,22 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         bool bias,
                                         int number_of_inputs,
                                         uint32_t number_of_inputs_for_fused_prims,
-                                        int number_of_outputs) const {
-    KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
+                                        int number_of_outputs,
+                                        bool is_dynamic) const {
+    if (!is_dynamic)
+        KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs);
+    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs, is_dynamic);
 }
+
+bool KernelBaseOpenCL::layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) const {
+    return std::all_of(tensors.begin(), tensors.end(), [&](const DataTensor& t) {
+        return std::any_of(allowed_layouts.begin(), allowed_layouts.end(), [&](const DataLayout& l) {
+            return t.GetLayout() == l;
+        });
+    });
+}
+
 }  // namespace kernel_selector

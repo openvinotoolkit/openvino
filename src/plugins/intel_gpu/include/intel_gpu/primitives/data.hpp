@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Provides input data to topology.
 /// @details This primitive allows to pass data which is known at topology creation.
@@ -27,13 +20,10 @@ struct data : public primitive_base<data> {
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     data(const primitive_id& id, memory::ptr mem)
-        : primitive_base(id, {}, padding()), mem(mem) {}
+        : primitive_base(id, {}, {padding()}), mem(mem) {}
 
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     memory::ptr mem;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -9,7 +9,8 @@
 
 #include "request_status.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 /**
@@ -27,7 +28,8 @@ public:
      * @brief Callback invoked by wait operation.
      * @param requestID id of request to be used for wait
      * @param timeoutMilliseconds timeout of wait in milliseconds
-     * @return Status of subrequest @see GNAPluginNS::RequestStatus
+     * @return Status of subrequest @see RequestStatus
+     *
      */
     using WaitHandler = std::function<RequestStatus(uint32_t requestID, int64_t timeoutMilliseconds)>;
 
@@ -36,14 +38,20 @@ public:
     /**
      * @brief Wait until subrequest will be finished for given timeout.
      * @param timeoutMilliseconds timeout in milliseconds
-     * @return status of execution of subrequest @see GNAPluginNS::RequestStatus
+     * @return status of execution of subrequest @see RequestStatus
      */
     virtual RequestStatus wait(int64_t timeoutMilliseconds) = 0;
 
     /**
      * @brief Add subrequest to execution queue.
+     * @return true in case subrequest was properly enqueued, otherwise return false
      */
-    virtual void enqueue() = 0;
+    virtual bool enqueue() = 0;
+
+    /**
+     * @brief Finalize subrequest and set it status to RequestStatus::kNone
+     */
+    virtual void cleanup() = 0;
 
     /**
      * @brief Return true if subrequest is pending, otherwise return false
@@ -62,4 +70,5 @@ public:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

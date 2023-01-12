@@ -78,8 +78,6 @@ protected:
 };
 
 TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "DepthToSpace");
 }

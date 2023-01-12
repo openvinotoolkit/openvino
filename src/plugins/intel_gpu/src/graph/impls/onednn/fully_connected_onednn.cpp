@@ -34,23 +34,6 @@ protected:
         return make_unique<fully_connected_onednn>(*this);
     }
 
-    bool validate_impl(const typed_primitive_inst<fully_connected>& instance) const override {
-        bool res = true;
-
-        auto outer_id = instance.id();
-        auto data_type = instance.node->input().get_output_layout().data_type;
-
-        // Integer signed/unsigned is ok for fully connected
-        CLDNN_ERROR_DATA_TYPES_MISMATCH_IGNORE_SIGN(outer_id,
-                                                    "Input memory",
-                                                    data_type,
-                                                    "filter memory",
-                                                    instance.weights_memory()->get_layout().data_type,
-                                                    "");
-
-        return res;
-    }
-
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
 
@@ -117,7 +100,7 @@ protected:
 
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         auto input_pshape = input_layout.get_partial_shape();
         auto weights_pshape = weights_layout.get_partial_shape();
@@ -179,7 +162,10 @@ public:
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::inner_product_forward::desc>();
+        const char dummy_mem[sizeof(dnnl::inner_product_forward::desc)] = {};
+        const dnnl::inner_product_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::inner_product_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::inner_product_forward::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_inner_product_desc_t));
 
         std::vector<uint8_t> prim_cache;
@@ -191,11 +177,12 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         auto desc = get_fully_connected_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return cldnn::make_unique<fully_connected_onednn>(engine, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
+        return cldnn::make_unique<fully_connected_onednn>(engine, config, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc));
     }
 };
 
@@ -210,7 +197,6 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
-        format::bfzyx,
     };
     implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, dt, fmt);
 }
@@ -219,4 +205,4 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn, cldnn::object_type::FULLY_CONNECTED_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::fully_connected_onednn)

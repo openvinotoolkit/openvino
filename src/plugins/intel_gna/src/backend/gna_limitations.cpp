@@ -15,11 +15,35 @@
 #include "gna_limitations.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace ov::intel_gna;
+namespace ov {
+namespace intel_gna {
+namespace limitations {
+namespace cnn2d {
 
-namespace GNAPluginNS {
-namespace GNALimitations {
-namespace Cnn2D {
+bool IsEqualToLimit::isValid(const uint32_t val) const {
+    return val == compared_value;
+}
+
+std::string IsEqualToLimit::GetErrorOrEmpty(const uint32_t val) const {
+    std::ostringstream out;
+    if (!isValid(val)) {
+        out << "Unsupported " << what << ", actual value: " << val << ", but should be equal to " << compared_value
+            << "\n";
+    }
+    return out.str();
+}
+
+bool IsLessThanLimit ::isValid(const uint32_t val) const {
+    return val < compared_value;
+}
+
+std::string IsLessThanLimit ::GetErrorOrEmpty(const uint32_t val) const {
+    std::ostringstream out;
+    if (!isValid(val)) {
+        out << "Unsupported " << what << ", actual value: " << val << ", but should be less than " << compared_value << "\n";
+    }
+    return out.str();
+}
 
 bool RangeLimit::isValid(const uint32_t val) const {
     return val >= min && val <= max;
@@ -155,6 +179,13 @@ bool Validator_30::ValidateCnn2D(const std::string &name, const uint32_t inHeigh
     return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
 }
 
+bool Validator_30::ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
+    const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
+    const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+    OvGnaType inPrecision, bool exception) const {
+        return false;
+}
+
 const VectorOrSquareLimit Validator_30::kPoolingWindowLimit{3, 1, 1};
 
 bool Validator_30::ValidatePooling2D(const std::string& name,
@@ -171,54 +202,126 @@ bool Validator_30::ValidatePooling2D(const std::string& name,
     return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
 }
 
-bool Validator_30::IsPaddingSupported() const {
+bool Validator_30::ValidateInputPadding(const std::string& name,
+    const uint32_t pad_h_begin, const uint32_t pad_h_end,
+    const uint32_t pad_w_begin, const uint32_t pad_w_end,
+    const uint32_t,
+    const uint32_t,
+    const bool throwOnError) const {
+    const IsEqualToLimit padding_zero{0, "convolution input padding size (must equal zero)"};
+    auto error = padding_zero.GetErrorOrEmpty(pad_h_begin);
+    error += padding_zero.GetErrorOrEmpty(pad_h_end);
+    error += padding_zero.GetErrorOrEmpty(pad_w_begin);
+    error += padding_zero.GetErrorOrEmpty(pad_w_end);
+    return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
+}
+
+bool Validator_30::ShouldUseOnlyConv2DGnaIface() const {
     return false;
 }
 
-const RangeLimit2D Validator_35::kInputHWLimit{{1, 65535, "input height"}, {1, 65535, "input width"}};
-const RangeLimit Validator_35::kInputChannelsNumberLimit1B{1, 2048, "number of input channels"};
-const RangeLimit Validator_35::kInputChannelsNumberLimit2B{1, 1024, "number of input channels"};
+const Validator_35::CnnLimits Validator_35::kCnn2DLimits{
+    {{1, 65535, "input height"}, {1, 65535, "input width"}},                        // kInputHWLimit
+    {1, 2048, "number of input channels"},                                          // kInputChannelsNumberLimit1B
+    {1, 1024, "number of input channels"},                                          // kInputChannelsNumberLimit2B
+    {1, 8192, "number of kernels"},                                                 // kKernelNumberLimit
+    {{1, 255, "kernel height"}, {1, 256, "kernel width"}},                          // kKerneHWlLimit1B
+    {{1, 255, "kernel height"}, {1, 256, "kernel width"}},                          // kKerneHWlLimit2B
+    {{1, 255, "convolution stride height"}, {1, 256, "convolution stride width"}},  // kStrideHWLimit1B
+    {{1, 255, "convolution stride height"}, {1, 256, "convolution stride width"}},  // kStrideHWLimit2B
+    {{convDilationHeight, convDilationHeight, "dilation height"},                   // kDilationLimit
+     {convDilationWidth, convDilationWidth, "dilation width"}},
+    {{1, 255, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
+    {{1, 255, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
+};
 
-const RangeLimit Validator_35::kKernelNumberLimit{1, 8192, "number of kernels"};
-const RangeLimit2D Validator_35::kKerneHWlLimit{{1, 255, "kernel height"}, {1, 256, "kernel width"}};
-const RangeLimit2D Validator_35::kStrideHWLimit{{1, 255, "convolution stride height"},
-                                                {1, 256, "convolution stride width"}};
-const RangeLimit2D Validator_35::kDilationLimit{{convDilationHeight, convDilationHeight, "dilation height"},
-                                                {convDilationWidth, convDilationWidth, "dilation width"}};
+const Validator_35::CnnLimits Validator_35::kCnn1DLimits{
+    {{1, 1, "input height"}, {1, 65535, "input width"}},                           // kInputHWLimit
+    {1, 1, "number of input channels"},                                            // kInputChannelsNumberLimit1B
+    {1, 1, "number of input channels"},                                            // kInputChannelsNumberLimit2B
+    {1, 8192, "number of kernels"},                                                // kKernelNumberLimit
+    {{1, 1, "kernel height"}, {1, 4096, "kernel width"}},                          // kKerneHWlLimit1B
+    {{1, 1, "kernel height"}, {1, 2048, "kernel width"}},                          // kKerneHWlLimit2B
+    {{1, 1, "convolution stride height"}, {1, 4096, "convolution stride width"}},  // kStrideHWLimit1B
+    {{1, 1, "convolution stride height"}, {1, 2048, "convolution stride width"}},  // kStrideHWLimit2B
+    {{convDilationHeight, convDilationHeight, "dilation height"},                  // kDilationLimit
+     {convDilationWidth, convDilationWidth, "dilation width"}},
+    {{1, 1, "pooling window height"}, {1, 255, "pooling window width"}},  // kPoolingWindowHWLimit
+    {{1, 1, "pooling stride height"}, {1, 255, "pooling stride width"}}   // kPoolingStrideHWLimit
+};
+
+std::string Validator_35::ValidateCnn(const Validator_35::CnnLimits& limits, const std::string& name, const uint32_t inHeight,
+                               const uint32_t inWidth, const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW,
+                               const uint32_t kernelN, const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH,
+                               const uint32_t dilationW, const OvGnaType inPrecision) const {
+    auto error = limits.kInputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
+    error += limits.kKernelNumberLimit.GetErrorOrEmpty(kernelN);
+    auto& inputChannelsNumberLimit = (inPrecision == OvGnaTypeInt8) ? limits.kInputChannelsNumberLimit1B : limits.kInputChannelsNumberLimit2B;
+    error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
+    auto& kerneHWlLimit = (inPrecision == OvGnaTypeInt8) ? limits.kKerneHWlLimit1B : limits.kKerneHWlLimit2B;
+    error += kerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
+    auto& strideHWLimit = (inPrecision == OvGnaTypeInt8) ? limits.kStrideHWLimit1B : limits.kStrideHWLimit2B;
+    error += strideHWLimit.GetErrorOrEmpty(strideH, strideW);
+    error += limits.kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
+    return error;
+}
 
 bool Validator_35::ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
     const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
     const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
     const OvGnaType inPrecision, const bool throwOnError) const {
-    auto error = kInputHWLimit.GetErrorOrEmpty(inHeight, inWidth);
+    auto error = ValidateCnn(kCnn2DLimits, name, inHeight, inWidth, inChannels, kernelH,  kernelW,
+                             kernelN, strideH, strideW, dilationH, dilationW, inPrecision);
+    return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
+}
 
-    error += kKernelNumberLimit.GetErrorOrEmpty(kernelN);
-    auto& inputChannelsNumberLimit = inPrecision == OvGnaTypeInt8 ? kInputChannelsNumberLimit1B : kInputChannelsNumberLimit2B;
-    error += inputChannelsNumberLimit.GetErrorOrEmpty(inChannels);
-    error += kKerneHWlLimit.GetErrorOrEmpty(kernelH, kernelW);
-    error += kStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+bool Validator_35::ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
+    const uint32_t inChannels, const uint32_t kernelH, const uint32_t kernelW, const uint32_t kernelN,
+    const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
+    const OvGnaType inPrecision, const bool throwOnError) const {
+    auto error = ValidateCnn(kCnn1DLimits, name, inHeight, inWidth, inChannels, kernelH, kernelW,
+                             kernelN, strideH, strideW, dilationH, dilationW, inPrecision);
+    return ValidationSuccesful(throwOnError, error, name, "Convolution1D");
+}
 
-    error += kDilationLimit.GetErrorOrEmpty(dilationH, dilationW);
+std::string Validator_35::ValidatePooling(const CnnLimits& limits,
+                                          const std::string& name,
+    const uint32_t windowH, const uint32_t windowW,
+    const uint32_t strideH, const uint32_t strideW) const {
+    auto error = limits.kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
+    error += limits.kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
+
+    return error;
+}
+
+bool Validator_35::ValidatePooling2D(const std::string& name, const uint32_t windowH, const uint32_t windowW,
+                                     const uint32_t strideH, const uint32_t strideW, const bool throwOnError) const {
+    auto error = ValidatePooling(kCnn2DLimits, name, windowH, windowW, strideH, strideW);
+    return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
+}
+
+bool Validator_35::ValidateInputPadding(const std::string& name,
+    const uint32_t pad_h_begin, const uint32_t pad_h_end,
+    const uint32_t pad_w_begin, const uint32_t pad_w_end,
+    const uint32_t kernel_h,
+    const uint32_t kernel_w,
+    const bool throwOnError) const {
+    const IsEqualToLimit padding_h_symetric{pad_h_end, "convolution input padding along height axis (must be symmetric)"};
+    const IsEqualToLimit padding_w_symetric{pad_w_end, "convolution input padding along width axis (must be symmetric)"};
+
+    const IsLessThanLimit padding_h_limit{kernel_h, "convolution input padding height (must be less than kernel height)"};
+    const IsLessThanLimit padding_w_limit{kernel_w, "convolution input padding width (must be less than kernel width)"};
+
+    auto error = padding_h_symetric.GetErrorOrEmpty(pad_h_begin);
+    error += padding_w_symetric.GetErrorOrEmpty(pad_w_begin);
+
+    error += padding_h_limit.GetErrorOrEmpty(pad_h_begin);
+    error += padding_w_limit.GetErrorOrEmpty(pad_w_begin);
 
     return ValidationSuccesful(throwOnError, error, name, "Convolution2D");
 }
 
-const RangeLimit2D Validator_35::kPoolingWindowHWLimit{{1, 255, "pooling window height"},
-                                                       {1, 255, "pooling window width"}};
-const RangeLimit2D Validator_35::kPoolingStrideHWLimit{{1, 255, "pooling stride height"},
-                                                       {1, 255, "pooling stride width"}};
-
-bool Validator_35::ValidatePooling2D(const std::string& name,
-    const uint32_t windowH, const uint32_t windowW,
-    const uint32_t strideH, const uint32_t strideW,
-    const bool throwOnError) const {
-    auto error = kPoolingWindowHWLimit.GetErrorOrEmpty(windowH, windowW);
-    error += kPoolingStrideHWLimit.GetErrorOrEmpty(strideH, strideW);
-
-    return ValidationSuccesful(throwOnError, error, name, "Pooling2D");
-}
-
-bool Validator_35::IsPaddingSupported() const {
+bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
@@ -249,7 +352,7 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
     return error.empty();
 }
 
-} // namespace Cnn2D
+}  // namespace cnn2d
 
 IE_SUPPRESS_DEPRECATED_START
 static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::string& errMessage) {
@@ -266,7 +369,7 @@ static bool ValidateConcatAxis(const InferenceEngine::CNNLayerPtr layer, std::st
         auto isFusableWithConv = [](InferenceEngine::CNNLayerPtr ptr) {
             return (LayerInfo(ptr).isFusableWithConv() || LayerInfo(ptr).isNonFunctional() ||
                 (LayerInfo(ptr).isPermute() && ((ptr->input()->getLayout() == InferenceEngine::Layout::NCHW &&
-                    ptr->GetParamAsInts("order") == GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
+                    ptr->GetParamAsInts("order") == permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)) ||
                     (ptr->input()->getLayout() == InferenceEngine::Layout::CHW &&
                         ptr->GetParamAsInts("order") == std::vector<int32_t>{0, 2, 1} /* NCW to NWC */))));
         };
@@ -401,12 +504,12 @@ bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concat_layer) {
                     break;
 
                 // Convert dims to NHWC layout to allow later verification
-                auto new_order = GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
+                auto new_order = permute::GetPermuteOrder(concat_layout, InferenceEngine::Layout::NHWC);
                 InferenceEngine::SizeVector new_dims;
                 for (size_t i = 0; i < dims_size; ++i) {
                     new_dims.push_back(in_dims[new_order[i]]);
                 }
-                concat_axis = GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
+                concat_axis = permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, concat_layout)[concat_axis];
 
                 // Looking for any axis with dimension > 1 before concatentaion axis;
                 // in general such concatenation is unsupported
@@ -461,7 +564,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                                            startLayer,
                                            [&](const InferenceEngine::CNNLayerPtr layer) {
                                                LayerInfo info(layer);
-                                               if (GNAPluginNS::LayerTypeFromStr(layer->type) == GNAPluginNS::LayerType::NO_TYPE) {
+                                               if (LayerTypeFromStr(layer->type) == LayerType::NO_TYPE) {
                                                    errMessage = "The plugin does not support layer: " + layer->name + ":" + layer->type + "\n";
                                                    check_result =  false;
                                                }
@@ -487,5 +590,6 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
 }
 IE_SUPPRESS_DEPRECATED_END
 
-} // namespace GNALimitations
-} // namespace GNAPluginNS
+}  // namespace limitations
+}  // namespace intel_gna
+}  // namespace ov

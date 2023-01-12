@@ -52,8 +52,6 @@ bool evaluate_greater(const HostTensorPtr& arg0,
 
 //-------------------------------------- v1 ------------------------------------
 
-BWDCMP_RTTI_DEFINITION(op::v1::Greater);
-
 op::v1::Greater::Greater(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

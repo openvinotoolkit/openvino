@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/unit_type.cl"
 #include "include/batch_headers/fetch_data.cl"
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
@@ -58,19 +58,19 @@
 
 #define ALIGNED_IFM_NUM (((FILTER_IFM_NUM + FSV - 1) / FSV) * FSV)
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
     __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    __global UNIT_TYPE* weights,
+    __global UNIT_TYPE* weights
 #if BIAS_TERM
-    __global UNIT_TYPE* biases,
+    , __global UNIT_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    int split_idx)
+)
 {
     uint oc = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;
     uint or = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT;
@@ -164,7 +164,7 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
                             // With simd along x dimension:
                             // (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) / SUB_GROUP_SIZE - element number in simd-lane;
                             // (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) % SUB_GROUP_SIZE - simd-lane with that element.
-                            UNIT_TYPE in_val = intel_sub_group_shuffle(
+                            UNIT_TYPE in_val = _sub_group_shuffle(
                                 in[(out_y * STRIDE_SIZE_Y + f_y * DILATION_SIZE_Y) * INPUT_BLOCK_WIDTH_EL_CNT +
                                    (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) / SUB_GROUP_SIZE],
                                 (out_x * STRIDE_SIZE_X + f_x * DILATION_SIZE_X) % SUB_GROUP_SIZE);
@@ -298,8 +298,6 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
     }
     // ========================================================================
 }
-
-#undef unroll_for
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING

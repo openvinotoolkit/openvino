@@ -103,6 +103,8 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_is_yx_osa2_isa8_osv8_isv2,              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_yx_osa4_isa8_osv8_isv4,              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_osa4_isa8_osv8_isv4,             {  0,  1,  2,   3,   4,  5 } },
+    { WeightsLayout::g_os_is_zyx_isa8_osv8_isv2,                  {  0,  1,  2,   3,   4,  5 } },
+    { WeightsLayout::g_os_is_zyx_isa8_osv8_isv4,                  {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::os_is_yx_osa4_isa8_osv8_isv2,                {  0,  1, -1,   2,   3, -1 } },
     { WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv2,               {  0,  1,  2,   3,   4, -1 } },
     { WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4,               {  0,  1,  2,   3,   4, -1 } },
@@ -164,6 +166,7 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::gioyx,                                       {  0,  1, -1,   3,   2,  4 } },
     { WeightsLayout::goizyx,                                      {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::giozyx,                                      {  0,  1,  2,   4,   3,  5 } },
+    { WeightsLayout::g_os_iyx_osv8,                               {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv16,                              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_iyx_osv32,                              {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::gs_oiyx_gsv16,                               {  0,  1, -1,   2,   3,  4 } },
@@ -179,6 +182,10 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::g_os_is_zyx_isv8_osv16_isv2,                 {  0,  1,  2,   3,   4,  5 } },
     { WeightsLayout::g_os_is_yx_isv8_osv16_isv2,                  {  0,  1, -1,   2,   3,  4 } },
     { WeightsLayout::g_os_is_zyx_isv16_osv16,                     {  0,  1,  2,   3,   4,  5 } },
+    { WeightsLayout::g_os_zy_is_x_osv8_isv2,                      {  0,  2,  3,   1,   4,  5 } },
+    { WeightsLayout::g_os_zy_is_x_osv8_isv4,                      {  0,  2,  3,   1,   4,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv8_isv2,                       {  1,  2,  3,   0,   4,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv8_isv4,                       {  1,  2,  3,   0,   4,  5 } },
     { WeightsLayout::giy_xs_os_xsv2_osv16__ao32,                  {  1,  2, -1,   3,   0,  4 } },
     { WeightsLayout::giy_xs_os_xsv2_osv8__ao32,                   {  1,  2, -1,   3,   0,  4 } },
     { WeightsLayout::g_os_is_yx_isv16_osv16,                      {  0,  1, -1,   2,   3,  4 } },
@@ -338,7 +345,7 @@ NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
 
     for (size_t i = 0; i < newDims.size(); i++) {
         Pad p = {0, newDims[i] - d[i]};
-        ret[i] = {d[i], pitch, p};
+        ret[i] = {d[i], pitch, p, d[i] == 0};
         pitch *= newDims[i];
     }
 
@@ -541,6 +548,28 @@ DataTensor DataTensor::FlattenEverything() const {
     DataLayout targetLayout = Tensor::f;
     DataTensor res = TransformIgnorePadding(targetLayout);
     return res;
+}
+
+void DataTensor::SwapXY() {
+    DataLayout l = Tensor::bfyx;
+
+    auto x = X();
+    auto y = Y();
+
+    if (GetLayout() != DataLayout::bfyx)
+        throw std::runtime_error("Unsupported - unsupported layout.");
+    if (x.pad.Total() != 0 || x.v != 1)
+        throw std::runtime_error("Unsupported - unsupported shape.");
+
+    // Swap XY axes.
+    y.pitch = 1;
+    x.pitch = y.v + y.pad.Total();
+    std::vector<Dim> vec(ChannelsCount(l));
+    vec[Channelndex(l, DataChannelName::X)] = y;
+    vec[Channelndex(l, DataChannelName::Y)] = x;
+    vec[Channelndex(l, DataChannelName::FEATURE)] = Feature();
+    vec[Channelndex(l, DataChannelName::BATCH)] = Batch();
+    *this = {vec, dtype, l};
 }
 
 NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l) {
@@ -759,6 +788,10 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             break;
         case os_i_yxs_osv4_yxsv4:
             newDims[3] = RoundUp(newDims[3], 4);
+            break;
+        case g_os_iyx_osv8:
+            assert(newDims.size() == 5);
+            newDims[3] = RoundUp(newDims[3], 8);
             break;
         case g_os_iyx_osv16:
         case g_os_iyx_osv16_rotate_180:
@@ -1040,5 +1073,22 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
 
     return {vec, t, l};
 }
+
+void WeightsTensor::SwapXY() {
+    auto x = X();
+
+    if (x.pad.Total() != 0 || x.v != 1)
+        throw std::runtime_error("Unsupported - unsupported weight shape.");
+
+    std::vector<size_t> vec;
+    for (auto& d : dims) {
+        vec.push_back(d.v);
+    }
+    auto x_index = Channelndex(layout, WeightsChannelName::X);
+    auto y_index = Channelndex(layout, WeightsChannelName::Y);
+    std::swap(vec[x_index], vec[y_index]);
+    *this = {vec, dtype, layout};
+}
+
 }  // namespace Tensor
 }  // namespace kernel_selector

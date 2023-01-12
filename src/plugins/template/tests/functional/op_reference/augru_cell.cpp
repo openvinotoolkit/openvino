@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph_ops/augru_cell.hpp"
+#include "ov_ops/augru_cell.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;

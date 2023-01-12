@@ -25,7 +25,7 @@
         "runtime/bin/intel64/Release/openvino_ir_frontend.dll",
         "runtime/bin/intel64/Release/openvino_onnx_frontend.dll",
         "runtime/bin/intel64/Release/openvino_paddle_frontend.dll",
-        "runtime/lib/intel64/Release/openvino_tensorflow_fe.dll",
+        "runtime/bin/intel64/Release/openvino_tensorflow_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -76,7 +76,7 @@
       ]
     },
     "python3.7": {
-      "ui_name": "OpenVINO Python API for Python3.7",
+      "ui_name": "OpenVINO Python API for Python 3.7",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -84,7 +84,7 @@
       ]
     },
     "python3.8": {
-      "ui_name": "OpenVINO Python API for Python3.8",
+      "ui_name": "OpenVINO Python API for Python 3.8",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -92,11 +92,19 @@
       ]
     },
     "python3.9": {
-      "ui_name": "OpenVINO Python API for Python3.9",
+      "ui_name": "OpenVINO Python API for Python 3.9",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
         "python/python3.9"
+      ]
+    },
+    "python3.10": {
+      "ui_name": "OpenVINO Python API for Python 3.10",
+      "group": ["python"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "python/python3.10"
       ]
     }
   }

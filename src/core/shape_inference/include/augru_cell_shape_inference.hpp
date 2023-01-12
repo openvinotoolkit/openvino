@@ -4,7 +4,7 @@
 #pragma once
 
 #include "gru_cell_shape_inference.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_sequence.hpp"
 #include "utils.hpp"
 
 namespace ov {

@@ -14,9 +14,39 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+struct jit_move_scale_compile_params {
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
+    bool with_scales;
+    size_t input_size;
+    bool broadcast_scales;
+};
+
+struct jit_move_scale_call_args {
+    const void *p_in;
+    void *p_out;
+    const void *p_scales;
+};
+
+struct jit_uni_move_scale_kernel {
+        void (*ker_)(const jit_move_scale_call_args*);
+
+        void operator()(const jit_move_scale_call_args* call_args) {
+            assert(ker_);
+            ker_(call_args);
+        }
+
+        explicit jit_uni_move_scale_kernel(const jit_move_scale_compile_params& jcp) : ker_(nullptr), jcp_(jcp) {}
+        virtual ~jit_uni_move_scale_kernel() {}
+
+        virtual void create_ker() = 0;
+
+        jit_move_scale_compile_params jcp_;
+};
+
 class Interaction : public Node {
 public:
-    Interaction(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Interaction(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(dnnl::stream strm) override;
@@ -41,6 +71,10 @@ private:
     MemoryPtr outputMemPtr;
     std::vector<uint32_t> featureSizes;
     InferenceEngine::Precision dataPrecision;
+    InferenceEngine::Precision outputDataType;
+    std::vector<float> fqScales;
+    std::unique_ptr<jit_uni_move_scale_kernel> moveFeatureKernel;
+    std::unique_ptr<jit_uni_move_scale_kernel> moveInteractKernel;
 };
 
 }   // namespace node

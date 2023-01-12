@@ -48,8 +48,8 @@ bool MemoryOutput::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) , MemoryNode(op) {
+MemoryOutput::MemoryOutput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) , MemoryNode(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -106,8 +106,8 @@ bool MemoryInput::isSupportedOperation(const std::shared_ptr<const ngraph::Node>
     return true;
 }
 
-MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Input(op, eng, cache), MemoryNode(op), dataStore(new Memory{eng}) {
+MemoryInput::MemoryInput(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr ctx)
+        : Input(op, ctx), MemoryNode(op), dataStore(new Memory{ctx->getEngine()}) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

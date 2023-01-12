@@ -15,13 +15,13 @@ namespace intel_gpu {
 
 static void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvertLike>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto outDataType = cldnn::element_type_to_data_type(op->get_input_element_type(1));
 
     auto reorderPrim = cldnn::reorder(layerName,
-                                      inputPrimitives[0],
+                                      inputs[0],
                                       cldnn::format::any,
                                       outDataType,
                                       std::vector<float>(),
@@ -31,17 +31,19 @@ static void CreateConvertLikeOp(Program& p, const std::shared_ptr<ngraph::op::v1
 
 static void CreateConvertOp(Program& p, const std::shared_ptr<ngraph::op::v0::Convert>& op) {
     validate_inputs_count(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto outDataType = cldnn::element_type_to_data_type(op->get_destination_type());
 
     auto reorderPrim = cldnn::reorder(layerName,
-                                      inputPrimitives[0],
+                                      inputs[0],
                                       cldnn::format::any,
                                       outDataType,
                                       std::vector<float>(),
-                                      cldnn::reorder_mean_mode::subtract);
+                                      cldnn::reorder_mean_mode::subtract,
+                                      cldnn::padding(),
+                                      true);
 
     p.add_primitive(*op, reorderPrim);
 }

@@ -34,7 +34,8 @@
 /**
  * holds gna - style handle in RAII way
  */
-class GNADeviceHelper : public GNAPluginNS::GNADevice {
+class GNADeviceHelper : public ov::intel_gna::GNADevice {
+    using UnwaitedRequestIds = std::set<uint32_t>;
     static std::mutex acrossPluginsSync;
     static std::string decoratedGnaLibVersion() {
         static std::string gnaLibraryVersion{ ", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion() };
@@ -58,12 +59,13 @@ class GNADeviceHelper : public GNAPluginNS::GNADevice {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-    std::set<uint32_t> unwaitedRequestIds;
+    UnwaitedRequestIds unwaitedRequestIds;
 #define MAX_TIMEOUT 500000
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
 
-    bool debugLogEnabled = false;
+    bool per_request_diagnostics = false;
+    bool per_model_diagnostics = false;
     uint64_t debugLogIndexRequestEnqueue = 0;
     uint64_t debugLogIndexRequestWait = 0;
     static constexpr const char* kDumpExt = ".bin";
@@ -82,8 +84,6 @@ public:
     GNADeviceHelper& operator=(GNADeviceHelper&&) = delete;
     ~GNADeviceHelper() override;
 
-    void enableDiagnostics();
-
     /**
      * @brief Dump raw memory of each GNA allocation to files
      * @param idx index to be appended to the file name
@@ -92,7 +92,7 @@ public:
     void dumpAllAllocations(uint64_t idx, const std::string& infix) const;
 
     uint8_t *alloc(uint32_t size_requested, uint32_t *size_granted);
-    void tagMemoryRegion(void* memPtr, const GNAPluginNS::memory::rRegion memoryTag);
+    void tagMemoryRegion(void* memPtr, const ov::intel_gna::memory::rRegion memoryTag);
 
     void releaseModel(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
@@ -155,40 +155,44 @@ public:
     /**
      * @see GNADevice::waitForRequest()
      */
-    GNAPluginNS::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
+    ov::intel_gna::RequestStatus waitForRequest(uint32_t requestID, int64_t timeoutMilliseconds = MAX_TIMEOUT) override;
 
     /**
      * @see GNADevice::maxLayersCount()
      */
      uint32_t maxLayersCount() const override;
 
-private:
-    void open();
+     /**
+      * @brief close the device
+      **/
+     void close() override;
 
-    void close();
-    uint32_t retrieveMaxLayersCount();
+ private:
+     void open();
 
-    static std::string getGnaLibraryVersionPrivate();
-    static const std::map <Gna2ItemType, const std::string> errorTypes;
-    static const std::map <Gna2ErrorType, const std::string> errorReasons;
-    static const std::map <Gna2OperationType, const std::string> operationTypes;
-    static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
+     uint32_t retrieveMaxLayersCount();
 
-    static void enforceLegacyCnns(Gna2Model& gnaModel);
-    static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
-    static Gna2DeviceVersion parseTarget(const std::string& target);
-    Gna2DeviceVersion getDefaultTarget() const;
-    Gna2DeviceVersion getTargetDevice(bool execTarget) const;
+     static std::string getGnaLibraryVersionPrivate();
+     static const std::map<Gna2ItemType, const std::string> errorTypes;
+     static const std::map<Gna2ErrorType, const std::string> errorReasons;
+     static const std::map<Gna2OperationType, const std::string> operationTypes;
+     static const std::map<const std::pair<Gna2OperationType, int32_t>, const std::string> operandTypes;
 
-    void createVirtualDevice(Gna2DeviceVersion devVersion);
-    void updateGnaDeviceVersion();
+     static void enforceLegacyCnns(Gna2Model& gnaModel);
+     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
+     static Gna2DeviceVersion parseTarget(const std::string& target);
+     Gna2DeviceVersion getDefaultTarget() const;
+     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
 
-    void initGnaPerfCounters() {
-        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
-        const auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
-            gna2InstrumentationPoints,
-            instrumentationResults,
-            &instrumentationConfigId);
-        checkGna2Status(status, "Gna2InstrumentationConfigCreate");
+     void createVirtualDevice(Gna2DeviceVersion devVersion);
+     void updateGnaDeviceVersion();
+
+     void initGnaPerfCounters() {
+         std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
+         const auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
+                                                             gna2InstrumentationPoints,
+                                                             instrumentationResults,
+                                                             &instrumentationConfigId);
+         checkGna2Status(status, "Gna2InstrumentationConfigCreate");
     }
 };  // NOLINT

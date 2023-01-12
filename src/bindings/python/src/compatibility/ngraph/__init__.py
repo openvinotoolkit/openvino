@@ -189,6 +189,7 @@ from ngraph.opset10 import tensor_iterator
 from ngraph.opset10 import tile
 from ngraph.opset10 import topk
 from ngraph.opset10 import transpose
+from ngraph.opset10 import unique
 from ngraph.opset10 import unsqueeze
 from ngraph.opset10 import variadic_split
 

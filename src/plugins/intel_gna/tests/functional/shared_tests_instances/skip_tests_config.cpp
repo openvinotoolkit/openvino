@@ -69,6 +69,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
         R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadNetworkFromMemory.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: temporary disabled. Need to be enabled when PR 9282 is merged
@@ -87,7 +88,18 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferRequestCancellationTests.*)",
         // TODO: Issue: 71070
         R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
+        // TODO: Issue: 95609
+        R"(.*CompileModelCacheTestBase.*(ConvPoolRelu|TIwithLSTMcell1).*batch2.*)",
+        R"(.*CompileModelCacheTestBase.*(SplitConvConcat|KSOFunction).*)",
+        R"(.*CompileModelCacheTestBase.*(SingleConv|NestedSplitConvConcat).*)",
+        R"(.*CompileModelCacheTestBase.*(Bias|ReadConcatSplitAssign).*)",
+        R"(.*OVClassLoadNetworkTest.*LoadNetwork.*)",
         // TODO: Issue: 95234
-        R"(.*smoke_CachingSupportCase_GNA.*)"
+        R"(.*smoke_CachingSupportCase_GNA.*)",
+        R"(.*CachingSupportCase.*LoadNet.*(Bias|Split|Concat|KSO|SingleConv).*)",
+        R"(.*CachingSupportCase.*LoadNet.*(ConvPoolRelu|TIwithLSTMcell1)_f32_batch2.*)",
+        // TODO: Issue: 95234
+        R"(.*CachingSupportCase_GNA.*)",
+        R"(.*IEClassLoadNetworkTest.*LoadNetwork(HETERO|MULTI|WithDeviceIDNoThrow|WithInvalidDeviceIDThrows).*)",
     };
 }

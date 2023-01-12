@@ -31,8 +31,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
-
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
 namespace {
@@ -88,10 +86,6 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
 }
 
 }  // namespace
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-const ov::DiscreteTypeInfo ov::Model::type_info = ov::Model::get_type_info_static();
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::Model::Model(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),

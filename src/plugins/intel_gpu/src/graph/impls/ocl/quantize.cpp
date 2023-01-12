@@ -28,7 +28,7 @@ struct quantize_impl : typed_primitive_impl_ocl<quantize> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<quantize>& instance) const override {
         kernel_arguments_data args;
 
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -81,13 +81,13 @@ public:
         for (size_t i = 1; i < arg.inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
-        const auto& output_layout = impl_param.output_layout;
+        const auto& output_layout = impl_param.get_output_layout();
         quantize_params.outputs = { convert_data_tensor(output_layout) };
 
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
-        return make_unique<quantize_impl>(arg, best_kernel);
+        return make_unique<quantize_impl>(best_kernel);
     }
 };
 
@@ -203,4 +203,4 @@ attach_quantize_impl::attach_quantize_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl, cldnn::object_type::QUANTIZE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl)

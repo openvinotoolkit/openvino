@@ -6,7 +6,7 @@
 #include <low_precision/relu.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"

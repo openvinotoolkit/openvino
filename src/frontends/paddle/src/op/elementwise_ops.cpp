@@ -46,6 +46,10 @@ NamedOutputs elementwise_greater_equal(const NodeContext& node_context) {
     return elementwise_ops<default_opset::GreaterEqual>(node_context);
 }
 
+NamedOutputs elementwise_not_equal(const NodeContext& node_context) {
+    return elementwise_ops<default_opset::NotEqual>(node_context);
+}
+
 NamedOutputs elementwise_floordiv(const NodeContext& node_context) {
     auto x = node_context.get_input("X");
     auto y = node_context.get_input("Y");

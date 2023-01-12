@@ -10,7 +10,6 @@ from tests import (
     skip_rng_tests,
     xfail_issue_33488,
     xfail_issue_33581,
-    xfail_issue_33589,
     xfail_issue_33595,
     xfail_issue_33596,
     xfail_issue_33606,
@@ -49,7 +48,6 @@ from tests import (
     xfail_issue_82039,
     xfail_issue_90649,
     xfail_issue_91151,
-    xfail_issue_91152,
     xfail_issue_91490,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
@@ -224,13 +222,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
     ),
-    (
-        xfail_issue_33589,
-        "OnnxBackendNodeModelTest.test_isnan_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_positive_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_negative_cpu",
-        "OnnxBackendNodeModelTest.test_isinf_cpu",
-    ),
     (xfail_issue_38724, "OnnxBackendNodeModelTest.test_resize_tf_crop_and_resize_cpu"),
     (
         xfail_issue_33606,
@@ -292,7 +283,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_63039,
         "OnnxBackendNodeModelTest.test_div_uint8_cpu",
-        "OnnxBackendNodeModelTest.test_sub_uint8_cpu",
     ),
     (
         xfail_issue_63043,
@@ -408,11 +398,6 @@ tests_expected_to_fail = [
         xfail_issue_91151,
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-    ),
-    (
-        xfail_issue_91152,
-        "OnnxBackendNodeModelTest.test_quantizelinear_cpu",
-        "OnnxBackendNodeModelTest.test_dequantizelinear_cpu",
     ),
 ]
 

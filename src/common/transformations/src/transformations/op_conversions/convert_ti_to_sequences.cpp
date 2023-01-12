@@ -100,15 +100,17 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
             ? nullptr
             : std::make_shared<ov::opset5::Unsqueeze>(ti_inputs[ordered_in_descs[2]->m_input_index], axis_1);
 
-    const size_t batch_dim = slice_axis == 0 ? 1 : 0;
-    auto batch_dimension = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(
-        ti_inputs[ordered_in_descs[0]->m_input_index],
-        {batch_dim});
-
-    auto seq_lengths_scalar = ov::opset5::Constant::create(ngraph::element::i32, {}, {ti->get_num_iterations()});
-    auto seq_lengths = ov::op::util::make_try_fold<ov::opset5::Broadcast>(seq_lengths_scalar, batch_dimension);
-
-    auto axis_0 = ov::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
+    auto shape_of = std::make_shared<ov::opset5::ShapeOf>(X);
+    auto batch_dimension =
+        std::make_shared<ov::opset5::Gather>(shape_of,
+                                             ov::opset5::Constant::create(ngraph::element::i64, {1}, {0}),
+                                             ov::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_len_dim =
+        std::make_shared<ov::opset5::Gather>(shape_of,
+                                             ov::opset5::Constant::create(ngraph::element::i64, {1}, {1}),
+                                             ov::opset5::Constant::create(ngraph::element::i64, {}, {0}));
+    auto seq_lengths = std::make_shared<ov::opset5::Broadcast>(seq_len_dim, batch_dimension);
+    auto axis_0 = ov::opset5::Constant::create(ov::element::i64, ngraph::Shape{1}, {0});
     auto W = ov::op::util::make_try_fold<ov::opset5::Unsqueeze>(w_pattern, axis_0);
     auto R = ov::op::util::make_try_fold<ov::opset5::Unsqueeze>(r_pattern, axis_0);
     auto B = ov::op::util::make_try_fold<ov::opset5::Unsqueeze>(b_pattern, axis_0);
@@ -190,13 +192,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
 
     for (size_t i = 0; i < ordered_out_descs.size(); ++i) {
         if (ordered_out_descs[i]) {
-            for (const auto& input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
-                input.replace_source_output(outputs[i]->output(0));
-            }
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            outputs[i]->get_output_tensor(0).set_name(
-                ngraph::op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
-            NGRAPH_SUPPRESS_DEPRECATED_END
+            ti->output(ordered_out_descs[i]->m_output_index).replace(outputs[i]->output(0));
         }
     }
 
@@ -210,12 +206,12 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
     if (c_pattern.get_node_shared_ptr()) {
         new_nodes.emplace_back(initial_cell_state);
     }
-    if (!std::dynamic_pointer_cast<ov::opset5::Constant>(seq_lengths)) {
-        new_nodes.emplace_back(batch_dimension);
-        new_nodes.emplace_back(batch_dimension->get_input_node_shared_ptr(0));
-        new_nodes.emplace_back(seq_lengths_scalar);
-        new_nodes.emplace_back(seq_lengths);
-    }
+
+    new_nodes.emplace_back(batch_dimension);
+    new_nodes.emplace_back(shape_of);
+    new_nodes.emplace_back(seq_len_dim);
+    new_nodes.emplace_back(seq_lengths);
+
     if (slice_axis == 0) {
         new_nodes.emplace_back(out.get_node_shared_ptr());
         new_nodes.emplace_back(X.get_node_shared_ptr());
@@ -250,7 +246,7 @@ ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequen
         auto cell = ngraph::pattern::wrap_type<ov::opset1::LSTMCell, ov::opset5::LSTMCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ov::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ov::opset5::Reshape>({cell, pattern_2});
+        auto unsqueeze = ngraph::pattern::wrap_type<ov::opset5::Reshape, ov::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -309,7 +305,7 @@ ov::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence
         auto cell = ngraph::pattern::wrap_type<ov::opset5::RNNCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ov::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ov::opset5::Reshape>({cell, pattern_2});
+        auto unsqueeze = ngraph::pattern::wrap_type<ov::opset5::Reshape, ov::opset5::Unsqueeze>({cell, pattern_2});
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;
@@ -368,7 +364,8 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
         auto cell = ngraph::pattern::wrap_type<ov::opset5::GRUCell>(cell_inputs);
 
         auto pattern_2 = ngraph::pattern::wrap_type<ov::opset5::Constant>(ngraph::pattern::rank_equals(1));
-        auto unsqueeze = ngraph::pattern::wrap_type<ov::opset5::Reshape>({cell, pattern_2});
+        auto unsqueeze = ngraph::pattern::wrap_type<ov::opset5::Reshape, ov::opset5::Unsqueeze>({cell, pattern_2});
+
         ngraph::pattern::Matcher matcher(unsqueeze);
 
         bool match = false;

@@ -14,12 +14,14 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/compatibility.hpp>
+#include "gpu/gpu_config.hpp"
 
-#include "intel_gpu/plugin/device_config.hpp"
 
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 // Forward declarations for cldnn part
 namespace cldnn {
@@ -79,19 +81,13 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+    Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false);
-    Program(std::shared_ptr<cldnn::engine> engine, const Config& config)
+    Program(cldnn::engine& engine, const ExecutionConfig& config)
         : m_max_batch(1)
         , m_curBatch(-1)
         , m_config(config)
         , m_engine(engine)
-        , queryMode(false) {}
-    Program()
-        : m_max_batch(1)
-        , m_curBatch(-1)
-        , m_config()
-        , m_engine(nullptr)
         , queryMode(false) {}
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -110,6 +106,7 @@ public:
     std::map<std::string, cldnn::layout> inputLayouts;
     using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+    CustomLayerMap m_custom_layers;
 
     int m_max_batch;
     int m_curBatch;
@@ -120,9 +117,8 @@ public:
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return inputLayouts; }
     InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_networkInputs; }
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
-    cldnn::engine& GetEngine() const { return *m_engine; }
-    std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
-    const Config& GetConfig() const { return m_config; }
+    cldnn::engine& get_engine() const { return m_engine; }
+    const ExecutionConfig& get_config() const { return m_config; }
     int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);
@@ -134,7 +130,7 @@ public:
     void init_profile_info(const cldnn::primitive& prim);
 
     // Graph construction helpers
-    std::vector<cldnn::primitive_id> GetInputPrimitiveIDs(const std::shared_ptr<ngraph::Node>& op) const;
+    std::vector<cldnn::input_info> GetInputInfo(const std::shared_ptr<ngraph::Node>& op) const;
 
     using factory_t = std::function<void(Program&, const std::shared_ptr<ngraph::Node>&)>;
     using factories_map_t = std::map<ngraph::DiscreteTypeInfo, factory_t>;
@@ -167,8 +163,8 @@ public:
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    Config m_config;
-    std::shared_ptr<cldnn::engine> m_engine;
+    ExecutionConfig m_config;
+    cldnn::engine& m_engine;
 
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;

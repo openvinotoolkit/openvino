@@ -14,10 +14,11 @@
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
 
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/properties.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "utils/debug_capabilities.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -48,9 +49,23 @@ Config::Config() {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
         enforceBF16 = false;
 
-    CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
+    CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
+
     updateProperties();
 }
+
+#ifdef CPU_DEBUG_CAPS
+/**
+ * Debug capabilities configuration has more priority than common one
+ * Some of the debug capabilities also require to enable some of common
+ * configuration properties
+ */
+void Config::applyDebugCapsProperties() {
+    // always enable perf counters for verbose mode and performance summary
+    if (!debugCaps.verbose.empty() || !debugCaps.summaryPerf.empty())
+        collectPerfCounters = true;
+}
+#endif
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
     const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
@@ -74,6 +89,20 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             // zero and any negative value will be treated
             // as default batch size
             batchLimit = std::max(val_i, 0);
+        } else if (key == CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE) {
+            float val_f = 0.0f;
+            try {
+                val_f = std::stof(val);
+            } catch (const std::exception&) {
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
+                                    << ". Expected only float numbers";
+            }
+            if (val_f < 0.f || val_f > 1.f) {
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
+                                    << ". Sparse rate must be in range [0.0f,1.0f]";
+            } else {
+                fcSparseWeiDecompressionRate = val_f;
+            }
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;
@@ -170,7 +199,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
     if (exclusiveAsyncRequests)  // Exclusive request feature disables the streams
         streamExecutorConfig._streams = 1;
 
-    CPU_DEBUG_CAP_ENABLE(readDebugCapsProperties());
+    CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
 }
 
@@ -224,58 +253,6 @@ void Config::updateProperties() {
             std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
     _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
 }
-
-#ifdef CPU_DEBUG_CAPS
-void Config::readDebugCapsProperties() {
-    auto readEnv = [](const char* envVar) {
-        return std::getenv(envVar);
-    };
-
-    auto parseDumpFormat = [](const std::string& format) {
-        if (format == "BIN")
-            return FORMAT::BIN;
-        else if (format == "TEXT")
-            return FORMAT::TEXT;
-        else
-            IE_THROW() << "readDebugCapsProperties: Unknown dump format";
-    };
-
-    const char* envVarValue = nullptr;
-
-    if (envVarValue = readEnv("OV_CPU_EXEC_GRAPH_PATH"))
-        execGraphPath = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_VERBOSE"))
-        verbose = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_DIR"))
-        blobDumpDir = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_FORMAT"))
-        blobDumpFormat = parseDumpFormat(envVarValue);
-
-    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_EXEC_ID"))
-        blobDumpFilters[BY_EXEC_ID] = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_PORTS"))
-        blobDumpFilters[BY_PORTS] = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_TYPE"))
-        blobDumpFilters[BY_TYPE] = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_BLOB_DUMP_NODE_NAME"))
-        blobDumpFilters[BY_NAME] = envVarValue;
-
-    if (envVarValue = readEnv("OV_CPU_SUMMARY_PERF")) {
-        collectPerfCounters = true;
-        summaryPerf = envVarValue;
-    }
-
-    // always enable perf counters for verbose mode
-    if (!verbose.empty())
-        collectPerfCounters = true;
-}
-#endif // CPU_DEBUG_CAPS
 
 }   // namespace intel_cpu
 }   // namespace ov

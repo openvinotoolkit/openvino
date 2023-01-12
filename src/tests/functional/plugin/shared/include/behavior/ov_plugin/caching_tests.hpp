@@ -33,6 +33,9 @@ using compileModelCacheParams = std::tuple<
         ov::AnyMap              // device configuration
 >;
 
+using ovModelIS = std::function<std::shared_ptr<ov::Model>(std::vector<size_t> inputShape,
+                                                                    ov::element::Type_t type)>;
+
 class CompileModelCacheTestBase : public testing::WithParamInterface<compileModelCacheParams>,
                                   virtual public SubgraphBaseTest,
                                   virtual public OVPluginTestBase {
@@ -49,8 +52,56 @@ public:
     void run() override;
 
     bool importExportSupported(ov::Core &core) const;
+
+    // Wrapper of most part of available builder functions
+    static ovModelGenerator inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape);
     // Default functions and precisions that can be used as test parameters
+    static std::vector<ovModelWithName> getAnyTypeOnlyFunctions();
+    static std::vector<ovModelWithName> getNumericTypeOnlyFunctions();
+    static std::vector<ovModelWithName> getNumericAnyTypeFunctions();
+    static std::vector<ovModelWithName> getFloatingPointOnlyFunctions();
     static std::vector<ovModelWithName> getStandardFunctions();
+};
+
+using compileModelLoadFromFileParams = std::tuple<
+        std::string,            // device name
+        ov::AnyMap              // device configuration
+>;
+class CompileModelLoadFromFileTestBase : public testing::WithParamInterface<compileModelLoadFromFileParams>,
+                                  virtual public SubgraphBaseTest,
+                                  virtual public OVPluginTestBase {
+    std::string m_cacheFolderName;
+    std::string m_modelName;
+    std::string m_weightsName;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+    void run() override;
+};
+
+using compileModelLoadFromMemoryParams = std::tuple<std::string,  // device name
+                                                    ov::AnyMap    // device configuration
+>;
+class CompileModelLoadFromMemoryTestBase : public testing::WithParamInterface<compileModelLoadFromMemoryParams>,
+                                           virtual public SubgraphBaseTest,
+                                           virtual public OVPluginTestBase {
+    std::string m_cacheFolderName;
+    std::string m_modelName;
+    std::string m_weightsName;
+    std::string m_model;
+    ov::Tensor m_weights;
+    std::vector<std::uint8_t> weights_vector;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromMemoryParams> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+    void run() override;
+    bool importExportSupported(ov::Core &core) const;
 };
 
 using compileKernelsCacheParams = std::tuple<

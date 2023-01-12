@@ -6,6 +6,4 @@
 
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::Sink);
-
 op::Sink::~Sink() = default;

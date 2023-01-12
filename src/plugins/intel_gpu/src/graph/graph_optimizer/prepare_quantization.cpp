@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reshape_inst.h"
@@ -372,7 +370,7 @@ void prepare_quantization::prepare_packed_quantize(program& p, quantize_node& qu
         output_dt = data_types::bin;
     }
 
-    quantize_node.typed_desc()->output_data_type = optional_data_type{output_dt};
+    quantize_node.typed_desc()->output_data_types = {optional_data_type{output_dt}};
     quantize_node.recalc_output_layout();
 }
 
@@ -596,12 +594,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
 
     auto old_conv_prim = convolution_node.get_primitive();
 
-    // Split is not supported
-    if (old_conv_prim->weights.size() > 1)
-        return;
-
-
-    primitive_id input = old_conv_prim->input[0];
+    primitive_id input = old_conv_prim->input[0].pid;
     std::vector<primitive_id> a_zero_points = {};
 
     cldnn::program_node* new_input = &in0;
@@ -676,16 +669,16 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
     }
 
     // Collect dependencies of a new convolution node
-    std::vector<program_node*> dependencies = {new_input, new_weights};
+    std::vector<std::pair<program_node*, int32_t>> dependencies = {{new_input, 0}, {new_weights, 0}};
     cldnn::program_node* new_bias = !old_conv_prim->bias.empty() ? &convolution_node.get_dependency(2) : nullptr;
     if (new_bias)
-        dependencies.push_back(new_bias);
+        dependencies.push_back({new_bias, 0});
     if (new_w_zp)
-        dependencies.push_back(new_w_zp);
+        dependencies.push_back({new_w_zp, 0});
     if (new_a_zp)
-        dependencies.push_back(new_a_zp);
+        dependencies.push_back({new_a_zp, 0});
     if (new_compenstation)
-        dependencies.push_back(new_compenstation);
+        dependencies.push_back({new_compenstation, 0});
 
     auto new_conv_prim = std::make_shared<convolution>(
                 convolution_node.id() + "_asymmetric",
@@ -696,13 +689,13 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
                 a_zero_points,
                 compensation,
                 old_conv_prim->groups,
-                *old_conv_prim->output_data_type,
+                *old_conv_prim->output_data_types[0],
                 old_conv_prim->stride,
                 old_conv_prim->pad,
                 old_conv_prim->dilation,
                 output_size,
                 old_conv_prim->grouped_weights_shape,
-                old_conv_prim->output_padding);
+                old_conv_prim->output_paddings[0]);
 
     auto& new_conv_node = p.get_or_create(new_conv_prim);
 
@@ -834,7 +827,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
             memcmp(mem_output_high_lock_first.data(), mem_output_high_lock_second.data(), mem_output_high_first->size()) != 0)
             continue;
 
-        if (quantize_prim_first->output_data_type != quantize_prim_second->output_data_type ||
+        if (quantize_prim_first->output_data_types[0] != quantize_prim_second->output_data_types[0] ||
             quantize_prim_first->levels != quantize_prim_second->levels)
             continue;
 

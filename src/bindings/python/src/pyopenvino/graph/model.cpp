@@ -319,7 +319,7 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const std::string& partial_shape) {
-            self.reshape(Common::partial_shape_from_str(partial_shape));
+            self.reshape(ov::PartialShape(partial_shape));
         },
         py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
@@ -356,7 +356,7 @@ void regclass_graph_Model(py::module m) {
                 } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
                     new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
                 } else if (py::isinstance<py::str>(item.second)) {
-                    new_shape.second = Common::partial_shape_from_str(item.second.cast<std::string>());
+                    new_shape.second = ov::PartialShape(item.second.cast<std::string>());
                 } else {
                     throw py::type_error(
                         "Incorrect value type " + std::string(item.second.get_type().str()) +
@@ -752,11 +752,17 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "has_rt_info",
         [](const ov::Model& self, const py::list& path) -> bool {
-            std::vector<std::string> cpp_args(path.size());
-            for (size_t i = 0; i < path.size(); i++) {
-                cpp_args[i] = path[i].cast<std::string>();
+            // FIXME: understand why has_rt_info causes Python crash
+            try {
+                std::vector<std::string> cpp_args(path.size());
+                for (size_t i = 0; i < path.size(); i++) {
+                    cpp_args[i] = path[i].cast<std::string>();
+                }
+                self.get_rt_info<ov::Any>(cpp_args);
+                return true;
+            } catch (ov::Exception&) {
+                return false;
             }
-            return self.has_rt_info(cpp_args);
         },
         py::arg("path"),
         R"(

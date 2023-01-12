@@ -12,6 +12,7 @@ cmake-build*
 # developer tools
 *.idea
 .vscode
+.vs/
 .DS_Store
 **/tags
 compile_commands.json

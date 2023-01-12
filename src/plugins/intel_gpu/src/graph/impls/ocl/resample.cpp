@@ -11,6 +11,7 @@
 #include "kernel_selector_helper.h"
 #include "kernel_selector/kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/kernels/resample/resample_kernel_base.h"
+#include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -142,7 +143,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         auto params = get_default_params<kernel_selector::resample_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::resample_optional_params>(impl_param.get_program());
 
-        size_t dimsNum = impl_param.output_layout.get_rank();
+        size_t dimsNum = impl_param.get_output_layout().get_rank();
         params.resampleType = convert_to_sample_type(primitive->operation_type);
         params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
         params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
@@ -155,10 +156,9 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
 
         auto scales = primitive->scales;
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
-        if (scales_calc_mod && impl_param.input_layouts.size() == 2 && scales.empty()) {
-            auto mem = impl_param.memory_deps.at(1);
-            float* buffer = static_cast<float*>(mem->buffer_ptr());
-            scales = std::vector<float>(buffer, buffer + mem->count());
+        if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
+            auto mem = impl_param.memory_deps.at(2);
+            scales = read_vector<float>(mem, impl_param.prog->get_stream());
         }
 
         for (size_t i = 0; i < scales.size(); ++i) {
@@ -208,4 +208,4 @@ attach_resample_impl::attach_resample_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl, cldnn::object_type::RESAMPLE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)

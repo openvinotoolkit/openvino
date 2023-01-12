@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "include/binary_convolution_inst.h"
@@ -33,6 +31,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
     // Skip load-time weights reordering if impl is not selected
     if (!impl)
+        return;
+
+    if (impl->is_dynamic())
         return;
 
     auto output_layout = node.get_output_layout();

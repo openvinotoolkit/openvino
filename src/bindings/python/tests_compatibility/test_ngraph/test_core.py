@@ -82,7 +82,7 @@ def test_partial_shape():
     assert ps.is_static
     assert not ps.is_dynamic
     assert ps.rank == 4
-    assert repr(ps) == "<PartialShape: {1,2,3,4}>"
+    assert repr(ps) == "<PartialShape: [1,2,3,4]>"
     assert ps.get_dimension(0) == Dimension(1)
     assert ps.get_dimension(1) == Dimension(2)
     assert ps.get_dimension(2) == Dimension(3)
@@ -98,8 +98,8 @@ def test_partial_shape():
     assert list(ps.get_max_shape()) == [1, 2, 3]
     assert list(ps.get_min_shape()) == [1, 2, 3]
     assert list(ps.to_shape()) == [1, 2, 3]
-    assert repr(shape) == "<Shape: {1, 2, 3}>"
-    assert repr(ps) == "<PartialShape: {1,2,3}>"
+    assert repr(shape) == "<Shape: [1,2,3]>"
+    assert repr(ps) == "<PartialShape: [1,2,3]>"
 
     ps = PartialShape([Dimension(1), Dimension(2), Dimension(3), Dimension.dynamic()])
     assert not ps.is_static
@@ -108,7 +108,7 @@ def test_partial_shape():
     assert ps.rank == 4
     assert list(ps.get_min_shape()) == [1, 2, 3, 0]
     assert list(ps.get_max_shape())[3] > 1000000000
-    assert repr(ps) == "<PartialShape: {1,2,3,?}>"
+    assert repr(ps) == "<PartialShape: [1,2,3,?]>"
     assert ps.get_dimension(0) == Dimension(1)
     assert ps.get_dimension(1) == Dimension(2)
     assert ps.get_dimension(2) == Dimension(3)
@@ -121,7 +121,7 @@ def test_partial_shape():
     assert ps.rank == 4
     assert list(ps.get_min_shape()) == [1, 2, 3, 0]
     assert list(ps.get_max_shape())[3] > 1000000000
-    assert repr(ps) == "<PartialShape: {1,2,3,?}>"
+    assert repr(ps) == "<PartialShape: [1,2,3,?]>"
 
     ps = PartialShape.dynamic()
     assert not ps.is_static
@@ -129,7 +129,7 @@ def test_partial_shape():
     assert ps.rank == Dimension.dynamic()
     assert list(ps.get_min_shape()) == []
     assert list(ps.get_max_shape()) == []
-    assert repr(ps) == "<PartialShape: ...>"
+    assert repr(ps) == "<PartialShape: [...]>"
 
     ps = PartialShape.dynamic(r=Dimension(2))
     assert not ps.is_static
@@ -138,7 +138,7 @@ def test_partial_shape():
     assert 2 == ps.rank
     assert list(ps.get_min_shape()) == [0, 0]
     assert list(ps.get_max_shape())[0] > 1000000000
-    assert repr(ps) == "<PartialShape: {?,?}>"
+    assert repr(ps) == "<PartialShape: [?,?]>"
 
 
 def test_partial_shape_compatible():
@@ -229,11 +229,11 @@ def test_repr_dynamic_shape():
     model = parameter_a + parameter_b
     function = Function(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
-    assert repr(function) == "<Function: 'simple_dyn_shapes_graph' ({?,2})>"
+    assert repr(function) == "<Function: 'simple_dyn_shapes_graph' ([?,2])>"
 
     ops = function.get_ordered_ops()
     for op in ops:
-        assert "{?,2}" in repr(op)
+        assert "[?,2]" in repr(op)
 
 
 def test_discrete_type_info():

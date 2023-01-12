@@ -10,7 +10,7 @@
 #include <openvino/opsets/opset9.hpp>
 
 #include "itt.hpp"
-#include "ngraph_ops/generate_proposals_ie_internal.hpp"
+#include "ov_ops/generate_proposals_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertGP9ToGPIEInternal::ConvertGP9ToGPIEInternal() {

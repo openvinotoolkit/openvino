@@ -78,7 +78,7 @@ struct jit_uni_normalize_kernel {
 
 class NormalizeL2 : public Node {
 public:
-    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    NormalizeL2(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override {};
@@ -91,7 +91,6 @@ public:
     }
     bool canFuse(const NodePtr& node) const override;
 
-    std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 

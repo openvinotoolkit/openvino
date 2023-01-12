@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief SpaceToBatch operation divides "spatial" dimensions [1, ..., N - 1], N ∈ {4,5,6} of the data input
 /// into a grid of blocks of shape block_shape, and interleaves these blocks with the batch dimension (0) such that in the output,
@@ -51,13 +44,13 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     /// @param pads_end Amount to pad for the ending along each axis of data input.
     /// @param out_size Size of output tensor.
     space_to_batch(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    const tensor& block_shape,
                    const tensor& pads_begin,
                    const tensor& pads_end,
                    const tensor& out_size,
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           block_shape(block_shape),
           pads_begin(pads_begin),
           pads_end(pads_end),
@@ -68,7 +61,4 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     tensor pads_end;
     tensor out_size;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

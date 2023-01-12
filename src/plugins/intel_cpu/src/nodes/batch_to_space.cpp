@@ -36,8 +36,8 @@ bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -97,10 +97,6 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
                              {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
-}
-
-std::vector<VectorDims> BatchToSpace::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1, 2, 3));
 }
 
 static std::vector<size_t> getShape5D(const SizeVector &shape) {

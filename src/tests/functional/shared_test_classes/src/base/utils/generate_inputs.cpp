@@ -4,8 +4,8 @@
 
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include "ngraph/ops.hpp"
-#include "ngraph_ops/augru_cell.hpp"
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_cell.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 #include <common_test_utils/ov_tensor_utils.hpp>
 
@@ -45,7 +45,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
 namespace Activation {
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
-                             InputGenerateData inGenData = InputGenerateData(10, 20, 32768, 1)) {
+                             InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {
     if (!elemType.is_signed()) {
         inGenData.range = 15;
         inGenData.start_from = 0;
@@ -550,6 +550,16 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::op::v4::Proposal>& no
                              const ov::Shape& targetShape) {
     if (port == 1) {
         return ov::test::utils::create_and_fill_tensor_normal_distribution(elemType, targetShape, 0.0f, 0.2f, 7235346);
+    } else if (port == 2) {
+        ov::Tensor tensor = ov::Tensor(elemType, targetShape);
+
+        auto *dataPtr = tensor.data<float>();
+        dataPtr[0] = dataPtr[1] = 225.0f;
+        dataPtr[2] = 1.0f;
+        if (tensor.get_size() == 4)
+            dataPtr[3] = 1.0f;
+
+        return tensor;
     }
     return generate(std::dynamic_pointer_cast<ov::Node>(node), port, elemType, targetShape);
 }
@@ -781,8 +791,9 @@ InputsMap getInputMap() {
 #include "openvino/opsets/opset7_tbl.hpp"
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 
-#include "ngraph_ops/opset_private_tbl.hpp"
+#include "ov_ops/opset_private_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return inputsMap;

@@ -18,7 +18,6 @@ namespace v1 {
 class OPENVINO_API Split : public Op {
 public:
     OPENVINO_OP("Split", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a split operation.
     Split() = default;

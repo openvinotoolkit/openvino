@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"

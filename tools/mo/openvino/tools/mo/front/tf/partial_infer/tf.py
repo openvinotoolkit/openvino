@@ -11,8 +11,6 @@ import numpy as np
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
-    # disable eager execution of TensorFlow 2 environment immediately
-    tf_v1.disable_eager_execution()
 except ImportError:
     import tensorflow as tf_v1
 
@@ -20,13 +18,13 @@ except ImportError:
 tf_v1.get_logger().setLevel("ERROR")
 
 from google.protobuf import text_format
+from tensorflow.python.eager.context import graph_mode  # pylint: disable=no-name-in-module,import-error
 
 from openvino.tools.mo.front.extractor import node_defs_to_str
 from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.utils.graph import node_incoming_neighbourhood, node_outcoming_neighbourhood
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
-
 
 def tf_native_tf_node_infer(node: Node):
     """
@@ -58,7 +56,9 @@ def tf_native_tf_node_infer(node: Node):
     for ind in range(len(tmp_node.out_edges())):
         tmp_node_attrs['output_tensors_names'].append(tmp_node.id + ":" + str(ind))
 
-    tf_subgraph_infer(tmp_node)
+    with graph_mode():
+        tf_subgraph_infer(tmp_node)
+
     # the shape and value has been inferred and saved to the tmp_node's out nodes attribute. Let's copy it back!
     for tmp_out_port, tmp_out_node in tmp_node.out_nodes().items():
         if tmp_out_node.value is not None:

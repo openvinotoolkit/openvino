@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -82,7 +80,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
         data("input_high", input_high),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 2, data_types::f32)
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
     network network(engine, topology);
@@ -99,7 +97,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -146,7 +144,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
         data("input_high", input_thresh),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 2, data_types::f32)
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
     network network(engine, topology);
@@ -163,7 +161,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -209,13 +207,13 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
         data("input_high", input_thresh),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 2, data_types::bin),
-        reorder("reorder", "quantize", layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::bin),
+        reorder("reorder", input_info("quantize"), layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
     );
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -229,7 +227,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -290,7 +288,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
         data("input_high", input_high),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 2, data_types::f32)
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32)
     );
 
     network network(engine, topology);
@@ -307,7 +305,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
     }
 }
 
@@ -379,7 +377,7 @@ TEST(quantize_gpu, quantize_levels_3) {
         data("input_high", input_high),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 3, data_types::f32)
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 3, data_types::f32)
     );
 
     network network(engine, topology);
@@ -397,7 +395,7 @@ TEST(quantize_gpu, quantize_levels_3) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
     }
 }
 
@@ -470,7 +468,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
         data("input_high", input_high),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 256, data_types::u8)
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
     );
 
     network network(engine, topology);
@@ -488,7 +486,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
     }
 }
 
@@ -561,8 +559,8 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
         data("input_high", input_high),
         data("output_low", output_low),
         data("output_high", output_high),
-        quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 256, data_types::u8),
-        reorder("out", "quantize", format::bfzyx, data_types::u8)
+        quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8),
+        reorder("out", input_info("quantize"), format::bfzyx, data_types::u8)
     );
 
     network network(engine, topology);
@@ -580,7 +578,7 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
-        EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
     }
 }
 
@@ -666,7 +664,7 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
     }
 
     template <typename T>
-    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+    void compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
         auto output_lay = out_ref->get_layout();
         auto opt_output_lay = out_opt->get_layout();
 
@@ -687,13 +685,11 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
                         auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
                         auto opt_out_val = opt_ptr[opt_out_offset];
 
-                        EXPECT_EQ(opt_out_val, ref_out_val);
+                        ASSERT_EQ(opt_out_val, ref_out_val);
                     }
                 }
             }
         }
-
-        return true;
     }
 
     void execute_compare(const quantize_random_test_params& params, bool check_result) {
@@ -733,16 +729,16 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
                 data("input_high", input_high),
                 data("output_low", output_low),
                 data("output_high", output_high),
-                quantize("quantize", "input", "input_low", "input_high", "output_low", "output_high", 256, params.output_type)
+                quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, params.output_type)
             );
         } else {
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-        auto build_ops = build_options();
-        build_ops.set_option(build_option::outputs({"quantize"}));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"quantize"}));
 
-        network net(engine, topo, build_ops);
+        network net(engine, topo, config);
         net.set_input_data("input", input);
 
         auto result = net.execute();
@@ -765,21 +761,20 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
         if (params.inputs_num == 5) {
             topo_opt.add(
                 input_layout("input_opt", input_opt->get_layout()),
-                reorder("input_re", "input_opt", format::bfyx, params.input_type),
+                reorder("input_re", input_info("input_opt"), format::bfyx, params.input_type),
                 data("input_low", input_low),
                 data("input_high", input_high),
                 data("output_low", output_low),
                 data("output_high", output_high),
-                quantize("quantize_opt", "input_re", "input_low", "input_high", "output_low", "output_high", 256, params.output_type),
-                reorder("out", "quantize_opt", params.out_format, params.output_type)
+                quantize("quantize_opt", input_info("input_re"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, params.output_type),
+                reorder("out", input_info("quantize_opt"), params.out_format, params.output_type)
             );
         } else {
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-        auto buildops_opt = build_options();
 
-        network net_opt(engine, topo_opt, buildops_opt);
+        network net_opt(engine, topo_opt, ExecutionConfig{});
         net_opt.set_input_data("input_opt", input_opt);
 
         auto result_opt = net_opt.execute();

@@ -49,8 +49,8 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance, int32_t) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, 0);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         if (instance.node->has_second_output()) {
             args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
@@ -91,9 +91,9 @@ public:
             argm_params.has_second_output = true;
             if (arg.use_multiple_outputs()) {
                 argm_params.use_multiple_outputs = true;
-                argm_params.outputs.push_back(convert_data_tensor(impl_param.output_layout));
+                argm_params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
             } else {
-                argm_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[2]));
+                argm_params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));
             }
         }
 
@@ -102,7 +102,7 @@ public:
         auto& kernel_selector = kernel_selector::arg_max_min_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(argm_params, argm_optional_params);
 
-        return make_unique<arg_max_min_impl>(arg, best_kernel);
+        return make_unique<arg_max_min_impl>(best_kernel);
     }
 };
 
@@ -126,4 +126,4 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl, cldnn::object_type::ARG_MAX_MIN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl)

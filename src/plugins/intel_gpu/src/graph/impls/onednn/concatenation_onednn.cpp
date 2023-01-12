@@ -34,12 +34,14 @@ protected:
         int input_idx = DNNL_ARG_MULTIPLE_SRC;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            args.insert({ input_idx++, input.get_onednn_memory(_pd.src_desc(static_cast<int>(i))) });
+            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(i));
+            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dst_desc())});
+            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
         configure_post_ops_arguments(instance, args);
@@ -54,7 +56,7 @@ protected:
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
         }
-        auto output_md = onednn::layout_to_memory_desc(impl_params.output_layout);
+        auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout());
         return std::make_shared<dnnl::concat::primitive_desc>(
             output_md,
             axis,
@@ -106,6 +108,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         if (arg.can_be_optimized())
             return make_unique<concatenation_onednn>(engine);
         auto prim = impl_params.typed_desc<concatenation>();
@@ -114,7 +117,7 @@ public:
 
         std::shared_ptr<void> dummy = nullptr;
 
-        return cldnn::make_unique<concatenation_onednn>(engine, dummy, attr, *desc);
+        return cldnn::make_unique<concatenation_onednn>(engine, config, dummy, attr, *desc);
     }
 };
 
@@ -152,4 +155,4 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::concatenation_onednn, cldnn::object_type::CONCATENATION_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::concatenation_onednn)

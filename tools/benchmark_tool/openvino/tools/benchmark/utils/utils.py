@@ -7,7 +7,7 @@ from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type,
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME
+    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME
 from .logging import logger
 
 import json
@@ -72,6 +72,23 @@ def get_element_type(precision):
     raise Exception(f"Undefined precision: '{precision}' !")
 
 
+def fuse_mean_scale(preproc: PrePostProcessor, app_inputs_info):
+    # TODO: remove warning after 23.3 release
+    warned = False
+    warn_msg = 'Mean/scale values are fused into the model. This slows down performance compared to --imean and --iscale which existed before'
+    for input_info in app_inputs_info:
+        if input_info.mean.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).mean(input_info.mean)
+        if input_info.scale.size:
+            if not warned:
+                logger.warning(warn_msg)
+                warned = True
+            preproc.input(input_info.name).preprocess().convert_element_type(Type.f32).scale(input_info.scale)
+
+
 def pre_post_processing(model: Model, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     pre_post_processor = PrePostProcessor(model)
     if input_precision:
@@ -118,6 +135,8 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
                 app_inputs_info[i].element_type = Type.u8
                 pre_post_processor.input(i).tensor().set_element_type(Type.u8)
 
+    fuse_mean_scale(pre_post_processor, app_inputs_info)
+
     # set layout for model input
     for info in app_inputs_info:
         pre_post_processor.input(info.name).model().set_layout(info.layout)
@@ -143,7 +162,6 @@ def parse_input_output_precision(arg_map: str):
 
 
 def print_inputs_and_outputs_info(model: Model):
-
     inputs = model.inputs
     logger.info("Model inputs:")
     for input in inputs:
@@ -154,7 +172,7 @@ def print_inputs_and_outputs_info(model: Model):
         if node_name=="": node_name = "***NO_NAME***"
 
         logger.info(f"    {in_name} (node: {node_name}) : {input.element_type.get_type_name()} / "
-                    f"{str(input.node.layout)} / {'{'}{','.join(str(x) for x in input.partial_shape)}{'}'}")
+                    f"{str(input.node.layout)} / {input.partial_shape}")
 
     outputs = model.outputs
     logger.info("Model outputs:")
@@ -166,7 +184,7 @@ def print_inputs_and_outputs_info(model: Model):
         if node_name=="": node_name = "***NO_NAME***"
 
         logger.info(f"    {out_name} (node: {node_name}) : {output.element_type.get_type_name()} / "
-                    f"{str(output.node.layout)} / {'{'}{','.join(str(x) for x in output.partial_shape)}{'}'}")
+                    f"{str(output.node.layout)} / {output.partial_shape}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
@@ -256,15 +274,13 @@ def can_measure_as_static(app_input_info):
 
 
 def parse_devices(device_string):
-    if device_string in ['MULTI', 'HETERO']:
-        return list()
-    if device_string.find("AUTO") != -1:
-        return ['AUTO']
-    devices = device_string
-    if ':' in devices:
-        devices = devices.partition(':')[2]
-    return [d for d in devices.split(',')]
-
+    result = []
+    target_device = device_string.partition(":")[0]
+    result.append(target_device)
+    if device_string.find(":") != -1:
+        hw_devices_str = device_string.partition(":")[-1]
+        result.extend(hw_devices_str.split(','))
+    return result
 
 def parse_value_per_device(devices, values_string, value_type):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
@@ -280,8 +296,12 @@ def parse_value_per_device(devices, values_string, value_type):
             if device_name in devices:
                 result[device_name] = value
             else:
-                raise Exception(f"Can't set {value_type} for {device_name}!" \
-                                 " Incorrect device name!")
+                devices_str = ""
+                for device in devices:
+                    devices_str += device + " "
+                devices_str = devices_str.strip()
+                raise Exception(f"Failed to set property to '{device_name}' " \
+                                f"which is not found in the target devices list '{devices_str}'!")
         elif len(device_value_vec) == 1:
             value = device_value_vec[0]
             for device in devices:
@@ -290,6 +310,28 @@ def parse_value_per_device(devices, values_string, value_type):
             raise Exception('Unknown string format: ' + values_string)
     return result
 
+def parse_value_for_virtual_device(device, values_string):
+    isExist = device in values_string.keys()
+    if isExist and len(values_string) > 1:
+        if device == MULTI_DEVICE_NAME:
+            # Remove the element that the key is virtual device MULTI
+            # e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
+            values_string.pop(device)
+        elif device == AUTO_DEVICE_NAME:
+            # Just keep the element that the key is virtual device AUTO
+            # e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
+            value = values_string.get(device)
+            values_string.clear()
+            values_string[device] = value
+    keys = values_string.keys()
+    for key in list(values_string):
+        if device not in list(values_string):
+            values_string[device] = ''
+        values_string[device] += key + " " + values_string.get(key) + " "
+        del values_string[key]
+    if device in values_string.keys():
+        values_string[device] = values_string[device].strip()
+    return
 
 def process_help_inference_string(benchmark_app, device_number_streams):
     output_string = f'Start inference {benchmark_app.api_type}hronously'
@@ -355,51 +397,52 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
             total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
             total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
         print_detail_result(total_detail_data)        
-        print(f'Total time:       {total_time} microseconds')
-        print(f'Total CPU time:   {total_time_cpu} microseconds')
+        print(f'Total time:       {total_time / 1000:.3f} milliseconds')
+        print(f'Total CPU time:   {total_time_cpu / 1000:.3f} milliseconds')
         print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
     return total_detail_data
 
 def print_detail_result(result_list):
     """ Print_perf_counters_sort result 
     """
-    max_layer_name = 30
+    max_print_length = 20
     for tmp_result in result_list:
         node_name = tmp_result[0]
         layerStatus = tmp_result[1]
         layerType = tmp_result[2]
         real_time = tmp_result[3]
         cpu_time = tmp_result[4]
-        real_proportion = "%.2f"%(tmp_result[5]*100)
+        real_proportion = "%.2f" % (tmp_result[5] * 100)
         if real_proportion == "0.00":
             real_proportion = "N/A"
         execType = tmp_result[6]
-        print(f"{node_name[:max_layer_name - 4] + '...' if (len(node_name) >= max_layer_name) else node_name:<30}"
-            f"{str(layerStatus):<20}"
-            f"{'layerType: ' + layerType:<30}"
-            f"{'realTime: ' + str(real_time):<20}"
-            f"{'cpu: ' +  str(cpu_time):<15}"
-            f"{'proportion: '+ str(real_proportion)+'%':<20}"
-            f"{'execType: ' + execType:<20}")
+        print(f"{node_name[:max_print_length - 4] + '...' if (len(node_name) >= max_print_length) else node_name:<20} "
+                f"{str(layerStatus):<20} "
+                f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
+                f"execType: {execType:<20} "
+                f"realTime (ms): {real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {cpu_time / timedelta(milliseconds=1):<10.3f}"
+                f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
-    max_layer_name = 30
+    max_print_length = 20
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
         total_time = timedelta()
         total_time_cpu = timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
-            print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
-                                                                f"{str(pi.status):<15}"
-                                                                f"{'layerType: ' + pi.node_type:<30}"
-                                                                f"{'realTime: ' + str((pi.real_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'cpu: ' +  str((pi.cpu_time // timedelta(microseconds=1)) / 1000.0):<20}"
-                                                                f"{'execType: ' + pi.exec_type:<20}")
+            print(f"{pi.node_name[:max_print_length - 4] + '...' if (len(pi.node_name) >= max_print_length) else pi.node_name:<20} "
+                f"{str(pi.status):<20} "
+                f"layerType: {pi.node_type[:max_print_length - 4] + '...' if (len(pi.node_type) >= max_print_length) else pi.node_type:<20} "
+                f"execType: {pi.exec_type:<20} "
+                f"realTime (ms): {pi.real_time / timedelta(milliseconds=1):<10.3f} "
+                f"cpuTime (ms): {pi.cpu_time / timedelta(milliseconds=1):<10.3f}")
+
             total_time += pi.real_time
             total_time_cpu += pi.cpu_time
-        print(f'Total time:     {(total_time // timedelta(microseconds=1)) / 1000.0} seconds')
-        print(f'Total CPU time: {(total_time_cpu // timedelta(microseconds=1)) / 1000.0} seconds\n')
+        print(f'Total time:     {total_time / timedelta(milliseconds=1)} milliseconds')
+        print(f'Total CPU time: {total_time_cpu / timedelta(milliseconds=1)} milliseconds\n')
 
 
 def get_command_line_arguments(argv):
@@ -484,7 +527,7 @@ def parse_scale_or_mean(parameter_string, input_info):
         if matches:
             for match in matches:
                 input_name, value = match
-                f_value = np.array(value.split(",")).astype(np.float)
+                f_value = np.array(value.split(",")).astype(float)
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:
@@ -700,10 +743,44 @@ def show_available_devices():
 
 
 def dump_config(filename, config):
+    properties = {}
+    for device in config:
+        properties[device] = {}
+        supported_properties = Core().get_property(device, 'SUPPORTED_PROPERTIES')
+        # check if ov::device::properties exists in the config
+        if device not in (AUTO_DEVICE_NAME, MULTI_DEVICE_NAME):
+            properties[device] = config[device]
+            continue
+        for property_name in config[device]:
+            property_value = config[device][property_name]
+            if property_name in supported_properties:
+                properties[device][property_name] = property_value
+            else:
+                properties[device].setdefault('DEVICE_PROPERTIES', {})
+                properties[device]['DEVICE_PROPERTIES'].setdefault(property_name, {})
+                array = property_value.split(' ')
+                properties_dict = {array[i]: array[i + 1] for i in range(0, len(array), 2)}
+                for key in properties_dict:
+                    properties[device]['DEVICE_PROPERTIES'][property_name][key] = properties_dict[key]
+
     with open(filename, 'w') as f:
-        json.dump(config, f, indent=4)
+        json.dump(properties, f, indent=4)
 
 
 def load_config(filename, config):
     with open(filename) as f:
-        config.update(json.load(f))
+        original_config = json.load(f)
+    for device in original_config:
+        config[device] = {}
+        for property_name in original_config[device]:
+            property_value = original_config[device][property_name]
+            if property_name != 'DEVICE_PROPERTIES':
+                config[device][property_name] = property_value
+                continue
+            for hw_device in property_value:
+                hw_device_config = property_value[hw_device]
+                array = ""
+                for key in hw_device_config:
+                    value = hw_device_config[key]
+                    array += key + ' ' + value + ' '
+                config[device][hw_device] = array.strip()

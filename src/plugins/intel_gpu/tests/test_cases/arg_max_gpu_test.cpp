@@ -35,7 +35,7 @@ struct argmax_gpu_test : public testing::Test {
         cldnn::mem_lock<input_type> out_ptr(mem, get_test_stream());
         for (uint32_t i = 0; i < out_size; i++) {
             float out_value = get_value<input_type>(out_ptr.data(), i);
-            EXPECT_EQ(out_value, i < (out_size / 2) ? 0 : 1);
+            ASSERT_EQ(out_value, i < (out_size / 2) ? 0 : 1);
         }
     }
 };
@@ -67,9 +67,9 @@ TYPED_TEST(argmax_gpu_test, base) {
     auto input = engine.allocate_memory({this->data_type, format::bfyx, {batch_num, feature_num, x_size, y_size}});
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reordered_input", "input", this->format, this->data_type));
-    topology.add(arg_max_min("arg_max", {"reordered_input"}, ov::op::TopKMode::MIN, top_k, 0));
-    topology.add(reorder("plane_arg_max", "arg_max", format::bfyx, this->data_type));
+    topology.add(reorder("reordered_input", input_info("input"), this->format, this->data_type));
+    topology.add(arg_max_min("arg_max", { input_info("reordered_input") }, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(reorder("plane_arg_max", input_info("arg_max"), format::bfyx, this->data_type));
 
     std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
                                     /*b0f0*/ 0.1f, -0.1f, 0.9f,  1.5f,
@@ -105,7 +105,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MIN,
                              top_k,
                              0,
@@ -132,8 +132,8 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
@@ -142,7 +142,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
         out_buffer[i] = get_value<int32_t>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
+        ASSERT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
     }
 }
 
@@ -155,7 +155,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     topology.add(input_layout("input", input->get_layout()));
 
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              2,
@@ -199,8 +199,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -209,7 +209,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -222,7 +222,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     topology.add(input_layout("input", input->get_layout()));
 
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              0,
@@ -264,8 +264,8 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -274,7 +274,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -287,7 +287,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     topology.add(input_layout("input", input->get_layout()));
 
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              2,
@@ -321,8 +321,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -331,7 +331,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -346,7 +346,7 @@ TEST(top_k_layer_tests, second_output) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", top_k_input));
     topology.add(mutable_data("second_output", second_output));
-    topology.add(arg_max_min("arg_max", {"input", "const", "second_output"}, ov::op::TopKMode::MIN, top_k, 0));
+    topology.add(arg_max_min("arg_max", { input_info("input"), input_info("const"), input_info("second_output") }, ov::op::TopKMode::MIN, top_k, 0));
 
     std::vector<float> input_vec = {// y0x0 y0x1 y1x0 y1x1
                                     /*b0f0*/ 0.1f, -0.1f, 0.9f,  1.5f,
@@ -365,8 +365,8 @@ TEST(top_k_layer_tests, second_output) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -379,8 +379,8 @@ TEST(top_k_layer_tests, second_output) {
         second_out_buffer[i] = get_value<float>(second_output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
-        EXPECT_EQ(second_out_buffer[i], input_vec[i]);
+        ASSERT_EQ(out_buffer[i], i < (out_size / 2) ? 0 : 1);
+        ASSERT_EQ(second_out_buffer[i], input_vec[i]);
     }
 }
 
@@ -397,7 +397,7 @@ TEST(top_k_layer_tests, second_output2) {
     topology.add(mutable_data("second_output", second_output));
 
     topology.add(arg_max_min("arg_max",
-                             {"input", "const", "second_output"},
+                             { input_info("input"), input_info("const"), input_info("second_output") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              0,
@@ -459,8 +459,8 @@ TEST(top_k_layer_tests, second_output2) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -472,8 +472,8 @@ TEST(top_k_layer_tests, second_output2) {
         second_out_buffer[i] = get_value<float>(second_output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
-        EXPECT_EQ(second_out_buffer[i], second_ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(second_out_buffer[i], second_ref_vec[i]);
     }
 }
 
@@ -487,10 +487,21 @@ TEST(top_k_layer_tests, multiple_outputs) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(cldnn::data("const", {top_k_input}));
-    topology.add(arg_max_min("arg_max", { "input", "const" }, ov::op::TopKMode::MAX, top_k, 0, ov::op::TopKSortType::SORT_VALUES, false, padding(), data_types::f32, {input_info("input", 0), input_info("const", 0)}, 2));
-    topology.add(permute("permute_1", "arg_max", {0, 1, 2, 3}, padding(), {input_info("arg_max", 0)}));
-    topology.add(permute("permute_2", "arg_max", {0, 1, 2, 3}, padding(), {input_info("arg_max", 1)}));
-    topology.add(concatenation("concat", { "permute_1", "permute_2" }, 0, data_types::f32, padding(), {input_info("permute_1"), input_info("permute_2")}));
+    auto arg_max_min_prim = arg_max_min("arg_max",
+                                        { input_info("input"), input_info("const") },
+                                        ov::op::TopKMode::MAX, top_k,
+                                        0,
+                                        ov::op::TopKSortType::SORT_VALUES,
+                                        false,
+                                        padding(),
+                                        data_types::f32,
+                                        2);
+    arg_max_min_prim.output_paddings = {padding(), padding()};
+    arg_max_min_prim.output_data_types = {optional_data_type{data_types::f32}, optional_data_type{data_types::f32}};
+    topology.add(arg_max_min_prim);
+    topology.add(permute("permute_1", input_info("arg_max", 0), {0, 1, 2, 3}, padding()));
+    topology.add(permute("permute_2", input_info("arg_max", 1), {0, 1, 2, 3}, padding()));
+    topology.add(concatenation("concat", { input_info("permute_1"), input_info("permute_2") }, 0));
 
     std::vector<float> input_vec = {
             //y0x0 y0x1 y1x0 y1x1
@@ -528,13 +539,17 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "concat");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
     const int out_size = y_size * feature_num * x_size * top_k * 2;
     auto output = outputs.at("concat").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -544,7 +559,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_result[i]);
+        ASSERT_EQ(out_buffer[i], ref_result[i]);
     }
 }
 
@@ -557,7 +572,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     topology.add(input_layout("input", input->get_layout()));
 
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              2,
@@ -591,8 +606,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -601,7 +616,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
@@ -614,7 +629,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     topology.add(input_layout("input", input->get_layout()));
 
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              2,
@@ -648,8 +663,8 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -658,11 +673,12 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
 }
 
-TEST(top_k_layer_tests, sort_probabilities_by_indices) {
+template <typename T>
+void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) {
     static const int32_t x_size = 10, y_size = 1, feature_num = 1, batch_num = 1;
     auto& engine = get_test_engine();
     const int top_k = 5;
@@ -671,7 +687,7 @@ TEST(top_k_layer_tests, sort_probabilities_by_indices) {
     topology.add(input_layout("input", input->get_layout()));
 
     topology.add(arg_max_min("arg_max",
-                             {"input"},
+                             { input_info("input") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              3,
@@ -679,18 +695,36 @@ TEST(top_k_layer_tests, sort_probabilities_by_indices) {
                              false,
                              padding(),
                              data_types::i32));
-    std::vector<float> input_vec = {0.9f, 0.1f, 0.2f, 0.8f, 0.5f, 0.6f, 0.3f, 0.4f, 0.7f, 0.95f};
+    std::vector<T> input_vec = {0.9f, 0.1f, 0.2f, 0.8f, 0.5f, 0.6f, 0.3f, 0.4f, 0.7f, 0.95f};
 
     std::vector<int> ref_vec = {9, 0, 3, 8, 5};
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "arg_max");
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input", input);
+    auto outputs = network->execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = top_k;
     auto output = outputs.at("arg_max").get_memory();
     cldnn::mem_lock<int> output_ptr(output, get_test_stream());
@@ -699,8 +733,16 @@ TEST(top_k_layer_tests, sort_probabilities_by_indices) {
         out_buffer[i] = get_value<int>(output_ptr.data(), i);
     }
     for (int i = 0; i < out_size; i++) {
-        EXPECT_EQ(out_buffer[i], ref_vec[i]);
+        ASSERT_EQ(out_buffer[i], ref_vec[i]);
     }
+}
+
+TEST(top_k_layer_tests, sort_probabilities_by_indices) {
+    test_top_k_layer_tests_sort_probabilities_by_indices<float>(false);
+}
+
+TEST(export_import_top_k_layer_tests, sort_probabilities_by_indices) {
+    test_top_k_layer_tests_sort_probabilities_by_indices<float>(true);
 }
 
 const std::vector<float> input_vec1 = {
@@ -797,7 +839,8 @@ const std::vector<float> input_vec1 = {
     0.000233, 0.000149, 0.000104, 0.000190, 0.000320, 0.000101, 0.000199, 0.000110, 0.000070, 0.000264, 0.000069};
 const int output_ref = 341;
 
-TEST(top_k_layer_tests, md_sync) {
+template <typename T>
+void test_top_k_layer_md_sync(bool is_caching_test) {
     static const int32_t x_size = 1, y_size = 1, feature_num = 1001, batch_num = 1;
     const int top_k = 1;
     layout inp_l = {data_types::f32, format::yxfb, {batch_num, feature_num, x_size, y_size}};
@@ -808,7 +851,7 @@ TEST(top_k_layer_tests, md_sync) {
     set_values(input1, input_vec1);
 
     auto shared_memory = engine.allocate_memory(mutableLayout);
-    const std::vector<int> topk_vec = {1};
+    const std::vector<T> topk_vec = {1};
     auto top_k_input = engine.allocate_memory(mutableLayout);
     set_values(top_k_input, topk_vec);
 
@@ -817,21 +860,47 @@ TEST(top_k_layer_tests, md_sync) {
     topology.add(mutable_data("arg_max_md_write", shared_memory));
     topology.add(data("const", top_k_input));
     topology.add(arg_max_min("arg_max.0",
-                             {"input1", "const", "arg_max_md_write"},
+                             { input_info("input1"), input_info("const"), input_info("arg_max_md_write") },
                              ov::op::TopKMode::MAX,
                              top_k,
                              1,
                              ov::op::TopKSortType::SORT_INDICES,
                              true));
-    topology.add(mutable_data("arg_max.1", {"arg_max.0"}, shared_memory));
+    topology.add(mutable_data("arg_max.1", { input_info("arg_max.0") }, shared_memory));
 
-    network network(engine, topology);
-    network.set_input_data("input1", input1);
-    auto outputs = network.execute();
+    cldnn::network::ptr network;
 
-    EXPECT_EQ(outputs.size(), size_t(2));
+    if (is_caching_test) {
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology);
+    }
+
+    network->set_input_data("input1", input1);
+    auto outputs = network->execute();
+
+    ASSERT_EQ(outputs.size(), size_t(2));
     auto output = outputs.at("arg_max.1").get_memory();
-    mem_lock<int> output_ptr(output, get_test_stream());
+    mem_lock<T> output_ptr(output, get_test_stream());
 
-    EXPECT_EQ(output_ptr[0], output_ref);
+    ASSERT_EQ(output_ptr[0], output_ref);
+}
+
+TEST(top_k_layer_tests, md_sync) {
+    test_top_k_layer_md_sync<int>(false);
+}
+
+TEST(export_import_top_k_layer_tests, md_sync) {
+    test_top_k_layer_md_sync<int>(true);
 }

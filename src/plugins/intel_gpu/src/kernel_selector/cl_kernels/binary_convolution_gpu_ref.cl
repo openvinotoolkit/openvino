@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(binary_convolution_ref)(const __global INPUT0_TYPE* input,
                                      __global OUTPUT_TYPE* output,
-                               const __global FILTER_TYPE* weights,
+                               const __global FILTER_TYPE* weights
 #if HAS_FUSED_OPS_DECLS
-                               FUSED_OPS_DECLS,
+                               , FUSED_OPS_DECLS
 #endif
-                               uint split_idx)
+)
 {
     const int b  = get_global_id(0);
     const int f  = get_global_id(1);

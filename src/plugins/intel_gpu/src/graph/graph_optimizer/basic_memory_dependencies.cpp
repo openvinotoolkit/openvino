@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "program_helpers.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <vector>
 #include <memory>
 #include <list>
@@ -20,7 +18,7 @@
 using namespace cldnn;
 
 void basic_memory_dependencies::run(program& p) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::BasicMemoryDependencies");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
     std::vector<primitive_id> past_outputs;
     while (itr != p.get_processing_order().end()) {
@@ -33,8 +31,8 @@ void basic_memory_dependencies::run(program& p) {
 
         // add my dependencies to restriction list (can't share input.output buffers)
         for (auto it : node->get_dependencies()) {
-            add_memory_dependency(node, it);
-            add_memory_dependency(it, node);
+            add_memory_dependency(node, it.first);
+            add_memory_dependency(it.first, node);
         }
 
         if (node->get_preferred_impl_type() == impl_types::onednn
@@ -68,7 +66,7 @@ void basic_memory_dependencies::run(program& p) {
             if (node->is_type<mutable_data>()) {
                 // if output is mutable data, then propagate output flag to its dependencies
                 for (auto& dep : node->get_dependencies()) {
-                    dep->set_output(true);
+                    dep.first->set_output(true);
                 }
             }
         }

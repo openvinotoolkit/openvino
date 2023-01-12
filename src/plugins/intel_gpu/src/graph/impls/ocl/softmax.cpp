@@ -52,10 +52,15 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         auto params = get_default_params<kernel_selector::softmax_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::softmax_optional_params>(impl_param.get_program());
 
-        size_t rank = impl_param.output_layout.get_rank();
+        size_t rank = impl_param.get_output_layout().get_rank();
         params.dim = get_softmax_dim(primitive->dimension, rank);
 
         return {params, optional_params};
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
@@ -70,11 +75,18 @@ attach_softmax_impl::attach_softmax_impl() {
             format::bfzyx
     };
 
-    implementation_map<softmax>::add(impl_types::ocl, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+    implementation_map<softmax>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+    };
+
+    implementation_map<softmax>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl, cldnn::object_type::SOFTMAX_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl)

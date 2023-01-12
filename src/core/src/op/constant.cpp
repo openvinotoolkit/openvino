@@ -32,8 +32,6 @@ static inline string to_cpp_string(T value) {
     return rc;
 }
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Constant);
-
 ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor) {
     m_element_type = tensor->get_element_type();
     m_shape = tensor->get_shape();

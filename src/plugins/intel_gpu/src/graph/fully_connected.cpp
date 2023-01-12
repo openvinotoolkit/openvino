@@ -1,8 +1,6 @@
 // Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "fully_connected_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -14,10 +12,7 @@
 #include "matmul_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id fully_connected::type_id() {
-    static primitive_type_base<fully_connected> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(fully_connected)
 
 namespace {
 bool is_batch_after_spatial(const std::string order) {
@@ -100,8 +95,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
     auto output_type = input_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)
-        output_type = *desc->output_data_type;
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -142,7 +137,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto weights_layout = *impl_param.weights_layout;
 
     auto default_out_dt = data_type_traits::is_floating_point(input_layout.data_type) ? input_layout.data_type : data_types::f32;
-    auto output_type = desc->output_data_type.value_or(default_out_dt);
+    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -171,7 +166,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     // fc_tiled_opt kernel is optimized for row shape aligned by 16.
     // Thus, use fake aligned shape at kernel execution for better performance.
     auto orig_input_layout = orig_impl_param.get_input_layout();
-    auto orig_output_layout = orig_impl_param.output_layout;
+    auto orig_output_layout = orig_impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx) {
@@ -187,7 +182,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                                                 orig_input_layout.data_type,
                                                 orig_input_layout.format,
                                                 orig_input_layout.data_padding);
-        updated_param.output_layout = layout(ov::PartialShape(output_shape),
+        updated_param.output_layouts[0] = layout(ov::PartialShape(output_shape),
                                              orig_output_layout.data_type,
                                              orig_output_layout.format,
                                              orig_output_layout.data_padding);

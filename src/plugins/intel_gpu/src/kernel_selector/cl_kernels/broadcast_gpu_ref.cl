@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
 
@@ -15,7 +14,10 @@
     #define IDX_ORDER idx_b,idx_f,idx_w,idx_z,idx_y,idx_x
 #endif
 
-KERNEL(broadcast_gpu_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(broadcast_gpu_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output)
 {
 
 #if OUTPUT_DIMS >= 5

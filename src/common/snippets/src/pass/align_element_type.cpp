@@ -8,7 +8,7 @@
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/align_element_type.hpp"
 #include "snippets/utils.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
 #include <ngraph/rt_info.hpp>

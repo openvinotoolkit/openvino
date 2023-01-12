@@ -15,7 +15,6 @@ namespace v3 {
 class OPENVINO_API Assign : public util::AssignBase {
 public:
     OPENVINO_OP("Assign", "opset3", util::AssignBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
@@ -46,7 +45,6 @@ namespace v6 {
 class OPENVINO_API Assign : public util::AssignBase {
 public:
     OPENVINO_OP("Assign", "opset6", util::AssignBase, 6);
-    BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
     /// \brief Constructs an Assign operation.

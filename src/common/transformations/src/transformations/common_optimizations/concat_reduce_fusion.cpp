@@ -130,7 +130,7 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 }
 
 ov::pass::ConcatReduceFusion::ConcatReduceFusion() {
-    add_matcher<ReplaceConcatReduceByMinOrMax>();
-    add_matcher<PullSqueezeThroughEltwise>();
-    add_matcher<EliminateSqueeze>();
+    ADD_MATCHER_FOR_THIS(ReplaceConcatReduceByMinOrMax)
+    ADD_MATCHER_FOR_THIS(PullSqueezeThroughEltwise)
+    ADD_MATCHER_FOR_THIS(EliminateSqueeze)
 }

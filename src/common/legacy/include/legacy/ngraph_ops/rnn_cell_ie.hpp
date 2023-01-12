@@ -18,7 +18,6 @@ namespace op {
 class RNNCellIE : public Op {
 public:
     OPENVINO_OP("RNNCellIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     RNNCellIE(const Output<Node> &X,
               const Output<Node> &H_t,

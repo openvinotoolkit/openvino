@@ -5,11 +5,7 @@ set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT ENABLE_SANITIZER)
-    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
-endif()
+ov_try_use_gold_linker()
 
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
@@ -19,10 +15,6 @@ if(NOT ENABLE_OV_CORE_UNIT_TESTS)
 endif()
 
 message(STATUS "OpenVINO Core unit tests enabled")
-
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
@@ -50,7 +42,7 @@ endif()
 ov_add_test_target(
     NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        EXCLUDED_SOURCE_PATHS 
+        EXCLUDED_SOURCE_PATHS
             ${EXCLUDE_TESTS}
         DEPENDENCIES
             ${UNIT_TESTS_DEPENDENCIES}

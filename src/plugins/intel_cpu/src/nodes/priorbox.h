@@ -16,7 +16,7 @@ namespace node {
 
 class PriorBox : public Node {
 public:
-    PriorBox(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    PriorBox(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -25,7 +25,6 @@ public:
     bool created() const override;
 
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
     bool needPrepareParams() const override;
 
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }

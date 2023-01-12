@@ -9,6 +9,9 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
+
+import numpy as np
 
 try:
     import openvino_telemetry as tm
@@ -16,8 +19,7 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
-    new_extensions_used, new_transformations_config_used
+from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, new_extensions_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -28,9 +30,9 @@ from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
-    get_mean_scale_dictionary, get_meta_info, get_mxnet_cli_options, get_onnx_cli_options, \
+    get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, get_tuple_values, parse_transform, parse_tuple_pairs, \
-    get_all_cli_parser, mo_convert_params, get_model_name_from_args
+    get_all_cli_parser, mo_convert_params, get_model_name_from_args, split_shapes, depersonalize
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -38,14 +40,16 @@ from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_na
 from openvino.tools.mo.utils.logger import init_logger, progress_printer
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_framework_info
-from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
+from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
 from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
-from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension, JsonConfigExtension
+from openvino.frontend import FrontEndManager, ProgressReporterExtension, TelemetryExtension
+from openvino.runtime import PartialShape, Dimension
+from openvino.runtime import get_version as get_rt_version
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -157,14 +161,15 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         'Please use --framework with one from the list: {}.',
                         '--input_model', argv.input_model, frameworks)
         elif argv.framework not in frameworks:
+            if argv.framework == 'ir':
+                raise Error('OpenVINO IR is passed as input_model in convert_model/mo, the IR doesn\'t need '
+                            'conversion, please use it in runtime for inference with read_model/compile_model.')
             raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
                         refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_legacy_frontend:
         if new_extensions_used(argv):
             raise Error('New kind of extensions used on legacy path')
-        if new_transformations_config_used(argv):
-            raise Error('New kind of transformations configuration used on legacy path')
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -202,8 +207,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     def raise_ie_not_found():
         raise Error("Could not find the Inference Engine or nGraph Python API.\n"
                     "Consider building the Inference Engine and nGraph Python APIs from sources or "
-                    "try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
-            "bat" if sys.platform == "windows" else "sh"))
+                    "try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
 
     try:
         if not find_ie_version(silent=argv.silent):
@@ -212,7 +216,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
-    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
+            ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:
@@ -231,18 +236,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
 
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
-
-    if is_caffe and argv.mean_file and argv.mean_values:
-        raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
-                    refer_to_faq_msg(17))
-    elif is_caffe and argv.mean_file and argv.mean_file_offsets:
-        values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
-        mean_file_offsets = mo_array([int(x) for x in values[0].split(',')])
-        if not all([offset >= 0 for offset in mean_file_offsets]):
-            raise Error("Negative value specified for --mean_file_offsets option. "
-                        "Please specify positive integer values in format '(x,y)'. " +
-                        refer_to_faq_msg(18))
-        argv.mean_file_offsets = mean_file_offsets
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -303,12 +296,7 @@ def check_fallback(argv: argparse.Namespace):
     if not any(deduce_legacy_frontend_by_namespace(argv)):
         return fallback_reasons
 
-    # TODO: Remove this workaround once TensorFlow Frontend becomes default
-    # For testing purpose of TensorFlow Frontend and its fallback,
-    # preserve fallback capability despite of specified use_new_frontend option
-    # There is no possibility for fallback if a user strictly wants to use new frontend (except TF FE now)
-    is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    if argv.use_new_frontend and not is_tf:
+    if argv.use_new_frontend:
         return fallback_reasons
 
     fallback_reasons['extensions'] = legacy_extensions_used
@@ -385,8 +373,6 @@ def prepare_ir(argv: argparse.Namespace):
                 raise Error('Legacy extensions are not supported for the new frontend')
             if legacy_extensions_used(argv):
                 raise Error('Legacy transformations configuration is not supported for the new frontend')
-            if new_transformations_config_used(argv):
-                moc_front_end.add_extension(JsonConfigExtension(argv.transformations_config))
             if new_extensions_used(argv):
                 for extension in argv.extensions:
                     moc_front_end.add_extension(extension)
@@ -415,15 +401,16 @@ def prepare_ir(argv: argparse.Namespace):
     return graph, ngraph_function
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace):
+def read_model(fem: FrontEndManager, path_to_xml: str):
     # We have to separate fe object lifetime from fem to
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
-    def read_model(path_to_xml):
-        fe = fem.load_by_framework(framework="ir")
-        function = fe.convert(fe.load(path_to_xml))
-        return function
+    fe = fem.load_by_framework(framework="ir")
+    function = fe.convert(fe.load(path_to_xml))
+    return function
 
+
+def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
@@ -434,23 +421,36 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
-    prepare_emit_ir(graph=graph,
-                    data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=argv.output_dir,
-                    output_model_name=argv.model_name,
-                    mean_data=mean_data,
-                    input_names=input_names,
-                    meta_info=get_meta_info(argv),
-                    use_temporary_path=True)
-
-    # This graph cleanup is required to avoid double memory consumption
-    graph.clear()
-
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-    fem = FrontEndManager()
-    func = read_model(orig_model_name + "_tmp.xml")
+    def clear_tmp_ir_files():
+        for suf in [".xml", ".bin", ".mapping"]:
+            # remove existing files
+            path_to_file = orig_model_name + "_tmp" + suf
+            if os.path.exists(path_to_file):
+                os.remove(path_to_file)
+
+    try:
+        prepare_emit_ir(graph=graph,
+                        data_type=graph.graph['cmd_params'].data_type,
+                        output_dir=argv.output_dir,
+                        output_model_name=argv.model_name,
+                        mean_data=mean_data,
+                        input_names=input_names,
+                        meta_info=non_default_params,
+                        use_temporary_path=True)
+
+        fem = FrontEndManager()
+        func = read_model(fem, orig_model_name + "_tmp.xml")
+    except Exception as err:
+        raise Error('Exception occurred while serialization or reading of the temporary IR: {}'.format(
+            str(err),
+        )) from err
+    finally:
+        # This graph cleanup is required to avoid double memory consumption
+        graph.clear()
+        clear_tmp_ir_files()
 
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
@@ -478,22 +478,247 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         if return_code != 0:
             raise Error("offline transformations step has failed.")
 
-        for suf in [".xml", ".bin", ".mapping"]:
-            # remove existing files
-            path_to_file = orig_model_name + "_tmp" + suf
-            if os.path.exists(path_to_file):
-                os.remove(path_to_file)
     return func
 
 
-def driver(argv: argparse.Namespace):
+def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
+    # Current function returns list with static dimensions with following logic.
+    # For dynamic dimensions return lower boundaries if they are set, otherwise
+    # return upper boundaries if they are set. If dimension is fully dynamic then raise error.
+    shape_list = []
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1:
+                shape_list.append(dynamic_value)
+                continue
+            shape_list.append(dim)
+        elif isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                shape_list.append(dynamic_value)
+                continue
+            shape_list.append(dim)
+        elif isinstance(dim, tuple):
+            # tuple where (min_length, max_length), the format which uses MO cli parser
+            assert len(dim) == 2, "Unknown dimension type {}".format(dim)
+            if dim[0] > 0:
+                shape_list.append(dim[0])
+            elif dim[1] < np.iinfo(np.int64).max:
+                shape_list.append(dim[1])
+            else:
+                shape_list.append(dynamic_value)
+                continue
+        elif isinstance(dim, Dimension):
+            if dim.is_static or dim.get_min_length() > 0:
+                shape_list.append(dim.get_min_length())
+            elif dim.get_max_length() != -1:
+                shape_list.append(dim.get_max_length())
+            else:
+                shape_list.append(dynamic_value)
+                continue
+        else:
+            raise Error("Unknown dimension type {}".format(dim))
+
+    return tuple(shape_list)
+
+
+def get_dynamic_dims(shape: [PartialShape, list, tuple]):
+    dynamic_dims = []
+    for idx, dim in enumerate(shape):
+        if isinstance(dim, int):
+            if dim == -1:
+                dynamic_dims.append(idx)
+        if isinstance(dim, np.int64):
+            if dim == np.int64(-1):
+                dynamic_dims.append(idx)
+        elif isinstance(dim, tuple):
+            dynamic_dims.append(idx)
+        elif isinstance(dim, Dimension):
+            if dim.get_min_length() == 0 and dim.get_max_length() == -1:
+                dynamic_dims.append(idx)
+
+    return dynamic_dims
+
+
+def check_model_object(argv):
+    model = argv['input_model']
+    if 'tensorflow' in sys.modules:
+        import tensorflow as tf
+        from tensorflow.python.training.tracking.base import Trackable
+
+        if isinstance(model, tf.compat.v1.GraphDef):
+            return "tf"
+        if isinstance(model, tf.compat.v1.Session):
+            argv['input_model'] = model.graph_def
+            return "tf"
+        if isinstance(model, tf.types.experimental.ConcreteFunction):
+            argv['input_model'] = model.graph.as_graph_def()
+            return "tf"
+        if isinstance(model, tf.keras.Model):
+            return "tf"
+        if isinstance(model, tf.train.Checkpoint):
+            if isinstance(model.root, tf.keras.Model):
+                argv['input_model'] = model.root
+                return "tf"
+            else:
+                raise Error("Unknown checkpoint format.")
+
+        if isinstance(model, tf.keras.layers.Layer) or isinstance(model, tf.Module):
+            assert 'input_shape' in argv and argv['input_shape'] is not None, \
+                "Converting of {} requires providing of input_shape.".format(type(model))
+            assert len(argv['input_shape']) > 0, "Please provide non-empty input shape."
+            inputs = []
+            for shape_idx, shape in enumerate(parse_input_shapes(argv)):
+                inp_shape = get_static_shape(shape)
+                batch_size = None
+                if len(inp_shape) > 1:
+                    batch_size = inp_shape[0]
+                    inp_shape = inp_shape[1:]
+                inputs.append(tf.keras.Input(shape=inp_shape, batch_size=batch_size))
+            outputs = model(*inputs)
+            argv['input_model'] = tf.keras.Model(inputs, outputs)
+            argv['input_shape'] = None
+            return "tf"
+        if isinstance(model, Trackable):
+            return "tf"
+    if 'torch' in sys.modules:
+        import torch
+        if isinstance(model, torch.nn.Module) or isinstance(model, torch.jit.ScriptFunction):
+            return "pytorch"
+
+    import io
+    if isinstance(model, io.BytesIO):
+        return 'onnx'
+
+    raise Error('Unknown model type: {}'.format(type(model)))
+
+
+def get_onnx_temp_filename(output_dir):
+    output_dir = output_dir if output_dir is not None else os.getcwd()
+    return os.path.normpath(os.path.join(output_dir, "model.onnx"))
+
+
+def to_torch_tensor(tensor):
+    import torch
+    from openvino.runtime import Tensor
+    if isinstance(tensor, torch.Tensor):
+        return tensor
+    if isinstance(tensor, np.ndarray):
+        return torch.tensor(tensor)
+    if isinstance(tensor, np.ndarray):
+        return torch.tensor(tensor)
+    if isinstance(tensor, Tensor):
+        return torch.tensor(tensor.data)
+    else:
+        raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
+                    "Got {}".format(type(tensor)))
+
+
+def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, output_dir):
+    import io
+    import torch
+
+    input_names = None
+    if example_inputs is not None:
+        inputs = example_inputs
+        if isinstance(inputs, list):
+            inputs = [to_torch_tensor(x) for x in inputs]
+            if len(inputs) == 1:
+                inputs = torch.unsqueeze(inputs[0], 0)
+            else:
+                inputs = inputs
+        elif isinstance(inputs, tuple):
+            inputs = [to_torch_tensor(x) for x in inputs]
+            inputs = tuple(inputs)
+        elif isinstance(inputs, dict):
+            for name, tensor in inputs.items():
+                assert isinstance(name, str), "Expected dictionary where keys are input names of string type and" \
+                                              " values are tensors. Got key of type {}".format(type(name))
+                inputs[name] = to_torch_tensor(tensor)
+        else:
+            inputs = to_torch_tensor(inputs)
+    elif input_shape is not None:
+        inputs = []
+        for shape_idx, shape in enumerate(input_shape):
+            static_shape = get_static_shape(shape, dynamic_value=1)
+            inputs.append(torch.zeros(static_shape))
+        inputs = tuple(inputs)
+    else:
+        raise Error("Please provide input_shape or example_input for converting PyTorch model.")
+
+    dynamic_dims_dict = {}
+    if input_shape is not None and input_names is None:
+        input_names = ["input_{}".format(idx) for idx in range(len(input_shape))]
+        for shape_idx, shape in enumerate(input_shape):
+            dynamic_dims = get_dynamic_dims(shape)
+            if len(dynamic_dims) > 0:
+                dynamic_dims_dict[input_names[shape_idx]] = dynamic_dims
+    additional_params = {}
+    if len(dynamic_dims_dict) > 0:
+        additional_params.update({'dynamic_axes': dynamic_dims_dict})
+    if input_names is not None and len(input_names) > 0:
+        additional_params.update({'input_names': input_names})
+
+    if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+        model_onnx = io.BytesIO()
+    else:
+        model_onnx = get_onnx_temp_filename(output_dir)
+    if opset_version is not None:
+        additional_params.update({'opset_version': opset_version})
+
+    torch.onnx.export(model,
+                      inputs,
+                      model_onnx,
+                      **additional_params)
+    return model_onnx
+
+
+def parse_input_shapes(argv):
+    input_shapes = None
+    if 'input_shape' in argv and argv['input_shape'] is not None:
+        shapes = argv['input_shape']
+        if isinstance(shapes, str):
+            shapes = ["[{}]".format(x) for x in split_shapes(shapes)]
+        if isinstance(shapes, list) or isinstance(shapes, tuple):
+            input_shapes = []
+            is_single_shape = False
+            for shape in shapes:
+                if isinstance(shape, str):
+                    _, shape_tuple, _ = get_placeholder_shapes(argv_input=None, argv_input_shape=shape)
+                    input_shapes.append(shape_tuple)
+                    if is_single_shape:
+                        raise Error("Incorrect format of shape.")
+                elif isinstance(shape, int) or isinstance(shape, np.int64) or isinstance(shape, Dimension):
+                    is_single_shape = True
+                    input_shapes.append(shape)
+                else:
+                    input_shapes.append(shape)
+            if is_single_shape:
+                return [input_shapes]
+            else:
+                return input_shapes
+        elif isinstance(shapes, PartialShape):
+            return [shapes]
+        else:
+            try:
+                import torch
+                if isinstance(shapes, torch.Size):
+                    return [shapes]
+            except ImportError:
+                raise Error("Unknown type of input shape {}.".format(type(shapes)))
+
+    return input_shapes
+
+
+def driver(argv: argparse.Namespace, non_default_params: dict):
     init_logger(argv.log_level.upper(), argv.silent)
 
     start_time = datetime.datetime.now()
 
     graph, ngraph_function = prepare_ir(argv)
+    legacy_path = False
     if graph is not None:
-        res_ngraph_function = emit_ir(graph, argv)
+        res_ngraph_function = emit_ir(graph, argv, non_default_params)
+        legacy_path = True
     else:
         res_ngraph_function = moc_emit_ir(ngraph_function, argv)
 
@@ -512,7 +737,7 @@ def driver(argv: argparse.Namespace):
         except ImportError:
             pass
 
-    return res_ngraph_function
+    return res_ngraph_function, legacy_path
 
 
 def args_dict_to_list(cli_parser, **kwargs):
@@ -533,29 +758,94 @@ def pack_params_to_args_namespace(**kwargs):
     fe_manager = FrontEndManager()
     cli_parser = get_all_cli_parser(fe_manager)
     argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
+
+    all_params = {}
+    for key, value in mo_convert_params.items():
+        all_params.update(value)
+
     for key, value in kwargs.items():
-        if key not in argv and key not in mo_convert_params.keys():
+        if key not in argv and key not in all_params.keys():
             raise Error("Unrecognized argument: {}".format(key))
         if value is not None:
             setattr(argv, key, value)
     send_params_info(argv, cli_parser)
-    return argv
+
+    non_default_params = {}
+    for arg in vars(argv):
+        arg_value = getattr(argv, arg)
+        if arg_value != cli_parser.get_default(arg):
+            non_default_params[arg] = depersonalize(arg_value, arg)
+    return argv, non_default_params
 
 
 def params_to_string(**kwargs):
+    all_params = {}
+    for key, value in mo_convert_params.items():
+        all_params.update(value)
+
     for key, value in kwargs.items():
-        if key in mo_convert_params.keys():
-            param_data = mo_convert_params[key]
+        if key in all_params:
+            param_data = all_params[key]
             if param_data.to_string is not None:
                 kwargs[key] = param_data.to_string(value)
     return kwargs
 
 
+def add_line_breaks(text: str, char_num: int, line_break: str):
+    words = text.split(" ")
+    cnt = 0
+    for i, w in enumerate(words):
+        cnt += len(w)
+        if '\n' in w:
+            cnt = len(w) - w.find('\n') - 1
+        if cnt > char_num:
+            if words[i][-1] not in ['\n', '\t']:
+                words[i] = w + '\n'
+            cnt = 0
+    text = ' '.join(words).replace("\n ", "\n")
+    return line_break + text.replace("\n", line_break)
+
+
 def show_mo_convert_help():
-    print('MO convert parameters:')
-    for param_name in mo_convert_params.keys():
-        param_data = mo_convert_params[param_name]
-        print("{}: {}".format(param_name, param_data.description.format(param_data.possible_types_python_api)))
+    for group_name, group in mo_convert_params.items():
+        if group_name == "optional":
+            print("optional arguments:")
+        elif group_name == "fw_agnostic":
+            print("Framework-agnostic parameters:")
+        elif group_name == "tf":
+            print("TensorFlow*-specific parameters:")
+        elif group_name == "caffe":
+            print("Caffe*-specific parameters:")
+        elif group_name == "mxnet":
+            print("Mxnet-specific parameters:")
+        elif group_name == "kaldi":
+            print("Kaldi-specific parameters:")
+        elif group_name == "pytorch":
+            print("Pytorch-specific parameters:")
+        else:
+            raise Error("Unknown parameters group {}.".format(group_name))
+        for param_name in group:
+            param_data = group[param_name]
+            text = param_data.description.format(param_data.possible_types_python_api)
+            text = add_line_breaks(text, 56, "\n\t\t\t")
+            print("  --{} {}".format(param_name, text))
+        print()
+
+
+def input_model_is_object(argv):
+    if isinstance(argv['input_model'], (str, Path)):
+        return False
+    if argv['input_model'] is None:
+        return False
+    return True
+
+
+def remove_tmp_onnx_model(out_dir):
+    if not os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+        tmp_onnx_model = get_onnx_temp_filename(out_dir)
+
+        if os.path.exists(tmp_onnx_model):
+            os.remove(tmp_onnx_model)
 
 
 def _convert(**args):
@@ -566,26 +856,82 @@ def _convert(**args):
     telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
-    args = params_to_string(**args)
-    argv = pack_params_to_args_namespace(**args)
-
-    if argv.model_name is None:
-        argv.model_name = get_model_name_from_args(argv)
-
     try:
+        model_framework = None
+        inp_model_is_object = input_model_is_object(args)
+        if inp_model_is_object:
+            model_framework = check_model_object(args)
+            if model_framework == "pytorch" and not os.environ.get('USE_PYTORCH_FRONTEND'):
+
+                opset_version = None
+                if 'onnx_opset_version' in args and args['onnx_opset_version'] is not None:
+                    opset_version = args['onnx_opset_version']
+
+                example_inputs = None
+                if 'example_input' in args and args['example_input'] is not None:
+                    example_inputs = args['example_input']
+
+                out_dir = args['output_dir'] if 'output_dir' in args else None
+
+                model_onnx = convert_pytorch_to_onnx(args['input_model'],
+                                                     parse_input_shapes(args),
+                                                     opset_version,
+                                                     example_inputs,
+                                                     out_dir)
+
+                args['input_model'] = model_onnx
+                if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
+                    args['use_legacy_frontend'] = True
+                args['example_input'] = None
+                args['onnx_opset_version'] = None
+
+                try:
+                    ov_model = _convert(**args)
+                except Exception as e:
+                    remove_tmp_onnx_model(out_dir)
+                    raise e
+
+                remove_tmp_onnx_model(out_dir)
+                return ov_model
+        args = params_to_string(**args)
+        argv, non_default_params = pack_params_to_args_namespace(**args)
+
+        if inp_model_is_object:
+            argv.model_name = "model"
+        if argv.model_name is None:
+            argv.model_name = get_model_name_from_args(argv)
+
+        if model_framework is not None:
+            if argv.framework is not None:
+                if argv.framework != model_framework:
+                    raise Error("Provided model does not correspond to provided framework. The provided "
+                                "framework is {}, the model type is {} which is expected to be {} framework.".format(
+                                    argv.framework,
+                                    type(argv.input_model),
+                                    model_framework))
+            else:
+                argv.framework = model_framework
+
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
         init_logger('ERROR', False)
 
         argv.feManager = FrontEndManager()
-        ngraph_function = driver(argv)
+        ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
+
+        # add MO meta data to model
+        ov_model.set_rt_info(get_version(), "MO_version")
+        ov_model.set_rt_info(get_rt_version(), "Runtime_version")
+        ov_model.set_rt_info(str(legacy_path), "legacy_frontend")
+        for key, value in non_default_params.items():
+            ov_model.set_rt_info(str(value), ["conversion_parameters", str(key)])
 
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        return ngraph_function
+        return ov_model
     except Exception as e:
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e
+        raise e.with_traceback(None)

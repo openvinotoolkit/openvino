@@ -14,7 +14,6 @@ namespace v1 {
 class OPENVINO_API Transpose : public Op {
 public:
     OPENVINO_OP("Transpose", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     Transpose() = default;
     ///

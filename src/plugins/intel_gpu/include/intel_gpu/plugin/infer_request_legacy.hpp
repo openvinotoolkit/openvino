@@ -79,6 +79,7 @@ private:
     bool m_useStreams = false;
     bool m_useExternalQueue = false;
     std::shared_ptr<Graph> m_graph;
+    InferenceEngine::gpu::ClContext::Ptr m_context = nullptr;
 
     // dynamic batch stuff
     std::map<std::string, std::vector<buf_info>> batchInputs;

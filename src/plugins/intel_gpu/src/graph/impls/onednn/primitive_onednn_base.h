@@ -5,6 +5,7 @@
 #pragma once
 
 #include "primitive_inst.h"
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
@@ -17,7 +18,6 @@
 
 #include "reorder/reorder_weights_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "serialization/binary_buffer.hpp"
 
 #include <vector>
 #include <list>
@@ -40,6 +40,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
 
     typed_primitive_onednn_impl(const engine& engine,
+                                const ExecutionConfig& config,
                                 std::shared_ptr<DescType> desc,
                                 std::shared_ptr<dnnl::primitive_attr> attrs,
                                 const PrimDescType& pd,
@@ -49,7 +50,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
           _desc(desc),
           _attrs(attrs),
           _pd(pd) {
-            build_primitive();
+            build_primitive(config);
         }
 
     typed_primitive_onednn_impl(const engine& engine)
@@ -67,6 +68,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
+    // Cache blob format:
+    //     [ dnnl::primitive_attr ]
+    //     [ dnnl::primitive_desc ]
+    //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
         if (_attrs.get() == nullptr) {
             ob << false;
@@ -358,8 +363,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
 private:
-    std::string get_cache_directory() const {
-        auto path = _engine->configuration().kernels_cache_path;
+    std::string get_cache_directory(const ExecutionConfig& config) const {
+        auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
             return {};
         }
@@ -370,8 +375,8 @@ private:
         return path;
     }
 
-    std::string generate_cache_path_from_key(std::vector<uint8_t> key) const {
-        auto path = get_cache_directory();
+    std::string generate_cache_path_from_key(const ExecutionConfig& config, std::vector<uint8_t> key) const {
+        auto path = get_cache_directory(config);
         if (path.empty()) {
             return {};
         }
@@ -381,8 +386,8 @@ private:
         return path + std::to_string(hash) + ".onednn.cl_cache";
     }
 
-    void build_primitive() {
-        auto cache_outpath = get_cache_directory();
+    void build_primitive(const ExecutionConfig& config) {
+        auto cache_outpath = get_cache_directory(config);
 
         if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
             if (env_p[0] == '1') {
@@ -399,7 +404,7 @@ private:
             std::vector<uint8_t> cache;
             {
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(generate_cache_path_from_key(key));
+                cache = ov::util::load_binary(generate_cache_path_from_key(config, key));
             }
 
             if (cache.empty()) {
@@ -408,7 +413,7 @@ private:
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::util::save_binary(generate_cache_path_from_key(key), cache);
+                    ov::util::save_binary(generate_cache_path_from_key(config, key), cache);
                 }
             } else {
                 _prim = PrimType(_pd, cache);
@@ -462,6 +467,7 @@ protected:
                 }
 
                 case onednn_post_op_type::binary_add:
+                case onednn_post_op_type::binary_sub:
                 case onednn_post_op_type::binary_mul:
                 case onednn_post_op_type::binary_max:
                 case onednn_post_op_type::binary_min:
@@ -558,9 +564,8 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
         auto& network = instance.get_network();
-        auto& engine = network.get_engine();
         auto& stream = network.get_stream();
-        auto profiling = engine.configuration().enable_profiling;
+        auto profiling = network.get_config().get_property(ov::enable_profiling);
         auto net_id = network.get_id();
         event::ptr event;
 

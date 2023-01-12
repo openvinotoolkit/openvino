@@ -58,8 +58,8 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 
@@ -86,8 +86,8 @@ public:
             params.poolAxis = primitive->axis;
         }
 
-        const auto& input_layout = impl_param.input_layouts[0];
-        const auto& output_layout = impl_param.output_layout;
+        const auto& input_layout = impl_param.get_input_layout();
+        const auto& output_layout = impl_param.get_output_layout();
 
         auto kernel = primitive->size;
         auto stride = primitive->stride;
@@ -206,4 +206,4 @@ attach_pooling_impl::attach_pooling_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl, cldnn::object_type::POOLING_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::pooling_impl)

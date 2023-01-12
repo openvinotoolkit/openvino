@@ -30,12 +30,22 @@ protected:
         auto prim = impl_params.typed_desc<pooling>();
 
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
-        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-        dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
-        dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
-        dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
+        auto kernel_shape = prim->size;
+        auto stride_shape = prim->stride;
+        auto pads_begin_shape = prim->pads_begin;
+        auto pads_end_shape = prim->pads_end;
+
+        kernel_shape.resize(std::max<size_t>(2, prim->size.size()), 1);
+        stride_shape.resize(std::max<size_t>(2, prim->stride.size()), 1);
+        pads_begin_shape.resize(std::max<size_t>(2, prim->pads_begin.size()), 0);
+        pads_end_shape.resize(std::max<size_t>(2, prim->pads_end.size()), 0);
+
+        dnnl::memory::dims stride(stride_shape.begin(), stride_shape.end());
+        dnnl::memory::dims kernel(kernel_shape.begin(), kernel_shape.end());
+        dnnl::memory::dims pad_l(pads_begin_shape.begin(), pads_begin_shape.end());
+        dnnl::memory::dims pad_r(pads_end_shape.begin(), pads_end_shape.end());
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
@@ -77,7 +87,10 @@ public:
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::pooling_forward::desc>();
+        const char dummy_mem[sizeof(dnnl::pooling_forward::desc)] = {};
+        const dnnl::pooling_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::pooling_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::pooling_forward::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
 
         std::vector<uint8_t> prim_cache;
@@ -89,11 +102,12 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         auto desc = get_pooling_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return cldnn::make_unique<pooling_onednn>(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<pooling_onednn>(engine, config, desc, attr, prim_desc);
     }
 };
 
@@ -129,4 +143,4 @@ attach_pooling_onednn::attach_pooling_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn, cldnn::object_type::POOLING_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn)

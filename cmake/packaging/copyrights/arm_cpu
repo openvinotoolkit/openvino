@@ -1,31 +1,25 @@
-This package was debianized by OpenVINO Developers <openvino@intel.com> on
-Wed, 16 Aug 2006 19:17:30 +0100.
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/arm_plugin
 
-Copyright:
-
-  deb822.py is Copyright (C) 2005-2006  dann frazier <dannf@dannf.org>
-                             2006       John Wright <john@movingsucks.org>
-
-  changelog.py, setup.py, README.Changelog and the contents of
-  examples/changelog/ are
-               Copyright (C) 2006-7 James Westby <jw+debian@jameswestby.net>
-               Copyright (C) 2008 Canonical Ltd.
-
-  debian_support.py is Copyright (C) 2005 Florian Weimer <fw@deneb.enyo.de>
-
-  Debtags.py, and the contents of examples/debtags/ are
-               Copyright (C) 2003--3006 Enrico Zini <enrico@debian.org>
-
-  debfile.py, arfile.py, and examples/debfile/* are
-               Copyright (C) 2007   Stefano Zacchiroli  <zack@debian.org>
-                             2007   Filippo Giunchedi   <filippo@debian.org>
-
-Licenses:
-
-  The following modules are released under GPL v2 or above:
-    changelog.py, debian_support.py, deb822.py
-  The following modules are released under GPL v3 or above:
-    debfile.py, arfile.py, debtags.py
-
-On Debian systems, the complete text of the Apache 2.0 License
-can be found in `/usr/share/common-licenses/Apache-2.0'.
+Files: *
+Comment: ComputeLibrary
+Copyright: (c) 2017-2022 Arm Limited
+License: MIT
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ 
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.

@@ -40,12 +40,11 @@ struct RangeArgs {
         start.addTo(topology);
         stop.addTo(topology);
         step.addTo(topology);
-        topology.add(range { "range", { start.name, stop.name, step.name }, { dt, format::bfyx, tensor{batch(outLen)} } });
+        topology.add(range { "range", { input_info(start.name), input_info(stop.name), input_info(step.name) }, { dt, format::bfyx, tensor{batch(outLen)} } });
 
-        build_options bo;
-        bo.set_option(build_option::allow_new_shape_infer(use_new_shape_infer));
+        ExecutionConfig config(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer));
 
-        network network { tests::get_test_engine(), topology, bo };
+        network network { tests::get_test_engine(), topology, config };
 
         start.setData(network);
         stop.setData(network);
@@ -90,7 +89,7 @@ void doSmokeRange(range_test_params& params) {
     mem_lock<T> output_ptr { output, tests::get_test_stream() };
 
     for (std::size_t i = 0; i < static_cast<size_t>(outLen); ++i) {
-        EXPECT_EQ(start_val + i * step_val, output_ptr[i]);
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
     }
 }
 
@@ -112,7 +111,7 @@ void doSmokeRange_fp16(range_test_params& params) {
     mem_lock<uint16_t> output_ptr { output, tests::get_test_stream() };
 
     for (std::size_t i = 0; i < static_cast<size_t>(outLen); ++i) {
-        EXPECT_EQ(start_val + i * step_val, half_to_float(output_ptr[i]));
+        ASSERT_EQ(start_val + i * step_val, half_to_float(output_ptr[i]));
     }
 }
 
@@ -198,8 +197,8 @@ TEST(range_gpu_test, range_with_select) {
     topology.add(data("select_mask",    select_mask));
     topology.add(data("input0",  input0));
     topology.add(data("input2",  input2));
-    topology.add(cldnn::select("select", "select_input1", "select_input2", "select_mask"));
-    topology.add(range { "range", { "input0", "select", "input2" }, { data_types::i32, format::bfyx, tensor{batch(expected_dim)} } });
+    topology.add(cldnn::select("select", input_info("select_input1"), input_info("select_input2"), input_info("select_mask")));
+    topology.add(range { "range", { input_info("input0"), input_info("select"), input_info("input2") }, { data_types::i32, format::bfyx, tensor{batch(expected_dim)} } });
 
 
     set_values<uint8_t>(select_input1, {0});
@@ -208,10 +207,10 @@ TEST(range_gpu_test, range_with_select) {
     set_values<int32_t>(input0, {start_val});
     set_values<int32_t>(input2, {step_val});
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    network network { tests::get_test_engine(), topology, bo };
+    network network { tests::get_test_engine(), topology, config };
 
     auto outputs = network.execute();
     auto output = outputs.at("range").get_memory();
@@ -219,7 +218,7 @@ TEST(range_gpu_test, range_with_select) {
     mem_lock<int32_t> output_ptr { output, tests::get_test_stream() };
 
     for (size_t i = 0; i < static_cast<size_t>(expected_dim); ++i) {
-        EXPECT_EQ(start_val + i * step_val, output_ptr[i]);
+        ASSERT_EQ(start_val + i * step_val, output_ptr[i]);
     }
 }
 }  // namespace

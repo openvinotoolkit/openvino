@@ -3,10 +3,10 @@
 //
 
 #include "include/unit_type.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/batch_headers/fetch_data.cl"
-
-#define unroll_for __attribute__((opencl_unroll_hint)) for
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
@@ -33,19 +33,19 @@
 // OUTPUT_BLOCK_HEIGHT - [int] number of elements calculated in y dimension by one thread
 // ======================================================================================
 
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
     __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    __global UNIT_TYPE* weights,
+    __global UNIT_TYPE* weights
 #if BIAS_TERM
-    __global UNIT_TYPE* biases,
+    , __global UNIT_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    int split_idx)
+)
 {
     uint oc = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;
     uint or = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT;
@@ -109,7 +109,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
                 {
                     unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
                     {
-                        UNIT_TYPE in_val = intel_sub_group_shuffle(input_read[in_f / SUB_GROUP_SIZE], in_f % SUB_GROUP_SIZE);
+                        UNIT_TYPE in_val = _sub_group_shuffle(input_read[in_f / SUB_GROUP_SIZE], in_f % SUB_GROUP_SIZE);
 
                         const uint out_idx = out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f;
                         out[out_idx] = mad(w[in_f * FSV_PER_THREAD + out_f], in_val, out[out_idx]);
@@ -235,8 +235,6 @@ KERNEL(convolution_gpu_fs_byx_fsv32_1x1)(
     }
     // ========================================================================
 }
-
-#undef unroll_for
 
 #undef INPUT0_SIZE_X_WITH_PADDING
 #undef INPUT0_SIZE_Y_WITH_PADDING

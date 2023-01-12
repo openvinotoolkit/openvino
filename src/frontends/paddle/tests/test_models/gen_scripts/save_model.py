@@ -112,6 +112,7 @@ def exportModel(name, dyn_func, input_data:list, target_dir:str, dyn_shapes:list
     else:       
         np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
     
+    paddle.fluid.core.clear_executor_cache()
     return result
 
 

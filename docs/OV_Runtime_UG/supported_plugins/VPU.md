@@ -102,7 +102,7 @@ Layers can be joined only when the two conditions below are met:
     - Depending on a tiling scheme, a `Concatenation` or `Sum` layer that joins all resulting tensors into one and restores the full blob that contains the result of a tiled operation
 
     Names of tiled layers contain the `@soc=M/N` part, where `M` is the tile number and `N` is the number of tiles:
-    ![](../img/yolo_tiny_v1.png)
+    ![](../img/yolo_tiny_v1.svg)
 
 > **NOTE**: Nominal layers, such as `Shrink` and `Expand`, are not executed.
 

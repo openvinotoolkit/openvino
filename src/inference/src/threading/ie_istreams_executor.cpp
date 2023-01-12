@@ -33,15 +33,17 @@ std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
         CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
         CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
         CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
+        CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
         ov::num_streams.name(),
         ov::inference_num_threads.name(),
         ov::affinity.name(),
     };
 }
-int IStreamsExecutor::Config::GetDefaultNumStreams() {
+int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     // bare minimum of streams (that evenly divides available number of core)
-    const int num_cores = sockets == 1 ? std::thread::hardware_concurrency() : getNumberOfCPUCores();
+    const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
+                                       : getNumberOfCPUCores();
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
@@ -280,6 +282,14 @@ void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::stri
                        << ". Expected only non negative numbers";
         }
         _small_core_offset = val_i;
+    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+        if (value == CONFIG_VALUE(YES)) {
+            _enable_hyper_thread = true;
+        } else if (value == CONFIG_VALUE(NO)) {
+            _enable_hyper_thread = false;
+        } else {
+            OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
+        }
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -328,6 +338,8 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) const {
         return {std::to_string(_threads_per_stream_small)};
     } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
         return {std::to_string(_small_core_offset)};
+    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
+        return {_enable_hyper_thread ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO)};
     } else {
         IE_THROW() << "Wrong value for property key " << key;
     }
@@ -344,22 +356,57 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     const auto streams = config._streams > 0 ? config._streams : 1;
 
     config._small_core_offset = num_big_cores;
-    const int threads_per_stream = std::max(1, threads / streams);
-    const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
-    const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
-    const int base_big_streams = num_cores > num_cores_phys
-                                     ? (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big * 2
-                                     : (num_big_cores_phys + threads_per_stream_big - 1) / threads_per_stream_big;
-    const int base_small_streams = num_small_cores_phys > 0 ? num_small_cores_phys / threads_per_stream_small : 0;
-    const int base_streams = base_big_streams + base_small_streams;
-    // big_streams = all_streams * base_big_streams / base_streams
-    config._big_core_streams = (streams * base_big_streams + base_streams - 1) / base_streams;
-    config._small_core_streams = config._streams - config._big_core_streams;
-    // _big_core_streams > 2, num_big_cores_phys must be divisible by threads_per_stream_big
-    config._threads_per_stream_big = (config._big_core_streams > 2 && num_big_cores_phys % threads_per_stream_big != 0)
-                                         ? std::min(num_big_cores_phys, num_big_cores / base_big_streams)
-                                         : threads_per_stream_big;
-    config._threads_per_stream_small = config._small_core_streams > 0 ? threads_per_stream_small : 0;
+    int threads_per_stream = std::max(1, threads / streams);
+
+    if ((num_big_cores_phys / threads_per_stream >= streams) && (1 < threads_per_stream)) {
+        config._big_core_streams = streams;
+        config._threads_per_stream_big = threads_per_stream;
+        config._small_core_streams = 0;
+        config._threads_per_stream_small = 0;
+    } else if ((num_small_cores_phys / threads_per_stream >= streams) && (num_big_cores_phys < threads_per_stream)) {
+        config._big_core_streams = 0;
+        config._threads_per_stream_big = 0;
+        config._small_core_streams = streams;
+        config._threads_per_stream_small = threads_per_stream;
+    } else {
+        const int threads_per_stream_big = std::min(num_big_cores_phys, threads_per_stream);
+        const int threads_per_stream_small = std::min(num_small_cores_phys, threads_per_stream);
+
+        threads_per_stream = std::min(threads_per_stream_big, threads_per_stream_small);
+        while (threads_per_stream > 1) {
+            const int base_big_streams = num_big_cores_phys / threads_per_stream;
+            const int base_small_streams = num_small_cores_phys > 0 ? num_small_cores_phys / threads_per_stream : 0;
+            if (base_big_streams + base_small_streams >= streams) {
+                config._big_core_streams = base_big_streams;
+                config._small_core_streams = streams - base_big_streams;
+                break;
+            } else if (base_big_streams * 2 + base_small_streams >= streams) {
+                config._big_core_streams = streams - base_small_streams;
+                config._small_core_streams = base_small_streams;
+                break;
+            } else {
+                threads_per_stream = threads_per_stream > 1 ? threads_per_stream - 1 : 1;
+            }
+        }
+
+        if (threads_per_stream == 1) {
+            const int stream_loops = streams / num_cores;
+            const int remain_streams = streams - stream_loops * num_cores;
+            if (num_big_cores_phys >= remain_streams) {
+                config._big_core_streams = remain_streams + num_big_cores * stream_loops;
+                config._small_core_streams = num_small_cores_phys * stream_loops;
+            } else if (num_big_cores_phys + num_small_cores_phys >= remain_streams) {
+                config._big_core_streams = num_big_cores_phys + num_big_cores * stream_loops;
+                config._small_core_streams = remain_streams - num_big_cores_phys + num_small_cores_phys * stream_loops;
+            } else {
+                config._big_core_streams = remain_streams - num_small_cores_phys + num_big_cores * stream_loops;
+                config._small_core_streams = num_small_cores_phys * (stream_loops + 1);
+            }
+        }
+
+        config._threads_per_stream_big = threads_per_stream;
+        config._threads_per_stream_small = threads_per_stream;
+    }
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
@@ -398,7 +445,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
         // if nstreams or nthreads are set, need to calculate the Hybrid aware parameters here
-        if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
+        if (!bLatencyCase && (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads)) {
             UpdateHybridCustomThreads(streamExecutorConfig);
         }
         OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
@@ -410,24 +457,25 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                        << streamExecutorConfig._threads_per_stream_small << ")";
     }
 #endif
-    const auto hwCores = !bLatencyCase && numaNodesNum == 1
-                             // throughput case on a single-NUMA node machine uses all available cores
-                             ? parallel_get_max_threads()
-                             // in the rest of cases:
-                             //    multi-node machine
-                             //    or
-                             //    latency case, single-node yet hybrid case that uses
-                             //      all core types
-                             //      or
-                             //      big-cores only, but the #cores is "enough" (pls see the logic above)
-                             // it is usually beneficial not to use the hyper-threading (which is default)
-                             : num_cores_default;
+    const auto hwCores =
+        !bLatencyCase && numaNodesNum == 1
+            // throughput case on a single-NUMA node machine uses all available cores
+            ? (streamExecutorConfig._enable_hyper_thread ? parallel_get_max_threads() : num_cores_default)
+            // in the rest of cases:
+            //    multi-node machine
+            //    or
+            //    latency case, single-node yet hybrid case that uses
+            //      all core types
+            //      or
+            //      big-cores only, but the #cores is "enough" (pls see the logic above)
+            // it is usually beneficial not to use the hyper-threading (which is default)
+            : num_cores_default;
     const auto threads =
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =
         streamExecutorConfig._streams ? std::max(1, threads / streamExecutorConfig._streams) : threads;
     streamExecutorConfig._threads =
-        ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType
+        (!bLatencyCase && ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType)
             ? streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big +
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;

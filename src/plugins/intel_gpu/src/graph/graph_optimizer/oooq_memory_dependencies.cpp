@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
-#include "runtime/cldnn_itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include <vector>
 #include <memory>
 #include <list>
@@ -70,7 +68,7 @@ protected:
 }  // namespace
 
 void oooq_memory_dependencies::run(program& p) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::OooqMemoryDependencies");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::OooqMemoryDependencies");
     // For oooq memory dependencies nodes A and B can't share memory if
     // processing_num(A) < processing_num(B) and there is no path from A to B.
     // Assuming precalculation of reachability this function has complexity O(N^2 log N).
@@ -107,7 +105,7 @@ void oooq_memory_dependencies::run(program& p) {
 
         size_t num_dep_nodes = 0;
         for (const auto& dep : node.first->get_dependencies()) {
-            if (!dep->is_constant()) {
+            if (!dep.first->is_constant()) {
                 ++num_dep_nodes;
             }
         }
@@ -143,8 +141,8 @@ void oooq_memory_dependencies::run(program& p) {
         if (suspect_nodes.is_set(A)) {
             std::vector<std::pair<program_node*, unsigned int>> deps;
             for (const auto& dep : (*itr_A)->get_dependencies()) {
-                if (!dep->is_type<data>()) {
-                    deps.emplace_back(dep, user_map.at(dep));
+                if (!dep.first->is_type<data>()) {
+                    deps.emplace_back(dep.first, user_map.at(dep.first));
                 }
             }
 

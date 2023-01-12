@@ -29,14 +29,14 @@ struct one_hot_impl : typed_primitive_impl_ocl<one_hot> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<one_hot>();
-        auto params = get_default_params<kernel_selector::one_hot_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::one_hot_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::one_hot_optional_params>(impl_param.get_program());
 
         params.one_hot_axis = primitive->one_hot_axis;
         params.on_value = primitive->on_value;
         params.off_value = primitive->off_value;
 
-        auto output_sizes = impl_param.output_layout.get_dims();
+        auto output_sizes = impl_param.get_output_layout().get_dims();
 
         params.one_hot_limit = output_sizes[params.one_hot_axis];
         return {params, optional_params};
@@ -66,4 +66,4 @@ attach_one_hot_impl::attach_one_hot_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::one_hot_impl, cldnn::object_type::ONE_HOT_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::one_hot_impl)

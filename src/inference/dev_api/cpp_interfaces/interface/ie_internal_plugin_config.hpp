@@ -104,6 +104,10 @@ DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
  */
 DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
 
+/**
+ * @brief enable hyper thread
+ */
+DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

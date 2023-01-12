@@ -41,8 +41,8 @@ def apply_fused_names_cleanup(model):
 
 
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
-def apply_moc_transformations(model, cf):
-    _base.apply_moc_transformations(model, cf)
+def apply_moc_transformations(model, cf, smart_reshape=False):
+    _base.apply_moc_transformations(model, cf, smart_reshape)
 
 
 @deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")

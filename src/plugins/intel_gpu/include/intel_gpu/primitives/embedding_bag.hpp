@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Computes sums of "bags" of embeddings, without instantiating the intermediate embeddings.
 /// @details For each index in `indices` this operator gets values from `data` embedding table and sums all values belonging to each bag.
@@ -32,12 +25,12 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     /// @param output_shape Tensor with shape of output layout
     /// @param default_index default index in embedding table to fill empty "bags"
     embedding_bag(const primitive_id& id,
-                  const std::vector<primitive_id>& inputs,
+                  const std::vector<input_info>& inputs,
                   const embedding_bag_type& type,
                   const tensor& output_shape,
                   const int32_t default_index = -1,
                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding), type(type), output_shape(output_shape), default_index(default_index) {}
+        : primitive_base(id, inputs, {output_padding}), type(type), output_shape(output_shape), default_index(default_index) {}
 
     /// @brief Type of EmbeddingBag operation
     embedding_bag_type type;
@@ -46,7 +39,4 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     /// @brief Default index
     int32_t default_index;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
