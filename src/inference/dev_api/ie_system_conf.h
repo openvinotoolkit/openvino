@@ -176,4 +176,25 @@ typedef enum {
     CPU_MAP_USED_FLAG = 5      //!< column for resource management of the processor
 } column_of_cpu_mapping_table;
 
+/**
+ * @brief      Parse processors infomation on Windows
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  base_ptr buffer object pointer of Windows system infomation
+ * @param[in]  len buffer object length of Windows system infomation
+ * @param[out]  _processors total number for processors in system.
+ * @param[out] _sockets total number for sockets in system
+ * @param[out] _cores total number for physical CPU cores in system
+ * @param[out] _proc_type_table summary table of number of processors per type
+ * @param[out] _cpu_mapping_table CPU mapping table for each processor
+ * @return
+ */
+INFERENCE_ENGINE_API_CPP(void)
+parse_processor_info_win(char* base_ptr,
+                         DWORD len,
+                         int& _processors,
+                         int& _sockets,
+                         int& _cores,
+                         std::vector<int>& _proc_type_table,
+                         std::vector<std::vector<int>>& _cpu_mapping_table);
+
 }  // namespace InferenceEngine
