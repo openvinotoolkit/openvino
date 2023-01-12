@@ -16,13 +16,12 @@
 
 using ::testing::_;
 using ::testing::MatcherCast;
-using ::testing::Matches;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
-using ::testing::Throw;
-using Config = std::map<std::string, std::string>;
+
 using namespace MockMultiDevice;
+using Config = std::map<std::string, std::string>;
 using ConfigParams = std::tuple<std::vector<std::string>>;
 
 // define a matcher to check if perf hint expects
@@ -201,12 +200,19 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
                                 ::testing::Matcher<const std::map<std::string, std::string>&>(
                                     ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
             .Times(1);
+        // no MULTI logic to be called
+        EXPECT_CALL(*core,
+                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                                ::testing::Matcher<const std::string&>("MULTI:" + targetDevice),
+                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+            .Times(0);
         // if target device only has GPU, no CPU helper to be called
         if (targetDevice.find("GPU") != std::string::npos) {
             EXPECT_CALL(*core,
                         LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                                     ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+                                    ::testing::Matcher<const std::map<std::string, std::string>&>(
+                                        ComparePerfHint(InferenceEngine::PluginConfigParams::LATENCY))))
                 .Times(0);
         }
     } else {
@@ -216,7 +222,7 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
             targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
         }
         config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        //Call MULTI logic
+        // Call MULTI logic
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                                 ::testing::Matcher<const std::string&>("MULTI:" + targetDev),
@@ -226,7 +232,8 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                                 ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+                                ::testing::Matcher<const std::map<std::string, std::string>&>(
+                                    ComparePerfHint(InferenceEngine::PluginConfigParams::LATENCY))))
             .Times(0);
     }
 
