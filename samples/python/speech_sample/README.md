@@ -58,6 +58,7 @@ Several execution modes are supported via the `-d` flag:
 - `CPU` - All calculation are performed on CPU device using CPU Plugin.
 - `GPU` - All calculation are performed on GPU device using GPU Plugin.
 - `MYRIAD` - All calculation are performed on Intel® Neural Compute Stick 2 device using VPU MYRIAD Plugin.
+- `VPUX` - All calculation are performed on VPUX device using VPUX Plugin.
 - `GNA_AUTO` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - `GNA_HW` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
 - `GNA_SW` - Deprecated. The GNA device is emulated in fast-but-not-bit-exact mode.
@@ -108,7 +109,7 @@ Options:
   -r REFERENCE, --reference REFERENCE
                         Optional. Read reference score file and compare scores.
   -d DEVICE, --device DEVICE
-                        Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
+                        Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32,   
                         GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g.   
                         HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.      
                         Default value is CPU.

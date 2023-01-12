@@ -82,6 +82,28 @@ public:
     void run() override;
 };
 
+using compileModelLoadFromMemoryParams = std::tuple<std::string,  // device name
+                                                    ov::AnyMap    // device configuration
+>;
+class CompileModelLoadFromMemoryTestBase : public testing::WithParamInterface<compileModelLoadFromMemoryParams>,
+                                           virtual public SubgraphBaseTest,
+                                           virtual public OVPluginTestBase {
+    std::string m_cacheFolderName;
+    std::string m_modelName;
+    std::string m_weightsName;
+    std::string m_model;
+    ov::Tensor m_weights;
+    std::vector<std::uint8_t> weights_vector;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromMemoryParams> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+    void run() override;
+    bool importExportSupported(ov::Core &core) const;
+};
+
 using compileKernelsCacheParams = std::tuple<
         std::string,                          // device name
         std::pair<ov::AnyMap, std::string>    // device and cache configuration

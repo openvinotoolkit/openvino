@@ -137,12 +137,12 @@ void start_broadcast_test_dynamic(format input_format,
         set_values<int32_t>(target_shape_mem, target_shape_data);
     }
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     set_values(input, input_data);
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     if (!is_output_static) {
         network.set_input_data("target_shape", target_shape_mem);
