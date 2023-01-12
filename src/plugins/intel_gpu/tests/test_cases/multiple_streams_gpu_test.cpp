@@ -19,13 +19,13 @@ using namespace ::tests;
 
 TEST(multistream_gpu, basic) {
     const int num_streams = 2;
-    auto config = InferenceEngine::CPUStreamsExecutor::Config();
-    config._streams = num_streams;
-    auto task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(config);
+    auto task_config = InferenceEngine::CPUStreamsExecutor::Config();
+    task_config._streams = num_streams;
+    auto task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_config);
     auto& engine = get_test_engine();
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto input1_dyn_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16,format::bfyx };
     auto input2_dyn_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16,format::bfyx };
@@ -39,7 +39,7 @@ TEST(multistream_gpu, basic) {
     topology.add(fully_connected("fc", input_info("eltwise"), "weights"));
     topology.add(shape_of("shape_of", input_info("fc"), 3, data_types::i32));
 
-    auto prog_ptr = program::build_program(engine, topology, bo);
+    auto prog_ptr = program::build_program(engine, topology, config);
     std::vector<network::ptr> networks;
     for (size_t i = 0; i < num_streams; i++) {
         networks.push_back(network::allocate_network(engine, prog_ptr));

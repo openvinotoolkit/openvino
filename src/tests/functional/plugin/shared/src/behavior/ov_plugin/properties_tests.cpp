@@ -80,6 +80,7 @@ TEST_P(OVEmptyPropertiesTests, SetEmptyProperties) {
 
 // Setting correct properties doesn't throw
 TEST_P(OVPropertiesTests, SetCorrectProperties) {
+    core->get_versions(target_device);
     OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
 }
 
@@ -94,6 +95,7 @@ TEST_P(OVPropertiesTests, canSetPropertyAndCheckGetProperty) {
 }
 
 TEST_P(OVPropertiesIncorrectTests, SetPropertiesWithIncorrectKey) {
+    core->get_versions(target_device);
     ASSERT_THROW(core->set_property(target_device, properties), ov::Exception);
 }
 

@@ -277,8 +277,9 @@ static uint32_t get_unique_net_id() {
 Network will always have net_id = 0 when it will be cldnn internal micronetwork (created i.e by propagate_constants
 opt pass).
 */
-network::network(program::ptr program, stream::ptr stream, bool is_internal, bool is_primary_stream)
+network::network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal, bool is_primary_stream)
     : _program(program)
+    , _config(config)
     , _engine(program->get_engine())
     , _stream(stream)
     , _memory_pool(new memory_pool(program->get_engine()))
@@ -304,34 +305,42 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
 
     if (is_dynamic()) {
         GPU_DEBUG_DEFINE_MEM_LOGGER("dynamic_network_initialization");
-        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(program->get_engine(), program->get_id(),
-                                                                        kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(program->get_engine(),
+                                                                          program->get_config(),
+                                                                          program->get_id(),
+                                                                          program->get_task_executor(),
+                                                                          kernel_selector::KernelBase::get_db().get_batch_header_str()));
         _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-        _compilation_context = std::move(ICompilationContext::create(program->get_engine(), program->get_id()));
+        _compilation_context = std::move(ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id()));
     }
 }
 
 network::network(engine& engine,
                  const topology& topo,
-                 const build_options& options,
+                 const ExecutionConfig& config,
                  bool is_internal)
-    : network(program::build_program(engine, topo, options, is_internal), engine.create_stream(), is_internal) {}
+    : network(program::build_program(engine, topo, config, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(engine& engine,
                  const std::set<std::shared_ptr<program_node>>& nodes,
-                 const build_options& options,
+                 const ExecutionConfig& config,
+                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                  bool is_internal)
-    : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
+    : network(program::build_program(engine, nodes, config, task_executor, is_internal), config, engine.create_stream(config), is_internal) {}
 
 network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_engine().create_stream(), false, stream_id == 0) {}
+    : network(program, program->get_config(), program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
 
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
-    : network(program, stream, false, stream_id == 0) {}
+    : network(program, program->get_config(), stream, false, stream_id == 0) {}
 
 network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engine, uint16_t stream_id)
+    : network(ib, ExecutionConfig{}, stream, engine, stream_id) {}
+
+network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id)
     : _program(nullptr)
+    , _config(config)
     , _engine(engine)
     , _stream(stream)
     , _memory_pool(new memory_pool(engine))
@@ -340,7 +349,7 @@ network::network(cldnn::BinaryInputBuffer& ib, stream::ptr stream, engine& engin
     , _reset_arguments(true) {
     net_id = get_unique_net_id();
 
-    kernels_cache kernels_cache(get_engine(), 0, {""});
+    kernels_cache kernels_cache(get_engine(), config, 0, nullptr, {""});
     ib >> kernels_cache;
 
     int num_data_nodes;
@@ -442,7 +451,7 @@ network::~network() {
 //     [ executable primitive_inst ]
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
-    kernels_cache kernels_cache(get_engine(), 0, {""});
+    kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
     for (const auto& p_inst : _exec_order) {
         if (p_inst->get_impl() != nullptr)
             kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
@@ -505,26 +514,27 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
-    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
+    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::allocate_network(engine& engine, program::ptr program, bool is_internal, bool is_primary_stream) {
-    auto stream = engine.create_stream();
-    return std::make_shared<network>(program, stream, is_internal, is_primary_stream);
+    auto stream = engine.create_stream(program->get_config());
+    return std::make_shared<network>(program, program->get_config(), stream, is_internal, is_primary_stream);
 }
 
 network::ptr network::build_network(engine& engine,
                                     const topology& topology,
-                                    const build_options& options,
+                                    const ExecutionConfig& config,
                                     bool is_internal) {
-    return std::make_shared<network>(engine, topology, options, is_internal);
+    return std::make_shared<network>(engine, topology, config, is_internal);
 }
 
 network::ptr network::build_network(engine& engine,
-                                              const std::set<std::shared_ptr<program_node>>& nodes,
-                                              const build_options& options,
-                                              bool is_internal) {
-    return std::make_shared<network>(engine, nodes, options, is_internal);
+                                    const std::set<std::shared_ptr<program_node>>& nodes,
+                                    const ExecutionConfig& config,
+                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
+                                    bool is_internal) {
+    return std::make_shared<network>(engine, nodes, config, task_executor, is_internal);
 }
 
 void network::validate_primitives() {
@@ -963,8 +973,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 
     // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = get_stream().get_queue_type() == queue_types::out_of_order ||
-                        get_engine().configuration().enable_profiling;
+    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _config.get_property(ov::enable_profiling);
     if (store_events) {
         if (_program != nullptr) {
         for (auto& inst : _program->get_processing_order()) {
@@ -1113,8 +1122,8 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
     event::ptr ev = primitive->execute(events);
 
     // Collect events only for OOO queue and Profiling mode
-    if (get_stream().get_queue_type() == queue_types::out_of_order ||
-        get_engine().configuration().enable_profiling) {
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order ||
+        get_config().get_property(ov::enable_profiling)) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }
@@ -1203,7 +1212,7 @@ memory::ptr network::get_memory_from_pool(const layout& layout,
                                                std::set<primitive_id> dependencies,
                                                allocation_type type,
                                                bool reusable) {
-    if (get_engine().configuration().use_memory_pool)
+    if (_config.get_property(ov::intel_gpu::enable_memory_pool))
         return _memory_pool->get_memory(layout, id, get_id(), dependencies, type, reusable);
     return _memory_pool->get_memory(layout, type);
 }
