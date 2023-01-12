@@ -26,7 +26,7 @@ void compile_graph::run(program& p) {
         }
     }
 
-    auto task_executor = p.get_engine().get_task_executor();
+    auto task_executor = p.get_task_executor();
     auto& proc_order = p.get_processing_order();
     std::vector<InferenceEngine::Task> tasks;
     std::exception_ptr exception;

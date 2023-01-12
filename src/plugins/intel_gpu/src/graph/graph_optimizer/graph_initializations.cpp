@@ -400,9 +400,9 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
 }
 
 void graph_initializations::set_outputs(program& p) {
-    auto outputs_option = p.get_options().get<build_option_type::outputs>();
-    if (!outputs_option->outputs.empty()) {
-        for (auto const& output : outputs_option->outputs) {
+    auto custom_outputs = p.get_config().get_property(ov::intel_gpu::custom_outputs);
+    if (!custom_outputs.empty()) {
+        for (auto const& output : custom_outputs) {
             auto o_node = p.get_node_ptr(output);
             o_node->set_output(true);
             p.outputs.push_back(o_node.get());
