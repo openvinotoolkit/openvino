@@ -16,7 +16,11 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
-class TENSORFLOW_LITE_API FrontEnd : public ov::frontend::tensorflow::FrontEnd {
+
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
+
+class TENSORFLOW_LITE_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     FrontEnd();
     /// \brief Completely convert the model
@@ -61,8 +65,13 @@ protected:
                          bool fail_fast,
                          bool no_conversion,
                          std::shared_ptr<ov::Model>& ng_function) const;
+
+    TelemetryExtension::Ptr m_telemetry;
+    std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
+
+    TranslatorDictionaryType m_op_translators;
 };
-using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov
