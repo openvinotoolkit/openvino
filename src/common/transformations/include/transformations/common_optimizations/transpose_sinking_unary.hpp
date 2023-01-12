@@ -11,6 +11,8 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API TransposeSinkingUnaryForward;
+class TRANSFORMATIONS_API TransposeSinkingUnaryBackwardSingleConsumer;
+class TRANSFORMATIONS_API TransposeSinkingUnaryBackwardMultiConsumers;
 class TRANSFORMATIONS_API TransposeSinkingUnaryBackward;
 
 }  // namespace pass
@@ -22,7 +24,19 @@ public:
     TransposeSinkingUnaryForward();
 };
 
-class ov::pass::TransposeSinkingUnaryBackward : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingUnaryBackwardSingleConsumer : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("TransposeSinkingUnaryBackwardSingleConsumer", "0");
+    TransposeSinkingUnaryBackwardSingleConsumer();
+};
+
+class ov::pass::TransposeSinkingUnaryBackwardMultiConsumers : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("TransposeSinkingUnaryBackwardMultiConsumers", "0");
+    TransposeSinkingUnaryBackwardMultiConsumers();
+};
+
+class ov::pass::TransposeSinkingUnaryBackward : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("TransposeSinkingUnaryBackward", "0");
     TransposeSinkingUnaryBackward();

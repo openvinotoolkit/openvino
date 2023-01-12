@@ -20,10 +20,10 @@ using namespace ov;
 using namespace ov::opset9;
 using namespace transpose_sinking;
 
-ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElementwiseForward() {
-    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseForward);
+ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
+    MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>(IfNodeHasTransposeInputs);
+    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>(IfNodeHasTransposeInputs);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -46,18 +46,19 @@ ov::pass::TransposeSinkingBinaryElementwiseForward::TransposeSinkingBinaryElemen
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryElementwiseBackward() {
-    MATCHER_SCOPE(TransposeSinkingBinaryElementwiseBackward);
+ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
+    MATCHER_SCOPE(TransposeSinkingBinaryBackward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic>([](const Output<Node>& output) -> bool {
-        return consumers_count(1)(output) && has_static_rank()(output);
-    });
+    auto main_node_label =
+        wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>([](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+        });
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+    auto transpose_const_label = wrap_type<Constant>();
 
     auto transpose_label =
         wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-            return consumers_count(1)(output) && has_static_rank()(output) && is_sinking_node(output);
+            return has_static_rank()(output) && is_sinking_node(output);
         });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
@@ -70,8 +71,8 @@ ov::pass::TransposeSinkingBinaryElementwiseBackward::TransposeSinkingBinaryEleme
             register_new_node(new_node);
         }
 
-        // remove transpose after main node
-        transpose->output(0).replace(main_node);
+        // remove output transposes
+        RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
 
