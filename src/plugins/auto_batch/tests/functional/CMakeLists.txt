@@ -41,9 +41,14 @@ addIeTargetTest(
         LABELS
             Auto_Batch
 )
+
 if (ENABLE_INTEL_GPU)
-    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_INTEL_GPU_PLUGIN)
+    find_package(OpenCL QUIET)
+    if(OpenCL_FOUND)
+        target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_INTEL_GPU_PLUGIN)
+    endif()
 endif()
+
 if (ENABLE_TEMPLATE)
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_TEMPLATE_PLUGIN)
 endif()
