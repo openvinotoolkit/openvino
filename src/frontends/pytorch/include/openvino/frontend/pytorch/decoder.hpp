@@ -17,7 +17,6 @@ namespace pytorch {
 
 // Extendable type system which reflects TorchScript supported python data types
 // Type nestings are built with the help of ov::Any
-
 namespace type {
 
 struct Tensor {

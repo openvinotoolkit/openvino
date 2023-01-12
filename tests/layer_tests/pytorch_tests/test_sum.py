@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -31,7 +32,9 @@ class TestSum(PytorchLayerTest):
 
         return aten_sum(axes, keep_dims), ref_net, "aten::sum"
 
-    @pytest.mark.parametrize("axes,keep_dim",  [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])
+    @pytest.mark.parametrize("axes,keep_dim",
+                             [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_sum(self, axes, keep_dim, ie_device, precision, ir_version):
         self._test(*self.create_model(axes, keep_dim), ie_device, precision, ir_version)

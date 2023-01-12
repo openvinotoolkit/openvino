@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
+import pytest
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestAdaptiveMaxPool2D(PytorchLayerTest):
@@ -15,12 +15,11 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
         return (self.input_tensor,)
 
     def create_model(self, output_size=None, return_indices=False):
-
         class aten_adaptive_max_pool2d(torch.nn.Module):
 
             def __init__(self, output_size=None, return_indices=False) -> None:
                 super().__init__()
-                self.output_size = output_size 
+                self.output_size = output_size
                 self.return_indices = return_indices
 
             def forward(self, input_tensor):
@@ -46,6 +45,7 @@ class TestAdaptiveMaxPool2D(PytorchLayerTest):
         True,
     ]))
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_adaptive_max_pool2d(self, ie_device, precision, ir_version, input_tensor, output_size, return_indices):
         self.input_tensor = input_tensor
         self._test(*self.create_model(output_size, return_indices), ie_device, precision, ir_version)

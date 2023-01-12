@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
+import pytest
 import torch
+
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize('input_dim', list(range(-3, 4)))
@@ -15,7 +16,6 @@ class TestSelect(PytorchLayerTest):
         return (np.random.randn(4, 4, 5, 5).astype(np.float32),)
 
     def create_model(self, input_dim, input_index):
-
         class aten_select(torch.nn.Module):
 
             def __init__(self, input_dim, input_index) -> None:
@@ -31,6 +31,7 @@ class TestSelect(PytorchLayerTest):
         return aten_select(input_dim, input_index), ref_net, "aten::select"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_select(self, ie_device, precision, ir_version, input_dim, input_index):
         self._test(*self.create_model(input_dim, input_index),
                    ie_device, precision, ir_version)

@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
+import pytest
 import torch
+
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize('test_input', [(np.array([[1, 2], [3, 4]], dtype=np.float32),
@@ -37,6 +38,7 @@ class TestPow(PytorchLayerTest):
         return aten_pow(), ref_net, "aten::pow"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_pow(self, ie_device, precision, ir_version, test_input):
         self.test_input = test_input
         self._test(*self.create_model(), ie_device, precision, ir_version)

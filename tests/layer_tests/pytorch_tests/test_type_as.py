@@ -1,9 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
+import pytest
+
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestTypeAs(PytorchLayerTest):
@@ -26,6 +27,7 @@ class TestTypeAs(PytorchLayerTest):
     @pytest.mark.parametrize("input_dtype", [np.float64, np.float32, np.int64, np.int32, np.int16, np.int8, np.uint8])
     @pytest.mark.parametrize("cast_dtype", [np.float64, np.float32, np.int64, np.int32, np.int16, np.int8, np.uint8])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_type_as(self, input_dtype, cast_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_dtype": input_dtype, "cast_dtype": cast_dtype})

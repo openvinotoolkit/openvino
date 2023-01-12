@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
+import pytest
 import torch
+
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 2), np.array(2), np.array(6)),
@@ -25,6 +26,7 @@ class TestViewListConstruct(PytorchLayerTest):
         return aten_view_list_construct(), ref_net, "aten::view"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_view_list_construct(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
         self._test(*self.create_model(), ie_device, precision, ir_version)
@@ -38,7 +40,6 @@ class TestView(PytorchLayerTest):
         return (self.input_data[0],)
 
     def create_model(self):
-
         class aten_view(torch.nn.Module):
 
             def __init__(self, input_data) -> None:
@@ -54,6 +55,7 @@ class TestView(PytorchLayerTest):
         return aten_view(self.input_data), ref_net, "aten::view"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_view(self, ie_device, precision, ir_version, input_data):
         self.input_data = input_data
         self._test(*self.create_model(), ie_device, precision, ir_version)

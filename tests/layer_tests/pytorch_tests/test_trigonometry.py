@@ -2,18 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestTrigonom(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(1, 2, 3, 4).astype(np.float32), )
+        return (np.random.randn(1, 2, 3, 4).astype(np.float32),)
 
     def create_model(self, op_type):
-
         import torch
-        ops={
+        ops = {
             "cos": torch.cos,
             "cos_": torch.cos_,
             "sin": torch.sin,
@@ -47,17 +47,19 @@ class TestTrigonom(PytorchLayerTest):
 
             def forward(self, x):
                 return self.op(x)
+
         ref_net = None
 
         return aten_op(ops[op_type]), ref_net, f'aten::{op_type}'
 
-    @ pytest.mark.parametrize("op", [
-        "acos", "acos_", "acosh", "acosh_", 
-        "asin", "asin_", "asinh", "asinh_", 
-        "atan", "atan_", "atanh", "atanh_", 
+    @pytest.mark.parametrize("op", [
+        "acos", "acos_", "acosh", "acosh_",
+        "asin", "asin_", "asinh", "asinh_",
+        "atan", "atan_", "atanh", "atanh_",
         "cos", "cos_", "cosh", "cosh_",
         "sin", "sin_", "sinh", "sinh_",
         "tan", "tan_", "tanh", "tanh_"])
-    @ pytest.mark.nightly
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_mm(self, op, ie_device, precision, ir_version):
         self._test(*self.create_model(op), ie_device, precision, ir_version)

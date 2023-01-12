@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -12,9 +13,7 @@ class TestStrides(PytorchLayerTest):
         return (x,)
 
     def create_model(self):
-
         import torch
-        import torch.nn.functional as F
 
         class strided_const(torch.nn.Module):
             def __init__(self):
@@ -30,5 +29,6 @@ class TestStrides(PytorchLayerTest):
         return strided_const(), ref_net, None
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_strides(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)

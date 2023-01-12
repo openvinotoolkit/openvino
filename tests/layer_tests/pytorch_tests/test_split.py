@@ -1,12 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
 import numpy as np
+import pytest
 import torch
 
-
 from pytorch_layer_test_class import PytorchLayerTest
+
 
 class TestSplit(PytorchLayerTest):
     def _prepare_input(self):
@@ -56,9 +56,11 @@ class TestSplit(PytorchLayerTest):
         ([200, 20, 1, 1, 2], 2),
         ([20, 200, 1, 1, 2], -1),
     ]
+
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.parametrize("getitem", [-5, -2, -1, 0, 1, 4])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_split_getitem(self, params, getitem, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self.getitem = getitem
@@ -66,6 +68,7 @@ class TestSplit(PytorchLayerTest):
 
     @pytest.mark.parametrize("params", test_cases)
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_split_listunpack(self, params, ie_device, precision, ir_version):
         (self.split_param, self.axis) = params
         self._test(

@@ -1,9 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
+import pytest
+
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestMaskedFill(PytorchLayerTest):
@@ -13,9 +14,9 @@ class TestMaskedFill(PytorchLayerTest):
         if mask_fill == 'ones':
             mask = np.ones(input_shape).astype(mask_dtype)
         if mask_fill == 'random':
-            idx  = np.random.choice(10, 5)
+            idx = np.random.choice(10, 5)
             mask[:, idx] = 1
-        
+
         return (np.random.randn(1, 10).astype(np.float32), mask)
 
     def create_model(self, value, inplace):
@@ -46,9 +47,11 @@ class TestMaskedFill(PytorchLayerTest):
     @pytest.mark.parametrize("value", [0.0, 1.0, -1.0])
     @pytest.mark.parametrize(
         "mask_fill", ['zeros', 'ones', 'random'])
-    @pytest.mark.parametrize("mask_dtype", [np.uint8, bool]) # np.float32 incorrectly casted to bool
+    @pytest.mark.parametrize("mask_dtype", [np.uint8, bool])  # np.float32 incorrectly casted to bool
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_masked_fill(self, value, mask_fill, mask_dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(value, inplace),
-                   ie_device, precision, ir_version, kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype})
+                   ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={'mask_fill': mask_fill, 'mask_dtype': mask_dtype})

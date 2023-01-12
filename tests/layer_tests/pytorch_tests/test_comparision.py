@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -11,7 +12,6 @@ class TestComp(PytorchLayerTest):
         return (np.random.randn(1, 3, 24, 24).astype(np.float32), np.random.randn(1, 3, 24, 24).astype(np.float32))
 
     def create_model(self, op_type):
-
         import torch
 
         class aten_eq(torch.nn.Module):
@@ -54,5 +54,6 @@ class TestComp(PytorchLayerTest):
 
     @pytest.mark.parametrize("op", ["eq", "ne", "lt", "gt", "le", "ge"])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_comp(self, op, ie_device, precision, ir_version):
         self._test(*self.create_model(op), ie_device, precision, ir_version)

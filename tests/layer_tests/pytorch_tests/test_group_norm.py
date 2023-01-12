@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -14,7 +15,6 @@ class TestGroupNorm(PytorchLayerTest):
         return (np.random.randn(*shape).astype(np.float32),)
 
     def create_model(self, n_groups, weights_shape=None, bias=False, eps=1e-05):
-
         import torch
         import torch.nn.functional as F
 
@@ -37,15 +37,15 @@ class TestGroupNorm(PytorchLayerTest):
 
     @pytest.mark.parametrize("params",
                              [
-                              {"n_groups": 3},
-                              {"n_groups": 1},
-                              {"n_groups": 3, 'eps': 1.0},
-                              {"n_groups": 3, 'weights_shape': (6,), 'eps': -0.05},
-                              {"n_groups": 3, 'weights_shape': (6,)},
-                              {"n_groups": 2, 'weights_shape': (6,), 'bias': True},
-                              {"n_groups": 2, 'weights_shape': (6,), 'bias': False},
-                              {"n_groups": 2, 'weights_shape': (6,), 'bias': True, 'eps': 0.0},
-                              {"n_groups": 2, 'weights_shape': (6,), 'bias': False, 'eps': 0.0001},
+                                 {"n_groups": 3},
+                                 {"n_groups": 1},
+                                 {"n_groups": 3, 'eps': 1.0},
+                                 {"n_groups": 3, 'weights_shape': (6,), 'eps': -0.05},
+                                 {"n_groups": 3, 'weights_shape': (6,)},
+                                 {"n_groups": 2, 'weights_shape': (6,), 'bias': True},
+                                 {"n_groups": 2, 'weights_shape': (6,), 'bias': False},
+                                 {"n_groups": 2, 'weights_shape': (6,), 'bias': True, 'eps': 0.0},
+                                 {"n_groups": 2, 'weights_shape': (6,), 'bias': False, 'eps': 0.0001},
                              ])
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {"ndim": 3},
@@ -53,6 +53,7 @@ class TestGroupNorm(PytorchLayerTest):
         {"ndim": 5}
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_conv2d(self, params, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(**params),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -11,7 +12,6 @@ class TestRelu(PytorchLayerTest):
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
     def create_model(self, inplace=False):
-
         import torch
         import torch.nn.functional as F
 
@@ -29,5 +29,6 @@ class TestRelu(PytorchLayerTest):
 
     @pytest.mark.parametrize("inplace", [False, True])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_relu(self, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(inplace), ie_device, precision, ir_version)

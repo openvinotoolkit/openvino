@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -11,9 +12,7 @@ class TestUnsqueeze(PytorchLayerTest):
         return (np.random.randn(5, 10).astype(np.float32),)
 
     def create_model(self, inplace=False, dim=0):
-
         import torch
-        import torch.nn.functional as F
 
         class aten_unsqueeze(torch.nn.Module):
             def __init__(self, dim):
@@ -33,12 +32,13 @@ class TestUnsqueeze(PytorchLayerTest):
                 return x, x.unsqueeze_(self.dim)
 
         ref_net = None
-        model_class, op = (aten_unsqueeze, "aten::unsqueeze") if not inplace else  (aten_unsqueeze_, "aten::unsqueeze_")
+        model_class, op = (aten_unsqueeze, "aten::unsqueeze") if not inplace else (aten_unsqueeze_, "aten::unsqueeze_")
 
         return model_class(dim), ref_net, op
 
     @pytest.mark.parametrize("inplace", [False, True])
     @pytest.mark.parametrize("dim", [0, 1, -1])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_relu(self, inplace, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(inplace, dim), ie_device, precision, ir_version)

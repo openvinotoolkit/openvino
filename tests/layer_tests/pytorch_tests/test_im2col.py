@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -23,18 +24,19 @@ class TestIm2Col(PytorchLayerTest):
 
             def forward(self, x):
                 return torch.nn.functional.unfold(
-                    x, 
-                    kernel_size=self.kernel_size, 
-                    dilation=self.dilation, 
-                    padding=self.padding, 
+                    x,
+                    kernel_size=self.kernel_size,
+                    dilation=self.dilation,
+                    padding=self.padding,
                     stride=self.stride
-                    )
+                )
 
         ref_net = None
 
         return aten_im2col(kernel_size, dilation, padding, stride), ref_net, "aten::im2col"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.parametrize("kernel_size", [[2, 3], [3, 2], [3, 3], [2, 2], [1, 1]])
     @pytest.mark.parametrize("dilation", [1, 2, 3, (1, 2)])
     @pytest.mark.parametrize("padding", [0, 5, 1, [2, 3]])

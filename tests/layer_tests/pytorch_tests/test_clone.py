@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -23,5 +24,6 @@ class TestClone(PytorchLayerTest):
         return aten_clone(), ref_net, "aten::clone"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_clone(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -11,9 +12,7 @@ class TestRelu(PytorchLayerTest):
         return (np.random.randn(2, 10).astype(np.float32),)
 
     def create_model(self, repeats):
-
         import torch
-        import torch.nn.functional as F
 
         class aten_repeat(torch.nn.Module):
             def __init__(self, repeats):
@@ -29,5 +28,6 @@ class TestRelu(PytorchLayerTest):
 
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_relu(self, repeats, ie_device, precision, ir_version):
         self._test(*self.create_model(repeats), ie_device, precision, ir_version)

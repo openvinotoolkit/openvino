@@ -6,9 +6,9 @@ import warnings
 
 import numpy as np
 from common.constants import test_device, test_precision
+from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 
 from openvino.frontend import FrontEndManager
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 from openvino.runtime import Core, Type, PartialShape
 
 
@@ -34,7 +34,8 @@ class PytorchLayerTest:
                     return True
         return False
 
-    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True, **kwargs):
+    def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
+              **kwargs):
         """
         :param enabled_transforms/disabled_transforms: string with idxs of transforms that should be enabled/disabled.
                                                        Example: "transform_1,transform_2"
@@ -106,7 +107,8 @@ class PytorchLayerTest:
                         assert ov_tensor == fw_tensor
                     assert type(fw_tensor) == type(ov_tensor)
                 continue
-            assert torch.tensor(np.array(ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
+            assert torch.tensor(np.array(
+                ov_tensor)).dtype == fw_tensor.dtype, f"dtype validation failed: {torch.tensor(np.array(ov_tensor)).dtype} != {fw_tensor.dtype}"
 
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']

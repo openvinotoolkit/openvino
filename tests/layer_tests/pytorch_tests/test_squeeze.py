@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -11,7 +12,6 @@ class TestSqueeze(PytorchLayerTest):
         return (np.random.randn(1, 10).astype(np.float32),)
 
     def create_model(self, dim):
-
         import torch
 
         class aten_squeeze(torch.nn.Module):
@@ -30,5 +30,6 @@ class TestSqueeze(PytorchLayerTest):
 
     @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_squeeze(self, dim, ie_device, precision, ir_version, dynamic_shapes):
         self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=dynamic_shapes)

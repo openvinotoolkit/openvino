@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -37,11 +38,13 @@ class TestVar(PytorchLayerTest):
         return aten_var(dim, unbiased, keepdim), ref_net, "aten::var"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.parametrize("unbiased", [True, False])
     def test_var2args(self, unbiased, ie_device, precision, ir_version):
         self._test(*self.create_model(unbiased), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.parametrize("unbiased", [False, True])
     @pytest.mark.parametrize("dim", [None, 0, 1, 2, 3, -1, -2, (0, 1), (-1, -2), (0, 1, -1), (0, 1, 2, 3)])
     @pytest.mark.parametrize("keepdim", [True, False])

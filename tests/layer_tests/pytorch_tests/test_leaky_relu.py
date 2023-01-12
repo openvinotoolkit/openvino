@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -22,13 +23,14 @@ class TestLeakyRelu(PytorchLayerTest):
 
             def forward(self, x):
                 return x, F.leaky_relu(x, self.alpha, inplace=self.inplace)
-            
+
         ref_net = None
 
         return aten_leaky_relu(alpha, inplace), ref_net, "aten::leaky_relu" if not inplace else "aten::leaky_relu_"
 
-
-    @pytest.mark.parametrize("alpha,inplace", [(0.01, True), (0.01, False), (1.01, True), (1.01, False), (-0.01, True), (-0.01, False)])
+    @pytest.mark.parametrize("alpha,inplace",
+                             [(0.01, True), (0.01, False), (1.01, True), (1.01, False), (-0.01, True), (-0.01, False)])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_leaky_relu(self, alpha, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(alpha, inplace), ie_device, precision, ir_version)

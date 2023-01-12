@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import List
-import pytest
-import numpy as np
-import torch
 
+import numpy as np
+import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -42,7 +42,7 @@ class TestListUnpack(PytorchLayerTest):
                 super(prim_listunpack, self).__init__()
 
             def forward(self, in1, in2, in3, in4):
-                a, b = in1.size()[self.start : self.stop : self.step]
+                a, b = in1.size()[self.start: self.stop: self.step]
                 return a, b
 
         ref_net = None
@@ -83,6 +83,7 @@ class TestListUnpack(PytorchLayerTest):
         return prim_listunpack(idx), ref_net, "prim::ListUnpack"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_size_listunpack(self, ie_device, precision, ir_version):
         self._test(
             *self.create_model_size_listunpack(), ie_device, precision, ir_version
@@ -92,6 +93,7 @@ class TestListUnpack(PytorchLayerTest):
         "slices", [(0, 2, 1), (0, 4, 2), (-1, -3, -1), (-3, -1, 1)]
     )
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_size_slice_listunpack(self, slices, ie_device, precision, ir_version):
         self._test(
             *self.create_model_size_slice_listunpack(slices),
@@ -101,6 +103,7 @@ class TestListUnpack(PytorchLayerTest):
         )
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_listconstruct_append_listunpack(self, ie_device, precision, ir_version):
         self._test(
             *self.create_model_listconstruct_append_listunpack(),
@@ -111,8 +114,9 @@ class TestListUnpack(PytorchLayerTest):
 
     @pytest.mark.parametrize("idx", [-4, -3, -2, -1, 0, 1, 2, 3])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_listconstruct_getitem_listunpack(
-        self, idx, ie_device, precision, ir_version
+            self, idx, ie_device, precision, ir_version
     ):
         self._test(
             *self.create_model_listconstruct_getitem_listunpack(idx),

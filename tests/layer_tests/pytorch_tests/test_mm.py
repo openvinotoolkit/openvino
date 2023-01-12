@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -11,7 +12,6 @@ class TestMatMul(PytorchLayerTest):
         return (np.random.randn(*matrix1_shape).astype(np.float32), np.random.randn(*matrix2_shape).astype(np.float32))
 
     def create_model(self, op_type="aten::mm"):
-
         import torch
         ops = {
             "aten::mm": torch.mm,
@@ -26,6 +26,7 @@ class TestMatMul(PytorchLayerTest):
 
             def forward(self, m1, m2):
                 return self.op(m1, m2)
+
         ref_net = None
 
         return aten_mm(ops[op_type]), ref_net, op_type
@@ -39,8 +40,10 @@ class TestMatMul(PytorchLayerTest):
 
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_mm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
-        self._test(*self.create_model('aten::mm'), ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
+        self._test(*self.create_model('aten::mm'), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'matrix1_shape': (10, 3, 3), 'matrix2_shape': (10, 3, 3)},
@@ -51,8 +54,10 @@ class TestMatMul(PytorchLayerTest):
 
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_bmm(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
-        self._test(*self.create_model('aten::bmm'), ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
+        self._test(*self.create_model('aten::bmm'), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)
 
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {'matrix1_shape': (10, 3, 3), 'matrix2_shape': (10, 3, 3)},
@@ -75,5 +80,7 @@ class TestMatMul(PytorchLayerTest):
 
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_matmul(self, kwargs_to_prepare_input, ie_device, precision, ir_version):
-        self._test(*self.create_model('aten::matmul'), ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input)
+        self._test(*self.create_model('aten::matmul'), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input=kwargs_to_prepare_input)
