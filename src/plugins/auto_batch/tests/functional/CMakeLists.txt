@@ -11,7 +11,7 @@ addIeTargetTest(
         ROOT
             ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}
             ${SHARED_HEADERS_DIR}
         LINK_LIBRARIES
             funcSharedTests
@@ -21,5 +21,7 @@ addIeTargetTest(
         LABELS
             Auto_Batch
 )
-
+if (ENABLE_INTEL_GPU)
+    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_GPU_PLUGIN)
+endif()
 set_ie_threading_interface_for(${TARGET_NAME})
