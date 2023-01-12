@@ -64,10 +64,10 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     LessEqual
  */
 
+using precisions_array = std::vector<std::pair<ov::element::Type, ov::element::Type>>;
 using type_to_fuse_map =
     std::unordered_map<ov::NodeTypeInfo,
-                       std::function<bool(const std::shared_ptr<ov::Node>&, ov::element::Type, size_t idx)>>;
-using precisions_array = std::vector<std::pair<ov::element::Type, ov::element::Type>>;
+                       std::function<bool(const std::shared_ptr<ov::Node>&, const precisions_array&)>>;
 
 class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:

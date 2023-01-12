@@ -112,7 +112,15 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_array& precisions) {
+    const auto& from = node->get_output_element_type(0);
+    auto type_pair = std::find_if(precisions.begin(), precisions.end(),
+                                  [&from] (const std::pair<ov::element::Type, ov::element::Type>& pair) {
+                                      return pair.first == from;
+                                  });
+    if (type_pair == precisions.end())
+        return false;
+    const auto& to = type_pair->second;
     if (auto convert = ov::as_type_ptr<ov::opset10::Convert>(node)) {
         // For Convert node, converting precision from floating point to boolean will lead to mathematical
         // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
