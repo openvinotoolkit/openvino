@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-
-#include <ie_version.hpp>
-#include <cpp/ie_plugin.hpp>
+#include <gtest/gtest.h>
 
 #include <cpp/ie_infer_async_request_base.hpp>
+#include <cpp/ie_plugin.hpp>
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
+#include <ie_version.hpp>
 
-#include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_executable_thread_safe_default.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
+#include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -51,7 +50,7 @@ protected:
         mockIExeNetworkInternal->SetPointerToPlugin(mock_plugin_impl);
     }
 
-    void getInferRequestWithMockImplInside(IInferRequestInternal::Ptr &request) {
+    void getInferRequestWithMockImplInside(IInferRequestInternal::Ptr& request) {
         IExecutableNetworkInternal::Ptr exeNetwork;
         InputsDataMap inputsInfo;
         mockNotEmptyNet->getInputsInfo(inputsInfo);
@@ -75,7 +74,7 @@ MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
-    Blob::Ptr inBlob = make_shared_blob<float>({ Precision::FP32, {1, 1, 1, 1}, NCHW });
+    Blob::Ptr inBlob = make_shared_blob<float>({Precision::FP32, {1, 1, 1, 1}, NCHW});
     inBlob->allocate();
     string inputName = "not_input";
     std::string refError = "[ NOT_FOUND ] Failed to find input or output with name: \'" + inputName + "\'";
@@ -83,15 +82,14 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
     getInferRequestWithMockImplInside(inferRequest);
     try {
         inferRequest->SetBlob(inputName, inBlob);
-    } catch(InferenceEngine::NotFound& ex) {
+    } catch (InferenceEngine::NotFound& ex) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
-            << "\tExpected: " << refError
-            << "\n\tActual: " << ex.what();
+            << "\tExpected: " << refError << "\n\tActual: " << ex.what();
     }
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithEmptyName) {
-    Blob::Ptr inBlob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
+    Blob::Ptr inBlob = make_shared_blob<float>({Precision::FP32, {}, NCHW});
     inBlob->allocate();
     string inputName = "not_input";
     std::string refError = "[ NOT_FOUND ] Failed to set blob with empty name";
@@ -99,10 +97,9 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithEmptyName) {
     getInferRequestWithMockImplInside(inferRequest);
     try {
         inferRequest->SetBlob(inputName, inBlob);
-    } catch(InferenceEngine::NotFound& ex) {
+    } catch (InferenceEngine::NotFound& ex) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
-            << "\tExpected: " << refError
-            << "\n\tActual: " << ex.what();
+            << "\tExpected: " << refError << "\n\tActual: " << ex.what();
     }
 }
 
@@ -114,10 +111,9 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNullPtr) {
     Blob::Ptr inBlob = nullptr;
     try {
         inferRequest->SetBlob(inputName, inBlob);
-    } catch(InferenceEngine::NotAllocated& ex) {
+    } catch (InferenceEngine::NotAllocated& ex) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
-            << "\tExpected: " << refError
-            << "\n\tActual: " << ex.what();
+            << "\tExpected: " << refError << "\n\tActual: " << ex.what();
     }
 }
 
@@ -129,10 +125,9 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetEmptyBlob) {
     getInferRequestWithMockImplInside(inferRequest);
     try {
         inferRequest->SetBlob(inputName, inBlob);
-    } catch(InferenceEngine::NotAllocated& ex) {
+    } catch (InferenceEngine::NotAllocated& ex) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
-            << "\tExpected: " << refError
-            << "\n\tActual: " << ex.what();
+            << "\tExpected: " << refError << "\n\tActual: " << ex.what();
     }
 }
 
@@ -141,13 +136,12 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
     std::string refError = "[ NOT_ALLOCATED ] Input data was not allocated. Input name: \'" + inputName + "\'";
     IInferRequestInternal::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
-    Blob::Ptr blob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
+    Blob::Ptr blob = make_shared_blob<float>({Precision::FP32, {}, NCHW});
     try {
         inferRequest->SetBlob(inputName, blob);
-    } catch(InferenceEngine::NotAllocated& ex) {
+    } catch (InferenceEngine::NotAllocated& ex) {
         ASSERT_TRUE(std::string{ex.what()}.find(refError) != std::string::npos)
-            << "\tExpected: " << refError
-            << "\n\tActual: " << ex.what();
+            << "\tExpected: " << refError << "\n\tActual: " << ex.what();
     }
 }
 

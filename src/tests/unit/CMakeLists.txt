@@ -10,8 +10,6 @@ if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
-add_subdirectory(inference_engine)
-
 if (ENABLE_INTEL_MYRIAD)
     add_subdirectory(vpu)
 endif ()

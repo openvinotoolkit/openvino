@@ -4,4 +4,3 @@
 
 add_subdirectory(shared_test_classes)
 add_subdirectory(plugin)
-add_subdirectory(inference_engine)

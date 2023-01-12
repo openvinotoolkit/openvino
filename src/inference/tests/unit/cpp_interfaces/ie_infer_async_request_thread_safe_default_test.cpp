@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <deque>
-
-#include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
+#include <gtest/gtest.h>
 
-#include <inference_engine.hpp>
-#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
+#include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
+#include <deque>
+#include <inference_engine.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 
-#include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_default.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -55,16 +54,16 @@ protected:
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     MockTaskExecutor::Ptr mockTaskExecutor;
 
-
-    void TearDown() override {
-    }
+    void TearDown() override {}
 
     void SetUp() override {
         InputsDataMap inputsInfo;
         OutputsDataMap outputsInfo;
         mockTaskExecutor = make_shared<MockTaskExecutor>();
         mockInferRequestInternal = make_shared<MockIInferRequestInternal>(inputsInfo, outputsInfo);
-        testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, mockTaskExecutor, mockTaskExecutor);
+        testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal,
+                                                                      mockTaskExecutor,
+                                                                      mockTaskExecutor);
     }
 };
 
@@ -81,9 +80,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnStartAsync) {
 TEST_F(InferRequestThreadSafeDefaultTests, canResetBusyStatusIfStartAsyncFails) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-    EXPECT_CALL(*mockInferRequestInternal, checkBlobs()).Times(2)
-            .WillOnce(Throw(GeneralError{""}))
-            .WillOnce(Return());
+    EXPECT_CALL(*mockInferRequestInternal, checkBlobs()).Times(2).WillOnce(Throw(GeneralError{""})).WillOnce(Return());
 
     ASSERT_THROW(testRequest->StartAsync(), GeneralError);
     ASSERT_NO_THROW(testRequest->StartAsync());
@@ -110,9 +107,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnInfer) {
 TEST_F(InferRequestThreadSafeDefaultTests, canResetBusyStatusIfInferFails) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
     testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
-    EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(2)
-            .WillOnce(Throw(GeneralError{""}))
-            .WillOnce(Return());
+    EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(2).WillOnce(Throw(GeneralError{""})).WillOnce(Return());
     ASSERT_THROW(testRequest->Infer(), GeneralError);
 
     ASSERT_NO_THROW(testRequest->Infer());
