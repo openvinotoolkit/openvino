@@ -137,7 +137,7 @@ public:
         auto out_ids = get_output_ids();
         if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
             IE_THROW() << "Non output node's memory may have been reused. "
-                          "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig."
+                          "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
         mem_lock<T, mem_lock_type::read> mem(ptr, get_stream());
         if (ptr->get_layout().data_type != type_to_data_type<T>::value)
             IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
