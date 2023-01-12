@@ -81,8 +81,8 @@ public:
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
-    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties) const;
+    virtual std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties) const;
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -92,9 +92,9 @@ public:
      *        execute the model
      * @return Created Compiled Model object
      */
-    std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                  const ov::AnyMap& properties,
-                                                  const ov::RemoteContext& context) const;
+    virtual std::shared_ptr<ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::RemoteContext& context) const;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -195,34 +195,6 @@ public:
 
 protected:
     IPlugin();
-
-    /**
-     * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
-     *        and use them simultaneously (up to the limitation of the HW resources)
-     * @note The function is used in
-     * IPlugin::compile_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&)
-     * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param model A model object
-     * @param properties ov::AnyMap of properties relevant only for this load operation
-     * @return Shared pointer to the CompiledModel object
-     */
-    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::AnyMap& properties) const;
-
-    /**
-     * @brief Creates an compiled model from ov::Model object, users can create as many networks as they need
-     *        and use them simultaneously (up to the limitation of the HW resources)
-     * @note The function is used in
-     * IPlugin::compile_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&, const ov::RemoteContext&)
-     * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param model A model object
-     * @param context A remote context
-     * @param properties ov::AnyMap of properties relevant only for this load operation
-     * @return Shared pointer to the CompiledModel object
-     */
-    virtual std::shared_ptr<ICompiledModel> compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::RemoteContext& context,
-                                                               const ov::AnyMap& properties) const;
 
 private:
     std::string m_plugin_name;                                             //!< A device name that plugins enables

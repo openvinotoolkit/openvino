@@ -62,7 +62,6 @@ protected:
      */
     virtual void infer_thread_unsafe();
     virtual void start_async_thread_unsafe();
-    void CheckState() const;
 
     Pipeline m_pipeline;       //!< Pipeline variable that should be filled by inherited class.
     Pipeline m_sync_pipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.

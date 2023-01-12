@@ -21,6 +21,8 @@
 
 namespace ov {
 
+class IAsyncInferRequest;
+
 class OPENVINO_RUNTIME_API IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     IInferRequest(const std::shared_ptr<ov::ICompiledModel>& compiled_model);
@@ -35,18 +37,16 @@ public:
 
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
-    virtual ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const;
+    virtual ov::Tensor get_tensor(const ov::Output<const ov::Node>& port) const;  // ????
     virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor);
 
-    virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const;
+    virtual std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const;  // ????
     virtual void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors);
     virtual void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::Tensor>& tensors);
 
     virtual std::vector<ov::VariableState> query_state() const;
 
     virtual void set_callback(std::function<void(std::exception_ptr)> callback);
-
-    virtual void check_tensors() const;
 
     const std::vector<ov::Output<const ov::Node>>& get_inputs() const;
     const std::vector<ov::Output<const ov::Node>>& get_outputs() const;
@@ -73,6 +73,8 @@ protected:
     void convert_batched_tensors();
     void check_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) const;
 
+    virtual void check_tensors() const;
+
     std::vector<ov::Tensor> m_input_tensors;
     std::vector<ov::Tensor> m_output_tensors;
     std::unordered_map<size_t, std::vector<ov::Tensor>> m_batched_tensors;
@@ -80,7 +82,7 @@ protected:
 private:
     std::shared_ptr<ov::ICompiledModel> m_compiled_model;
     std::function<void(std::exception_ptr)> m_callback;
-    std::shared_ptr<void> m_so;
+    friend IAsyncInferRequest;
 };
 
 };  // namespace ov

@@ -27,7 +27,7 @@ namespace ov {
 
 /**
  * @struct Version
- * @brief  Represents version information that describes plugins and the OpemVINO library
+ * @brief  Represents version information that describes plugins and the OpenVINO library
  */
 #pragma pack(push, 1)
 struct Version {

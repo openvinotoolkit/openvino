@@ -63,7 +63,6 @@ public:
 private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
-    std::shared_ptr<void> m_so;
     std::shared_ptr<const ov::IPlugin> m_plugin;
     bool m_loaded_from_cache = false;
 
@@ -76,10 +75,11 @@ protected:
     template <typename AsyncInferRequestType = ov::IAsyncInferRequest>
     std::shared_ptr<ov::IInferRequest> create_async_infer_request_from_sync() const {
         std::shared_ptr<ov::IInferRequest> syncRequestImpl = this->create_infer_request_impl();
-        return std::make_shared<ov::IAsyncInferRequest>(syncRequestImpl, m_task_executor, m_callback_executor);
+        return std::make_shared<AsyncInferRequestType>(syncRequestImpl, m_task_executor, m_callback_executor);
     }
 
     // Functions are needed for import model because on the moment of contructor call we don't have a model
+    // Cannot use constructor instead of because these fields are not available on the moment of constructor call
     void set_inputs(const std::vector<ov::Output<const ov::Node>>& inputs);
     void set_outputs(const std::vector<ov::Output<const ov::Node>>& outputs);
 

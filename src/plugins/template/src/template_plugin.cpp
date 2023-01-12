@@ -103,12 +103,12 @@ Plugin::~Plugin() {
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::shared_ptr<ov::Model>& model,
-                                                               const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model_impl");
 
     auto fullConfig = Configuration{properties, _cfg};
-    return std::make_shared<ExecutableNetwork>(model,
+    return std::make_shared<ExecutableNetwork>(model->clone(),
                                                fullConfig,
                                                std::static_pointer_cast<const Plugin>(shared_from_this()));
 }
