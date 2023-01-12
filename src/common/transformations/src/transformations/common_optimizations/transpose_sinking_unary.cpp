@@ -161,7 +161,7 @@ ov::pass::TransposeSinkingUnaryBackwardMultiConsumers::TransposeSinkingUnaryBack
     MATCHER_SCOPE(TransposeSinkingUnaryBackwardMultiConsumers);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
-        return consumers_more_than(1) && HasSameOutputTransposeNodes(output);
+        return consumers_more_than(1)(output) && HasSameOutputTransposeNodes(output);
     };
 
     auto unary_label =
