@@ -45,32 +45,32 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, GetEngine(), m_config);
+    m_program = std::make_shared<Program>(network, get_engine(), config);
     if (m_program->m_max_batch > 1)
-        m_config.max_dynamic_batch = m_program->m_max_batch;
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
     Build();
 }
 
-Graph::Graph(cldnn::BinaryInputBuffer &ib, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(GetEngine(), m_config);
+    m_program = std::make_shared<Program>(get_engine(), config);
     if (m_program->m_max_batch > 1)
-        m_config.max_dynamic_batch = m_program->m_max_batch;
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
     ib >> m_program->inputLayouts;
     ib >> primitiveIDs;
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, GetEngine()->create_stream(), *GetEngine(), m_stream_id));
+    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -130,21 +130,19 @@ void Graph::Build() {
 }
 
 bool Graph::use_external_queue() const {
-    auto impl = getContextImpl(m_context);
-    return impl->GetExternalQueue() != nullptr;
+    return m_context->get_external_queue() != nullptr;
 }
 
 std::shared_ptr<cldnn::network> Graph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::BuildNetwork");
     std::shared_ptr<cldnn::network> network = nullptr;
 
-    auto impl = getContextImpl(m_context);
-    auto externalQueue = impl->GetExternalQueue();
+    auto externalQueue = m_context->get_external_queue();
     if (externalQueue) {
-        if (m_config.throughput_streams != 1)
+        if (m_config.get_property(ov::num_streams) != 1)
             IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
-        auto &engine = m_program->GetEngine();
-        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
+        auto &engine = m_program->get_engine();
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(m_config, externalQueue), m_stream_id);
     } else {
         network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
@@ -164,7 +162,7 @@ Graph::variable_states_map Graph::AllocateVariablesMemories() {
         std::vector<cldnn::network::VariableState::Ptr> memoryStates;
         memoryStates.reserve(orderedLayouts.size());
         for (const auto& layout : orderedLayouts)
-            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(GetEngine()->allocate_memory(layout, false)));
+            memoryStates.push_back(std::make_shared<cldnn::network::VariableState>(get_engine().allocate_memory(layout, false)));
         states.insert({memStateInfo.first, memoryStates });
     }
     return states;
@@ -173,7 +171,7 @@ Graph::variable_states_map Graph::AllocateVariablesMemories() {
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                           bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::GetExecGraphInfoByPrimitivesInfo");
-    if (m_config.useProfiling) {
+    if (m_config.get_property(ov::enable_profiling)) {
         try {
             // Update may throw an exception for step-by-step runtime graph dump,
             // since network->get_executed_primitives() method can't be called before network execution
