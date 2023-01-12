@@ -902,7 +902,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         if (!batched_inputs.size() || !batched_outputs.size())
             IE_THROW(NotImplemented)
                 << "Auto-batching supports only networks with inputs/outputs featuring batched dim!";
-    } catch (const ov::Exception&) {
+    } catch (const InferenceEngine::Exception&) {
         metaDevice.batchForDevice = 1;
     }
 

@@ -308,7 +308,7 @@ IInferPtr MultiSchedule::CreateInferRequest() {
         try {
             perfmode = _passthroughExeNet->GetConfig(
                                 CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>();
-        } catch (const ov::Exception&) {
+        } catch (const IE::Exception&) {
             LOG_INFO("query perf hint from passthrough network failed");
         }
         if (_multiSContext->_batchingDisabled || perfmode != CONFIG_VALUE(THROUGHPUT)) {
