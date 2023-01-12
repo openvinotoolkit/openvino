@@ -815,7 +815,7 @@ std::shared_ptr<Model> CreateReferenceFunction(BinaryFactoryPtr binary_factory,
 
 }  // namespace one_binary
 
-}  // namespace output_consumers
+}  // namespace input_node_consumers
 
 namespace input_node_consumers {
 
@@ -1219,10 +1219,10 @@ struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;
     CreateGraphFunctionDesc(CreateGraphF a_model_factory,
                             CreateGraphF a_reference_model_factory,
-                            std::string a_subtest_name) :
-                            model_factory(a_model_factory),
-                            reference_model_factory(a_reference_model_factory),
-                            subtest_name(a_subtest_name) {}
+                            std::string a_subtest_name)
+        : model_factory(a_model_factory),
+          reference_model_factory(a_reference_model_factory),
+          subtest_name(a_subtest_name) {}
     CreateGraphF model_factory;
     CreateGraphF reference_model_factory;
     std::string subtest_name;
