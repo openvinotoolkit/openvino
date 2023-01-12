@@ -6,7 +6,7 @@ This guide provides installation steps for OpenVINO™ Runtime for Linux distrib
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf).
 
-## System Requirements
+## Prerequisites
 
 @sphinxdirective
 .. tab:: System Requirements
@@ -110,7 +110,7 @@ Run the following command:
 @endsphinxdirective
 
 
-#### Uninstall OpenVINO Runtime
+#### Uninstalling OpenVINO Runtime
 
 @sphinxdirective
 
