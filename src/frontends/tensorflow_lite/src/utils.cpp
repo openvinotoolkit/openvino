@@ -69,6 +69,17 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
     return ov::Shape{tf_shape->begin(), tf_shape->end()};
 }
 
+ov::Shape get_quant_shape(const Output<Node>& output, const std::shared_ptr<ov::frontend::tensorflow_lite::Quantization>& quantization, const size_t& size) {
+    auto shape = ov::Shape{};
+    if (size > 1) {
+        FRONT_END_GENERAL_CHECK(output.get_partial_shape().rank().is_static(), "Per-Channel Quantization of tensor with dynamic rank");
+        auto rank = output.get_partial_shape().size();
+        shape = ov::Shape(rank, 1);
+        shape[quantization->axis] = size;
+    }
+    return shape;
+}
+
 void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& output) {
     auto rt_info = output.get_rt_info();
     if (!rt_info.count(QuantizationInfo::get_type_info_static()))  // no quantization
@@ -86,10 +97,17 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
 
     auto zp = quantization->zero_point;
     auto scale = quantization->scale;
+
+    auto zp_shape = get_quant_shape(output, quantization, zp.size());
+    auto scale_shape = get_quant_shape(output, quantization, scale.size());
+
+    auto input_rank = output.get_partial_shape().rank();
+    FRONT_END_GENERAL_CHECK(input_rank.is_static(), "Quantization is no");
+
     auto zp_node =
-        ov::opset10::Constant::create(element::f32, (zp.size() == 1 ? ov::Shape{} : ov::Shape{zp.size()}), zp);
+        ov::opset10::Constant::create(element::f32, zp_shape, zp);
     auto scale_node =
-        ov::opset10::Constant::create(element::f32, (scale.size() == 1 ? ov::Shape{} : ov::Shape{scale.size()}), scale);
+        ov::opset10::Constant::create(element::f32, scale_shape, scale);
 
     if (is_constant) {
         output = std::make_shared<ov::opset10::Convert>(output, element::f32);
@@ -103,10 +121,17 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
 
     auto levels = 256;
     if (is_input) {
-        FRONT_END_GENERAL_CHECK(input_type == element::u8, "Inputs of type other than u8 is not yet supported");
-        output = std::make_shared<ov::opset10::Convert>(output, element::f32);
-        input_low = ov::opset10::Constant::create(element::f32, {}, {0});
-        input_high = ov::opset10::Constant::create(element::f32, {}, {levels - 1});
+        FRONT_END_GENERAL_CHECK(input_type == element::u8 || input_type == element::i8,
+                                "Inputs of type other than u8 is not yet supported");
+        if (input_type == element::u8) {
+            output = std::make_shared<ov::opset10::Convert>(output, element::f32);
+            input_low = ov::opset10::Constant::create(element::f32, {}, {0});
+            input_high = ov::opset10::Constant::create(element::f32, {}, {levels - 1});
+        } else if (input_type == element::i8) {
+            output = std::make_shared<ov::opset10::Convert>(output, element::f32);
+            input_low = ov::opset10::Constant::create(element::f32, {}, {-128});
+            input_high = ov::opset10::Constant::create(element::f32, {}, {127});
+        }
     }
     if (std::all_of(zp.begin(), zp.end(), [](const int64_t& i) {
             return i == 0;

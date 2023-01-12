@@ -28,7 +28,7 @@ public:
                                std::map<size_t, ov::frontend::tensorflow_lite::TensorInfo> output_info)
                                : m_node_def(node_def), m_type(type), m_name(name), m_input_info(input_info), m_output_info(output_info) {}
 
-   template<class Ret, class Class>
+    template<class Ret, class Class>
     Ret get_attribute(Ret (Class::*member)() const) const {
         const auto opts = m_node_def->builtin_options_as<Class>();
         FRONT_END_GENERAL_CHECK(opts != nullptr, "Chosen Builtin Option is not accessible for this node");
@@ -36,7 +36,7 @@ public:
     }
 
     ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_NOT_IMPLEMENTED(get_attribute);
+//        FRONT_END_NOT_IMPLEMENTED(get_attribute);
         return {};
     }
 

@@ -14,7 +14,7 @@ namespace tensorflow {
 namespace op {
 
 ov::OutputVector translate_rank_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Rank"});
+    default_op_checks(node, 1, {"Rank", "RANK"});
     auto input = node.get_input(0);
     auto input_shape = make_shared<ShapeOf>(input, ov::element::i32);
     auto unsqueeze_input_rank = make_shared<ShapeOf>(input_shape, ov::element::i32);

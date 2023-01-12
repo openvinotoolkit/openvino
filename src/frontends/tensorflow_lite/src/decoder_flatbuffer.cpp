@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow_lite {
 
 size_t DecoderFlatBuffer::get_input_size() const {
-    return m_node_def->inputs()->size();
+    return m_input_info.size();
 }
 
 void DecoderFlatBuffer::get_input_node(size_t input_port_idx,

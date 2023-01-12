@@ -17,6 +17,9 @@ ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::get_decoder() const {
     std::map<size_t, TensorInfo> input_info = {}, output_info = {};
     size_t i = 0;
     for (auto input : *m_nodes[node_index]->inputs()) {
+        if (input == -1) {
+            continue;
+        }
         auto buffer = (*buffers)[(*tensors)[input]->buffer()];
         auto is_input = inputs.find(input) != inputs.end();
         int64_t input_idx =
