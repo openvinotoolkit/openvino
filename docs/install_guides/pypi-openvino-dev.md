@@ -67,7 +67,7 @@ To install and configure the components of the package for working with specific
 ```sh
 pip install openvino-dev[extras]
 ```
- where `extras` has the following values: 
+ where `extras` is one or more of the following values separated with "," : 
 
 | Extras Value                    | DL Framework                                                                     |
 | :-------------------------------| :------------------------------------------------------------------------------- |
@@ -172,7 +172,7 @@ sudo apt-get install libpython3.7
 ## Additional Resources
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- [OpenVINO™ Documentation](https://docs.openvino.ai/)
+- [OpenVINO™ Documentation](https://docs.openvino.ai/2022.3/home.html)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
 
 Copyright © 2018-2022 Intel Corporation
