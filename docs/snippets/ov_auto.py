@@ -108,6 +108,17 @@ def part6():
     compiled_model = core.compile_model(model=model, device_name="AUTO");
 #! [part6]
 
+def part7():
+#! [part7]
+    core = Core()
+    # read a network in IR, PaddlePaddle, or ONNX format
+    model = core.read_model(model_path)
+    # compile a model on AUTO and set log level to debug
+    compiled_model = core.compile_model(model=model, device_name="AUTO")
+    # query the runtime target devices on which the inferences are being executed
+    execution_devices = compiled_model.get_property("EXECUTION_DEVICES")
+#! [part7]
+
 def main():
     part0()
     part1()
@@ -115,6 +126,7 @@ def main():
     part4()
     part5()
     part6()
+    part7()
 
 if __name__ == '__main__':
     sys.exit(main())

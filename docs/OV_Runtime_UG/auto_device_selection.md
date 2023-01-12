@@ -116,8 +116,9 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 +--------------------------------+----------------------------------------------------------------------+
 | | `ov::execution_devices`      | | Lists the runtime target devices on which the inferences are being |
 | |                              | | executed.                                                          |
-| |                              | | Examples of returning results could be `CPU_HELP`, `CPU`, `GPU`,   |
-| |                              | | `CPU GPU`, `GPU.0`, etc.                                           |
+| |                              | | Examples of returning results could be `CPU_HELP`(`CPU_HELP` is a  |
+| |                              | | temporary device, indicate that CPU as acceleration at the model   |
+| |                              | | compilation stage), `CPU`, `GPU`, `CPU GPU`, `GPU.0`, etc.         |
 +--------------------------------+----------------------------------------------------------------------+
 
 @endsphinxdirective
@@ -208,27 +209,25 @@ To query the runtime target devices on which the inferences are being executed u
 
 .. tab:: C++
 
-   .. code-block:: sh
-
-      ov::Any execution_devices = compiled_model.get_property(ov::execution_devices)
+    .. doxygensnippet:: docs/snippets/AUTO7.cpp
+       :language: cpp
+       :fragment: [part7]
 
 .. tab:: Python
 
-   .. code-block:: sh
-
-      execution_devices = compiled_model.get_property("EXECUTION_DEVICES")
+    .. doxygensnippet:: docs/snippets/ov_auto.py
+       :language: python
+       :fragment: [part7]
 
 @endsphinxdirective
 
 ### Performance Hints for AUTO
 The `ov::hint::performance_mode` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is `LATENCY`.
 
-> **NOTE**: Currently, the `ov::hint` property is supported by CPU and GPU devices only.
-
 #### LATENCY
 This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
-> **NOTE**: If no performance hint is set explicitly, AUTO will set LATENCY for devices that have not set `ov::device::properties`.
+> **NOTE**: If no performance hint is set explicitly, AUTO will set LATENCY for devices that have not set `ov::device::properties`, for example, `ov::device::properties(<DEVICE_NAME>, ov::hint::performance_mode(ov::hint::LATENCY))`.
 
 @sphinxdirective
 
