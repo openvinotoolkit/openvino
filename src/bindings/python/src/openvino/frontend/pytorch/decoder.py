@@ -1,12 +1,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# flake8: noqa
+
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
-from openvino.runtime import PartialShape, Type as OVType, OVAny, Shape
+from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
-from openvino.runtime import op
 import numpy as np
 import torch
 
@@ -43,7 +44,7 @@ def ivalue_to_constant(ivalue):
             ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
         except Exception:
             # old variant that makes a slow data copying
-            print("[ WARNING ] Constant wasn't able to convert from data_ptr.")
+            warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
             nvalues = ivalue.numpy()
             ovtype = np_to_ov_type_map[str(nvalues.dtype)]
             ovshape = PartialShape(nvalues.shape)
@@ -327,6 +328,3 @@ class TorchScriptPythonDecoder (Decoder):
                     pt_value = get_value_from_getattr(in_node, self.pt_module)
                     return pt_value is None
         return False
-
-    def debug(self):
-        print(f"DEBUG CALLED FOR {self._raw_output(0)}")

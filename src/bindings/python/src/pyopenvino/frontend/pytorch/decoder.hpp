@@ -101,10 +101,6 @@ class PyDecoder : public ov::frontend::pytorch::Decoder {
     std::shared_ptr<Decoder> get_subgraph_decoder(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<Decoder>, Decoder, get_subgraph_decoder, index);
     }
-
-    void debug() const override {
-        PYBIND11_OVERRIDE_PURE(void, Decoder, debug);
-    }
 };
 
 void regclass_frontend_pytorch_decoder(py::module m);

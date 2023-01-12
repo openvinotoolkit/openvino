@@ -228,12 +228,10 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
         // Custom PT FE Types
-    } else if (py::isinstance<ov::frontend::pytorch::Type::Tensor>(py_obj)) {
-        // std::cout << "[ ANY PYBIND ] Detected Tensor\n";
-        return py::cast<ov::frontend::pytorch::Type::Tensor>(py_obj);
-    } else if (py::isinstance<ov::frontend::pytorch::Type::List>(py_obj)) {
-        // std::cout << "[ ANY PYBIND ] Detected List\n";
-        return py::cast<ov::frontend::pytorch::Type::List>(py_obj);
+    } else if (py::isinstance<ov::frontend::pytorch::type::Tensor>(py_obj)) {
+        return py::cast<ov::frontend::pytorch::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::pytorch::type::List>(py_obj)) {
+        return py::cast<ov::frontend::pytorch::type::List>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;

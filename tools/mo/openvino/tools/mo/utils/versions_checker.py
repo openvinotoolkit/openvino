@@ -264,15 +264,7 @@ def check_requirements(framework=None, silent=True):
         # in site-packages/openvino/tools/mo/requirements.txt
         requirements_file = os.path.realpath(os.path.join(os.path.dirname(__file__), os.pardir, file_name))
 
-    try:
-        # Under try-except because requirement file is not mandatory and may not exist for some weird (or ideal?) frontends
-        requirements_list = get_module_version_list_from_file(requirements_file, env_setup)
-    except FileNotFoundError as e:
-        # TODO: don't know if we can use an f-prefixed string here as a Python version is not known that this moment
-        log.warning(f'There is no requirements.txt file for selected framework {framework}. It can be an issue if the frontend really reuires some dependencies, '
-                    'and for some reason file with requirements is missing. Check your setup if the conversion process is not working for you as expected.')
-        return 0
-
+    requirements_list = get_module_version_list_from_file(requirements_file, env_setup)
     not_satisfied_versions = []
     exit_code = 0
     for name, key, required_version in requirements_list:

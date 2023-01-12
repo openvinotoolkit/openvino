@@ -17,7 +17,7 @@ namespace pytorch {
 // Extendable type system which reflects TorchScript supported python data types
 // Type nestings are built with the help of ov::Any
 
-namespace Type {
+namespace type {
 
 struct Tensor {
     Tensor() = default;
@@ -60,7 +60,7 @@ inline void print(const Any& x) {
     std::cout << std::flush;
 }
 
-}  // namespace Type
+}  // namespace type
 
 /// Plays a role of node, block and module decoder (kind of temporary fat API)
 struct Decoder {  // TODO: Is it required to be enable_shared_from_this?
@@ -164,9 +164,6 @@ public:
 
     /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
     virtual std::shared_ptr<Decoder> get_subgraph_decoder(size_t index) const = 0;
-
-    /// Dumps debug info
-    virtual void debug() const = 0;
 };
 
 }  // namespace pytorch

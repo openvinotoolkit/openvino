@@ -61,7 +61,7 @@ def apply_offline_transformations(func: Model, argv: argparse.Namespace):
 
     apply_moc_transformations(func)
 
-    params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes) if 'packed_user_shapes' in argv else []
+    params_with_custom_types = create_params_with_custom_types(argv.packed_user_shapes)
     apply_moc_legacy_transformations(func, params_with_custom_types)
     apply_user_transformations(func, parse_transform(argv.transform))
 

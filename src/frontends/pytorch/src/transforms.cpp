@@ -25,12 +25,12 @@ using ov::pass::pattern::wrap_type;
 using std::make_shared;
 using std::shared_ptr;
 
-const Type::List* is_list(const descriptor::Tensor& tensor) {
+const type::List* is_list(const descriptor::Tensor& tensor) {
     // TODO: Use special API to get custom type detalization
     /*if (falsetensor.get_element_type() == element::custom) {
         auto custom_type = tensor.get_custom_element_type();
-        if(custom_type.is<Type::List>()) {
-            return &custom_type.as<Type::List>();
+        if(custom_type.is<type::List>()) {
+            return &custom_type.as<type::List>();
         }
     }*/
 
@@ -40,7 +40,7 @@ const Type::List* is_list(const descriptor::Tensor& tensor) {
 std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
     // TODO: Use special API to get custom type detalization
     /*if (auto list = is_list(tensor)) {
-        if(list->element_type.is<Type::Tensor>()) {
+        if(list->element_type.is<type::Tensor>()) {
             return std::make_tuple(true, tensor.get_custom_element_type());  // UGLY: used custom type from the top
     again
         }
@@ -56,13 +56,13 @@ std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
         return std::make_tuple(false, Any());
     }
 
-    if (!custom_type.is<Type::List>()) {
+    if (!custom_type.is<type::List>()) {
         return std::make_tuple(false, custom_type);
     }
 
-    Any element_type = custom_type.as<Type::List>().element_type;
+    Any element_type = custom_type.as<type::List>().element_type;
 
-    if (!element_type.is<Type::Tensor>()) {
+    if (!element_type.is<type::Tensor>()) {
         return std::make_tuple(false, custom_type);
     }
 
