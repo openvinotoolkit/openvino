@@ -1290,7 +1290,7 @@ void Convolution::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr weightMemoryDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr weightMemoryDesc = MemoryDescUtils::convertToDnnlMemoryDesc(selectedWeightDesc);//wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr outMemoryDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr biasDesc;
     if (biasMemPtr) {
@@ -1481,6 +1481,7 @@ void Convolution::initOptimalPrimitiveDescriptor() {
     if (constParent->isConstant()) {
         auto selectedParentPD = constParent->getSelectedPrimitiveDescriptor();
         auto config = selectedPD->getConfig();
+        selectedWeightDesc = config.inConfs[1].getMemDesc();
         config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
         selectedPD->setConfig(config);
     }

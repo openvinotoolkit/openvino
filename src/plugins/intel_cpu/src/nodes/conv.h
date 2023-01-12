@@ -93,6 +93,7 @@ private:
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    MemoryDescPtr selectedWeightDesc;
 
     class ConvolutionExecutor : public DnnlExecutor {
         public:
