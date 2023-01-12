@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,6 +131,7 @@ OP_CONVERTER(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_where_op);
+OP_CONVERTER(translate_while_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
 
@@ -320,12 +321,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SpaceToBatchND", translate_space_to_batch_nd_op},
         {"StatefulPartitionedCall", translate_partitioned_call_op},
         {"StatelessIf", translate_if_op},
+        {"StatelessWhile", translate_while_op},
         {"StridedSlice", translate_strided_slice_op},
         {"Tile", translate_tile_op},
         {"TopK", translate_top_k_op},
         {"TopKV2", translate_top_k_v2_op},
         {"Transpose", translate_transpose_op},
         {"Unpack", translate_unpack_op},
+        {"While", translate_while_op},
         {"Where", translate_where_op},
         {"Xdivy", translate_x_div_y_op},
         {"ZerosLike", translate_zeros_like_op},
