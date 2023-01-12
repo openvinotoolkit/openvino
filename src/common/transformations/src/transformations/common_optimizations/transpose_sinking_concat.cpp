@@ -71,11 +71,6 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
-        if (main_node->output(0).get_target_inputs().size() > 1) {
-            auto new_node = CloneNodeWithoutConsumers(main_node, NodeVector{transpose});
-            register_new_node(new_node);
-        }
-
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
         }

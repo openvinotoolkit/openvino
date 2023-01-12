@@ -630,16 +630,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardMultSplitConsumersTestSuit
                                             ::testing::Values(element::f32)),
                          TransposeSinkingSplitTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardMultSplitConsumersTestSuite,
-                         TransposeSinkingSplitTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
-                                            ::testing::ValuesIn(split_tree_depth_nums),
-                                            ::testing::ValuesIn(split_outputs_numbers),
-                                            ::testing::Values(backward::mult_split_consumers::CreateFunction),
-                                            ::testing::Values(backward::mult_split_consumers::CreateFunction),
-                                            ::testing::Values(element::f32)),
-                         TransposeSinkingSplitTestFixture::get_test_name);
-
 namespace backward {
 namespace restrictions {
 
