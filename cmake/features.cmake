@@ -6,7 +6,7 @@
 # Common cmake options
 #
 
-ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "X86_64" OFF)
+ie_dependent_option (ENABLE_INTEL_CPU "CPU plugin for OpenVINO Runtime" ON "RISCV64 OR X86 OR X86_64" OFF)
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
@@ -100,7 +100,7 @@ ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
 ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
-if(UNIVERSAL2)
+if(UNIVERSAL2 OR EMSCRIPTEN)
     set(ENABLE_INTEL_MYRIAD_DEFAULT OFF)
 else()
     set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
@@ -132,7 +132,7 @@ set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to inc
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the OpenVINO Runtime binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-if(LINUX)
+if(CMAKE_HOST_LINUX AND LINUX)
     # Debian packages are enabled on Ubuntu systems
     # so, system TBB / pugixml can be tried for usage
     set(ENABLE_SYSTEM_LIBS_DEFAULT ON)
@@ -170,6 +170,7 @@ ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
+ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Use system flatbuffers" OFF
     "ENABLE_OV_TF_LITE_FRONTEND;BUILD_SHARED_LIBS" OFF)
 

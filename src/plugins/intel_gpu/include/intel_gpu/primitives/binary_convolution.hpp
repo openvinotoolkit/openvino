@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/core/coordinate_diff.hpp"
@@ -10,12 +9,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward spatial binary_convolution with weight sharing.
 struct binary_convolution : public primitive_base<binary_convolution> {
@@ -72,8 +65,6 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
 
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
-
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         ret.reserve(weights.size());
@@ -81,7 +72,4 @@ struct binary_convolution : public primitive_base<binary_convolution> {
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

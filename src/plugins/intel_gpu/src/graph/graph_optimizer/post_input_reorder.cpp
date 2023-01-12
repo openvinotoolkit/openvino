@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "pass_manager.h"
 #include "impls/ocl/primitive_base.hpp"
 #include "fully_connected/fully_connected_params.h"
