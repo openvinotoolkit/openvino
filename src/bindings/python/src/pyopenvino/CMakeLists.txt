@@ -72,14 +72,21 @@ list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
+list(APPEND DEPENDENCIES openvino::runtime::dev openvino::runtime)
+
 if(TARGET offline_transformations)
-    set(OFFLINE_TRANSFORMATIONS_LIB offline_transformations)
+    list(APPEND DEPENDENCIES offline_transformations)
 else()
-    set(OFFLINE_TRANSFORMATIONS_LIB openvino::offline_transformations)
+    list(APPEND DEPENDENCIES openvino::offline_transformations)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB} openvino::frontend::pytorch)
+
+if(ENABLE_OV_PYTORCH_FRONTEND)
+    list(APPEND DEPENDENCIES openvino::frontend::pytorch)
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDENCIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
