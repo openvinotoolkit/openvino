@@ -9,100 +9,137 @@
 
 ## Linux
 
+@sphinxdirective
+
 Once you have OpenVINO™ Runtime installed, follow these steps to be able to work on NCS2:
 
 1. Go to the install_dependencies directory:
-   ```sh
-   cd <INSTALL_DIR>/install_dependencies/
-   ```
+
+   .. code-block:: sh
+
+      cd <INSTALL_DIR>/install_dependencies/
+
 2. Run the `install_NCS_udev_rules.sh` script:
-   ```
-   ./install_NCS_udev_rules.sh
-   ```
+
+   .. code-block:: sh
+
+      ./install_NCS_udev_rules.sh
+
 3. You may need to reboot your machine for this to take effect.
 
-You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ workflow and run code samples and demo applications.
-
-@sphinxdirective
+You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2.
+Proceed to the :doc:`Get Started Guide <get_started>` section to learn the basic OpenVINO™ workflow and run code samples and demo applications.
 
 .. _ncs guide raspbianos:
 
 @endsphinxdirective
 
+
 ## Raspbian OS
 
-1. Add the current Linux user to the `users` group:
-   ```sh
-   sudo usermod -a -G users "$(whoami)"
-   ```
-   Log out and log in for it to take effect.
-2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
-   ```sh
-   source /opt/intel/openvino_2022/setupvars.sh
-   ```
-3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
-   ```sh
-   sh /opt/intel/openvino_2022/install_dependencies/install_NCS_udev_rules.sh
-   ```
-4. Plug in your Intel® Neural Compute Stick 2.
-
-5. (Optional) If you want to compile and run the Image Classification sample to verify the installation of OpenVINO, follow the steps below.
-
-   a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
-   ```sh
-   mkdir build && cd build
-   ```
-   b. Build the Hello Classification Sample:
-   ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
-   ```
-   ```sh
-   make -j2 hello_classification
-   ```
-   c. Download the pre-trained squeezenet1.1 image classification model with the Model Downloader or copy it from the host machine:
-   ```sh
-   git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
-   cd open_model_zoo/tools/model_tools
-   python3 -m pip install --upgrade pip
-   python3 -m pip install -r requirements.in
-   python3 downloader.py --name squeezenet1.1 
-   ```
-   d. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian OS:
-   ```sh
-   ./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
-   ```
-   The application outputs to console window top 10 classification results.
-
 @sphinxdirective
+
+#. Add the current Linux user to the ``users`` group:
+
+   .. code-block:: sh
+
+      sudo usermod -a -G users "$(whoami)"
+
+   Log out and log in for it to take effect.
+
+#. If you didn't modify ``.bashrc`` to permanently set the environment variables, run ``setupvars.sh`` again after logging in:
+
+   .. code-block:: sh
+
+      source /opt/intel/openvino_2022/setupvars.sh
+
+#. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the ``install_NCS_udev_rules.sh`` script:
+
+   .. code-block:: sh
+
+      sh /opt/intel/openvino_2022/install_dependencies/install_NCS_udev_rules.sh
+
+#. Plug in your Intel® Neural Compute Stick 2.
+
+#. (Optional) If you want to compile and run the Image Classification sample to verify the installation of OpenVINO, follow the steps below.
+
+   a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
+
+      .. code-block:: sh
+
+         mkdir build && cd build
+
+   b. Build the Hello Classification Sample:
+
+      .. code-block:: sh
+
+         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
+
+      .. code-block:: sh
+
+         make -j2 hello_classification
+
+   c. Download the pre-trained squeezenet1.1 image classification model with the Model Downloader or copy it from the host machine:
+
+      .. code-block:: sh
+
+         git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
+         cd open_model_zoo/tools/model_tools
+         python3 -m pip install --upgrade pip
+         python3 -m pip install -r requirements.in
+         python3 downloader.py --name squeezenet1.1
+
+   d. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian OS:
+
+      .. code-block:: sh
+
+         ./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
+
+      The application outputs to console window top 10 classification results.
+
 
 .. _ncs guide macos:
 
 @endsphinxdirective
 
+
 ## macOS
+
+@sphinxdirective
 
 These steps are required only if you want to perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU.
 
-To perform inference on Intel® Neural Compute Stick 2, the `libusb` library is required. You can build it from the [source code](https://github.com/libusb/libusb) or install using the macOS package manager you prefer: [Homebrew](https://brew.sh/), [MacPorts](https://www.macports.org/) or other.
+To perform inference on Intel® Neural Compute Stick 2, the ``libusb`` library is required. You can build it from the `source code <https://github.com/libusb/libusb>`_ or install using the macOS package manager you prefer: `Homebrew <https://brew.sh/>`_ , `MacPorts <https://www.macports.org/>`_ or other.
 
-For example, to install the `libusb` library using Homebrew, use the following command:
-```sh
-brew install libusb
-```
+For example, to install the ``libusb`` library using Homebrew, use the following command:
+
+.. code-block:: sh
+
+   brew install libusb
+
 
 You've completed all required configuration steps to perform inference on your Intel® Neural Compute Stick 2.
 
+@endsphinxdirective
+
+
 ## What’s Next?
+
+@sphinxdirective
 
 Now you are ready to try out OpenVINO™. You can use the following tutorials to write your applications using Python and C++.
 
 Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+
+* `Start with tensorflow models with OpenVINO™ <https://docs.openvino.ai/nightly/notebooks/101-tensorflow-to-openvino-with-output.html>`_
+* `Start with ONNX and PyTorch models with OpenVINO™ <https://docs.openvino.ai/nightly/notebooks/102-pytorch-onnx-to-openvino-with-output.html>`_
+* `Start with PaddlePaddle models with OpenVINO™ <https://docs.openvino.ai/nightly/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html>`_
 
 Developing in C++:
-   * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
-   * [Hello Classification C++ Sample](@ref openvino_inference_engine_samples_hello_classification_README)
-   * [Hello Reshape SSD C++ Sample](@ref openvino_inference_engine_samples_hello_reshape_ssd_README)
+
+* :doc:`Image Classification Async C++ Sample <openvino_inference_engine_samples_classification_sample_async_README>`
+* :doc:`Hello Classification C++ Sample <openvino_inference_engine_samples_hello_classification_README>`
+* :doc:`Hello Reshape SSD C++ Sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
+
+@endsphinxdirective
+
