@@ -150,7 +150,7 @@ For a list of VPU-supported layers, see the **Supported Layers** section of the 
 * `Normalize` layer uses fixed value for `eps` parameters (1e-9) and is supported for zero value of `across_spatial` only.
 * `Pad` layer works only with 4D tensors.
 * `Floor` layer works only with FP16 type.
-* `ConvTranspose` layer not supported.
+* `ConvTranspose` layer is not supported.
 * `GatherElements` layer is not supported for negative axis.
 
 ## See Also
