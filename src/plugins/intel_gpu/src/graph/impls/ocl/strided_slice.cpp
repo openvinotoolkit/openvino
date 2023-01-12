@@ -148,7 +148,7 @@ public:
                 if (params.striding_params[1][dim] < 0)
                     params.striding_params[1][dim] = std::max(out_shape[dim] + params.striding_params[1][dim], (int32_t)0);
 
-                params.striding_params[0][dim] = std::min(params.striding_params[0][dim], out_shape[dim]);
+                params.striding_params[0][dim] = std::min(params.striding_params[0][dim], std::max((int32_t)0, out_shape[dim] - 1));
                 params.striding_params[1][dim] = std::min(params.striding_params[1][dim], out_shape[dim]);
 
                 auto& begin = params.striding_params[0][dim];

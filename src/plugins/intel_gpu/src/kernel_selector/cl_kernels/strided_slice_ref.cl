@@ -159,7 +159,7 @@ inline int FUNC(check_begin_bound)(BEGIN_TYPE begin_num,
     } else {
         num = begin_num;
     }
-    num = min(num, (int)out_num);
+    num = min(num, (int)max(TO_BEGIN_TYPE(out_num) - TO_BEGIN_TYPE(1), TO_BEGIN_TYPE(0)));
     return num;
 }
 
