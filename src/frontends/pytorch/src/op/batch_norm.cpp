@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -24,7 +24,7 @@ OutputVector translate_batch_norm(NodeContext& context) {
     // Index with index 6 is momentum, it is used only in training mode
     auto epsilon = context.const_input<float>(7);
     return {context.mark_node(
-        std::make_shared<opset8::BatchNormInference>(input, weight, bias, running_mean, running_var, epsilon))};
+        std::make_shared<opset10::BatchNormInference>(input, weight, bias, running_mean, running_var, epsilon))};
 };
 
 }  // namespace op

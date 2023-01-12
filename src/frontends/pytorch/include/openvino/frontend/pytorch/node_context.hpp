@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <openvino/frontend/exception.hpp>
-#include <openvino/frontend/node_context.hpp>
-#include <openvino/frontend/pytorch/decoder.hpp>
-#include <openvino/opsets/opset8.hpp>
-
-#include "exception.hpp"
+#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/pytorch/decoder.hpp"
 
 namespace ov {
 namespace frontend {
@@ -41,10 +38,9 @@ public:
     // Search for input in tensor map and return an output port for already converted op
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override {
-        // std::cerr << "Trying to map input to ngraph...";
-        OV_FRONTEND_REQUIRE(!m_decoder->input_is_none(index));
+        FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
         auto input = m_decoder->input(index);
-        OV_FRONTEND_REQUIRE(m_tensor_map->count(input));
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         return m_tensor_map->at(input);
     }
 
@@ -52,8 +48,7 @@ public:
     OutputVector inputs() const {
         OutputVector res;
         for (size_t input : m_decoder->inputs()) {
-            // std::cerr << "Searching for input: " << input->unique() << "\n";
-            OV_FRONTEND_REQUIRE(m_tensor_map->count(input));
+            FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding index: ", input, " exist.");
             res.push_back(m_tensor_map->at(input));
         }
         return res;
@@ -106,9 +101,9 @@ public:
     }
 
     void mutate_input(size_t index, Output<Node> ov_output) {
-        OV_FRONTEND_REQUIRE(!m_decoder->input_is_none(index));
+        FRONT_END_GENERAL_CHECK(!m_decoder->input_is_none(index), "Input is none with index: ", index);
         auto input = m_decoder->input(index);
-        OV_FRONTEND_REQUIRE(m_tensor_map->count(input));
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
         m_tensor_map->at(input).get_tensor().set_names({std::to_string(input) + "_"});
         // TODO: find out why this doesn't work
         ov_output.get_tensor().add_names({std::to_string(input)});
@@ -140,40 +135,11 @@ public:
         }
     }
 
-    Output<Node> get_tensor_from_model_or_create_input(size_t index) {
-        if (m_tensor_map->find(index) != m_tensor_map->end()) {
-            return m_tensor_map->at(index);
-        } else {
-            // nested subgraphs case
-            auto parameter = std::make_shared<opset8::Parameter>(element::dynamic, PartialShape::dynamic());
-            parameter->get_output_tensor(0).add_names({std::to_string(index)});
-            (*m_tensor_map)[index] = parameter;
-            m_external_parameters->push_back(parameter);
-            // std::cout << "Nested case, created: " << parameter << std::endl;
-            return parameter;
-        }
-    }
-
-    Output<Node> get_input_from_visible_context(size_t index) const {
-        OV_FRONTEND_REQUIRE(index < get_input_size());
-        auto input_tensor = get_input(index);
-        auto input_node = input_tensor.get_node_shared_ptr();
-        if (std::dynamic_pointer_cast<opset8::Parameter>(input_node)) {
-            // We need to look into external context for inputs that would be feed into this parameter
-            auto name = input_node->get_output_tensor(0).get_any_name();
-            size_t tensor_idx = (size_t)std::stoll(name);
-            if (m_ext_tensor_map.count(tensor_idx)) {
-                input_tensor = m_ext_tensor_map.at(tensor_idx);
-            }
-        }
-        return input_tensor;
-    }
-
+    Output<Node> get_tensor_from_model_or_create_input(size_t index);
+    Output<Node> get_input_from_visible_context(size_t index) const;
     std::shared_ptr<ov::Model> convert_subgraph(size_t index);
 
 private:
-    std::shared_ptr<opset8::Constant> get_constant_at_input(size_t index) const;
-
     std::shared_ptr<Decoder> m_decoder;
     std::set<size_t> m_mutated_tensors;
     TensorMap* m_tensor_map;

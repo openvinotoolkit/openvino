@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "openvino/frontend/pytorch/visibility.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -57,7 +57,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             // If aten::__getitem__, expect inputs to be equivalent of pytorch Tensor[][].
             // Tensor selected by aten::__getitem__ index needs to be splitted in axis 0.
             auto getitem_index_ptr = getitem_node->input_value(1).get_node_shared_ptr();
-            auto getitem_index_const = std::dynamic_pointer_cast<opset8::Constant>(getitem_index_ptr);
+            auto getitem_index_const = std::dynamic_pointer_cast<opset10::Constant>(getitem_index_ptr);
             auto index_val = getitem_index_const->cast_vector<int64_t>();
             auto index = 0;
             if (index_val[0] >= 0) {
@@ -65,12 +65,12 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             } else {
                 index = inputs.size() + index_val[0];
             }
-            auto axis_0 = opset8::Constant::create(element::i64, Shape{}, {0});
-            auto split = std::make_shared<opset8::Split>(inputs[index], axis_0, list_unpack->get_output_size());
+            auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
+            auto split = std::make_shared<opset10::Split>(inputs[index], axis_0, list_unpack->get_output_size());
             NodeVector to_copy_rt{axis_0, split};
             OutputVector res;
             for (auto output : split->outputs()) {
-                auto squeeze = std::make_shared<opset8::Squeeze>(output, axis_0);
+                auto squeeze = std::make_shared<opset10::Squeeze>(output, axis_0);
                 to_copy_rt.push_back(squeeze);
                 res.push_back(squeeze);
             }

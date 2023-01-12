@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -15,8 +15,9 @@ OutputVector translate_mean(NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     auto keep_dims = context.const_input<bool>(2);
-    OV_FRONTEND_REQUIRE(context.input_is_none(3));
-    return {context.mark_node(std::make_shared<opset8::ReduceMean>(x, y, keep_dims))};
+    FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(3),
+                                  "Only False is supported for input with index 3 for aten::mean");
+    return {context.mark_node(std::make_shared<opset10::ReduceMean>(x, y, keep_dims))};
 };
 
 }  // namespace op

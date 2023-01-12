@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -20,7 +20,7 @@ OutputVector translate_hardtanh(NodeContext& context) {
     if (!context.input_is_none(2)) {
         max = context.const_input<float>(2);
     }
-    return {context.mark_node(std::make_shared<opset8::Clamp>(context.get_input(0), min, max))};
+    return {context.mark_node(std::make_shared<opset10::Clamp>(context.get_input(0), min, max))};
 };
 
 }  // namespace op

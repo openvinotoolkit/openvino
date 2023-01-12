@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,8 +12,8 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_arange(NodeContext& context) {
-    auto zero = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {0}));
-    auto one = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {1}));
+    auto zero = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {0}));
+    auto one = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {1}));
     auto dtype = element::f32;
     bool dtype_applied = false;
     int num_inputs = context.get_input_size();
@@ -64,12 +64,12 @@ OutputVector translate_arange(NodeContext& context) {
             dtype_applied = true;
         }
     }
-    auto r_end = context.mark_node(std::make_shared<opset8::Convert>(end, dtype));
-    auto r_start = context.mark_node(std::make_shared<opset8::Convert>(start, dtype));
-    auto r_step = context.mark_node(std::make_shared<opset8::Convert>(step, dtype));
-    auto range = context.mark_node(std::make_shared<opset8::Range>(r_start, r_end, r_step, dtype));
+    auto r_end = context.mark_node(std::make_shared<opset10::Convert>(end, dtype));
+    auto r_start = context.mark_node(std::make_shared<opset10::Convert>(start, dtype));
+    auto r_step = context.mark_node(std::make_shared<opset10::Convert>(step, dtype));
+    auto range = context.mark_node(std::make_shared<opset10::Range>(r_start, r_end, r_step, dtype));
     if (!dtype_applied) {
-        range = context.mark_node(std::make_shared<opset8::ConvertLike>(range, out_tensor));
+        range = context.mark_node(std::make_shared<opset10::ConvertLike>(range, out_tensor));
     }
     return {range};
 };

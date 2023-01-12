@@ -37,5 +37,4 @@ void regclass_frontend_pytorch_decoder(py::module m) {
         def(py::init<Any>());
     py::class_<type::Str>(type_module, "Str").
         def(py::init<>());
-    type_module.def("print", type::print);
 }

@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -14,7 +14,7 @@ namespace op {
 OutputVector translate_linear(NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
-    auto matmul = std::make_shared<opset8::MatMul>(x, y, false, true);
+    auto matmul = std::make_shared<opset10::MatMul>(x, y, false, true);
     return {context.mark_output(make_optional_bias(matmul, context, 2))};
 };
 

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
+# mypy: ignore-errors
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -10,10 +11,6 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 import warnings
 import numpy as np
 import torch
-
-
-def make_constant(*args, **kwargs):
-    return op.Constant(*args, **kwargs)
 
 
 def get_type_from_py_type(value):
@@ -29,26 +26,26 @@ def get_type_from_py_type(value):
 def ivalue_to_constant(ivalue):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
-        return make_constant(ov_type, Shape([]), [ivalue]).outputs()
+        return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 
     if isinstance(ivalue, list):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
         ov_type = get_type_from_py_type(ivalue[0])
         assert ov_type.is_static(), "Can't deduce type for list"
-        return make_constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
+        return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if ivalue.type() in pt_to_ov_type_map:
         try:
             ovshape = PartialShape(ivalue.size())
             ovtype = pt_to_ov_type_map[ivalue.type()]
-            ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
+            ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
         except Exception:
             # old variant that makes a slow data copying
             warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
             nvalues = ivalue.numpy()
             ovtype = np_to_ov_type_map[str(nvalues.dtype)]
             ovshape = PartialShape(nvalues.shape)
-            ov_const = make_constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
+            ov_const = op.Constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
         return ov_const.outputs()
 
 
@@ -248,11 +245,11 @@ class TorchScriptPythonDecoder (Decoder):
         if pt_type_class is torch.ListType:
             return self.as_constant_list(pt_value)
         if str(pt_value.type()) in ["torch.int32", "int"]:
-            return make_constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
+            return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
         if str(pt_value.type()) in ["torch.float", "torch.FloatType", "float"]:
-            return make_constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
+            return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
         if str(pt_value.type()) in ["torch.bool", "bool"]:
-            return make_constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
+            return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
 
         return None
 
@@ -284,12 +281,12 @@ class TorchScriptPythonDecoder (Decoder):
                     # this is only possible with adding a new ctor for Constant Python binding
                     # TODO Check strides and pass them somehow
                     values = ivalue.data_ptr()
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+                    ov_const = op.Constant(ovtype, ovshape.get_shape(), values)
                 except Exception:
                     # old variant that makes a slow data copying
                     warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
                     values = ivalue.flatten().tolist()
-                    ov_const = make_constant(ovtype, ovshape.get_shape(), values)
+                    ov_const = op.Constant(ovtype, ovshape.get_shape(), values)
                 return ov_const.outputs()
         else:
             return ivalue_to_constant(ivalue)
@@ -312,7 +309,7 @@ class TorchScriptPythonDecoder (Decoder):
         if is_known_type:
             ovtype = pt_to_ov_type_map[pt_element_type]
             ovshape = PartialShape([len(ivalue)])
-            ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue)
+            ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
 
     def input_is_none(self, index):

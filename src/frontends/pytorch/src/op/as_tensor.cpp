@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -20,9 +20,9 @@ OutputVector translate_as_tensor(NodeContext& context) {
         auto dtype_fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(dtype_ext_node);
         if (dtype_fw_node && dtype_fw_node->get_op_type() == "prim::dtype") {
             auto type_input = dtype_fw_node->input_value(0);
-            return {context.mark_node(std::make_shared<opset8::ConvertLike>(context.get_input(0), type_input))};
+            return {context.mark_node(std::make_shared<opset10::ConvertLike>(context.get_input(0), type_input))};
         }
-        if (auto dtype_const = std::dynamic_pointer_cast<opset8::Constant>(dtype_ext_node)) {
+        if (auto dtype_const = std::dynamic_pointer_cast<opset10::Constant>(dtype_ext_node)) {
             auto pt_type = dtype_const->cast_vector<int64_t>()[0];
             FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type),
                                           "Unknown type in aten::as_tensor: ",
@@ -30,7 +30,7 @@ OutputVector translate_as_tensor(NodeContext& context) {
             dtype = TORCH_TO_OV_TYPE.at(pt_type);
         }
     }
-    cast = context.mark_node(std::make_shared<opset8::Convert>(context.get_input(0), dtype));
+    cast = context.mark_node(std::make_shared<opset10::Convert>(context.get_input(0), dtype));
 
     // Input with index 2 is device, we skip this input
     return {cast};

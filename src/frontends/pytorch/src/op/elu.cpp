@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -14,7 +14,7 @@ namespace op {
 OutputVector translate_elu(NodeContext& context) {
     auto x = context.get_input(0);
     auto alpha = context.const_input<float>(1);
-    return {context.mark_node(std::make_shared<opset8::Elu>(x, alpha))};
+    return {context.mark_node(std::make_shared<opset10::Elu>(x, alpha))};
 };
 
 }  // namespace op

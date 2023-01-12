@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 
-#include "exception.hpp"
 #include "input_model.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "op_table.hpp"

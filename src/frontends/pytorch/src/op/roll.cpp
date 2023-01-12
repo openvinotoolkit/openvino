@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -19,16 +19,16 @@ OutputVector translate_roll(NodeContext& context) {
     const auto axes_pshape = axes.get_partial_shape();
     const auto match_dims = axes_pshape.compatible(shifts_pshape);
     if (!match_dims) {
-        const auto const_minus_1 = opset8::Constant::create(element::i32, Shape{1}, {-1});
-        const auto axis_0 = opset8::Constant::create(element::i32, Shape{1}, {0});
-        const auto flat = std::make_shared<opset8::Reshape>(data, const_minus_1, false);
-        const auto roll = std::make_shared<opset8::Roll>(flat, shifts, axis_0);
-        const auto shape_of_data = std::make_shared<opset8::ShapeOf>(data);
-        const auto reshape = std::make_shared<opset8::Reshape>(roll, shape_of_data, false);
+        const auto const_minus_1 = opset10::Constant::create(element::i32, Shape{1}, {-1});
+        const auto axis_0 = opset10::Constant::create(element::i32, Shape{1}, {0});
+        const auto flat = std::make_shared<opset10::Reshape>(data, const_minus_1, false);
+        const auto roll = std::make_shared<opset10::Roll>(flat, shifts, axis_0);
+        const auto shape_of_data = std::make_shared<opset10::ShapeOf>(data);
+        const auto reshape = std::make_shared<opset10::Reshape>(roll, shape_of_data, false);
         context.mark_nodes({const_minus_1, flat, roll, shape_of_data, reshape});
         return {reshape};
     }
-    return {context.mark_node(std::make_shared<opset8::Roll>(data, shifts, axes))};
+    return {context.mark_node(std::make_shared<opset10::Roll>(data, shifts, axes))};
 };
 
 }  // namespace op

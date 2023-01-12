@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/op/util/framework_node.hpp>
+#include "openvino/op/util/framework_node.hpp"
 
 #include "utils.hpp"
 

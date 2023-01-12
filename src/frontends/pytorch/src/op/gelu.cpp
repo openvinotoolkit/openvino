@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -16,7 +16,7 @@ OutputVector translate_gelu(NodeContext& context) {
     auto approximate = context.const_input<std::string>(1);
     // TODO: Add support for "tanh" approximate
     FRONT_END_OP_CONVERSION_CHECK(approximate == "none", "Unsupported approximate for Gelu: ", approximate);
-    return {context.mark_node(std::make_shared<opset8::Gelu>(x))};
+    return {context.mark_node(std::make_shared<opset10::Gelu>(x))};
 };
 
 }  // namespace op

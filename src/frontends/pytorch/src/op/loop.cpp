@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,13 +12,13 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_loop(NodeContext& context) {
-    auto loop = std::make_shared<opset8::Loop>(context.get_input(0), context.get_input(1));
+    auto loop = std::make_shared<opset10::Loop>(context.get_input(0), context.get_input(1));
     auto decoder = context.get_decoder();
-    OV_FRONTEND_REQUIRE(decoder->get_subgraph_size() == 1);
+    FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1, "Loop must have 1 subgraph.");
     auto subgraph_decoder = decoder->get_subgraph_decoder(0);
     auto body = context.convert_subgraph(0);
     loop->set_function(body);
-    opset8::Loop::SpecialBodyPorts spec_ports{0, 0};
+    opset10::Loop::SpecialBodyPorts spec_ports{0, 0};
     loop->set_special_body_ports(spec_ports);
 
     auto inputs = subgraph_decoder->inputs();

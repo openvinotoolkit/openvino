@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -16,9 +16,9 @@ OutputVector translate_rsub(NodeContext& context) {
     auto other = context.get_input(1);
     auto alpha = context.get_input(2);
     // reverse aten::sub other - self * alpha
-    auto alpha_casted = context.mark_node(std::make_shared<opset8::ConvertLike>(alpha, self));
-    auto alpha_mul = context.mark_node(std::make_shared<opset8::Multiply>(self, alpha_casted));
-    return {context.mark_node(std::make_shared<opset8::Subtract>(other, alpha_mul))};
+    auto alpha_casted = context.mark_node(std::make_shared<opset10::ConvertLike>(alpha, self));
+    auto alpha_mul = context.mark_node(std::make_shared<opset10::Multiply>(self, alpha_casted));
+    return {context.mark_node(std::make_shared<opset10::Subtract>(other, alpha_mul))};
 };
 
 }  // namespace op

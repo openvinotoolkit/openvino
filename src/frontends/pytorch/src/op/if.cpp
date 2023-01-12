@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -12,10 +12,10 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_if(NodeContext& context) {
-    auto if_node = std::make_shared<opset8::If>(context.get_input(0));
+    auto if_node = std::make_shared<opset10::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();
-    OV_FRONTEND_REQUIRE(decoder->get_subgraph_size() == 2);
+    FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 2, "If must have 2 subgraphs.");
 
     auto then_decoder = decoder->get_subgraph_decoder(0);
     auto then_body = context.convert_subgraph(0);
@@ -64,8 +64,8 @@ OutputVector translate_if(NodeContext& context) {
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
     }
     // Each body can have mutated outputs that are not included into pytorch node outputs.
-    std::map<size_t, std::shared_ptr<opset8::Result>> extra_then_body_results;
-    std::map<size_t, std::shared_ptr<opset8::Result>> extra_else_body_results;
+    std::map<size_t, std::shared_ptr<opset10::Result>> extra_then_body_results;
+    std::map<size_t, std::shared_ptr<opset10::Result>> extra_else_body_results;
     std::set<size_t> extra_output_idxs;
     for (int i = num_outs; i < then_results.size(); i++) {
         const auto result = then_results[i];
@@ -100,9 +100,9 @@ OutputVector translate_if(NodeContext& context) {
     for (const auto& output_idx : extra_output_idxs) {
         if (!extra_then_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in then body
-            auto new_parameter = std::make_shared<opset8::Parameter>(element::dynamic, PartialShape::dynamic());
+            auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
             new_parameter->get_output_tensor(0).add_names({std::to_string(output_idx)});
-            auto new_result = std::make_shared<opset8::Result>(new_parameter);
+            auto new_result = std::make_shared<opset10::Result>(new_parameter);
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
@@ -112,9 +112,9 @@ OutputVector translate_if(NodeContext& context) {
             std::cout << "[ WARNING ] Modified then body: " << if_node << std::endl;
         } else if (!extra_else_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in else body
-            auto new_parameter = std::make_shared<opset8::Parameter>(element::dynamic, PartialShape::dynamic());
+            auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
             new_parameter->get_output_tensor(0).add_names({std::to_string(output_idx)});
-            auto new_result = std::make_shared<opset8::Result>(new_parameter);
+            auto new_result = std::make_shared<opset10::Result>(new_parameter);
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});
             else_body->validate_nodes_and_infer_types();

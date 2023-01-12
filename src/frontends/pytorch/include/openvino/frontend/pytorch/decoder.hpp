@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <iostream>
 #include <memory>
 
-// TODO: rough!
-#include "openvino/openvino.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ov {
 namespace frontend {
@@ -41,24 +42,6 @@ struct Optional;
 struct Dict;
 struct NamedTuple;
 struct Union;
-
-inline void print(const Any& x) {
-    std::cout << "XDecoder.print: {" << x.type_info().name() << "}: ";
-    if (x.is<element::Type>()) {
-        std::cout << x.as<element::Type>();
-    } else if (x.is<Tensor>()) {
-        std::cout << "Tensor[";
-        print(x.as<Tensor>().element_type);
-        std::cout << "]";
-    } else if (x.is<List>()) {
-        std::cout << "List[";
-        print(x.as<List>().element_type);
-        std::cout << "]";
-    } else {
-        std::cout << "UNKNWON_ANY_TYPE";
-    }
-    std::cout << std::flush;
-}
 
 }  // namespace type
 

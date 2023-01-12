@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -18,14 +18,14 @@ OutputVector translate_layer_norm(NodeContext& context) {
                                   "Translation for aten::layer_norm supports only single normalized_shape value, "
                                   "which means normalizing over the last dimension.");
     // TODO: support any dimention
-    auto axes = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {-1}));
+    auto axes = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {-1}));
     auto out_node = context.mark_node(
-        std::make_shared<opset8::MVN>(context.get_input(0), axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
+        std::make_shared<opset10::MVN>(context.get_input(0), axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     if (!context.input_is_none(2)) {
-        out_node = context.mark_node(std::make_shared<opset8::Multiply>(out_node, context.get_input(2)));
+        out_node = context.mark_node(std::make_shared<opset10::Multiply>(out_node, context.get_input(2)));
     }
     if (!context.input_is_none(3)) {
-        out_node = context.mark_node(std::make_shared<opset8::Add>(out_node, context.get_input(3)));
+        out_node = context.mark_node(std::make_shared<opset10::Add>(out_node, context.get_input(3)));
     }
     return {out_node};
 };

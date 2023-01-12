@@ -7,7 +7,6 @@
 #include <openvino/frontend/pytorch/decoder.hpp>
 #include <openvino/frontend/pytorch/node_context.hpp>
 
-#include "exception.hpp"
 #include "op_table.hpp"
 #include "pt_framework_node.hpp"
 
@@ -24,34 +23,34 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     if (!context.input_is_none(bias_input_idx)) {
         auto bias = context.get_input(bias_input_idx);
         if (!unsqueeze_dims.empty()) {
-            auto indices = opset8::Constant::create(element::i32, {unsqueeze_dims.size()}, unsqueeze_dims);
+            auto indices = opset10::Constant::create(element::i32, {unsqueeze_dims.size()}, unsqueeze_dims);
             context.mark_node(indices);
-            bias = make_shared<opset8::Unsqueeze>(bias, indices);
+            bias = make_shared<opset10::Unsqueeze>(bias, indices);
             context.mark_output(bias);
         }
-        return make_shared<opset8::Add>(context.mark_output(base_op), bias);
+        return make_shared<opset10::Add>(context.mark_output(base_op), bias);
     } else {
         return base_op;
     }
 }
 
 Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv) {
-    auto conv_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(conv));
-    auto conv_rank = context.mark_node(std::make_shared<opset8::ShapeOf>(conv_shape));
-    auto one_const = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {1}));
-    auto two_const = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {2}));
-    auto tail_shape_rank = context.mark_node(std::make_shared<opset8::Subtract>(conv_rank, two_const));
-    auto tail_shape = context.mark_node(std::make_shared<opset8::Broadcast>(one_const, tail_shape_rank));
-    auto channels_dim = context.mark_node(std::make_shared<opset8::ShapeOf>(bias));
+    auto conv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(conv));
+    auto conv_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(conv_shape));
+    auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
+    auto two_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
+    auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(conv_rank, two_const));
+    auto tail_shape = context.mark_node(std::make_shared<opset10::Broadcast>(one_const, tail_shape_rank));
+    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(bias));
     auto new_shape =
-        context.mark_node(std::make_shared<opset8::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
 
-    return context.mark_node(std::make_shared<opset8::Reshape>(bias, new_shape, false));
+    return context.mark_node(std::make_shared<opset10::Reshape>(bias, new_shape, false));
 }
 
 std::shared_ptr<Node> get_rank_node(const Output<Node>& node) {
-    auto shape = std::make_shared<opset8::ShapeOf>(node);
-    return std::make_shared<opset8::ShapeOf>(shape);
+    auto shape = std::make_shared<opset10::ShapeOf>(node);
+    return std::make_shared<opset10::ShapeOf>(shape);
 }
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context,
@@ -60,27 +59,27 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                                       int64_t groups) {
     using std::make_shared;
 
-    auto in_shape = std::make_shared<opset8::ShapeOf>(input);
-    auto c_in_idx = opset8::Constant::create(element::i64, Shape{}, {1});
-    auto axis_0 = opset8::Constant::create(element::i64, Shape{}, {0});
-    auto in_shape_1 = make_shared<opset8::Gather>(in_shape, c_in_idx, axis_0);
-    auto in_shape_1_uns = make_shared<opset8::Unsqueeze>(in_shape_1, axis_0);
-    auto groups_const = opset8::Constant::create(element::i64, Shape{1}, {groups});
-    auto c_in_value = make_shared<opset8::Divide>(in_shape_1_uns, groups_const);
+    auto in_shape = std::make_shared<opset10::ShapeOf>(input);
+    auto c_in_idx = opset10::Constant::create(element::i64, Shape{}, {1});
+    auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
+    auto in_shape_1 = make_shared<opset10::Gather>(in_shape, c_in_idx, axis_0);
+    auto in_shape_1_uns = make_shared<opset10::Unsqueeze>(in_shape_1, axis_0);
+    auto groups_const = opset10::Constant::create(element::i64, Shape{1}, {groups});
+    auto c_in_value = make_shared<opset10::Divide>(in_shape_1_uns, groups_const);
 
-    auto kernel_shape = std::make_shared<opset8::ShapeOf>(kernel);
-    auto c_out_idx = opset8::Constant::create(element::i64, Shape{}, {0});
-    auto kernel_shape_0 = make_shared<opset8::Gather>(kernel_shape, c_out_idx, axis_0);
-    auto kernel_shape_0_uns = make_shared<opset8::Unsqueeze>(kernel_shape_0, axis_0);
-    auto c_out_value = make_shared<opset8::Divide>(kernel_shape_0_uns, groups_const);
+    auto kernel_shape = std::make_shared<opset10::ShapeOf>(kernel);
+    auto c_out_idx = opset10::Constant::create(element::i64, Shape{}, {0});
+    auto kernel_shape_0 = make_shared<opset10::Gather>(kernel_shape, c_out_idx, axis_0);
+    auto kernel_shape_0_uns = make_shared<opset10::Unsqueeze>(kernel_shape_0, axis_0);
+    auto c_out_value = make_shared<opset10::Divide>(kernel_shape_0_uns, groups_const);
 
-    auto start = opset8::Constant::create(element::i64, Shape{1}, {2});
-    auto stop = opset8::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
-    auto step = opset8::Constant::create(element::i64, Shape{1}, {1});
-    auto remaining_shape = make_shared<opset8::Slice>(kernel_shape, start, stop, step);
+    auto start = opset10::Constant::create(element::i64, Shape{1}, {2});
+    auto stop = opset10::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto step = opset10::Constant::create(element::i64, Shape{1}, {1});
+    auto remaining_shape = make_shared<opset10::Slice>(kernel_shape, start, stop, step);
 
     auto new_kernel_shape =
-        make_shared<opset8::Concat>(OutputVector{groups_const, c_out_value, c_in_value, remaining_shape}, 0);
+        make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, c_in_value, remaining_shape}, 0);
     context.mark_nodes({in_shape,
                         c_in_idx,
                         axis_0,
@@ -98,24 +97,24 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                         step,
                         remaining_shape,
                         new_kernel_shape});
-    return make_shared<opset8::Reshape>(kernel, new_kernel_shape, false);
+    return make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
 }
 
 std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
     auto x = context.get_input(input_id);
-    auto start = std::make_shared<opset8::Constant>(element::i32, Shape{}, 0);
-    auto step = std::make_shared<opset8::Constant>(element::i32, Shape{}, 1);
-    auto shape = context.mark_node(std::make_shared<opset8::ShapeOf>(x, element::i32));
-    auto rank = context.mark_node(std::make_shared<opset8::ShapeOf>(shape, element::i32));
-    auto reduced_rank = context.mark_node(std::make_shared<opset8::Squeeze>(rank));
-    return context.mark_node(std::make_shared<opset8::Range>(start, reduced_rank, step, element::i32));
+    auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
+    auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
+    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
+    auto rank = context.mark_node(std::make_shared<opset10::ShapeOf>(shape, element::i32));
+    auto reduced_rank = context.mark_node(std::make_shared<opset10::Squeeze>(rank));
+    return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
 std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
     auto x = context.get_input(input_id);
-    auto input_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(x));
-    auto axes = context.mark_node(opset8::Constant::create(element::i64, Shape({1}), {0}));
-    return context.mark_node(std::make_shared<opset8::ReduceProd>(input_shape, axes, false));
+    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x));
+    auto axes = context.mark_node(opset10::Constant::create(element::i64, Shape({1}), {0}));
+    return context.mark_node(std::make_shared<opset10::ReduceProd>(input_shape, axes, false));
 };
 
 ov::element::Type convert_dtype(NodeContext& context, size_t input_id) {
@@ -128,13 +127,13 @@ std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
     if (auto list_construct = cast_fw_node(input, "prim::ListConstruct")) {
         auto list_inputs = list_construct->input_values();
         OutputVector node_vector;
-        auto zero = opset8::Constant::create(element::i32, Shape{}, {0});
+        auto zero = opset10::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
             auto node = concat_list_construct(list_inputs[i].get_node_shared_ptr());
-            auto unsqueezed_node = std::make_shared<opset8::Unsqueeze>(node, zero);
+            auto unsqueezed_node = std::make_shared<opset10::Unsqueeze>(node, zero);
             node_vector.push_back(unsqueezed_node);
         }
-        return std::make_shared<opset8::Concat>(node_vector, 0);
+        return std::make_shared<opset10::Concat>(node_vector, 0);
     }
     return input;
 }
@@ -294,21 +293,21 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             PartialShape ps = pytorch_model->get_input_shape(i);
             auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
             // TODO: Use special API to set custom type detalization
-            auto parameter = std::make_shared<opset8::Parameter>(ov::element::dynamic, ps);
+            auto parameter = std::make_shared<opset10::Parameter>(ov::element::dynamic, ps);
             parameter->get_output_tensor(0).add_names({std::to_string(pytorch_model->input(i))});
             parameters.push_back(parameter);
             auto order = pytorch_model->get_input_transpose_order(i);
             if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
-                OV_FRONTEND_REQUIRE(ps.is_static());  // TODO: make dynamic
+                FRONT_END_GENERAL_CHECK(ps.is_static(), "Shape must be static.");  // TODO: make dynamic
                 auto sh = ps.get_shape();
                 Shape new_shape(sh.size());
                 for (int i = 0; i < sh.size(); i++) {
                     new_shape[order[i]] = sh[i];
                 }
-                auto shape_const = opset8::Constant::create(element::i64, {new_shape.size()}, new_shape);
-                auto reshape = std::make_shared<opset8::Reshape>(parameter, shape_const, false);
-                auto order_const = opset8::Constant::create(element::i32, {order.size()}, order);
-                auto transpose = std::make_shared<opset8::Transpose>(reshape, order_const);
+                auto shape_const = opset10::Constant::create(element::i64, {new_shape.size()}, new_shape);
+                auto reshape = std::make_shared<opset10::Reshape>(parameter, shape_const, false);
+                auto order_const = opset10::Constant::create(element::i32, {order.size()}, order);
+                auto transpose = std::make_shared<opset10::Transpose>(reshape, order_const);
                 tensor_map[pytorch_model->input(i)] = transpose;
             } else {
                 tensor_map[pytorch_model->input(i)] = parameter;
@@ -330,7 +329,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
                     PartialShape ps = node->get_input_shape(i);
                     auto type = simplified_type_interpret(node->get_input_type(i));
                     // TODO: Use special API to set custom type detalization
-                    auto parameter = std::make_shared<opset8::Parameter>(element::dynamic, ps);
+                    auto parameter = std::make_shared<opset10::Parameter>(element::dynamic, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     tensor_map[input] = parameter;
                     // set name of parameter to the index of node in the model
@@ -368,7 +367,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             }
         };
 
-        OV_FRONTEND_REQUIRE(pytorch_model->get_subgraph_size() == 1);
+        FRONT_END_GENERAL_CHECK(pytorch_model->get_subgraph_size() == 1, "Model should have exactly 1 subgraph.");
         pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
@@ -376,7 +375,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             size_t id = pytorch_model->output(i);
             if (tensor_map.find(id) == tensor_map.end()) {
                 // Not found in this scope, adding Parameter to connect to external scope
-                auto parameter = std::make_shared<opset8::Parameter>(element::dynamic, PartialShape::dynamic());
+                auto parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
                 parameter->get_output_tensor(0).add_names({std::to_string(id)});
                 parameters.push_back(parameter);
                 tensor_map[id] = parameter;
@@ -388,7 +387,7 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
             FRONT_END_GENERAL_CHECK(ov_output.get_names().size() > 0,
                                     "Tensor doesn't have name, while it should have name: ",
                                     id);
-            auto result = std::make_shared<opset8::Result>(ov_output);
+            auto result = std::make_shared<opset10::Result>(ov_output);
             results.push_back(result);
         }
 
@@ -401,13 +400,16 @@ std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<Decoder> pytorc
         }
         for (const auto& tensor_id : mutated_tensors) {
             if (param_names.count(tensor_id)) {
-                OV_FRONTEND_REQUIRE(tensor_map.count(tensor_id));
+                FRONT_END_GENERAL_CHECK(tensor_map.count(tensor_id),
+                                        "Tensor with id: ",
+                                        tensor_id,
+                                        " doesn't exist in tensor map.");
                 // model input was mutated we need to make a result for it
                 auto mutated_tensor = tensor_map.at(tensor_id);
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
                 if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
-                    results.push_back(std::make_shared<opset8::Result>(tensor_map.at(tensor_id)));
+                    results.push_back(std::make_shared<opset10::Result>(tensor_map.at(tensor_id)));
             }
         }
         resulting_model = std::make_shared<ov::Model>(results, parameters);

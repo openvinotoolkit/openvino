@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -15,10 +15,11 @@ OutputVector translate_embedding(NodeContext& context) {
     auto data = context.get_input(0);
     auto indices = context.get_input(1);
     // TODO: find out the meaning of input idx 2
-    OV_FRONTEND_REQUIRE(context.const_input<bool>(3) == false);
-    OV_FRONTEND_REQUIRE(context.const_input<bool>(4) == false);
-    auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
-    return {context.mark_node(std::make_shared<opset8::Gather>(data, indices, axis_0))};
+    FRONT_END_OP_CONVERSION_CHECK(
+        context.const_input<bool>(3) == false && context.const_input<bool>(4) == false,
+        "Only False is supported on inputs with indexes 3 and 4 for aten::embedding translation");
+    auto axis_0 = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {0}));
+    return {context.mark_node(std::make_shared<opset10::Gather>(data, indices, axis_0))};
 };
 
 }  // namespace op

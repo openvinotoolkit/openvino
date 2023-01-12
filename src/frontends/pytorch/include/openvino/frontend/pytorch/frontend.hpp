@@ -4,16 +4,8 @@
 
 #pragma once
 
-#include "openvino/core/any.hpp"
-#include "openvino/core/node_vector.hpp"
-#include "openvino/frontend/extension/conversion.hpp"
-#include "openvino/frontend/extension/decoder_transformation.hpp"
-#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
-#include "openvino/frontend/visibility.hpp"
 
 namespace ov {
 namespace frontend {

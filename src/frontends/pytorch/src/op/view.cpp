@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -19,22 +19,22 @@ OutputVector translate_view(NodeContext& context) {
     // TODO: move this to transform stage
     if (shape_node_fw_node && shape_node_fw_node->get_decoder()->get_op_type() == "prim::ListConstruct") {
         OutputVector inputs;
-        auto axis_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
+        auto axis_0 = context.mark_node(opset10::Constant::create(element::i64, Shape{}, {0}));
         for (auto& input : shape_node->inputs()) {
             auto rank = input.get_partial_shape().rank();
-            OV_FRONTEND_REQUIRE(rank.is_dynamic() || rank.get_length() == 0);
-            auto unsqueeze = context.mark_node(std::make_shared<opset8::Unsqueeze>(input.get_source_output(), axis_0));
+            FRONT_END_OP_CONVERSION_CHECK(rank.is_dynamic() || rank.get_length() == 0, "Rank must be 0");
+            auto unsqueeze = context.mark_node(std::make_shared<opset10::Unsqueeze>(input.get_source_output(), axis_0));
             inputs.push_back(unsqueeze);
         }
-        auto concat = context.mark_node(std::make_shared<opset8::Concat>(inputs, 0));
-        reshape = context.mark_node(std::make_shared<opset8::Reshape>(context.get_input(0), concat, false));
+        auto concat = context.mark_node(std::make_shared<opset10::Concat>(inputs, 0));
+        reshape = context.mark_node(std::make_shared<opset10::Reshape>(context.get_input(0), concat, false));
         // TODO: fix rt_info
         // auto list_set = shape_node_fw_node->get_rt_info()["pt_node"].as<std::set<const Node*>>();
         // reshape->get_rt_info()["pt_node"].as<std::set<const Node*>>().insert(list_set.begin(),
         // list_set.end());
     } else {
         reshape =
-            context.mark_node(std::make_shared<opset8::Reshape>(context.get_input(0), context.get_input(1), false));
+            context.mark_node(std::make_shared<opset10::Reshape>(context.get_input(0), context.get_input(1), false));
     }
     return {reshape};
 };

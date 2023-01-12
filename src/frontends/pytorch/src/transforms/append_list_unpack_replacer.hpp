@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -13,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class PYTORCH_API AppendListUnpackReplacer : public ov::pass::MatcherPass {
+class AppendListUnpackReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::AppendListUnpackReplacer");
     AppendListUnpackReplacer();

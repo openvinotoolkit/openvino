@@ -3,7 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -20,26 +20,26 @@ OutputVector translate_norm(NodeContext& context) {
     OutputVector res;
 
     if (p == 1) {
-        auto reduce_l1 = context.mark_node(std::make_shared<opset8::ReduceL1>(input_tensor, dim, keep_dim));
+        auto reduce_l1 = context.mark_node(std::make_shared<opset10::ReduceL1>(input_tensor, dim, keep_dim));
         res.push_back(reduce_l1);
     } else if (p == 2) {
-        auto reduce_l2 = context.mark_node(std::make_shared<opset8::ReduceL2>(input_tensor, dim, keep_dim));
+        auto reduce_l2 = context.mark_node(std::make_shared<opset10::ReduceL2>(input_tensor, dim, keep_dim));
         res.push_back(reduce_l2);
     } else if (p == std::numeric_limits<float>::infinity()) {
-        auto abs = context.mark_node(std::make_shared<opset8::Abs>(input_tensor));
-        auto max = context.mark_node(std::make_shared<opset8::ReduceMax>(abs, dim, keep_dim));
+        auto abs = context.mark_node(std::make_shared<opset10::Abs>(input_tensor));
+        auto max = context.mark_node(std::make_shared<opset10::ReduceMax>(abs, dim, keep_dim));
         res.push_back(max);
     } else if (p == -std::numeric_limits<float>::infinity()) {
-        auto abs = context.mark_node(std::make_shared<opset8::Abs>(input_tensor));
-        auto min = context.mark_node(std::make_shared<opset8::ReduceMin>(abs, dim, keep_dim));
+        auto abs = context.mark_node(std::make_shared<opset10::Abs>(input_tensor));
+        auto min = context.mark_node(std::make_shared<opset10::ReduceMin>(abs, dim, keep_dim));
         res.push_back(min);
     } else {
-        auto const_p = context.mark_node(opset8::Constant::create(element::f64, Shape{1}, {p}));
-        auto const_p_inv = context.mark_node(opset8::Constant::create(element::f64, Shape{1}, {1.0 / p}));
-        auto abs = context.mark_node(std::make_shared<opset8::Abs>(input_tensor));
-        auto pow = context.mark_node(std::make_shared<opset8::Power>(abs, const_p));
-        auto sum = context.mark_node(std::make_shared<opset8::ReduceSum>(pow, dim, keep_dim));
-        auto pow_inv = context.mark_node(std::make_shared<opset8::Power>(sum, const_p_inv));
+        auto const_p = context.mark_node(opset10::Constant::create(element::f64, Shape{1}, {p}));
+        auto const_p_inv = context.mark_node(opset10::Constant::create(element::f64, Shape{1}, {1.0 / p}));
+        auto abs = context.mark_node(std::make_shared<opset10::Abs>(input_tensor));
+        auto pow = context.mark_node(std::make_shared<opset10::Power>(abs, const_p));
+        auto sum = context.mark_node(std::make_shared<opset10::ReduceSum>(pow, dim, keep_dim));
+        auto pow_inv = context.mark_node(std::make_shared<opset10::Power>(sum, const_p_inv));
         res.push_back(pow_inv);
     }
 

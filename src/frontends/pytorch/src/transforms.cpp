@@ -4,13 +4,14 @@
 
 #include "transforms.hpp"
 
-#include <openvino/frontend/pytorch/decoder.hpp>
-#include <openvino/op/util/framework_node.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <iostream>
 #include <tuple>
 
+#include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -140,7 +141,7 @@ public:
             // So for now we are selecting any type, say f32
 
             // Make one i32 constant for all 6 inputs
-            auto empty_const = opset9::Constant::create(element::i32, {0}, {});
+            auto empty_const = opset10::Constant::create(element::i32, {0}, {});
             OutputVector inputs(6, empty_const);
 
             auto list_pack = make_list_pack(inputs, custom_type, node->get_output_partial_shape(0));
@@ -180,7 +181,7 @@ public:
                 // for tensors offsets and shapes
                 for (size_t i = 0; i < 5; ++i) {
                     auto new_parameter =
-                        make_shared<opset9::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+                        make_shared<opset10::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
                     new_parameters.push_back(new_parameter);
                     inputs_for_list_pack.push_back(new_parameter);
                     // TODO: add links via RT info between original parameter and new ones
@@ -188,7 +189,7 @@ public:
 
                 // for tensor elements
                 auto new_parameter =
-                    make_shared<opset9::Parameter>(element::dynamic, PartialShape{Dimension::dynamic()});
+                    make_shared<opset10::Parameter>(element::dynamic, PartialShape{Dimension::dynamic()});
                 new_parameters.push_back(new_parameter);
                 inputs_for_list_pack.push_back(new_parameter);
 
@@ -233,31 +234,31 @@ public:
             if (!list_pack_node)
                 return false;
 
-            auto zero = opset9::Constant::create(element::i32, {1}, {0});
-            auto one = opset9::Constant::create(element::i32, {1}, {1});
+            auto zero = opset10::Constant::create(element::i32, {1}, {0});
+            auto one = opset10::Constant::create(element::i32, {1}, {1});
             auto mask = std::vector<int64_t>{0};
 
             // Prepare index to be 1D tensor to have predictable ranks after Gather for StridedSlice
-            auto index_1D = make_shared<opset9::Reshape>(matches.at(index), one, false);
+            auto index_1D = make_shared<opset10::Reshape>(matches.at(index), one, false);
 
             // Slice out region with elements relevant to required item from tensor_elements based on begins and ends
             auto elements =
-                make_shared<opset9::StridedSlice>(matches.at(tensor_elements),
-                                                  make_shared<opset9::Gather>(matches.at(begins), index_1D, zero),
-                                                  make_shared<opset9::Gather>(matches.at(ends), index_1D, zero),
+                make_shared<opset10::StridedSlice>(matches.at(tensor_elements),
+                                                  make_shared<opset10::Gather>(matches.at(begins), index_1D, zero),
+                                                  make_shared<opset10::Gather>(matches.at(ends), index_1D, zero),
                                                   mask,
                                                   mask);
 
             // Get region of shape dimensions that belongs to the selected item
             auto shape =
-                make_shared<opset9::StridedSlice>(matches.at(shape_dims),
-                                                  make_shared<opset9::Gather>(matches.at(shape_begins), index_1D, zero),
-                                                  make_shared<opset9::Gather>(matches.at(shape_ends), index_1D, zero),
+                make_shared<opset10::StridedSlice>(matches.at(shape_dims),
+                                                  make_shared<opset10::Gather>(matches.at(shape_begins), index_1D, zero),
+                                                  make_shared<opset10::Gather>(matches.at(shape_ends), index_1D, zero),
                                                   mask,
                                                   mask);
 
             // Reshape elements to have a given shape -- this is our result
-            auto item = make_shared<opset9::Reshape>(elements, shape, false);
+            auto item = make_shared<opset10::Reshape>(elements, shape, false);
 
             replace_node(get_item_node, item);
 
@@ -305,25 +306,25 @@ public:
             auto custom_type = std::get<1>(custom_types);
 
             // Appending new shape dimensions and producing adjusted versions of shape_begins and shape_ends
-            auto shape = make_shared<opset9::ShapeOf>(matches.at(item), element::i32);
-            auto cur_shape_dims_size = make_shared<opset9::ShapeOf>(matches.at(shape_dims), element::i32);
+            auto shape = make_shared<opset10::ShapeOf>(matches.at(item), element::i32);
+            auto cur_shape_dims_size = make_shared<opset10::ShapeOf>(matches.at(shape_dims), element::i32);
             auto new_shape_begins =
-                make_shared<opset9::Concat>(NodeVector{matches.at(shape_begins), cur_shape_dims_size}, 0);
-            auto new_shape_dims = make_shared<opset9::Concat>(NodeVector{matches.at(shape_dims), shape}, 0);
-            auto new_shape_dims_size = make_shared<opset9::ShapeOf>(new_shape_dims, element::i32);
+                make_shared<opset10::Concat>(NodeVector{matches.at(shape_begins), cur_shape_dims_size}, 0);
+            auto new_shape_dims = make_shared<opset10::Concat>(NodeVector{matches.at(shape_dims), shape}, 0);
+            auto new_shape_dims_size = make_shared<opset10::ShapeOf>(new_shape_dims, element::i32);
             auto new_shape_ends =
-                make_shared<opset9::Concat>(NodeVector{matches.at(shape_ends), new_shape_dims_size}, 0);
+                make_shared<opset10::Concat>(NodeVector{matches.at(shape_ends), new_shape_dims_size}, 0);
 
             // Appending new elements after flattening to existing elements
 
-            auto item_flatten = make_shared<opset9::Reshape>(matches.at(item),
-                                                             opset9::Constant::create(element::i32, {1}, {-1}),
+            auto item_flatten = make_shared<opset10::Reshape>(matches.at(item),
+                                                             opset10::Constant::create(element::i32, {1}, {-1}),
                                                              false);
-            auto new_begins = make_shared<opset9::Concat>(
-                NodeVector{matches.at(begins), make_shared<opset9::ShapeOf>(matches.at(elements), element::i32)},
+            auto new_begins = make_shared<opset10::Concat>(
+                NodeVector{matches.at(begins), make_shared<opset10::ShapeOf>(matches.at(elements), element::i32)},
                 0);
 
-            auto initial_elements_const = std::dynamic_pointer_cast<opset9::Constant>(matches.at(elements));
+            auto initial_elements_const = std::dynamic_pointer_cast<opset10::Constant>(matches.at(elements));
             // New elements content depends on whether we appending to an empty list or not
             // std::cerr << "Tried to detect constant here: " << matches.at(elements) << "\n";
             // std::cerr << "Is const: " << bool(initial_elements_const) << " )))))))))))))))))\n";
@@ -337,11 +338,11 @@ public:
                     ? shared_ptr<Node>(item_flatten)
                     :  // empty initial list -- just take appended elements as a new content for the list; derive type
                        // from that tensor
-                    shared_ptr<Node>(make_shared<opset9::Concat>(NodeVector{matches.at(elements), item_flatten},
+                    shared_ptr<Node>(make_shared<opset10::Concat>(NodeVector{matches.at(elements), item_flatten},
                                                                  0));  // existing list, just concat
 
-            auto new_ends = make_shared<opset9::Concat>(
-                NodeVector{matches.at(ends), make_shared<opset9::ShapeOf>(new_elements, element::i32)},
+            auto new_ends = make_shared<opset10::Concat>(
+                NodeVector{matches.at(ends), make_shared<opset10::ShapeOf>(new_elements, element::i32)},
                 0);
 
             auto new_list_pack =
@@ -380,7 +381,7 @@ public:
 
                 auto inputs = list_pack->inputs();
                 for (auto input : inputs) {
-                    model->add_results({make_shared<opset9::Result>(input.get_source_output())});
+                    model->add_results({make_shared<opset10::Result>(input.get_source_output())});
                     // TODO: Keep tracking between original and new Results
                 }
 
