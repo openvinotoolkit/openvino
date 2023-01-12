@@ -356,23 +356,6 @@ TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
 // ImportNetwork
 //
 
-TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-
-    if (target_device == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.ImportNetwork("model", target_device), InferenceEngine::NetworkNotRead);
-
-        const std::string modelName = "compiled_blob.blob";
-        {
-            std::ofstream file(modelName);
-            file << "content";
-        }
-
-        EXPECT_THROW(ie.ImportNetwork(modelName, target_device), InferenceEngine::NotImplemented);
-        ASSERT_EQ(0, std::remove(modelName.c_str()));
-    }
-}
-
 TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
 
