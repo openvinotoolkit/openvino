@@ -70,6 +70,9 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p, const option
         return false;
     }
 
+    if (!params.engineInfo.supports_image)
+        return false;
+
     return true;
 }
 

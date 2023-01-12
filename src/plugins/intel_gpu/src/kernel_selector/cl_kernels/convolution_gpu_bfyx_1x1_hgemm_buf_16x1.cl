@@ -55,14 +55,14 @@ KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
 
         // 512 MADs
 
-        half8 B0 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B0 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
-        half8 B8 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B8 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
 
-        half8 B16 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B16 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
-        half8 B24 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B24 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
 
         half8 A0 = A_load[K8*0 + k8];
