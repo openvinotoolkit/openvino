@@ -10,6 +10,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
+
 OutputVector translate_arange(NodeContext& context) {
     auto zero = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {0}));
     auto one = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {1}));

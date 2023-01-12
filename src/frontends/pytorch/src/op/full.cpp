@@ -11,6 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+namespace {
 ov::Output<Node> base_translate_full(NodeContext& context, ov::Output<Node> sizes, ov::Output<Node> value) {
     return context.mark_node(std::make_shared<opset8::Broadcast>(value, sizes));
 }
@@ -34,6 +35,7 @@ ov::Output<Node> base_translate_full_with_convertlike(NodeContext& context,
     auto filled_tensor = base_translate_full(context, sizes, value);
     return context.mark_node(std::make_shared<opset8::ConvertLike>(filled_tensor, out));
 }
+}  // namespace
 
 OutputVector translate_full(NodeContext& context) {
     auto sizes = context.get_input(0);
@@ -103,7 +105,7 @@ OutputVector translate_new_zeros(NodeContext& context) {
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
     auto value = context.mark_node(opset8::Constant::create(element::f32, Shape{}, {0}));
-    if (context.get_input_size() == 6 && !context.input_is_none(2)){
+    if (context.get_input_size() == 6 && !context.input_is_none(2)) {
         return {base_translate_full_with_convert(context, sizes, value, 2)};
     }
     return {base_translate_full_with_convertlike(context, sizes, value, input)};

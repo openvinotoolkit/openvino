@@ -157,7 +157,8 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
                 reset_output_shape_to_dynamic = true;
             } else {
                 NODE_VALIDATION_CHECK(this,
-                                      m_inputs_desc[i] == std::make_tuple(input_pshape, input_type),
+                                      std::get<0>(m_inputs_desc[i]).compatible(input_pshape) &&
+                                          std::get<1>(m_inputs_desc[i]).compatible(input_type),
                                       get_error_message());
             }
         }

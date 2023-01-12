@@ -10,6 +10,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
+
 namespace {
 std::shared_ptr<Node> get_im2col_indices_along_dim(NodeContext& context,
                                                    ov::Output<Node> input_d,

@@ -13,6 +13,7 @@ import torch
 def make_constant(*args, **kwargs):
     return op.Constant(*args, **kwargs)
 
+
 def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32
@@ -21,6 +22,7 @@ def get_type_from_py_type(value):
     if isinstance(value, bool):
         return OVType.boolean
     return OVType.dynamic
+
 
 def ivalue_to_constant(ivalue):
     ov_type = get_type_from_py_type(ivalue)
@@ -38,14 +40,15 @@ def ivalue_to_constant(ivalue):
             ovshape = PartialShape(ivalue.size())
             ovtype = pt_to_ov_type_map[ivalue.type()]
             ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
-        except:
+        except Exception:
             # old variant that makes a slow data copying
-            print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+            print("[ WARNING ] Constant wasn't able to convert from data_ptr.")
             nvalues = ivalue.numpy()
             ovtype = np_to_ov_type_map[str(nvalues.dtype)]
             ovshape = PartialShape(nvalues.shape)
             ov_const = make_constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
         return ov_const.outputs()
+
 
 def get_value_from_getattr(getattr_node, self_module):
     assert getattr_node.kind() == 'prim::GetAttr', "Got node of kind not equal to prim::GetAttr"
@@ -60,9 +63,10 @@ def get_value_from_getattr(getattr_node, self_module):
     module = self_module
     while len(stack) > 0:
         node = stack.pop()
-        assert(hasattr(module, node.s('name')))
+        assert (hasattr(module, node.s('name')))
         module = getattr(module, node.s('name'))
     return module
+
 
 pt_to_ov_type_map = {
     'float': OVType.f32,
@@ -307,7 +311,7 @@ class TorchScriptPythonDecoder (Decoder):
         if pt_value.isCompleteTensor():
             try:
                 ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
-            except:
+            except Exception:
                 print("[ WARNING ] Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_ov_type_map:
                 # Constant interpretation doesn't respect new-full type of PT
@@ -322,9 +326,9 @@ class TorchScriptPythonDecoder (Decoder):
                     # TODO Check strides and pass them somehow
                     values = ivalue.data_ptr()
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
-                except:
+                except Exception:
                     # old variant that makes a slow data copying
-                    print(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    print("[ WARNING ] Constant wasn't able to convert from data_ptr.")
                     values = ivalue.flatten().tolist()
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 return ov_const.outputs()
@@ -333,7 +337,8 @@ class TorchScriptPythonDecoder (Decoder):
         return None
 
     def as_constant_list(self, pt_value):
-        # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively rewrite them in that part where constant attributes are queried
+        # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively
+        # rewrite them in that part where constant attributes are queried
         pt_element_type = str(pt_value.type().getElementType())
         ivalue = pt_value.toIValue()
         # print(f'List toIValue: {ivalue}, type of it: {type(ivalue)}')

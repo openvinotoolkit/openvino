@@ -11,6 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+namespace {
 OutputVector base_expand(NodeContext& context, ov::Output<ov::Node> x, ov::Output<ov::Node> sizes) {
     auto one = context.mark_node(opset8::Constant::create(element::i32, Shape{}, {1}));
     auto sizes_shape = context.mark_node(std::make_shared<opset8::ShapeOf>(sizes, element::i32));
@@ -21,6 +22,7 @@ OutputVector base_expand(NodeContext& context, ov::Output<ov::Node> x, ov::Outpu
     auto shape = context.mark_node(std::make_shared<opset8::Select>(neg_sizes, ones, sizes));
     return {std::make_shared<opset8::Broadcast>(x, shape, ov::op::BroadcastType::BIDIRECTIONAL)};
 };
+}  // namespace
 
 OutputVector translate_expand(NodeContext& context) {
     auto x = context.get_input(0);

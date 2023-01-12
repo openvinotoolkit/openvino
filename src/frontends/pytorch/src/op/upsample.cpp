@@ -10,7 +10,8 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_upsample2d(NodeContext& context, opset8::Interpolate::InterpolateMode interpolate_mode) {
+namespace {
+OutputVector base_translate_upsample2d(NodeContext& context, opset8::Interpolate::InterpolateMode interpolate_mode) {
     auto data = context.get_input(0);
     std::vector<size_t> pad{0};
     auto size_mode = opset8::Interpolate::ShapeCalcMode::SIZES;
@@ -47,17 +48,18 @@ OutputVector translate_upsample2d(NodeContext& context, opset8::Interpolate::Int
     }
     return {context.mark_node(std::make_shared<opset8::Interpolate>(data, output_sizes, scales, target_axes, attrs))};
 };
+}  // namespace
 
 OutputVector translate_upsample_bilinear2d(NodeContext& context) {
-    return translate_upsample2d(context, opset8::Interpolate::InterpolateMode::LINEAR_ONNX);
+    return base_translate_upsample2d(context, opset8::Interpolate::InterpolateMode::LINEAR_ONNX);
 };
 
 OutputVector translate_upsample_nearest2d(NodeContext& context) {
-    return translate_upsample2d(context, opset8::Interpolate::InterpolateMode::NEAREST);
+    return base_translate_upsample2d(context, opset8::Interpolate::InterpolateMode::NEAREST);
 };
 
 OutputVector translate_upsample_bicubic2d(NodeContext& context) {
-    return translate_upsample2d(context, opset8::Interpolate::InterpolateMode::CUBIC);
+    return base_translate_upsample2d(context, opset8::Interpolate::InterpolateMode::CUBIC);
 };
 
 }  // namespace op
