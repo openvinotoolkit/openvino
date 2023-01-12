@@ -1380,6 +1380,108 @@ TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride) {
     }
 }
 
+TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis) {
+    // Input (BFYX): 1x2x2x2
+    // Begin (BFYX): 0x0x0x0
+    // End (BFYX): 1x2x2x2
+    // Stride (BFYX): 1x-1x1x1
+    // Output (BFYX): 1x2x2x2
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f,
+            4.0f, 5.0f, 6.0f, 7.0f
+    });
+    std::vector<int64_t> begin = {
+            0, 0, 0, 0
+    };
+    std::vector<int64_t> end = {
+            1, 2, 2, 2
+    };
+    std::vector<int64_t> strides = {
+            1, -1, 1, 1
+    };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin, end, strides, {}, {}, {}, {}, {}, {1, 2, 2, 2}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+             4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), answers.size());
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp) {
+    // Input (BFYX): 1x2x2x2
+    // Begin (BFYX): 0x100
+    // End (BFYX): 100x-100
+    // Stride (BFYX): 1x-1
+    // Output (BFYX): 1x2x2x2
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+
+    set_values(input, {
+            0.0f, 1.0f, 2.0f, 3.0f,
+            4.0f, 5.0f, 6.0f, 7.0f
+    });
+    std::vector<int64_t> begin = {
+            0, 100
+    };
+    std::vector<int64_t> end= {
+            100, -100
+    };
+    std::vector<int64_t> strides= {
+            1, -1
+    };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(strided_slice("strided_slice", input_info("input"), begin, end, strides, {}, {}, {}, {}, {}, {1, 2, 2, 2}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<float> answers = {
+             4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), answers.size());
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
 TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1
