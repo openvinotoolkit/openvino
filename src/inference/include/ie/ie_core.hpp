@@ -293,13 +293,12 @@ public:
     /**
      * @brief Register new device and plugin which implement this device inside Inference Engine.
      *
-     * @param pluginName A name of plugin. Depending on platform pluginName is wrapped with shared library suffix and
-     * prefix to identify library full name
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name
      *
-     * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
-     * plugin itself.
+     * @param deviceName A device name to register plugin for
      */
-    void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
+    void RegisterPlugin(const std::string& plugin, const std::string& deviceName);
 
     /**
      * @brief Unloads previously loaded plugin with a specified name from Inference Engine
