@@ -399,6 +399,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
         case cldnn::activation_func::sqrt: return dnnl::algorithm::eltwise_sqrt;
         case cldnn::activation_func::hard_sigmoid: return dnnl::algorithm::eltwise_hardsigmoid;
         case cldnn::activation_func::square: return dnnl::algorithm::eltwise_square;
+        // Activations that are undef algorithms must be converted to other activations before pushing to post-op.
         case cldnn::activation_func::hsigmoid: return dnnl::algorithm::undef;
         case cldnn::activation_func::negative: return dnnl::algorithm::undef;
         default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
