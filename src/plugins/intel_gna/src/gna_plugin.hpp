@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,6 +66,8 @@ protected:
 
     InferenceEngine::InputsDataMap inputs_data_map_;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap outputs_data_map_;  //!< Holds information about network outputs data
+
+    std::string _network_name;
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     bool trivialTopology = false;
