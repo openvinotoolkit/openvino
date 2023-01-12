@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
@@ -79,7 +79,7 @@ pt_to_ov_type_map = {
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
-    "torch.BoolTensor": OVType.boolean
+    "torch.BoolTensor": OVType.boolean,
 }
 
 pt_to_py_type_map = {
@@ -88,7 +88,7 @@ pt_to_py_type_map = {
     "torch.float32": "float",
     "torch.int32": "int",
     "torch.int64": "int",
-    "torch.bool": "bool"
+    "torch.bool": "bool",
 }
 
 np_to_ov_type_map = {
@@ -103,7 +103,7 @@ class TorchScriptPythonDecoder (Decoder):
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         if graph_element is None:
-            assert hasattr(pt_module, 'inlined_graph'), 'graph_element must have inlined_graph'
+            assert hasattr(pt_module, "inlined_graph"), "graph_element must have inlined_graph"
             self.graph_element = pt_module.inlined_graph
         else:
             self.graph_element = graph_element
@@ -112,8 +112,8 @@ class TorchScriptPythonDecoder (Decoder):
     def inputs(self):
         return [x.unique() for x in self.graph_element.inputs()]
 
-    def input(self, index):  # TODO: remove
-        return self.inputs()[index]  # TODO: find specialized method
+    def get_input(self, index):
+        return self.inputs()[index]
 
     def get_input_shape(self, index):
         raw_input = self._raw_input(index)
@@ -131,29 +131,23 @@ class TorchScriptPythonDecoder (Decoder):
         output = self._raw_output(index)
         return self.get_type_for_value(output)
 
-    def _get_known_type_for_value(self, type):
-        """Returns known/unknown types wrapped as OVAny"""
+    def _get_known_type_for_value(self, pt_type):
+        """Returns known/unknown types wrapped as OVAny."""
         # Check for simple scalar types first
-        # TODO: Don't use str, use native types
-        if type is None:
+        if pt_type is None:
             return OVAny(OVType.dynamic)
-        if str(type) in pt_to_ov_type_map:
-            return OVAny(pt_to_ov_type_map[str(type)])
-        elif type.__class__ is torch.TensorType:
+        # TODO: Don't use str, use native types
+        if str(pt_type) in pt_to_ov_type_map:
+            return OVAny(pt_to_ov_type_map[str(pt_type)])
+        elif pt_type.__class__ is torch.TensorType:
             # Tensor type, parse element type
-            # TODO: replace string by native type
-            # return OVAny(PartialShape([1,2,3]))
-            return OVAny(DecoderType.Tensor(self._get_known_type_for_value(type.dtype())))
-        elif type.__class__ is torch.ListType:
-            element_type = type.getElementType()
-            # print(f'Recognized torch List type. Type of element is {element_type}')
+            return OVAny(DecoderType.Tensor(self._get_known_type_for_value(pt_type.dtype())))
+        elif pt_type.__class__ is torch.ListType:
+            element_type = pt_type.getElementType()
             return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
         else:
-            # print(f'Not a tensor nor native type: {type}')
             # Not yet recognized
             return OVAny(OVType.dynamic)
-            # pt_type_class = value.type().__class__
-            #    if pt_type_class is torch.ListType:
 
     def get_shape_for_value(self, value):
         if value.isCompleteTensor():
@@ -168,48 +162,26 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_type_for_value(self, value):
         full_type = self._get_known_type_for_value(value.type())
-        # DecoderType.print(full_type)    # new (full) type interpretation
         return full_type
-        # Old version of this function directly treat Tensor[type] as type
-        # assuming that regular type for vaue is Tensor, so it just
-        # decodes its element type.
-        # In full_type we code a complete type according to PT, it allows
-        # to distiguish int from scalar Tensor[int] in particular.
-        # It is necessary to interpreting some operations converting scalar values (not tensors)
-        # to scalar tensors.
-        # In this new interpretation we leave old beheviout to FE code if it is still needed
-        if value.isCompleteTensor():
-            pt_type = str(value.type().dtype())
-            print(f'Trying to decode tensor element type: {pt_type}')
-            if pt_type in pt_to_ov_type_map:
-                ov_type = pt_to_ov_type_map[pt_type]
-                print(f'[ DEBUG ] Decoded ov type: {ov_type}', flush=True)
-                return OVAny(ov_type)
-            else:
-                print(f'[ DEBUG ] Unrecognized pt element type for a tensor: {pt_type}. Captured it as custom type.', flush=True)
-                # TODO: Replace it by Tensor[dynamic]
-                return OVAny(OVType.dynamic)
-        else:
-            return OVAny(OVType.dynamic)
 
     def get_input_transpose_order(self, index):
-        input = self._raw_input(index)
-        if input.type() is not None and input.type().kind() == 'TensorType':
-            strides = input.type().strides()
+        raw_input = self._raw_input(index)
+        if raw_input.type() is not None and raw_input.type().kind() == "TensorType":
+            strides = raw_input.type().strides()
             if strides is not None:
                 return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
         return []
 
     def get_output_transpose_order(self, index):
         output = self._raw_output(index)
-        if output.type() is not None and output.type().kind() == 'TensorType':
+        if output.type() is not None and output.type().kind() == "TensorType":
             strides = output.type().strides()
             if strides is not None:
                 return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
         return []
 
     def get_subgraph_size(self):
-        return len(self.get_subgraphs()) if hasattr(self.graph_element, 'blocks') else 1
+        return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
 
     def visit_subgraph(self, node_visitor):
         # make sure topological order is satisfied
@@ -236,13 +208,13 @@ class TorchScriptPythonDecoder (Decoder):
         return [x.unique() for x in self.graph_element.outputs()]
 
     def _raw_outputs(self):
-        return [x for x in self.graph_element.outputs()]
+        return list(self.graph_element.outputs())
 
     def _raw_output(self, index):
         return self._raw_outputs()[index]
 
     def _raw_inputs(self):
-        return [x for x in self.graph_element.inputs()]
+        return list(self.graph_element.inputs())
 
     def _raw_input(self, index):
         return self._raw_inputs()[index]
@@ -298,7 +270,7 @@ class TorchScriptPythonDecoder (Decoder):
             try:
                 ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
             except Exception:
-                 warnings.warn("[ WARNING ] Tensor couldn't detach")
+                warnings.warn("[ WARNING ] Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_ov_type_map:
                 # Constant interpretation doesn't respect new-full type of PT
                 # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
@@ -314,7 +286,7 @@ class TorchScriptPythonDecoder (Decoder):
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 except Exception:
                     # old variant that makes a slow data copying
-                    warnings.warn(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
                     values = ivalue.flatten().tolist()
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 return ov_const.outputs()

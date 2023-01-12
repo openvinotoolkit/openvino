@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class PyDecoder : public ov::frontend::pytorch::Decoder {
     }
 
     size_t input(size_t index) const override {
-        PYBIND11_OVERRIDE_PURE(size_t, Decoder, input, index);
+        PYBIND11_OVERRIDE_PURE(size_t, Decoder, get_input, index);
     }
 
     std::vector<size_t> inputs() const override {
