@@ -1,5 +1,6 @@
 fail-on-severity: 'low'
 allow-licenses:
+  - 'BSD-2-Clause'
   - 'BSD-3-Clause'
   - 'MIT'
   - 'Apache-2.0'
