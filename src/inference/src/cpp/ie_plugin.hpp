@@ -168,7 +168,7 @@ public:
     }
 
     void set_name(const std::string& deviceName) {
-        OV_PLUGIN_CALL_STATEMENT(m_ptr->set_name(deviceName));
+        OV_PLUGIN_CALL_STATEMENT(m_ptr->set_device_name(deviceName));
     }
 
     void set_core(std::weak_ptr<ICore> core) {

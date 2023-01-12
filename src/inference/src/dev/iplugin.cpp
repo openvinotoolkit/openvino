@@ -57,13 +57,13 @@ const ov::Version& ov::IPlugin::get_version() const {
     return m_version;
 }
 
-void ov::IPlugin::set_name(const std::string& name) {
+void ov::IPlugin::set_device_name(const std::string& name) {
     if (old_plugin)
         old_plugin->SetName(name);
     m_plugin_name = name;
 }
 
-const std::string& ov::IPlugin::get_name() const {
+const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
 }
 

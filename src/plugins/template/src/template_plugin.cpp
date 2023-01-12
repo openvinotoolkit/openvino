@@ -38,7 +38,7 @@ using namespace TemplatePlugin;
 
 // ! [plugin:ctor]
 Plugin::Plugin() {
-    set_name("TEMPLATE");
+    set_device_name("TEMPLATE");
 
     // create ngraph backend which performs inference using ngraph reference implementations
     _backend = ngraph::runtime::Backend::create();
@@ -155,7 +155,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     // 3. Produce the result
     ov::SupportedOpsMap res;
     for (auto&& layerName : supported) {
-        res.emplace(layerName, get_name());
+        res.emplace(layerName, get_device_name());
     }
 
     return res;

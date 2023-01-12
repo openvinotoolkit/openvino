@@ -511,11 +511,11 @@ public:
         _executorManager = plugin->get_executor_manager();
     }
     std::string GetName() const noexcept override {
-        return m_plugin->get_name();
+        return m_plugin->get_device_name();
     }
 
     void SetName(const std::string& name) noexcept override {
-        m_plugin->set_name(name);
+        m_plugin->set_device_name(name);
     }
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(

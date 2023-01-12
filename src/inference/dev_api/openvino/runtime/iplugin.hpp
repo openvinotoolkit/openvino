@@ -66,14 +66,14 @@ public:
      *
      * @param name Plugin name
      */
-    void set_name(const std::string& name);
+    void set_device_name(const std::string& name);
 
     /**
      * @brief Provides a plugin name
      *
      * @return Plugin name
      */
-    const std::string& get_name() const;
+    const std::string& get_device_name() const;
 
     /**
      * @brief Compiles model from ov::Model object
