@@ -202,7 +202,7 @@ std::vector<ov::Tensor> ov::IInferRequest::get_tensors(const ov::Output<const ov
 }
 
 void ov::IInferRequest::set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) {
-    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "get_tensors");
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::Plugin, "set_tensors");
     auto found_port = find_port(port);
     OPENVINO_ASSERT(!found_port.found() && found_port.is_input(), "Cannot find input tensors for port ", port);
     if (tensors.size() == 1) {
