@@ -244,18 +244,18 @@ public:
             // Slice out region with elements relevant to required item from tensor_elements based on begins and ends
             auto elements =
                 make_shared<opset10::StridedSlice>(matches.at(tensor_elements),
-                                                  make_shared<opset10::Gather>(matches.at(begins), index_1D, zero),
-                                                  make_shared<opset10::Gather>(matches.at(ends), index_1D, zero),
-                                                  mask,
-                                                  mask);
+                                                   make_shared<opset10::Gather>(matches.at(begins), index_1D, zero),
+                                                   make_shared<opset10::Gather>(matches.at(ends), index_1D, zero),
+                                                   mask,
+                                                   mask);
 
             // Get region of shape dimensions that belongs to the selected item
-            auto shape =
-                make_shared<opset10::StridedSlice>(matches.at(shape_dims),
-                                                  make_shared<opset10::Gather>(matches.at(shape_begins), index_1D, zero),
-                                                  make_shared<opset10::Gather>(matches.at(shape_ends), index_1D, zero),
-                                                  mask,
-                                                  mask);
+            auto shape = make_shared<opset10::StridedSlice>(
+                matches.at(shape_dims),
+                make_shared<opset10::Gather>(matches.at(shape_begins), index_1D, zero),
+                make_shared<opset10::Gather>(matches.at(shape_ends), index_1D, zero),
+                mask,
+                mask);
 
             // Reshape elements to have a given shape -- this is our result
             auto item = make_shared<opset10::Reshape>(elements, shape, false);
@@ -318,8 +318,8 @@ public:
             // Appending new elements after flattening to existing elements
 
             auto item_flatten = make_shared<opset10::Reshape>(matches.at(item),
-                                                             opset10::Constant::create(element::i32, {1}, {-1}),
-                                                             false);
+                                                              opset10::Constant::create(element::i32, {1}, {-1}),
+                                                              false);
             auto new_begins = make_shared<opset10::Concat>(
                 NodeVector{matches.at(begins), make_shared<opset10::ShapeOf>(matches.at(elements), element::i32)},
                 0);
@@ -339,7 +339,7 @@ public:
                     :  // empty initial list -- just take appended elements as a new content for the list; derive type
                        // from that tensor
                     shared_ptr<Node>(make_shared<opset10::Concat>(NodeVector{matches.at(elements), item_flatten},
-                                                                 0));  // existing list, just concat
+                                                                  0));  // existing list, just concat
 
             auto new_ends = make_shared<opset10::Concat>(
                 NodeVector{matches.at(ends), make_shared<opset10::ShapeOf>(new_elements, element::i32)},

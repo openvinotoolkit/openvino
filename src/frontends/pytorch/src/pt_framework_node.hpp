@@ -3,7 +3,6 @@
 //
 
 #include "openvino/op/util/framework_node.hpp"
-
 #include "utils.hpp"
 
 #pragma once

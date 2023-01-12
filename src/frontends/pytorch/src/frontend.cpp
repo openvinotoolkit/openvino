@@ -11,11 +11,11 @@
 #include <string>
 
 #include "input_model.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "pt_framework_node.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
@@ -87,18 +87,17 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::UnrollIf>();
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::UnrollIf>();
     // Have to run UnrollIf second time, because conditions are defined outside of nested If (ticket 98155)
-    manager.register_pass<ngraph::pass::UnrollIf>();
+    manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenCatToConcat>();
     manager.register_pass<ov::frontend::pytorch::pass::AppendListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MaxPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleResults>();
-    manager.register_pass<ngraph::pass::UnrollIf>();  // TODO: remove
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ov::pass::ConstantFolding>();
 
     manager.run_passes(model);
 

@@ -27,20 +27,20 @@ OutputVector translate_convolution(NodeContext& context) {
     if (groups == 1) {
         if (!transposed) {
             conv = context.mark_node(std::make_shared<opset10::Convolution>(context.get_input(0),
-                                                                           context.get_input(1),
-                                                                           strides,
-                                                                           pads,
-                                                                           pads,
-                                                                           dilations));
+                                                                            context.get_input(1),
+                                                                            strides,
+                                                                            pads,
+                                                                            pads,
+                                                                            dilations));
         } else {
             conv = context.mark_node(std::make_shared<opset10::ConvolutionBackpropData>(context.get_input(0),
-                                                                                       context.get_input(1),
-                                                                                       strides,
-                                                                                       pads,
-                                                                                       pads,
-                                                                                       dilations,
-                                                                                       ov::op::PadType::EXPLICIT,
-                                                                                       output_padding));
+                                                                                        context.get_input(1),
+                                                                                        strides,
+                                                                                        pads,
+                                                                                        pads,
+                                                                                        dilations,
+                                                                                        ov::op::PadType::EXPLICIT,
+                                                                                        output_padding));
         }
     } else {
         if (!transposed) {

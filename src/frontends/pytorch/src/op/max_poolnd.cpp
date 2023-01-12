@@ -19,12 +19,12 @@ OutputVector translate_max_poolnd(NodeContext& context) {
     auto rounding_type = context.const_input<bool>(5) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
 
     return {context.mark_node(std::make_shared<opset10::MaxPool>(context.get_input(0),
-                                                                strides,
-                                                                dilations,
-                                                                pads,
-                                                                pads,
-                                                                kernel,
-                                                                rounding_type))};
+                                                                 strides,
+                                                                 dilations,
+                                                                 pads,
+                                                                 pads,
+                                                                 kernel,
+                                                                 rounding_type))};
 };
 
 }  // namespace op

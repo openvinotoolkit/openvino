@@ -33,12 +33,12 @@ OutputVector translate_convnd(NodeContext& context) {
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
         conv = std::make_shared<opset10::Convolution>(context.get_input(0),
-                                                     context.get_input(1),
-                                                     strides,
-                                                     pads,
-                                                     pads,
-                                                     dilations,
-                                                     pad_type);
+                                                      context.get_input(1),
+                                                      strides,
+                                                      pads,
+                                                      pads,
+                                                      dilations,
+                                                      pad_type);
     } else {
         conv = std::make_shared<opset10::GroupConvolution>(
             context.get_input(0),

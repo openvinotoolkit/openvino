@@ -30,12 +30,12 @@ OutputVector translate_convolution_mode(NodeContext& context) {
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
         conv = context.mark_node(std::make_shared<opset10::Convolution>(context.get_input(0),
-                                                                       context.get_input(1),
-                                                                       strides,
-                                                                       pad_const,
-                                                                       pad_const,
-                                                                       dilations,
-                                                                       auto_pad_mode));
+                                                                        context.get_input(1),
+                                                                        strides,
+                                                                        pad_const,
+                                                                        pad_const,
+                                                                        dilations,
+                                                                        auto_pad_mode));
     } else {
         conv = context.mark_node(std::make_shared<opset10::GroupConvolution>(
             context.get_input(0),

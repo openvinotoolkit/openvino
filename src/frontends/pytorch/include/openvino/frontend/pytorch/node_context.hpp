@@ -58,7 +58,7 @@ public:
         return m_decoder->input_is_none(index);
     }
 
-    // Convert the resulting value of this node to ngraph Constant; works correctly only for nodes that produce
+    // Convert the resulting value of this node to ov Constant; works correctly only for nodes that produce
     // constant value, naturally for prim::Constant
     OutputVector as_constant() const {
         return m_decoder->as_constant();

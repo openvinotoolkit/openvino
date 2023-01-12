@@ -34,7 +34,7 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     }
 }
 
-Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv) {
+Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ov::Node> conv) {
     auto conv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(conv));
     auto conv_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(conv_shape));
     auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));

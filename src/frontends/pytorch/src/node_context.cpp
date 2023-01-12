@@ -7,7 +7,6 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/opsets/opset10.hpp"
-
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 

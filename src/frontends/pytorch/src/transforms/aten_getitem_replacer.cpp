@@ -64,7 +64,8 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 // with -1.
                 auto possible_out_idx =
                     std::make_shared<opset10::Range>(const_0_0d, out_num_0d, const_1_0d, split_size.get_element_type());
-                auto always_positive_out_idx = std::make_shared<opset10::Gather>(possible_out_idx, getitem_idx, const_0);
+                auto always_positive_out_idx =
+                    std::make_shared<opset10::Gather>(possible_out_idx, getitem_idx, const_0);
 
                 // Use Slice to get only split output selected by getitem idx. Couldn't use VariadicSplit due to
                 // problems with dynamic inputs.
@@ -79,8 +80,8 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto getitem_index_const = std::dynamic_pointer_cast<opset10::Constant>(getitem_index_ptr);
                 auto index_val = getitem_index_const->cast_vector<int64_t>();
                 auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                     torch_split->get_input_source_output(2),
-                                                                     torch_split->get_input_source_output(1));
+                                                                      torch_split->get_input_source_output(2),
+                                                                      torch_split->get_input_source_output(1));
                 auto index = 0;
                 if (index_val[0] >= 0) {
                     index = index_val[0];

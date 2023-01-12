@@ -38,21 +38,21 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 auto split_size = torch_split->get_input_source_output(1);
                 // Using number of ListUnpack outputs.
                 auto num_out_m_1 = opset10::Constant::create(split_size.get_element_type(),
-                                                            Shape{1},
-                                                            {list_unpack->get_output_size() - 1});
+                                                             Shape{1},
+                                                             {list_unpack->get_output_size() - 1});
                 auto const_neg_1 = opset10::Constant::create(split_size.get_element_type(), Shape{1}, {-1});
                 auto split_lenghts_m_1 = std::make_shared<opset10::Tile>(split_size, num_out_m_1);
                 NodeVector concat_inputs{split_lenghts_m_1, const_neg_1};
                 auto split_lenghts = std::make_shared<opset10::Concat>(concat_inputs, 0);
                 auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                     torch_split->get_input_source_output(2),
-                                                                     split_lenghts);
+                                                                      torch_split->get_input_source_output(2),
+                                                                      split_lenghts);
                 copy_runtime_info({list_unpack, input_node}, split);
                 replace_node(list_unpack, split);
             } else {
                 auto split = std::make_shared<opset10::VariadicSplit>(torch_split->get_input_source_output(0),
-                                                                     torch_split->get_input_source_output(2),
-                                                                     torch_split->get_input_source_output(1));
+                                                                      torch_split->get_input_source_output(2),
+                                                                      torch_split->get_input_source_output(1));
                 copy_runtime_info({list_unpack, input_node}, split);
                 replace_node(list_unpack, split);
             }
@@ -62,8 +62,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
 
         if (auto split_with_sizes = cast_fw_node(input_node, "aten::split_with_sizes")) {
             auto split = std::make_shared<opset10::VariadicSplit>(split_with_sizes->get_input_source_output(0),
-                                                                 split_with_sizes->get_input_source_output(2),
-                                                                 split_with_sizes->get_input_source_output(1));
+                                                                  split_with_sizes->get_input_source_output(2),
+                                                                  split_with_sizes->get_input_source_output(1));
 
             copy_runtime_info({list_unpack, input_node}, split);
             replace_node(list_unpack, split);
@@ -75,8 +75,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             // Using number of ListUnpack outputs instead of 1st input to chunk.
             // TODO: confirm it works for all cases
             auto split = std::make_shared<opset10::Split>(chunk->get_input_source_output(0),
-                                                         chunk->get_input_source_output(2),
-                                                         list_unpack->get_output_size());
+                                                          chunk->get_input_source_output(2),
+                                                          list_unpack->get_output_size());
 
             copy_runtime_info({list_unpack, input_node}, split);
             replace_node(list_unpack, split);
