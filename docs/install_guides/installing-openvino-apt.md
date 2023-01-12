@@ -167,11 +167,11 @@ Uninstall OpenVINO Runtime
 
 
 Step 3 (Optional): Install Additional Components
-----------------------------------------------------
+------------------------------------------------
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using APT, OpenVINO Development Tools must be installed separately.
 
-See the **For C++ Developers** section in :doc:`install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>` for instructions.
+See the **For C++ Developers** section on the :doc:`Install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
 
 Step 4 (Optional): Configure Inference on Non-CPU Devices
 ---------------------------------------------------------

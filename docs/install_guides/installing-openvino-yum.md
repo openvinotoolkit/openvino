@@ -143,7 +143,7 @@ Run the following command:
 ### Step 3 (Optional): Install Additional Components
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
 
-See the **For C++ Developers** section in [Install OpenVINO Development Tools](installing-model-dev-tools.md) for instructions.
+See the **For C++ Developers** section on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for instructions.
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
