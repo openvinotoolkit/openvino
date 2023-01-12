@@ -112,23 +112,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         return input.get_source_output().get_node();
     };
 
-    // Set results, constants and parameters affinity
-    for (auto&& node : clonedFunction->get_ops()) {
-        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
-            if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-                auto& nodeWithAffinityName =
-                    ngraph::op::is_output(node)
-                        ? node->input_value(0).get_node()->get_friendly_name()
-                        : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
-                auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
-                if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    IE_THROW() << "Node " << nodeWithAffinityName << " was not assigned on any pointed device.";
-                }
-                queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
-            }
-        }
-    }
-
     std::unordered_set<std::string> devices;
     NodeMap<std::string> affinities;
     // Check that all nodes has user or plugin defined affinities
