@@ -67,18 +67,21 @@ struct reorder : public primitive_base<reorder> {
     /// @param input Input primitive id.
     /// @param output_layout Requested memory layout.
     /// @param values_to_subtract Array of mean subtract values.
+    /// @param truncate Convert truncation mode.
     reorder(const primitive_id& id,
             const input_info& input,
             format output_format,
             data_types output_data_type,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
-            const padding& output_padding = padding())
+            const padding& output_padding = padding(),
+            const bool truncate = false)
         : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
           output_format(output_format),
           mean(""),
           subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+          mean_mode(mode),
+          truncate(truncate) {}
 
     /// @brief Constructs reorder primitive which takes mean subtract values from another primitive.
     /// @param id This primitive id.
@@ -148,6 +151,9 @@ struct reorder : public primitive_base<reorder> {
         return input.size() == 1 &&
                input_mem_type == memory_type::surface;
     }
+
+    /// @brief Convert truncation Mode
+    bool truncate = false;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
