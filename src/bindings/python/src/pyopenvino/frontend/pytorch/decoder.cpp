@@ -17,11 +17,6 @@ using ov::PartialShape;
 using ov::OutputVector;
 using ov::Node;
 
-namespace {
-
-    
-
-}
 
 void regclass_frontend_pytorch_decoder(py::module m) {
     py::class_<Decoder, PyDecoder, std::shared_ptr<Decoder>>(m, "_FrontEndPytorchDecoder")
