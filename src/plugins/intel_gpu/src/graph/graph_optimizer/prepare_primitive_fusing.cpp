@@ -681,11 +681,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
-            auto& input_data = activation_node.get_dependency(0);
+            auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
-            if (!input_data_supports_fusings(input_data, activation_node.id()) || input_data.get_dependencies().empty())
+            if (!input_data_supports_fusings(input, activation_node.id()) || input.get_dependencies().empty())
                 return;
 
             if (_lo.get_optimization_attributes().use_onednn_impls) {
@@ -699,58 +699,86 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 #endif
             }
 
-            bool should_fuse = input_data.is_type<binary_convolution>();
+            bool should_fuse = input.is_type<binary_convolution>();
 
-            should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>());
+            should_fuse |= input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
-            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>());
+            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
-            should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
+            should_fuse |= input.is_type<gemm>() && gemm_supports_fusings(input.as<gemm>());
 
-            should_fuse |= input_data.is_type<pooling>();
+            should_fuse |= input.is_type<pooling>();
 
-            should_fuse |= input_data.is_type<resample>();
+            should_fuse |= input.is_type<resample>();
 
-            should_fuse |= input_data.is_type<mvn>();
+            should_fuse |= input.is_type<mvn>();
 
-            should_fuse |= input_data.is_type<normalize>() && data_type_traits::is_i8_u8(input_data.get_dependency(0).get_output_layout().data_type);
+            should_fuse |= input.is_type<normalize>() && data_type_traits::is_i8_u8(input.get_dependency(0).get_output_layout().data_type);
 
-            should_fuse |= input_data.is_type<deconvolution>();
+            should_fuse |= input.is_type<deconvolution>();
 
-            should_fuse |= input_data.is_type<permute>();
+            should_fuse |= input.is_type<permute>();
 
-            should_fuse |= input_data.is_type<activation>();
+            should_fuse |= input.is_type<activation>();
 
-            should_fuse |= input_data.is_type<lrn>();
+            should_fuse |= input.is_type<lrn>();
 
-            should_fuse |= input_data.is_type<gather>();
+            should_fuse |= input.is_type<gather>();
 
-            should_fuse |= input_data.is_type<gather_nd>();
+            should_fuse |= input.is_type<gather_nd>();
 
-            should_fuse |= input_data.is_type<gather_elements>();
+            should_fuse |= input.is_type<gather_elements>();
 
-            should_fuse |= input_data.is_type<scatter_update>();
+            should_fuse |= input.is_type<scatter_update>();
 
-            should_fuse |= input_data.is_type<scatter_nd_update>();
+            should_fuse |= input.is_type<scatter_nd_update>();
 
-            should_fuse |= input_data.is_type<scatter_elements_update>();
+            should_fuse |= input.is_type<scatter_elements_update>();
 
-            should_fuse |= input_data.is_type<depth_to_space>();
+            should_fuse |= input.is_type<depth_to_space>();
 
-            should_fuse |= input_data.is_type<space_to_depth>();
+            should_fuse |= input.is_type<space_to_depth>();
 
-            should_fuse |= input_data.is_type<batch_to_space>();
+            should_fuse |= input.is_type<batch_to_space>();
 
-            should_fuse |= input_data.is_type<space_to_batch>();
+            should_fuse |= input.is_type<space_to_batch>();
 
-            should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
+            should_fuse |= input.is_type<reduce>() && reduce_supports_fusings(input.as<reduce>());
 
-            should_fuse |= input_data.is_type<eltwise>() && eltwise_supports_fusings(input_data.as<eltwise>());
+            should_fuse |= input.is_type<eltwise>() && eltwise_supports_fusings(input.as<eltwise>());
+
+            bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
+                                 !input.can_be_optimized() &&
+                                 !activation_node.is_constant() &&
+                                 !activation_node.has_fused_primitives() &&
+                                 (input.is_type<concatenation>() ||
+                                  input.is_type<convolution>() ||
+                                  input.is_type<crop>() ||
+                                  input.is_type<eltwise>() ||
+                                  input.is_type<fully_connected>() ||
+                                  input.is_type<normalize>() ||
+                                  input.is_type<reorder>() ||
+                                  input.is_type<reshape>() ||
+                                  input.is_type<roi_pooling>() ||
+                                  input.is_type<softmax>() ||
+                                  input.is_type<depth_to_space>() ||
+                                  input.is_type<shuffle_channels>() ||
+                                  input.is_type<strided_slice>() ||
+                                  input.is_type<cum_sum>() ||
+                                  input.is_type<reverse_sequence>() ||
+                                  input.is_type<embedding_bag>() ||
+                                  input.is_type<extract_image_patches>());
+
+            if (!should_fuse && legacy_fusion) {
+                GPU_DEBUG_LOG << activation_node.id() << " is fused by legacy conditions! Consider adding selected kernel with fused ops support\n";
+            }
+
+            should_fuse |= legacy_fusion;
 
             if (!should_fuse)
                 return;
 
-            p.fuse_nodes(input_data, activation_node, &fusing_history);
+            p.fuse_nodes(input, activation_node, &fusing_history);
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {

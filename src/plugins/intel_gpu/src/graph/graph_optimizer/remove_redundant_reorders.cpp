@@ -530,7 +530,6 @@ void remove_redundant_reorders::run(program& p) {
             local_desc.f_param = node->get_fuse_params();
             local_desc.dep_start_idx = input.get_fused_primitives().size();
             local_desc.output_layout = output_layout;
-            local_desc.activation = activation_func::none;
             input.add_fused_primitive(local_desc);
 
             // remove reorder node

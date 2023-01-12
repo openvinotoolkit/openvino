@@ -202,12 +202,8 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
-template <typename p_type>
-inline void convert_new_activation_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
-    params.insert(params.begin(), {get_kernel_selector_activation_param(primitive->activation_function),
-                                   primitive->additional_params.a,
-                                   primitive->additional_params.b});
-}
+void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
+bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 
@@ -224,55 +220,62 @@ inline params_t get_default_params(const kernel_impl_params& param_info) {
     params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
 
-    std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
-    size_t op_id = 0;
-    for (auto& fused_prim : param_info.fused_desc) {
-        kernel_selector::fused_operation_desc desc;
-        desc.op_params = std::move(fused_prim.f_param);
+    if (use_legacy_fused_ops(param_info)) {
+        // Single activation is converted to legacy fused ops format to keep good performance
+        // TODO: Remove it once all kernels supports new fused ops mechanism
+        convert_fused_ops_to_legacy_activations(param_info, params.activations);
+    } else {
+        std::map<primitive_id, std::pair<size_t, kernel_selector::Datatype>> prim_id_type_map;
+        size_t op_id = 0;
+        for (auto& fused_prim : param_info.fused_desc) {
+            kernel_selector::fused_operation_desc desc;
+            desc.op_params = std::move(fused_prim.f_param);
 
-        if (!desc.op_params) {
-            CLDNN_ERROR_MESSAGE(param_info.desc->id, "Invalid fused operation (" + param_info.desc->id + ") of type " +
-                                           param_info.desc->type_string());
-        }
+            if (!desc.op_params) {
+                CLDNN_ERROR_MESSAGE(param_info.desc->id, "Invalid fused operation (" + param_info.desc->id + ") of type " +
+                                            param_info.desc->type_string());
+            }
 
-        desc.dep_idx_start = fused_prim.dep_start_idx;
-        desc.dep_size = fused_prim.deps.size();
-        desc.op_id = op_id++;
-        desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
-        prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
+            desc.dep_idx_start = fused_prim.dep_start_idx;
+            desc.dep_size = fused_prim.deps.size();
+            desc.op_id = op_id++;
+            desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
+            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
 
-        for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-            desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
-        }
+            for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
+                desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));
+            }
 
-        if (fused_prim.total_num_deps > 0) {
-            desc.dep_data.resize(fused_prim.total_num_deps);
-            for (auto& dep : fused_prim.fused_deps) {
-                auto iter = prim_id_type_map.find(dep.first);
-                if (iter != prim_id_type_map.end()) {
-                    auto& op_data = iter->second;
-                    desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::INTERNAL;
-                    desc.dep_data[dep.second].op_id     = op_data.first;
-                    desc.dep_data[dep.second].data_type = op_data.second;
+            if (fused_prim.total_num_deps > 0) {
+                desc.dep_data.resize(fused_prim.total_num_deps);
+                for (auto& dep : fused_prim.fused_deps) {
+                    auto iter = prim_id_type_map.find(dep.first);
+                    if (iter != prim_id_type_map.end()) {
+                        auto& op_data = iter->second;
+                        desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::INTERNAL;
+                        desc.dep_data[dep.second].op_id     = op_data.first;
+                        desc.dep_data[dep.second].data_type = op_data.second;
+                    }
+                }
+
+                int idx = 0;
+                for (auto& dep : fused_prim.deps) {
+                    desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
+                    desc.dep_data[dep.second].op_id     = idx;
+                    desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();
+                }
+
+                for (auto& dep : desc.dep_data) {
+                    if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
+                        dep.dep_type    = kernel_selector::DepType::ORIGINAL;
+                        break;
+                    }
                 }
             }
-
-            int idx = 0;
-            for (auto& dep : fused_prim.deps) {
-                desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
-                desc.dep_data[dep.second].op_id     = idx;
-                desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();
-            }
-
-            for (auto& dep : desc.dep_data) {
-                if (dep.dep_type == kernel_selector::DepType::UNDEFINED) {
-                    dep.dep_type    = kernel_selector::DepType::ORIGINAL;
-                    break;
-                }
-            }
+            params.fused_ops.push_back(desc);
         }
-        params.fused_ops.push_back(desc);
     }
+
     return params;
 }
 

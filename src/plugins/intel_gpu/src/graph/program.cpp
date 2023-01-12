@@ -1159,7 +1159,6 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
-    local_desc.activation = activation_func::none;
 
     auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
