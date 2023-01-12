@@ -9076,7 +9076,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_ptr = network.get_output_values<FLOAT16>("conv_fsv");
+    auto out_ptr = network.get_output_values_to_float("conv_fsv");
     auto out_lay = network.get_output_layout("conv_fsv");
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
