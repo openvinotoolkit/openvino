@@ -182,6 +182,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_castlike_STRING_to_FLOAT_expanded_cpu",
     ),
     (
+        xfail_issue_33595,
+        "OnnxBackendNodeModelTest.test_unique_sorted_with_negative_axis_cpu",
+        "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_3d_cpu",
+    ),
+    (
         xfail_issue_33651,
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_batch_onlybigrams_skip5_cpu",
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_onlybigrams_levelempty_cpu",
