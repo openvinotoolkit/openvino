@@ -5,6 +5,7 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecode
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import PartialShape, Type as OVType, OVAny, Shape
 
+import warnings
 from openvino.runtime import op
 import numpy as np
 import torch
@@ -51,10 +52,10 @@ def ivalue_to_constant(ivalue):
 
 
 def get_value_from_getattr(getattr_node, self_module):
-    assert getattr_node.kind() == 'prim::GetAttr', "Got node of kind not equal to prim::GetAttr"
+    assert getattr_node.kind() == "prim::GetAttr", "Got node of kind not equal to prim::GetAttr"
     # GetAttr nodes can be nested
     stack = []
-    while getattr_node.kind() == 'prim::GetAttr':
+    while getattr_node.kind() == "prim::GetAttr":
         stack.append(getattr_node)
         inputs = list(getattr_node.inputs())
         if len(inputs) == 0:
@@ -63,16 +64,16 @@ def get_value_from_getattr(getattr_node, self_module):
     module = self_module
     while len(stack) > 0:
         node = stack.pop()
-        assert (hasattr(module, node.s('name')))
-        module = getattr(module, node.s('name'))
+        assert (hasattr(module, node.s("name")))
+        module = getattr(module, node.s("name"))
     return module
 
 
 pt_to_ov_type_map = {
-    'float': OVType.f32,
-    'int': OVType.i32,
-    'torch.float32': OVType.f32,
-    'torch.int32': OVType.i32,
+    "float": OVType.f32,
+    "int": OVType.i32,
+    "torch.float32": OVType.f32,
+    "torch.int32": OVType.i32,
     "torch.bool": OVType.boolean,
     "torch.int64": OVType.i64,
     "torch.FloatTensor": OVType.f32,
@@ -82,17 +83,17 @@ pt_to_ov_type_map = {
 }
 
 pt_to_py_type_map = {
-    'float': 'float',
-    'int': 'int',
-    'torch.float32': 'float',
-    'torch.int32': 'int',
-    'torch.int64': 'int',
-    'torch.bool': 'bool'
+    "float": "float",
+    "int": "int",
+    "torch.float32": "float",
+    "torch.int32": "int",
+    "torch.int64": "int",
+    "torch.bool": "bool"
 }
 
 np_to_ov_type_map = {
-    'float32': OVType.f32,
-    'int32': OVType.i32,
+    "float32": OVType.f32,
+    "int32": OVType.i32,
 }
 
 
@@ -115,12 +116,12 @@ class TorchScriptPythonDecoder (Decoder):
         return self.inputs()[index]  # TODO: find specialized method
 
     def get_input_shape(self, index):
-        input = self._raw_input(index)
-        return self.get_shape_for_value(input)
+        raw_input = self._raw_input(index)
+        return self.get_shape_for_value(raw_input)
 
     def get_input_type(self, index):
-        input = self._raw_input(index)
-        return self.get_type_for_value(input)
+        raw_input = self._raw_input(index)
+        return self.get_type_for_value(raw_input)
 
     def get_output_shape(self, index):
         output = self._raw_output(index)
@@ -131,19 +132,14 @@ class TorchScriptPythonDecoder (Decoder):
         return self.get_type_for_value(output)
 
     def _get_known_type_for_value(self, type):
-        '''
-            Returns known/unknown types wrapped as OVAny
-        '''
-        # print(f'Trying to parse type {type} of class {type.__class__}')
+        """Returns known/unknown types wrapped as OVAny"""
         # Check for simple scalar types first
         # TODO: Don't use str, use native types
         if type is None:
             return OVAny(OVType.dynamic)
         if str(type) in pt_to_ov_type_map:
-            # print(f'Recognized native type, type.__class__ = {type.__class__}')
             return OVAny(pt_to_ov_type_map[str(type)])
         elif type.__class__ is torch.TensorType:
-            # print(f'Recognized Tensor type with type.dtype() = {type.dtype()}')
             # Tensor type, parse element type
             # TODO: replace string by native type
             # return OVAny(PartialShape([1,2,3]))
@@ -162,10 +158,8 @@ class TorchScriptPythonDecoder (Decoder):
     def get_shape_for_value(self, value):
         if value.isCompleteTensor():
             ps = PartialShape(value.type().sizes())
-            # print(f'SHAPE FOR COMPLETE TENSOR: {ps}')
             return ps
         else:
-            # print(f'NOT COMPLETE TENSOR for {value}')
             # TODO: Recognize types that we can represent as a nested constructs with objects from DecoderType
             # If recognized, return scalar instead of dynamic. Scalar means a single value of that custom type.
             # See get_type_for_value for reference
@@ -173,7 +167,6 @@ class TorchScriptPythonDecoder (Decoder):
         return PartialShape.dynamic()
 
     def get_type_for_value(self, value):
-        # print(f'Decoding value type for value {value}')
         full_type = self._get_known_type_for_value(value.type())
         # DecoderType.print(full_type)    # new (full) type interpretation
         return full_type
@@ -272,37 +265,30 @@ class TorchScriptPythonDecoder (Decoder):
             return []
 
     def as_constant(self):
-        if not self.get_op_type() == 'prim::Constant':
-            # print(f'[ ERROR ] Requested const value {self._raw_output(0)} from a non const prim {self.get_op_type()}')
+        if not self.get_op_type() == "prim::Constant":
             return None
         pt_value = self._raw_output(0)
 
         pt_type_class = pt_value.type().__class__
-        # print(f'Not a tensor, type = {pt_value.type()}\ndir = {dir(pt_value.type())}\n__class__ = {pt_value.type().__class__}')
         if pt_type_class is torch.TensorType:
             return self.as_constant_tensor(pt_value)
         if pt_type_class is torch.ListType:
             return self.as_constant_list(pt_value)
-        # print(f'Trying to recognize value {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
-        if str(pt_value.type()) in ['torch.int32', 'int']:
-            # print(f'Found int value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
+        if str(pt_value.type()) in ["torch.int32", "int"]:
             return make_constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_value.type()) in ['torch.float', 'torch.FloatType', 'float']:
-            # print(f'Found float value=  {pt_value}, type = {type(pt_value.toIValue())}, ivalue = {pt_value.toIValue()}')
+        if str(pt_value.type()) in ["torch.float", "torch.FloatType", "float"]:
             return make_constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_value.type()) in ['torch.bool', 'bool']:
-            # print('Scalar bool detected')
+        if str(pt_value.type()) in ["torch.bool", "bool"]:
             return make_constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
-        # print(f'Left value not converted to const, value = {pt_value}')
 
         return None
 
     def as_string(self):
-        if not self.get_op_type() == 'prim::Constant':
+        if not self.get_op_type() == "prim::Constant":
             return None
         pt_value = self._raw_output(0)
 
-        if str(pt_value.type()) in ['torch.StringType', 'str']:
+        if str(pt_value.type()) in ["torch.StringType", "str"]:
             return pt_value.toIValue()
         return None
 
@@ -312,7 +298,7 @@ class TorchScriptPythonDecoder (Decoder):
             try:
                 ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
             except Exception:
-                print("[ WARNING ] Tensor couldn't detach")
+                 warnings.warn("[ WARNING ] Tensor couldn't detach")
             if str(pt_value.type().dtype()) in pt_to_ov_type_map:
                 # Constant interpretation doesn't respect new-full type of PT
                 # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
@@ -328,7 +314,7 @@ class TorchScriptPythonDecoder (Decoder):
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 except Exception:
                     # old variant that makes a slow data copying
-                    print("[ WARNING ] Constant wasn't able to convert from data_ptr.")
+                    warnings.warn(f"[ WARNING ] Constant wasn't able to convert from data_ptr.")
                     values = ivalue.flatten().tolist()
                     ov_const = make_constant(ovtype, ovshape.get_shape(), values)
                 return ov_const.outputs()
@@ -341,7 +327,6 @@ class TorchScriptPythonDecoder (Decoder):
         # rewrite them in that part where constant attributes are queried
         pt_element_type = str(pt_value.type().getElementType())
         ivalue = pt_value.toIValue()
-        # print(f'List toIValue: {ivalue}, type of it: {type(ivalue)}')
         is_known_type = pt_element_type in pt_to_ov_type_map
 
         # WA to broken ov.Type
@@ -353,7 +338,6 @@ class TorchScriptPythonDecoder (Decoder):
 
         if is_known_type:
             ovtype = pt_to_ov_type_map[pt_element_type]
-            # print(f'ovtype = {ovtype}, pt_element_type = {pt_element_type}, OVType.i32 = {OVType.i32}, {OVType.f32}')
             ovshape = PartialShape([len(ivalue)])
             ov_const = make_constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
@@ -363,15 +347,14 @@ class TorchScriptPythonDecoder (Decoder):
             return True
         else:
             r_input = self._raw_input(index)
-            if str(r_input.type()) in ['torch.NoneType', 'NoneType']:
+            if str(r_input.type()) in ["torch.NoneType", "NoneType"]:
                 return True
             else:
                 in_node = r_input.node()
-                if in_node.kind() == 'prim::GetAttr':
+                if in_node.kind() == "prim::GetAttr":
                     pt_value = get_value_from_getattr(in_node, self.pt_module)
                     return pt_value is None
         return False
 
     def debug(self):
-        print(f'DEBUG CALLED FOR {self._raw_output(0)}')
-        # self.graph_element.print()
+        print(f"DEBUG CALLED FOR {self._raw_output(0)}")
