@@ -587,11 +587,14 @@ public:
 
         FOREACH_CHILD (pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"));
-
+            if (pluginRegistry.find(deviceName) != pluginRegistry.end()) {
+                IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the OpenVINO Runtime";
+            }
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
+
+            ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"));
 
             // check properties
             auto propertiesNode = pluginNode.child("properties");
