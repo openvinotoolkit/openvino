@@ -177,7 +177,7 @@ Refer to :ref:`Install External Software Dependencies <install-external-dependen
 Step 4 (Optional): Configure Inference on Non-CPU Devices
 ---------------------------------------------------------
 
-To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in [GPU Setup Guide](@ref openvino_docs_install_guides_configurations_for_intel_gpu).
+To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :doc:`GPU Setup Guide <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 
 Step 5: Build Samples
 ---------------------
