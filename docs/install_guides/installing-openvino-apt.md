@@ -226,7 +226,7 @@ Now you may continue with the following tasks:
 Additional Resources
 ====================
 
-- OpenVINO home page: `https://software.intel.com/en-us/openvino-toolkit`_.
+- Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit.
 - For IoT Libraries & Code Samples see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`_.
 
 @endsphinxdirective
