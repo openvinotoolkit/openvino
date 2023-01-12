@@ -151,7 +151,7 @@ For a list of VPU-supported layers, see the **Supported Layers** section of the 
 * `Pad` layer works only with 4D tensors.
 * `Floor` layer works only with FP16 type.
 * `ConvTranspose` layer not supported.
-* `GatherElements` layer not supported for negative axis.
+* `GatherElements` layer is not supported for negative axis.
 
 ## See Also
 
