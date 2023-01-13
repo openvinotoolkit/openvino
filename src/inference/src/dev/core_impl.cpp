@@ -1349,3 +1349,65 @@ std::tuple<bool, std::string> ov::CoreImpl::CheckStatic(const InferenceEngine::C
     }
     return {res, errMsg.str()};
 }
+
+#ifndef OPENVINO_STATIC_LIBRARY
+
+std::string ov::findPluginXML(const std::string& xmlFile) {
+    std::string xmlConfigFile_ = xmlFile;
+    if (xmlConfigFile_.empty()) {
+        const auto ielibraryDir = ie::getInferenceEngineLibraryPath();
+
+        // plugins.xml can be found in either:
+
+        // 1. openvino-X.Y.Z relative to libopenvino.so folder
+        std::ostringstream str;
+        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+        const auto subFolder = ov::util::to_file_path(str.str());
+
+        // register plugins from default openvino-<openvino version>/plugins.xml config
+        ov::util::FilePath xmlConfigFileDefault =
+            FileUtils::makePath(FileUtils::makePath(ielibraryDir, subFolder), ov::util::to_file_path("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFileDefault))
+            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+
+        // 2. in folder with libopenvino.so
+        xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
+        if (FileUtils::fileExist(xmlConfigFileDefault))
+            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
+
+        throw ov::Exception("Failed to find plugins.xml file");
+    }
+    return xmlConfigFile_;
+}
+
+#endif
+
+ov::AnyMap ov::flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
+    ov::AnyMap result = properties;
+    bool isVirtualDev = device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
+                        device.find("HETERO") != std::string::npos;
+    for (auto item = result.begin(); item != result.end();) {
+        auto parsed = parseDeviceNameIntoConfig(item->first);
+        if (!item->second.is<ov::AnyMap>()) {
+            item++;
+            continue;
+        }
+        if (device == parsed._deviceName) {
+            // 1. flatten the scondary property for target device
+            for (auto&& sub_property : item->second.as<ov::AnyMap>()) {
+                // 1.1 1st level property overides 2nd level property
+                if (result.find(sub_property.first) != result.end())
+                    continue;
+                result[sub_property.first] = sub_property.second;
+            }
+            item = result.erase(item);
+        } else if (isVirtualDev) {
+            // 2. keep the secondary property for the other virtual devices
+            item++;
+        } else {
+            // 3. remove the secondary property setting for other hardware device
+            item = result.erase(item);
+        }
+    }
+    return result;
+}

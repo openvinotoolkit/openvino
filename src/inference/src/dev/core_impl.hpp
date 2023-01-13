@@ -12,8 +12,13 @@
 #include "ie_icore.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "threading/ie_executor_manager.hpp"
+
+#ifdef OPENVINO_STATIC_LIBRARY
+#    include "ie_plugins.hpp"
+#endif
 
 namespace ov {
 
@@ -55,6 +60,14 @@ ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std
     }
     return {deviceName_, config_};
 }
+
+#ifndef OPENVINO_STATIC_LIBRARY
+
+std::string findPluginXML(const std::string& xmlFile);
+
+#endif
+
+ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties);
 
 class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
 private:
