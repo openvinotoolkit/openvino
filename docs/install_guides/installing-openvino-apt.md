@@ -27,16 +27,17 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
   * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
 
-| 
 
 .. _installing-openvino-runtime:
 
-Installing OpenVINO Runtime
-===========================
+@endsphinxdirective
 
-Step 1: Set Up the OpenVINO Toolkit APT Repository
---------------------------------------------------
 
+## Installing OpenVINO Runtime
+
+### Step 1: Set Up the OpenVINO Toolkit APT Repository
+
+@sphinxdirective
 
 #. Install the GPG key for the repository
 
@@ -90,11 +91,14 @@ Step 1: Set Up the OpenVINO Toolkit APT Repository
 
       apt-cache search openvino
 
-Step 2: Install OpenVINO Runtime Using the APT Package Manager
---------------------------------------------------------------
+@endsphinxdirective
 
-Install OpenVINO Runtime
-^^^^^^^^^^^^^^^^^^^^^^^^
+
+### Step 2: Install OpenVINO Runtime Using the APT Package Manager
+
+#### Install OpenVINO Runtime
+
+@sphinxdirective
 
 .. tab:: The Latest Version
 
@@ -129,9 +133,12 @@ Install OpenVINO Runtime
 
    You can use ``--no-install-recommends`` option to install only required packages. Keep in mind that the build tools must be installed **separately** if you want to compile the samples.
 
+@endsphinxdirective
 
-Check for Installed Packages and Versions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+#### Check for Installed Packages and Versions
+
+@sphinxdirective
 
 Run the following command:
 
@@ -139,9 +146,12 @@ Run the following command:
 
    apt list --installed | grep openvino
 
+@endsphinxdirective
 
-Uninstall OpenVINO Runtime
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+#### Uninstall OpenVINO Runtime
+
+@sphinxdirective
 
 .. tab:: The Latest Version
 
@@ -166,21 +176,32 @@ Uninstall OpenVINO Runtime
 
       sudo apt autoremove openvino-2022.3.0
 
+@endsphinxdirective
 
-Step 3 (Optional): Install Software Dependencies
-------------------------------------------------
+
+### Step 3 (Optional): Install Software Dependencies
+
+@sphinxdirective
 
 After you have installed OpenVINO Runtime, if you decided to :doc:`install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>`, make sure that you install external software dependencies first.
 
 Refer to :ref:`Install External Software Dependencies <install-external-dependencies>` for detailed steps.
 
-Step 4 (Optional): Configure Inference on Non-CPU Devices
----------------------------------------------------------
+@endsphinxdirective
+
+
+### Step 4 (Optional): Configure Inference on Non-CPU Devices
+
+@sphinxdirective
 
 To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :doc:`GPU Setup Guide <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 
-Step 5: Build Samples
----------------------
+@endsphinxdirective
+
+
+### Step 5: Build Samples
+
+@sphinxdirective
 
 To build the C++ or C sample applications for Linux, run the ``build_samples.sh`` script:
 
@@ -201,8 +222,12 @@ For more information, refer to :ref:`Build the Sample Applications on Linux <bui
 
 .. _installing-openvino-development-tools:
 
-Installing OpenVINO Development Tools
-=====================================
+@endsphinxdirective
+
+
+## Installing OpenVINO Development Tools
+
+@sphinxdirective
 
 .. note: From the 2022.1 release, the OpenVINO™ Development Tools can be installed via PyPI only.
 
@@ -212,8 +237,12 @@ To install OpenVINO Development Tools, do the following steps:
 #. :ref:`Install External Software Dependencies <install-external-dependencies>`.
 #. See the **For C++ Developers** section in :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` for detailed steps.
 
-What's Next?
-============
+@endsphinxdirective
+
+
+## What's Next?
+
+@sphinxdirective
 
 Now you may continue with the following tasks:
 
@@ -223,8 +252,12 @@ Now you may continue with the following tasks:
 * To write your own OpenVINO™ applications, see :doc:`OpenVINO Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 * See sample applications in :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 
-Additional Resources
-====================
+@endsphinxdirective
+
+
+## Additional Resources
+
+@sphinxdirective
 
 - Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit.
 - For IoT Libraries & Code Samples see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`_.
