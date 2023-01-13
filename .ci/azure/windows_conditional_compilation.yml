@@ -169,14 +169,14 @@ jobs:
         -B $(BUILD_DIR)
     displayName: 'CMake CC ON'
 
+  - script: type $(BUILD_DIR)\src\common\conditional_compilation\conditional_compilation_gen.h
+    displayName: 'Check conditional_compilation_gen.h header'
+
   - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel
     displayName: 'Build CC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
-
-  - script: type $(BUILD_DIR)\src\common\conditional_compilation\conditional_compilation_gen.h
-    displayName: 'Check conditional_compilation_gen.h header'
 
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
