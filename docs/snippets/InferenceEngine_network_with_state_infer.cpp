@@ -7,7 +7,7 @@
 
 using namespace InferenceEngine;
 
-int InferenceEngine_network_with_state_infer(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     try {
         // --------------------------- 1. Load inference engine -------------------------------------
         std::cout << "Loading Inference Engine" << std::endl;

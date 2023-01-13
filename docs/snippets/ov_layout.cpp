@@ -4,7 +4,7 @@
 #include "openvino/core/layout.hpp"
 #include "openvino/core/model.hpp"
 
-int ov_layout() {
+int main() {
     ov::Layout layout;
 //! [ov:layout:simple]
 layout = ov::Layout("NHWC");

@@ -3,7 +3,7 @@
 //
 #include <openvino/c/openvino.h>
 
-int ov_preprocessing_migration_main_new_c() {
+int main_new() {
     char* model_path = NULL;
     char* tensor_name = NULL;
 
@@ -145,7 +145,7 @@ int ov_preprocessing_migration_main_new_c() {
     return 0;
 }
 
-int ov_preprocessing_migration_main_old_c() {
+int main_old() {
     {
     //! [c_api_ppp]
     // No preprocessing related interfaces provided by C API 1.0

@@ -8,7 +8,7 @@
 VADisplay get_va_display();
 VASurfaceID decode_va_surface();
 
-int gpu_context_sharing_va() {
+int main() {
     // initialize the objects
     ov::Core core;
     auto model = core.read_model("model.xml");
