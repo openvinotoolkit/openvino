@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
@@ -13,12 +12,6 @@
 #include "openvino/op/util/attr_types.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select method for the @ref pooling layer.
 enum class pooling_mode : int32_t {
@@ -174,7 +167,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

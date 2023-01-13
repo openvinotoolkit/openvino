@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -78,10 +76,10 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(*engine, topology, bo);
+    network network(*engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -110,10 +108,10 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     topology.add(activation("relu4", input_info("relu3"), activation_func::relu));
     topology.add(activation("relu5", input_info("relu4"), activation_func::relu));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(*engine, topology, bo);
+    network network(*engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -145,10 +143,10 @@ TEST(memory_pool, multi_outputs_network) {
     topology.add(activation("relu6", input_info("relu5"), activation_func::relu));
     topology.add(activation("relu7", input_info("relu6"), activation_func::relu));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(*engine, topology, bo);
+    network network(*engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -183,10 +181,10 @@ TEST(memory_pool, oooq) {
     topology.add(concatenation("concat2", { input_info("relu4"), input_info("relu5") }, 1));
     topology.add(activation("relu6", input_info("concat2"), activation_func::relu));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(*engine, topology, bo);
+    network network(*engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -228,10 +226,10 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     topology.add(concatenation("concat2", { input_info("relu4"), input_info("relu5") }, 1));
     topology.add(activation("relu6", input_info("concat2"), activation_func::linear, { 1.0f, 0.5f }));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network_first(*engine, topology, bo);
+    network network_first(*engine, topology, config);
     network_first.set_input_data("input", input);
     auto outputs = network_first.execute();
 
@@ -241,7 +239,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
 
     ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t) 2560);
 
-    network network_second(*engine, topology, bo);
+    network network_second(*engine, topology, config);
     network_second.set_input_data("input", input);
     auto outputs_second = network_second.execute();
 
@@ -303,10 +301,10 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
         convolution("conv", input_info("input"), { "weights" }, { 1, 1, 1, 2 }),
         softmax("softmax", input_info("conv")));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network_first(*engine, topology, bo);
+    network network_first(*engine, topology, config);
     network_first.set_input_data("input", input);
     auto outputs = network_first.execute();
     uint64_t cl_mem_result = 824;
@@ -319,7 +317,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     auto output_layout_first = output_memory_first->get_layout();
     cldnn::mem_lock<float> output_ptr_first(output_memory_first, get_test_stream());
 
-    network network_second(*engine, topology, bo);
+    network network_second(*engine, topology, config);
     network_second.set_input_data("input", input);
     auto outputs_second = network_second.execute();
 
@@ -389,10 +387,10 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
         convolution("conv", input_info("input"), { "weights" }, { 2, 1 }),
         softmax("softmax", input_info("conv")));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network_first(*engine, topo, bo);
+    network network_first(*engine, topo, config);
     network_first.set_input_data("input", input_8);
     auto outputs = network_first.execute();
 
@@ -401,7 +399,7 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
 
     topo.change_input_layout("input", input_1->get_layout());//change input layout to batch=1
 
-    network network_second(*engine, topo, bo);
+    network network_second(*engine, topo, config);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
     ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)5912);
@@ -413,42 +411,19 @@ TEST(memory_pool, shared_dep_two_output) {
     // as it's tracked within engine instance
     auto engine = create_test_engine();
 
-    auto batch_1 = 1;
-    auto feature_num = 1;
-    auto inp_x_size = 4;
-    auto inp_y_size = 4;
-    auto dt = data_types::f32;
-    auto fmt = format::bfyx;
-    layout lay_batch_1 = { dt, fmt,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_1)) } };
-    auto input_1 = engine->allocate_memory(lay_batch_1);
+    auto input_1 = engine->allocate_memory({ {1, 1, 4, 4}, data_types::f32, format::bfyx });
     set_random_values<float>(input_1);
-
-    //build primitives
-    auto constant_0_0 = cldnn::data(
-        "constant_0_0",
-        input_1
-    );
-    auto result_1_0 = cldnn::concatenation(
-        "result_1_0",
-        { input_info(constant_0_0) },
-        0
-    );
-    auto result_2_0 = cldnn::concatenation(
-        "result_2_0",
-        { input_info(constant_0_0) },
-        0
-    );
 
     //build and execute network
     topology topo;
-    topo.add(constant_0_0);
-    topo.add(result_1_0);
-    topo.add(result_2_0);
+    topo.add(cldnn::data("constant_0_0", input_1));
+    topo.add(cldnn::concatenation("result_1_0", { input_info("constant_0_0") }, 0));
+    topo.add(cldnn::concatenation("result_2_0", { input_info("constant_0_0") }, 0));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(*engine, topo, bo);
+    network network(*engine, topo, config);
     auto outputs = network.execute();
     ASSERT_EQ(engine->get_max_used_device_memory(), (uint64_t)192);
 }
@@ -486,9 +461,8 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
         data_memory
     );
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(false));
-    network network(engine, topology, bo);
+    ExecutionConfig config(ov::intel_gpu::optimize_data(false));
+    network network(engine, topology, config);
     network.set_input_data("input1", input_memory1);
     network.set_input_data("input2", input_memory2);
     auto outputs = network.execute();
@@ -535,9 +509,9 @@ TEST(memory_pool, add_mem_dep_test) {
         actv3, actv4
     );
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input1", input_memory1);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), static_cast<size_t>(2));

@@ -16,11 +16,11 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __read_only image2d_t weights,
+    __read_only image2d_t weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
 
     const uint local_x = get_local_id(0);
@@ -55,14 +55,14 @@ KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
 
         // 512 MADs
 
-        half8 B0 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B0 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
-        half8 B8 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B8 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
 
-        half8 B16 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B16 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
-        half8 B24 = as_half8(_sub_group_block_read_us8(weights, coordB));
+        half8 B24 = as_half8(intel_sub_group_block_read_us8(weights, coordB));
         coordB.y += 8;
 
         half8 A0 = A_load[K8*0 + k8];
