@@ -90,26 +90,6 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : newAPI(_newAPI) {
     }
 }
 
-#ifdef OPENVINO_STATIC_LIBRARY
-
-void ov::CoreImpl::RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
-    std::lock_guard<std::mutex> lock(get_mutex());
-
-    for (const auto& plugin : static_registry) {
-        const auto& deviceName = plugin.first;
-        if (deviceName.find('.') != std::string::npos) {
-            IE_THROW() << "Device name must not contain dot '.' symbol";
-        }
-        const auto& value = plugin.second;
-        ov::AnyMap config = any_copy(value.m_default_config);
-        PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
-        pluginRegistry[deviceName] = desc;
-        add_mutex(deviceName);
-    }
-}
-
-#endif
-
 void ov::CoreImpl::RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
     std::lock_guard<std::mutex> lock(get_mutex());
 

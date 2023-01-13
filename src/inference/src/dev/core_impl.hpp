@@ -6,6 +6,7 @@
 
 #include <ie_extension.h>
 
+#include "any_copy.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
@@ -193,7 +194,21 @@ public:
      * @note The function supports UNICODE path
      * @param static_registry a statically defined configuration with device / plugin information
      */
-    void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry);
+    void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
+        std::lock_guard<std::mutex> lock(get_mutex());
+
+        for (const auto& plugin : static_registry) {
+            const auto& deviceName = plugin.first;
+            if (deviceName.find('.') != std::string::npos) {
+                IE_THROW() << "Device name must not contain dot '.' symbol";
+            }
+            const auto& value = plugin.second;
+            ov::AnyMap config = any_copy(value.m_default_config);
+            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
+            pluginRegistry[deviceName] = desc;
+            add_mutex(deviceName);
+        }
+    }
 
 #endif
 
