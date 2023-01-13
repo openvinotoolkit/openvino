@@ -5,7 +5,6 @@
 #pragma once
 
 #include "kernel_selector_common.h"
-#include "kernel_runner_interface.h"
 #include "auto_tuner.h"
 #include <vector>
 #include <memory>

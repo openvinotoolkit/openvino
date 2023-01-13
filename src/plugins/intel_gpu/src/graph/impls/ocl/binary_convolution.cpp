@@ -8,7 +8,6 @@
 #include "impls/implementation_map.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
-#include "kernel_runner.h"
 #include "kernel_selector/kernels/binary_convolution/binary_convolution_kernel_selector.h"
 #include "kernel_selector/kernels/binary_convolution/binary_convolution_params.h"
 #include <algorithm>

@@ -10,7 +10,6 @@
 #include "fully_connected/fully_connected_params.h"
 
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_runner.h"
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
