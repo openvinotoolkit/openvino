@@ -75,7 +75,7 @@ public:
     }
 };
 
-template <typename T=std::string>
+template <typename T = std::string>
 static InferenceEngine::Layout layout_from_string(const T& name) {
     static const std::unordered_map<T, InferenceEngine::Layout> layouts = {
         { "ANY", InferenceEngine::Layout::ANY },
