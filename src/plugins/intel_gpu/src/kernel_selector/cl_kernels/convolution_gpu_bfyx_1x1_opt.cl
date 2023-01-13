@@ -9,11 +9,11 @@ REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(convolution)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
     const uint group_x = (uint)get_group_id(0) * OUT_BLOCK_WIDTH;
     const uint group_y = (uint)get_group_id(1) * OUT_BLOCK_HEIGHT;

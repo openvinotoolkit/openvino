@@ -22,6 +22,7 @@ if(NOT MSVC)
     ie_add_compiler_flags(-Wno-sign-compare)
     ie_add_compiler_flags(-Wno-odr)
     ie_add_compiler_flags(-Wno-all)
+    ie_add_compiler_flags(-Wno-suggest-override)
 endif()
 
 ov_add_test_target(
