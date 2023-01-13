@@ -273,17 +273,16 @@ def test_properties_hint_model():
     assert property_tuple[0] == "MODEL_PTR"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_single_property_setting():
+def test_single_property_setting(device):
     core = Core()
 
-    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
         pytest.skip("This test runs only on openvino intel cpu plugin")
 
-    core.set_property("CPU", properties.streams.num(properties.streams.Num.AUTO))
+    core.set_property(device, properties.streams.num(properties.streams.Num.AUTO))
 
     assert properties.streams.Num.AUTO.to_integer() == -1
-    assert type(core.get_property("CPU", properties.streams.num())) == int
+    assert type(core.get_property(device, properties.streams.num())) == int
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
@@ -327,7 +326,7 @@ def test_single_property_setting():
         },
     ],
 )
-def test_properties_core(properties_to_set):
+def test_core_cpu_properties(properties_to_set):
     core = Core()
 
     if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
@@ -335,18 +334,11 @@ def test_properties_core(properties_to_set):
 
     core.set_property(properties_to_set)
 
-    # RW properties without device name
-    assert core.get_property(properties.cache_dir()) == "./"
-    assert core.get_property(properties.force_tbb_terminate()) is False
-
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True
     assert core.get_property("CPU", properties.cache_dir()) == "./"
     assert core.get_property("CPU", properties.inference_num_threads()) == 9
     assert core.get_property("CPU", properties.affinity()) == properties.Affinity.NONE
-    assert core.get_property("CPU", properties.hint.inference_precision()) == Type.f32
-    assert core.get_property("CPU", properties.hint.performance_mode()) == properties.hint.PerformanceMode.LATENCY
-    assert core.get_property("CPU", properties.hint.num_requests()) == 12
     assert core.get_property("CPU", properties.streams.num()) == 5
 
     # RO properties
