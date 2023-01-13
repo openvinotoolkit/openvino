@@ -4,7 +4,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset8.hpp>
 
-int ngraph() {
+int ngraph_cpp() {
     //! [ngraph:graph]
     // _____________    _____________
     // | Parameter |    | Parameter |

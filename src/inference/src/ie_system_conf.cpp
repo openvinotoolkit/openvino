@@ -16,6 +16,8 @@
 
 namespace InferenceEngine {
 
+#if defined(OV_CPU_X86_64) || defined(OV_CPU_X86_64)
+
 static Xbyak::util::Cpu& get_cpu_info() {
     static Xbyak::util::Cpu cpu;
     return cpu;
@@ -60,6 +62,21 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
 bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
+
+#else
+
+bool with_cpu_x86_sse42() { return false; }
+bool with_cpu_x86_avx() { return false; }
+bool with_cpu_x86_avx2() { return false; }
+bool with_cpu_x86_avx512f() { return false; }
+bool with_cpu_x86_avx512_core() { return false; }
+bool with_cpu_x86_avx512_core_vnni() { return false; }
+bool with_cpu_x86_bfloat16() { return false; }
+bool with_cpu_x86_avx512_core_amx_int8() { return false; }
+bool with_cpu_x86_avx512_core_amx_bf16() { return false; }
+bool with_cpu_x86_avx512_core_amx() { return false; }
+
+#endif
 
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",

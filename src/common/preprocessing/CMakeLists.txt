@@ -79,16 +79,16 @@ endif()
 if(ARM OR AARCH64)
     ie_arm_neon_optimization_flags(neon_flags)
 
-    if(neon_flags)
+    # if(neon_flags)
         file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
         file(GLOB NEON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.cpp)
 
         list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
         list(APPEND LIBRARY_SRC ${NEON_SRC})
 
-        set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
+        # set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
         add_definitions(-DHAVE_NEON=1)
-    endif()
+    # endif()
 endif()
 
 # Create object library

@@ -281,6 +281,11 @@ if(WIN32)
         endif()
     endif()
 
+    if(AARCH64 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT MSVC_VERSION LESS 1930)
+        # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro
+        ie_add_compiler_flags(-D_ARM64_DISTINCT_NEON_TYPES)
+    endif()
+
     # Compiler specific flags
 
     ie_add_compiler_flags(/bigobj)

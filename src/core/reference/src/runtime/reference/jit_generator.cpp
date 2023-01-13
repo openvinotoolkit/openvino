@@ -35,13 +35,14 @@ static const Xbyak::Reg64 abi_param1(Xbyak::Operand::RDI), abi_param2(Xbyak::Ope
     abi_param3(Xbyak::Operand::RDX), abi_param4(Xbyak::Operand::RCX), abi_param5(Xbyak::Operand::R8),
     abi_param6(Xbyak::Operand::R9), abi_not_param1(Xbyak::Operand::RCX);
 #    endif
-#endif
+#endif  // XBYAK64
 
 const size_t Generator::num_abi_save_gpr_regs = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
 
 const Xbyak::Reg64 Generator::param = abi_param1;
 
 bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
+#if defined(OV_CPU_X86_64) || defined(OV_CPU_X86_64)
     static Xbyak::util::Cpu cpu;
 
     using namespace Xbyak::util;
@@ -73,6 +74,7 @@ bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
     case isa_any:
         return true;
     }
+#endif
     return false;
 }
 

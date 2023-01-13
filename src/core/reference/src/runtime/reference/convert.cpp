@@ -194,25 +194,25 @@ void convert_impl(const TI* arg, TO* out, size_t count) {
 }
 }  // namespace
 
-template <>
-void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
-    convert_impl(arg, out, count);
-}
+// template <>
+// void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count) {
+//     convert_impl(arg, out, count);
+// }
 
-template <>
-void convert<float16, float>(const float16* arg, float* out, size_t count) {
-    convert_impl(arg, out, count);
-}
+// template <>
+// void convert<float16, float>(const float16* arg, float* out, size_t count) {
+//     convert_impl(arg, out, count);
+// }
 
-template <>
-void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
-}
+// template <>
+// void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
+//     convert_impl(arg, out, count);
+// }
 
-template <>
-void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
-    convert_impl(arg, out, count);
-}
+// template <>
+// void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
+//     convert_impl(arg, out, count);
+// }
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
