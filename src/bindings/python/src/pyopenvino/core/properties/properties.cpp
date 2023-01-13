@@ -75,6 +75,42 @@ void regmodule_properties(py::module m) {
                      ov::intel_cpu::sparse_weights_decompression_rate,
                      "sparse_weights_decompression_rate");
 
+    // Submodule intel_gpu
+    py::module m_intel_gpu =
+        m_properties.def_submodule("intel_gpu",
+                                   "openvino.runtime.properties.intel_gpu submodule that simulates ov::intel_gpu");
+
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::uarch_version, "uarch_version");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::execution_units_count, "execution_units_count");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");
+
+    wrap_property_RW(m_intel_gpu, ov::intel_gpu::enable_loop_unrolling, "enable_loop_unrolling");
+
+    // Submodule hint (intel_gpu)
+    py::module m_intel_gpu_hint = m_intel_gpu.def_submodule(
+        "hint",
+        "openvino.runtime.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint");
+
+    // `ThrottleLevel` enum is conflicting with `priorities.hint.Priority` in bindings.
+    // `ov::intel_gpu::hint::ThrottleLevel` workaround proxy class:
+    class ThrottleLevelProxy {};
+
+    py::class_<ThrottleLevelProxy, std::shared_ptr<ThrottleLevelProxy>> m_throttle_level(
+        m_intel_gpu_hint,
+        "ThrottleLevel",
+        "openvino.runtime.properties.intel_gpu.hint.ThrottleLevel that simulates ov::intel_gpu::hint::ThrottleLevel");
+
+    m_throttle_level.attr("LOW") = ov::intel_gpu::hint::ThrottleLevel::LOW;
+    m_throttle_level.attr("MEDIUM") = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
+    m_throttle_level.attr("HIGH") = ov::intel_gpu::hint::ThrottleLevel::HIGH;
+    m_throttle_level.attr("DEFAULT") = ov::intel_gpu::hint::ThrottleLevel::DEFAULT;
+
+    wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::queue_throttle, "queue_throttle");
+    wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::queue_priority, "queue_priority");
+    wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::host_task_priority, "host_task_priority");
+    wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::available_device_mem, "available_device_mem");
+
     // Submodule device
     py::module m_device =
         m_properties.def_submodule("device", "openvino.runtime.properties.device submodule that simulates ov::device");
@@ -131,6 +167,27 @@ void regmodule_properties(py::module m) {
     m_capability.attr("BIN") = ov::device::capability::BIN;
     m_capability.attr("WINOGRAD") = ov::device::capability::WINOGRAD;
     m_capability.attr("EXPORT_IMPORT") = ov::device::capability::EXPORT_IMPORT;
+
+    // Submodule memory_type (intel_gpu)
+    class FakeMemoryType {};
+
+    py::class_<FakeMemoryType, std::shared_ptr<FakeMemoryType>> m_memory_type(
+        m_intel_gpu,
+        "MemoryType",
+        "openvino.runtime.properties.intel_gpu.MemoryType submodule that simulates ov::intel_gpu::memory_type");
+
+    m_memory_type.attr("surface") = ov::intel_gpu::memory_type::surface;
+    m_memory_type.attr("buffer") = ov::intel_gpu::memory_type::buffer;
+
+    // Submodule capability (intel_gpu)
+    class FakeCapabilityGPU {};
+
+    py::class_<FakeCapabilityGPU, std::shared_ptr<FakeCapabilityGPU>> m_capability_gpu(
+        m_intel_gpu,
+        "CapabilityGPU",
+        "openvino.runtime.properties.intel_gpu.CapabilityGPU submodule that simulates ov::intel_gpu::capability");
+
+    m_capability_gpu.attr("HW_MATMUL") = ov::intel_gpu::capability::HW_MATMUL;
 
     // Submodule log
     py::module m_log =
