@@ -566,10 +566,16 @@ def test_infer_queue_fail_in_inference(device, with_callback):
     jobs = 6
     num_request = 4
     core = Core()
-    data = ops.parameter([10], dtype=np.float32, name="data")
-    k_op = ops.parameter(Shape([]), dtype=np.int32, name="k")
-    emb = ops.topk(data, k_op, axis=0, mode="max", sort="value")
-    model = Model(emb, [data, k_op])
+
+    shape = [2, 2]
+    dtype = np.float32
+    parameter_a = ops.parameter(shape, dtype=dtype, name="A")
+    parameter_b = ops.parameter([2, 2], dtype=dtype, name="B")
+
+    node = ops.add(parameter_a, parameter_b, name="TestNode", auto_broadcast="numpy")
+
+    model = Model(node, [parameter_a, parameter_b])
+
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, num_request)
 
@@ -579,15 +585,15 @@ def test_infer_queue_fail_in_inference(device, with_callback):
     if with_callback:
         infer_queue.set_callback(callback)
 
-    data_tensor = Tensor(np.arange(10).astype(np.float32))
-    k_tensor = Tensor(np.array(11, dtype=np.int32))
+    input_1 = Tensor(np.arange(4).reshape((2, 2)).astype(np.float32))
+    input_2 = Tensor(np.array(10, dtype=np.float32))
 
     with pytest.raises(RuntimeError) as e:
         for _ in range(jobs):
-            infer_queue.start_async({"data": data_tensor, "k": k_tensor})
+            infer_queue.start_async({"A": input_1, "B": input_2})
         infer_queue.wait_all()
 
-    assert "Can not clone with new dims" in str(e.value)
+    assert "Can't set input blob" in str(e.value)
 
 
 def test_infer_queue_get_idle_handle(device):
