@@ -125,7 +125,7 @@ private:
     static constexpr size_t AXES_ID = 4;
 
     bool isConstantInput[AXES_ID + 1] = {false};
-    bool shapeHasDataDependency = false;
+    bool rtDataDependency = false;
     bool hasConstAttrInputs = true;
 
     std::vector<MemoryCPtr> srcMemory;

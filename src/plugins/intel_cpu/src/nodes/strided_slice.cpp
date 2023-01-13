@@ -68,10 +68,10 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
         if (!isConstantInput[i] && one_of(i, 1, 2, 3)) {
-            shapeHasDataDependency = true;
+            rtDataDependency = true;
         }
     }
-    hasConstAttrInputs = !shapeHasDataDependency;
+    hasConstAttrInputs = !rtDataDependency;
     if (isAxesSpecified)
         hasConstAttrInputs &= isConstantInput[AXES_ID];
 
@@ -285,8 +285,8 @@ bool StridedSlice::isExecutable() const {
 }
 
 void StridedSlice::createPrimitive() {
-    if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
-        if (needPrepareParams()) {
+    if (inputShapesDefined() && isExecutable()) {
+        if (!rtDataDependency && needPrepareParams()) {
             prepareParams();
         }
         updateLastInputDims();
@@ -315,18 +315,24 @@ void StridedSlice::prepareParams() {
 }
 
 bool StridedSlice::needShapeInfer() const {
-    return Node::inputShapesModified() || shapeHasDataDependency;
+    return Node::inputShapesModified() || rtDataDependency;
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
-    if (!execPtr)
-        IE_THROW() << errorPrefix << "doesn't have compiled executor!";
+    if (!execPtr) {
+        prepareParams();
+        if (!execPtr)
+            IE_THROW() << errorPrefix << "doesn't have compiled executor!";
+    }
 
     execPtr->exec(srcMemory, dstMemory);
 }
 
 void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
-    execute(strm);
+    if (!execPtr)
+        IE_THROW() << errorPrefix << "doesn't have compiled executor!";
+
+    execPtr->exec(srcMemory, dstMemory);
 }
 
 bool StridedSlice::created() const {
