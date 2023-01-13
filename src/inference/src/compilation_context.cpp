@@ -46,10 +46,12 @@ static int32_t as_int32_t(T v) {
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
     uint64_t seed = 0;
     auto absPath = filePath;
-    try {
-        absPath = FileUtils::absoluteFilePath(filePath);
-    } catch (...) {
-        // can't get absolute path, will use filePath for hash
+    if (filePath.size() > 0) {
+        try {
+            absPath = FileUtils::absoluteFilePath(filePath);
+        } catch (std::runtime_error&) {
+            // can't get absolute path, will use filePath for hash
+        }
     }
 
     seed = hash_combine(seed, absPath);
