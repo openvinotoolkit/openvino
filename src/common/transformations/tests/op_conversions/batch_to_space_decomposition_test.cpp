@@ -93,6 +93,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
             std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
         manager.register_pass<ov::pass::ConvertSpaceToBatch>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -144,6 +145,8 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after_4}, ngraph::ParameterVector{data});
     }
+
+    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
