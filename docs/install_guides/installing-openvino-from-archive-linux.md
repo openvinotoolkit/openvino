@@ -91,6 +91,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    
    .. code-block:: sh
    
+      cd /opt/intel/openvino_2022.3.0/
       sudo -E ./install_dependencies/install_openvino_dependencies.sh 
 
 6. For simplicity, it is useful to create a symbolic link as below:
