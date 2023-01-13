@@ -168,9 +168,9 @@ public:
 
             topology.add(primitive);
             topology.add(reorder("multiclass_nms", input_info("multiclass_nms_reordered"), plain_format, data_type));
-            build_options bo;
-            bo.set_option(build_option::optimize_data(false));
-            network network(engine, topology, bo);
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(false));
+            network network(engine, topology, config);
 
             network.set_input_data("input_boxes", input_boxes);
             network.set_input_data("input_scores", input_scores);
