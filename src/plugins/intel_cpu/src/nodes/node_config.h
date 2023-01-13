@@ -25,6 +25,11 @@ public:
         return typeid(*this) == typeid(rhs) && this->compareImpl(rhs);
     }
     virtual MemoryDescPtr getMemDesc() const = 0;
+
+    virtual BlockedMemoryDesc::CmpMask getCmpMask() const {
+        return BLOCKED_DESC_FULL_MASK;
+    }
+
 protected:
     virtual bool compareImpl(const PortDescBase& rhs) const = 0;
 };
@@ -74,7 +79,9 @@ public:
     MemoryDescPtr getMemDesc() const override {
         return _memDesc;
     }
-
+    CmpMask getCmpMask() const override {
+        return _cmpMask;
+    }
 private:
     BlockedMemoryDescPtr _memDesc;
     CmpMask _cmpMask = BLOCKED_DESC_FULL_MASK;

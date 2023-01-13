@@ -135,10 +135,18 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtyp
 
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
     std::stringstream ss;
-    ss << "  " << impl_type_to_string(desc.getImplementationType()) << "(";
+    ss << impl_type_to_string(desc.getImplementationType()) << "(";
     const char * sep = "";
     for (auto & conf : desc.getConfig().inConfs) {
-        ss << sep << *conf.getMemDesc();
+        auto portDesc = conf.getPortDesc();
+        ss << sep << *portDesc->getMemDesc();
+        auto cmpMask = portDesc->getCmpMask();
+        if (cmpMask.none())
+            ss << " cmpMask:none";
+        else if (cmpMask.all())
+            ss << " cmpMask:all";
+        else
+            ss << " cmpMask:" << cmpMask;
         if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
         if (conf.constant()) ss << " constant";
         sep = ",";
@@ -146,12 +154,20 @@ std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
     ss << ") -> (";
     sep = "";
     for (auto & conf : desc.getConfig().outConfs) {
-        ss << sep << *conf.getMemDesc();
+        auto portDesc = conf.getPortDesc();
+        ss << sep << *portDesc->getMemDesc();
+        auto cmpMask = portDesc->getCmpMask();
+        if (cmpMask.none())
+            ss << " cmpMask:none";
+        else if (cmpMask.all())
+            ss << " cmpMask:all";
+        else
+            ss << " cmpMask:" << cmpMask;
         if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
         if (conf.constant()) ss << " constant";
         sep = ",";
     }
-    ss << ")" << std::endl;
+    ss << ")";
     auto str = ss.str();
     replace_all(str, "0 - ?", "?");
     os << str;
