@@ -235,7 +235,6 @@ class Conformance:
             logger.info(f"Report dir {report_dir} is cleaned up")
             rmtree(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
-        conformance_filelist_path = self._prepare_filelist()
         if not os.path.isdir(report_dir):
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):

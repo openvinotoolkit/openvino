@@ -322,7 +322,6 @@ class TestParallelRunner:
         test_filters = self.__get_test_list()
         cmd_list = [f'{self._command} --gtest_filter={filter}' for filter in test_filters]
         return cmd_list
-        
 
 
     def run(self):
@@ -455,6 +454,7 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] --worker_num={args.workers}")
     logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --process_timeout={args.process_timeout}")
+    logger.info(f"[ARGUMENTS] --cache_path={args.cache_path}")
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path)
