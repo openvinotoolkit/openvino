@@ -17,8 +17,8 @@ using namespace ::tests;
 //This situation should be handled properly by propagate constants optimization phase
 TEST(propagate_constants, copy_dependecies_from_nodes) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 1 } });
@@ -37,7 +37,7 @@ TEST(propagate_constants, copy_dependecies_from_nodes) {
     topology.add(reorder("reorder1", input_info("reshape1"), layout(data_types::f32, format::byxf, tensor(4))));
     topology.add(concatenation("concat", { input_info("reorder1"), input_info("weights2") }, 3));
     topology.add(convolution("conv2", { input_info("reorder2") }, { "concat" }));
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();

@@ -55,14 +55,14 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
     auto main_node_label = wrap_type<Concat>([](const Output<Node>& output) -> bool {
-        return consumers_count(1)(output) && has_static_rank()(output);
+        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
     });
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
+    auto transpose_const_label = wrap_type<Constant>();
 
     auto transpose_label =
         wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-            return consumers_count(1)(output) && has_static_rank()(output) && is_sinking_node(output);
+            return has_static_rank()(output) && is_sinking_node(output);
         });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
@@ -75,8 +75,8 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
             register_new_node(new_node);
         }
 
-        // remove transpose after main node
-        transpose->output(0).replace(main_node);
+        // remove output transposes
+        RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
 
