@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -435,22 +435,11 @@ void GNAPlugin::UpdateInputsAndOutputsInfoFromNetwork(InferenceEngine::CNNNetwor
     // update inputs
     {
         InputsDataMap network_inputs = network.getInputsInfo();
-
-        size_t id = 0;
         for (const auto& input : network_inputs) {
             (*inputs_ptr_)[input.first].Update(input.second);
-
-            // update scale factor from config
-            if (config.inputScaleFactorsPerInput.count(input.first)) {
-                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
-            } else if (id < config.inputScaleFactors.size()) {
-                config.inputScaleFactorsPerInput[input.first] = config.inputScaleFactors[id];
-                (*inputs_ptr_)[input.first].scale_factor = config.inputScaleFactorsPerInput[input.first];
-            }
-
-            id++;
         }
     }
+
     // update outputs
     {
         OutputsDataMap outputs = network.getOutputsInfo();
@@ -658,6 +647,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
+    _network_name = _network.getName();
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
     const auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
@@ -798,6 +788,10 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     // Set input and output information from orginal network
     UpdateInputsAndOutputsInfoFromNetwork(network);
+
+    // DEPRECATED: To be removed after fully switching to POT optimized models.
+    // Set Scale Factors for inputs according to configuration.
+    ov::intel_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config);
 
     if (fake_quantized) {
         UpdateInputScaleFromNetwork(network);
@@ -1636,7 +1630,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     SetNetworkInputs();
     SetNetworkOutputs();
 
-    ov::intel_gna::helpers::ApplyInputScaleFactors(config, header, *inputs_ptr_);
+    ov::intel_gna::helpers::ApplyInputScaleFactors(*inputs_ptr_, config, header);
 
     auto getOrientation = [](Gna2Operation& gnaOperation) {
         return gnaOperation.Type == Gna2OperationTypeConvolution ? kDnnNonInterleavedOrientation

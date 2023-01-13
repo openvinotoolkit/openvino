@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -50,7 +43,4 @@ struct gather_elements : public primitive_base<gather_elements> {
     /// @brief Which axis to gather on.
     int64_t axis;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

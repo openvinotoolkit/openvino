@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 #include <functional>
@@ -11,12 +10,7 @@
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 ///
 /// @brief Adds primitive which performs recurrent execution of the topology.
 ///
@@ -192,7 +186,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

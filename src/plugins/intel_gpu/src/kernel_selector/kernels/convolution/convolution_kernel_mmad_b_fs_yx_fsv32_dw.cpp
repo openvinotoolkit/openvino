@@ -39,7 +39,6 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.DisableTuning();
     k.EnableGroupedConvolution();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableDifferentInputWeightsTypes();
     return k;
 }
