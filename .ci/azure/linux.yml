@@ -404,9 +404,6 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
-    displayName: 'IE UT'
-
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
 
@@ -415,13 +412,6 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-
-  - script: |
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
-    env:
-      # because of IR reader v7
-      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
-    displayName: 'IE FuncTests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
