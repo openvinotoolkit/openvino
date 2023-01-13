@@ -449,18 +449,15 @@ void Graph::InitDescriptors() {
 
 #ifdef CPU_DEBUG_CAPS
         const auto& SPDs = node->getSupportedPrimitiveDescriptors();
-        for (int i = 0; i < SPDs.size(); i++) {
-            DEBUG_LOG("#",
-                      node->getExecIndex(),
-                      " ",
-                      node->getName(),
-                      "  SupportedPrimitiveDescriptors [",
-                      i,
-                      "/",
-                      SPDs.size(),
-                      "]: \n",
-                      SPDs[i]);
-        }
+        DEBUG_LOG("#",
+                  node->getExecIndex(),
+                  " ",
+                  node->getName(),
+                  " exposed ",
+                  SPDs.size(),
+                  " SupportedPrimitiveDescriptors: ");
+        for (int i = 0; i < SPDs.size(); i++)
+            std::cout <<"  [" << i << "]:" << SPDs[i] << std::endl;
 #endif
     }
 
