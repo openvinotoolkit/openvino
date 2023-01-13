@@ -142,7 +142,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    omz_downloader --name googlenet-v1 -o <models_dir>
 2. Convert the model to the Inference Engine IR format. Run the Model Optimizer using the `mo` command with the path to the model, model format (which must be FP32 for CPU and FPG) and output directory to generate the IR files:
    ```sh
-   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   mo --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel
    ```
 3. Run the tool with specifying the `<INSTALL_DIR>/samples/scripts/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and GPU devices:
 

@@ -180,9 +180,9 @@ const float sum_scale = 1;
 
 #if USE_IMAGE == 1
                         float8 blockB00 = as_float8(
-                                _sub_group_block_read8(wei, coordB0));
+                                intel_sub_group_block_read8(wei, coordB0));
                         float8 blockB01 = as_float8(
-                                _sub_group_block_read8(wei, coordB1));
+                                intel_sub_group_block_read8(wei, coordB1));
 #else
         float8 blockB00 = as_float8(
                 _sub_group_block_read8((const __global uint *)wei1));
