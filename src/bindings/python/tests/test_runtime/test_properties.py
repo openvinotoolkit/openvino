@@ -109,6 +109,7 @@ def test_properties_enums(ov_enum, expected_values):
         (properties.device.type, "DEVICE_TYPE"),
         (properties.device.gops, "DEVICE_GOPS"),
         (properties.device.thermal, "DEVICE_THERMAL"),
+        (properties.device.uuid, "DEVICE_UUID"),
         (properties.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
     ],
 )

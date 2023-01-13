@@ -119,6 +119,10 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::streams::Num>());
     } else if (any.is<ov::Affinity>()) {
         return py::cast(any.as<ov::Affinity>());
+    } else if (any.is<ov::device::UUID>()) {
+        std::stringstream uuid_stream;
+        uuid_stream << any.as<ov::device::UUID>();
+        return py::cast(uuid_stream.str());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
