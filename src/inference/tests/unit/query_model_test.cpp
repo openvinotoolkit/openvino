@@ -19,6 +19,8 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
+std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s);
+
 std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s) {
     for (auto it = s.begin(); it != s.end(); ++it) {
         if (it != s.begin()) {
