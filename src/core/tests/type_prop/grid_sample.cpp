@@ -2,14 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dimension_tracker.hpp"
 #include "gtest/gtest.h"
+#include "openvino/op/util/attr_types.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace opset9;
+using namespace testing;
 
-TEST(type_prop, grid_sample_default) {
+TEST(type_prop, grid_sample_default_constructor) {
+    const auto data = make_shared<Parameter>(element::i32, PartialShape{1, 3, 4, 6});
+    const auto grid = make_shared<Parameter>(element::f32, PartialShape{1, 7, 8, 2});
+    auto op = make_shared<GridSample>();
+
+    const auto& default_attrs = op->get_attributes();
+    EXPECT_EQ(default_attrs.align_corners, false);
+    EXPECT_EQ(default_attrs.mode, GridSample::InterpolationMode::BILINEAR);
+    EXPECT_EQ(default_attrs.padding_mode, GridSample::PaddingMode::ZEROS);
+
+    op->set_argument(0, data);
+    op->set_argument(1, grid);
+
+    op->set_attributes(
+        GridSample::Attributes(true, GridSample::InterpolationMode::BICUBIC, GridSample::PaddingMode::BORDER));
+    const auto& new_attrs = op->get_attributes();
+    EXPECT_EQ(new_attrs.align_corners, true);
+    EXPECT_EQ(new_attrs.mode, GridSample::InterpolationMode::BICUBIC);
+    EXPECT_EQ(new_attrs.padding_mode, GridSample::PaddingMode::BORDER);
+
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_element_type(), element::i32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 3, 7, 8}));
+}
+
+TEST(type_prop, grid_sample_default_attributes) {
     const auto data = make_shared<opset9::Parameter>(element::i32, PartialShape{1, 3, 224, 224});
     const auto grid = make_shared<opset9::Parameter>(element::f32, PartialShape{1, 10, 10, 2});
     const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
@@ -27,6 +57,82 @@ TEST(type_prop, grid_sample_dynamic_batch) {
 
     EXPECT_TRUE(grid_sample->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3, 10, 10}))
         << "The output shape of GridSample is incorrect";
+}
+
+TEST(type_prop, grid_sample_interval_dims_and_labels) {
+    auto data_pshape = PartialShape{{2, 4}, {1, 3}, 128, 256};
+    set_shape_labels(data_pshape, 10);
+    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
+
+    auto grid_pshape = PartialShape{{3, 8}, {4, 6}, {5, 7}, 2};
+    set_shape_labels(grid_pshape, 20);
+    const auto grid = make_shared<opset9::Parameter>(element::f32, grid_pshape);
+
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+
+    const auto& out_shape = grid_sample->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, (PartialShape{{3, 4}, {1, 3}, {4, 6}, {5, 7}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, 11, 21, 22));
+}
+
+TEST(type_prop, grid_sample_static_batch_data_labeled_dynamic_grid_batch) {
+    auto data_pshape = PartialShape{2, {1, 3}, 224, 224};
+    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
+
+    auto grid_pshape = PartialShape{-1, {4, 6}, {5, 7}, 2};
+    set_shape_labels(grid_pshape, 20);
+    const auto grid = make_shared<opset9::Parameter>(element::f32, grid_pshape);
+
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+
+    const auto& out_shape = grid_sample->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, (PartialShape{2, {1, 3}, {4, 6}, {5, 7}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, ov::no_label, 21, 22));
+}
+
+TEST(type_prop, grid_sample_labeled_dynamic_batch_data_labeled_static_grid_batch) {
+    auto data_pshape = PartialShape{-1, {1, 3}, 224, 224};
+    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
+    set_shape_labels(data_pshape, 10);
+
+    auto grid_pshape = PartialShape{2, Dimension(4, 6), Dimension(5, 7), 2};
+    const auto grid = make_shared<opset9::Parameter>(element::f32, grid_pshape);
+
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+
+    const auto& out_shape = grid_sample->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, (PartialShape{2, {1, 3}, {4, 6}, {5, 7}}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, ov::no_label, 21, 22));
+}
+
+TEST(type_prop, grid_sample_labeled_interval_batch_data_dynamic_grid_batch) {
+    auto data_pshape = PartialShape{{2, 4}, 3, 224, 224};
+    set_shape_labels(data_pshape, 10);
+    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
+
+    auto grid_pshape = PartialShape{-1, 6, 7, 2};
+    const auto grid = make_shared<opset9::Parameter>(element::f32, grid_pshape);
+
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+
+    const auto& out_shape = grid_sample->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, (PartialShape{{2, 4}, 3, 6, 7}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, 11, ov::no_label, ov::no_label));
+}
+
+TEST(type_prop, grid_sample_dynamic_batch_data_labeled_interval_grid_batch) {
+    auto data_pshape = PartialShape{-1, 3, 224, 224};
+    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
+
+    auto grid_pshape = PartialShape{{2, 4}, 6, 7, 2};
+    set_shape_labels(grid_pshape, 20);
+    const auto grid = make_shared<opset9::Parameter>(element::f32, grid_pshape);
+
+    const auto grid_sample = make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+
+    const auto& out_shape = grid_sample->get_output_partial_shape(0);
+    EXPECT_EQ(out_shape, (PartialShape{{2, 4}, 3, 6, 7}));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, ov::no_label, 21, 22));
 }
 
 TEST(type_prop, grid_sample_dynamic_output_spatials) {
