@@ -93,17 +93,18 @@ void regmodule_properties(py::module m) {
         "openvino.runtime.properties.intel_gpu.hint submodule that simulates ov::intel_gpu::hint");
 
     // `ThrottleLevel` enum is conflicting with `priorities.hint.Priority` in bindings.
-    // Thus below implementation will not be present. py::module_local() is forcing
-    // `Priorty` values to translate to `ThrottleLevel` on `ov.intel_gpu.hint` level
-    // where only `queue_throttle` is using it directly.
-    // py::enum_<ov::intel_gpu::hint::ThrottleLevel>(m_intel_gpu_hint,
-    //                                               "ThrottleLevel",
-    //                                               py::arithmetic(),
-    //                                               py::module_local())
-    //     .value("LOW", ov::intel_gpu::hint::ThrottleLevel::LOW)
-    //     .value("MEDIUM", ov::intel_gpu::hint::ThrottleLevel::MEDIUM)
-    //     .value("HIGH", ov::intel_gpu::hint::ThrottleLevel::HIGH)
-    //     .value("DEFAULT", ov::intel_gpu::hint::ThrottleLevel::DEFAULT);
+    // `ov::intel_gpu::hint::ThrottleLevel` workaround proxy class:
+    class ThrottleLevelProxy {};
+
+    py::class_<ThrottleLevelProxy, std::shared_ptr<ThrottleLevelProxy>> m_throttle_level(
+        m_intel_gpu_hint,
+        "ThrottleLevel",
+        "openvino.runtime.properties.intel_gpu.hint.ThrottleLevel that simulates ov::intel_gpu::hint::ThrottleLevel");
+
+    m_throttle_level.attr("LOW") = ov::intel_gpu::hint::ThrottleLevel::LOW;
+    m_throttle_level.attr("MEDIUM") = ov::intel_gpu::hint::ThrottleLevel::MEDIUM;
+    m_throttle_level.attr("HIGH") = ov::intel_gpu::hint::ThrottleLevel::HIGH;
+    m_throttle_level.attr("DEFAULT") = ov::intel_gpu::hint::ThrottleLevel::DEFAULT;
 
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::queue_throttle, "queue_throttle");
     wrap_property_RW(m_intel_gpu_hint, ov::intel_gpu::hint::queue_priority, "queue_priority");

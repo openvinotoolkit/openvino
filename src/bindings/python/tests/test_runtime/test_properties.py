@@ -90,6 +90,33 @@ def test_properties_enums(ov_enum, expected_values):
         assert int(property_obj) == property_int
 
 
+@pytest.mark.parametrize(
+    ("proxy_enums", "expected_values"),
+    [
+        (
+            (
+                properties.intel_gpu.hint.ThrottleLevel.LOW,
+                properties.intel_gpu.hint.ThrottleLevel.MEDIUM,
+                properties.intel_gpu.hint.ThrottleLevel.HIGH,
+                properties.intel_gpu.hint.ThrottleLevel.DEFAULT,
+            ),
+            (
+                ("Priority.LOW", 0),
+                ("Priority.MEDIUM", 1),
+                ("Priority.HIGH", 2),
+                ("Priority.MEDIUM", 1),
+            ),
+        ),
+    ]
+)
+def test_conflicting_enum(proxy_enums, expected_values):
+    assert len(proxy_enums) == len(expected_values)
+
+    for i in range(len(proxy_enums)):
+        assert str(proxy_enums[i]) == expected_values[i][0]
+        assert int(proxy_enums[i]) == expected_values[i][1]
+
+
 ###
 # Read-Only properties
 ###
@@ -109,6 +136,7 @@ def test_properties_enums(ov_enum, expected_values):
         (properties.device.type, "DEVICE_TYPE"),
         (properties.device.gops, "DEVICE_GOPS"),
         (properties.device.thermal, "DEVICE_THERMAL"),
+        (properties.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (properties.intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
         (properties.intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (properties.intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
@@ -218,7 +246,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.intel_gpu.hint.queue_throttle,
             "GPU_QUEUE_THROTTLE",
-            ((properties.hint.Priority.LOW, properties.hint.Priority.LOW),),
+            ((properties.intel_gpu.hint.ThrottleLevel.LOW, properties.hint.Priority.LOW),),
         ),
         (
             properties.intel_gpu.hint.queue_priority,
