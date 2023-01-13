@@ -176,7 +176,11 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelFileName, parsed._config);
+    auto conf = ov::any_copy(parsed._config);
+    std::ifstream modelStream(modelFileName, std::ios::binary);
+    if (!modelStream.is_open())
+        IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
+    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelStream, conf);
     return {exec._ptr, exec._so};
 }
 
@@ -225,7 +229,9 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
     auto exec = _impl->GetCPPPluginByName(deviceName)
-                    .import_model(networkModel, std::dynamic_pointer_cast<RemoteContext>(context), parsed._config);
+                    .import_model(networkModel,
+                                  ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}},
+                                  ov::any_copy(parsed._config));
     return {exec._ptr, exec._so};
 }
 
@@ -297,7 +303,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
+    return _impl->GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {

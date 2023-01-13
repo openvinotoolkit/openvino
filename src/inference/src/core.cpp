@@ -263,7 +263,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-        return {remoteContext._ptr, {remoteContext._so}};
+        return {remoteContext._impl, {remoteContext._so}};
     });
 }
 
@@ -276,7 +276,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
-        return {remoteContext._ptr, {remoteContext._so}};
+        return {remoteContext._impl, {remoteContext._so}};
     });
 }
 

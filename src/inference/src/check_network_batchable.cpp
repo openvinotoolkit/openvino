@@ -9,19 +9,15 @@
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 namespace details {
 
-NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network,
+NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& model,
                                        const std::string& deviceNameWithoutBatch,
                                        bool strictly_track_dims) {
-    CNNNetwork clonedNetwork(cloneNetwork(orig_network));
-    auto function = clonedNetwork.getFunction();
-    // find the batch dim
-    ov::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ov::pass::FindBatch>(true, strictly_track_dims);
-    m.run_passes(function);
+    auto function =
+        model->clone();  // find the batch dim ov::pass::Manager m; m.register_pass<ngraph::pass::InitNodeInfo>();
+                         // m.register_pass<ov::pass::FindBatch>(true, strictly_track_dims); m.run_passes(function);
     bool any_batched_inputs = false;
     // do not reshape/re-batch originally batched networks and when there are no inputs with the N* layouts
     // input(s) should have the batch dim as the first dim or none (current limitation of the auto-batching impl)
@@ -49,12 +45,12 @@ NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network,
     if (!any_batched_inputs)
         return NetworkBatchAbility::NO;
 
-    for (auto&& node : orig_network.getFunction()->get_ops())
+    for (auto&& node : model->get_ops())
         node->get_rt_info()["affinity"] = "BATCH";  // default affinity (ignored if HETERO is not triggered)
     // have to execute the DetectionOutput separately (without batching)
     // as this layer does mix-in the values from the different inputs (batch id)
     bool bDetectionOutput = false;
-    for (auto& result_node : orig_network.getFunction()->get_results()) {
+    for (auto& result_node : model->get_results()) {
         auto do_node = result_node->input_value(0).get_node_shared_ptr();
         std::shared_ptr<ov::Node> convert_node;
         if (ov::is_type<ov::opset1::Convert>(do_node)) {  // cases with do->convert->result
@@ -76,4 +72,4 @@ NetworkBatchAbility isNetworkBatchable(const CNNNetwork& orig_network,
 }
 
 }  // namespace details
-}  // namespace InferenceEngine
+}  // namespace ov
