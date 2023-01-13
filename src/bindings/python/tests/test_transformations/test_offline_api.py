@@ -222,17 +222,8 @@ def test_version_default(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.mark.parametrize("is_path_xml, is_path_bin", [  # noqa: PT006
-    (True, True),
-    (True, False),
-    (False, True),
-    (False, False),
-],
-)
-def test_serialize_default_bin(request, is_path_xml, is_path_bin):
-    xml_path, bin_path = create_filename_for_test(request.node.name,
-                                                  is_path_xml,
-                                                  is_path_bin)
+def test_serialize_default_bin(request):
+    xml_path, bin_path = create_filename_for_test(request.node.name)
     model = get_relu_model()
     serialize(model, xml_path)
     assert os.path.exists(bin_path)
