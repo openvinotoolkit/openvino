@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief mode for the @ref depth_to_space primitive.
 enum class depth_to_space_mode : int32_t {
@@ -46,7 +39,4 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     /// @brief depth division mode
     depth_to_space_mode mode;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

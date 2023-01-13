@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "activation.hpp"
@@ -10,12 +9,6 @@
 #include <algorithm>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Weights orders
 /// @details Specifies the order in which the weights are concatenated.
@@ -256,7 +249,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

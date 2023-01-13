@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -88,8 +86,8 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
 
 TEST(DISABLED_condition_gpu, basic_equal_comp) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     auto scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -114,7 +112,7 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
         eltwise("output", { input_info("condi"), input_info("scale_data") }, eltwise_mode::prod)
     );
 
-    network net(engine, topology, bs);
+    network net(engine, topology, config);
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f });
     set_values(scale_mem, { 10.0f });
     net.set_input_data("input", input);
@@ -140,8 +138,8 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
 
 TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
 
@@ -188,7 +186,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
 
     set_values(input0, input0_data);
     set_values(input1, input1_data);
-    network net(engine, topology, bs);
+    network net(engine, topology, config);
     net.set_input_data("input0", input0);
     net.set_input_data("input1", input1);
 
@@ -213,8 +211,8 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
 
 TEST(DISABLED_condition_gpu, generic_test_true_false) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 5, 2, 5, 1 } });
     std::vector<float> input_data(50);
     std::iota(input_data.begin(), input_data.end(), 0.0f);
@@ -283,7 +281,7 @@ TEST(DISABLED_condition_gpu, generic_test_true_false) {
                 );
 
                 set_values(input, input_data);
-                network net(engine, topology, bs);
+                network net(engine, topology, config);
                 net.set_input_data("input", input);
 
                 decltype(net.execute()) outputs;
@@ -322,8 +320,8 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
         <prims...>
     */
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
@@ -369,7 +367,7 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
     set_values(compare, compare_data);
     set_values(compare2, compare_2_data);
 
-    network net(engine, topology, bs);
+    network net(engine, topology, config);
     net.set_input_data("input", input);
     net.set_input_data("compare", compare);
     net.set_input_data("compare2", compare2);
@@ -392,8 +390,8 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     <prims...>
     */
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
     auto compare2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 2, 1 } });
@@ -462,7 +460,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     set_values(compare, compare_data);
     set_values(compare2, compare_2_data);
 
-    network net(engine, topology, bs);
+    network net(engine, topology, config);
     net.set_input_data("input", input);
     net.set_input_data("compare", compare);
     net.set_input_data("compare2", compare2);
@@ -474,8 +472,8 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
 TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
 
@@ -493,13 +491,13 @@ TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
         condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
-    EXPECT_ANY_THROW(network net(engine, topology, bs););
+    EXPECT_ANY_THROW(network net(engine, topology, config););
 }
 
 TEST(DISABLED_condition_gpu, negative_too_big_offset) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
 
@@ -517,13 +515,13 @@ TEST(DISABLED_condition_gpu, negative_too_big_offset) {
         condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL, {1, 1, 2, 1})
     );
 
-    EXPECT_ANY_THROW(network net(engine, topology, bs););
+    EXPECT_ANY_THROW(network net(engine, topology, config););
 }
 
 TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
@@ -548,13 +546,13 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
         condition("condi", input_info("input"), branch_true, branch_false, "compare", cond_functions::EQUAL)
     );
 
-    EXPECT_ANY_THROW(network net(engine, topology, bs););
+    EXPECT_ANY_THROW(network net(engine, topology, config););
 }
 
 TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
     auto& engine = get_test_engine();
-    build_options bs;
-    bs.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
@@ -582,5 +580,5 @@ TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
         pooling("pooling_check_name", input_info("condi"), cldnn::pooling_mode::max, { 0, 0, 2, 1 }, { 0, 0, 2, 1 })
     );
 
-    EXPECT_ANY_THROW(network net(engine, topology, bs););
+    EXPECT_ANY_THROW(network net(engine, topology, config););
 }

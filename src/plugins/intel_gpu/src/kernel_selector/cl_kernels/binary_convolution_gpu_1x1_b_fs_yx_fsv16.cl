@@ -18,11 +18,11 @@ REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 KERNEL(binary_convolution_1x1_b_fs_yx_fsv16)(const __global INPUT0_TYPE* input,
                                                    __global OUTPUT_TYPE* output,
-                                             const __global FILTER_TYPE* weights,
+                                             const __global FILTER_TYPE* weights
 #if HAS_FUSED_OPS_DECLS
-                                             FUSED_OPS_DECLS,
+                                             , FUSED_OPS_DECLS
 #endif
-                                             uint split_idx)
+)
 {
     const int xy = get_group_id(0);
     const int f_block = get_global_id(1);

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/condition.hpp"
@@ -27,7 +26,7 @@ private:
             add_or_change_input_layout(node);
             _program = program::build_program(node.get_program().get_engine(),
                                               _topology,
-                                              node.get_program().get_options(),
+                                              node.get_program().get_config(),
                                               true);  // rebuild program
         }
         program::ptr get() const { return _program; }
