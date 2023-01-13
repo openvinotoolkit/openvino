@@ -676,8 +676,9 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
-    const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
-    const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
+    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
+    const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::CompiledModel execNet;

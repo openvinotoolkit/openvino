@@ -196,10 +196,10 @@ OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTest
         }
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
-        // TODO: Possible names collision
-        auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
-        auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
-        auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".meta";
+        auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+        auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + filePrefix + op_name + ".xml";
+        auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + filePrefix + op_name + ".bin";
+        auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + filePrefix + op_name + ".meta";
         auto cnn_net = InferenceEngine::CNNNetwork(function);
         cnn_net.serialize(xml_path, bin_path);
         serialize_meta_info(op.second, meta_info);

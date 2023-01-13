@@ -4,6 +4,7 @@
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -13,12 +14,18 @@
 
 class SerializationTensorIteratorTest : public ::testing::Test {
 protected:
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::string m_out_xml_path = test_name + ".xml";
-    std::string m_out_bin_path = test_name + ".bin";
+    std::string m_out_xml_path;
+    std::string m_out_bin_path;
+    std::string tmpXmlFileName;
+    std::string tmpBinFileName;
 
-    std::string tmpXmlFileName = "TestModel.xml";
-    std::string tmpBinFileName = "TestModel.bin";
+    void SetUp() override {
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+        tmpXmlFileName = filePrefix + "TestModel.xml";
+        tmpBinFileName = filePrefix + "TestModel.bin";
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());

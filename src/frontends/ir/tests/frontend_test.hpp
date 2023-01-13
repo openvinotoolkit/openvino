@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/openvino.hpp"
@@ -15,12 +16,15 @@ protected:
     ov::Core core;
     ov::frontend::FrontEndManager manager;
 
-    std::string xmlFileName = "IrFrontendTestModel.xml";
-    std::string binFileName = "IrFrontendTestModel.bin";
+    std::string xmlFileName{};
+    std::string binFileName{};
 
     void createTemporalModelFile(std::string xmlFileContent,
                                  std::vector<unsigned char> binFileContent = std::vector<unsigned char>()) {
         ASSERT_TRUE(xmlFileContent.size() > 0);
+        auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+        xmlFileName = filePrefix + "_IrFrontendTestModel.xml";
+        binFileName = filePrefix + "_IrFrontendTestModel.bin";
 
         {
             std::ofstream xmlFile;
