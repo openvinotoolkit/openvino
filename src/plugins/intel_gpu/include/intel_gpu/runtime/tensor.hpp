@@ -320,21 +320,10 @@ public:
 
     size_t hash() const {
         size_t seed = 0;
-        for (size_t i = 0; i < batch.size(); ++i) {
-            seed = hash_combine(seed, batch[i]);
-        }
-
-        for (size_t i = 0; i < feature.size(); ++i) {
-            seed = hash_combine(seed, feature[i]);
-        }
-
-        for (size_t i = 0; i < spatial.size(); ++i) {
-            seed = hash_combine(seed, spatial[i]);
-        }
-
-        for (size_t i = 0; i < group.size(); ++i) {
-            seed = hash_combine(seed, group[i]);
-        }
+        seed = hash_range(seed, batch.begin(),      batch.end());
+        seed = hash_range(seed, feature.begin(),    feature.end());
+        seed = hash_range(seed, spatial.begin(),    spatial.end());
+        seed = hash_range(seed, group.begin(),      group.end());
         return seed;
     }
 

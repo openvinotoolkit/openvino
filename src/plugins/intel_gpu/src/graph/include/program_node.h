@@ -482,18 +482,6 @@ public:
                 seed = hash_combine(seed, prim.activation_params.a);
                 seed = hash_combine(seed, prim.activation_params.b);
             }
-
-            if (!is_dynamic()) {
-                // input layouts
-                for (auto& in : get_input_layouts()) {
-                    seed = hash_combine(seed, in.hash());
-                }
-
-                // output layouts
-                for (auto& out : get_output_layouts()) {
-                    seed = hash_combine(seed, out.hash());
-                }
-            }
         }
         return seed;
     }

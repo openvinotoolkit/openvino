@@ -516,10 +516,10 @@ struct layout {
         seed = hash_combine(seed, data_padding.hash());
         seed = hash_combine(seed, format.value);
         seed = hash_combine(seed, data_type);
-        if (!is_dynamic()) {
-            for (auto& d : get_shape()) {
-                seed = hash_combine(seed, d);
-            }
+
+        auto pshape = get_partial_shape();
+        for (size_t idx = 0; idx < pshape.size(); idx++) {
+            seed = hash_combine(seed, pshape[idx].get_length());
         }
         return seed;
     }

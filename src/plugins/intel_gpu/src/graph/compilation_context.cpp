@@ -11,8 +11,6 @@ namespace cldnn {
 class CompilationContext : public ICompilationContext {
 public:
     using data_type = std::pair<size_t, ICompilationContext::Task>;
-    using data_list_type = std::list<data_type>;
-    using data_list_iter = typename data_list_type::iterator;
 
     CompilationContext(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id) {
         _kernels_cache = cldnn::make_unique<kernels_cache>(engine, config, program_id, nullptr, kernel_selector::KernelBase::get_db().get_batch_header_str());
@@ -22,7 +20,7 @@ public:
                 bool success = get_front_task(task);
                 if (success) {
                     task(*_kernels_cache);
-                    pop_front_task();
+                    erase_front_task();
                 } else {
                     std::chrono::milliseconds ms{1};
                     std::this_thread::sleep_for(ms);
@@ -59,7 +57,7 @@ private:
         return false;
     }
 
-    void pop_front_task() {
+    void erase_front_task() {
         std::lock_guard<std::mutex> lock(_mutex);
         auto front = _compile_queue.front();
         _compile_queue_keymap.erase(front.first);
@@ -71,8 +69,8 @@ private:
     std::thread _worker;
     std::atomic_bool _stop_compilation{false};
 
-    data_list_type _compile_queue;
-    std::unordered_map<size_t, data_list_iter> _compile_queue_keymap;
+    std::deque<data_type> _compile_queue;
+    std::unordered_map<size_t, std::deque<data_type>::iterator> _compile_queue_keymap;
     std::mutex _mutex;
 };
 
