@@ -10,8 +10,8 @@
 #pragma once
 
 #include <exception>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "ie_api.h"
 

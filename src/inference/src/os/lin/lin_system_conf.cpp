@@ -217,7 +217,6 @@ void parse_processor_info_linux(const int _processors,
                     break;
                 }
             }
-
             _sockets++;
         }
     }
