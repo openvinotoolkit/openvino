@@ -15,11 +15,10 @@ auto autoBatchConfigs = []() {
          {CONFIG_KEY(AUTO_BATCH_TIMEOUT), "0 "}}};
 };
 
-#ifdef HAVE_INTEL_GPU_PLUGIN
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatchBehaviorTests,
                          OVInferRequestCancellationTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(autoBatchConfigs())),
                          OVInferRequestCancellationTests::getTestCaseName);
-#endif
+
 }  // namespace

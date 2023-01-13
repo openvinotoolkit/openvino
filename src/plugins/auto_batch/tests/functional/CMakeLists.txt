@@ -42,15 +42,4 @@ addIeTargetTest(
             Auto_Batch
 )
 
-if (ENABLE_INTEL_GPU)
-    find_package(OpenCL QUIET)
-    if(OpenCL_FOUND)
-        target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_INTEL_GPU_PLUGIN)
-    endif()
-endif()
-
-if (ENABLE_TEMPLATE)
-    target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_TEMPLATE_PLUGIN)
-endif()
-
 set_ie_threading_interface_for(${TARGET_NAME})

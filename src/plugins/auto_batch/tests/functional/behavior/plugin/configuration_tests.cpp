@@ -32,7 +32,6 @@ auto auto_batch_configs = []() {
     };
 };
 
-#ifdef HAVE_INTEL_GPU_PLUGIN
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          IncorrectConfigTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
@@ -50,5 +49,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(auto_batch_configs())),
                          CorrectConfigTests::getTestCaseName);
-#endif
+
 }  // namespace

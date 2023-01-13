@@ -49,7 +49,6 @@ std::vector<ov::element::Type> supported_input_prcs = {ov::element::boolean,
                                                        ov::element::u32,
                                                        ov::element::u64};
 
-#ifdef HAVE_INTEL_GPU_PLUGIN
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVInferRequestIOTensorTest,
                          ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_BATCH),
@@ -69,5 +68,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                                             ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                             ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestCheckTensorPrecision::getTestCaseName);
-#endif
+
 }  // namespace

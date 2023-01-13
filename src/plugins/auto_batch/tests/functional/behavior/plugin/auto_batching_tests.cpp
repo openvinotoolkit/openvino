@@ -32,7 +32,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
-#ifdef HAVE_INTEL_GPU_PLUGIN
 const std::vector<size_t> gpu_num_streams{2};
 const std::vector<bool> gpu_get_vs_set{true, false};
 const std::vector<size_t> gpu_num_requests{1, 8, 16, 64};
@@ -79,5 +78,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_GPU_2_0_uint,
                                             ::testing::Values(DefaultParameter{ov::auto_batch_timeout.name(),
                                                                                InferenceEngine::Parameter{1000}})),
                          DefaultConfigurationTest::getTestCaseName);
-#endif
+
 }  // namespace
