@@ -145,12 +145,11 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         std::shared_ptr<Node> flat_node =
             std::make_shared<opset3::Pad>(data, pads_begin, pads_end, ngraph::op::PadMode::CONSTANT);
         new_ops.push_back(flat_node);
-        const auto padded_shape = std::make_shared<opset3::ShapeOf>(flat_node);
 
+        std::shared_ptr<Node> squeezed_shape = std::make_shared<opset3::ShapeOf>(flat_node);
         const auto block_lenght = block_values.size();
         OutputVector dispersed_shape(block_lenght + 1);
         std::vector<size_t> axes_order(block_lenght + 1);
-        std::shared_ptr<Node> squeezed_shape = padded_shape;
 
         const auto zero = opset3::Constant::create(element::i64, Shape{1}, {0});
         const auto one = opset3::Constant::create(element::i64, Shape{1}, {1});

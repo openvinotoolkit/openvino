@@ -23,10 +23,10 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
         }
 
         NodeVector new_ops;
-        auto data = batch_to_space->input_value(0);
-        auto block = batch_to_space->input_value(1);
-        auto crops_begin = batch_to_space->input_value(2);
-        auto crops_end = batch_to_space->input_value(3);
+        const auto data = batch_to_space->input_value(0);
+        const auto block = batch_to_space->input_value(1);
+        const auto crops_begin = batch_to_space->input_value(2);
+        const auto crops_end = batch_to_space->input_value(3);
 
         const auto data_shape_rank = data.get_partial_shape().rank();
         if (data_shape_rank.is_dynamic()) {
@@ -103,8 +103,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
 
         const auto begin_mask = std::vector<int64_t>(data_shape_rank.get_length(), 0);
         const auto& end_mask = begin_mask;
-        flat_node =
-            std::make_shared<opset3::StridedSlice>(flat_node, crops_begin, upperbounds, begin_mask, end_mask);
+        flat_node = std::make_shared<opset3::StridedSlice>(flat_node, crops_begin, upperbounds, begin_mask, end_mask);
         new_ops.push_back(flat_node);
 
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
@@ -141,11 +140,8 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         auto crops_end = batch_to_space->input_value(3);
 
         const auto block_const = ov::as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
-        const auto crops_begin_const = ov::as_type_ptr<opset3::Constant>(crops_begin.get_node_shared_ptr());
-        const auto crops_end_const = ov::as_type_ptr<opset3::Constant>(crops_end.get_node_shared_ptr());
 
         const std::vector<int64_t>& block_values = block_const->cast_vector<int64_t>();
-        const std::vector<int64_t>& crops_end_values = crops_end_const->cast_vector<int64_t>();
 
         std::vector<int64_t> dispersed_shape(1);
         dispersed_shape.insert(dispersed_shape.end(), data_shape.begin(), data_shape.end());
@@ -193,19 +189,12 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             new_ops.push_back(flat_node);
         }
 
-        std::vector<int64_t> upperbounds_values;
-        auto flat_node_shape = flat_node->get_shape();
-        for (size_t i = 0; i < flat_node_shape.size(); ++i) {
-            upperbounds_values.push_back(flat_node_shape.at(i) - crops_end_values.at(i));
-        }
-        const auto upperbounds = opset3::Constant::create(crops_end.get_element_type(),
-                                                          Shape{upperbounds_values.size()},
-                                                          upperbounds_values);
+        const auto shape_of_flat_node = std::make_shared<opset3::ShapeOf>(flat_node, crops_end.get_element_type());
+        const auto upperbounds = std::make_shared<opset3::Subtract>(shape_of_flat_node, crops_end);
 
         std::vector<int64_t> begin_mask(data_shape.size(), 0);
         std::vector<int64_t> end_mask(data_shape.size(), 0);
-        flat_node =
-            std::make_shared<opset3::StridedSlice>(flat_node, crops_begin_const, upperbounds, begin_mask, end_mask);
+        flat_node = std::make_shared<opset3::StridedSlice>(flat_node, crops_begin, upperbounds, begin_mask, end_mask);
         new_ops.push_back(flat_node);
 
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
