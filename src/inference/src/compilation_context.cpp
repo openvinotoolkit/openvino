@@ -49,7 +49,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     if (filePath.size() > 0) {
         try {
             absPath = FileUtils::absoluteFilePath(filePath);
-        } catch (...) {
+        } catch (std::runtime_error &) {
             // can't get absolute path, will use filePath for hash
         }
     }
