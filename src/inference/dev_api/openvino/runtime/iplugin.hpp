@@ -245,4 +245,3 @@ private:
             IE_THROW(Unexpected);                                                                        \
         }                                                                                                \
     }
-

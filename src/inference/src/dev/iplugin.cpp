@@ -192,4 +192,3 @@ ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Mod
     }
     OPENVINO_NOT_IMPLEMENTED;
 }
-

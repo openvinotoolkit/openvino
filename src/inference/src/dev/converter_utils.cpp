@@ -31,14 +31,6 @@
 
 namespace {
 
-std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
-    ov::Output<ngraph::Node> p(std::const_pointer_cast<ov::Node>(port.get_node_shared_ptr()), port.get_index());
-    if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
-        p = node->input_value(0);
-    }
-    return ngraph::op::util::create_ie_output_name(p);
-}
-
 void fill_input_info(ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Ptr& input_info) {
     const ov::Output<const ov::Node> const_input(input.get_node(), input.get_index());
     ov::legacy_convert::fill_input_info(const_input, input_info);
