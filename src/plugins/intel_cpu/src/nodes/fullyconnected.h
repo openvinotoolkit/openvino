@@ -42,7 +42,7 @@ public:
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
-    // void createPrimitive() override;
+    void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -89,6 +89,7 @@ private:
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    dnnl::primitive_attr attr;
 
     class ExecutorInnerProduct : public DnnlExecutor {
         public:

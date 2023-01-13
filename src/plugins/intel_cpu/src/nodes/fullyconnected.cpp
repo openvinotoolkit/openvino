@@ -265,6 +265,13 @@ void FullyConnected::getSupportedDescriptors() {
     }
 }
 
+void FullyConnected::createPrimitive() {
+    Node::createPrimitive();
+    setPostOps(attr, outDims);
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    appendPostOpArgs(attr, primArgs, postOpsArgs);
+}
+
 void FullyConnected::prepareParams() {
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
@@ -283,10 +290,6 @@ void FullyConnected::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
-    setPostOps(*attr, dstMemPtr->getStaticDims());
-    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
-
     DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
     DnnlMemoryDescCPtr biasDesc = nullptr;
     if (biasMemPtr) {
@@ -301,7 +304,7 @@ void FullyConnected::prepareParams() {
                  weightDesc,
                  biasDesc,
                  outDesc,
-                 *attr,
+                 attr,
                  implementationTypeIP,
                  useConv1x1};
 
@@ -424,8 +427,6 @@ void FullyConnected::prepareParams() {
         if (withBiases) {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
-
-        appendPostOpArgs(*attr, primArgs, postOpsArgs);
 
         auto pd = execPtr->getPrimitiveDesc();
         auto scratchpadMem = getScratchPadMem(pd);
