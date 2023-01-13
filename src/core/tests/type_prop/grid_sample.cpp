@@ -92,8 +92,8 @@ TEST(type_prop, grid_sample_static_batch_data_labeled_dynamic_grid_batch) {
 
 TEST(type_prop, grid_sample_labeled_dynamic_batch_data_labeled_static_grid_batch) {
     auto data_pshape = PartialShape{-1, {1, 3}, 224, 224};
-    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
     set_shape_labels(data_pshape, 10);
+    const auto data = make_shared<opset9::Parameter>(element::i32, data_pshape);
 
     auto grid_pshape = PartialShape{2, Dimension(4, 6), Dimension(5, 7), 2};
     const auto grid = make_shared<opset9::Parameter>(element::f32, grid_pshape);
@@ -102,7 +102,7 @@ TEST(type_prop, grid_sample_labeled_dynamic_batch_data_labeled_static_grid_batch
 
     const auto& out_shape = grid_sample->get_output_partial_shape(0);
     EXPECT_EQ(out_shape, (PartialShape{2, {1, 3}, {4, 6}, {5, 7}}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, ov::no_label, 21, 22));
+    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(10, 11, ov::no_label, ov::no_label));
 }
 
 TEST(type_prop, grid_sample_labeled_interval_batch_data_dynamic_grid_batch) {
