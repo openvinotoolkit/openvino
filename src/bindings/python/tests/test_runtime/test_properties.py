@@ -107,7 +107,7 @@ def test_properties_enums(ov_enum, expected_values):
                 ("Priority.MEDIUM", 1),
             ),
         ),
-    ]
+    ],
 )
 def test_conflicting_enum(proxy_enums, expected_values):
     assert len(proxy_enums) == len(expected_values)
