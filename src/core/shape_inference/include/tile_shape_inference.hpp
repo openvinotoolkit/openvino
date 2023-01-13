@@ -4,7 +4,6 @@
 #pragma once
 #include <openvino/op/tile.hpp>
 
-#include "shape_infer_transformations.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -28,7 +27,7 @@ std::vector<T> shape_infer(const Tile* op,
 
     // Get repeats and pre process values
     auto negative_repeats_to_zero = [](const TDimValue v) -> TDimValue {
-        return std::max<TDimValue>(0, sh_infer::tr::InTypeRange<TDimValue>()(v));
+        return std::max<TDimValue>(0, ov::util::InTypeRange<TDimValue>()(v));
     };
 
     auto repeats = get_input_const_data_as_shape<T>(op, 1, constant_data, negative_repeats_to_zero);

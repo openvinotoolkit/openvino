@@ -8,7 +8,7 @@
 #include <openvino/opsets/opset1.hpp>
 #include <type_traits>
 
-#include "shape_infer_transformations.hpp"
+#include "shape_infer_type_utils.hpp"
 
 template <class OpType, class T>
 void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
@@ -231,7 +231,7 @@ template <class TShape,
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
                                               const std::map<size_t, TTensorPtr>& constant_data = {},
-                                              UnaryOperation&& func = sh_infer::tr::Cast<TData>()) {
+                                              UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (constant_data.count(idx)) {
         return std::unique_ptr<TRes>(
             new TRes(get_tensor_data_as<TData, TRes>(constant_data.at(idx).get(), std::forward<UnaryOperation>(func))));
@@ -275,7 +275,7 @@ template <class TShape,
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
                                               const std::map<size_t, TTensorPtr>& constant_data = {},
-                                              UnaryOperation&& func = sh_infer::tr::Cast<TData>()) {
+                                              UnaryOperation&& func = ov::util::Cast<TData>()) {
     if (constant_data.count(idx)) {
         return std::unique_ptr<TRes>(
             new TRes(get_tensor_data_as<TData, TRes>(constant_data.at(idx).get(), std::forward<UnaryOperation>(func))));
@@ -304,18 +304,18 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
  * \param idx            Operator input index.
  * \param constant_data  Map with constant data. Default empty.
  * \param func           Unary operation function object to apply in input data.
- *                       Default sh_infer::tr::InTypeRange<TDimValue>.
+ *                       Default ov::utils::InTypeRange<TDimValue>.
  *
  * \return Unique pointer to shape created from input data.
  */
 template <class TShape,
           class TDimValue = typename TShape::value_type::value_type,
           class TTensorPtr = HostTensorPtr,
-          class UnaryOperation = sh_infer::tr::InTypeRange<TDimValue>>
+          class UnaryOperation = ov::util::InTypeRange<TDimValue>>
 std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
                                                       size_t idx,
                                                       const std::map<size_t, TTensorPtr>& constant_data = {},
-                                                      UnaryOperation&& func = sh_infer::tr::InTypeRange<TDimValue>()) {
+                                                      UnaryOperation&& func = ov::util::InTypeRange<TDimValue>()) {
     std::unique_ptr<TShape> shape_ptr;
 
     if (auto d =
@@ -338,8 +338,7 @@ inline bool get_data_as(const ov::Node* op,
                         size_t idx,
                         std::vector<TData>& data_out,
                         const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
-    if (auto out =
-            ov::op::get_input_const_data_as<TShape, TData>(op, idx, constant_data, ov::sh_infer::tr::Cast<TData>())) {
+    if (auto out = ov::op::get_input_const_data_as<TShape, TData>(op, idx, constant_data, ov::util::Cast<TData>())) {
         data_out = std::move(*out);
         return true;
     } else {
@@ -384,8 +383,8 @@ inline bool get_data_as_shape(size_t idx,
                               TShape& shape,
                               const std::map<size_t, ov::HostTensorPtr>& constant_data = {}) {
     using TDimValue = typename TShape::value_type::value_type;
-    shape = std::move(
-        *ov::op::get_input_const_data_as_shape<TShape>(op, idx, constant_data, ov::sh_infer::tr::Cast<TDimValue>()));
+    shape =
+        std::move(*ov::op::get_input_const_data_as_shape<TShape>(op, idx, constant_data, ov::util::Cast<TDimValue>()));
     return true;
 }
 

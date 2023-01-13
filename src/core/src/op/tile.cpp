@@ -79,7 +79,7 @@ bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVec
     const auto& data = input_values[0];
     const auto& axis = input_values[1];
     auto& output = output_values[0];
-    auto repeats_val = get_tensor_data_as<int64_t>(axis, sh_infer::tr::Cast<int64_t>());
+    auto repeats_val = get_tensor_data_as<int64_t>(axis, ov::util::Cast<int64_t>());
     const auto repeats_rank = repeats_val.size();
 
     std::vector<ov::PartialShape> input_shapes = {data.get_shape(), axis.get_shape()};
