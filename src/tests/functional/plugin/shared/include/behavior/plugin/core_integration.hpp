@@ -144,7 +144,8 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
 }
 
 inline std::string getPluginFile() {
-    std::string filename{"mock_engine_valid.xml"};
+    std::string filePostfix{"mock_engine_valid.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -161,7 +162,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
 }
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename{"mock_engine.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(InferenceEngine::Core  ie(filename), InferenceEngine::Exception);
