@@ -13,7 +13,7 @@
 
 namespace ov {
 namespace intel_gna {
-namespace heaser_2_dot_2 {
+namespace header_2_dot_2 {
 
 /**
  * @brief Header version 2.2
@@ -119,6 +119,6 @@ struct RuntimeEndPoint {
           orientation(orientation) {}
 };
 
-}  // namespace heaser_2_dot_2
+}  // namespace header_2_dot_2
 }  // namespace intel_gna
 }  // namespace ov

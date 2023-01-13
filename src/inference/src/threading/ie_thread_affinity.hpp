@@ -9,12 +9,12 @@
 
 #include "ie_api.h"
 
-#if !(defined(__APPLE__) || defined(_WIN32))
+#if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
 #endif
 
 namespace InferenceEngine {
-#if (defined(__APPLE__) || defined(_WIN32))
+#if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 using cpu_set_t = void;
 #endif  // (defined(__APPLE__) || defined(_WIN32))
 

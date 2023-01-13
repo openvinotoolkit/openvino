@@ -102,7 +102,7 @@ Layers can be joined only when the two conditions below are met:
     - Depending on a tiling scheme, a `Concatenation` or `Sum` layer that joins all resulting tensors into one and restores the full blob that contains the result of a tiled operation
 
     Names of tiled layers contain the `@soc=M/N` part, where `M` is the tile number and `N` is the number of tiles:
-    ![](../img/yolo_tiny_v1.png)
+    ![](../img/yolo_tiny_v1.svg)
 
 > **NOTE**: Nominal layers, such as `Shrink` and `Expand`, are not executed.
 
@@ -149,6 +149,9 @@ For a list of VPU-supported layers, see the **Supported Layers** section of the 
 * `MVN` layer uses fixed value for `eps` parameters (1e-9).
 * `Normalize` layer uses fixed value for `eps` parameters (1e-9) and is supported for zero value of `across_spatial` only.
 * `Pad` layer works only with 4D tensors.
+* `Floor` layer works only with FP16 type.
+* `ConvTranspose` layer is not supported.
+* `GatherElements` layer is not supported for negative axis.
 
 ## See Also
 

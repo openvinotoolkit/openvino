@@ -62,7 +62,6 @@ ParamsKey kernel_selector::ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetSuppo
     k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
-    k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
     k.EnableDilation();
     return k;
