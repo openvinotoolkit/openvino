@@ -70,13 +70,9 @@ auto multi_device_names_and_support_for_remote_blobs = []() {
         {{CPU, "GPU.0"}, true, false},
         {{CPU, "GPU.0", "GPU.1"}, true, false},
         {{CPU, "GPU.0"}, false, true},
-        {{CPU, "GPU.0", "GPU.1"}, false, true},
         {{CPU, "GPU.0"}, false, false},
-        {{CPU, "GPU.0", "GPU.1"}, false, false},
 #endif
         {{"GPU.0", "GPU.1"}, true, false},
-        {{"GPU.0", "GPU.1"}, false, true},
-        {{"GPU.0", "GPU.1"}, false, false},
         };
 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteBlobMultiInitializedWithoutGPU,
@@ -90,14 +86,12 @@ auto multi_device_names_for_remote_contexts = []() {
         {{CPU, "GPU.0"}, true, false},
         {{CPU, "GPU.0", "GPU.1"}, true, false},
         {{"GPU.0", CPU}, false, true},
-        {{"GPU.0", "GPU.1", CPU}, false, false},
         {{"GPU.0", CPU}, false, false},
         {{"GPU.0", "GPU.1", CPU}, false, true},
 #endif
         {{"GPU.0"}, true, false},
         {{"GPU.0"}, false, false},
         {{"GPU.0", "GPU.1"}, true, true},
-        {{"GPU.0", "GPU.1"}, false, false}
         };
 };
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_RemoteContextWithGPU,

@@ -77,7 +77,7 @@ class MultiDeviceMultipleGPU_Test : public CommonTestUtils::TestsCommon, public 
         std::vector<std::string>::iterator iter;
         for (iter = device_lists.begin(); iter != device_lists.end();) {
             prioritylist += *iter;
-            prioritylist += ((*iter == device_lists[device_lists.size()-1]) ? "" : ",");
+            prioritylist += ((*iter == device_lists[device_lists.size() - 1]) ? "" : ",");
             // remove CPU from context candidate list
             if ((*iter).find("CPU") != std::string::npos)
                 device_lists.erase(iter);
