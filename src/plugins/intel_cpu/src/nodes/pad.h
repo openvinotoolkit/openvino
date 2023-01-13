@@ -24,7 +24,7 @@ public:
     bool created() const override;
 
     void prepareParams() override;
-
+    bool needShapeInfer() const override;
     bool isExecutable() const override;
 
 protected:
@@ -46,10 +46,14 @@ private:
         int beginPadIdx = 0;
         int endPadIdx = 0;
         InferenceEngine::Precision prc;
+        bool constPadValue = false;
     } attrs;
 
     struct PadExecutor {
-        PadExecutor(const PadAttrs& params, const VectorDims& srcDims, const VectorDims& dstDims);
+        PadExecutor(const PadAttrs& attrs,
+                    const std::vector<MemoryCPtr>& srcMemory,
+                    const std::vector<MemoryCPtr>& dstMemory,
+                    const std::string& errorPrefix);
         void exec(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
@@ -93,6 +97,7 @@ private:
             size_t dataSize = 1lu;
             PadMode padMode;
         } params;
+        const std::string errorPrefix;
     };
 
     static constexpr size_t DATA_ID = 0lu;
@@ -104,6 +109,11 @@ private:
 
     using executorPtr = std::shared_ptr<PadExecutor>;
     executorPtr execPtr = nullptr;
+    std::vector<MemoryCPtr> srcMemory;
+    std::vector<MemoryCPtr> dstMemory;
+    std::string errorPrefix;
+    bool shapeHasDataDependency = false;
+    bool constPadValue = false;
 };
 
 }   // namespace node
