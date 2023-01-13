@@ -18,7 +18,7 @@ def MULTI_0():
     # Option 2
     # Specify the devices to be used by MULTI explicitly at compilation.
     # The following lines are equivalent:
-    compiled_model = core.compile_model(model=model, device_name="MULTI:CPU,GPU")
+    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU")
     compiled_model = core.compile_model(model=model, device_name="MULTI", config={"MULTI_DEVICE_PRIORITIES": "GPU,CPU"}) 
 
 #! [MULTI_0]
