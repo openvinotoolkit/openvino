@@ -116,6 +116,7 @@ protected:
                                const PartialShape input_partial_shape,
                                const int64_t k) const;
     virtual void k_type_check(const element::Type& k_element_type) const;
+    bool no_bounds_overlap(const Output<Node>& output) const;
 };
 }  // namespace v1
 

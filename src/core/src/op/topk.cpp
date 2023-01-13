@@ -104,6 +104,43 @@ bool evaluate_topk(const HostTensorPtr& arg,
     }
     return rc;
 }
+
+template <element::Type_t INPUT_ET>
+bool no_bounds_overlap(const pair<HostTensorPtr, HostTensorPtr>& bounds,
+                       const size_t axis,
+                       const size_t k,
+                       const bool is_max_mode) {
+    using T = typename element_type_traits<INPUT_ET>::value_type;
+
+    const auto k_max = shape_size(bounds.second->get_shape());
+    auto lowers = bounds.first->get_data_ptr<T>();
+    auto uppers = std::vector<T>(k_max);
+    auto indices = std::vector<int64_t>(k_max);
+
+    ngraph::runtime::reference::topk<T, int64_t>(bounds.second->get_data_ptr<T>(),
+                                                 indices.data(),
+                                                 uppers.data(),
+                                                 bounds.second->get_shape(),
+                                                 Shape({k_max}),
+                                                 axis,
+                                                 k_max,
+                                                 is_max_mode,
+                                                 ov::op::TopKSortType::SORT_VALUES);
+    auto prev_bound = is_max_mode ? std::numeric_limits<T>::max() : std::numeric_limits<T>::lowest();
+    size_t iteration = 0;
+
+    return std::find_if_not(uppers.cbegin(), uppers.cend(), [&](const T ub) {
+               const auto idx = indices[iteration];
+               auto no_overlap = (is_max_mode && ov::cmp::le(ub, prev_bound)) ||
+                                 (!is_max_mode && ov::cmp::le(prev_bound, lowers[idx]));
+
+               if (iteration < k) {
+                   prev_bound = is_max_mode ? lowers[idx] : ub;
+               }
+               ++iteration;
+               return no_overlap;
+           }) == uppers.cend();
+}
 }  // namespace
 }  // namespace topk
 
@@ -265,7 +302,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     const auto& arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode (max/min), sort_type
     auto axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
-    auto compute_max = get_mode() == TopKMode::MAX ? true : false;
+    auto compute_max = get_mode() == TopKMode::MAX;
     auto sort_type = get_sort_type();
 
     const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
@@ -337,69 +374,61 @@ bool op::v1::TopK::has_evaluate() const {
 
 bool op::v1::TopK::evaluate_lower(const HostTensorVector& output_values) const {
     OV_OP_SCOPE(v1_TopK_evaluate_lower);
-    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+    // if there is no bounds overlap on input 0 then default evaluator give correct results.
+    return get_input_tensor(1).has_and_set_bound() && no_bounds_overlap(input_value(0)) &&
+           default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::TopK::evaluate_upper(const HostTensorVector& output_values) const {
     OV_OP_SCOPE(v1_TopK_evaluate_upper);
-    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
+    // if there is no bounds overlap on input 0 then default evaluator give correct results.
+    return get_input_tensor(1).has_and_set_bound() && no_bounds_overlap(input_value(0)) &&
+           default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::TopK::evaluate_label(TensorLabelVector& output_labels) const {
     OPENVINO_ASSERT(output_labels.size() == get_output_size());
 
+    auto uppers = ov::TensorVector(get_output_size());
     const auto& input_labels = get_input_tensor(0).get_value_label();
+    const auto set_labels = !has_no_labels(input_labels) && evaluate_upper(uppers);
 
-    if (!has_no_labels(input_labels) && get_input_tensor(1).has_and_set_bound()) {
-        auto get_labels_by_idx = [this, &input_labels](const ov::Tensor& indicies) {
-            auto idxs = std::vector<uint64_t>();
+    if (set_labels) {
+        auto idxs = get_tensor_data_as<int64_t>(uppers.back(), ov::sh_infer::tr::Cast<int64_t>());
+        // set labels by top k indexes for lower and upper bound
+        for (const auto& i : idxs) {
+            output_labels.front().emplace_back(input_labels[i]);
+        }
+        output_labels.back() = output_labels.front();
+    }
 
-            switch (m_index_element_type) {
-            case element::i32:
-                idxs.insert(idxs.end(), indicies.data<int32_t>(), indicies.data<int32_t>() + indicies.get_size());
-                break;
-            case element::i64:
-                idxs.insert(idxs.end(), indicies.data<int64_t>(), indicies.data<int64_t>() + indicies.get_size());
-                break;
-            default:
-                OPENVINO_ASSERT(false, "Index element type has not supported type: ", m_index_element_type);
-            };
+    return set_labels;
+}
 
-            auto out = TensorLabel();
-            out.reserve(idxs.size());
-            for (const auto& i : idxs) {
-                out.emplace_back(input_labels[i]);
-            }
-            return out;
-        };
+bool op::v1::TopK::no_bounds_overlap(const Output<Node>& output) const {
+    const auto bounds = evaluate_both_bounds(input_value(0));
 
-        // get labels by top k indexes for lower and upper bound
-        ov::TensorVector lowers(get_output_size()), uppers(get_output_size());
-        auto lb_labels = evaluate_lower(lowers) ? get_labels_by_idx(lowers.back()) : ov::TensorLabel();
-        auto ub_labels = evaluate_upper(uppers) ? get_labels_by_idx(uppers.back()) : ov::TensorLabel();
-        // align sizes of labels
-        const auto common_size = std::max(lb_labels.size(), ub_labels.size());
-        lb_labels.resize(common_size, ov::no_label);
-        ub_labels.resize(common_size, ov::no_label);
-        // set labels for values output favorite the upper bound label
-        output_labels.front().resize(0);
-        std::transform(lb_labels.begin(),
-                       lb_labels.end(),
-                       ub_labels.begin(),
-                       std::back_inserter(output_labels.front()),
-                       [](size_t lb_label, size_t ub_label) {
-                           return (ub_label != ov::no_label) ? ub_label : lb_label;
-                       });
-        // set labels for indicies output only when labels for bounds are same
-        output_labels.back().resize(0);
-        std::transform(lb_labels.begin(),
-                       lb_labels.end(),
-                       ub_labels.begin(),
-                       std::back_inserter(output_labels.back()),
-                       [](size_t lb_label, size_t ub_label) {
-                           return (ub_label == lb_label) ? ub_label : ov::no_label;
-                       });
-        return true;
+    if (bounds.first && bounds.second) {
+        const auto axis = ov::normalize_axis(this, m_axis, bounds.second->get_shape().size());
+        const auto k = get_k();
+        const auto is_max_mode = get_mode() == TopKMode::MAX;
+
+        switch (output.get_element_type()) {
+        case element::i32:
+            return topk::no_bounds_overlap<element::i32>(bounds, axis, k, is_max_mode);
+        case element::i64:
+            return topk::no_bounds_overlap<element::i64>(bounds, axis, k, is_max_mode);
+        case element::u32:
+            return topk::no_bounds_overlap<element::u32>(bounds, axis, k, is_max_mode);
+        case element::u64:
+            return topk::no_bounds_overlap<element::u64>(bounds, axis, k, is_max_mode);
+        case element::f16:
+            return topk::no_bounds_overlap<element::f16>(bounds, axis, k, is_max_mode);
+        case element::f32:
+            return topk::no_bounds_overlap<element::f32>(bounds, axis, k, is_max_mode);
+        default:
+            return false;
+        }
     } else {
         return false;
     }

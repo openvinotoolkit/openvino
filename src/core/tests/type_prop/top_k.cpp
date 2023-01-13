@@ -15,6 +15,18 @@ using namespace testing;
 template <typename T>
 class topk_type_prop : public TypePropOpTest<T> {
 protected:
+    PartialShapes make_broadcast_shapes_of_topk_outs(T* topk) {
+        PartialShapes bcs_outputs;
+        for (size_t i = 0; i < topk->get_output_size(); ++i) {
+            auto bc = std::make_shared<Broadcast>(std::make_shared<Parameter>(element::i64, PartialShape{1}),
+                                                  topk->output(i),
+                                                  "BIDIRECTIONAL");
+            bcs_outputs.push_back(bc->get_output_partial_shape(0));
+        }
+
+        return bcs_outputs;
+    }
+
     element::Type exp_default_idx_type{element::i32};
 };
 TYPED_TEST_SUITE_P(topk_type_prop);
@@ -196,7 +208,7 @@ TYPED_TEST_P(topk_type_prop, data_and_k_shapes_are_dynamic) {
                 Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape::dynamic())));
 }
 
-TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value) {
+TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value_max) {
     auto p_shape = PartialShape{5, 6, 4, 3, 8};
     set_shape_labels(p_shape, 1);
 
@@ -205,22 +217,32 @@ TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value) {
     const auto labeled_shape_of = std::make_shared<ShapeOf>(labeled_param);
 
     const auto k = Constant::create(et, Shape{}, {3});
-    const auto op = this->make_op(labeled_shape_of, k, 0, "max", "value", element::i32);
-    const auto bc0 =
-        std::make_shared<Broadcast>(std::make_shared<Parameter>(et, PartialShape{1}), op->output(0), "BIDIRECTIONAL");
-    const auto bc1 =
-        std::make_shared<Broadcast>(std::make_shared<Parameter>(et, PartialShape{1}), op->output(1), "BIDIRECTIONAL");
+    const auto op = this->make_op(labeled_shape_of, k, 0, "max", "index", element::i32);
 
-    const auto& val_shape = bc0->get_output_partial_shape(0);
-    const auto& idx_shape = bc1->get_output_partial_shape(0);
+    const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
 
-    EXPECT_EQ(val_shape, PartialShape({8, 6, 5}));
-    EXPECT_EQ(idx_shape, PartialShape({4, 1, 0}));
-    EXPECT_THAT(get_shape_labels(val_shape), ElementsAre(5, 2, 1));
-    EXPECT_THAT(get_shape_labels(idx_shape), ElementsAre(5, 2, 1));
+    EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({5, 6, 8}), PartialShape({0, 1, 4})));
+    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, ElementsAre(1, 2, 5))));
 }
 
-TYPED_TEST_P(topk_type_prop, propagate_label_and_interval_value) {
+TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value_min) {
+    auto p_shape = PartialShape{5, 6, 3, 4, 8};
+    set_shape_labels(p_shape, 1);
+
+    constexpr auto et = element::i64;
+    const auto labeled_param = std::make_shared<Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<ShapeOf>(labeled_param);
+
+    const auto k = Constant::create(et, Shape{}, {3});
+    const auto op = this->make_op(labeled_shape_of, k, 0, "min", "index", element::i32);
+
+    const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
+
+    EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({5, 3, 4}), PartialShape({0, 2, 3})));
+    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, ElementsAre(1, 3, 4))));
+}
+
+TYPED_TEST_P(topk_type_prop, propagate_label_and_interval_value_with_overlaps) {
     auto p_shape = PartialShape{{2, 3}, {1, 5}, 4, {0, 2}, {6, 18}};
     set_shape_labels(p_shape, {no_label, 2, 3, 4, 5});
 
@@ -230,18 +252,64 @@ TYPED_TEST_P(topk_type_prop, propagate_label_and_interval_value) {
 
     const auto k = Constant::create(et, Shape{}, {4});
     const auto op = this->make_op(labeled_shape_of, k, 0, "max", "value", et);
-    const auto bc0 =
-        std::make_shared<Broadcast>(std::make_shared<Parameter>(et, PartialShape{1}), op->output(0), "BIDIRECTIONAL");
-    const auto bc1 =
-        std::make_shared<Broadcast>(std::make_shared<Parameter>(et, PartialShape{1}), op->output(1), "BIDIRECTIONAL");
 
-    const auto& val_shape = bc0->get_output_partial_shape(0);
-    const auto& idx_shape = bc1->get_output_partial_shape(0);
+    const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
 
-    EXPECT_EQ(val_shape, PartialShape({{6, 18}, {4, 5}, {2, 4}, {1, 3}}));
-    EXPECT_EQ(idx_shape, PartialShape({4, {2, 1}, {0, 2}, {1, 0}}));
-    EXPECT_THAT(get_shape_labels(val_shape), ElementsAre(5, 2, 3, 2));
-    EXPECT_THAT(get_shape_labels(idx_shape), ElementsAre(5, no_label, no_label, no_label));
+    EXPECT_THAT(bc_shapes, Each(PartialShape::dynamic(4)));
+    EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(ov::no_label))));
+}
+
+TYPED_TEST_P(topk_type_prop, propagate_label_and_interval_value_detect_overlaps) {
+    auto p_shape = PartialShape{{4, 6}, {2, 3}, {15, 20}, {6, 8}, {0, 1}, {9, 11}, {7, 8}};
+    set_shape_labels(p_shape, 10);
+
+    constexpr auto et = element::i64;
+    const auto labeled_param = std::make_shared<Parameter>(et, p_shape);
+    const auto labeled_shape_of = std::make_shared<ShapeOf>(labeled_param);
+
+    // detect top 2 max by value (no overlap)
+    {
+        const auto k = Constant::create(et, Shape{}, {2});
+        const auto op = this->make_op(labeled_shape_of, k, 0, "max", "value", element::i32);
+
+        const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
+
+        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({{15, 20}, {9, 11}}), PartialShape({2, 5})));
+        EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, ElementsAre(12, 15))));
+    }
+
+    // detect top 3 max by value (overlap)
+    {
+        const auto k = Constant::create(et, Shape{}, {3});
+        const auto op = this->make_op(labeled_shape_of, k, 0, "max", "value", element::i32);
+
+        const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
+
+        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape::dynamic(3), (PartialShape::dynamic(3))));
+        EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(no_label))));
+    }
+
+    // detect top 3 min by value (no overlap)
+    {
+        const auto k = Constant::create(et, Shape{}, {3});
+        const auto op = this->make_op(labeled_shape_of, k, 0, "min", "value", element::i32);
+
+        const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
+
+        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({{0, 1}, {2, 3}, {4, 6}}), PartialShape({4, 1, 0})));
+        EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, ElementsAre(14, 11, 10))));
+    }
+
+    // detect top 4 min by value (overlap)
+    {
+        const auto k = Constant::create(et, Shape{}, {4});
+        const auto op = this->make_op(labeled_shape_of, k, 0, "min", "value", element::i32);
+
+        const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
+
+        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape::dynamic(4), (PartialShape::dynamic(4))));
+        EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(no_label))));
+    }
 }
 
 TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval) {
@@ -369,8 +437,10 @@ REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
                             k_is_unknown_for_interval_dimension,
                             k_is_unknown_for_interval_with_no_upper_bound_dimension,
                             data_and_k_shapes_are_dynamic,
-                            propagate_label_and_not_interval_value,
-                            propagate_label_and_interval_value,
+                            propagate_label_and_not_interval_value_max,
+                            propagate_label_and_not_interval_value_min,
+                            propagate_label_and_interval_value_with_overlaps,
+                            propagate_label_and_interval_value_detect_overlaps,
                             preserve_partial_values_and_labels_k_is_interval,
                             preserve_partial_values_and_labels_k_is_interval_with_no_upper_bound,
                             negative_axis_dynamic_rank,
