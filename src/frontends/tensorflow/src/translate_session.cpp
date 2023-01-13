@@ -214,7 +214,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
                 is_converted = true;
             }
-            FRONT_END_OP_CONVERSION_CHECK(is_converted, "No translator found for " + operation_type + " node.");
+            FRONT_END_OP_CONVERSION_CHECK(is_converted, "[TensorFlow Frontend] Internal error: No translator found for " + operation_type + " node.");
         } catch (...) {
             if (m_fail_fast) {
                 // in case of decode, unsupported operation will be converted to FrameworkNode
