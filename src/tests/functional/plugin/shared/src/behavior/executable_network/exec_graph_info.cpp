@@ -328,10 +328,10 @@ void ExecGraphSerializationTest::SetUp() {
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string model_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();;
+    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
 
-    m_out_xml_path = model_name + XML_EXT;
-    m_out_bin_path = model_name + BIN_EXT;
+    m_out_xml_path = filePrefix + XML_EXT;
+    m_out_bin_path = filePrefix + BIN_EXT;
 }
 
 void ExecGraphSerializationTest::TearDown() {
