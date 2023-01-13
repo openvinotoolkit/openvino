@@ -241,8 +241,11 @@ inline std::vector<VectorDims> FullyConnected::shapeInferExec(const VectorDims& 
 
 std::vector<VectorDims> FullyConnected::shapeInfer() const {
     try {
-        VectorDims activationShape = getParentEdgesAtPort(DATA_ID)[0]->getMemory().getStaticDims();
-        VectorDims weightShape = getParentEdgesAtPort(WEIGHTS_ID)[0]->getMemory().getStaticDims();
+        const VectorDims& activationShape = getParentEdgesAtPort(DATA_ID)[0]->getMemory().getStaticDims();
+        const VectorDims& weightShape = getParentEdgesAtPort(WEIGHTS_ID)[0]->getMemory().getStaticDims();
+
+        // if (withBiases)
+        //     const VectorDims& biasShape = getParentEdgesAtPort(BIAS_ID)[0]->getMemory().getStaticDims();
 
         return shapeInferExec(activationShape, weightShape);
     }
@@ -253,14 +256,7 @@ std::vector<VectorDims> FullyConnected::shapeInfer() const {
 
 std::vector<VectorDims> FullyConnected::shapeInferGeneric(const std::vector<Shape>& shapes) const {
     try {
-        int inputNumNeed = 2;
-        std::vector<std::reference_wrapper<const VectorDims>> inputShapes;
-        inputShapes.reserve(inputNumNeed);
-
-        for (size_t i = 0; i < inputNumNeed; i++)
-            inputShapes.emplace_back(std::ref(shapes[i].getStaticDims()));
-
-        return shapeInferExec(inputShapes[0], inputShapes[1]);
+        return shapeInferExec(shapes[0].getStaticDims(), shapes[1].getStaticDims());
     }
     catch (const std::runtime_error& exp) {
         IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
