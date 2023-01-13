@@ -17,12 +17,12 @@ using namespace InferenceEngine;
 
 using ExtensionTests = ::testing::Test;
 
-std::string getExtensionPath() {
+#ifndef OPENVINO_STATIC_LIBRARY
+
+static std::string getExtensionPath() {
     return FileUtils::makePluginLibraryName<char>(CommonTestUtils::getExecutableDirectory(),
                                                   std::string("template_extension") + IE_BUILD_POSTFIX);
 }
-
-#ifndef OPENVINO_STATIC_LIBRARY
 
 TEST(ExtensionTests, testGetOpSets) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
