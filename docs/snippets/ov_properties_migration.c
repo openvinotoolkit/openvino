@@ -1,7 +1,7 @@
 #include <c_api/ie_c_api.h>
 #include <openvino/c/openvino.h>
 
-int main_new() {
+int ov_properties_migration_main_new_c() {
 ov_core_t* core = NULL;
 ov_core_create(&core);
 
@@ -58,7 +58,7 @@ return 0;
 }
 
 
-int main_old() {
+int ov_properties_migration_main_old_c() {
 ie_core_t *core = NULL;
 ie_core_create("", &core);
     

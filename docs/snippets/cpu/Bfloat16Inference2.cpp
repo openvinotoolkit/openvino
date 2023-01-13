@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-int main() {
+int cpu_Bfloat16Inference2() {
 using namespace InferenceEngine;
 //! [part2]
 ov::Core core;
