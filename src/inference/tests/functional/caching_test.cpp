@@ -212,27 +212,13 @@ public:
                                                   mockEngineName + IE_BUILD_POSTFIX);
     }
 
-    static std::string generateTestFilePrefix() {
-        // Generate unique file names based on test name, thread id and timestamp
-        // This allows execution of tests in parallel (stress mode)
-        auto testInfo = UnitTest::GetInstance()->current_test_info();
-        std::string testName = testInfo->test_case_name();
-        testName += testInfo->name();
-        testName = std::to_string(std::hash<std::string>()(testName));
-        std::stringstream ss;
-        auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
-        ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
-        testName = ss.str();
-        return testName;
-    }
-
     void initParamTest() {
         m_type = std::get<0>(std::get<0>(GetParam()));
         m_cacheDir = std::get<1>(GetParam());
         m_testFunction = getLoadFunction(m_type);
         m_testFunctionWithCfg = getLoadFunctionWithCfg(m_type);
         m_remoteContext = std::get<2>(std::get<0>(GetParam()));
-        auto testName = generateTestFilePrefix();
+        auto testName = CommonTestUtils::generateTestFilePrefix();
         modelName = testName + ".xml";
         weightsName = testName + ".bin";
         m_cacheDir = testName + m_cacheDir;
