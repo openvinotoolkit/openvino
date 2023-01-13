@@ -346,7 +346,7 @@ int main(int argc, char* argv[]) {
             count_file = output_name_files.size();
             if (executableNet.outputs().size() > 1 && output_data.second.empty() && count_file == 1) {
                 throw std::logic_error(
-                    "-o is ambogous: the model has multiple outputs but only one file provided without output name specification")
+                    "-o is ambiguous: the model has multiple outputs but only one file provided without output name specification");
             }
         }
         if (!reference_data.first.empty()) {
@@ -357,7 +357,7 @@ int main(int argc, char* argv[]) {
             count_file = reference_name_files.size();
             if (executableNet.outputs().size() > 1 && reference_data.second.empty() && count_file == 1) {
                 throw std::logic_error(
-                    "-r is ambogous: the model has multiple outputs but only one file provided without output name specification")
+                    "-r is ambiguous: the model has multiple outputs but only one file provided without output name specification");
             }
         }
         if (count_file > executableNet.outputs().size()) {
