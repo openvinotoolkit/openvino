@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset9.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -27,7 +28,7 @@ OutputVector translate_nms(NodeContext& context) {
     auto iou_threshold = context.get_input(2);
 
     auto nms_out = context.mark_node(
-        std::make_shared<opset8::NonMaxSuppression>(boxes, scores, max_output_per_class, iou_threshold));
+        std::make_shared<opset9::NonMaxSuppression>(boxes, scores, max_output_per_class, iou_threshold));
     auto select = context.mark_node(std::make_shared<opset8::Gather>(nms_out, const_2, const_1));
     auto squeeze = std::make_shared<opset8::Squeeze>(select, const_1);
 
