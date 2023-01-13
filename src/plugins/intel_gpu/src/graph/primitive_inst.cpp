@@ -1219,11 +1219,12 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
 
 size_t primitive_inst::get_layout_key(const kernel_impl_params& params) const {
     size_t seed = _node->hash();
+    const size_t prime_number = 2654435761; // magic number to avoid hash collision.
     for (auto& in : params.input_layouts) {
-        seed = hash_combine(seed, in.hash());
+        seed = hash_combine(seed, in.hash() * prime_number);
     }
     for (auto& out : params.output_layouts) {
-        seed = hash_combine(seed, out.hash());
+        seed = hash_combine(seed, out.hash() * prime_number);
     }
     return seed;
 }
