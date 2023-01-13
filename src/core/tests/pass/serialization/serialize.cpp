@@ -47,9 +47,9 @@ public:
                 ov::util::path_join({SERIALIZED_ZOO, "ir/", std::get<1>(GetParam())}));
         }
 
-        const std::string test_name = GetTestName() + "_" + GetTimestamp();
-        m_out_xml_path = test_name + ".xml";
-        m_out_bin_path = test_name + ".bin";
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
     }
 
     void TearDown() override {
@@ -282,9 +282,9 @@ public:
     std::string m_out_bin_path;
 
     void SetUp() override {
-        const std::string test_name = GetTestName() + "_" + GetTimestamp();
-        m_out_xml_path = test_name + ".xml";
-        m_out_bin_path = test_name + ".bin";
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
     }
 
     void check_meta_info(const std::shared_ptr<ov::Model>& model) {
