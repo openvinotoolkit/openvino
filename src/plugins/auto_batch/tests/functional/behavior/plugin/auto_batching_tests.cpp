@@ -32,7 +32,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_CPU,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
-#ifdef HAVE_INTEL_GPU_PLUGIN
+#ifdef HAVE_GPU_PLUGIN
 const std::vector<size_t> gpu_num_streams{2};
 const std::vector<bool> gpu_get_vs_set{true, false};
 const std::vector<size_t> gpu_num_requests{1, 8, 16, 64};

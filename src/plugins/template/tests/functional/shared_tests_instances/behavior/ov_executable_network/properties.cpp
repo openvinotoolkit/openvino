@@ -26,6 +26,13 @@ const std::vector<ov::AnyMap> auto_inproperties = {
         {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
 };
 
+
+const std::vector<ov::AnyMap> auto_batch_inproperties = {
+        {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"},
+         {ov::auto_batch_timeout(-1)}},
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
@@ -48,6 +55,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVCompiledModelPropertiesInco
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(auto_inproperties)),
+                        OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertiesIncorrectTests,
+                        ::testing::Combine(
+                                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                                ::testing::ValuesIn(auto_batch_inproperties)),
                         OVCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
@@ -77,6 +90,12 @@ const std::vector<ov::AnyMap> multi_properties = {
         {ov::device::priorities(CommonTestUtils::DEVICE_TEMPLATE), ov::device::id("0")},
 };
 
+const std::vector<ov::AnyMap> auto_batch_properties = {
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"}, {CONFIG_KEY(AUTO_BATCH_TIMEOUT) , "1"}},
+        {{CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) , std::string(CommonTestUtils::DEVICE_TEMPLATE) + "(4)"}, {ov::auto_batch_timeout(10)}},
+};
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelPropertiesTests,
         ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
@@ -95,4 +114,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVCompiledModelPropertiesTes
                 ::testing::ValuesIn(multi_properties)),
         OVCompiledModelPropertiesTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertiesTests,
+        ::testing::Combine(
+                ::testing::Values(CommonTestUtils::DEVICE_BATCH),
+                ::testing::ValuesIn(auto_batch_properties)),
+        OVCompiledModelPropertiesTests::getTestCaseName);
 } // namespace
