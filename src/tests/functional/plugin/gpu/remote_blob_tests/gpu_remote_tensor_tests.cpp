@@ -435,12 +435,13 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canInferOnUserContextWithMultipleD
     // inference using remote tensor
 
     auto ocl_instance_tmp = std::make_shared<OpenCL>();
-    cl::Context multi_device_ctx({ocl_instance_tmp->_device, ocl_instance_tmp->_device});
+    auto ocl_instance_tmp_1 = std::make_shared<OpenCL>(1);
+    cl::Context multi_device_ctx({ocl_instance_tmp->_device, ocl_instance_tmp_1->_device});
     auto ocl_instance = std::make_shared<OpenCL>(multi_device_ctx.get());
 
     auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
 
-    ASSERT_EQ(remote_context.get_device_name(), "GPU.0");
+    ASSERT_EQ(remote_context.get_device_name(), "GPU.1");
     auto exec_net_shared = ie.compile_model(function, remote_context, config);
     auto inf_req_shared = exec_net_shared.create_infer_request();
     inf_req_shared.set_tensor(input, fakeImageData);
