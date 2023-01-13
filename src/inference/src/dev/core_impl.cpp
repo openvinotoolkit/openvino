@@ -20,11 +20,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"
 
-namespace ov {
-const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
-
-}  // namespace ov
-
 namespace {
 
 template <typename F>
@@ -34,38 +29,6 @@ void allowNotImplemented(F&& f) {
     } catch (const InferenceEngine::NotImplemented&) {
     }
 }
-
-#ifndef OPENVINO_STATIC_LIBRARY
-
-std::string findPluginXML(const std::string& xmlFile) {
-    std::string xmlConfigFile_ = xmlFile;
-    if (xmlConfigFile_.empty()) {
-        const auto ielibraryDir = InferenceEngine::getInferenceEngineLibraryPath();
-
-        // plugins.xml can be found in either:
-
-        // 1. openvino-X.Y.Z relative to libopenvino.so folder
-        std::ostringstream str;
-        str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-        const auto subFolder = ov::util::to_file_path(str.str());
-
-        // register plugins from default openvino-<openvino version>/plugins.xml config
-        ov::util::FilePath xmlConfigFileDefault =
-            FileUtils::makePath(FileUtils::makePath(ielibraryDir, subFolder), ov::util::to_file_path("plugins.xml"));
-        if (FileUtils::fileExist(xmlConfigFileDefault))
-            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        // 2. in folder with libopenvino.so
-        xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
-        if (FileUtils::fileExist(xmlConfigFileDefault))
-            return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        throw ov::Exception("Failed to find plugins.xml file");
-    }
-    return xmlConfigFile_;
-}
-
-#endif
 
 ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuffixes = false) {
     const auto ieLibraryPath = InferenceEngine::getInferenceEngineLibraryPath();

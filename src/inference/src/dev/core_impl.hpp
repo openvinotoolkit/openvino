@@ -17,6 +17,8 @@
 
 namespace ov {
 
+const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
+
 template <typename T>
 struct Parsed {
     std::string _deviceName;

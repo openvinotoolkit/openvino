@@ -56,9 +56,6 @@ using namespace std::placeholders;
 
 namespace ov {
 
-// Specify the default device when no device name is provided.
-const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
-
 namespace {
 
 #ifndef OPENVINO_STATIC_LIBRARY
