@@ -119,7 +119,6 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
         return {params, optional_params};
     }
 

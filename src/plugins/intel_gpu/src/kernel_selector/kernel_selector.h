@@ -32,13 +32,17 @@ protected:
     }
     virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const = 0;
 
-    virtual KernelsData GetNaiveBestKernel(const Params& params,
-                                           const optional_params& options,
-                                           KernelType kType) const;
+    KernelsData GetNaiveBestKernel(const KernelList& all_impls,
+                                   const Params& params,
+                                   const optional_params& options) const;
 
-    virtual KernelsData GetAutoTuneBestKernel(const Params& params,
-                                              const optional_params& options,
-                                              KernelType kType) const;
+    KernelsData GetNaiveBestKernel(const Params& params,
+                                   const optional_params& options,
+                                   KernelType kType) const;
+
+    KernelsData GetAutoTuneBestKernel(const Params& params,
+                                      const optional_params& options,
+                                      KernelType kType) const;
 
     KernelList GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const;
 

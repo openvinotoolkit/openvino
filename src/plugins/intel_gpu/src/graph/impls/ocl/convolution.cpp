@@ -166,14 +166,6 @@ public:
 
         auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
 
-        const auto& tuning_config = impl_param.get_program().get_config().get_property(ov::intel_gpu::tuning_config);
-
-        if (tuning_config.mode == ov::intel_gpu::TuningMode::tuning_tune_and_cache ||
-            tuning_config.mode == ov::intel_gpu::TuningMode::tuning_retune_and_cache) {
-            conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
-        }
-
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 
         return make_unique<convolution_impl>(best_kernel);
