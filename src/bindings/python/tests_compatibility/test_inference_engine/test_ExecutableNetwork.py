@@ -11,8 +11,7 @@ from tests_compatibility.conftest import model_path
 from tests_compatibility.test_utils.test_utils import generate_image, generate_relu_model
 
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path(False)
 
 
 def test_infer(device):
@@ -223,16 +222,16 @@ def test_exec_graph(device):
     del ie_core
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD",
-                    reason="Device specific test. Only MYRIAD plugin implements network export")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason="Device specific test. Only CPU plugin implements network export")
 def test_export_import():
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, "MYRIAD")
+    exec_net = ie_core.load_network(net, "CPU")
     exported_net_file = 'exported_model.bin'
     exec_net.export(exported_net_file)
     assert os.path.exists(exported_net_file)
-    exec_net = ie_core.import_network(exported_net_file, "MYRIAD")
+    exec_net = ie_core.import_network(exported_net_file, "CPU")
     os.remove(exported_net_file)
     img = generate_image()
     res = exec_net.infer({'data': img})
