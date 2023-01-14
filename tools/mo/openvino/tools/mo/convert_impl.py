@@ -326,7 +326,13 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "LoopCond", "Enter", "NextIteration", "Exit",  # corresponds to TF1 While operation
         "Switch", "Merge",  # corresponds to TF1 If and TF1 While operations
         "TensorListLength", "TensorListReserve", "TensorListFromTensor",
-        "TensorListSetItem", "TensorListStack"  # corresponds to TF2 While operations
+        "TensorListSetItem", "TensorListStack",  # corresponds to TF2 While operations
+        "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
+        "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
+        "Complex", "ComplexAbs", "Real", "Imag",  # corresponds to operations with complex tensors
+        "FIFOQueueV2", "QueueDequeueUpToV2", "QueueDequeueManyV2",
+        "QueueDequeue", "QueueDequeueV2", "IteratorGetNext",
+        "LookupTableInsert", "LookupTableInsertV2"  # corresponds to automatic pruning
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
             conversion_error_match[0][1] not in fallback_operations:
