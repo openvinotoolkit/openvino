@@ -12,7 +12,6 @@ list(APPEND SHARED_LIBRARIES
         )
 
 file(GLOB SHARED_TESTS_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools/*.cpp
         )

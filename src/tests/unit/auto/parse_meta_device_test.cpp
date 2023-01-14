@@ -40,7 +40,6 @@ using namespace MockMultiDevice;
 // const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
-// const char myriadFullDeviceName[] = "Intel Movidius Myriad X VPU";
 // const char vpuxFullDeviceName[] = "";
 const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1",
     "MYRIAD.9.2-ma2480", "MYRIAD.9.1-ma2480", "VPUX"};

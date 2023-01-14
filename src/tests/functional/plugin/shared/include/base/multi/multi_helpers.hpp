@@ -78,4 +78,3 @@ protected:
 #define MULTI  CommonTestUtils::DEVICE_MULTI
 #define CPU    CommonTestUtils::DEVICE_CPU
 #define GPU    CommonTestUtils::DEVICE_GPU
-#define MYRIAD CommonTestUtils::DEVICE_MYRIAD
