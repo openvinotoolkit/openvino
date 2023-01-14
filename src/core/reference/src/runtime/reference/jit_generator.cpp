@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
 #include "jit_generator.hpp"
 
 #include <xbyak/xbyak_util.h>
@@ -42,7 +44,8 @@ const size_t Generator::num_abi_save_gpr_regs = sizeof(abi_save_gpr_regs) / size
 const Xbyak::Reg64 Generator::param = abi_param1;
 
 bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
-#if defined(OV_CPU_X86_64) || defined(OV_CPU_X86_64)
+    // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
+    // so, we disable this code since for non-x86 platforms it returns 'false' anyway
     static Xbyak::util::Cpu cpu;
 
     using namespace Xbyak::util;
@@ -74,7 +77,6 @@ bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
     case isa_any:
         return true;
     }
-#endif
     return false;
 }
 
@@ -209,3 +211,5 @@ void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, co
 }  // namespace jit
 }  // namespace runtime
 }  // namespace ngraph
+
+#endif // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
