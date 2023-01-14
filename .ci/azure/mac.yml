@@ -213,10 +213,6 @@ jobs:
     displayName: 'Intel CPU Unit Tests'
     enabled: 'false'
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-    enabled: 'false'
-
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
     enabled: 'false'

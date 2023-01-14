@@ -407,9 +407,6 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
     displayName: 'XLink Tests'
 

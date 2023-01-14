@@ -180,7 +180,6 @@ jobs:
         -DENABLE_DATA=OFF
         -DCMAKE_TOOLCHAIN_FILE=$(OPENVINO_REPO_DIR)/cmake/arm64.toolchain.cmake
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
-        -DENABLE_INTEL_MYRIAD=OFF
         -DTHREADING=TBB
         -DTBB_DIR=$(INSTALL_ONETBB)/lib/cmake/TBB
         -DCMAKE_VERBOSE_MAKEFILE=ON
