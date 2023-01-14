@@ -140,7 +140,7 @@ class TaskManager:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
-                    # logger.info(f"Process {pid} {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
+                    logger.info(f"Process {pid} {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
                     break
                 except TimeoutExpired:
@@ -280,10 +280,10 @@ class TestParallelRunner:
                 res_test_filters.append(filter)
             is_not_full = True
         # logging for debug
-        # for i in range(len(res_test_filters)):
-        #     filter = res_test_filters[i]
-        #     cnt = filter.count('\":')
-        #     logger.info(f"Number of tests in job_{i}: {cnt}")
+        for i in range(len(res_test_filters)):
+            filter = res_test_filters[i]
+            cnt = filter.count('\":')
+            logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
             
     def __get_test_list(self):
@@ -403,7 +403,7 @@ class TestParallelRunner:
                                 test_log = list()
                                 dir = None
             # logging for debug
-            # logger.info(f"Number of tests in {log}: {test_cnt_log}")
+            logger.info(f"Number of tests in {log}: {test_cnt_log}")
             os.remove(log)
 
         for disabled_test in self._disabled_tests:
