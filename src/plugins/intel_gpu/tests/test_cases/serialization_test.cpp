@@ -10,118 +10,52 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(serialization_gpu, layout_from_string) {
-    membuf mem_buf;
-    {
-        std::ostream out_mem(&mem_buf);
-        BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+struct ie_layout_serialization_test : testing::TestWithParam<InferenceEngine::Layout> {
+    void run_test() {
+        InferenceEngine::Layout test_layout = GetParam();
 
-        std::stringstream ss;
-        ss << InferenceEngine::Layout::ANY;
-        ob << ss.str();
+        membuf mem_buf;
+        {
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
 
-        ss.str("");
-        ss << InferenceEngine::Layout::NCHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::NHWC;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::NCDHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::NDHWC;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::OIHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::GOIHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::OIDHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::GOIDHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::SCALAR;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::C;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::CHW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::HWC;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::HW;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::NC;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::CN;
-        ob << ss.str();
-
-        ss.str("");
-        ss << InferenceEngine::Layout::BLOCKED;
-        ob << ss.str();
+            std::stringstream ss;
+            ss << test_layout;
+            ob << ss.str();
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
+        
+            std::string str_layout;
+            ib >> str_layout;
+            EXPECT_EQ(cldnn::layout_from_string(str_layout), test_layout);
+        }
     }
-    {
-        std::istream in_mem(&mem_buf);
-        BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-    
-        std::string layout;
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::ANY);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NCHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NHWC);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NCDHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NDHWC);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::OIHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::GOIHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::OIDHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::GOIDHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::SCALAR);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::C);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::CHW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::HWC);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::HW);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NC);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::CN);
-        ib >> layout;
-        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::BLOCKED);
-    }
+};
+
+TEST_P(ie_layout_serialization_test, basic) {
+    run_test();
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    gpu_serialization,
+    ie_layout_serialization_test,
+    testing::Values(InferenceEngine::Layout::ANY,
+                    InferenceEngine::Layout::NCHW,
+                    InferenceEngine::Layout::NHWC,
+                    InferenceEngine::Layout::NCDHW,
+                    InferenceEngine::Layout::NDHWC,
+                    InferenceEngine::Layout::OIHW,
+                    InferenceEngine::Layout::GOIHW,
+                    InferenceEngine::Layout::OIDHW,
+                    InferenceEngine::Layout::GOIDHW,
+                    InferenceEngine::Layout::SCALAR,
+                    InferenceEngine::Layout::C,
+                    InferenceEngine::Layout::CHW,
+                    InferenceEngine::Layout::HWC,
+                    InferenceEngine::Layout::HW,
+                    InferenceEngine::Layout::NC,
+                    InferenceEngine::Layout::CN,
+                    InferenceEngine::Layout::BLOCKED)
+);
