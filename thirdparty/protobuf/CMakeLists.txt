@@ -114,7 +114,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
     endif()
 
-    set(HOST_PROTOC_BINARY_DIR "${HOST_PROTOC_BINARY_DIR}")
+    set(HOST_PROTOC_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/build")
     set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
     set(HOST_PROTOC_CMAKE_COMMAND "${CMAKE_COMMAND}" -E env ${cmake_env} "${HOST_CMAKE_COMMAND}")
 
@@ -122,6 +122,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         # Directory Options
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
         PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
+        BINARY_DIR "${HOST_PROTOC_BINARY_DIR}"
         INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
         # Configure Step Options:
         CMAKE_COMMAND
