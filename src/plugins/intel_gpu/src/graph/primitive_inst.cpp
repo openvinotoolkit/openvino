@@ -261,7 +261,32 @@ void primitive_inst::realloc_if_needed() {
         max_output_layout_size = updated_params.output_layouts[0].count();
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
-    allocate_internal_buffers();
+    {
+        const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+        if (ibuf_layouts.empty())
+            return;
+        bool can_reuse_internal_buffer = (max_intermediates_memory_sizes.size() == ibuf_layouts.size());
+        if (can_reuse_internal_buffer) {
+            for (size_t i = 0; i < max_intermediates_memory_sizes.size(); ++i) {
+                if (ibuf_layouts[i].bytes_count() > max_intermediates_memory_sizes[i]) {
+                    can_reuse_internal_buffer = false;
+                    break;
+                }
+            }
+        }
+        if (!can_reuse_internal_buffer) {
+            allocate_internal_buffers();
+            if (max_intermediates_memory_sizes.empty()) {
+                for (auto mem : _intermediates_memory) {
+                    max_intermediates_memory_sizes.push_back(mem->size());
+                }
+            } else {
+                for (size_t i = 0; i < _intermediates_memory.size(); ++i) {
+                    max_intermediates_memory_sizes[i] = std::max(max_intermediates_memory_sizes[i], _intermediates_memory[i]->size());
+               }
+            }
+        }
+    }
 }
 
 void primitive_inst::update_impl() {
@@ -584,7 +609,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     }
 
     if (_outputs[0])
-        max_output_layout_size = _outputs[0]->get_layout().count();
+        max_output_layout_size = _outputs[0]->get_layout().get_max_tensor().count();
 }
 
 void primitive_inst::allocate_internal_buffers(void) {
@@ -747,13 +772,15 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                             uint32_t net_id, bool is_internal, size_t idx) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
+        OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
+        auto max_layout = cldnn::layout(layout.data_type, layout.format, layout.get_max_tensor());
         if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
-            return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
-        return pool.get_memory(layout, type);
+            return pool.get_memory(max_layout, id, net_id, dependencies, type, reusable);
+        return pool.get_memory(max_layout, type);
     };
 
     auto layout = impl_params.get_output_layout(idx);
-    OPENVINO_ASSERT(layout.is_static(), "[GPU] Can't allocate output for dynamic layout");
+    OPENVINO_ASSERT(layout.is_static() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout");
     auto device_mem_acc = [&](size_t a, const cldnn::layout& l) {
         // Input shape may be dynamic is some cases (shape_of). It means that output shape of node doesn't depend on input shape
         // and out memory can be allocated on program build stage.

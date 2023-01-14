@@ -85,6 +85,7 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
                 }
             }
         }
+        if (batch_idx != 0) return false;
         switch (dynCount) {
             case 1:
                 // exactly one dynamic dim
