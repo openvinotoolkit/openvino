@@ -529,4 +529,8 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
     exeNetwork->setOutputs(const_results);
 }
 
+std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from) {
+    return ov::legacy_convert::convert_plugin(from);
+}
+
 }  //  namespace InferenceEngine
