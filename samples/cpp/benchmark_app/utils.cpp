@@ -61,9 +61,6 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
-                                                                                {"VPU", 60},
-                                                                                {"MYRIAD", 60},
-                                                                                {"HDDL", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
