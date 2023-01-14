@@ -106,13 +106,6 @@ if (ENABLE_INTEL_GPU)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_INTEL_MYRIAD)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_myriad_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_myriad/*")
-    ov_coverage_genhtml(INFO_FILE "intel_myriad_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
 if(ENABLE_TEMPLATE)
     ov_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/template/*")

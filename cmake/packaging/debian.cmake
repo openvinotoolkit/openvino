@@ -52,8 +52,6 @@ macro(ov_cpack_settings)
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
-           # myriad is EOL in 2023.0
-           NOT item STREQUAL "myriad" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -180,16 +178,6 @@ macro(ov_cpack_settings)
         # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} = (${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
         set(gpu_copyright "generic")
-    endif()
-
-    # intel-myriad
-    if(ENABLE_INTEL_MYRIAD AND "myriad" IN_LIST CPACK_COMPONENTS_ALL)
-        set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU plugin")
-        set(CPACK_COMPONENT_MYRIAD_DEPENDS "${OV_CPACK_COMP_CORE}")
-        set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-plugin-${cpack_name_ver}")
-        set(CPACK_DEBIAN_MYRIAD_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
-        _ov_add_plugin(myriad OFF)
-        set(myriad_copyright "generic")
     endif()
 
     # intel-gna
