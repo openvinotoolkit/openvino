@@ -90,7 +90,7 @@ def parse_args():
                            'Prompts how model layouts should be treated by application. '
                            'For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.')
     args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
-                      help='Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD '
+                      help='Optional. Number of streams to use for inference on the CPU/GPU '
                            '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
                            'or just <nstreams>). '
                            'Default value is determined automatically for a device. Please note that although the automatic selection '
