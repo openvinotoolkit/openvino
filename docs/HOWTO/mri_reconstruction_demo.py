@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--cpu_extension', dest='cpu_extension', help='Path to extensions library with FFT implementation.')
     parser.add_argument('-d', '--device', dest='device', default='CPU',
                         help='Optional. Specify the target device to infer on; CPU, '
-                             'GPU, HDDL or MYRIAD is acceptable. For non-CPU targets, '
+                             'GPU, GNA is acceptable. For non-CPU targets, '
                              'HETERO plugin is used with CPU fallbacks to FFT implementation. '
                              'Default value is CPU')
     args = parser.parse_args()
