@@ -122,6 +122,7 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         # Directory Options
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
         PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
+        INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
         # Configure Step Options:
         CMAKE_COMMAND
             ${HOST_PROTOC_CMAKE_COMMAND}
