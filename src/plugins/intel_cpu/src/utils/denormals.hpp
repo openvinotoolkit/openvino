@@ -14,9 +14,7 @@ static constexpr unsigned int DAZ_FLAG = 0x0040;
 bool flush_to_zero(bool on);
 bool denormals_as_zero(bool on);
 
-#if defined(__x86_64__) || defined(_M_X64)
-// MSVC _M_X64
-// GCC __x86_64__
+#ifdef OPENVINO_ARCH_X86_64
 
 bool flush_to_zero(bool on) {
     unsigned int mxcsr = _mm_getcsr();
@@ -39,7 +37,7 @@ bool denormals_as_zero(bool on) {
     _mm_setcsr(mxcsr);
     return true;
 }
-#else
+#else // OPENVINO_ARCH_X86_64
     #if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
         bool flush_to_zero(bool on) {
             unsigned int mxcsr = _mm_getcsr();
@@ -109,7 +107,7 @@ bool denormals_as_zero(bool on) {
         bool flush_to_zero(bool on) { return false; }
         bool denormals_as_zero(bool on) { return false; }
     #endif
-#endif
+#endif // OPENVINO_ARCH_X86_64
 
 }   // namespace intel_cpu
 }   // namespace ov
