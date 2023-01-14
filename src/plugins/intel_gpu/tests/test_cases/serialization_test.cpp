@@ -4,8 +4,8 @@
 
 #include "test_utils.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/utils.hpp"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -90,38 +90,38 @@ TEST(serialization_gpu, layout_from_string) {
     
         std::string layout;
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::ANY);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::ANY);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NCHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NCHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NHWC);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NHWC);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NCDHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NCDHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NDHWC);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NDHWC);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::OIHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::OIHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::GOIHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::GOIHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::OIDHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::OIDHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::GOIDHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::GOIDHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::SCALAR);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::SCALAR);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::C);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::C);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::CHW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::CHW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::HWC);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::HWC);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::HW);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::HW);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NC);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::NC);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::CN);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::CN);
         ib >> layout;
-        ASSERT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::BLOCKED);
+        EXPECT_EQ(cldnn::layout_from_string(layout), InferenceEngine::Layout::BLOCKED);
     }
 }
