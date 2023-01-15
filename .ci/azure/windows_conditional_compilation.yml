@@ -56,6 +56,7 @@ jobs:
     MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
+    BUILD_DIR_2: $(WORK_DIR)\build_s
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     INSTALL_DIR: $(WORK_DIR)\install_pkg
@@ -75,6 +76,8 @@ jobs:
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python
       python --version
+      where java
+      java -version
       wmic computersystem get TotalPhysicalMemory
       wmic cpu list
       wmic logicaldisk get description,name
@@ -85,6 +88,7 @@ jobs:
   - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+      rd /Q /S $(BUILD_DIR_2) & mkdir $(BUILD_DIR_2)
     displayName: 'Make dir'
 
   - checkout: self
@@ -109,52 +113,44 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && cmake -GNinja ^
-        -DENABLE_CPPLINT=OFF ^
+        -DENABLE_FASTER_BUILD=ON ^
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
         -DENABLE_PROFILING_ITT=ON ^
         -DSELECTIVE_BUILD=COLLECT ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DENABLE_CLDNN=OFF ^
         -DENABLE_INTEL_GPU=OFF ^
         -DENABLE_MULTI=OFF ^
         -DENABLE_AUTO=OFF ^
         -DENABLE_AUTO_BATCH=OFF ^
         -DENABLE_HETERO=OFF ^
         -DENABLE_TEMPLATE=OFF ^
+        -DENABLE_INTEL_MYRIAD=OFF ^
         -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
-        -DENABLE_INTEL_GNA=OFF ^
         -DENABLE_TESTS=OFF ^
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
-        -DENABLE_GAPI_PREPROCESSING=OFF ^
-        -S $(REPO_DIR) ^
-        -B $(BUILD_DIR)
-    displayName: 'CMake COLLECT'
+        $(REPO_DIR)
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'CMake'
 
   - script: dir $(REPO_DIR)\temp\ /s
     displayName: 'List temp SDKs'
 
   - script: |
-      call "$(MSVS_VARS_PATH)"
-      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel
-      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel --target sea_itt_lib
-    displayName: 'Build CC COLLECT'
+      call "$(MSVS_VARS_PATH)" && cmake --build . --config $(BUILD_TYPE) && cmake --build . --config $(BUILD_TYPE) --target sea_itt_lib
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Win CC COLLECT'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
 
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
-      python thirdparty\itt_collector\runtool\sea_runtool.py ^
-        --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) ^
-        -o $(BUILD_DIR)\itt_stat ^
-        ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe ^
-          -nireq 1 ^
-          -niter 1 ^
-          -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml ^
-          -d CPU
+      call "$(MSVS_VARS_PATH)" && python thirdparty\itt_collector\runtool\sea_runtool.py --bindir $(REPO_DIR)\bin\intel64\$(BUILD_TYPE) -o $(BUILD_DIR)\itt_stat ! $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
     workingDirectory: $(REPO_DIR)
     displayName: 'Code usage analysis'
 
@@ -162,25 +158,44 @@ jobs:
     displayName: 'List csv files'
 
   - script: |
-      cmake ^
+      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
+        -DVERBOSE_BUILD=ON ^
+        -DENABLE_FASTER_BUILD=ON ^
+        -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) ^
+        -DENABLE_PROFILING_ITT=OFF ^
         -DSELECTIVE_BUILD=ON ^
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
-        -S $(REPO_DIR) ^
-        -B $(BUILD_DIR)
-    displayName: 'CMake CC ON'
+        -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
+        -DENABLE_CLDNN=OFF ^
+        -DENABLE_INTEL_GPU=OFF ^
+        -DENABLE_MULTI=OFF ^
+        -DENABLE_AUTO=OFF ^
+        -DENABLE_AUTO_BATCH=OFF ^
+        -DENABLE_HETERO=OFF ^
+        -DENABLE_TEMPLATE=OFF ^
+        -DENABLE_INTEL_MYRIAD=OFF ^
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
+        -DENABLE_TESTS=OFF ^
+        -DENABLE_OV_ONNX_FRONTEND=OFF ^
+        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
+        -DENABLE_OV_TF_FRONTEND=OFF ^
+        $(REPO_DIR)
+    workingDirectory: $(BUILD_DIR_2)
+    displayName: 'CMake2'
 
-  - script: |
-      cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel --target conditional_compilation_gen
-      type $(BUILD_DIR)\src\common\conditional_compilation\conditional_compilation_gen.h
-    displayName: 'Check conditional_compilation_gen.h header'
-
-  - script: cmake --build $(BUILD_DIR) --config $(BUILD_TYPE) --parallel
-    displayName: 'Build CC ON'
+  - script: cmake --build . --config $(BUILD_TYPE)
+    workingDirectory: $(BUILD_DIR_2)
+    displayName: 'Build WinCC ON'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files ON'
 
+  - script: type $(BUILD_DIR_2)\src\common\conditional_compilation\conditional_compilation_gen.h
+    displayName: 'Check conditional_compilation_gen.h header'
+
   - script: |
       set path=%path%;$(REPO_DIR)\temp\tbb\bin
       $(REPO_DIR)\bin\intel64\$(BUILD_TYPE)\benchmark_app.exe -niter 1 -nireq 1 -m $(MODELS_PATH)\models\test_model\test_model_fp32.xml -d CPU
+    workingDirectory: $(REPO_DIR)
     displayName: 'Use OpenVINO after CC'
