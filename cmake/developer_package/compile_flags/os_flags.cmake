@@ -213,7 +213,7 @@ endfunction()
 #
 function(ov_force_include target scope header_file)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(${target} ${scope} /FI "${header_file}")
+        target_compile_options(${target} ${scope} /FI"${header_file}")
     else()
         target_compile_options(${target} ${scope} -include "${header_file}")
     endif()
