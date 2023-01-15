@@ -1,4 +1,4 @@
-name: Code snippets
+name: Code coverage
 on:
   pull_request:
   push:
