@@ -582,6 +582,6 @@ INSTANTIATE_TEST_SUITE_P(
                 {{"11"}, {"8-11"}, {"0-11"}},
             },
         }));
-#endif        
+#endif
 
 }  // namespace
