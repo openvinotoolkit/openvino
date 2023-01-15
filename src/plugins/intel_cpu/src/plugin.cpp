@@ -28,7 +28,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 # ifdef _WIN32
 #  include <intrin.h> // for __cpuid
-# elif !defined(__APPLE__)
+# elif defined(__APPLE__) || defined(__GNUC__)
 #  include <cpuid.h>
 # endif
 #endif // X86 or X86_64
@@ -59,7 +59,7 @@ static std::string getDeviceFullName() {
 #elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // TODO: extract actual device name
     brand_string = "ARM CPU";
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     const unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
     unsigned int regs[4];
     for (auto addr : addr_list) {

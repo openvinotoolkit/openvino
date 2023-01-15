@@ -6,6 +6,8 @@
 
 #include <immintrin.h>
 
+#include "openvino/core/visibility.hpp"
+
 namespace ov {
 namespace intel_cpu {
 static constexpr unsigned int FTZ_FLAG = 0x8000;

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "openvino/core/visibility.hpp"
 #include "ie_preprocess_gapi_kernels.hpp"
 #include "ie_preprocess_gapi_kernels_impl.hpp"
 #include "ie_preprocess_gapi_kernels_sse42.hpp"
