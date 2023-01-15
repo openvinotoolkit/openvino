@@ -1,0 +1,92 @@
+name: Code snippets
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+      - 'releases/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-22.04']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: CMake configure
+        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_COVERAGE=ON -B build
+
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
+
+      - name: Build snippets
+        run:  cmake --build build --target all --parallel ${{ steps.cpu-cores.outputs.count }}
+
+      - name: Run core unit tests
+        run: ./bin/intel64/Release/ov_core_unit_tests
+
+      - name: IR Frontend Tests
+        run: ./bin/intel64/Release/ov_ir_frontend_tests
+
+      - name: ONNX Frontend Tests
+        run: ./bin/intel64/Release/ov_onnx_frontend_tests
+
+      - name: Paddle Frontend Tests
+        run: ./bin/intel64/Release/paddle_tests
+
+      - name: TensorFlow Frontend Tests
+        run: ./bin/intel64/Release/ov_tensorflow_frontend_tests
+
+      - name: CPU unit tests
+        run: ./bin/intel64/Release/ov_cpu_unit_tests
+
+      - name: GNA unit tests
+        run: ./bin/intel64/Release/ov_gna_unit_tests
+
+      - name: MULTI unit tests
+        run: ./bin/intel64/Release/ieMultiPluginUnitTests
+
+      - name: Template func tests
+        run: ./bin/intel64/Release/ov_template_func_tests
+
+      - name: CPU func tests
+        run: ./bin/intel64/Release/ov_cpu_func_tests
+
+      - name: Old C API func tests
+        run: ./bin/intel64/Release/InferenceEngineCAPITests
+
+      - name: C API func tests
+        run: ./bin/intel64/Release/ov_capi_test
+
+      - name: Build coverage
+        run: ./bin/intel64/Release/ov_capi_test
+
+      - name: Build coverage
+        run:  cmake --build build --target ov_coverage
+
+      - name: ls all
+        run:  ls -laR .
+
+      - name: Collect coverage
+        run: |
+          cd build/coverage
+          curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+          gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+          shasum -a 256 -c codecov.SHA256SUM
+          chmod +x codecov
+          ./codecov
