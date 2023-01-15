@@ -25,14 +25,17 @@ jobs:
           lfs: true
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_COVERAGE=ON -B build
+        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_FASTER_BUILD=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -B build
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
 
-      - name: Build snippets
+      - name: Build OpenVINO
         run:  cmake --build build --target all --parallel ${{ steps.cpu-cores.outputs.count }}
+
+      - name: ls all
+        run:  ls -laR .
 
       - name: Run core unit tests
         run: ./bin/intel64/Release/ov_core_unit_tests
