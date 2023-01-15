@@ -28,7 +28,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 # ifdef _WIN32
 #  include <intrin.h> // for __cpuid
-# elif defined(__APPLE__) || defined(__GNUC__)
+# elif defined(__APPLE__) || defined(__linux__)
 #  include <cpuid.h>
 # endif
 #endif // X86 or X86_64
