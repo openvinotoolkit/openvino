@@ -16,7 +16,7 @@ In both cases, Python 3.7 - 3.10 needs to be installed on your machine before st
 
 ## <a name="python-developers"></a>For Python Developers
 
-If you are a Python developer, follow the steps in the <a href="openvino_docs_install_guides_install_dev_tools.html#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
+If you are a Python developer, follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
    
 ## <a name="cpp-developers"></a>For C++ Developers
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the [Install OpenVINO Runtime](./installing-openvino-runtime.md) page to install OpenVINO Runtime from an archive file for your operating system.
@@ -117,7 +117,7 @@ pip install openvino-dev[tensorflow2,onnx]
 
 For more details on the openvino-dev PyPI package, see https://pypi.org/project/openvino-dev/.
 
-## Test the Installation
+### Step 5. Test the Installation
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 
