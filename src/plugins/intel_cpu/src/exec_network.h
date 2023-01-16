@@ -47,6 +47,11 @@ public:
 
     void Export(std::ostream& modelStream) override;
 
+ #ifdef CPU_DEBUG_CAPS
+    friend void perfDump(const ExecNetwork& execNet);
+    ~ExecNetwork() { perfDump(*this); }
+ #endif
+
 protected:
     friend class InferRequestBase;
     ExtensionManager::Ptr extensionManager;

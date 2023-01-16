@@ -63,6 +63,9 @@ void DebugCapsConfig::readProperties() {
 
     if ((envVarValue = readEnv("OV_CPU_DUMP_IR")))
         dumpIR.parseAndSet(envVarValue);
+
+    if ((envVarValue = readEnv("OV_CPU_PERF_TABLES_PATH")))
+        perfTablesPath = envVarValue;
 }
 
 }   // namespace intel_cpu

@@ -998,11 +998,13 @@ void Graph::PullOutputData(BlobMap &out) {
 }
 
 void Graph::InferStatic(InferRequestBase* request) {
+    CPU_DEBUG_CAP_ENABLE(const PerfKey perfKey = perfGetKey(*this));
+
     dnnl::stream stream(getEngine());
 
     for (const auto& node : executableGraphNodes) {
-        VERBOSE(node, getConfig().debugCaps.verbose);
-        PERF(node, getConfig().collectPerfCounters);
+        VERBOSE(node, getConfig().debugCaps.verbose, infer_count);
+        PERF(node, getConfig().collectPerfCounters, perfKey);
 
         if (request)
             request->ThrowIfCanceled();
@@ -1224,14 +1226,15 @@ void Graph::InferDynamic(InferRequestBase* request) {
     } else {
         updateNodes.reset(new UpdateNodesSeq(executableGraphNodes));
     }
-    size_t inferCounter = 0;
 
+    CPU_DEBUG_CAP_ENABLE(const PerfKey perfKey = perfGetKey(*this));
+    size_t inferCounter = 0;
     for (auto stopIndx : syncIndsWorkSet) {
         updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
-            VERBOSE(node, getConfig().debugCaps.verbose);
-            PERF(node, getConfig().collectPerfCounters);
+            VERBOSE(node, getConfig().debugCaps.verbose, infer_count);
+            PERF(node, getConfig().collectPerfCounters, perfKey);
 
             if (request)
                 request->ThrowIfCanceled();
@@ -1241,7 +1244,7 @@ void Graph::InferDynamic(InferRequestBase* request) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    DUMP(node, getConfig().debugCaps, infer_count);
+    DUMP(node, getConfig().debugCaps, nestingLevel, infer_count);
 
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
 
@@ -1266,7 +1269,7 @@ void Graph::Infer(InferRequestBase* request) {
         IE_THROW() << "Unknown ov::intel_cpu::Graph state: " << static_cast<size_t>(status);
     }
 
-    if (infer_count != -1) infer_count++;
+    CPU_DEBUG_CAP_ENABLE(infer_count++);
 }
 
 void Graph::VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes) {

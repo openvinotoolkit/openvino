@@ -205,6 +205,7 @@ void SoftMax::prepareParams() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
     execPtr = result.first;
     if (!execPtr) {

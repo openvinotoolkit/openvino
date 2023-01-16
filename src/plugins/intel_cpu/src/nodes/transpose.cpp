@@ -191,11 +191,12 @@ void Transpose::prepareParams() {
         auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
-        auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
-        if (!result) {
+        const auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
+        prim = result.first;
+        if (!prim) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
         }
-        prim = result;
+        VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
         getSelectedPrimitiveDescriptor()->setImplementationType(
             parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
@@ -228,6 +229,7 @@ void Transpose::prepareParams() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(params, builder);
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
     if (!result.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";

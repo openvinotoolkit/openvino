@@ -79,7 +79,7 @@ public:
         return graphEdges;
     }
 
-    std::map<std::string, NodePtr>& GetInputNodesMap() {
+    const std::map<std::string, NodePtr>& GetInputNodesMap() const {
         return inputNodesMap;
     }
 
@@ -182,8 +182,6 @@ public:
 
     std::shared_ptr<ngraph::Function> dump() const;
 
-    void ResetInferCount() { infer_count = 0; }
-
     void SortTopologically();
 
     bool hasDynamicInput() const {
@@ -215,10 +213,6 @@ protected:
         syncNodesInds.clear();
     }
     Status status { Status::NotReady };
-
-    // For dumping purposes. -1 - no counting, all other positive
-    // values mean increment it within each Infer() call
-    int infer_count = -1;
 
     bool reuse_io_tensors = true;
 
@@ -271,6 +265,23 @@ private:
     int dynBatch = -1;
 
     void EnforceBF16();
+
+#ifdef CPU_DEBUG_CAPS
+
+public:
+    void setNestingLevel(const uint8_t level) { nestingLevel = level; }
+    void ResetInferCount() { infer_count = 0; }
+
+private:
+    // Main CPU plugin execution graph has level 1,
+    // other ones are nested graphs used for particular nodes.
+    uint8_t nestingLevel = 2;
+    int infer_count = 0;
+
+    std::map<std::vector<VectorDims>, PerfKey> perfKeysMap;
+    friend PerfKey perfGetKey(Graph& graph);
+    friend void perfDump(const ExecNetwork& execNet);
+#endif // CPU_DEBUG_CAPS
 };
 
 }   // namespace intel_cpu

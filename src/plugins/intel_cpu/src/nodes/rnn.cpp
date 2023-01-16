@@ -1078,6 +1078,7 @@ void RNN::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
     auto prevExecPtr = execPtr;
     execPtr = result.first;
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
     if (!execPtr) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";

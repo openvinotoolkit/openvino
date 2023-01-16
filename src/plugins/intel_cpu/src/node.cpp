@@ -554,6 +554,7 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
 void Node::updateShapes() {
     IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (needShapeInfer()) {
+        PERF_SHAPE_INFER(this);
         auto result = shapeInfer();
         if (ShapeInferStatus::success == result.status) {
             redefineOutputMemory(result.dims);
@@ -565,6 +566,7 @@ void Node::updateDynamicParams() {
     IE_ASSERT(isDynamicNode()) << "Node::updateDynamicParams() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (isExecutable()) {
         if (needPrepareParams()) {
+            PERF_PREPARE_PARAMS(this);
             IE_ASSERT(inputShapesDefined()) << "Can't prepare params for " << getTypeStr() << " node with name: " << getName() <<
                 " since the input shapes are not defined.";
             DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),

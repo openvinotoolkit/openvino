@@ -233,10 +233,12 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     }
 
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
-    if (!result) {
+    prim = result.first;
+    if (!prim) {
         IE_THROW() << "Cannot create reorder primitive: unsupported reorder case";
     }
-    prim = result;
+
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
     selectedPD->setImplementationType(
         parse_impl_name(DnnlExtensionUtils::query_impl_info_str(prim.get_primitive_desc())));
@@ -378,47 +380,52 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
         auto dstPtr = static_cast<uint8_t*>(output.GetPtr());
 
         auto copySize = output.GetSize();
-        cpu_memcpy(dstPtr, srcPtr, copySize);
-    } else {
-        dnnl::reorder reorder;
-        std::vector<uint8_t> tmpBuff;
+        return cpu_memcpy(dstPtr, srcPtr, copySize);
+    }
 
-        auto srcMemory = input.GetPrimitive();
-        auto dstMemory = output.GetPrimitive();
-        auto engine = output.getEngine();
-        // try directly reorder
-        reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+    dnnl::reorder reorder;
+    std::vector<uint8_t> tmpBuff;
+
+    auto srcMemory = input.GetPrimitive();
+    auto dstMemory = output.GetPrimitive();
+    auto engine = output.getEngine();
+    // try directly reorder
+    auto result = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+    reorder = result.first;
+
+    if (!reorder) {
+        // try precision conversion then do the reorder
+        if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) && Convert::isSupportedDesc(output.getDesc())) {
+            // we probably could not make the reorder because there is no one supporting this precision conversion
+            // lets try to convert data first using cpu_convert
+            auto data = static_cast<const uint8_t*>(input.GetPtr());
+            tmpBuff.resize(input.GetSize());
+
+            const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
+            cpu_convert(data,
+                        tmpBuff.data(),
+                        DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
+                        outPrc,
+                        input.GetSize() / input.getDesc().getPrecision().size());
+
+            Memory tmpMem(engine);
+            auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
+            tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
+
+            srcMemory = tmpMem.GetPrimitive();
+            auto result = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
+            reorder = result.first;
+        }
         if (!reorder) {
-            // try precision conversion then do the reorder
-            if (output.GetDataType() != input.GetDataType() && Convert::isSupportedDesc(input.getDesc()) &&
-                Convert::isSupportedDesc(output.getDesc())) {
-                //we probably could not make the reorder because there is no one supporting this precision conversion
-                //lets try to convert data first using cpu_convert
-                auto data = static_cast<const uint8_t *>(input.GetPtr());
-                tmpBuff.resize(input.GetSize());
-
-                const auto outPrc = DnnlExtensionUtils::DataTypeToIEPrecision(output.GetDataType());
-                cpu_convert(data, tmpBuff.data(), DnnlExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
-                            outPrc, input.GetSize() / input.getDesc().getPrecision().size());
-
-                Memory tmpMem(engine);
-                auto tmpDesc = input.getDesc().cloneWithNewPrecision(outPrc);
-                tmpMem.Create(std::move(tmpDesc), tmpBuff.data());
-
-                srcMemory = tmpMem.GetPrimitive();
-                reorder = getReorderPrim(cache, dstMemory.get_engine(), srcMemory.get_desc(), dstMemory.get_desc());
-            }
-            if (!reorder) {
-                IE_THROW() << "No reorder available for the following tensor descriptors: "
-                    << input.getDesc().serializeFormat() << " and " << output.getDesc().serializeFormat();
-            }
+            IE_THROW() << "No reorder available for the following tensor descriptors: " << input.getDesc().serializeFormat() << " and "
+                       << output.getDesc().serializeFormat();
         }
-        if (reorder) {
-            dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
-            reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
-        } else {
-            IE_THROW() << "Could not make onednn reorder.";
-        }
+    }
+    if (reorder) {
+        dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        reorder.execute(loc_stream, {{DNNL_ARG_FROM, srcMemory}, {DNNL_ARG_TO, dstMemory}});
+    } else {
+        IE_THROW() << "Could not make onednn reorder.";
     }
 }
 

@@ -42,6 +42,7 @@ public:
     // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
     std::unordered_map<FILTER, std::string, std::hash<int>> blobDumpFilters;
     std::string summaryPerf = "";
+    std::string perfTablesPath;
 
     struct TransformationFilter {
         enum Type : uint8_t {

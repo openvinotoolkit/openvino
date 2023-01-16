@@ -1481,6 +1481,7 @@ void FakeQuantize::createPrimitive() {
             return std::make_shared<FakeQuantizeJitExecutor>(key.jqp);
         };
         auto result = cache->getOrCreate(key, buildExecutor);
+        VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
         execPtr = result.first;
     }
 }
