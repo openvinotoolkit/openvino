@@ -31,3 +31,5 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
         SOURCE_DIRECTORY "${root_dir}/include"
         ADDITIONAL_INCLUDE_DIRECTORIES
         $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
+ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
