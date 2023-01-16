@@ -35,12 +35,12 @@ void regclass_frontend_FrontEnd(py::module m) {
                 return self.load({py_object_to_any(py_obj)});
             }
         },
-        py::arg("py_obj"),
+        py::arg("path"),
         R"(
                 Loads an input model.
 
-                :param py_obj: Object describing the model. It can be path to model file.
-                :type py_obj: Any
+                :param path: Object describing the model. It can be path to model file.
+                :type path: Any
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
              )");
