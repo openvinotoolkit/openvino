@@ -14,14 +14,6 @@ namespace cldnn {
 namespace onednn {
 
 namespace {
-void pad_dims(dnnl::memory::dims& padded_dims, cldnn::format format) {
-    auto block_sizes = format.block_sizes();
-    for (auto& block : block_sizes) {
-        auto rounded_dim = round_up_to(padded_dims[block.first], block.second);
-        padded_dims[block.first] = rounded_dim;
-    }
-}
-
 std::string convert_data_format_string(cldnn::format fmt) {
     switch (fmt) {
         case cldnn::format::b_fs_yx_fsv2: return "aBcd2b";
@@ -36,78 +28,6 @@ std::string convert_data_format_string(cldnn::format fmt) {
     }
 }
 
-dnnl::memory::desc create_memory_desc_from_format_string(dnnl::memory::dims dims, dnnl::memory::data_type dt, std::string tag) {
-    dnnl::memory::desc desc;
-    dnnl_memory_desc_t* md = &desc.data;
-
-    int ndims = static_cast<int>(dims.size());
-    md->ndims = ndims;
-    if (ndims > DNNL_MAX_NDIMS) throw std::invalid_argument("[clDNN] Unsupported ndims " + std::to_string(ndims));
-
-    std::copy(&dims[0], &dims[0] + ndims, md->dims);
-    md->data_type = static_cast<dnnl_data_type_t>(dt);
-    md->format_kind = dnnl_blocked;
-
-    // Parse dimensions and their block sizes starting from the innermost one.
-    std::vector<std::pair<int, int>> dim_blocks;
-    int pos = static_cast<int>(tag.size()) - 1;
-    int ndims_from_tag = -1;
-    while (pos >= 0) {
-        int pos0 = pos;
-
-        --pos;
-        while (pos >= 0 && std::isdigit(tag[pos]))
-            pos--;
-
-        int dim_idx = std::tolower(tag[pos0]) - 'a';
-        if (dim_idx >= ndims) throw std::invalid_argument("[clDNN] Unsupported tag for oneDNN " + tag);
-        ndims_from_tag = std::max(dim_idx + 1, ndims_from_tag);
-        int block_str_len = pos0 - pos - 1;
-        int block = (block_str_len == 0)
-                ? 1
-                : std::stoi(tag.substr(pos + 1, block_str_len));
-        dim_blocks.emplace_back(dim_idx, block);
-    }
-    if (ndims_from_tag != ndims) throw std::invalid_argument("[clDNN] Unsupported tag for oneDNN " + tag);
-
-    auto &blk = md->format_desc.blocking;
-
-    // Compute strides and fill inner block sizes/indices.
-    dnnl_dim_t stride = 1;
-    dnnl_dims_t full_inner_blks;
-    std::fill(full_inner_blks, full_inner_blks + md->ndims, 1);
-    for (auto &p : dim_blocks) {
-        int dim_idx = p.first;
-        int block = p.second;
-        if (block == 1) {
-            assert(blk.strides[dim_idx] == 0);
-            blk.strides[dim_idx] = stride;
-
-            dnnl_dim_t fib = full_inner_blks[dim_idx];
-            dnnl_dim_t padded_dim = md->dims[dim_idx] == DNNL_RUNTIME_DIM_VAL
-                    ? DNNL_RUNTIME_DIM_VAL
-                    : (md->dims[dim_idx] + fib - 1) / fib * fib;
-            md->padded_dims[dim_idx] = padded_dim;
-            if (padded_dim == DNNL_RUNTIME_DIM_VAL)
-                stride = DNNL_RUNTIME_DIM_VAL;
-            else
-                stride *= (padded_dim / fib);
-        } else {
-            full_inner_blks[dim_idx] *= block;
-            blk.inner_blks[blk.inner_nblks] = block;
-            blk.inner_idxs[blk.inner_nblks] = dim_idx;
-            blk.inner_nblks++;
-            stride *= block;
-        }
-    }
-
-    // Inner block sizes/indices are stored from the outermost to the innermost
-    // so need to reverse them.
-    std::reverse(blk.inner_blks, blk.inner_blks + blk.inner_nblks);
-    std::reverse(blk.inner_idxs, blk.inner_idxs + blk.inner_nblks);
-
-    return desc;
-}
 }  // namespace
 
 template <typename T>
@@ -204,6 +124,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::b_fs_zyx_fsv16, dnnl::memory::format_tag::nCdhw16c },
         { cldnn::format::b_fs_zyx_fsv32, dnnl::memory::format_tag::aBcde32b },
         { cldnn::format::bs_fs_yx_bsv16_fsv16, dnnl::memory::format_tag::NChw16n16c },
+        { cldnn::format::bs_fs_yx_bsv16_fsv32, dnnl::memory::format_tag::NChw16n32c },
         { cldnn::format::bs_fs_yx_bsv32_fsv32, dnnl::memory::format_tag::NChw32n32c },
         { cldnn::format::bs_fs_yx_bsv4_fsv4, dnnl::memory::format_tag::ABcd4a4b },
         { cldnn::format::bs_fs_yx_bsv8_fsv4, dnnl::memory::format_tag::ABcd8a4b },
@@ -213,6 +134,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::bs_fs_zyx_bsv32_fsv16, dnnl::memory::format_tag::NCdhw32n16c },
         { cldnn::format::bs_fs_zyx_bsv32_fsv32, dnnl::memory::format_tag::NCdhw32n32c },
         { cldnn::format::bs_fs_zyx_bsv16_fsv16, dnnl::memory::format_tag::NCdhw16n16c },
+        // { cldnn::format::bs_fs_zyx_bsv16_fsv32, dnnl::memory::format_tag::NCdhw16n32c }, // TODO onednn3.0: Request NCdhw16n32c format
         { cldnn::format::bs_fs_zyx_bsv8_fsv4, dnnl::memory::format_tag::ABcde8a4b },
         { cldnn::format::bs_fs_zyx_bsv8_fsv2, dnnl::memory::format_tag::ABcde8a2b },
 };
@@ -260,55 +182,48 @@ int64_t get_f_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
         }
     }
 
-    switch (desc.data.data_type) {
-        case dnnl_data_type_t::dnnl_s8:
-        case dnnl_data_type_t::dnnl_u8:
+    switch (desc.get_data_type()) {
+        case dnnl::memory::data_type::s8:
+        case dnnl::memory::data_type::u8:
             return offset;
-        case dnnl_data_type_t::dnnl_f16:
-        case dnnl_data_type_t::dnnl_bf16:
+        case dnnl::memory::data_type::f16:
+        case dnnl::memory::data_type::bf16:
             return (offset * 2);
-        case dnnl_data_type_t::dnnl_f32:
-        case dnnl_data_type_t::dnnl_s32:
+        case dnnl::memory::data_type::f32:
+        case dnnl::memory::data_type::s32:
             return (offset * 4);
-        default: throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(desc.data.data_type));
+        default:
+            throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ")
+                    + dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
     }
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_tag target_fmt, bool flatten) {
     dnnl::memory::dims dims;
-    dnnl::memory::dims padded_dims;
-    dnnl::memory::dims padded_offset;
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
         dims.insert(dims.begin(), 1);
     } else if (target_fmt == dnnl::memory::format_tag::ab) {
         dims.push_back(l.batch());
         dims.push_back(l.get_tensor().count() / l.batch());
-        padded_dims = dims;
     } else if (flatten) {
         dims = flatten_tensor(l.get_tensor());
     } else {
         auto rank = cldnn::format::dimension(l.format);
         dims = convert_tensor(l.get_tensor(), rank, cldnn::format::is_grouped(l.format));
     }
-    padded_dims = dims;
-    pad_dims(padded_dims, l.format);
 
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
     dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
 
     if (fmt == dnnl::memory::format_tag::undef) {
-        return create_memory_desc_from_format_string(dims, dt, convert_data_format_string(l.format));
+        throw ov::Exception("[GPU] Unexpected fmt: " + convert_data_format_string(l.format));
     } else {
         dnnl::memory::desc res(dims, dt, fmt);
-
-        std::copy(padded_dims.begin(), padded_dims.end(), res.data.padded_dims);
-        std::copy(padded_offset.begin(), padded_offset.end(), res.data.padded_offsets);
 
         return res;
     }
 }
-
 static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
                             size_t first, size_t depth) {
     if (depth == 0)
@@ -323,12 +238,11 @@ static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::v
         std::swap(order[first], order[idx]);
     }
 }
-
 // Get candidate orders calculated by stride value of dnnl::memory::descriptor could be multiple
 std::vector<std::vector<size_t>> get_candidate_orders(dnnl::memory::desc desc) {
     std::vector<std::vector<size_t>> orders;
-    auto strides = desc.data.format_desc.blocking.strides;
-    std::vector<size_t> order(desc.data.ndims);
+    auto strides = desc.get_strides();
+    std::vector<size_t> order(desc.get_ndims());
     std::iota(order.begin(), order.end(), 0);
     std::sort(order.begin(), order.end(),
                 [&strides] (size_t ind_l, size_t ind_r) {
@@ -367,18 +281,17 @@ static bool compare_orders(std::vector<std::vector<size_t>> a, std::vector<size_
 }
 
 cldnn::format find_data_format(dnnl::memory::desc desc) {
-    auto blk = desc.data.format_desc.blocking;
     auto order = get_candidate_orders(desc);
 
     for (int32_t fmt_idx = format::bfyx ; fmt_idx < format::oiyx ; fmt_idx++) {
         auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
-        if (desc.data.ndims == static_cast<int>(candidate_trait._order.size())
-            && blk.inner_nblks == static_cast<int>(candidate_trait.block_sizes.size())
+        if (desc.get_ndims() == static_cast<int>(candidate_trait._order.size())
+            && desc.get_inner_nblks() == static_cast<int>(candidate_trait.block_sizes.size())
             && compare_orders(order, candidate_trait._order)) {
             bool is_match = true;
             for (size_t idx = 0 ; idx < candidate_trait.block_sizes.size() ; idx++) {
-                if (blk.inner_blks[idx] != static_cast<int>(candidate_trait.block_sizes[idx].second)
-                    || blk.inner_idxs[idx] != static_cast<int>(candidate_trait.block_sizes[idx].first)) {
+                if (desc.get_inner_blks()[idx] != static_cast<int>(candidate_trait.block_sizes[idx].second)
+                    || desc.get_inner_idxs()[idx] != static_cast<int>(candidate_trait.block_sizes[idx].first)) {
                     is_match = false;
                     break;
                 }
@@ -390,17 +303,16 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
 
     std::stringstream msg;
     msg << "Unsupported onednn dnnl::memory::desc find_data_format. "
-        << "ndims: " << desc.data.ndims
-        << ", inner_nblks: " << blk.inner_nblks
+        << "ndims: " << desc.get_ndims()
+        << ", inner_nblks: " << desc.get_inner_nblks()
         << ", inner_blks: ";
-    for (int i = 0; i < blk.inner_nblks; i++)
-        msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+    for (int i = 0; i < desc.get_inner_nblks(); i++)
+        msg << "(blk " << desc.get_inner_blks()[i] << ", idx " << desc.get_inner_idxs()[i] << ") ";
 
     throw std::runtime_error(msg.str());
 }
 
 cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
-    auto blk = desc.data.format_desc.blocking;
     auto orders = get_candidate_orders(desc);
 
     format start_format = format::oiyx;
@@ -409,8 +321,8 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
 
     for (int32_t fmt_idx = start_format ; fmt_idx < format::format_num ; fmt_idx++) {
         auto candidate_trait = format::traits(static_cast<format::type>(fmt_idx));
-        if (static_cast<size_t>(desc.data.ndims) == candidate_trait._order.size()
-            && static_cast<size_t>(blk.inner_nblks) == candidate_trait.block_sizes.size()
+        if (static_cast<size_t>(desc.get_ndims()) == candidate_trait._order.size()
+            && static_cast<size_t>(desc.get_inner_nblks()) == candidate_trait.block_sizes.size()
             && compare_orders(orders, candidate_trait._order)) {
             // Compare all pairs of dimension number and block size to format_traits_map of all formats
             bool is_match = true;
@@ -420,21 +332,21 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
                 if (is_grouped && candidate_trait.is_group_char(candidate_trait.internal_order[block_idx])) {
                     // inner_idx gets the index of group dimension in mem::desc when blocked axis is group
                     auto inner_idx = candidate_trait.order.find_first_of(candidate_trait.internal_order[block_idx]);
-                    if (blk.inner_blks[idx] != block_size ||
-                        blk.inner_idxs[idx] != static_cast<dnnl_dim_t>(inner_idx)) {
+                    if (desc.get_inner_blks()[idx] != block_size ||
+                        desc.get_inner_idxs()[idx] != static_cast<dnnl_dim_t>(inner_idx)) {
                         is_match = false;
                         break;
                     }
                 } else if (is_grouped) {
                     // g,o,i from cldnn formats are matching to a,b,c of dnnl. But g is at the end of internal order.
-                    if (blk.inner_blks[idx] != block_size ||
-                        (blk.inner_idxs[idx] - static_cast<dnnl_dim_t>(candidate_trait.group_num)) != block_idx) {
+                    if (desc.get_inner_blks()[idx] != block_size ||
+                        (desc.get_inner_idxs()[idx] - static_cast<dnnl_dim_t>(candidate_trait.group_num)) != block_idx) {
                         is_match = false;
                         break;
                     }
                 } else {
-                    if (blk.inner_blks[idx] != block_size ||
-                        blk.inner_idxs[idx] != block_idx) {
+                    if (desc.get_inner_blks()[idx] != block_size ||
+                        desc.get_inner_idxs()[idx] != block_idx) {
                         is_match = false;
                         break;
                     }
@@ -448,18 +360,19 @@ cldnn::format find_format(dnnl::memory::desc desc, bool is_grouped) {
 
     std::stringstream msg;
     msg << "Unsupported " << (is_grouped ? "grouped" : "") << "onednn dnnl::memory::desc find_format. "
-        << "ndims: " << desc.data.ndims
-        << ", inner_nblks: " << blk.inner_nblks
+        << "ndims: " << desc.get_ndims()
+        << ", inner_nblks: " << desc.get_inner_nblks()
         << ", inner_blks: ";
-    for (int i = 0; i < blk.inner_nblks; i++)
-        msg << "(blk " << blk.inner_blks[i] << ", idx " << blk.inner_idxs[i] << ") ";
+    for (int i = 0; i < desc.get_inner_nblks(); i++)
+        msg << "(blk " << desc.get_inner_blks()[i] << ", idx " << desc.get_inner_idxs()[i] << ") ";
     for (auto order : orders) {
         msg << ", strides_order : ";
+
         for (const auto& value : order)
             msg << value << " ";
     }
     msg << ", stride_value : ";
-    auto strides = desc.data.format_desc.blocking.strides;
+    auto strides = desc.get_strides();
     for (size_t idx = 0; idx < orders[0].size() ; idx++) {
         msg << strides[idx] << " ";
     }
@@ -472,7 +385,7 @@ dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     switch (func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
-        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu;
+        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu_erf;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
         case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
         case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
@@ -510,5 +423,6 @@ bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
 
 template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
 template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
+
 }  // namespace onednn
 }  // namespace cldnn
