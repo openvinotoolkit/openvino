@@ -85,14 +85,6 @@ def model_onnx_path():
     return test_onnx
 
 
-def plugins_path():
-    base_path = os.path.dirname(__file__)
-    plugins_xml = os.path.join(base_path, "test_utils", "utils", "plugins.xml")
-    plugins_win_xml = os.path.join(base_path, "test_utils", "utils", "plugins_win.xml")
-    plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_apple.xml")
-    return (plugins_xml, plugins_win_xml, plugins_osx_xml)
-
-
 def _get_default_model_zoo_dir():
     return Path(os.getenv("ONNX_HOME", Path.home() / ".onnx/model_zoo"))
 

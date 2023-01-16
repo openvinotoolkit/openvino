@@ -51,8 +51,6 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
-                                      "to HardSigmoid_IE")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")
