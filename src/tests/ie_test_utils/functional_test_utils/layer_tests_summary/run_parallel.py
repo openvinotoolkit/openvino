@@ -321,7 +321,7 @@ class TestParallelRunner:
             logger.info(f"Test list is taken from cache. Total test counter is {len(proved_test_list)}")
             final_test_list = self.__prepare_smart_filters(proved_test_list)
         else:
-            logger.info(f"Test list is taken from cache. Total test counter is {len(test_list_runtime)}")
+            logger.info(f"Test list is taken from runtime. Total test counter is {len(test_list_runtime)}")
             final_test_list = test_list_runtime
             final_test_list.reverse()
         return final_test_list
