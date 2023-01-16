@@ -20,12 +20,7 @@ OutputVector translate_convolution_mode(NodeContext& context) {
     auto groups = context.const_input<int64_t>(6);
     auto pad_const = CoordinateDiff(strides.size(), 0);
 
-    const auto auto_pad_type_ptr = TORCH_AUTO_PAD_TO_OV.find(pad_mode);
-    FRONT_END_OP_CONVERSION_CHECK(auto_pad_type_ptr != TORCH_AUTO_PAD_TO_OV.end(),
-                                  "Provided `padding` value: '",
-                                  pad_mode,
-                                  "' is invalid.");
-    auto auto_pad_mode = auto_pad_type_ptr->second;
+    auto auto_pad_mode = convert_pad(pad_mode);
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {

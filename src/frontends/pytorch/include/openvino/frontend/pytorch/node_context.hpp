@@ -7,6 +7,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov {
 namespace frontend {
@@ -121,7 +122,7 @@ public:
 
     void add_tensor_to_context(size_t index, Output<Node> ov_output) {
         if (m_tensor_map->count(index)) {
-            std::cerr << "[ WARNING ] Current context has tensor. Rewriting." << std::endl;
+            OPENVINO_DEBUG << "[ WARNING ] Current context has tensor. Rewriting.\n";
         }
         ov_output.get_tensor().add_names({std::to_string(index)});
         (*m_tensor_map)[index] = ov_output;

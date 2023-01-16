@@ -26,7 +26,6 @@ void regclass_frontend_FrontEnd(py::module m) {
     fem.def(
         "load",
         [](FrontEnd& self, const py::object& py_obj) {
-            // TODO: Extend to arbitrary number of any parameters, this code shouldn't gate FE universal load function
             try {
                 std::string model_path = Common::utils::convert_path_to_string(py_obj);
                 return self.load(model_path);

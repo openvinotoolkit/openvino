@@ -18,12 +18,7 @@ OutputVector translate_convnd(NodeContext& context) {
     auto pad_type = ov::op::PadType::EXPLICIT;
     try {
         auto pad_mode = context.const_input<std::string>(4);
-        const auto auto_pad_type_ptr = TORCH_AUTO_PAD_TO_OV.find(pad_mode);
-        FRONT_END_OP_CONVERSION_CHECK(auto_pad_type_ptr != TORCH_AUTO_PAD_TO_OV.end(),
-                                      "Provided `padding` value: '",
-                                      pad_mode,
-                                      "' is invalid.");
-        pad_type = auto_pad_type_ptr->second;
+        pad_type = convert_pad(pad_mode);
     } catch (ov::frontend::GeneralFailure) {
         pads = context.const_input<CoordinateDiff>(4);
     }

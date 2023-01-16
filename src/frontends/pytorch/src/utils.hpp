@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <openvino/opsets/opset10.hpp>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 
@@ -18,9 +17,6 @@ class FrameworkNode;
 
 namespace frontend {
 namespace pytorch {
-
-const std::unordered_multimap<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
-                                                                                 {"same", ov::op::PadType::SAME_UPPER}};
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
@@ -40,7 +36,8 @@ std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id);
 
 std::shared_ptr<Node> numel(NodeContext& context, size_t input_id);
 
-ov::element::Type convert_dtype(int64_t dtype_value);
+element::Type convert_dtype(int64_t dtype_value);
+ov::op::PadType convert_pad(const std::string& pt_pad);
 
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
 

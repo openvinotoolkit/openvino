@@ -4,10 +4,6 @@
 
 #pragma once
 
-#include <functional>
-#include <map>
-#include <string>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 
 namespace ov {

@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "openvino/core/any.hpp"
+
 namespace ov {
 namespace frontend {
 
@@ -36,7 +38,7 @@ struct Union;
 
 }  // namespace type
 
-/// Plays a role of node, block and module decoder (kind of temporary fat API)
+/// Plays a role of node, block and module decoder
 class IDecoder {
 public:
     virtual ~IDecoder() = default;

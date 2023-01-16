@@ -10,11 +10,6 @@
 
 namespace py = pybind11;
 
-class PyIDecoder : public ov::frontend::IDecoder {
-public:
-    using IDecoder::IDecoder; // Inherit constructors
-};
-
 /// Trampoline class to support inheritence from TorchDecoder in Python
 class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
     using ov::frontend::pytorch::TorchDecoder::TorchDecoder;

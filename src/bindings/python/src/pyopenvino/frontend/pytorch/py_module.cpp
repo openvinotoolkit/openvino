@@ -4,8 +4,6 @@
 
 #include <pybind11/pybind11.h>
 
-#include <string>
-
 #include "decoder.hpp"
 
 namespace py = pybind11;

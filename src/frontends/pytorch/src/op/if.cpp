@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/util/log.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -109,7 +110,7 @@ OutputVector translate_if(NodeContext& context) {
             FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body");
             inputs_map[output_idx][0] = new_parameter;
             extra_then_body_results[output_idx] = new_result;
-            std::cout << "[ WARNING ] Modified then body: " << if_node << std::endl;
+            OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
         } else if (!extra_else_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in else body
             auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
@@ -121,7 +122,7 @@ OutputVector translate_if(NodeContext& context) {
             FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body");
             inputs_map[output_idx][1] = new_parameter;
             extra_else_body_results[output_idx] = new_result;
-            std::cout << "[ WARNING ] Modified else body: " << if_node << std::endl;
+            OPENVINO_DEBUG << "Modified else body: " << if_node << '\n';
         }
     }
     // Create prim::If inputs and outputs

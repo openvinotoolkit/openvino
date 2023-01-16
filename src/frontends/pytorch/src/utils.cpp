@@ -4,10 +4,9 @@
 
 #include "utils.hpp"
 
-#include <openvino/frontend/pytorch/decoder.hpp>
-#include <openvino/frontend/pytorch/node_context.hpp>
-
 #include "op_table.hpp"
+#include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 
 namespace ov {
@@ -118,20 +117,28 @@ std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
 };
 
 namespace {
-const std::map<int, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
-                                                    {1, element::i8},
-                                                    {2, element::i16},
-                                                    {3, element::i32},
-                                                    {4, element::i64},
-                                                    {5, element::f16},
-                                                    {6, element::f32},
-                                                    {7, element::f64},
-                                                    {11, element::boolean}};
-}
+const std::unordered_map<int, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
+                                                              {1, element::i8},
+                                                              {2, element::i16},
+                                                              {3, element::i32},
+                                                              {4, element::i64},
+                                                              {5, element::f16},
+                                                              {6, element::f32},
+                                                              {7, element::f64},
+                                                              {11, element::boolean}};
+
+const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
+                                                                            {"same", ov::op::PadType::SAME_UPPER}};
+}  // namespace
 
 ov::element::Type convert_dtype(int64_t pt_type) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
     return TORCH_TO_OV_TYPE.at(pt_type);
+};
+
+ov::op::PadType convert_pad(const std::string& pt_pad) {
+    FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
+    return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input) {
@@ -162,7 +169,7 @@ OutputVector make_framework_node(NodeContext* context) {
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
         context->mutate_input(0, outputs.back());
-        // std::cerr << "[ WARNING ] Created node with mutated 0 input. Schema: " << schema << std::endl;
+        OPENVINO_DEBUG << "Created node with mutated 0 input. Schema: " << schema << '\n';
         context->mark_node(fw_node);
         // For simplification we do not expect such operations to have extra bodies
         FRONT_END_OP_CONVERSION_CHECK(context->get_decoder()->get_subgraph_size() == 0,
@@ -258,27 +265,14 @@ OutputVector convert_node(NodeContext* context) {
         auto it = CONVERTERS_MAP.find(context->get_op_type());
         if (it != CONVERTERS_MAP.end()) {
             return it->second(*context);
-        } /*else {
-            const std::set<std::string> known_skips{"prim::RaiseException",
-                                                    "aten::warn"};
-            if (!known_skips.count(context->get_op_type())) {
-                std::cout << "DIDN'T FIND converter for " << context->get_op_type() << " with inputs:";
-                if (context->inputs().size() == 0) {
-                    std::cout << " None";
-                }
-                for (auto input : context->inputs()) {
-                    std::cout << " " << input;
-                }
-                std::cout << " with schema: " << context->get_schema() << std::endl;
-            }
-        }*/
+        }
 
     } catch (std::runtime_error& e) {
-        std::cout << "Exception happened during conversion of op: " << context->get_op_type()
-                  << " with schema: " << context->get_schema() << ": " << e.what() << '\n';
+        OPENVINO_DEBUG << "Exception happened during conversion of op: " << context->get_op_type()
+                       << " with schema: " << context->get_schema() << ": " << e.what() << '\n';
     } catch (...) {
-        std::cout << "Some exception happened during conversion of node of type: " << context->get_op_type()
-                  << std::endl;
+        OPENVINO_DEBUG << "Some exception happened during conversion of node of type: " << context->get_op_type()
+                       << '\n';
     }
     // Create PtFrameworkNode for everything that wasn't able to be converted normally
     return make_framework_node(context);

@@ -90,15 +90,14 @@ public:
 
     /// \brief Returns the number of sub-graphs that can be enumerated with get_subgraph
     virtual size_t get_subgraph_size() const {
-        return 0;
+        FRONT_END_NOT_IMPLEMENTED(get_subgraph_size);
     }
 
     /// \brief Returns subgraph converted on demand by the first access
     /// If there is no query for specific sub-graph it shouldn't be converted
     /// idx should be in range 0..get_subgraph_size()-1
-    // TODO: Why int for idx? Why not unsigned? Just reused the same type fro get_input
     virtual std::shared_ptr<Model> get_subgraph(int idx) const {
-        throw std::runtime_error("There is no subgraphs in node");
+        FRONT_END_NOT_IMPLEMENTED(get_subgraph);
     }
 
 private:

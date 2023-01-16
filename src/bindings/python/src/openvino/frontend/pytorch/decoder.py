@@ -9,7 +9,6 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
-import numpy as np
 import torch
 
 
@@ -298,13 +297,6 @@ class TorchScriptPythonDecoder (Decoder):
         pt_element_type = str(pt_value.type().getElementType())
         ivalue = pt_value.toIValue()
         is_known_type = pt_element_type in pt_to_ov_type_map
-
-        # WA to broken ov.Type
-        # Detect integer list and process it with a dedicated method
-        # TODO: Fix ov.Type and remove this WA
-        # if pt_to_py_type_map[pt_element_type] == 'int':
-        #    self.as_constant_list_of_ints(ovshape = PartialShape([len(ivalue)]), ivalue)
-        # End of WA to broken ov.Type
 
         if is_known_type:
             ovtype = pt_to_ov_type_map[pt_element_type]
