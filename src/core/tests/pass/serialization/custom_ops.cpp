@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <ie_iextension.h>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/runtime/core.hpp"
@@ -12,9 +13,14 @@
 
 class CustomOpsSerializationTest : public ::testing::Test {
 protected:
-    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-    std::string m_out_xml_path = test_name + ".xml";
-    std::string m_out_bin_path = test_name + ".bin";
+    std::string m_out_xml_path;
+    std::string m_out_bin_path;
+
+    void SetUp() override {
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+    }
 
     void TearDown() override {
         std::remove(m_out_xml_path.c_str());
@@ -60,7 +66,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
             </output>
         </layer>
         <layer name="operation" id="1" type="Template" version="custom_opset">
-            <data  add="11"/>
+            <data num_bodies="0" add="11"/>
             <input>
                 <port id="1" precision="FP32">
                     <dim>2</dim>

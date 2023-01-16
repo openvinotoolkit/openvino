@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int main() {
+int MULTI0() {
 //! [part0]
 ov::Core core;
 

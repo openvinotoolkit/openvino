@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/loop.hpp"
@@ -312,10 +311,10 @@ public:
             output_names.insert(get_condition_id());
         }
 
-        auto opts = get_program().get_options();
         std::vector<primitive_id> output_names_vec(output_names.begin(), output_names.end());
-        opts.set_option(build_option::outputs(output_names_vec));
-        body_program = program::build_program(get_program().get_engine(), body, opts, false, false, true);
+        auto config = get_program().get_config();
+        config.set_property(ov::intel_gpu::custom_outputs(output_names_vec));
+        body_program = program::build_program(get_program().get_engine(), body, config, false, false, true);
     }
 
     const primitive_id& get_trip_count_id() const { return get_primitive()->trip_count_id; }

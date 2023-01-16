@@ -359,7 +359,7 @@ TEST_F(BlobTests, canModifyDataInRangedFor) {
         data = 5;
     }
 
-    for (int i = 0; i < v.size(); i++) {
+    for (size_t i = 0; i < v.size(); i++) {
         ASSERT_EQ(5, blob.data()[i]) << "Mismatch at" << i;
     }
 }
@@ -449,7 +449,7 @@ TEST_F(BlobTests, readRoiBlob) {
         ASSERT_NE(nullptr, origPtr);
 
         for (size_t i = 0; i < origBlob->size(); ++i) {
-            origPtr[i] = i;
+            origPtr[i] = static_cast<int32_t>(i);
         }
     }
 
@@ -568,7 +568,7 @@ TEST_F(BlobTests, readRangeRoiBlob) {
         ASSERT_NE(nullptr, origPtr);
 
         for (size_t i = 0; i < origBlob->size(); ++i) {
-            origPtr[i] = i;
+            origPtr[i] = static_cast<int32_t>(i);
         }
     }
 

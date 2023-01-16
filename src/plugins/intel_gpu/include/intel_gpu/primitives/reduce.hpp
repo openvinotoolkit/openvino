@@ -2,19 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Select mode for the @ref reduce layer
 enum class reduce_mode : uint16_t {
@@ -68,7 +61,4 @@ struct reduce : public primitive_base<reduce> {
     /// @brief Keep the reduced dimension or not, 1 mean keep reduced dimension
     bool keep_dims;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

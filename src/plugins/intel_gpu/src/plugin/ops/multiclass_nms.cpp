@@ -32,7 +32,7 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     const cldnn::layout mutable_layout1{cldnn::element_type_to_data_type(mutable_precision1),
                                         cldnn::format::get_default_format(output_shape1.size()),
                                         tensor_from_dims(output_shape1)};
-    cldnn::memory::ptr shared_memory1{p.GetEngine().allocate_memory(mutable_layout1)};
+    cldnn::memory::ptr shared_memory1{p.get_engine().allocate_memory(mutable_layout1)};
 
     const auto mutable_id_w1 = layer_type_name + "_md_write.1";
     const cldnn::mutable_data mutable_prim_w{mutable_id_w1, shared_memory1};
@@ -44,7 +44,7 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     const cldnn::layout mutable_layout2{cldnn::element_type_to_data_type(mutable_precision2),
                                         cldnn::format::get_default_format(output_shape2.size()),
                                         tensor_from_dims(output_shape2)};
-    cldnn::memory::ptr shared_memory2{p.GetEngine().allocate_memory(mutable_layout2)};
+    cldnn::memory::ptr shared_memory2{p.get_engine().allocate_memory(mutable_layout2)};
 
     const auto mutable_id_w2 = layer_type_name + "_md_write.2";
     const cldnn::mutable_data mutable_prim_w2{mutable_id_w2, shared_memory2};
