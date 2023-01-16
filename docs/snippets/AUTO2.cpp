@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-int auto2() {
+int main() {
 {
 //! [part2]
 InferenceEngine::Core ie;

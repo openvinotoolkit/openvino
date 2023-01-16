@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int auto5() {
+int main() {
 ov::AnyMap cpu_config = {};
 ov::AnyMap myriad_config = {};
 //! [part5]
