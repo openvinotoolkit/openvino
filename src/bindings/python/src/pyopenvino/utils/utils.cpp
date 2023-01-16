@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyopenvino/utils/utils.hpp"
+#include "utils.hpp"
 
 #include <pybind11/stl.h>
 
