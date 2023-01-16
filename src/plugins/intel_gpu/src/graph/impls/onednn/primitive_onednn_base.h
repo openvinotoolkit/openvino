@@ -4,6 +4,8 @@
 
 #pragma once
 
+#define ONEDNN_PRIMITIVE_SERIALIZATION
+
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -74,47 +76,23 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
-        if (_attrs.get() == nullptr) {
+        if (_attrs->get() == nullptr) {
             ob << false;
         } else {
             ob << true;
         }
 
-        if (_attrs.get() != nullptr) {
+        if (_attrs->get() != nullptr) {
             {
-                int mask;
-                std::vector<float> scales;
-                std::vector<int32_t> zero_points;
-
-                _attrs.get()->get_output_scales(mask, scales);
-                ob << mask << scales;
-
-                scales.clear();
-                _attrs.get()->get_scales(DNNL_ARG_SRC_0, mask, scales);
-                ob << mask << scales;
-                scales.clear();
-                _attrs.get()->get_scales(DNNL_ARG_SRC_1, mask, scales);
-                ob << mask << scales;
-
-                _attrs.get()->get_zero_points(DNNL_ARG_SRC, mask, zero_points);
-                ob << mask << zero_points;
-                zero_points.clear();
-                _attrs.get()->get_zero_points(DNNL_ARG_WEIGHTS, mask, zero_points);
-                ob << mask << zero_points;
-                zero_points.clear();
-                _attrs.get()->get_zero_points(DNNL_ARG_DST, mask, zero_points);
-                ob << mask << zero_points;
-            }
-            {
-                dnnl::scratchpad_mode _scratchpad_mode = _attrs.get()->get_scratchpad_mode();
+                dnnl::scratchpad_mode _scratchpad_mode = _attrs->get_scratchpad_mode();
                 ob << make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
             }
             {
-                dnnl::fpmath_mode _fmath_mode = _attrs.get()->get_fpmath_mode();
+                dnnl::fpmath_mode _fmath_mode = _attrs->get_fpmath_mode();
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
             }
             {
-                const dnnl::post_ops _post_ops = _attrs.get()->get_post_ops();
+                const dnnl::post_ops _post_ops = _attrs->get_post_ops();
 
                 ob << _post_ops.len();
                 for (int idx = 0; idx < _post_ops.len(); ++idx) {
@@ -133,13 +111,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         ob << zero_point;
                         ob << make_data(&data_type, sizeof(dnnl::memory::data_type));
                     } else if (_kind == dnnl::primitive::kind::eltwise) {
-                        float scale;
                         dnnl::algorithm aalgorithm;
                         float alpha;
                         float beta;
 
-                        _post_ops.get_params_eltwise(idx, scale, aalgorithm, alpha, beta);
-                        ob << scale;
+                        _post_ops.get_params_eltwise(idx, aalgorithm, alpha, beta);
                         ob << make_data(&aalgorithm, sizeof(dnnl::algorithm));
                         ob << alpha;
                         ob << beta;
@@ -147,24 +123,16 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::memory::data_type weights_data_type;
                         dnnl::memory::data_type bias_data_type;
                         dnnl::memory::data_type dst_data_type;
-                        int mask;
-                        std::vector<float> scales;
+                        dnnl::memory::dim kernel_size;
+                        dnnl::memory::dim stride_size;
+                        dnnl::memory::dim padding_l_size;
 
-                        try {
-                            _post_ops.get_params_dw_k3s1p1(idx, weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                            int stride = 1;
-                            ob << stride;
-                        } catch (...) {
-                            _post_ops.get_params_dw_k3s2p1(idx, weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                            int stride = 2;
-                            ob << stride;
-                        }
+                        _post_ops.get_params_dw(idx, weights_data_type, bias_data_type, dst_data_type, kernel_size, stride_size, padding_l_size);
 
                         ob << make_data(&weights_data_type, sizeof(dnnl::memory::data_type));
                         ob << make_data(&bias_data_type, sizeof(dnnl::memory::data_type));
                         ob << make_data(&dst_data_type, sizeof(dnnl::memory::data_type));
-                        ob << mask;
-                        ob << scales;
+                        ob << kernel_size << stride_size << padding_l_size;
                     } else if (_kind == dnnl::primitive::kind::binary) {
                         dnnl::algorithm aalgorithm;
                         dnnl::memory::desc src1_desc;
@@ -172,7 +140,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         _post_ops.get_params_binary(idx, aalgorithm, src1_desc);
 
                         ob << make_data(&aalgorithm, sizeof(dnnl::algorithm));
-                        ob << make_data(&src1_desc, sizeof(dnnl::memory::desc));
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
 
@@ -184,14 +151,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             }
             {
                 float scale, shift;
-                _attrs.get()->get_rnn_data_qparams(scale, shift);
+                _attrs->get_rnn_data_qparams(scale, shift);
                 ob << scale << shift;
             }
             {
                 int mask;
                 std::vector<float> scales;
 
-                _attrs.get()->get_rnn_weights_qparams(mask, scales);
+                _attrs->get_rnn_weights_qparams(mask, scales);
 
                 ob << mask;
                 ob << scales;
@@ -200,7 +167,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 int mask;
                 std::vector<float> scales;
 
-                _attrs.get()->get_rnn_weights_projection_qparams(mask, scales);
+                _attrs->get_rnn_weights_projection_qparams(mask, scales);
 
                 ob << mask;
                 ob << scales;
@@ -216,71 +183,31 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
         if (has_attrs) {
             {
-                int mask;
-                std::vector<float> scales;
-                ib >> mask >> scales;
-
-                _attrs.get()->set_output_scales(mask, scales);
-            }
-            {
-                int mask;
-                std::vector<float> scales;
-                bool default_output_scales = true;
-
-                _attrs.get()->get_output_scales(mask, scales);
-                for (float scale : scales) {
-                    if (scale != 1.) {
-                        default_output_scales = false;
-                        break;
-                    }
-                }
-
-                scales.clear();
-                ib >> mask >> scales;
-                if (default_output_scales)
-                    _attrs.get()->set_scales(DNNL_ARG_SRC_0, mask, scales);
-                scales.clear();
-                ib >> mask >> scales;
-                if (default_output_scales)
-                    _attrs.get()->set_scales(DNNL_ARG_SRC_1, mask, scales);
-            }
-            {
-                int mask;
-                std::vector<int32_t> zero_points;
-                ib >> mask >> zero_points;
-                _attrs.get()->set_zero_points(DNNL_ARG_SRC, mask, zero_points);
-                zero_points.clear();
-                ib >> mask >> zero_points;
-                _attrs.get()->set_zero_points(DNNL_ARG_WEIGHTS, mask, zero_points);
-                zero_points.clear();
-                ib >> mask >> zero_points;
-                _attrs.get()->set_zero_points(DNNL_ARG_DST, mask, zero_points);
-            }
-            {
-                dnnl::scratchpad_mode _scratchpad_mode;
+                dnnl::scratchpad_mode _scratchpad_mode = dnnl::scratchpad_mode::library;
                 ib >> make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
-                _attrs.get()->set_scratchpad_mode(_scratchpad_mode);
+                _attrs->set_scratchpad_mode(_scratchpad_mode);
             }
             {
-                dnnl::fpmath_mode _fmath_mode;
+                dnnl::fpmath_mode _fmath_mode = dnnl::fpmath_mode::any;
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
-                _attrs.get()->set_fpmath_mode(_fmath_mode);
+                _attrs->set_fpmath_mode(_fmath_mode);
             }
             {
+                const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+                const std::vector<cldnn::fused_primitive_desc_onednn>& fused_desc = impl_params->fused_desc_onednn;
                 dnnl::post_ops _post_ops;
-
                 int post_ops_len;
 
                 ib >> post_ops_len;
                 for (int idx = 0; idx < post_ops_len; ++idx) {
-                    dnnl::primitive::kind _kind;
+                    dnnl::primitive::kind _kind = dnnl::primitive::kind::undef;
 
                     ib >> make_data(&_kind, sizeof(dnnl::primitive::kind));
 
                     if (_kind == dnnl::primitive::kind::sum) {
                         float scale;
                         int32_t zero_point;
-                        dnnl::memory::data_type data_type;
+                        dnnl::memory::data_type data_type = dnnl::memory::data_type::undef;
 
                         ib >> scale;
                         ib >> zero_point;
@@ -288,44 +215,37 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
                         _post_ops.append_sum(scale, zero_point, data_type);
                     } else if (_kind == dnnl::primitive::kind::eltwise) {
-                        float scale;
-                        dnnl::algorithm aalgorithm;
+                        dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         float alpha;
                         float beta;
 
-                        ib >> scale;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
                         ib >> alpha;
                         ib >> beta;
-                        _post_ops.append_eltwise(scale, aalgorithm, alpha, beta);
+                        _post_ops.append_eltwise(aalgorithm, alpha, beta);
                     } else if (_kind == dnnl::primitive::kind::convolution) {
-                        int stride;
-                        dnnl::memory::data_type weights_data_type;
-                        dnnl::memory::data_type bias_data_type;
-                        dnnl::memory::data_type dst_data_type;
-                        int mask;
-                        std::vector<float> scales;
+                        dnnl::memory::data_type weights_data_type = dnnl::memory::data_type::undef;
+                        dnnl::memory::data_type bias_data_type = dnnl::memory::data_type::undef;
+                        dnnl::memory::data_type dst_data_type = dnnl::memory::data_type::undef;
+                        dnnl::memory::dim kernel_size;
+                        dnnl::memory::dim stride_size;
+                        dnnl::memory::dim padding_l_size;
 
-                        ib >> stride;
                         ib >> make_data(&weights_data_type, sizeof(dnnl::memory::data_type));
                         ib >> make_data(&bias_data_type, sizeof(dnnl::memory::data_type));
                         ib >> make_data(&dst_data_type, sizeof(dnnl::memory::data_type));
-                        ib >> mask;
-                        ib >> scales;
+                        ib >> kernel_size >> stride_size >> padding_l_size;
 
-                        if (stride == 1) {
-                            _post_ops.append_dw_k3s1p1(weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                        } else {
-                            _post_ops.append_dw_k3s2p1(weights_data_type, bias_data_type, dst_data_type, mask, scales);
-                        }
+                        _post_ops.append_dw(weights_data_type, bias_data_type, dst_data_type,
+                                            kernel_size, stride_size, padding_l_size);
                     } else if (_kind == dnnl::primitive::kind::binary) {
-                        dnnl::algorithm aalgorithm;
-                        dnnl::memory::desc src1_desc;
-
+                        dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
-                        ib >> make_data(&src1_desc, sizeof(dnnl::memory::desc));
 
-                        _post_ops.append_binary(aalgorithm, src1_desc);
+                        dnnl::memory::desc md = onednn::layout_to_memory_desc(impl_params->get_input_layout(idx),
+                                                                fused_desc.at(idx).tag, fused_desc.at(idx).flatten);
+
+                        _post_ops.append_binary(aalgorithm, md);
                     } else if (_kind == dnnl::primitive::kind::prelu) {
                         int mask;
                         ib >> mask;
@@ -333,14 +253,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                     }
                 }
 
-                _attrs.get()->set_post_ops(_post_ops);
+                _attrs->set_post_ops(_post_ops);
             }
             {
                 float scale;
                 float shift;
 
                 ib >> scale >> shift;
-                _attrs.get()->set_rnn_data_qparams(scale, shift);
+                _attrs->set_rnn_data_qparams(scale, shift);
             }
             {
                 int mask;
@@ -349,7 +269,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ib >> mask;
                 ib >> scales;
 
-                _attrs.get()->set_rnn_weights_qparams(mask, scales);
+                _attrs->set_rnn_weights_qparams(mask, scales);
             }
             {
                 int mask;
@@ -358,7 +278,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ib >> mask;
                 ib >> scales;
 
-                _attrs.get()->set_rnn_weights_projection_qparams(mask, scales);
+                _attrs->set_rnn_weights_projection_qparams(mask, scales);
             }
 
             _engine = &ib.get_engine();

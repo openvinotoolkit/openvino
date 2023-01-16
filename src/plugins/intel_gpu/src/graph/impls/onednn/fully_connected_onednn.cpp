@@ -96,8 +96,8 @@ protected:
     }
 
     static std::shared_ptr<dnnl::inner_product_forward::primitive_desc> get_fully_connected_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                                cldnn::engine& engine,
                                                                                                 const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
-        auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<fully_connected>();
 
         auto input_layout = impl_params.get_input_layout(0);
@@ -159,8 +159,6 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        ob << make_data(&_desc->data, sizeof(dnnl_inner_product_desc_t));
-
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
@@ -171,16 +169,13 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        const char dummy_mem[sizeof(dnnl::inner_product_forward::desc)] = {};
-        const dnnl::inner_product_forward::desc *dummy_opdesc
-            = reinterpret_cast<const dnnl::inner_product_forward::desc *>(&dummy_mem[0]);
-        _desc = std::make_shared<dnnl::inner_product_forward::desc>(std::move(*dummy_opdesc));
-        ib >> make_data(&_desc->data, sizeof(dnnl_inner_product_desc_t));
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        auto prim_desc = get_fully_connected_primitive_descriptor(*impl_params, ib.get_engine(), *_attrs);
+        _pd = *prim_desc;
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
-        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }
@@ -189,7 +184,7 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
-        auto prim_desc = get_fully_connected_primitive_descriptor(impl_params, *attr);
+        auto prim_desc = get_fully_connected_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr);
 
         return cldnn::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));
     }

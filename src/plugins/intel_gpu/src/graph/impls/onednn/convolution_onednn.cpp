@@ -162,7 +162,14 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
-        ob << make_data(&_desc->data, sizeof(dnnl_convolution_desc_t));
+        const dnnl::convolution_forward::primitive_desc *typed_pd
+            = reinterpret_cast<const dnnl::convolution_forward::primitive_desc *>(&_pd);
+
+        ob << typed_pd->get_strides();
+        ob << typed_pd->get_dilations();
+        ob << typed_pd->get_padding_l();
+        ob << typed_pd->get_padding_r();
+        ob << typed_pd->bias_desc().is_zero();
 
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
@@ -174,16 +181,46 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        const char dummy_mem[sizeof(dnnl::convolution_forward::desc)] = {};
-        const dnnl::convolution_forward::desc *dummy_opdesc
-            = reinterpret_cast<const dnnl::convolution_forward::desc *>(&dummy_mem[0]);
-        _desc = std::make_shared<dnnl::convolution_forward::desc>(std::move(*dummy_opdesc));
-        ib >> make_data(&_desc->data, sizeof(dnnl_convolution_desc_t));
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+
+        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
+        auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
+        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+
+        dnnl::memory::dims strides;
+        dnnl::memory::dims dilates;
+        dnnl::memory::dims padding_l;
+        dnnl::memory::dims padding_r;
+        ib >> strides;
+        ib >> dilates;
+        ib >> padding_l;
+        ib >> padding_r;
+
+        bool zero_bias;
+        ib >> zero_bias;
+
+        if (zero_bias) {
+            auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+                                    ib.get_engine().get_onednn_engine(),
+                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
+                                    input_md, weights_md, output_md,
+                                    strides, dilates, padding_l, padding_r,
+                                    *_attrs.get());
+            _pd = *prim_desc;
+        } else {
+            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
+            auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+                                    ib.get_engine().get_onednn_engine(),
+                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
+                                    input_md, weights_md, bias_md, output_md,
+                                    strides, dilates, padding_l, padding_r,
+                                    *_attrs.get());
+            _pd = *prim_desc;
+        }
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
 
-        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
     }

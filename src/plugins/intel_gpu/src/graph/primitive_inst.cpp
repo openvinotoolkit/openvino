@@ -1077,17 +1077,6 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     _impl_params->save(ob);
     ob.setKernlImplParams(_impl_params.get());
 
-    if (_impl != nullptr) {
-        ob << true;
-        kernel_arguments_data args = _impl->get_arguments(*this);
-        kernel_arguments_data_idx args_idx;
-        convert_args(args, args_idx);
-        _impl->set_arguments(args_idx);
-        ob << _impl;
-    } else {
-        ob << false;
-    }
-
     ob << _node_output_layout;
     ob << has_mutable_input();
     ob << mem_allocated();
@@ -1140,6 +1129,17 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
         const auto _allocation_type = ibuf->get_allocation_type();
         ob << make_data(&_allocation_type, sizeof(_allocation_type));
     }
+
+    if (_impl != nullptr) {
+        ob << true;
+        kernel_arguments_data args = _impl->get_arguments(*this);
+        kernel_arguments_data_idx args_idx;
+        convert_args(args, args_idx);
+        _impl->set_arguments(args_idx);
+        ob << _impl;
+    } else {
+        ob << false;
+    }
 }
 
 void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const {
@@ -1184,13 +1184,6 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     _impl_params = make_unique<kernel_impl_params>();
     _impl_params->load(ib);
     ib.setKernlImplParams(_impl_params.get());
-
-    bool has_impl;
-    ib >> has_impl;
-    if (has_impl) {
-        _impl.release();
-        ib >> _impl;
-    }
 
     ib >> _node_output_layout;
     ib >> _has_mutable_input;
@@ -1267,6 +1260,13 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
         ib >> make_data(&_allocation_type, sizeof(_allocation_type));
 
         _intermediates_memory[i] = get_network().get_engine().allocate_memory(ibuf_layout, _allocation_type);
+    }
+
+    bool has_impl;
+    ib >> has_impl;
+    if (has_impl) {
+        _impl.release();
+        ib >> _impl;
     }
 }
 }  // namespace cldnn
