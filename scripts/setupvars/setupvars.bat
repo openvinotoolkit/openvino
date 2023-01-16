@@ -72,7 +72,7 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
 set MIN_REQUIRED_PYTHON_VERSION_MINOR=7
-set MAX_SUPPORTED_PYTHON_VERSION_MINOR=10
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=11
 
 python --version 2>NUL
 if errorlevel 1 (call :python_not_installed) else (call :check_python_version)
