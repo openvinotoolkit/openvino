@@ -15,6 +15,7 @@
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "border_inst.h"
+#include "permute_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -303,6 +304,37 @@ static bool can_reshape_be_optimized(const reshape_node& node) {
     return node.is_in_place() && !node.has_fused_primitives();
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// pattern #1: input -> (bfyx) -> permute -> (byxf) -> oneDNN convolution
+//      - permute node reorders is [0, 3, 1, 2] (bfyx -> byxf).
+//      - input layout of onednn convolution is byxf.
+// pattern #2: oneDNN convolution convolution -> (byxf) -> permute -> (bfyx) -> output
+//      - permute node reorders is [0, 2, 3, 1] (byxf -> bfyx).
+//      - output layout of permute is byxf
+static bool can_permute_be_optimized(const permute_node& node) {
+    if (node.is_output() || node.get_dependencies().size() != 1 || node.get_users().size() != 1
+        || !node.get_output_layout().is_static()
+        || !node.get_dependency(0).get_output_layout().is_static())
+        return false;
+
+    if (node.get_output_layout().format != cldnn::format::byxf
+        && node.get_output_layout().format != cldnn::format::bfyx)
+        return false;
+
+    // permute - convolution
+    auto next = node.get_users().front();
+    if (next->is_type<convolution>() && next->get_preferred_impl_type() == impl_types::onednn)
+        return node.is_reverse_rotating_except_batch();
+
+    // convolution - permute
+    auto& prev = node.get_dependency(0);
+    if (prev.is_type<convolution>() && prev.get_preferred_impl_type() == impl_types::onednn)
+        return node.is_rotating_except_batch();
+
+    return false;
+}
+#endif
+
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
     /*
@@ -463,4 +495,17 @@ void prepare_buffer_fusing::run(program& p) {
             node.can_be_optimized(can_reshape_be_optimized(node));
         });
     }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+
+        program_helpers::do_for_types<permute>(*node, [&p](permute_node& node) {
+            node.can_be_optimized(can_permute_be_optimized(node));
+        });
+    }
+#endif
 }
