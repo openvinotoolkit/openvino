@@ -11,7 +11,7 @@ Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/
 1. Clone the repositories.
    ```sh
    git clone https://git.yoctoproject.org/git/poky --branch langdale
-   git clone https://git.yoctoproject.org/meta-intel --branch langdale
+   git clone https://git.yoctoproject.org/meta-intel
    git clone https://git.openembedded.org/meta-openembedded --branch langdale
    git clone https://github.com/kraj/meta-clang.git
    ```
@@ -43,9 +43,6 @@ Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/
    # Enable clDNN GPU plugin when needed.
    # This requires meta-clang and meta-oe layers to be included in bblayers.conf
    # and is not enabled by default.
-   # Compute-runtime does not currently support building with LLVM 15 (which is
-   # the default in meta-clang master) so enabling GPU plugin may result in
-   # build failures.
    PACKAGECONFIG:append:pn-openvino-inference-engine = " opencl"
 
    # Enable building OpenVINO Python API.
