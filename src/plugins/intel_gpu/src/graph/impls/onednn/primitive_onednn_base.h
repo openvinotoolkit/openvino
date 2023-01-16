@@ -37,6 +37,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
+    bool _enable_profiling = false;
 
     typed_primitive_onednn_impl(const engine& engine,
                                 const ExecutionConfig& config,
@@ -46,7 +47,8 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
           _engine(&engine),
           _attrs(attrs),
-          _pd(pd) {
+          _pd(pd),
+          _enable_profiling(config.get_property(ov::enable_profiling)) {
             build_primitive(config);
         }
 
@@ -542,11 +544,10 @@ protected:
                             typed_primitive_inst<PType>& instance) override {
         auto& network = instance.get_network();
         auto& stream = network.get_stream();
-        auto profiling = network.get_config().get_property(ov::enable_profiling);
         auto net_id = network.get_id();
         event::ptr event;
 
-        if (profiling) {
+        if (_enable_profiling) {
             stream.finish();
             event = stream.create_user_event(false);
         }
@@ -555,7 +556,7 @@ protected:
             _prim.execute(stream.get_onednn_stream(), _args[net_id]);
         }
 
-        if (profiling) {
+        if (_enable_profiling) {
             stream.finish();
             event->set();
         }
