@@ -8,7 +8,7 @@ static void completion_callback(void *args) {
     // Operations after infer
 }
 
-int main() {
+int ie_common_c() {
     //! [ie:create_core]
     ie_core_t *core = nullptr;
     ie_core_create("", &core);
