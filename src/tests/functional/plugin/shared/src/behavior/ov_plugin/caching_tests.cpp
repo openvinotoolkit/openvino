@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -278,8 +278,8 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     target_device = targetDevice;
     APIBaseTest::SetUp();
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
-    ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
     m_modelName = ss.str() + ".xml";
     m_weightsName = ss.str() + ".bin";
     for (auto& iter : configuration) {
