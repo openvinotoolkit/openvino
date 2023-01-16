@@ -149,8 +149,8 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         BUILD_COMMAND
             ${HOST_PROTOC_CMAKE_COMMAND}
                 --build "${HOST_PROTOC_BINARY_DIR}"
-                --target protoc libprotobuf-lite
                 --config Release
+                -- protoc libprotobuf-lite
         # Test Step Options:
         TEST_EXCLUDE_FROM_MAIN ON
         # Target Options:
