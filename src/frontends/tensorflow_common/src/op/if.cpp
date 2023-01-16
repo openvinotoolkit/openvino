@@ -3,7 +3,7 @@
 //
 
 #include "input_model.hpp"
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
