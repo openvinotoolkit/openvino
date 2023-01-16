@@ -32,8 +32,10 @@ using namespace MockMultiDevice;
 // const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
 const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
 const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
+// const char myriadFullDeviceName[] = "Intel Movidius Myriad X VPU";
 // const char vpuxFullDeviceName[] = "";
-const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX"};
+const std::vector<std::string>  availableDevs = {"CPU", "GPU.0", "GPU.1",
+    "MYRIAD.9.2-ma2480", "MYRIAD.9.1-ma2480", "VPUX"};
 using ConfigParams = std::tuple<
         std::string,                        // Priority devices
         std::string                         // expect metaDevices
@@ -96,19 +98,21 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
 
 const std::vector<ConfigParams> testConfigs = {
     //
-    ConfigParams {"CPU,GPU,VPUX",
-        "CPU,GPU,VPUX"},
-    ConfigParams {"VPUX,GPU,CPU,",
+    ConfigParams {"CPU,GPU,MYRIAD,VPUX",
+        "CPU,GPU,MYRIAD,VPUX"},
+    ConfigParams {"VPUX,GPU,CPU,-MYRIAD",
         "VPUX,GPU,CPU"},
-    ConfigParams {"-VPUX,GPU,CPU",
-        "GPU,CPU"},
-    ConfigParams {"-GPU.0,GPU,CPU",
-        "GPU.1,CPU"},
+    ConfigParams {"-VPUX,GPU,CPU,MYRIAD,-MYRIAD.9.2-ma2480",
+        "GPU,CPU,MYRIAD.9.1-ma2480"},
+    ConfigParams {"-GPU.0,GPU,CPU,MYRIAD",
+        "GPU.1,CPU,MYRIAD"},
     ConfigParams {"-GPU.0,GPU",
         "GPU.1"},
-    ConfigParams {"-GPU.0", "CPU,GPU.1,VPUX"},
-    ConfigParams {"-GPU.0", "CPU,GPU.1,VPUX"},
-    ConfigParams {"-GPU.0,-CPU", "GPU.1,VPUX"}
+    ConfigParams {"MYRIAD,-MYRIAD.9.2-ma2480",
+        "MYRIAD.9.1-ma2480"},
+    ConfigParams {"-GPU.0", "CPU,GPU.1,MYRIAD.9.2-ma2480,MYRIAD.9.1-ma2480,VPUX"},
+    ConfigParams {"-GPU.0,-MYRIAD.9.2-ma2480", "CPU,GPU.1,MYRIAD.9.1-ma2480,VPUX"},
+    ConfigParams {"-GPU.0,-MYRIAD.9.2-ma2480,-CPU", "GPU.1,MYRIAD.9.1-ma2480,VPUX"}
 };
 
 
