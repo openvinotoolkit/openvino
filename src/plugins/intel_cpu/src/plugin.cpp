@@ -59,7 +59,7 @@ static std::string getDeviceFullName() {
 #ifdef _WIN32
         __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
-        __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
+        __cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
 #endif
         char *ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
