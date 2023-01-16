@@ -21,5 +21,6 @@ if(ENABLE_OV_IR_FRONTEND)
 endif()
 
 if(ENABLE_OV_TF_FRONTEND)
+    add_subdirectory(tensorflow_common)
     add_subdirectory(tensorflow)
 endif()
