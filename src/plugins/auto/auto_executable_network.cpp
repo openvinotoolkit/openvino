@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <ie_metric_helpers.hpp>
 #include "ie_performance_hints.hpp"
 #include "auto_executable_network.hpp"
 
@@ -185,6 +186,16 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
         }
         return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, {
+            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+            METRIC_KEY(SUPPORTED_METRICS),
+            METRIC_KEY(NETWORK_NAME),
+            METRIC_KEY(SUPPORTED_CONFIG_KEYS)
+        });
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        std::vector<std::string> configKeys = {IE::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES};
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     }
     IE_THROW() << "Unsupported metric key: " << name;
 }
