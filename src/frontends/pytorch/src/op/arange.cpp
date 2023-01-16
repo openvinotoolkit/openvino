@@ -27,7 +27,7 @@ OutputVector translate_arange(NodeContext& context) {
         end = context.get_input(0);
         out_tensor = context.input_is_none(1) ? end : context.get_input(1);
     }
-    // # aten::arange(Scalar start, Scalar end, Scalar step, Tensor out)
+    // aten::arange(Scalar start, Scalar end, Scalar step, Tensor out)
     if (num_inputs == 4) {
         start = context.get_input(0);
         end = context.get_input(1);

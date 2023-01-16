@@ -10,7 +10,7 @@
 #    define PYTORCH_API
 #    define PYTORCH_C_API
 #else
-#    ifdef openvino_PYTORCH_frontend_EXPORTS
+#    ifdef openvino_pytorch_frontend_EXPORTS
 #        define PYTORCH_API   OPENVINO_CORE_EXPORTS
 #        define PYTORCH_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #    else
