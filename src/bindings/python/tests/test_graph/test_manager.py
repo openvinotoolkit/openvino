@@ -3,14 +3,13 @@
 
 # flake8: noqa
 
-import json
 import os
 
 import numpy as np
 import pytest
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Model, PartialShape, Shape
+from openvino.runtime import Model
 from openvino.runtime.passes import Manager
 from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core

@@ -6,7 +6,7 @@ This guide provides installation steps for OpenVINO™ Runtime for Linux distrib
 
 > **IMPORTANT**: By downloading and using this container and the included software, you agree to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf).
 
-## System Requirements
+## Prerequisites
 
 @sphinxdirective
 .. tab:: System Requirements
@@ -110,7 +110,7 @@ Run the following command:
 @endsphinxdirective
 
 
-#### Uninstall OpenVINO Runtime
+#### Uninstalling OpenVINO Runtime
 
 @sphinxdirective
 
@@ -140,11 +140,10 @@ Run the following command:
 @endsphinxdirective
 
 
-### Step 3 (Optional): Install Software Dependencies
+### Step 3 (Optional): Install Additional Components
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
 
-After you have installed OpenVINO Runtime, if you decided to [install OpenVINO Model Development Tools](installing-model-dev-tools.md), make sure that you install external software dependencies first.
-
-Refer to <a href="openvino_docs_install_guides_installing_openvino_linux.html#install-external-dependencies">Install External Software Dependencies</a> for detailed steps.
+See the **For C++ Developers** section on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for instructions.
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
