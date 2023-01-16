@@ -879,12 +879,6 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
                 && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
                 return false;
             }
-
-            // WA: onednn sum/binary_add post-op are not supported due to perf drop.
-            auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(node, fo);
-            if (add_type == add_fusing_type::sum || add_type == add_fusing_type::binary_per_tensor || add_type == add_fusing_type::binary_per_oc) {
-                return false;
-            }
         }
     }
 
@@ -1588,10 +1582,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         if (node.is_type<fully_connected>()) {
             if (!is_node_for_onednn(node.as<fully_connected>()))
-                impl_candidate = impl_types::ocl;
-
-            // WA : Use cldnn FC due to perf drop of small batch size until onednn FC improve perf
-            if (node.get_output_layout().is_static() && node.get_output_layout().batch() < 32)
                 impl_candidate = impl_types::ocl;
         } else {
             for (auto& fo : node.get_fused_primitives()) {
