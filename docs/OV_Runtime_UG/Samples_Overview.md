@@ -102,7 +102,7 @@ The officially supported Linux build environment is the following:
 * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
 * CMake version 3.10 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -142,8 +142,8 @@ cd build
 make
 ```
 
-For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+For the release configuration, the sample application binaries are in `<path_to_build_directory>/<hardware_name>/Release/`;
+for the debug configuration — in `<path_to_build_directory>/<hardware_name>/Debug/`.
 
 ### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
@@ -174,10 +174,10 @@ directory.
 The officially supported macOS build environment is the following:
 
 * macOS 10.15 64-bit or higher
-* Clang compiler from Xcode* 10.1 or higher
+* Clang compiler from Xcode 10.1 or higher
 * CMake version 3.13 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -193,7 +193,7 @@ You can also build the sample applications manually:
 
 > **NOTE**: If you have installed the product as a root user, switch to root mode before you continue: `sudo -i`
 
-> **NOTE**: Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by
+> **NOTE**: Before proceeding, make sure you have OpenVINO environment set correctly. This can be done manually by
 ```sh
 cd <INSTALL_DIR>/
 source setupvars.sh
@@ -223,8 +223,8 @@ cd build
 make
 ```
 
-For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+For the release configuration, the sample application binaries are in `<path_to_build_directory>/<hardware_name>/Release/`;
+for the debug configuration — in `<path_to_build_directory>/<hardware_name>/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 
@@ -237,7 +237,7 @@ Run the `setupvars` script to set all necessary environment variables:
 source <INSTALL_DIR>/setupvars.sh
 ```
 
-### (Optional) Set Environment Variables Permanently
+#### (Optional) Set Environment Variables Permanently
 
 The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
 
@@ -285,4 +285,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [OpenVINO™ Runtime User Guide](openvino_intro.md)
+* [OpenVINO Runtime User Guide](openvino_intro.md)

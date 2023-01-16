@@ -22,7 +22,7 @@ Users in China might encounter errors while downloading sources via PIP during O
    ``` sh
    pip install -r <INSTALL_DIR>/tools/requirements.txt
    ```
-  For APT and YUM users, replace the `INSTALL_DIR` with `/usr/share/openvino/tools/requirements.txt`.
+  For APT and YUM users, replace the `INSTALL_DIR` with `/usr/share/openvino`.
 
 <!-- this part was from Docker installation -->
 
