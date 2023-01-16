@@ -8,7 +8,7 @@ void decrypt_file(std::ifstream & stream,
                   std::vector<uint8_t> & result) {
 }
 
-int protecting_model_guide() {
+int main() {
 //! [part0]
 std::vector<uint8_t> model_data, weights_data;
 

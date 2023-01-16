@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <openvino/openvino.hpp>
 //! [include]
 
-int main_cpp() {
+int main() {
 //! [part1]
 ov::Core core;
 //! [part1]
