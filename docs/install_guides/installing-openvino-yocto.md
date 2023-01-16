@@ -10,9 +10,9 @@ Follow the [Yocto Project official documentation](https://docs.yoctoproject.org/
 
 1. Clone the repositories.
    ```sh
-   git clone https://git.yoctoproject.org/git/poky --branch langdale
+   git clone https://git.yoctoproject.org/git/poky
    git clone https://git.yoctoproject.org/meta-intel
-   git clone https://git.openembedded.org/meta-openembedded --branch langdale
+   git clone https://git.openembedded.org/meta-openembedded
    git clone https://github.com/kraj/meta-clang.git
    ```
 
