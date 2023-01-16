@@ -130,9 +130,8 @@ struct broadcast : public primitive_base<broadcast> {
     std::vector<uint16_t> broadcast_axes;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
-        }
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
         return seed;
     }
 };

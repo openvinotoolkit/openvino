@@ -34,11 +34,10 @@ struct cum_sum : public primitive_base<cum_sum> {
     bool reverse;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, axis);
-            seed = hash_combine(seed, exclusive);
-            seed = hash_combine(seed, reverse);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, exclusive);
+        seed = hash_combine(seed, reverse);
         return seed;
     }
 };

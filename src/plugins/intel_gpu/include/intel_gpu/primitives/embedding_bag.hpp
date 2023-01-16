@@ -40,10 +40,9 @@ struct embedding_bag : public primitive_base<embedding_bag> {
     int32_t default_index;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, type);
-            seed = hash_combine(seed, default_index);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, type);
+        seed = hash_combine(seed, default_index);
         return seed;
     }
 };

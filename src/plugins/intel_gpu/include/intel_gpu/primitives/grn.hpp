@@ -28,9 +28,8 @@ struct grn : public primitive_base<grn> {
     float bias;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, bias);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, bias);
         return seed;
     }
 };

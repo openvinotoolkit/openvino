@@ -112,9 +112,6 @@ public:
             seed = parent::hash();
 
             seed = hash_combine(seed, transposed);
-            seed = hash_combine(seed, groups);
-            seed = hash_combine(seed, deformable_groups);
-            seed = hash_combine(seed, deformable_mode);
         }
         return seed;
     }

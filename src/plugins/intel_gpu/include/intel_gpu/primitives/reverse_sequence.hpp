@@ -53,10 +53,9 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     int32_t batch_axis;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, seq_axis);
-            seed = hash_combine(seed, batch_axis);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, seq_axis);
+        seed = hash_combine(seed, batch_axis);
         return seed;
     }
 };

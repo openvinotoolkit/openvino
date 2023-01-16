@@ -33,9 +33,8 @@ struct permute : public primitive_base<permute> {
     std::vector<uint16_t> permute_order;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_range(seed, permute_order.begin(), permute_order.end());
-        }
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, permute_order.begin(), permute_order.end());
         return seed;
     }
 };

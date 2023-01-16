@@ -32,9 +32,8 @@ struct quantize : public primitive_base<quantize> {
     int levels;
 
     size_t hash() const override {
-        if (seed == 0) {
-            seed = cldnn::hash_combine(seed, levels);
-        }
+        size_t seed = primitive::hash();
+        seed = cldnn::hash_combine(seed, levels);
         return seed;
     }
 };

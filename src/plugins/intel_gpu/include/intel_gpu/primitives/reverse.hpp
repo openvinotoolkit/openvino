@@ -29,9 +29,8 @@ struct reverse : public primitive_base<reverse> {
     reverse_mode mode{reverse_mode::index};
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, mode);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
         return seed;
     }
 };

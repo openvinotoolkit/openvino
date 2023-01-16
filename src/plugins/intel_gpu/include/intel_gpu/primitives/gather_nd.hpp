@@ -51,11 +51,10 @@ struct gather_nd : public primitive_base<gather_nd> {
     bool batch_merged_output;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, indices_rank);
-            seed = hash_combine(seed, batch_dims);
-            seed = hash_combine(seed, batch_merged_output);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, indices_rank);
+        seed = hash_combine(seed, batch_dims);
+        seed = hash_combine(seed, batch_merged_output);
         return seed;
     }
 };

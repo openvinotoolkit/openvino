@@ -66,13 +66,13 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     const primitive_id_arr weights;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_range(seed, pad.begin(), pad.end());
-            seed = hash_range(seed, stride.begin(), stride.end());
-            seed = hash_range(seed, dilation.begin(), dilation.end());
-            seed = hash_combine(seed, groups);
-            seed = hash_combine(seed, pad_value);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, pad_value);
+        seed = hash_combine(seed, weights.size());
         return seed;
     }
 

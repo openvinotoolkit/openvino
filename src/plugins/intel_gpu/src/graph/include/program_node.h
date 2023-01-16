@@ -462,12 +462,6 @@ public:
             // hash for primitive
             seed = get_primitive()->hash();
 
-            // hash for type
-            primitive_id type_str = get_primitive()->type_string();
-            for (size_t idx = 0; idx < type_str.size(); idx++) {
-                seed = hash_combine(seed, type_str[idx]);
-            }
-
             // hash for activations
             for (auto& act : fused_activations) {
                 seed = hash_combine(seed, act.func);

@@ -33,9 +33,8 @@ struct experimental_detectron_topk_rois : public primitive_base<experimental_det
     size_t max_rois;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, max_rois);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, max_rois);
         return seed;
     }
 };

@@ -43,15 +43,6 @@ public:
         return params;
     }
 
-    size_t hash() const override {
-        if (!seed) {
-            seed = parent::hash();
-
-            seed = hash_combine(seed, groups);
-        }
-        return seed;
-    }
-
 private:
     uint32_t groups;
 };

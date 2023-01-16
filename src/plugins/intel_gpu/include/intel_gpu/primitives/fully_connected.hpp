@@ -76,9 +76,9 @@ struct fully_connected : public primitive_base<fully_connected> {
     size_t input_size;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, input_size);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, input_size);
+        seed = hash_combine(seed, bias.empty());
         return seed;
     }
 

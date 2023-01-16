@@ -49,9 +49,8 @@ struct mutable_data : public primitive_base<mutable_data> {
     filler_type fill_type;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, id);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
         return seed;
     }
 };

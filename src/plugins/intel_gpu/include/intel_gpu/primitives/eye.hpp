@@ -32,9 +32,8 @@ struct eye : public primitive_base<eye> {
     int32_t shift;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, shift);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, shift);
         return seed;
     }
 };

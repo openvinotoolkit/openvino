@@ -43,13 +43,12 @@ struct region_yolo : public primitive_base<region_yolo> {
     bool do_softmax;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, coords);
-            seed = hash_combine(seed, classes);
-            seed = hash_combine(seed, num);
-            seed = hash_combine(seed, mask_size);
-            seed = hash_combine(seed, do_softmax);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, coords);
+        seed = hash_combine(seed, classes);
+        seed = hash_combine(seed, num);
+        seed = hash_combine(seed, mask_size);
+        seed = hash_combine(seed, do_softmax);
         return seed;
     }
 };

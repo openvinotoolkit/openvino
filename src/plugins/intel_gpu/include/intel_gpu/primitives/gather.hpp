@@ -46,11 +46,10 @@ struct gather : public primitive_base<gather> {
     bool support_neg_ind;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, axis);
-            seed = hash_combine(seed, batch_dim);
-            seed = hash_combine(seed, support_neg_ind);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, batch_dim);
+        seed = hash_combine(seed, support_neg_ind);
         return seed;
     }
 };

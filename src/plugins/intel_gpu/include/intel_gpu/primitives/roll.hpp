@@ -28,9 +28,8 @@ struct roll : primitive_base<roll> {
     tensor shift;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, shift.hash());
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, shift.hash());
         return seed;
     }
 };

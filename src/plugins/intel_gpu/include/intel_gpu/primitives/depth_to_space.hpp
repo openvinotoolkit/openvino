@@ -40,10 +40,9 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     depth_to_space_mode mode;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, block_size);
-            seed = hash_combine(seed, mode);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_size);
+        seed = hash_combine(seed, mode);
         return seed;
     }
 };

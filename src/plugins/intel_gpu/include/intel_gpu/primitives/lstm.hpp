@@ -126,18 +126,20 @@ struct lstm : public primitive_base<lstm> {
     // uint32_t output_sequence;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, peepholes.empty());
-            seed = hash_combine(seed, clip);
-            seed = hash_combine(seed, input_forget);
-            seed = hash_range(seed, activations.begin(), activations.end());
-            for (auto& act_param : activation_params) {
-                seed = hash_combine(seed, act_param.a);
-                seed = hash_combine(seed, act_param.b);
-            }
-            seed = hash_combine(seed, output_selection);
-            seed = hash_combine(seed, offset_order);
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, peepholes.empty());
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_range(seed, activations.begin(), activations.end());
+        for (auto& act_param : activation_params) {
+            seed = hash_combine(seed, act_param.a);
+            seed = hash_combine(seed, act_param.b);
         }
+        seed = hash_combine(seed, output_selection);
+        seed = hash_combine(seed, offset_order);
+        seed = hash_combine(seed, bias.empty());
+        seed = hash_combine(seed, initial_hidden.empty());
+        seed = hash_combine(seed, initial_cell.empty());
         return seed;
     }
 
@@ -196,9 +198,10 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     uint32_t direction;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, direction);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, direction);
+        seed = hash_combine(seed, bias.empty());
+        seed = hash_combine(seed, hidden.empty());
         return seed;
     }
 
@@ -265,17 +268,17 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     uint32_t direction;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, clip);
-            seed = hash_combine(seed, input_forget);
-            seed = hash_range(seed, activations.begin(), activations.end());
-            for (auto& act_param : activation_params) {
-                seed = hash_combine(seed, act_param.a);
-                seed = hash_combine(seed, act_param.b);
-            }
-            seed = hash_combine(seed, offset_order);
-            seed = hash_combine(seed, direction);
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_range(seed, activations.begin(), activations.end());
+        for (auto& act_param : activation_params) {
+            seed = hash_combine(seed, act_param.a);
+            seed = hash_combine(seed, act_param.b);
         }
+        seed = hash_combine(seed, offset_order);
+        seed = hash_combine(seed, direction);
+        seed = hash_combine(seed, cell.empty());
         return seed;
     }
 

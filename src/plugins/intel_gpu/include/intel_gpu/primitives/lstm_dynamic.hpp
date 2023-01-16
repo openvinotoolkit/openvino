@@ -80,10 +80,14 @@ struct lstm_dynamic : public primitive_base<lstm_dynamic> {
     bool input_forget;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, clip);
-            seed = hash_combine(seed, input_forget);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, clip);
+        seed = hash_combine(seed, input_forget);
+        seed = hash_combine(seed, last_hidden_state.empty());
+        seed = hash_combine(seed, last_cell_state.empty());
+        seed = hash_combine(seed, bias.empty());
+        seed = hash_combine(seed, initial_hidden.empty());
+        seed = hash_combine(seed, initial_cell.empty());
         return seed;
     }
 

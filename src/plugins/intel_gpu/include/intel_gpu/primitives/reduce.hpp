@@ -62,11 +62,10 @@ struct reduce : public primitive_base<reduce> {
     bool keep_dims;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, mode);
-            seed = hash_range(seed, axes.begin(), axes.end());
-            seed = hash_combine(seed, keep_dims);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_range(seed, axes.begin(), axes.end());
+        seed = hash_combine(seed, keep_dims);
         return seed;
     }
 };

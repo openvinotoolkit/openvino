@@ -75,11 +75,9 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     const primitive_id_arr kernels_code;
 
     size_t hash() const override {
-        if (!seed) {
-            for (size_t i = 0; i < id.size(); i++) {
-                seed = hash_combine(seed, id[i]);
-            }
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, kernel_entry_point);
+        seed = hash_combine(seed, kernels_code.size());
         return seed;
     }
 };

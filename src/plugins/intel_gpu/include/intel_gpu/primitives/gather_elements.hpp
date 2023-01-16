@@ -44,10 +44,9 @@ struct gather_elements : public primitive_base<gather_elements> {
     int64_t axis;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, output_format.value);
-            seed = hash_combine(seed, axis);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, output_format.value);
+        seed = hash_combine(seed, axis);
         return seed;
     }
 };

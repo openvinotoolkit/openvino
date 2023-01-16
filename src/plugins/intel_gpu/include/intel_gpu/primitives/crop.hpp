@@ -126,13 +126,12 @@ struct crop : public primitive_base<crop> {
     crop_ngraph_op_mode op_mode;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, reference_input.hash());
-            seed = hash_combine(seed, offsets.hash());
-            seed = hash_combine(seed, output_idx);
-            seed = hash_combine(seed, num_splits);
-            seed = hash_combine(seed, op_mode);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, reference_input.hash());
+        seed = hash_combine(seed, offsets.hash());
+        seed = hash_combine(seed, output_idx);
+        seed = hash_combine(seed, num_splits);
+        seed = hash_combine(seed, op_mode);
         return seed;
     }
 };

@@ -27,11 +27,8 @@ struct data : public primitive_base<data> {
     memory::ptr mem;
 
     size_t hash() const override {
-        if (!seed) {
-            for (size_t i = 0; i < id.size(); i++) {
-                seed = hash_combine(seed, id[i]);
-            }
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
         return seed;
     }
 };

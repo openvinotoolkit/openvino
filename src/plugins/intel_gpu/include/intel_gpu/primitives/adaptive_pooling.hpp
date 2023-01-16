@@ -51,10 +51,10 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     data_types index_element_type{data_types::i64};
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, mode);
-            seed = hash_combine(seed, index_element_type);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mode);
+        seed = hash_combine(seed, index_element_type);
+        seed = hash_combine(seed, indices_output.empty());
         return seed;
     }
 

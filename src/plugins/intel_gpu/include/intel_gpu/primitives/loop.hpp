@@ -168,9 +168,8 @@ struct loop : public primitive_base<loop> {
     int64_t max_iteration;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, id);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
         return seed;
     }
 

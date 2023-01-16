@@ -30,9 +30,8 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
     size_t indices_rank;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, indices_rank);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, indices_rank);
         return seed;
     }
 };

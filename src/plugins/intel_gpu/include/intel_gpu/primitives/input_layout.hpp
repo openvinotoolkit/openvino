@@ -32,9 +32,8 @@ struct input_layout : public primitive_base<input_layout> {
     }
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, id);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
         return seed;
     }
 };

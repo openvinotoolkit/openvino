@@ -376,12 +376,14 @@ struct deconvolution : public primitive_base<deconvolution> {
     const primitive_id_arr bias;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_range(seed, pad.begin(), pad.end());
-            seed = hash_range(seed, stride.begin(), stride.end());
-            seed = hash_combine(seed, groups);
-            seed = hash_combine(seed, grouped_weights_shape);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, grouped_weights_shape);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        seed = hash_combine(seed, output_shape_id.empty());
         return seed;
     }
 

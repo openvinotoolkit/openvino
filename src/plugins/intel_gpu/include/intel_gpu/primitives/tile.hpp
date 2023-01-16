@@ -34,9 +34,8 @@ struct tile : public primitive_base<tile> {
     std::vector<int64_t> repeats;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_range(seed, repeats.begin(), repeats.end());
-        }
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, repeats.begin(), repeats.end());
         return seed;
     }
 };

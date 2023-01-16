@@ -50,10 +50,9 @@ struct split : public primitive_base<split> {
     const primitive_id_arr output_ids;
 
     size_t hash() const override {
-        if (!seed) {
-            for (auto& offset : output_offsets) {
-                seed = hash_combine(seed, offset.hash());
-            }
+        size_t seed = primitive::hash();
+        for (auto& offset : output_offsets) {
+            seed = hash_combine(seed, offset.hash());
         }
         return seed;
     }

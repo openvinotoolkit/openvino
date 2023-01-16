@@ -30,9 +30,8 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     uint32_t stride;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, stride);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, stride);
         return seed;
     }
 };

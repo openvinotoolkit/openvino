@@ -60,11 +60,10 @@ struct pyramid_roi_align : public primitive_base<pyramid_roi_align> {
     int pyramid_starting_level;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, sampling_ratio);
-            seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
-            seed = hash_combine(seed, pyramid_starting_level);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_range(seed, pyramid_scales.begin(), pyramid_scales.end());
+        seed = hash_combine(seed, pyramid_starting_level);
         return seed;
     }
 };

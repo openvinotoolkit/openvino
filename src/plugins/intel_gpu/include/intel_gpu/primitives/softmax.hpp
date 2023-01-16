@@ -40,9 +40,8 @@ struct softmax : public primitive_base<softmax> {
     int64_t dimension;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, dimension);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, dimension);
         return seed;
     }
 };

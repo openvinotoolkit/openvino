@@ -44,10 +44,9 @@ struct random_uniform : public primitive_base<random_uniform> {
     const format output_format;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, global_seed);
-            seed = hash_combine(seed, op_seed);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, global_seed);
+        seed = hash_combine(seed, op_seed);
         return seed;
     }
 };

@@ -49,12 +49,12 @@ struct experimental_detectron_generate_proposals_single_image
     int64_t post_nms_count;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = cldnn::hash_combine(seed, min_size);
-            seed = cldnn::hash_combine(seed, nms_threshold);
-            seed = cldnn::hash_combine(seed, pre_nms_count);
-            seed = cldnn::hash_combine(seed, post_nms_count);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, min_size);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, pre_nms_count);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, output_roi_scores.empty());
         return seed;
     }
 

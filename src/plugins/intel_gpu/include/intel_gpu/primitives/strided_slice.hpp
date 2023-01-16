@@ -104,12 +104,11 @@ struct strided_slice : public primitive_base<strided_slice> {
     ov::Shape out_size;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_range(seed, begin_mask.begin(), begin_mask.end());
-            seed = hash_range(seed, end_mask.begin(), end_mask.end());
-            seed = hash_range(seed, new_axis_mask.begin(), new_axis_mask.end());
-            seed = hash_range(seed, shrink_axis_mask.begin(), shrink_axis_mask.end());
-        }
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, begin_mask.begin(), begin_mask.end());
+        seed = hash_range(seed, end_mask.begin(), end_mask.end());
+        seed = hash_range(seed, new_axis_mask.begin(), new_axis_mask.end());
+        seed = hash_range(seed, shrink_axis_mask.begin(), shrink_axis_mask.end());
         return seed;
     }
 };

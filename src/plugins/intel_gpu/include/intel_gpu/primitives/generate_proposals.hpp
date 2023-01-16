@@ -60,15 +60,16 @@ struct generate_proposals
     data_types roi_num_type;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, min_size);
-            seed = hash_combine(seed, nms_threshold);
-            seed = hash_combine(seed, pre_nms_count);
-            seed = hash_combine(seed, post_nms_count);
-            seed = hash_combine(seed, normalized);
-            seed = hash_combine(seed, nms_eta);
-            seed = hash_combine(seed, roi_num_type);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, min_size);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, pre_nms_count);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, normalized);
+        seed = hash_combine(seed, nms_eta);
+        seed = hash_combine(seed, roi_num_type);
+        seed = hash_combine(seed, output_rois_scores.empty());
+        seed = hash_combine(seed, output_rois_num.empty());
         return seed;
     }
 

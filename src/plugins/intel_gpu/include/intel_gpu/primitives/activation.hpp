@@ -117,11 +117,11 @@ struct activation : public primitive_base<activation> {
     primitive_id additional_params_input;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, activation_function);
-            seed = hash_combine(seed, additional_params.a);
-            seed = hash_combine(seed, additional_params.b);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, activation_function);
+        seed = hash_combine(seed, additional_params.a);
+        seed = hash_combine(seed, additional_params.b);
+        seed = hash_combine(seed, additional_params_input.empty());
         return seed;
     }
 

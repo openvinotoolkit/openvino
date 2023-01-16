@@ -126,19 +126,18 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     bool has_roisnum{false};
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, has_roisnum);
-            seed = hash_combine(seed, attrs.background_class);
-            seed = hash_combine(seed, attrs.indices_output_type);
-            seed = hash_combine(seed, attrs.iou_threshold);
-            seed = hash_combine(seed, attrs.keep_top_k);
-            seed = hash_combine(seed, attrs.nms_eta);
-            seed = hash_combine(seed, attrs.nms_top_k);
-            seed = hash_combine(seed, attrs.normalized);
-            seed = hash_combine(seed, attrs.score_threshold);
-            seed = hash_combine(seed, attrs.sort_result);
-            seed = hash_combine(seed, attrs.sort_result_across_batch);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, has_roisnum);
+        seed = hash_combine(seed, attrs.background_class);
+        seed = hash_combine(seed, attrs.indices_output_type);
+        seed = hash_combine(seed, attrs.iou_threshold);
+        seed = hash_combine(seed, attrs.keep_top_k);
+        seed = hash_combine(seed, attrs.nms_eta);
+        seed = hash_combine(seed, attrs.nms_top_k);
+        seed = hash_combine(seed, attrs.normalized);
+        seed = hash_combine(seed, attrs.score_threshold);
+        seed = hash_combine(seed, attrs.sort_result);
+        seed = hash_combine(seed, attrs.sort_result_across_batch);
         return seed;
     }
 

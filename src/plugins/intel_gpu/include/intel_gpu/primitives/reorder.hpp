@@ -156,12 +156,12 @@ struct reorder : public primitive_base<reorder> {
     bool truncate = false;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, mean_mode);
-            seed = hash_combine(seed, input_mem_type);
-            seed = hash_combine(seed, truncate);
-            seed = hash_range(seed, subtract_per_feature.begin(), subtract_per_feature.end());
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mean_mode);
+        seed = hash_combine(seed, input_mem_type);
+        seed = hash_combine(seed, truncate);
+        seed = hash_range(seed, subtract_per_feature.begin(), subtract_per_feature.end());
+        seed = hash_combine(seed, mean.empty());
         return seed;
     }
 

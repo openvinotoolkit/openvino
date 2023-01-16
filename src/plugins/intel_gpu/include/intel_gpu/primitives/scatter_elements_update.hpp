@@ -30,9 +30,8 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
     int64_t axis;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, axis);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
         return seed;
     }
 };

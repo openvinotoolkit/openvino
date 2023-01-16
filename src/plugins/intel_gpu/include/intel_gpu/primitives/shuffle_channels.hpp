@@ -31,10 +31,9 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
     int32_t axis;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, group);
-            seed = hash_combine(seed, axis);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, group);
+        seed = hash_combine(seed, axis);
         return seed;
     }
 };

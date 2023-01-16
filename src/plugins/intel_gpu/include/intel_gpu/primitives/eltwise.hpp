@@ -169,12 +169,11 @@ struct eltwise : public primitive_base<eltwise> {
     ov::op::AutoBroadcastSpec broadcast_spec;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = cldnn::hash_combine(seed, mode);
-            seed = cldnn::hash_range(seed, coefficients.begin(), coefficients.end());
-            for (auto& s : stride) {
-                seed = cldnn::hash_combine(seed, s.hash());
-            }
+        size_t seed = primitive::hash();
+        seed = cldnn::hash_combine(seed, mode);
+        seed = cldnn::hash_range(seed, coefficients.begin(), coefficients.end());
+        for (auto& s : stride) {
+            seed = cldnn::hash_combine(seed, s.hash());
         }
         return seed;
     }

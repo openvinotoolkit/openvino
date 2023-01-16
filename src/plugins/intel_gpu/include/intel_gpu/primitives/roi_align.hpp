@@ -61,12 +61,11 @@ struct roi_align : public primitive_base<roi_align> {
     AlignedMode aligned_mode;
 
     size_t hash() const override {
-        if (!seed) {
-            seed = hash_combine(seed, sampling_ratio);
-            seed = hash_combine(seed, spatial_scale);
-            seed = hash_combine(seed, pooling_mode);
-            seed = hash_combine(seed, aligned_mode);
-        }
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, sampling_ratio);
+        seed = hash_combine(seed, spatial_scale);
+        seed = hash_combine(seed, pooling_mode);
+        seed = hash_combine(seed, aligned_mode);
         return seed;
     }
 };
