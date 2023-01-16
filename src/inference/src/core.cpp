@@ -7,6 +7,7 @@
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_plugin.hpp"
+#include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
 #include "so_extension.hpp"
@@ -53,33 +54,17 @@ std::map<std::string, Version> Core::get_versions(const std::string& deviceName)
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
-        return _impl->ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath))
-            .getFunction(););
+        return _impl->read_model(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath)););
 }
 #endif
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
-    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(modelPath, binPath).getFunction(););
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(modelPath, binPath););
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
-    InferenceEngine::Blob::Ptr blob;
-    if (weights) {
-        blob = weights._impl;
-    }
-    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
-
-namespace {
-
-ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
-    return ie::CNNNetwork(
-        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
-                                                            std::vector<ie::IExtensionPtr>{},
-                                                            true));
-}
-
-}  // namespace
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
@@ -89,7 +74,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(model, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -100,7 +85,7 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(modelPath, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -109,12 +94,8 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
-    InferenceEngine::Blob::Ptr blob;
-    if (weights) {
-        blob = weights._impl;
-    }
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(model, blob, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(model, weights, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -123,9 +104,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model),
-                                       context._impl,
-                                       any_copy(flatten_sub_properties(context.get_device_name(), config)));
+        auto exec = _impl->compile_model(model, context, flatten_sub_properties(context.get_device_name(), config));
         return {exec._ptr, exec._so};
     });
 }
@@ -177,7 +156,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->import_model(modelStream, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -211,9 +190,8 @@ SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) const {
     OV_CORE_CALL_STATEMENT({
-        auto qnResult =
-            _impl->QueryNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
-        return qnResult.supportedLayersMap;
+        auto qnResult = _impl->query_model(model, deviceName, flatten_sub_properties(deviceName, config));
+        return qnResult;
     });
 }
 
