@@ -14,12 +14,12 @@ python -m pip install -r openvino/src/bindings/python/requirements_test.txt
 cd .../openvino/src/bindings/python/
 ```
 
-To run new Python API tests (since 2022.1 release):
+To run OpenVINO Python API 2.0 tests:
 ```shell
 pytest tests/
 ```
 
-For running compatibility Python API tests execute this command:
+For running OpenVINO Python API 1.0 tests execute this command:
 ```
 pytest tests_compatibility/
 ```
@@ -46,20 +46,30 @@ tox
 ```
 
 ### Check codestyle of Python API
-For checking the codestyle of Python API execute this command:
+There are two packages used in the project to check codestyle of python code: *mypy* and *flake8*.
+Additionally OpenVINO™ uses the custom configuration file to exclude some strict rules.
+
+For checking the codestyle of Python API 2.0 execute this command:
 ```
-python -m flake8 ./src/openvino --config=setup.cfg
+python -m flake8 ./src/openvino/ --config=setup.cfg
+python -m mypy ./src/openvino --config-file ./setup.cfg
 ```
 For checking the codestyle of compatibility nGraph Python API execute this command:
 ```
-python -m flake8 ./src/compatibility/ngraph --config=setup.cfg
+python -m flake8 ./src/compatibility/ngraph/ --config=setup.cfg
+python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
 ```
 For checking the codestyle of compatibility InferenceEngine Python API execute this command:
 ```
 cd src/compatibility/openvino
 python -m flake8 ./ --config=setup.cfg
+python -m mypy ./ --config-file ./setup.cfg
 ```
-
+Also we suggest to run the codestyle check above tests if some new were added.
+This check should be executed from the main Python API folder.
+```
+python -m flake8 ./tests/ --config=setup.cfg
+```
 ### Writing OpenVINO™ Python API tests
 ###### Before start
 Follow and complete `openvino/src/bindings/python/docs/code_examples.md`.
