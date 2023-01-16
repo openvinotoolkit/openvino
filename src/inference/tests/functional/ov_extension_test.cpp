@@ -190,6 +190,11 @@ std::string getIncorrectExtensionPath() {
                                               std::string("incorrect") + IE_BUILD_POSTFIX);
 }
 
+std::string getOVExtensionRelativePath() {
+    return ov::util::make_plugin_library_name(std::string(),
+                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+}
+
 }  // namespace
 
 class CustomOldIdentity : public ngraph::op::Op {
@@ -353,4 +358,9 @@ TEST_F(OVExtensionTests, load_old_extension) {
 TEST_F(OVExtensionTests, load_incorrect_extension) {
     EXPECT_THROW(core.add_extension(getIncorrectExtensionPath()), ov::Exception);
 }
+
+TEST_F(OVExtensionTests, load_relative_path) {
+    EXPECT_NO_THROW(core.add_extension(getOVExtensionRelativePath()));
+}
+
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
