@@ -154,7 +154,7 @@ TResult get_raw_data_as(const element::Type_t et, const void* const ptr, const s
                        std::forward<UnaryOperation>(func));
     } break;
     default:
-        OPENVINO_ASSERT(false, "Not supported element type ", et);
+        OPENVINO_ASSERT(false, "Get raw data from tensor is not supported for element type: ", et);
     };
     return out;
 }
@@ -320,14 +320,14 @@ std::unique_ptr<TShape> get_input_const_data_as_shape(const ov::Node* op,
 
     if (auto d =
             get_input_const_data_as<TShape, TDimValue>(op, idx, constant_data, std::forward<UnaryOperation>(func))) {
-        shape_ptr.reset(new TShape(std::move(*d)));
+        return std::unique_ptr<TShape>(new TShape(std::move(*d)));
     } else {
         PartialShape shape;
         if (ov::evaluate_as_partial_shape(op->input_value(idx), shape)) {
-            shape_ptr.reset(new TShape(std::move(shape)));
+            return std::unique_ptr<TShape>(new TShape(std::move(shape)));
         }
     }
-    return shape_ptr;
+    return {};
 }
 }  // namespace op
 }  // namespace ov
