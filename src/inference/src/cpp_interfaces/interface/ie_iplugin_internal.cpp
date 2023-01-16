@@ -13,6 +13,7 @@
 #include <istream>
 #include <map>
 #include <memory>
+#include <openvino/runtime/remote_context.hpp>
 #include <string>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <unordered_set>
@@ -21,6 +22,7 @@
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "dev/converter_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_algorithm.hpp"
 #include "ie_api.h"
@@ -531,6 +533,100 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
 std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from) {
     return ov::legacy_convert::convert_plugin(from);
+}
+
+IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr) : m_old_plugin(ptr) {
+    OPENVINO_ASSERT(m_old_plugin);
+    auto& ver = m_old_plugin->GetVersion();
+    m_version.buildNumber = ver.buildNumber;
+    m_version.description = ver.description;
+    m_plugin_name = m_old_plugin->GetName();
+    m_is_new_api = m_old_plugin->IsNewAPI();
+    m_core = m_old_plugin->GetCore();
+    m_executor_manager = m_old_plugin->executorManager();
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> IPluginWrapper::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties) const {
+    auto exec_network =
+        m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
+    return exec_network;
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> IPluginWrapper::compile_model(
+    const std::string& model_path,
+    const ov::AnyMap& properties) const {
+    auto exec_network = m_old_plugin->LoadNetwork(model_path, any_copy(properties));
+    return exec_network._ptr;
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> IPluginWrapper::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::RemoteContext& context) const {
+    auto compiled_model = m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
+                                                    any_copy(properties),
+                                                    context._impl);
+    return compiled_model;
+}
+
+void IPluginWrapper::set_property(const ov::AnyMap& properties) {
+    m_old_plugin->SetProperties(properties);
+}
+
+ov::Any IPluginWrapper::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+    try {
+        return m_old_plugin->GetConfig(name, arguments);
+    } catch (...) {
+        return m_old_plugin->GetMetric(name, arguments);
+    }
+}
+
+ov::RemoteContext IPluginWrapper::create_context(const ov::AnyMap& remote_properties) const {
+    return ov::RemoteContext{m_old_plugin->CreateContext(remote_properties), {nullptr}};
+}
+
+ov::RemoteContext IPluginWrapper::get_default_context(const ov::AnyMap& remote_properties) const {
+    return ov::RemoteContext{m_old_plugin->GetDefaultContext(remote_properties), {nullptr}};
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> IPluginWrapper::import_model(
+    std::istream& model,
+    const ov::AnyMap& properties) const {
+    return m_old_plugin->ImportNetwork(model, any_copy(properties));
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> IPluginWrapper::import_model(
+    std::istream& model,
+    const ov::RemoteContext& context,
+    const ov::AnyMap& properties) const {
+    return m_old_plugin->ImportNetwork(model, context._impl, any_copy(properties));
+}
+
+ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::Model>& model,
+                                                const ov::AnyMap& properties) const {
+    auto res = m_old_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
+    if (res.rc != InferenceEngine::OK) {
+        throw ov::Exception(res.resp.msg);
+    }
+    return res.supportedLayersMap;
+}
+
+void IPluginWrapper::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
+    m_old_plugin->AddExtension(extension);
+}
+
+const std::shared_ptr<InferenceEngine::IInferencePlugin>& IPluginWrapper::get_plugin() const {
+    return m_old_plugin;
+}
+
+void IPluginWrapper::set_core(std::weak_ptr<ov::ICore> core) {
+    auto locked_core = core.lock();
+    auto old_core = std::dynamic_pointer_cast<InferenceEngine::ICore>(locked_core);
+    if (old_core)
+        m_old_plugin->SetCore(old_core);
+    m_core = core;
 }
 
 }  //  namespace InferenceEngine

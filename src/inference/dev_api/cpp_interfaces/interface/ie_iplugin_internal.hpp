@@ -377,6 +377,50 @@ protected:
     bool _isNewAPI;                                     //!< A flag which shows used API
 };
 
+class INFERENCE_ENGINE_API_CLASS(IPluginWrapper) : public ov::IPlugin {
+public:
+    IPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
+
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
+        const std::string& model_path,
+        const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
+        const std::shared_ptr<const ov::Model>& model,
+        const ov::AnyMap& properties,
+        const ov::RemoteContext& context) const override;
+
+    void set_property(const ov::AnyMap& properties) override;
+
+    ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+
+    ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const override;
+
+    ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const override;
+
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(
+        std::istream& model,
+        const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+    import_model(std::istream& model, const ov::RemoteContext& context, const ov::AnyMap& properties) const override;
+
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                    const ov::AnyMap& properties) const override;
+
+    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
+
+    const std::shared_ptr<InferenceEngine::IInferencePlugin>& get_plugin() const;
+    void set_core(std::weak_ptr<ov::ICore> core);
+
+private:
+    std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
+};
+
 /**
  * @private
  */

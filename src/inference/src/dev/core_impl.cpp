@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <openvino/core/except.hpp>
+#include <openvino/runtime/remote_context.hpp>
 
 #include "any_copy.hpp"
 #include "check_network_batchable.hpp"
@@ -380,7 +381,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     std::shared_ptr<ov::Model> cloned_model = model->clone();
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
-    if (!is_new_api() && !plugin.m_ptr->old_plugin) {
+    if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
         // if IR `version` is not set, suppose it's IR v10 for old API
         // it allows to use operation names in set_ / get_tensor instead of tensor_names
         if (!cloned_model->has_rt_info("version")) {

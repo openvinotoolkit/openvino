@@ -316,16 +316,13 @@ private:
 
 std::shared_ptr<::InferenceEngine::IInferencePlugin> ov::legacy_convert::convert_plugin(
     const std::shared_ptr<::ov::IPlugin>& plugin) {
-    if (plugin->old_plugin)
-        return plugin->old_plugin;
-    // if (auto ie_plugin = std::dynamic_pointer_cast<OVIPluginWrapper>(plugin)) {
-    //     return ie_plugin->get_plugin();
-    // }
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin))
+        return wrapper->get_plugin();
     return std::make_shared<ov::IInferencePluginWrapper>(plugin);
 }
 
 std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
     const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) {
-    std::shared_ptr<::ov::IPlugin> ov_plugin(new ::ov::IPlugin(plugin));
+    std::shared_ptr<::ov::IPlugin> ov_plugin(new ::InferenceEngine::IPluginWrapper(plugin));
     return ov_plugin;
 }

@@ -4,6 +4,9 @@
 
 #include "plugin.hpp"
 
+#include <memory>
+
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
@@ -26,7 +29,11 @@ void ov::Plugin::set_name(const std::string& deviceName) {
 }
 
 void ov::Plugin::set_core(std::weak_ptr<ICore> core) {
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_core(core));
+    OV_PLUGIN_CALL_STATEMENT({
+        m_ptr->set_core(core);
+        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
+            wrapper->set_core(core);
+    });
 }
 
 const ov::Version ov::Plugin::get_version() const {

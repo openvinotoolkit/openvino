@@ -21,24 +21,9 @@
 #include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
+
 class IExecutableNetworkInternal;
-}
-namespace ov {
-
-class IPlugin;
-class CoreImpl;
-
-namespace legacy_convert {
-
-std::shared_ptr<::InferenceEngine::IInferencePlugin> convert_plugin(const std::shared_ptr<::ov::IPlugin>& plugin);
-std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
-
-}  // namespace legacy_convert
-
-}  // namespace ov
-
-namespace InferenceEngine {
-
+class IPluginWrapper;
 class IExtension;
 
 }  // namespace InferenceEngine
@@ -83,7 +68,7 @@ public:
      */
     virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
         const std::shared_ptr<const ov::Model>& model,
-        const ov::AnyMap& properties) const;
+        const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Compiles model from ov::Model object
@@ -93,7 +78,7 @@ public:
      */
     virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
         const std::string& model_path,
-        const ov::AnyMap& properties) const;
+        const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -106,7 +91,7 @@ public:
     virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
         const std::shared_ptr<const ov::Model>& model,
         const ov::AnyMap& properties,
-        const ov::RemoteContext& context) const;
+        const ov::RemoteContext& context) const = 0;
 
     /**
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
@@ -130,7 +115,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual RemoteContext create_context(const ov::AnyMap& remote_properties) const;
+    virtual RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -138,7 +123,7 @@ public:
      *
      * @return The default context.
      */
-    virtual RemoteContext get_default_context(const ov::AnyMap& remote_properties) const;
+    virtual RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -149,7 +134,7 @@ public:
      */
     virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> import_model(
         std::istream& model,
-        const ov::AnyMap& properties) const;
+        const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -161,7 +146,24 @@ public:
      * @return An Compiled model
      */
     virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-    import_model(std::istream& model, const ov::RemoteContext& context, const ov::AnyMap& properties) const;
+    import_model(std::istream& model, const ov::RemoteContext& context, const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Queries a plugin about supported layers in model
+     * @param model Model object to query.
+     * @param properties Optional map of pairs: (property name, property value).
+     * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
+     */
+    virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
+                                            const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Registers legacy extension within plugin
+     * @param extension - pointer to already loaded legacy extension
+     */
+    OPENVINO_DEPRECATED(
+        "This method allows to load legacy InferenceEngine Extensions and will be removed in 2024.0 release")
+    virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
     /**
      * @brief Sets pointer to ICore interface
@@ -187,23 +189,6 @@ public:
      */
     const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const;
 
-    /**
-     * @brief Queries a plugin about supported layers in model
-     * @param model Model object to query.
-     * @param properties Optional map of pairs: (property name, property value).
-     * @return An object containing a map of pairs an operation name -> a device name supporting this operation.
-     */
-    virtual ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
-                                            const ov::AnyMap& properties) const;
-
-    /**
-     * @brief Registers legacy extension within plugin
-     * @param extension - pointer to already loaded legacy extension
-     */
-    OPENVINO_DEPRECATED(
-        "This method allows to load legacy InferenceEngine Extensions and will be removed in 2024.0 release")
-    virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
-
     ~IPlugin() = default;
 
 protected:
@@ -216,14 +201,8 @@ private:
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                                 //!< Member contains plugin version
     bool m_is_new_api;                                                     //!< A flag which shows used API
-    std::shared_ptr<InferenceEngine::IInferencePlugin> old_plugin;
-    friend ::ov::CoreImpl;
-    friend std::shared_ptr<::InferenceEngine::IInferencePlugin> ov::legacy_convert::convert_plugin(
-        const std::shared_ptr<::ov::IPlugin>& plugin);
-    friend std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
-        const std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin);
-    OPENVINO_DEPRECATED("Constructor is deprecated. Please do not use or re-implement it")
-    IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr);
+
+    friend InferenceEngine::IPluginWrapper;
 };
 
 }  // namespace ov

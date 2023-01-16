@@ -35,20 +35,7 @@
 
 ov::IPlugin::IPlugin() : m_executor_manager(InferenceEngine::executorManager()), m_is_new_api(true) {}
 
-ov::IPlugin::IPlugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr) : old_plugin(ptr) {
-    auto& ver = old_plugin->GetVersion();
-    m_version.buildNumber = ver.buildNumber;
-    m_version.description = ver.description;
-    m_plugin_name = old_plugin->GetName();
-}
-
 void ov::IPlugin::set_version(const ov::Version& version) {
-    if (old_plugin) {
-        ie::Version ver;
-        ver.buildNumber = version.buildNumber;
-        ver.description = version.description;
-        old_plugin->SetVersion(ver);
-    }
     m_version = version;
 }
 
@@ -57,8 +44,6 @@ const ov::Version& ov::IPlugin::get_version() const {
 }
 
 void ov::IPlugin::set_device_name(const std::string& name) {
-    if (old_plugin)
-        old_plugin->SetName(name);
     m_plugin_name = name;
 }
 
@@ -66,96 +51,15 @@ const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) const {
-    if (old_plugin) {
-        auto exec_network =
-            old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
-        return exec_network;
-    }
-    return compile_model(model, properties, {});
-}
-
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
-    const std::string& model_path,
-    const ov::AnyMap& properties) const {
-    if (old_plugin) {
-        auto exec_network = old_plugin->LoadNetwork(model_path, any_copy(properties));
-        return exec_network._ptr;
-    }
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
-    if (old_plugin) {
-        auto compiled_model = old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
-                                                      any_copy(properties),
-                                                      context._impl);
-        return compiled_model;
-    }
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
-    if (old_plugin) {
-        old_plugin->AddExtension(extension);
-        return;
-    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 void ov::IPlugin::set_property(const ov::AnyMap& properties) {
-    if (old_plugin) {
-        old_plugin->SetProperties(properties);
-        return;
-    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    if (old_plugin) {
-        try {
-            return old_plugin->GetConfig(name, arguments);
-        } catch (...) {
-            return old_plugin->GetMetric(name, arguments);
-        }
-    }
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-ov::RemoteContext ov::IPlugin::create_context(const ov::AnyMap& remote_properties) const {
-    if (old_plugin) {
-        return ov::RemoteContext{old_plugin->CreateContext(remote_properties), {nullptr}};
-    }
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-ov::RemoteContext ov::IPlugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    if (old_plugin) {
-        return ov::RemoteContext{old_plugin->GetDefaultContext(remote_properties), {nullptr}};
-    }
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::import_model(
-    std::istream& model,
-    const ov::AnyMap& properties) const {
-    if (old_plugin) {
-        return old_plugin->ImportNetwork(model, any_copy(properties));
-    }
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
-ov::IPlugin::import_model(std::istream& model, const ov::RemoteContext& context, const ov::AnyMap& properties) const {
-    if (old_plugin) {
-        return old_plugin->ImportNetwork(model, context._impl, any_copy(properties));
-    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -163,42 +67,18 @@ void ov::IPlugin::set_core(std::weak_ptr<ov::ICore> core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;
     auto locked_core = m_core.lock();
-    if (old_plugin) {
-        auto old_core = std::dynamic_pointer_cast<InferenceEngine::ICore>(locked_core);
-        if (old_core)
-            old_plugin->SetCore(old_core);
-    }
     if (locked_core)
         m_is_new_api = locked_core->is_new_api();
 }
 
 std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
-    if (old_plugin)
-        return old_plugin->GetCore();
     return m_core.lock();
 }
 
 bool ov::IPlugin::is_new_api() const {
-    if (old_plugin)
-        return old_plugin->IsNewAPI();
     return m_is_new_api;
 }
 
 const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
-    if (old_plugin)
-        return old_plugin->executorManager();
     return m_executor_manager;
-}
-
-ov::SupportedOpsMap ov::IPlugin::query_model(const std::shared_ptr<const ov::Model>& model,
-                                             const ov::AnyMap& properties) const {
-    if (old_plugin) {
-        auto res =
-            old_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
-        if (res.rc != InferenceEngine::OK) {
-            throw ov::Exception(res.resp.msg);
-        }
-        return res.supportedLayersMap;
-    }
-    OPENVINO_NOT_IMPLEMENTED;
 }
