@@ -79,7 +79,7 @@ public:
 };
 
 /**
- * \brief Compare two integers (a < b) in safe way against lossy integer conversion.
+ * \brief Compare two values (a < b) in safe way against lossy integer conversion.
  *
  * \tparam T Type of a value.
  * \tparam U Type of b value.
@@ -126,11 +126,11 @@ template <class T,
           typename std::enable_if<std::is_unsigned<T>::value && (std::is_floating_point<U>::value ||
                                                                  std::is_same<U, float16>::value)>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
-    return b < 0 ? true : a < b;
+    return b < 0 ? false : a < b;
 }
 
 /**
- * \brief Compare two integers (a > b) in safe way against lossy integer conversion.
+ * \brief Compare two values (a > b) in safe way against lossy integer conversion.
  *
  * \tparam T Type of a value.
  * \tparam U Type of b value.
@@ -141,12 +141,12 @@ constexpr bool lt(T a, U b) noexcept {
  * \return true if a > b otherwise false.
  */
 template <class T, class U>
-bool gt(T a, U b) noexcept {
+constexpr bool gt(T a, U b) noexcept {
     return lt(b, a);
 }
 
 /**
- * \brief Compare two integers (a <= b) in safe way against lossy integer conversion.
+ * \brief Compare two values (a <= b) in safe way against lossy integer conversion.
  *
  * \tparam T Type of a value.
  * \tparam U Type of b value.
@@ -157,12 +157,12 @@ bool gt(T a, U b) noexcept {
  * \return true if a <= b otherwise false.
  */
 template <class T, class U>
-bool le(T a, U b) noexcept {
+constexpr bool le(T a, U b) noexcept {
     return !gt(a, b);
 }
 
 /**
- * \brief Compare two integers (a >= b) in safe way against lossy integer conversion.
+ * \brief Compare two values (a >= b) in safe way against lossy integer conversion.
  *
  * \tparam T Type of a value.
  * \tparam U Type of b value.
@@ -173,7 +173,7 @@ bool le(T a, U b) noexcept {
  * \return true if a >= b otherwise false.
  */
 template <class T, class U>
-bool ge(T a, U b) noexcept {
+constexpr bool ge(T a, U b) noexcept {
     return !lt(a, b);
 }
 }  // namespace cmp
