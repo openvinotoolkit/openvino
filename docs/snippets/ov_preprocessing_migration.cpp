@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <openvino/runtime/core.hpp>
@@ -7,7 +7,7 @@
 
 #include "inference_engine.hpp"
 
-int ov_preprocessing_migration_main_new_cpp() {
+int main_new() {
     std::string model_path;
     std::string tensor_name;
 
@@ -70,7 +70,7 @@ model = ppp.build();
 return 0;
 }
 
-int ov_preprocessing_migration_main_old_cpp() {
+int main_old() {
     std::string model_path;
     std::string operation_name;
 

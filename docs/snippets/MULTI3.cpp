@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int MULTI3() {
+int main() {
 //! [part3]
 ov::Core core;
 std::vector<std::string> myriadDevices = core.get_property("MYRIAD", ov::available_devices);

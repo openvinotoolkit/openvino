@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-int gpu_dynamic_batch() {
+int main() {
 size_t C = 3;
 size_t H = 224;
 size_t W = 224;

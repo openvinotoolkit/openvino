@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int MULTI1() {
+int main() {
 //! [part1]
 ov::Core core;
 std::shared_ptr<ov::Model> model = core.read_model("sample.xml");

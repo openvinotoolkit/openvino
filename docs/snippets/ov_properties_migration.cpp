@@ -1,7 +1,7 @@
 #include <openvino/runtime/core.hpp>
 #include <inference_engine.hpp>
 
-int ov_properties_migration_main_new_cpp() {
+int main_new() {
     ov::Core core;
 
 //! [core_get_ro_property]
@@ -51,7 +51,7 @@ return 0;
 }
 
 
-int ov_properties_migration_main_old_cpp() {
+int main_old() {
     InferenceEngine::Core core;
 //! [core_get_metric]
 auto full_device_name = core.GetMetric("CPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();

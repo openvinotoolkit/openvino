@@ -4,7 +4,7 @@
 
 cl::Context get_ocl_context(); // a function which returns cl context created on the app side
 
-int gpu_context_sharing() {
+int main() {
 {
     //! [context_sharing_get_from_ov]
 

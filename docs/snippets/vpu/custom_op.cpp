@@ -1,7 +1,7 @@
 #include "openvino/runtime/core.hpp"
 #include "ie_plugin_config.hpp"
 
-int vpu_custom_op() {
+int main() {
 //! [part0]
 ov::Core core;
 // Load Myriad Extensions

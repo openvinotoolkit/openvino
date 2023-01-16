@@ -3,7 +3,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-int ShapeInference() {
+int main() {
 ov::Core core;
 auto model = core.read_model("path/to/model");
 

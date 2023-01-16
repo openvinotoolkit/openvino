@@ -7,7 +7,7 @@
 ov::intel_gpu::ocl::ClImage2DTensor get_y_tensor();
 ov::intel_gpu::ocl::ClImage2DTensor get_uv_tensor();
 
-int gpu_preprocessing() {
+int main() {
     ov::Core core;
     auto model = core.read_model("model.xml");
 
