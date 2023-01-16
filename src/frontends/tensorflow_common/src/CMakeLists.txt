@@ -25,3 +25,9 @@ target_include_directories(${TARGET_NAME}
         ${root_dir}/src
         ${root_dir}/dev_api
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+        SOURCE_DIRECTORY "${root_dir}/include"
+        ADDITIONAL_INCLUDE_DIRECTORIES
+        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)

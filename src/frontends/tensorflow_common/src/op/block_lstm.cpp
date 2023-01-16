@@ -4,8 +4,8 @@
 
 #include "helper_ops/block_lstm.hpp"
 
-#include "ngraph/validation_util.hpp"
 #include "common_op_table.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/core/validation_util.hpp"
 
 using namespace std;

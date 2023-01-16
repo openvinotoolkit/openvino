@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "input_model.hpp"
 #include "common_op_table.hpp"
+#include "input_model.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
