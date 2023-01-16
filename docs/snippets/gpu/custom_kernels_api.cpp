@@ -1,7 +1,7 @@
 #include "openvino/runtime/core.hpp"
 #include "ie_plugin_config.hpp"
 
-int main() {
+int gpu_custom_kernels_api() {
     //! [part0]
     ov::Core core;
     // Load GPU Extensions

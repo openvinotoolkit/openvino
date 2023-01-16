@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-int main() {
+int CPU_Kernel() {
 using namespace InferenceEngine;
 //! [part0]
 InferenceEngine::Core core;

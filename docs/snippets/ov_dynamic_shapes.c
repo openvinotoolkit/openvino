@@ -303,7 +303,7 @@ ov_model_free(model);
 ov_core_free(core);
 }
 
-int main() {
+int ov_dynamic_shapes_c() {
 reshape_with_dynamics();
 get_tensor();
 set_tensor();

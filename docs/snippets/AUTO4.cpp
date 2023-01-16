@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int main() {
+int auto4() {
     ov::Core core;
 
     // Read a network in IR, PaddlePaddle, or ONNX format:

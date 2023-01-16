@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-int main() {
+int ov_properties_api() {
 //! [get_available_devices]
 ov::Core core;
 std::vector<std::string> available_devices = core.get_available_devices();

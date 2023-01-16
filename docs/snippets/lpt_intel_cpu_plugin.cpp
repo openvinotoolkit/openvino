@@ -28,7 +28,7 @@ public:
 } // pass
 } // ngraph
 
-int main() {
+int lpt_intel_cpu_plugin() {
 std::shared_ptr<ov::Model> nGraphFunc;
 ngraph::pass::Manager manager;
 auto pass_config = manager.get_pass_config();

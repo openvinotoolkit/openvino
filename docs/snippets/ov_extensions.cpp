@@ -40,7 +40,7 @@ public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector&) const override { return nullptr; }
 };
 
-int main() {
+int ov_extensions() {
 {
 //! [add_extension]
 ov::Core core;

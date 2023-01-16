@@ -6,7 +6,7 @@
 #include <openvino/runtime/intel_gna/properties.hpp>
 //! [include]
 
-int main() {
+int gna_configure() {
 const std::string model_path = "model.xml";
 //! [ov_gna_exec_mode_hw_with_sw_fback]
 ov::Core core;

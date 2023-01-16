@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int main() {
+int MULTI5() {
 //! [part5]
 ov::Core core;
 

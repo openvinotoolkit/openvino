@@ -24,7 +24,7 @@ ID3D11Device* get_d3d_device();
 VADisplay get_va_display();
 #endif
 
-int main() {
+int gpu_remote_objects_creation() {
     ov::Core core;
     auto model = core.read_model("model.xml");
     auto input = model->get_parameters().at(0);

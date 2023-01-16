@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int main() {
+int auto3() {
 {
 
 //! [part3]

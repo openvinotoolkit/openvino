@@ -6,7 +6,7 @@
 cl::CommandQueue get_ocl_queue(); // a function which returns cl queue created on the app side
 cl::Context get_ocl_context(); // a function which returns cl context created on the app side
 
-int main() {
+int gpu_queue_sharing() {
     //! [queue_sharing]
 
     // ...

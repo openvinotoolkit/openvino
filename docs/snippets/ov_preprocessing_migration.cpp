@@ -7,7 +7,7 @@
 
 #include "inference_engine.hpp"
 
-int main_new() {
+int ov_preprocessing_migration_main_new_cpp() {
     std::string model_path;
     std::string tensor_name;
 
@@ -70,7 +70,7 @@ model = ppp.build();
 return 0;
 }
 
-int main_old() {
+int ov_preprocessing_migration_main_old_cpp() {
     std::string model_path;
     std::string operation_name;
 

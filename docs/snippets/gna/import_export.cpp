@@ -6,7 +6,7 @@
 #include <openvino/openvino.hpp>
 //! [include]
 
-int main() {
+int gna_import_export() {
 const std::string model_path = "model.xml";
 const std::string blob_path = "compiled_model.blob";
 

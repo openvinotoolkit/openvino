@@ -2,7 +2,7 @@
 #include <openvino/runtime/intel_gpu/properties.hpp>
 
 
-int main() {
+int gpu_compiled_model() {
 {
     //! [compile_model_default_gpu]
     ov::Core core;

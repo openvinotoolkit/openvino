@@ -1,7 +1,7 @@
 #include <openvino/runtime/core.hpp>
 
 
-int main() {
+int cpu_compiled_model() {
     {
         //! [compile_model_default]
         ov::Core core;

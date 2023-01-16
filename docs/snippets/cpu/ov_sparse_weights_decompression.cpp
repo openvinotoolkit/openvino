@@ -4,7 +4,7 @@
 #include <openvino/runtime/core.hpp>
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
-int main() {
+int cpu_ov_sparse_weights_decompression() {
     try {
         std::string modelPath = "model.xml";
         std::string device = "CPU";

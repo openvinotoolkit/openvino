@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-int main() {
+int ov_auto_batching() {
     ov::Core core;
     auto model = core.read_model("sample.xml");
 {
