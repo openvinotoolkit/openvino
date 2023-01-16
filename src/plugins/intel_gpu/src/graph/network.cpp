@@ -765,10 +765,6 @@ memory::ptr network::get_output_memory(const primitive_id& id) {
     return get_primitive(id)->output_memory_ptr();
 }
 
-layout network::get_output_layout(const primitive_id& id) const {
-    return get_primitive(id)->get_output_layout();
-}
-
 void network::allocate_primitives() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("allocate_primitives");
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};

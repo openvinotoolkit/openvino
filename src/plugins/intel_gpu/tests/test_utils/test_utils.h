@@ -572,6 +572,22 @@ T div_up(const T a, const U b) {
     return (a + b - 1) / b;
 }
 
+template <class T>
+std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    std::vector<float> ret;
+    auto ptr = net.get_output_memory(output_id);
+    auto out_ids = net.get_output_ids();
+    if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
+        IE_THROW() << "Non output node's memory may have been reused. "
+                      "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
+    mem_lock<T, mem_lock_type::read> mem(ptr, net.get_stream());
+    if (ptr->get_layout().data_type != type_to_data_type<T>::value)
+        IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
+                    << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
+    for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
+        ret.push_back(mem[i]);
+    return ret;
+}
 double default_tolerance(data_types dt);
 class membuf : public std::streambuf
 {
