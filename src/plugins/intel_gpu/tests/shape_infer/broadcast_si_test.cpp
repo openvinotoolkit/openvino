@@ -104,13 +104,14 @@ TEST_P(broadcast_test_two_inputs_blocked_format, shape_infer) {
                 broadcast("output", input_info("data"), input_info("target_shape"), p.axes_mapping_data, p.mode)
     );
 
-    build_options options;
-    options.set_option(build_option::optimize_data(true));
-    options.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config {
+        ov::intel_gpu::optimize_data(true),
+        ov::intel_gpu::allow_new_shape_infer(true)
+    };
 
     std::vector<int32_t> input_data(p.data_layout.get_linear_size(), 1);
 
-    network network(engine, topology, options);
+    network network(engine, topology, config);
 
     set_values(data_mem, input_data);
     set_values(in1_mem, p.target_shape_data);

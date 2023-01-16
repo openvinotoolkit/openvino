@@ -245,9 +245,9 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
             "weights",
             bias_id));
 
-        build_options opts;
-        opts.set_option(build_option::optimize_data(true));
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
 
 #if MEASURE_PERF == true
         using clock = std::chrono::high_resolution_clock;
@@ -407,9 +407,9 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
             initial_hidden_id,
             initial_cell_id));
 
-        build_options opts;
-        opts.set_option(build_option::optimize_data(true));
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
         network.set_input_data("input", input_mem);
         network.set_input_data("dyn_len", dynamic_length_mem);
 

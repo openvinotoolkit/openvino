@@ -84,6 +84,60 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, configuration));
 }
 
+TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
+    std::string model = R"V0G0N(
+        <net name="Network" version="10">
+            <layers>
+                <layer name="in1" type="Parameter" id="0" version="opset8">
+                    <data element_type="f16" shape="1,3,22,22"/>
+                    <output>
+                        <port id="0" precision="FP16" names="data">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer name="round" id="1" type="Round" version="opset8">
+                    <data mode="half_to_even"/>
+                    <input>
+                        <port id="1" precision="FP16">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="2" precision="FP16" names="r">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer name="output" type="Result" id="2" version="opset8">
+                    <input>
+                        <port id="0" precision="FP16">
+                            <dim>1</dim>
+                            <dim>3</dim>
+                            <dim>22</dim>
+                            <dim>22</dim>
+                        </port>
+                    </input>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+                <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+            </edges>
+        </net>
+        )V0G0N";
+    EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
+}
+
 TEST(OVExecutableNetworkBaseTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
@@ -622,8 +676,9 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
-    const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
-    const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
+    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
+    const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::CompiledModel execNet;

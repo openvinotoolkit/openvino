@@ -21,10 +21,6 @@ add_compile_definitions(
     MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
 
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
-
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
 if (ENABLE_INTEL_CPU)

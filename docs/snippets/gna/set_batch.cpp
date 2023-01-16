@@ -5,7 +5,7 @@
 #include <openvino/openvino.hpp>
 //! [include]
 
-int main() {
+int gna_set_batch() {
 const std::string model_path = "model.xml";
 size_t batch_size = 8;
 

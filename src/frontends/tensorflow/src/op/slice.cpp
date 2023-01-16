@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_slice_op(const NodeContext& node) {
+    default_op_checks(node, 3, {"Slice"});
     auto input = node.get_input(0);
     auto start = node.get_input(1);
     auto size = node.get_input(2);
@@ -24,8 +25,7 @@ OutputVector translate_slice_op(const NodeContext& node) {
     // compute stop values in case negative sizes
     // since TensorFlow supports only -1 among negative sizes
     // assign stop values to the data shape
-    auto input_shape = make_shared<ShapeOf>(input);
-    auto stop_neg = make_shared<ConvertLike>(input_shape, size);
+    auto stop_neg = make_shared<ShapeOf>(input, size.get_element_type());
 
     // select the correct stop value based on a sign of size value
     auto zeros = make_shared<Constant>(size.get_element_type(), Shape{}, 0);

@@ -22,7 +22,6 @@ public:
 
     static std::string to_string(experimental_detectron_topk_rois_node const &node);
 
-public:
     typed_primitive_inst(network &network, experimental_detectron_topk_rois_node const &desc);
 };
 
