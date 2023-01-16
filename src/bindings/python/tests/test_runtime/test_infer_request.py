@@ -15,6 +15,7 @@ from openvino.runtime import Core, AsyncInferQueue, Tensor, ProfilingInfo, Model
 from openvino.runtime import Type, PartialShape, Shape, Layout
 from openvino.preprocess import PrePostProcessor
 
+from tests import skip_need_mock_op
 from tests.conftest import model_path
 from tests.test_utils.test_utils import generate_image
 
@@ -573,6 +574,7 @@ def test_infer_queue_fail_on_py_model(device):
     assert "unsupported operand type(s) for +" in str(e.value)
 
 
+@skip_need_mock_op
 @pytest.mark.parametrize("with_callback", [False, True])
 def test_infer_queue_fail_in_inference(device, with_callback):
     jobs = 6
