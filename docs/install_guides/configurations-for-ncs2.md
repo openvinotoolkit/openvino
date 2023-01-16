@@ -19,7 +19,7 @@ Once you have OpenVINO™ Runtime installed, follow these steps to be able to wo
    ```sh
    cd <INSTALL_DIR>/install_dependencies/
    ```
-3. Copy the `97-myriad-usbboot.rules` file to udev rules directory:
+3. Copy the `97-myriad-usbboot.rules` file to the udev rules directory:
    ```
    sudo cp 97-myriad-usbboot.rules /etc/udev/rules.d/
    ``` 
@@ -32,8 +32,7 @@ Once you have OpenVINO™ Runtime installed, follow these steps to be able to wo
    ``` 
 5. You may need to reboot your machine for this to take effect.
 
-You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2. 
-Proceed to the [Get Started Guide](@ref get_started) section to learn the basic OpenVINO™ workflow and run code samples and demo applications.
+You've completed all required configuration steps to perform inference on Intel® Neural Compute Stick 2.
 
 
 @sphinxdirective
