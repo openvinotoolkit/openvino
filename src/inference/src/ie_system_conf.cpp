@@ -66,20 +66,40 @@ bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
 
-#else // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#else  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
-bool with_cpu_x86_sse42() { return false; }
-bool with_cpu_x86_avx() { return false; }
-bool with_cpu_x86_avx2() { return false; }
-bool with_cpu_x86_avx512f() { return false; }
-bool with_cpu_x86_avx512_core() { return false; }
-bool with_cpu_x86_avx512_core_vnni() { return false; }
-bool with_cpu_x86_bfloat16() { return false; }
-bool with_cpu_x86_avx512_core_amx_int8() { return false; }
-bool with_cpu_x86_avx512_core_amx_bf16() { return false; }
-bool with_cpu_x86_avx512_core_amx() { return false; }
+bool with_cpu_x86_sse42() {
+    return false;
+}
+bool with_cpu_x86_avx() {
+    return false;
+}
+bool with_cpu_x86_avx2() {
+    return false;
+}
+bool with_cpu_x86_avx512f() {
+    return false;
+}
+bool with_cpu_x86_avx512_core() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_vnni() {
+    return false;
+}
+bool with_cpu_x86_bfloat16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx_int8() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx_bf16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx() {
+    return false;
+}
 
-#endif // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",

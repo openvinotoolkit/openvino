@@ -111,7 +111,7 @@ void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
 
-#endif // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 // overload to handle ngraph::boolean (it is stored as char)
 template <typename TI, typename TO>

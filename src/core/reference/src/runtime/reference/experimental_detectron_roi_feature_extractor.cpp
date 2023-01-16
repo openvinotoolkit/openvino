@@ -14,7 +14,8 @@
 #include "ngraph/shape.hpp"
 
 #if defined(__GNUC__) && !defined(__clang__)
-#    if defined(__linux__) && defined(OPENVINO_ARCH_X86) && (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
+#    if defined(__linux__) && defined(OPENVINO_ARCH_X86) && \
+        (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
 #        define _OV_DISABLE_GCC_OPTIMIZATION 1
 #    else
 #        define _OV_DISABLE_GCC_OPTIMIZATION 0
