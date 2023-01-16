@@ -14,6 +14,8 @@
 
 namespace ov {
 class TableOfEquivalence;
+/// \brief Alias for dimension label type.
+using label_t = uint32_t;
 
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
 ///        in a shape or shape-like object.
@@ -192,7 +194,7 @@ private:
 
     // private fields for dimension tracking
     friend class DimensionTracker;
-    size_t m_label{0};
+    label_t m_label{0};
     std::shared_ptr<TableOfEquivalence> m_table_of_equivalence = nullptr;
 };
 
