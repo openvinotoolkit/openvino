@@ -30,7 +30,7 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) {
 
 Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index is lower then number of inputs.");
-    auto input_tensor = get_input(index);
+    auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<opset10::Parameter>(input_node)) {
         // We need to look into external context for inputs that would be feed into this parameter
@@ -56,7 +56,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
     auto model = convert_pytorch_model2(subgraph_decoder, ext_map);
     // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
     // used for generating output.
-    for (int i = subgraph_decoder->inputs().size(); i < model->get_parameters().size(); i++) {
+    for (auto i = subgraph_decoder->inputs().size(); i < model->get_parameters().size(); i++) {
         auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
