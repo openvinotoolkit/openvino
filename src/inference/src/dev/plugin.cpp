@@ -49,6 +49,11 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
 }
 
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(const std::string& model_path,
+                                                                                 const ov::AnyMap& properties) {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model_path, properties), m_so});
+}
+
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::RemoteContext& context,

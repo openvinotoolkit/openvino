@@ -78,6 +78,16 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compil
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
+    const std::string& model_path,
+    const ov::AnyMap& properties) const {
+    if (old_plugin) {
+        auto exec_network = old_plugin->LoadNetwork(model_path, any_copy(properties));
+        return exec_network._ptr;
+    }
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
     const ov::RemoteContext& context) const {

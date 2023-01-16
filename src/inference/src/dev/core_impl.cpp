@@ -556,7 +556,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    return GetCPPPluginByName(parsed._deviceName).query_model(model, config);
+    return GetCPPPluginByName(parsed._deviceName).query_model(model, parsed._config);
 }
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
@@ -719,9 +719,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
                                      cacheContent);
         }
     } else if (cacheManager) {
-        auto cnnNetwork = ReadNetwork(modelPath, std::string());
-        // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
-        res = compile_model(plugin, ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()), {}, conf);
+        res = plugin.compile_model(modelPath, conf);
     } else {
         auto cnnNetwork = ReadNetwork(modelPath, std::string());
         if (val) {

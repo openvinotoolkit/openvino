@@ -86,6 +86,16 @@ public:
         const ov::AnyMap& properties) const;
 
     /**
+     * @brief Compiles model from ov::Model object
+     * @param model_path A path to model
+     * @param properties A ov::AnyMap of properties relevant only for this load operation
+     * @return Created Compiled Model object
+     */
+    virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
+        const std::string& model_path,
+        const ov::AnyMap& properties) const;
+
+    /**
      * @brief Compiles model from ov::Model object, on specified remote context
      * @param model A model object acquired from ov::Core::read_model or source construction
      * @param properties A ov::AnyMap of properties relevant only for this load operation

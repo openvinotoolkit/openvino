@@ -42,6 +42,9 @@ public:
     SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::AnyMap& properties);
 
+    SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
+                                                                     const ov::AnyMap& properties);
+
     SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::RemoteContext& context,
                                                                      const ov::AnyMap& properties);
