@@ -429,35 +429,33 @@ protected:
     std::shared_ptr<Node> m_node;
 };
 
-/** \brief  Shape infer factory */
+/**
+ * \brief Shape infer factory
+ *
+ * \tparam R     Result type of created interface object.
+ * \tparam TKey  Type of Maker map key.
+ * \tparam Args  TypesInference object ctor args.
+ */
+template <class TKey, class R, class... Args>
 class ShapeInferFactory {
 public:
     // Helper type to define specific Makers map values.
-    template <class R, class... Args>
     using TValue = std::function<R(Args...)>;
 
     // Helper type to define specific Makers map type.
-    template <class TKey, class TValue>
-    using map_type = std::map<TKey, TValue>;
+    using TRegistry = std::unordered_map<TKey, TValue>;
 
     /**
      * \brief  Creates the shape inference object.
-     *
-     * \tparam R     Result type of created interface object.
-     * \tparam TKey  Type of Maker map key.
-     * \tparam Args  TypesInference object ctor args.
      *
      * \param key   Key value to get specified shape inference object maker.
      * \param args  Inference object args.
      *
      * \return The shape inference object or R{} if not found in the map.
      */
-    template <class R, class TKey, class... Args>
-    static R make(const TKey& key, Args&&... args) {
-        using TValue = ShapeInferFactory::TValue<R, typename std::remove_reference<Args>::type...>;
-
-        const auto& maker_iter = Makers<TKey, TValue>::map.find(key);
-        if (maker_iter != Makers<TKey, TValue>::map.end()) {
+    static R make(const TKey& key, Args... args) {
+        const auto& maker_iter = registry.find(key);
+        if (maker_iter != registry.end()) {
             return maker_iter->second(std::forward<Args>(args)...);
         } else {
             return {};
@@ -465,18 +463,8 @@ public:
     }
 
 private:
-    /**
-     * \brief Factory makers map which can be specialized for key and value.
-     *
-     * Define as struct as variable template are not available in c++11.
-     *
-     * \tparam TKey     Key of map to identify the operator for shape inference.
-     * \tparam TValue   Map value, which should be defined as std::function.
-     */
-    template <class TKey, class TValue>
-    struct Makers {
-        static const map_type<TKey, TValue> map;
-    };
+    /** \brief Factory makers registry which can be specialized for key and value. */
+    static const TRegistry registry;
 };
 
 // Helpers to make shape inference objects (primary template).
@@ -503,7 +491,7 @@ std::shared_ptr<typename TConvInfer<TOp, flag>::iface_type> make_shape_infer(std
 // Type of key in shape inference Makers maps.
 using ShapeInferKey = ov::NodeTypeInfo;
 
-// Default opset used for 'current' in inference map.
+// Default opset used for 'default' in inference map.
 using namespace ov::opset10;
 
 // Helper macros to make map entries
@@ -513,15 +501,16 @@ using namespace ov::opset10;
 #define _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(OP, SHAPE_INFER) _OV_OP_SHAPE_INFER_VA_REG(OP, SHAPE_INFER)
 
 // Helper types for IShapeInferCommon makers map.
-using IShapeInferCommonValue = ShapeInferFactory::TValue<std::shared_ptr<IShapeInferCommon>, std::shared_ptr<Node>>;
-using IShapeInferCommonMapType = ShapeInferFactory::map_type<ShapeInferKey, IShapeInferCommonValue>;
+using IShapeInferCommonFactory =
+    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IShapeInferCommon>, std::shared_ptr<Node>>;
 
 // Initialization map for operators supporting IShapeInferCommon objects.
-// First group in map is 'current' opset defined by alias above.
+// First group in map is 'default' opset defined by alias above.
 // To use other version of operators, explicitly specify operator with opset version namespace.
+// const IShapeInferCommonMapType IShapeInferCommonFactory::Makers::map{};
 template <>
-const IShapeInferCommonMapType ShapeInferFactory::Makers<ShapeInferKey, IShapeInferCommonValue>::map{
-    // Current opset
+const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
+    // Default opset
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(BatchNormInference, entryFirstPassthrough),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Convert, entryCopy),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(CumSum, entryFirstPassthrough),
@@ -632,18 +621,19 @@ const IShapeInferCommonMapType ShapeInferFactory::Makers<ShapeInferKey, IShapeIn
     _OV_OP_SHAPE_INFER_REG(opset1::Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
-    _OV_OP_SHAPE_INFER_VA_REG(opset1::Gather, entryIOC, ov::op::util::GatherBase)};
+    _OV_OP_SHAPE_INFER_VA_REG(opset1::Gather, entryIOC, ov::op::util::GatherBase),
+};
 
 // Helper types for IStaticShapeInfer makers.
-using IStaticShapeInferValue = ShapeInferFactory::TValue<std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<Node>>;
-using IStaticShapeInferMapType = ShapeInferFactory::map_type<ShapeInferKey, IStaticShapeInferValue>;
+using IStaticShapeInferFactory =
+    ShapeInferFactory<ShapeInferKey, std::shared_ptr<IStaticShapeInfer>, std::shared_ptr<Node>>;
 
 // Initialization map for operators supporting IStaticShapeInfer objects.
-// First group in map is 'current' opset defined by alias above.
+// First group in map is 'default' opset defined by alias above.
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
-const IStaticShapeInferMapType ShapeInferFactory::Makers<ShapeInferKey, IStaticShapeInferValue>::map{
-    // Current opset
+const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // Default opset
     _OV_OP_SHAPE_INFER_REG(Tile, ShapeInferBase),
     // Operators shape inferences for specific opset version should be specified below
 };
@@ -651,10 +641,9 @@ const IStaticShapeInferMapType ShapeInferFactory::Makers<ShapeInferKey, IStaticS
 #undef _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG
 #undef _OV_OP_SHAPE_INFER_REG
 #undef _OV_OP_SHAPE_INFER_VA_REG
-
 template <>
 std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::shared_ptr<Node> op) {
-    if (auto shape_infer = ShapeInferFactory::make<std::shared_ptr<IShapeInferCommon>>(op->get_type_info(), op)) {
+    if (auto shape_infer = IShapeInferCommonFactory::make(op->get_type_info(), op)) {
         return shape_infer;
     } else if (auto shape_infer = make_shape_inference<IStaticShapeInfer>(op)) {
         return shape_infer;
@@ -672,10 +661,10 @@ std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::
 
 template <>
 std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::shared_ptr<ov::Node> op) {
-    if (auto shape_infer = ShapeInferFactory::make<std::shared_ptr<IStaticShapeInfer>>(op->get_type_info(), op)) {
+    if (auto shape_infer = IStaticShapeInferFactory::make(op->get_type_info(), op)) {
         return shape_infer;
     } else {
-        // It should return equivalent of entryFallback which supports new interface.
+        // TODO 101252: It should return equivalent of entryFallback which supports new interface.
         return {};
     }
 }

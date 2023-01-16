@@ -1372,7 +1372,7 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
 
             for (size_t i = 0; i < outputs_count; ++i) {
                 const auto& partial_shape = node->get_output_partial_shape(i);
-                // Set shape for static and Shape{0} tensor will not allocated now
+                // Set shape for static or Shape{0} for dynamic to postpone memory allocation
                 auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
                 outputs.emplace_back(element::from_label_type(), shape);
             }
