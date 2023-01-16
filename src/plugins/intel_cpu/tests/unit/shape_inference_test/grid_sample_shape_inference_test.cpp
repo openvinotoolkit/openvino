@@ -11,23 +11,29 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, GridSample) {
+class GridSampleStaticShapeInferenceTest : public OpStaticShapeInferenceTest<opset9::GridSample> {};
+
+TEST_F(GridSampleStaticShapeInferenceTest, GridSample) {
     const auto data = std::make_shared<opset9::Parameter>(element::i32, PartialShape{-1, -1, -1, -1});
     const auto grid = std::make_shared<opset9::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
 
-    const auto grid_sample = std::make_shared<opset9::GridSample>(data, grid, opset9::GridSample::Attributes{});
+    op = make_op(data, grid, opset9::GridSample::Attributes{});
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 4, 8}, StaticShape{2, 6, 7, 2}},
-                             static_output_shapes = {StaticShape{}};
-    shape_inference(grid_sample.get(), static_input_shapes, static_output_shapes);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 6, 7}));
+    input_shapes = {StaticShape{2, 3, 4, 8}, StaticShape{2, 6, 7, 2}};
+    output_shapes = {StaticShape{}};
+    exp_shape = StaticShape{2, 3, 6, 7};
+
+    shape_inference(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], exp_shape);
 }
 
-TEST(StaticShapeInferenceTest, GridSampleDefaultConstructor) {
-    auto grid_sample = std::make_shared<opset9::GridSample>();
+TEST_F(GridSampleStaticShapeInferenceTest, GridSample_default_constructor) {
+    op = make_op();
 
-    std::vector<StaticShape> static_input_shapes = {StaticShape{2, 3, 4, 8}, StaticShape{2, 6, 7, 2}},
-                             static_output_shapes = {StaticShape{}};
-    shape_infer(grid_sample.get(), static_input_shapes, static_output_shapes);
-    EXPECT_EQ(static_output_shapes[0], StaticShape({2, 3, 6, 7}));
+    input_shapes = {StaticShape{2, 3, 4, 8}, StaticShape{2, 6, 7, 2}};
+    output_shapes = {StaticShape{}};
+    exp_shape = StaticShape{2, 3, 6, 7};
+
+    shape_infer(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], exp_shape);
 }
