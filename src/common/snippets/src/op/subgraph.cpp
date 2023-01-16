@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -134,9 +134,6 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
         throw ngraph::ngraph_error("original node outputs size and extracted subgraph node outputs size doesn't much");
     }
 
-    // Clear the node dependencies so graph::topological_sort will not find any extra ops in get_ordered_ops()
-    //  This is needed so the model body will be created correctly
-    body_node->clear_control_dependencies();
     ngraph::ResultVector body_results;
     for (auto output : node->outputs()) {
         body_results.push_back(std::make_shared<ngraph::opset1::Result>(body_node->output(output.get_index())));
@@ -220,7 +217,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                 startOffset--;
             }
             std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
-            inShape = move(newShape);
+            inShape = std::move(newShape);
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
             NODE_VALIDATION_CHECK(this,

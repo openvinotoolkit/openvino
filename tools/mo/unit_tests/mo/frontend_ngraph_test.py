@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -98,6 +98,15 @@ def test_mo_model_analysis():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
             os.path.join(os.path.dirname(__file__), 'utils/test_mo_model_analysis_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ)
+    assert not status.returncode
+
+
+def test_convert_impl_tmp_irs_cleanup():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'utils', 'convert_impl_tmp_irs_cleanup_test_actual.py')]
 
     status = subprocess.run(args, env=os.environ)
     assert not status.returncode

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,6 +39,14 @@ ParamsKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::GetSupportedKey() co
     k.EnableBatching();
     k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
+    return k;
+}
+
+DeviceFeaturesKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::get_required_device_features_key(const Params&, const optional_params&) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 

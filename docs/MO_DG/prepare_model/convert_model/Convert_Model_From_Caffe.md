@@ -17,19 +17,6 @@ Caffe-specific parameters:
                         Path to python Caffe parser generated from caffe.proto
   -k K                  Path to CustomLayersMapping.xml to register custom
                         layers
-  --mean_file MEAN_FILE, -mf MEAN_FILE
-                        [DEPRECATED] Mean image to be used for the input. Should be a
-                        binaryproto file
-  --mean_file_offsets MEAN_FILE_OFFSETS, -mo MEAN_FILE_OFFSETS
-                        [DEPRECATED] Mean image offsets to be used for the input
-                        binaryproto file. When the mean image is bigger than
-                        the expected input, it is cropped. By default, centers
-                        of the input image and the mean image are the same and
-                        the mean image is cropped by dimensions of the input
-                        image. The format to pass this option is the
-                        following: "-mo (x,y)". In this case, the mean file is
-                        cropped by dimensions of the input image with offset
-                        (x,y) from the upper left corner of the mean image
   --disable_omitting_optional
                         Disable omitting optional attributes to be used for
                         custom layers. Use this option if you want to transfer

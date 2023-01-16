@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 APP_NAME="MyriadFunctionalTests"
@@ -33,7 +33,7 @@ else
 fi
 
 echo "Test directory: ${TEST_DIR}"
-cd "${TEST_DIR}"
+cd "${TEST_DIR}" || exit
 
 export IE_VPU_MYRIADX=1
 

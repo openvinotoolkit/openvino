@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ TEST(SmartReshapeTests, Proposal1Scales) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -69,7 +69,7 @@ TEST(SmartReshapeTests, Proposal1Scales_WithConvert) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -107,7 +107,7 @@ TEST(SmartReshapeTests, Proposal4Scales) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;
@@ -148,7 +148,7 @@ TEST(SmartReshapeTests, Proposal4Scales_WithConvert) {
         attrs.feat_stride = 8;
         attrs.framework = "tensorflow";
         attrs.min_size = 1;
-        attrs.nms_thresh = 0.699999988079;
+        attrs.nms_thresh = 0.699999988079f;
         attrs.normalize = true;
         attrs.post_nms_topn = 300;
         attrs.pre_nms_topn = 2147483647;

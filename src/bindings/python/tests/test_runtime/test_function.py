@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -594,4 +594,3 @@ def test_serialize_complex_rt_info(request):
 
     os.remove(xml_path)
     os.remove(bin_path)
-    serialize(res_model, xml_path, bin_path)

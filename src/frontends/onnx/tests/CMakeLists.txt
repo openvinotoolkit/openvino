@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -20,10 +20,6 @@ add_compile_definitions(
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
-
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
@@ -74,6 +70,7 @@ set(MULTI_TEST_SRC
     onnx_import_dyn_shapes.in.cpp
     onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
+    onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
     onnx_import_quant.in.cpp

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -243,7 +243,7 @@ class MapFNOutputConcatenation(FrontReplacementSubgraph):
             if 'purpose' in record and record['purpose'] == 'execution_condition':
                 exec_cond_layer_id = record['internal_layer_id']
                 exec_cond_node = Loop.get_body_node_by_internal_id(loop_node, exec_cond_layer_id)
-                const_true = Const(body_graph, {'value': mo_array(True, dtype=np.bool)}).create_node()
+                const_true = Const(body_graph, {'value': mo_array(True, dtype=bool)}).create_node()
                 exec_cond_node.in_port(0).get_connection().set_source(const_true.out_port(0))
 
         # remove back edge

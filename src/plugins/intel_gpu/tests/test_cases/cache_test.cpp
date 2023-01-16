@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -167,7 +167,7 @@ class cache_test_helper {
 public:
     cache_test_helper(cldnn::engine& engine, cache_version v)
         : _engine(engine)
-        , _mode(cldnn::tuning_mode::tuning_disabled)
+        , _mode(ov::intel_gpu::TuningMode::tuning_disabled)
         , cache_filename(get_temporary_cache_file())
     {
         auto cache = get_cache_version(v);
@@ -181,7 +181,7 @@ public:
         remove(cache_filename);
     }
 
-    cache_test_helper& with_mode(cldnn::tuning_mode mode) {
+    cache_test_helper& with_mode(ov::intel_gpu::TuningMode mode) {
         _mode = mode;
         return *this;
     }
@@ -210,14 +210,14 @@ public:
             cldnn::convolution("conv", input_info("input"), { "weights" })
         );
 
-        auto tune_conf = cldnn::tuning_config_options();
+        ov::intel_gpu::TuningConfig tune_conf;
         tune_conf.cache_file_path = cache_filename;
         tune_conf.mode = _mode;
-        auto build_opts = cldnn::build_options(
-            cldnn::build_option::tuning_config(tune_conf),
-            cldnn::build_option::optimize_data(true)
-        );
-        cldnn::network network(_engine, topology, build_opts);
+        ExecutionConfig config{
+            ov::intel_gpu::tuning_config(tune_conf),
+            ov::intel_gpu::optimize_data(true)
+        };
+        cldnn::network network(_engine, topology, config);
         auto in_mem = _engine.allocate_memory(cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1, 16, 3, 3 }));
         network.set_input_data("input", in_mem);
         network.execute();
@@ -230,7 +230,7 @@ public:
             if (compare_implementation.not_equal) {
                 EXPECT_NE(exec_impl, compare_implementation.value);
             } else {
-                EXPECT_EQ(exec_impl, compare_implementation.value);
+                ASSERT_EQ(exec_impl, compare_implementation.value);
             }
         }
 
@@ -240,7 +240,7 @@ public:
             auto eus = _engine.get_device_info().execution_units_count;
             replace(expected_cache, eus_marker, eus);
 
-            EXPECT_EQ(cache, expected_cache);
+            ASSERT_EQ(cache, expected_cache);
         }
     }
 
@@ -258,7 +258,7 @@ private:
 
     cldnn::engine& _engine;
 
-    cldnn::tuning_mode _mode;
+    ov::intel_gpu::TuningMode _mode;
 
     std::string cache_filename;
 
@@ -304,7 +304,7 @@ TEST(cache_test, no_cache_baseline) {
     auto& engine = tests::get_test_engine();
     auto helper = cache_test_helper(engine, cache_version::version_2);
 
-    helper.with_mode(cldnn::tuning_mode::tuning_disabled)
+    helper.with_mode(ov::intel_gpu::TuningMode::tuning_disabled)
         .expect_implementation_not(reference_impl_name)
         .test();
 }
@@ -314,7 +314,7 @@ TEST_P(cache_version_test, use_only) {
     auto& engine = tests::get_test_engine();
 
     cache_test_helper helper(engine, version);
-    helper.with_mode(cldnn::tuning_mode::tuning_use_cache)
+    helper.with_mode(ov::intel_gpu::TuningMode::tuning_use_cache)
         .expect_implementation(reference_impl_name)
         .expect_cache(version)
         .test();
@@ -330,7 +330,7 @@ TEST_P(cache_version_test, update) {
     auto& engine = tests::get_test_engine();
 
     cache_test_helper helper(engine, version);
-    helper.with_mode(cldnn::tuning_mode::tuning_use_and_update)
+    helper.with_mode(ov::intel_gpu::TuningMode::tuning_use_and_update)
         .expect_implementation(reference_impl_name)
         .expect_cache(ex_version)
         .test();
@@ -346,7 +346,7 @@ TEST(cache_test, remove_invalid) {
     auto& engine = tests::get_test_engine();
 
     cache_test_helper helper(engine, cache_version::version_2_invalid);
-    helper.with_mode(cldnn::tuning_mode::tuning_use_and_update)
+    helper.with_mode(ov::intel_gpu::TuningMode::tuning_use_and_update)
         .expect_implementation_not(reference_impl_name)
         .expect_cache(cache_version::version_2_empty)
         .test();

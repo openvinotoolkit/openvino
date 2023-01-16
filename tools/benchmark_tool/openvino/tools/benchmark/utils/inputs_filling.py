@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -169,18 +169,6 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
-            if info.scale.size or info.mean.size:
-                blue, green, red = cv2.split(image)
-                if info.mean.size:
-                    blue = np.subtract(blue, info.mean[0])
-                    green = np.subtract(green, info.mean[1])
-                    red = np.subtract(red, info.mean[2])
-                if info.scale.size:
-                    blue = np.divide(blue, info.scale[0])
-                    green = np.divide(green, info.scale[1])
-                    red = np.divide(red, info.scale[2])
-                image = cv2.merge([blue, green, red])
-
             model_channel = int(str(info.channels))
             image_channel = image.shape[-1]
             if model_channel == 1 and image_channel == 3:
@@ -272,7 +260,7 @@ def get_image_info_tensors(image_sizes, layer):
 
 def fill_tensors_with_random(layer):
     dtype = get_dtype(layer.element_type)
-    rand_min, rand_max = (0, 1) if dtype == np.bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
+    rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1

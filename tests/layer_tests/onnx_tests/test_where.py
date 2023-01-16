@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,7 +12,7 @@ from unit_tests.utils.graph import build_graph
 class TestWhere(OnnxRuntimeLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(np.bool)
+            inputs_dict[input] = np.random.randint(0, 2, inputs_dict[input]).astype(bool)
         return inputs_dict
 
     def create_net(self, condition_shape, shape_than, else_shape, ir_version):

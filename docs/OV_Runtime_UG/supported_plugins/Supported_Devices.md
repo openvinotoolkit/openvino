@@ -3,7 +3,7 @@ Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 
 The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
-> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
+> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick support has been cancelled.
 
 The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
 
@@ -17,6 +17,8 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 |[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |
 |[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
+
+> **NOTE**: ARM® CPU plugin is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ ecosystem, technical questions and code contributions on community forums. However, this component has not undergone full release validation or qualification from Intel®, hence no official support is offered. 
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
@@ -181,7 +183,7 @@ The following layers are supported by the plugins:
 | FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported\*     |
 | Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Not Supported   |
 | Flatten                        | Supported     | Supported     | Supported     | Not Supported | Not Supported   |
-| Floor                          | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Floor                          | Supported     | Supported\*\* | Supported\*   | Not Supported | Supported       |
 | FullyConnected (Inner Product) | Supported     |Supported\*\*\*| Supported     | Supported     | Supported       |
 | Gather                         | Supported     | Supported\*\* | Supported     | Not Supported | Supported\*     |
 | GatherTree                     | Not Supported | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
@@ -240,7 +242,7 @@ The following layers are supported by the plugins:
 | Select                         | Supported     | Supported     | Supported     | Not Supported | Supported       |
 | Selu                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
 | ShuffleChannels                | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
-| Sign                           | Supported     | Supported\*\* | Supported     | Not Supported | Supported       |
+| Sign                           | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
 | Sin                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported       |
 | Sinh                           | Supported     | Supported\*\* | Not Supported | Not Supported |Supported\*\*\*\*|
 | SimplerNMS                     | Supported     | Supported\*\* | Not Supported | Not Supported | Not Supported   |

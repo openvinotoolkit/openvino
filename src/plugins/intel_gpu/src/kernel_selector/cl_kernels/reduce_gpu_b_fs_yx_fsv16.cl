@@ -1,16 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define SIMD 16
 #define FSV 16
-#define unroll_for  __attribute__((opencl_unroll_hint(READ_OFFSET))) for
-
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
 
 #if !defined REDUCE_BATCH
     #define REDUCE_BATCH 0
@@ -100,11 +95,11 @@ inline ACCUMULATOR_TYPE FUNC(sub_group_reduce)(ACCUMULATOR_TYPE acc) {
             acc = sub_group_reduce_min(acc);
         #elif REDUCE_PROD_MODE
             ACCUMULATOR_TYPE next = ACCUMULATOR_VAL_ONE;
-            acc *= intel_sub_group_shuffle_down(acc, next, 8);
-            acc *= intel_sub_group_shuffle_down(acc, next, 4);
-            acc *= intel_sub_group_shuffle_down(acc, next, 2);
-            acc *= intel_sub_group_shuffle_down(acc, next, 1);
-            acc  = intel_sub_group_shuffle(acc, 0);
+            acc *= _sub_group_shuffle_down(acc, next, 8);
+            acc *= _sub_group_shuffle_down(acc, next, 4);
+            acc *= _sub_group_shuffle_down(acc, next, 2);
+            acc *= _sub_group_shuffle_down(acc, next, 1);
+            acc  = _sub_group_shuffle(acc, 0);
         #elif REDUCE_AND_MODE
             acc = sub_group_all(acc);
         #elif REDUCE_OR_MODE
@@ -142,7 +137,7 @@ inline uint FUNC(calc_linear_offset)(uint b, uint f, uint y, uint x) {
     return index;
 }
 
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(reduce_fsv16)(
     const __global INPUT0_TYPE* data,
     __global OUTPUT_TYPE* output
@@ -406,7 +401,6 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
 
 #undef SIMD
 #undef FSV
-#undef unroll_for
 #undef BLOCK_READ
 #undef READ_OFFSET
 #undef INPUT_VEC

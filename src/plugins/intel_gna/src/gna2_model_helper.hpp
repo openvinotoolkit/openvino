@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <gna2-common-api.h>
 #include <gna2-model-api.h>
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 
 #include <cstdint>
 

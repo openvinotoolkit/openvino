@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ OutputVector translate_broadcast_args_op(const NodeContext& node) {
     auto s1 = node.get_input(1);
 
     // compute a number of shape elements to append for broadcasting
-    auto size0 = make_shared<Squeeze>(make_shared<ShapeOf>(s0));
-    auto size1 = make_shared<Squeeze>(make_shared<ShapeOf>(s1));
+    auto size0 = make_shared<ShapeOf>(s0);
+    auto size1 = make_shared<ShapeOf>(s1);
     auto max_size = make_shared<Maximum>(size0, size1);
     auto diff1 = make_shared<Subtract>(max_size, size0);
     auto diff2 = make_shared<Subtract>(max_size, size1);
@@ -28,14 +28,14 @@ OutputVector translate_broadcast_args_op(const NodeContext& node) {
     // to take dynamic shapes into account
     auto padded_s0 =
         make_shared<Pad>(s0,
-                         make_shared<Constant>(diff1->get_element_type(), Shape{1}, std::vector<int64_t>{0}),
                          diff1,
+                         make_shared<Constant>(diff1->get_element_type(), Shape{1}, std::vector<int64_t>{0}),
                          make_shared<Constant>(s0.get_element_type(), Shape{}, std::vector<int64_t>{-1}),
                          ov::op::PadMode::CONSTANT);
     auto padded_s1 =
         make_shared<Pad>(s1,
-                         make_shared<Constant>(diff2->get_element_type(), Shape{1}, std::vector<int64_t>{0}),
                          diff2,
+                         make_shared<Constant>(diff2->get_element_type(), Shape{1}, std::vector<int64_t>{0}),
                          make_shared<Constant>(s1.get_element_type(), Shape{}, std::vector<int64_t>{-1}),
                          ov::op::PadMode::CONSTANT);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <gna/gna_config.hpp>
 #include "openvino/runtime/intel_gna/properties.hpp"
+#include "behavior/ov_plugin/properties_tests.hpp"
 
 using namespace ov::test::behavior;
 
@@ -58,6 +59,13 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetConfigTest,
         OVClassGetConfigTest_ThrowUnsupported,
         ::testing::Values("GNA", "MULTI", "HETERO"));
 
+const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GNA = {
+        {"GNA", std::make_pair(ov::AnyMap{}, "GNA")}};
+
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetMetricTest,
+        OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
+        ::testing::ValuesIn(GetMetricTest_ExecutionDevice_GNA),
+        OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailableDevices, ::testing::Values("GNA"));
 

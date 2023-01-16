@@ -19,7 +19,7 @@ Using the IEI Mustang-V100-MX8 requires downloading and installing the most curr
 Visit the [IEI Download Center](https://download.ieiworld.com/) for the most current software and documentation.
 Search for **Mustang-V100-MX8**.
 
-Download the appropriate software for your system, decompress the downloaded archive, enter the newly created directory, and run the install script:
+Download the appropriate software for your system, extract the downloaded archive file, enter the newly created directory, and run the install script:
 
 On **Linux**:
 -  Run the `install.sh script` with `sudo`, or as `root`.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -200,6 +200,35 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
             << slog::endl;
     }
 }
+
+void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_app::InputsInfo& app_inputs_info) {
+    // TODO: remove warning after 23.3 release
+    bool warned = false;
+    constexpr char warn_msg[] = "Mean/scale values are fused into the model. This slows down performance compared to "
+                                "--imean and --iscale which existed before";
+    for (const std::pair<std::string, benchmark_app::InputInfo>& input_info : app_inputs_info) {
+        if (!input_info.second.mean.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .mean(input_info.second.mean);
+        }
+        if (!input_info.second.scale.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .scale(input_info.second.scale);
+        }
+    }
+}
 }  // namespace
 
 /**
@@ -350,7 +379,7 @@ int main(int argc, char* argv[]) {
             auto ov_perf_hint = get_performance_hint(device, core);
             device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
             if (FLAGS_nireq != 0)
-                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
+                device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -524,7 +553,7 @@ int main(int argc, char* argv[]) {
 
             auto set_nthreads_pin = [&](const std::string& str) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
-                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
@@ -607,6 +636,10 @@ int main(int argc, char* argv[]) {
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
@@ -631,8 +664,8 @@ int main(int argc, char* argv[]) {
                                               batchSize,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -678,8 +711,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               inputInfo,
                                               reshape);
             if (reshape) {
@@ -752,6 +785,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            fuse_mean_scale(preproc, app_inputs_info.at(0));
+
             const auto& outs = model->outputs();
             for (int i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
@@ -799,6 +834,10 @@ int main(int argc, char* argv[]) {
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
         } else {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported for compiled model. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
@@ -833,8 +872,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -882,7 +921,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -899,7 +938,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
             if (shape_groups_num > nireq) {
@@ -919,7 +958,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -174,7 +174,7 @@ auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> &sub
 } // namespace
 
 bool AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_supported_op(node) && has_supported_in_out(node);
+    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty();
 }
 
 void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nodeType) {
@@ -273,6 +273,8 @@ TokenizeSnippets::TokenizeSnippets() {
         OutputVector external_inputs;
         // inputs to the node before merge to subgraph
         OutputVector internal_inputs;
+        // nodes whose rt_info should be copied into result subgraph
+        NodeVector replaced_nodes{node};
 
         auto input_values = node->input_values();
         /*
@@ -347,6 +349,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     input_subgraphs.insert(input_node);
 
                     fusedNames += getFusedNames(subgraph);
+                    replaced_nodes.push_back(subgraph);
 
                     if (has_result_child(subgraph)) {
                         // we set input subgraph name to the current subgraph
@@ -553,6 +556,7 @@ TokenizeSnippets::TokenizeSnippets() {
             body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
         }
         auto subgraph = op::build_subgraph(node, external_inputs, body, subgraph_name);
+        copy_runtime_info(replaced_nodes, subgraph);
         const auto & act_body = subgraph->body();
         for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
             act_body.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,7 +265,8 @@ const std::vector<InputShape> inputShapes4D = {
             {
                 {1, 32, 8, 8},
                 {1, 21, 8, 4},
-                {2, 8, 8, 12}
+                {2, 8, 8, 12},
+                {1, 96, 125, 125}
             }
         },
         {

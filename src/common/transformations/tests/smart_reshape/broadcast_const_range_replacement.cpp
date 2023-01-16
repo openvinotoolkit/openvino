@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -133,7 +133,6 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof) {
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
-        constexpr auto target_shape_elem_type = element::i64;
 
         std::vector<int32_t> sequence_pattern(elem_count);
         std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
@@ -194,7 +193,6 @@ TEST_F(TransformationTestsF, BroadcastConstRangeReplacement_target_shapeof_mixed
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
-        constexpr auto target_shape_elem_type = element::i64;
 
         std::vector<int32_t> sequence_pattern(elem_count);
         std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);
@@ -338,7 +336,6 @@ TEST(SmartReshapeTests, BroadcastConstRangeReplacement_reshape) {
     {
         constexpr auto elem_count = 236;
         constexpr auto data_elem_type = element::i32;
-        constexpr auto target_shape_elem_type = element::i64;
 
         std::vector<int32_t> sequence_pattern(elem_count);
         std::iota(sequence_pattern.begin(), sequence_pattern.end(), 0);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "op/abs.hpp"
 #include "op/acos.hpp"
 #include "op/acosh.hpp"
+#include "op/adaptive_avg_pooling2d.hpp"
 #include "op/add.hpp"
 #include "op/affine.hpp"
 #include "op/and.hpp"
@@ -282,6 +283,7 @@ void OperatorsBridge::overwrite_operator(const std::string& name, const std::str
 }
 
 static const char* const MICROSOFT_DOMAIN = "com.microsoft";
+static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 
 #define REGISTER_OPERATOR(name_, ver_, fn_) \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1));
@@ -520,6 +522,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
+
+    REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
 }
 
 #undef REGISTER_OPERATOR

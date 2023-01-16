@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -26,6 +26,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 skip_devtest = pytest.mark.skip(reason="Test might depend on machine, should be run by developers"
                                        "or advanced users for debug/testing purposes.")
+skip_need_mock_op = pytest.mark.skip(reason="Test need to be rewritten with mock operation. Issue #101215")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -50,8 +51,6 @@ xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the fol
                                       "MelWeightMatrix, SequenceMap, STFT")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
-                                      "to HardSigmoid_IE")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Gradient")

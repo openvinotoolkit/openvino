@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "lstm_dynamic_timeloop_inst.h"
 #include "primitive_base.hpp"
@@ -28,7 +26,7 @@ struct lstm_dynamic_timeloop_impl : typed_primitive_impl_ocl<lstm_dynamic_timelo
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_timeloop>& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.dyn_length_memory()};
         if (instance.last_hidden_output_term())
@@ -83,7 +81,7 @@ public:
         auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(dlstm_timeloop_params, dlstm_timeloop_optional_params);
 
-        return make_unique<lstm_dynamic_timeloop_impl>(arg, best_kernel);
+        return make_unique<lstm_dynamic_timeloop_impl>(best_kernel);
     }
 };
 
