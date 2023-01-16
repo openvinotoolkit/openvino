@@ -6267,3 +6267,85 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_bfloat16_to_float32) {
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_3d_default_attributes) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/unique_3d_default_attributes.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({9, 12, 3, 121, 5, 4, 10, 9});
+    test_case.add_expected_output<int32_t>(Shape{7}, {3, 4, 5, 9, 10, 12, 121});
+    test_case.add_expected_output<int64_t>(Shape{7}, {2, 5, 4, 0, 6, 1, 3});
+    test_case.add_expected_output<int64_t>(Shape{8}, {3, 5, 0, 6, 2, 1, 4, 3});
+    test_case.add_expected_output<int64_t>(Shape{7}, {1, 1, 1, 2, 1, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_1d_no_duplicates) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/unique_1d_no_duplicates.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({5, 4, 3, 2, 1});
+    test_case.add_expected_output<int32_t>(Shape{5}, {5, 4, 3, 2, 1});
+    test_case.add_expected_output<int64_t>(Shape{5}, {0, 1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(Shape{5}, {0, 1, 2, 3, 4});
+    test_case.add_expected_output<int64_t>(Shape{5}, {1, 1, 1, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_1d_no_duplicates_sorted) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/unique_1d_no_duplicates_sorted.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({5, 4, 3, 2, 1});
+    test_case.add_expected_output<int32_t>(Shape{5}, {1, 2, 3, 4, 5});
+    test_case.add_expected_output<int64_t>(Shape{5}, {4, 3, 2, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{5}, {4, 3, 2, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{5}, {1, 1, 1, 1, 1});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/unique_3d_with_duplicates_and_axis.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6});
+    test_case.add_expected_output<int32_t>(Shape{1, 2, 3}, {1, 2, 3, 4, 5, 6});
+    test_case.add_expected_output<int64_t>(Shape{1}, {0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {0, 0});
+    test_case.add_expected_output<int64_t>(Shape{1}, {2});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_unique_3d_with_duplicates_and_axis_2) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/unique_3d_with_duplicates_and_axis_2.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+
+    test_case.add_input<int32_t>({-1, 2, -1, 5, -3, 5, 7, -8, 7, 4, 4, 4});
+    test_case.add_expected_output<int32_t>(Shape{2, 2, 2}, {-1, 2, 5, -3, 7, -8, 4, 4});
+    test_case.add_expected_output<int64_t>(Shape{2}, {0, 1});
+    test_case.add_expected_output<int64_t>(Shape{3}, {0, 1, 0});
+    test_case.add_expected_output<int64_t>(Shape{2}, {2, 1});
+
+    test_case.run();
+}
