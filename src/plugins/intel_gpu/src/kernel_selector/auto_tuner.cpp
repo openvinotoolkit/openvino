@@ -306,13 +306,13 @@ TuningCache* TuningCache::get() {
     std::lock_guard<std::mutex> lock(m);
     std::string path = "cache.json";
 #ifdef _WIN32
-    char path[MAX_PATH];
+    char module_path[MAX_PATH];
     HMODULE hm = NULL;
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)&CreateTuningCacheFromFile,
+        (LPCSTR)&TuningCache::get,
         &hm);
-    GetModuleFileName(hm, path, sizeof(path));
-    std::string bin_path(path);
+    GetModuleFileName(hm, module_path, sizeof(module_path));
+    std::string bin_path(module_path);
     path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
 #else
     const char* device_info_failed_msg = "Device lookup failed";
