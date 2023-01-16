@@ -58,7 +58,7 @@ void outputs_aligned(ov::InferRequest& infer_request) {
     //! [ov_api_2_0:get_output_tensor_aligned]
 }
 
-int ov_common_cpp() {
+int main() {
     //! [ov_api_2_0:create_core]
     ov::Core core;
     //! [ov_api_2_0:create_core]
