@@ -132,7 +132,7 @@ py::object from_ov_any(const ov::Any& any) {
 std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string, py::object>& properties) {
     std::map<std::string, ov::Any> properties_to_cpp;
     for (const auto& property : properties) {
-        properties_to_cpp[property.first] = py_object_to_any(property.second);
+        properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
     }
     return properties_to_cpp;
 }
