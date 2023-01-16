@@ -476,8 +476,8 @@ TEST(type_prop, matmul_incompatible_batch_dim_bounds) {
 }
 
 TEST(type_prop, matmul_propagate_labels) {
-    const auto a_labels = std::vector<size_t>{1, 0, 2, 5, 6};
-    const auto b_labels = std::vector<size_t>{0, 1, 3, 7, 9};
+    const auto a_labels = ov::TensorLabel{1, 0, 2, 5, 6};
+    const auto b_labels = ov::TensorLabel{0, 1, 3, 7, 9};
 
     auto a_shape = PartialShape{4, 2, 3, 6, 4};
     auto b_shape = PartialShape{4, 2, 3, 4, 2};
@@ -502,8 +502,8 @@ TEST(type_prop, matmul_propagate_labels) {
 }
 
 TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
-    const auto a_labels = std::vector<size_t>{1, 0, 3, 4, 5};
-    const auto b_labels = std::vector<size_t>{0, 1, 3, 4, 7};
+    const auto a_labels = ov::TensorLabel{1, 0, 3, 4, 5};
+    const auto b_labels = ov::TensorLabel{0, 1, 3, 4, 7};
 
     auto a_shape = PartialShape{Dimension(1, 3), 1, Dimension(2, 3), Dimension(3, 4), 4};
     auto b_shape = PartialShape{1, Dimension(1, 5), Dimension(1, 3), 4, Dimension::dynamic()};
