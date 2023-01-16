@@ -383,7 +383,6 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
 
     for (const auto& p_inst : _exec_order) {
         ib >> *p_inst;
-        std::cout << "_exec_order[" << p_inst->id() << "]" << std::endl;
         _primitives[p_inst->id()] = p_inst;
         p_inst->init_kernels(kernels_cache);
     }

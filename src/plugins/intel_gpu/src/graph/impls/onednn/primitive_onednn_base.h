@@ -4,8 +4,6 @@
 
 #pragma once
 
-#define ONEDNN_PRIMITIVE_SERIALIZATION
-
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
