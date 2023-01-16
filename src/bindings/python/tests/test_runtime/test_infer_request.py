@@ -703,7 +703,7 @@ def test_results_async_infer(device):
 
 
 @pytest.mark.skipif(
-    os.environ.get("TEST_DEVICE") not in ["GPU],
+    os.environ.get("TEST_DEVICE") not in ["GPU"],
     reason="Device dependent test",
 )
 def test_infer_float16(device):

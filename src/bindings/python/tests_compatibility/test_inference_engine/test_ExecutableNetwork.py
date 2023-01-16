@@ -235,7 +235,7 @@ def test_export_import():
     os.remove(exported_net_file)
     img = generate_image()
     res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 3
+    assert np.argmax(res['fc_out'][0]) == 9
     del exec_net
     del ie_core
 

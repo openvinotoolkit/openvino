@@ -609,10 +609,6 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
     return config;
 }
 
-static std::map<std::string, std::string> configure() {
-    return parseConfigFile();
-}
-
 bool isFP16(InferenceEngine::Precision precision) {
     return precision == InferenceEngine::Precision::FP16;
 }
@@ -687,7 +683,7 @@ int main(int argc, char* argv[]) {
             printInputAndOutputsInfo(network);
 
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure());
+            auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, parseConfigFile());
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
 
             std::string outputName = FLAGS_o;
@@ -715,7 +711,7 @@ int main(int argc, char* argv[]) {
             configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
             printInputAndOutputsInfoShort(*model);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-            auto configs = configure();
+            auto configs = parseConfigFile();
             auto compiledModel = core.compile_model(model, FLAGS_d, {configs.begin(), configs.end()});
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
             std::string outputName = FLAGS_o;
