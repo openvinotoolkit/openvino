@@ -7,6 +7,7 @@ from subprocess import Popen, STDOUT, TimeoutExpired
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree
+from itertools import repeat
 
 import os
 import sys
@@ -35,7 +36,7 @@ TEST_STATUS = {
     'hanged': "Test finished by timeout",
     'crashed': "Unexpected application crash with code",
     'skipped': "[  SKIPPED ]",
-    "interapted": "interapted"}
+    'interapted': "interapted"}
 RUN = "[ RUN      ]"
 
 GTEST_RESTRICTED_SYMBOLS = [':', '']
@@ -103,6 +104,7 @@ class TaskManager:
             self._workers.append(worker)
             worker.join()
             self._timers.append(datetime.datetime.now())
+            log_file.close()
         self._idx += 1
     
     def __find_free_process(self):
@@ -137,10 +139,10 @@ class TaskManager:
             for pid in range(len(self._process_list)):
                 try:
                     if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > self.process_timeout:
-                        logger.warning(f"Process {pid} exceed time limetattion per process")
+                        logger.warning(f"Process {pid} exceed time limetation per process. The process will be killed")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
-                    logger.info(f"Process {pid} {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
+                    # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
                     break
                 except TimeoutExpired:
@@ -157,6 +159,9 @@ class TestParallelRunner:
         if cache_path == "":
             cache_path = os.path.join(self._working_dir, "test_cache.lst")
         self._cache_path = os.path.join(cache_path)
+        head, _ = os.path.split(self._cache_path)
+        if not os.path.exists(head):
+            os.mkdir(head)
         self._is_save_cache = True
         self._disabled_tests = list()
 
@@ -207,7 +212,23 @@ class TestParallelRunner:
                     test_suite = test_name
             test_list_file.close()
         os.remove(test_list_file_name)
+        logger.info(f"Len test_list_runtime: {len(test_list)}")
         return test_list
+
+
+    def __get_test_list_by_cache(self):
+        test_list_cache = list()
+        if os.path.isfile(self._cache_path):
+            logger.info(f"Get test list from cache file: {self._cache_path}")
+            with open(self._cache_path, "r") as cache_file:
+                for line in cache_file.readlines():
+                    pos = line.find(":")
+                    time = line[:pos]
+                    test_name = line[pos+1:]
+                    test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
+        logger.info(f"Len test_list_cache: {len(test_list_cache)}")
+        return test_list_cache
+
 
     def __generate_proved_test_list(self, test_list: list, test_list_runtime:list):
         proved_test_list = list()
@@ -219,13 +240,13 @@ class TestParallelRunner:
                     proved_test_list.append(test)
 
         if len(proved_test_list) < len(test_list_runtime):
-            logger.warning(f'Cache file is not relevant the run. Taking test list from runtime')
+            logger.warning(f'Cache file is not relevant the run. The test list will be taken from runtime')
             return []
         else:
             return proved_test_list
 
 
-    def __generate_gtest_filters(self, proved_test_list:list):
+    def __prepare_smart_filters(self, proved_test_list:list):
         res_test_filters = list()
         def_length = len(self._command) + len(" --gtest_filter=")
         idx = len(proved_test_list)
@@ -286,42 +307,24 @@ class TestParallelRunner:
             logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
             
-    def __get_test_list(self):
+    def __get_filters(self):
         if not os.path.isfile(self._exec_file_path):
-            logger.error(f"{self._exec_file_path} is not exist!")
+            logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             exit(-1)
 
         test_list_runtime = self.__get_test_list_by_runtime()
-        test_list_cache = list()
-
-        if os.path.isfile(self._cache_path):
-            logger.info(f"Get test list from cache file: {self._cache_path}")
-            with open(self._cache_path, "r") as cache_file:
-                for line in cache_file.readlines():
-                    pos = line.find(":")
-                    time = line[:pos]
-                    test_name = line[pos+1:]
-                    test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
-
-        logger.info(f"Len test_list_runtime: {len(test_list_runtime)}")
-        logger.info(f"Len test_list_cache: {len(test_list_cache)}")
-        proved_test_list = self.__generate_proved_test_list(test_list_cache, test_list_runtime)               
+        test_list_cache = self.__get_test_list_by_cache()
+        proved_test_list = self.__generate_proved_test_list(test_list_cache, test_list_runtime)
+        final_test_list = list()              
         if len(proved_test_list) > 0:
             self._is_save_cache = False
-            logger.info("Test list in taken from cache")
-            logger.info(f"Total test counter is {len(test_list_cache)}")
-            return self.__generate_gtest_filters(proved_test_list)
+            logger.info(f"Test list is taken from cache. Total test counter is {len(proved_test_list)}")
+            final_test_list = self.__prepare_smart_filters(proved_test_list)
         else:
-            logger.info("Test list in taken from runtime")
-            logger.info(f"Total test counter is {len(test_list_runtime)}")
-            test_list_runtime.reverse()
-            return test_list_runtime
-
-
-    def __generate_command_list(self):
-        test_filters = self.__get_test_list()
-        cmd_list = [f'{self._command} --gtest_filter={filter}' for filter in test_filters]
-        return cmd_list
+            logger.info(f"Test list is taken from cache. Total test counter is {len(test_list_runtime)}")
+            final_test_list = test_list_runtime
+            final_test_list.reverse()
+        return final_test_list
 
 
     def run(self):
@@ -329,14 +332,16 @@ class TestParallelRunner:
             TaskManager.process_timeout = DEFAUALT_PROCESS_TIMEOUT
         logger.info(f"Run test parallel is started. Worker num is {self._worker_num}")
         t_start = datetime.datetime.now()
-        task_manger = TaskManager(self.__generate_command_list(), self._working_dir)
+        
+        commands = [f'{self._command} --gtest_filter={filter}' for filter in self.__get_filters()]
+        task_manger = TaskManager(commands, self._working_dir)
         for _ in range(self._worker_num):
             task_manger.init_worker()
         while task_manger.update_worker():
             pass
         task_manger.compelete_all_processes()
-        t_end = datetime.datetime.now()
 
+        t_end = datetime.datetime.now()
         logger.info(f"Run test parallel is finished successfully. Total time is {(t_end - t_start).total_seconds()}s")
 
 
@@ -380,19 +385,16 @@ class TestParallelRunner:
                 for line in log_file.readlines():
                     if RUN in line:
                         test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
-                        test_log.append(line)
                     if dir is None:
-                        for test_st, string in TEST_STATUS.items():
-                            if string in line:
+                        for test_st, mes in TEST_STATUS.items():
+                            if mes in line:
                                 dir = test_st
                     if test_name is not None:
                         test_log.append(line)
-                        if test_name in line or "Unexpected application crash with code:" in line:
-                            time = line[line.rfind("(") + 1:line.rfind("ms)")-1] if test_name in line else -1
-                            try:
-                                test_times.append((int(time), test_name))
-                            except:
-                                continue
+                        # update test_cache with tests. If tests is crashed use -1 as unknown time
+                        time = line[line.rfind("(") + 1:line.rfind("ms)")-1] if test_name in line else -1
+                        if time and dir:
+                            test_times.append((int(time), test_name))
                             if __save_log(logs_dir, dir, test_name):
                                 test_cnt_log += 1
                                 if dir in test_results.keys():
@@ -410,31 +412,24 @@ class TestParallelRunner:
             test_times.append((0, disabled_test))
         if self._is_save_cache:
             test_times.sort(reverse=True)
-            head, _ = os.path.split(self._cache_path)
-            if not os.path.isdir(head) and head != "":
-                logger.error(f"Impossible to create cche file! The dir {head} does not exist!")
-                exit(-1)
             with open(self._cache_path, "w") as cache_file:
                 cache_file.writelines([f"{time}:\"" + test_name + "\":\n" for time, test_name in test_times])
                 cache_file.close()
-        logger.info(f"Cache file: {self._cache_path} was created")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
         with open(hash_table_path, "w") as csv_file:
             csv_writer = csv.writer(csv_file, dialect='excel')
             for row in hash_map:
                 csv_writer.writerow(row)
-            logger.info(f"Hash file: {hash_table_path} was created")
+
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.lst")
         with open(disabled_tests_path, "w") as disabled_tests_file:
             logger.info(f"Disabled test list will be saved to: {disabled_tests_path}")
             for i in range(len(self._disabled_tests)):
                 self._disabled_tests[i] += "\n"
-
             disabled_tests_file.writelines(self._disabled_tests)
             disabled_tests_file.close()
 
-        logger.info(f"Log analize is succesfully finished")
         is_successfull_run = True
         test_cnt = 0
         for test_st, test_res in test_results.items():
@@ -442,8 +437,8 @@ class TestParallelRunner:
             test_cnt += test_res
             if (test_st != "passed" or test_st != "skipped") and test_res > 0:
                 is_successfull_run = False
-     
-        logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
+        if len(self._disabled_tests):
+            logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
         logger.info(f"Total test count is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
         return is_successfull_run
 
@@ -451,7 +446,7 @@ if __name__ == "__main__":
     exec_file_args = get_test_command_line_args()
     args = parse_arguments()
     logger.info(f"[ARGUMENTS] --exec_file={args.exec_file}")
-    logger.info(f"[ARGUMENTS] --worker_num={args.workers}")
+    logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --process_timeout={args.process_timeout}")
     logger.info(f"[ARGUMENTS] --cache_path={args.cache_path}")
