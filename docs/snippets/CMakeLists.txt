@@ -80,6 +80,10 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide3.cpp"
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide4.cpp")
 
+# build separatelly as ov_integration_snippet and ov_integration_snippet_c
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+                         "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
