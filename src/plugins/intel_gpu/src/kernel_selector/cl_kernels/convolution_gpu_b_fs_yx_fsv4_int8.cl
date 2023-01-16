@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,14 @@ __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_b_fs_yx_fsv4_int8)(
     const __global INPUT0_PACKED_TYPE* input,
     __global OUTPUT_TYPE* output,
-    const __global FILTER_TYPE* weights,
+    const __global FILTER_TYPE* weights
 #if BIAS_TERM
-    const __global BIAS_TYPE* bias,
+    , const __global BIAS_TYPE* bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -253,6 +253,44 @@ public:
                                                                            const std::string& device_name,
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
+     * @param model String with a model in IR/ONNX/PDPD format.
+     * @param weights Shared pointer to a constant tensor with weights.
+     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @note Created model object shares the weights with the @p weights object.
+     * Thus, do not create @p weights on temporary data that can be freed later, since the model
+     * constant data will point to an invalid memory.
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::string& model,
+                                const ov::Tensor& weights,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
+     * @param model String with a model in IR/ONNX/PDPD format.
+     * @param weights Shared pointer to a constant tensor with weights.
+     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * @param device_name Name of a device to load a model to.
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @note Created model object shares the weights with the @p weights object.
+     * Thus, do not create @p weights on temporary data that can be freed later, since the model
+     * constant data will point to an invalid memory.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model,
+                                                                           const ov::Tensor& weights,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model, weights, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**

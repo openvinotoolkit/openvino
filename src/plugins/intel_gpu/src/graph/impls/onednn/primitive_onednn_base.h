@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,26 +30,24 @@ namespace onednn {
 
 static std::mutex cacheAccessMutex;
 
-template <class PType, class DescType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
+template <class PType, class PrimDescType = dnnl::primitive_desc, class PrimType = dnnl::primitive>
 struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     const engine* _engine;
-    std::shared_ptr<DescType> _desc;
     std::shared_ptr<dnnl::primitive_attr> _attrs;
     PrimDescType _pd;
     PrimType _prim;
     std::unordered_map<uint32_t, std::unordered_map<int, dnnl::memory>> _args;
 
     typed_primitive_onednn_impl(const engine& engine,
-                                std::shared_ptr<DescType> desc,
+                                const ExecutionConfig& config,
                                 std::shared_ptr<dnnl::primitive_attr> attrs,
                                 const PrimDescType& pd,
                                 kernel_selector::WeightsReorderParams weights_reorder = {})
         : typed_primitive_impl<PType>(weights_reorder, pd.impl_info_str()),
           _engine(&engine),
-          _desc(desc),
           _attrs(attrs),
           _pd(pd) {
-            build_primitive();
+            build_primitive(config);
         }
 
     typed_primitive_onednn_impl(const engine& engine)
@@ -61,7 +59,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
     typed_primitive_onednn_impl()
         : typed_primitive_impl<PType>({}, "undef"),
-          _desc(nullptr), _pd(), _prim() {
+          _pd(), _prim() {
         _attrs = std::make_shared<dnnl::primitive_attr>();
     }
 
@@ -72,6 +70,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     //     [ dnnl::primitive_desc ]
     //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_attrs.get() == nullptr) {
             ob << false;
         } else {
@@ -204,9 +203,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ob << scales;
             }
         }
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         bool has_attrs;
         ib >> has_attrs;
 
@@ -359,11 +360,12 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
             _engine = &ib.get_engine();
         }
+#endif
     }
 
 private:
-    std::string get_cache_directory() const {
-        auto path = _engine->configuration().kernels_cache_path;
+    std::string get_cache_directory(const ExecutionConfig& config) const {
+        auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
             return {};
         }
@@ -374,8 +376,8 @@ private:
         return path;
     }
 
-    std::string generate_cache_path_from_key(std::vector<uint8_t> key) const {
-        auto path = get_cache_directory();
+    std::string generate_cache_path_from_key(const ExecutionConfig& config, std::vector<uint8_t> key) const {
+        auto path = get_cache_directory(config);
         if (path.empty()) {
             return {};
         }
@@ -385,8 +387,8 @@ private:
         return path + std::to_string(hash) + ".onednn.cl_cache";
     }
 
-    void build_primitive() {
-        auto cache_outpath = get_cache_directory();
+    void build_primitive(const ExecutionConfig& config) {
+        auto cache_outpath = get_cache_directory(config);
 
         if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
             if (env_p[0] == '1') {
@@ -403,7 +405,7 @@ private:
             std::vector<uint8_t> cache;
             {
                 std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                cache = ov::util::load_binary(generate_cache_path_from_key(key));
+                cache = ov::util::load_binary(generate_cache_path_from_key(config, key));
             }
 
             if (cache.empty()) {
@@ -412,7 +414,7 @@ private:
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
-                    ov::util::save_binary(generate_cache_path_from_key(key), cache);
+                    ov::util::save_binary(generate_cache_path_from_key(config, key), cache);
                 }
             } else {
                 _prim = PrimType(_pd, cache);
@@ -422,22 +424,6 @@ private:
 
 protected:
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
-
-    static bool has_output_scales(const std::shared_ptr<dnnl::primitive_attr>& attr) {
-        int mask;
-        std::vector<float> scales;
-        attr->get_output_scales(mask, scales);
-        const auto drfv = reinterpret_cast<const int32_t&>(DNNL_RUNTIME_F32_VAL);
-        return !scales.empty() && (reinterpret_cast<const int32_t&>(scales[0]) == drfv);
-    }
-
-    static bool has_zero_points(int arg, const std::shared_ptr<dnnl::primitive_attr>& attr) {
-        int mask;
-        std::vector<int32_t> zp;
-        attr->get_zero_points(arg, mask, zp);
-        const auto drsv = reinterpret_cast<const int32_t&>(DNNL_RUNTIME_S32_VAL);
-        return !zp.empty() && (reinterpret_cast<const int32_t&>(zp[0]) == drsv);
-    }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
         auto& engine = instance.get_network().get_engine();
@@ -452,7 +438,7 @@ protected:
         for (size_t post_op_idx = 0, num_of_optimized_post_ops = 0; post_op_idx < post_ops_size; post_op_idx++) {
             auto post_op_type = cur_post_ops[post_op_idx].op_type;
             auto memory_offset = cur_post_ops[post_op_idx].mem_offset;
-            auto onednn_post_op_idx = has_output_scales(_attrs) && post_op_idx > 0 ? post_op_idx - 1 : post_op_idx;
+            auto onednn_post_op_idx = post_op_idx;
             onednn_post_op_idx -= num_of_optimized_post_ops;
 
             switch (post_op_type) {
@@ -485,14 +471,6 @@ protected:
                     auto binary_op_mem = instance.fused_memory(memory_offset);
                     args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(static_cast<int>(onednn_post_op_idx)) | DNNL_ARG_WEIGHTS,
                                  binary_op_mem->get_onednn_memory(_pd.dnnl::primitive_desc_base::weights_desc(0))});
-                    break;
-                }
-
-                case onednn_post_op_type::scale:
-                {
-                    auto scale_op_mem = instance.fused_memory(memory_offset);
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_op_mem->get_layout(), dnnl::memory::format_tag::a, true);
-                    args.insert({DNNL_ARG_ATTR_OUTPUT_SCALES, scale_op_mem->get_onednn_memory(desc)});
                     break;
                 }
 
@@ -563,9 +541,8 @@ protected:
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
         auto& network = instance.get_network();
-        auto& engine = network.get_engine();
         auto& stream = network.get_stream();
-        auto profiling = engine.configuration().enable_profiling;
+        auto profiling = network.get_config().get_property(ov::enable_profiling);
         auto net_id = network.get_id();
         event::ptr event;
 

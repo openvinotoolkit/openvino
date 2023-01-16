@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,11 @@ __attribute__((reqd_work_group_size(LOCAL_WORK_GROUP_SIZE, 1, 1)))
 KERNEL(convolution_gpu_yxfb_yxio_b1_block_multiple_x)(
     const __global float* input,
     __global float* output,
-    const __global float* filter,
+    const __global float* filter
 #if BIAS_TERM
-    const __global float* bias,
+    , const __global float* bias
 #endif
-    uint split_idx)
+)
 {
 #if USE_VECTOR == 8
     #define VECTOR_FLOAT float8
@@ -40,7 +40,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b1_block_multiple_x)(
 
     const uint batch_num = INPUT0_BATCH_NUM;
     const uint linear_id_xy = (uint)get_group_id(1) * X_PER_WORK_ITEM + OUTPUT_SIZE_X * (uint)get_group_id(2);
-    uint global_id = (((uint)get_group_id(0) * LOCAL_WORK_GROUP_SIZE) / batch_num) * batch_num + ( linear_id_xy * FILTER_ARRAY_NUM + split_idx) * (FILTER_OFM_NUM / OFM_PER_WORK_ITEM) * batch_num;
+    uint global_id = (((uint)get_group_id(0) * LOCAL_WORK_GROUP_SIZE) / batch_num) * batch_num + ( linear_id_xy * FILTER_ARRAY_NUM ) * (FILTER_OFM_NUM / OFM_PER_WORK_ITEM) * batch_num;
 
     const uint out_batch_id = (uint)get_local_id(0) % INPUT0_BATCH_NUM;
     const uint out_x = (uint)get_group_id(1) * X_PER_WORK_ITEM;
@@ -89,7 +89,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b1_block_multiple_x)(
                 }
 
                 uint input_idx = input_offset_x*INPUT0_X_PITCH + input_offset_y*INPUT0_Y_PITCH;
-                input_idx += INPUT0_OFFSET + split_idx * FILTER_IFM_NUM * INPUT0_FEATURE_PITCH;
+                input_idx += INPUT0_OFFSET;
                 input_idx += out_batch_id;
 
                 uint filter_idx = ofm_offset + sub_group_id + i*FILTER_Y_PITCH + j*FILTER_X_PITCH;

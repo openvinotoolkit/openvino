@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -656,6 +656,9 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         IE_THROW() << "Only ngraph-based models are supported!";
     }
 
+    auto context =
+        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, std::make_shared<std::mutex>(), false);
+
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
                                            Transformations transformation(model, enableLPT, enableSnippets, conf.enforceBF16, isLegacyAPI(), engConfig);
@@ -665,7 +668,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
                                            std::unique_ptr<Node> ptr;
                                            try {
-                                               ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                                               ptr.reset(Node::factory().create(op, context));
                                            } catch (const InferenceEngine::Exception&) {
                                                return false;
                                            }

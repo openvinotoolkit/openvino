@@ -8,12 +8,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Roll-7 primitive.
 struct roll : primitive_base<roll> {
@@ -34,7 +28,4 @@ struct roll : primitive_base<roll> {
     tensor shift;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

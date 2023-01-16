@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,7 +217,7 @@ Shape snippets::op::Subgraph::canonicalize(const BlockedShapeVector& outputShape
                 startOffset--;
             }
             std::copy(inShape.begin(), inShape.end(), &newShape[startOffset]);
-            inShape = move(newShape);
+            inShape = std::move(newShape);
         } else {
             // todo: 4d blocked + 5d planar layouts are not supported: <N, C, H, W, c> + <N, C, D, H, W>
             NODE_VALIDATION_CHECK(this,
