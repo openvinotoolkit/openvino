@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -170,15 +170,26 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES,
                   CommonTestUtils::DEVICE_CPU + std::string(",") + CommonTestUtils::DEVICE_GPU});
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
-    if (cpuSuccess || accSuccess)
+    if (cpuSuccess || accSuccess) {
         ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(cnnNet, config));
-    else
+        if (!cpuSuccess)
+            EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_GPU);
+        else
+            EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), "(CPU)");
+    } else {
         ASSERT_THROW(exeNetwork = plugin->LoadExeNetworkImpl(cnnNet, config), InferenceEngine::Exception);
+    }
     auto sharedcount = mockExeNetwork._ptr.use_count();
     auto requestsharedcount = inferReqInternal.use_count();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     EXPECT_EQ(mockExeNetwork._ptr.use_count(), sharedcount - decreaseCount);
     EXPECT_EQ(inferReqInternal.use_count(), requestsharedcount - decreaseCount);
+    if (cpuSuccess || accSuccess) {
+        if (accSuccess)
+            EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_GPU);
+        else
+            EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
+    }
 }
 
 //
