@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,14 +129,14 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
 
     constexpr auto data_in_idx = 0;
     constexpr auto updates_in_idx = 2;
-    std::vector<size_t> data_labels = input_values[data_in_idx].get_tensor().get_value_label();
-    std::vector<size_t> updates_labels = input_values[updates_in_idx].get_tensor().get_value_label();
+    auto data_labels = input_values[data_in_idx].get_tensor().get_value_label();
+    auto updates_labels = input_values[updates_in_idx].get_tensor().get_value_label();
 
     if (ov::has_no_labels(data_labels) && ov::has_no_labels(updates_labels)) {
         return false;
     }
 
-    constexpr auto element_type = (sizeof(size_t) == 8) ? element::u64 : element::u32;
+    constexpr auto element_type = (sizeof(ov::label_t) == 8) ? element::u64 : element::u32;
     std::vector<ov::runtime::Tensor> input_tensors;
     input_tensors.reserve(input_values.size());
 
@@ -162,8 +162,8 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
 
     ov::TensorVector output_tensors{ov::Tensor(element_type, node->get_output_shape(0))};
     if (node->evaluate(output_tensors, input_tensors)) {
-        size_t* ptr = static_cast<size_t*>(output_tensors[0].data(element_type));
-        output_labels[0] = std::vector<size_t>(ptr, ptr + output_tensors[0].get_size());
+        auto ptr = static_cast<ov::label_t*>(output_tensors[0].data(element_type));
+        output_labels[0] = ov::TensorLabel(ptr, ptr + output_tensors[0].get_size());
         return true;
     }
     return false;
