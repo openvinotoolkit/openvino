@@ -109,7 +109,7 @@ check_python_version () {
 
     # splitting Python version variable depending on the used shell
     if [ -n "$ZSH_VERSION" ]; then
-        version_arr=(${(@s:.:)python_version})
+        version_arr=${(@s:.:)python_version}
         if [ "${#version_arr[@]}" -ge "2" ]; then
             # zsh starts indexing from 1
             python_version_major=${version_arr[1]}
