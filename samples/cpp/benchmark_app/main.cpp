@@ -483,11 +483,11 @@ int main(int argc, char* argv[]) {
                             std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
                             auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
                             setDeviceProperty(core,
-                                                hwdevice,
-                                                device_config,
-                                                ov::num_streams(ov::streams::AUTO),
-                                                is_dev_set_property,
-                                                std::make_pair(key, value));
+                                              hwdevice,
+                                              device_config,
+                                              ov::num_streams(ov::streams::AUTO),
+                                              is_dev_set_property,
+                                              std::make_pair(key, value));
                         }
                     }
                 }
