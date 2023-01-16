@@ -127,11 +127,11 @@ public:
         return nullptr;
     }
 
-    std::vector<std::string> get_input_names() const {
+    std::vector<std::string> get_input_names() const override {
         return m_input_names;
     }
 
-    std::vector<std::string> get_output_names() const {
+    std::vector<std::string> get_output_names() const override {
         return m_output_names;
     }
 };
