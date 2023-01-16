@@ -14,8 +14,6 @@ using namespace ov;
 using namespace testing;
 using namespace ov::opset10;
 
-using label_t = size_t;
-
 TEST(type_prop, eye_constant) {
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {6});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {3});
