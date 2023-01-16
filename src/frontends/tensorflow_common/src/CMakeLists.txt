@@ -20,7 +20,7 @@ add_library(openvino::frontend::tensorflow_common::dev ALIAS ${TARGET_NAME}_dev)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-        ${root_dir}/include
+        $<BUILD_INTERFACE:${root_dir}/include>
         PRIVATE
         ${root_dir}/src
         ${root_dir}/dev_api
