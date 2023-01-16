@@ -55,7 +55,7 @@ TEST(type_prop, one_hot_v1_indices_labels) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, 4, {3, 5}, 2, 3};
-    std::vector<size_t> expected_labels{10, ov::no_label, 11, 12, 13};
+    ov::TensorLabel expected_labels{10, ov::no_label, 11, 12, 13};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
@@ -97,7 +97,7 @@ TEST(type_prop, one_hot_v1_depth_value_label) {
     auto dyn_indices = make_shared<op::Parameter>(element::i64, ind_shape);
 
     auto labeled_dim = Dimension(4, 6);
-    size_t depth_label = 2345664;
+    ov::label_t depth_label = 2345664;
     ov::DimensionTracker::set_label(labeled_dim, depth_label);
     PartialShape shape_for_depth = PartialShape{labeled_dim};
 
@@ -110,7 +110,7 @@ TEST(type_prop, one_hot_v1_depth_value_label) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, {4, 6}, {3, 5}, 2, 3};
-    std::vector<size_t> expected_labels{10, depth_label, 11, 12, 13};
+    ov::TensorLabel expected_labels{10, depth_label, 11, 12, 13};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);
@@ -131,7 +131,7 @@ TEST(type_prop, one_hot_v1_output_labels) {
     int64_t axis = 1;
 
     PartialShape expected_shape{-1, 4, {3, 5}, 2, 3};
-    std::vector<size_t> expected_labels{10, ov::no_label, 11, 12, 13};
+    ov::TensorLabel expected_labels{10, ov::no_label, 11, 12, 13};
 
     auto dyn_one_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
     const auto& out_shape = dyn_one_hot->get_output_partial_shape(0);

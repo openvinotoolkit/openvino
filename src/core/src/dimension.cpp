@@ -30,9 +30,9 @@ namespace {
  * \param label_a  First input label.
  * \param label_b  Second input label.
  *
- * \return size_t Merged label value
+ * \return ov::label_t Merged label value
  */
-size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequal = true) {
+ov::label_t merge_labels(const ov::label_t label_a, const ov::label_t label_b, bool merge_unequal = true) {
     if (label_a == label_b || label_b == ov::no_label)
         return label_a;
     else if (merge_unequal || label_a == ov::no_label)

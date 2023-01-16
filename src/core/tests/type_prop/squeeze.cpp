@@ -53,9 +53,9 @@ protected:
         UnSqueezeFixture::SetUp();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         std::set<int64_t> axes_to_remove;
         if (axes.empty()) {
@@ -75,7 +75,7 @@ protected:
         auto exp_labels = in_labels;
         exp_labels.erase(std::remove_if(exp_labels.begin(),
                                         exp_labels.end(),
-                                        [&](size_t& label) {
+                                        [&](ov::label_t& label) {
                                             if ((rm_iter != axes_to_remove.end()) && (*rm_iter == rm_idx++)) {
                                                 return ++rm_iter, true;
                                             } else {
@@ -160,7 +160,7 @@ TEST_P(SqueezeTest, labels_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set label";
     }
-    std::vector<size_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -251,7 +251,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(SqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;

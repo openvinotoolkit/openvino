@@ -26,7 +26,11 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 
 namespace ov {
 class Node;
-using TensorLabel = std::vector<size_t>;
+/// \brief Alias for label tensor.
+using TensorLabel = std::vector<label_t>;
+/// \brief Alias for vector of label tensors.
+using TensorLabelVector = std::vector<TensorLabel>;
+
 namespace pass {
 class ReverseShapeAndTypeInfer;
 }

@@ -65,7 +65,6 @@ class Matcher;
 using HostTensor = ngraph::runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
-using TensorLabelVector = std::vector<TensorLabel>;
 
 template <typename NodeType>
 class Input;
