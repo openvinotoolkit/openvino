@@ -118,16 +118,12 @@ ov_status_e ov_remote_context_get_device_name(const ov_remote_context_t* context
 }
 
 //!< Output ov::AnyMap to be C string style data:
-//!<    "key_name_1:key_value_str_1;key_name_2:key_value_str_2;..."
+//!<    "key_name_1 key_value_str_1 key_name_2 key_value_str_2 ..."
+//!< Note: there is a space separator beween each key and value.
 inline void convert_params_to_string(ov::AnyMap& paramsMap, char*& res_str, size_t& size) {
-    std::string res = "";
-    for (auto& param : paramsMap) {
-        res += param.first;
-        res += ":";
-        res += param.second.as<std::string>();
-        res += ";";
-        size++;
-    }
+    ov::Any param = paramsMap;
+    std::string res = param.as<std::string>();
+    size = paramsMap.size();
     res_str = str_to_char_array(res);
 }
 

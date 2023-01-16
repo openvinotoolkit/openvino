@@ -52,7 +52,7 @@ ov_remote_context_get_device_name(const ov_remote_context_t* context, char** dev
  * Parameters include device/context handles, access flags,
  * etc. Content of the returned map depends on a remote execution context that is
  * currently set on the device (working scenario).
- * One actaul example: "CONTEXT_TYPE:OCL;OCL_CONTEXT:0x559ff6dab620;OCL_QUEUE:0x559ff6df06a0;"
+ * One actaul example: "CONTEXT_TYPE OCL OCL_CONTEXT 0x5583b2ec7b40 OCL_QUEUE 0x5583b2e98ff0"
  * @ingroup ov_remote_context_c_api
  * @param context A pointer to the ov_remote_context_t instance.
  * @param size The size of param pairs.
