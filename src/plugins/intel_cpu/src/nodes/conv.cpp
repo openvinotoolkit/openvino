@@ -207,7 +207,7 @@ public:
     }
 
     void infer() {
-        _graph->ResetInferCount();
+        CPU_DEBUG_CAP_ENABLE(_graph->ResetInferCount());
         _graph->Infer();
     }
 
@@ -1394,7 +1394,7 @@ void Convolution::prepareParams() {
     execPtr = nullptr;
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-
+    VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
     execPtr = result.first;
 
     if (!execPtr)

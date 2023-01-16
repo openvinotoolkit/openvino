@@ -30,59 +30,50 @@ bool Verbose::shouldBePrinted() const {
         return false;
     return true;
 }
+std::string Verbose::colorize(const Color color, const std::string& str) const {
+    /* 1,  2,  3,  etc -> no color
+     * 11, 22, 33, etc -> colorize */
+    bool colorUp = lvl / 10 > 0 ? true : false;
+
+    if (!colorUp)
+        return str;
+
+    const std::string     red("\033[1;31m");
+    const std::string   green("\033[1;32m");
+    const std::string  yellow("\033[1;33m");
+    const std::string    blue("\033[1;34m");
+    const std::string  purple("\033[1;35m");
+    const std::string    cyan("\033[1;36m");
+    const std::string   reset("\033[0m");
+    std::string colorCode;
+
+    switch (color) {
+    case RED:    colorCode = red;
+        break;
+    case GREEN:  colorCode = green;
+        break;
+    case YELLOW: colorCode = yellow;
+        break;
+    case BLUE:   colorCode = blue;
+        break;
+    case PURPLE: colorCode = purple;
+        break;
+    case CYAN:   colorCode = cyan;
+        break;
+    default:     colorCode = reset;
+        break;
+    }
+
+    return colorCode + str + reset;
+}
+
 /**
  * Print node verbose execution information to cout.
  * Similiar to DNNL_VERBOSE output
  * Formating written in C using oneDNN format functions.
  * Can be rewritten in pure C++ if necessary
  */
-void Verbose::printInfo() {
-    /* 1,  2,  3,  etc -> no color
-     * 11, 22, 33, etc -> colorize */
-    bool colorUp = lvl / 10 > 0 ? true : false;
-
-    enum Color {
-        RED,
-        GREEN,
-        YELLOW,
-        BLUE,
-        PURPLE,
-        CYAN
-    };
-
-    auto colorize = [&](const Color color, const std::string& str) {
-        if (!colorUp)
-            return str;
-
-        const std::string     red("\033[1;31m");
-        const std::string   green("\033[1;32m");
-        const std::string  yellow("\033[1;33m");
-        const std::string    blue("\033[1;34m");
-        const std::string  purple("\033[1;35m");
-        const std::string    cyan("\033[1;36m");
-        const std::string   reset("\033[0m");
-        std::string colorCode;
-
-        switch (color) {
-        case RED:    colorCode = red;
-            break;
-        case GREEN:  colorCode = green;
-            break;
-        case YELLOW: colorCode = yellow;
-            break;
-        case BLUE:   colorCode = blue;
-            break;
-        case PURPLE: colorCode = purple;
-            break;
-        case CYAN:   colorCode = cyan;
-            break;
-        default:     colorCode = reset;
-            break;
-        }
-
-        return colorCode + str + reset;
-    };
-
+void Verbose::printInfo(const int inferCount) {
     // can be increased if necessary
     const int CPU_VERBOSE_DAT_LEN = 512;
     char portsInfo[CPU_VERBOSE_DAT_LEN] = {'\0'};
@@ -152,6 +143,7 @@ void Verbose::printInfo() {
     const std::string& nodePrimImplType =  impl_type_to_string(node->getSelectedPrimitiveDescriptor()->getImplementationType());
 
     stream << "ov_cpu_verbose" << ','
+           << colorize(YELLOW, std::to_string(inferCount)) << ','
            << "exec" << ','
            << nodeImplementer << ','
            << nodeName << ":" << nodeType << ":" << nodeAlg << ','
@@ -160,9 +152,16 @@ void Verbose::printInfo() {
            << post_ops << ',';
 }
 
-void Verbose::printDuration() {
-    const auto& duration = node->PerfCounter().duration().count();
-    stream << duration << "ms";
+void Verbose::printLastInfo() {
+    const auto& timeReport = node->PerfCounter().getItrDurationReport();
+    for (auto it = timeReport.begin(); it < timeReport.end(); it++) {
+        if (it != timeReport.begin())
+            stream << ' ';
+        stream << colorize(PURPLE, "time:" + it->first + ':') << it->second << "ms";
+    }
+    if (node->_verboseStorage.isPrepareParamsCacheHit()) {
+        stream << ",cacheHit:execCacheHit";
+    }
 }
 
 void Verbose::flush() const {

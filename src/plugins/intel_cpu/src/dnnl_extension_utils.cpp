@@ -43,6 +43,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
 
 dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::element::Type& elementType) {
     switch (elementType) {
+        case ov::element::i64:
+            return memory::data_type::s32;
         case ov::element::f32:
             return memory::data_type::f32;
         case ov::element::i32:

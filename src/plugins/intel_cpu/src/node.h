@@ -19,6 +19,8 @@
 #include "openvino/core/node.hpp"
 #include <nodes/common/blocked_desc_creator.h>
 #include "nodes/node_config.h"
+#include "cache/multi_cache.h"
+#include "utils/verbose_node_helper.h"
 #include <shape_inference/shape_inference_cpu.hpp>
 #include "perf_count.h"
 #include "utils/debug_capabilities.h"
@@ -830,7 +832,12 @@ private:
     // Hold output scales
     std::vector<float> DQScales;
 
-    CPU_DEBUG_CAP_ENABLE(friend class Verbose);
+#ifdef CPU_DEBUG_CAPS
+    friend class Verbose;
+
+protected:
+    VerboseNodeStorage _verboseStorage;
+#endif
 };
 
 template <class... T>

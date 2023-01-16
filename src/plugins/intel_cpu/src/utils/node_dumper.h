@@ -19,8 +19,8 @@ class DumpHelper {
     const DebugCapsConfig& config;
 
 public:
-    explicit DumpHelper(const NodePtr& _node, const DebugCapsConfig& _config, int _count = -1):
-        node(_node), count(_count), config(_config) {
+    explicit DumpHelper(const NodePtr& _node, const DebugCapsConfig& _config, const uint8_t nestingLevel, int _count = -1):
+        node(_node), count(nestingLevel > 1 ? _count : -1), config(_config) {
         dumpInputBlobs(node, config, count);
     }
 

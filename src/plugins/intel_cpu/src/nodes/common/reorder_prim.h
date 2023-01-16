@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_cpu {
 
-dnnl::reorder getReorderPrim(MultiCachePtr cache,
+std::pair<dnnl::reorder, CacheEntryBase::LookUpStatus> getReorderPrim(MultiCachePtr cache,
                              const dnnl::engine& engine,
                              const dnnl::memory::desc& src,
                              const dnnl::memory::desc& dest);

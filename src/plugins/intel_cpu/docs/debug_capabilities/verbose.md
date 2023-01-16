@@ -1,6 +1,7 @@
 # Verbose mode
 
 It is possible to enable tracing execution of plugin nodes to cout and collect statistics, such as:
+  - inference request number
   - node implementer:
     * cpu (CPU plugin)
     * dnnl (oneDNN library)
@@ -10,18 +11,23 @@ It is possible to enable tracing execution of plugin nodes to cout and collect s
   - node algorithm
   - node primitive info
   - input / output ports info
-  - fused nodes
-  - execution time
+  - fused nodes (omitted if no)
+  - time measurements:
+    * for static case - total
+    * for dynamic case - total, shapeInfer, prepareParams, exec
+  - cache hit info (omitted if no):
+    * execCacheHit (if primitives cache hit occurred)
   - etc
 
 Format:
 ```sh
-    ov_cpu_verbose,exec,<node_implemeter>,\
-    <node_name>:<node_type>:<node_alg>,<impl_type>,\
-    src:<port_id>:<precision>::<type>:<format>:f0:<shape> ...,\
-    dst:<port_id>:<precision>::<type>:<format>:f0:<shape> ...,\
-    post_ops:'<node_name>:<node_type>:<node_alg>;...;',\
-    <execution_time>
+    ov_cpu_verbose,<inference_request_number>,exec,<node_implemeter>,
+    <node_name>:<node_type>:<node_alg>,<impl_type>,
+    src:<port_id>:<precision>::<type>:<format>:f0:<shape> ...
+    dst:<port_id>:<precision>::<type>:<format>:f0:<shape> ...,
+    post_ops:'<node_name>:<node_type>:<node_alg>;...;',
+    time:<time_measurement>:<number>ms ...,
+    cacheHit:<cache_hit_info> ...
 ```
 
 To turn on verbose mode the following environment variable should be used:

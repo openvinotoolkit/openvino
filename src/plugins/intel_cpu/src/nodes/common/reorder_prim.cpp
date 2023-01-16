@@ -42,10 +42,10 @@ bool ReorderKey::operator==(const ReorderKey& rhs) const {
     return retVal;
 }
 
-dnnl::reorder getReorderPrim(MultiCachePtr cache,
-                             const dnnl::engine& engine,
-                             const dnnl::memory::desc& src,
-                             const dnnl::memory::desc& dest) {
+std::pair<dnnl::reorder, CacheEntryBase::LookUpStatus> getReorderPrim(MultiCachePtr cache,
+                                                                      const dnnl::engine& engine,
+                                                                      const dnnl::memory::desc& src,
+                                                                      const dnnl::memory::desc& dest) {
     auto builder = [&engine](const ReorderKey& key) {
         dnnl::primitive_attr attr;
         DEBUG_LOG(key.src, "->", key.dest);
@@ -58,10 +58,10 @@ dnnl::reorder getReorderPrim(MultiCachePtr cache,
 
     ReorderKey key = {src, dest};
     if (cache) {
-        auto result = cache->getOrCreate(key, builder);
-        return result.first;
+        return cache->getOrCreate(key, builder);
     }
-    return builder(key);
+
+    return {builder(key), CacheEntryBase::LookUpStatus::Miss};
 }
 
 }  // namespace intel_cpu

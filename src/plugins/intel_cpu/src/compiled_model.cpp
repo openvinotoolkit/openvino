@@ -140,6 +140,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);
+                CPU_DEBUG_CAP_ENABLE(graphLock._graph.setNestingLevel(1));
             } catch (...) {
                 exception = std::current_exception();
             }

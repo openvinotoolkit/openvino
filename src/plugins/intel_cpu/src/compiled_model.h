@@ -40,6 +40,11 @@ public:
                                        "Set property to Core::compile_model during compilation");
     };
 
+ #ifdef CPU_DEBUG_CAPS
+    friend void perfDump(const CompiledModel& execNet);
+    ~CompiledModel() { perfDump(*this); }
+ #endif
+
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     friend class SyncInferRequest;

@@ -45,6 +45,7 @@ public:
     FORMAT blobDumpFormat = FORMAT::TEXT;
     std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
     std::string summaryPerf = "";
+    std::string perfTablesPath;
 
     struct TransformationFilter {
         enum Type : uint8_t {

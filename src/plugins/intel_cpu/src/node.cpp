@@ -548,8 +548,15 @@ void Node::updateShapes() {
                     getTypeStr(),
                     " with name: ",
                     getName());
-    if (needShapeInfer()) {
-        auto result = shapeInfer();
+    IShapeInfer::Result result = {{}, ShapeInferStatus::skip};
+    {
+        PERF_SHAPE_INFER(this);
+        if (needShapeInfer()) {
+            result = shapeInfer();
+        }
+    }
+    {
+        PERF_PREDEFINE_OUTPUT_MEMORY(this);
         if (ShapeInferStatus::success == result.status) {
             redefineOutputMemory(result.dims);
         }
@@ -562,6 +569,7 @@ void Node::updateDynamicParams() {
                     getTypeStr(),
                     " with name: ",
                     getName());
+    PERF_PREPARE_PARAMS(this);
     if (isExecutable()) {
         if (needPrepareParams()) {
             OPENVINO_ASSERT(inputShapesDefined(),

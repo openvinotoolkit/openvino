@@ -121,7 +121,8 @@ public:
             mem_holder_src = from->getPrimitive();
             mem_holder_dst = chunk_mem;
         }
-        reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
+        const auto result = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
+        reorder = result.first;
     }
 
     void execute(dnnl::stream strm, int iter) override {
@@ -149,7 +150,8 @@ public:
     BackEdgePortHelper(MultiCachePtr cache, const MemoryPtr &from, const MemoryPtr &to) {
         mem_holder_src = from->getPrimitive();
         mem_holder_dst = to->getPrimitive();
-        reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
+        const auto result = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
+        reorder = result.first;
     }
 
     void execute(dnnl::stream strm, int iter = -1) override {
@@ -576,7 +578,7 @@ void TensorIterator::execute(dnnl::stream strm) {
         return;
     }
 
-    sub_graph.ResetInferCount();
+    CPU_DEBUG_CAP_ENABLE(sub_graph.ResetInferCount());
 
     bool continue_cond = initial_cond_check->getStatus();
     int max_num_iter = trip_count_check->getStatus();
@@ -606,7 +608,7 @@ void TensorIterator::execute(dnnl::stream strm) {
 
 void TensorIterator::executeDynamicImpl(dnnl::stream strm) {
     const auto &eng = getEngine();
-    sub_graph.ResetInferCount();
+    CPU_DEBUG_CAP_ENABLE(sub_graph.ResetInferCount());
 
     bool continue_cond = initial_cond_check->getStatus();
     int max_num_iter = trip_count_check->getStatus();

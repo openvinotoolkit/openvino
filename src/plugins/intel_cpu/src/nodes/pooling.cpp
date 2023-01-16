@@ -470,6 +470,7 @@ void Pooling::prepareParams() {
         auto result = cache->getOrCreate(key, builder);
 
         dnnlExecPtr = result.first;
+        VERBOSE_HELPER_NODE_PREPARE_PARAMS(result.second);
 
         if (!dnnlExecPtr) {
             OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
