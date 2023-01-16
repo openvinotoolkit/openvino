@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include "openvino/frontend/tensorflow/visibility.hpp"
-
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
 // Type which is used to express empty list without any specific type
-class TENSORFLOW_API EmptyList {};
+class EmptyList {};
 
 }  // namespace tensorflow
 }  // namespace frontend
