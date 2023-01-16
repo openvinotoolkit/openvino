@@ -53,8 +53,8 @@ public:
     bool has_evaluate() const override;
 
 private:
-    double m_min;
-    double m_max;
+    double m_min = 0.0;
+    double m_max = 0.0;
 };
 }  // namespace v0
 }  // namespace op
