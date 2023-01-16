@@ -49,8 +49,6 @@ struct ConvKey {
     dnnl::primitive_attr attr;
     impl_desc_type implType;
 
-    bool constWeight;
-
     size_t hash() const;
     bool operator==(const ConvKey& rhs) const;
 };
@@ -74,7 +72,6 @@ size_t ConvKey::hash() const {
 
     seed = hash_combine(seed, get_attr_hash(*attr.get()));
     seed = hash_combine(seed, implType);
-    seed = hash_combine(seed, constWeight);
     return seed;
 }
 
@@ -98,7 +95,7 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
     retVal = retVal && paddingL == rhs.paddingL;
     retVal = retVal && paddingR == rhs.paddingR;
 
-    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType && constWeight == rhs.constWeight;
+    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
     return retVal;
 }
 
@@ -1122,6 +1119,23 @@ bool Convolution::isPossibleToSkipInitConfig(DnnlDesriptor &desc) const {
 
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+
+    if (idx == 1) {
+        // Convolution node exposes plain format for weight mem descriptor
+        // to prevent framework doing few things at load-network-time:
+        //  1. consider weights layout compliance when determine the optimal node descriptor
+        //  2. insert reorders for un-matching weights layout
+        //
+        // Because in general the required layout for weights can be determined
+        // only at runtime, when primitive has been constructed based on true
+        // static input shapes.
+        //
+        auto wdims = desc.dims(); // weights is always assummed to be of static shape
+        const auto plainFormat = DnnlExtensionUtils::GetPlainFormatByRank(wdims.size());
+        auto plainWdesc = dnnl::memory::desc(wdims, desc.data_type(), plainFormat);
+        return DnnlExtensionUtils::makeDescriptor(plainWdesc);
+    }
+
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
@@ -1137,12 +1151,12 @@ dnnl::memory Convolution::getWeights() const {
 }
 
 void Convolution::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
+    if (!prog) {
         IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
     }
-    if (execPtr->needReordering()) {
-        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
-    }
+    //if (execPtr->needReordering()) {
+    //    IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
+    //}
     Node::setDynamicBatchLim(lim);
 }
 
@@ -1290,7 +1304,7 @@ void Convolution::prepareParams() {
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr weightMemoryDesc = MemoryDescUtils::convertToDnnlMemoryDesc(selectedWeightDesc);//wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
+    DnnlMemoryDescCPtr weightMemoryDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr outMemoryDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
     DnnlMemoryDescCPtr biasDesc;
     if (biasMemPtr) {
@@ -1330,166 +1344,203 @@ void Convolution::prepareParams() {
                    paddingL,
                    paddingR,
                    *pAttrLocal,
-                   selected_pd->getImplementationType(),
-                   getParentEdgeAt(1)->getParent()->isConstant()};
-
+                   selected_pd->getImplementationType()};
+    // builder is allowed to return a primitive requiring input/weight/output with layout different
+    // from what specified in the key, external logic handles the extra reordering works needed.
     auto engine = getEngine();
-    auto builder = [&engine](const ConvKey& key) -> executorPtr {
-        auto createDnnlConvDesc = [](const dnnl::memory::desc& srcDesc,
-                                     const dnnl::memory::desc& wghDesc,
-                                     const dnnl::memory::desc& dstDesc,
-                                     DnnlMemoryDescCPtr biasDescPtr,
-                                     const std::vector<size_t>& stride,
-                                     const std::vector<ptrdiff_t>& dilation,
-                                     const std::vector<ptrdiff_t>& paddingL,
-                                     const std::vector<ptrdiff_t>& paddingR,
-                                     dnnl::algorithm alg) -> std::shared_ptr<DnnlDesriptor> {
-            dnnl::memory::desc dnnlBiasDesc;
-            if (biasDescPtr) {
-                // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-                dnnlBiasDesc = biasDescPtr->getDnnlDesc().reshape({dstDesc.dims()[1]});
-            }
+    auto builder = [&engine](const ConvKey& key) -> dnnl::convolution_forward {
+        auto inDesc = key.inp0->getDnnlDesc();
+        auto outDesc = key.out->getDnnlDesc();
+        // we use format_tag::any for weight memory desc, since caller of builder always ensures
+        // that weight reordering will done properly.
+        auto wghDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+                                          key.inp1->getDataType(),
+                                          memory::format_tag::any);
+        bool withBiases = (key.bias != nullptr);
+        dnnl::memory::desc dnnlBiasDesc;
+        if (withBiases) {
+            // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
+            dnnlBiasDesc = key.bias->getDnnlDesc().reshape({outDesc.dims()[1]});
+        }
 
-            return std::make_shared<DnnlDesriptor>(createDescriptorInternal(srcDesc,
-                                                                            wghDesc,
-                                                                            dnnlBiasDesc,
-                                                                            dstDesc,
-                                                                            (biasDescPtr != nullptr),
-                                                                            stride,
-                                                                            dilation,
-                                                                            paddingL,
-                                                                            paddingR,
-                                                                            alg));
-        };
+        auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd
+                                                             : dnnl::algorithm::convolution_direct;
 
-        const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
-        std::shared_ptr<DnnlDesriptor> desc = createDnnlConvDesc(key.inp0->getDnnlDesc(),
-                                                                      key.inp1->getDnnlDesc(),
-                                                                      key.out->getDnnlDesc(),
-                                                                      key.bias,
-                                                                      key.stride,
-                                                                      key.dilation,
-                                                                      key.paddingL,
-                                                                      key.paddingR,
-                                                                      alg);
-
+        auto desc = std::make_shared<DnnlDesriptor>(createDescriptorInternal(inDesc,
+                                                                             wghDesc,
+                                                                             dnnlBiasDesc,
+                                                                             outDesc,
+                                                                             withBiases,
+                                                                             key.stride,
+                                                                             key.dilation,
+                                                                             key.paddingL,
+                                                                             key.paddingR,
+                                                                             alg));
         auto itpd = desc->createPrimitiveDescriptorIterator(engine, key.attr);
-
-        executorPtr execPtr = nullptr;
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
             if (impl_type == key.implType) {
                 auto prim_desc = convolution_forward::primitive_desc(itpd.get());
-                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc,
-                                                                key.inp0->getDnnlDesc(),
-                                                                key.inp1->getDnnlDesc(),
-                                                                key.out->getDnnlDesc(),
-                                                                engine,
-                                                                key.constWeight);
-                break;
+                return dnnl::convolution_forward(prim_desc);
             }
-
             if (!itpd.next_impl()) {
                 break;
             }
         }
 
-        if (!execPtr) {
-            auto inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
-                                                                                           key.inp0->getDataType(),
-                                                                                           memory::format_tag::any);
-            auto wghDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
-                                                                                        key.inp1->getDataType(),
-                                                                                        memory::format_tag::any);
-            auto outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
-                                                                                        key.out->getDataType(),
-                                                                                        memory::format_tag::any);
+        // further relax the requirements on input/output format tag
+        inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
+                                    key.inp0->getDataType(),
+                                    memory::format_tag::any);
+        outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
+                                     key.out->getDataType(),
+                                     memory::format_tag::any);
+        alg = dnnl::algorithm::convolution_direct;
 
-            std::shared_ptr<DnnlDesriptor> reorderConvDesc = createDnnlConvDesc(inDesc,
-                                                                                  wghDesc,
-                                                                                  outDesc,
-                                                                                  key.bias,
-                                                                                  key.stride,
-                                                                                  key.dilation,
-                                                                                  key.paddingL,
-                                                                                  key.paddingR,
-                                                                                  dnnl::algorithm::convolution_direct);
-
-            auto reordItpd = reorderConvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
-            if (static_cast<bool>(reordItpd)) {
-                auto prim_desc = convolution_forward::primitive_desc(reordItpd.get());
-                execPtr = std::make_shared<ConvolutionExecutor>(prim_desc,
-                                                                key.inp0->getDnnlDesc(),
-                                                                key.inp1->getDnnlDesc(),
-                                                                key.out->getDnnlDesc(),
-                                                                engine,
-                                                                key.constWeight);
-            }
+        auto reorderConvDesc = std::make_shared<DnnlDesriptor>(createDescriptorInternal(inDesc,
+                                                                                        wghDesc,
+                                                                                        dnnlBiasDesc,
+                                                                                        outDesc,
+                                                                                        withBiases,
+                                                                                        key.stride,
+                                                                                        key.dilation,
+                                                                                        key.paddingL,
+                                                                                        key.paddingR,
+                                                                                        alg));
+        auto relaxedItpd = reorderConvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
+        if (static_cast<bool>(relaxedItpd)) {
+            auto prim_desc = convolution_forward::primitive_desc(relaxedItpd.get());
+            return dnnl::convolution_forward(prim_desc);
         }
-
-        return execPtr;
+        // empty object indicating failure.
+        return dnnl::convolution_forward();
     };
 
-    auto prevExecPtr = execPtr;
-    execPtr = nullptr;
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    execPtr = result.first;
-
-    if (execPtr) {
-        primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
-        primArgs[DNNL_ARG_WEIGHTS] = wghMemPtr->GetPrimitive();
-        primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
-
-        if (key.constWeight) {
-            if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
-                primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
-            }
-        }
-
-        if (withBiases) {
-            primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
-        }
-
-        if (preferLegacyZeroPoint)
-            appendLegacyZeroPointsArgs();
-        else
-            appendZeroPointsArgs();
-
-        Node::appendPostOpArgs(*pAttrLocal, primArgs, convPostOpsArgs[preferLegacyPostOps]);
-
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-#ifdef CPU_DEBUG_CAPS
-        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
-        }
-#endif
-    } else {
+    // generate the final program
+    auto conv_prim = result.first;
+    if (!conv_prim) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
+
+    auto conv_pd = conv_prim.get_primitive_desc();
+    auto get_desc = [&] (const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
+        auto query = dnnl::convert_to_c(what);
+        const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+        if (!cdesc)
+            IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
+        return dnnl::memory::desc(*cdesc);
+    };
+
+    prog.node = this;
+    prog.statements.clear();
+
+    auto node_src_desc = key.inp0->getDnnlDesc();
+    auto node_weight_desc = key.inp1->getDnnlDesc();
+    auto node_dst_desc = key.out->getDnnlDesc();
+
+    auto conv_src_desc = get_desc(conv_pd, dnnl::query::src_md, 0);
+    auto conv_weight_desc = get_desc(conv_pd, dnnl::query::weights_md, 0);
+    auto conv_dst_desc = get_desc(conv_pd, dnnl::query::dst_md, 0);
+
+    dnnl::memory conv_src_mem;
+    dnnl::memory conv_weight_mem;
+    dnnl::memory conv_dst_mem;
+
+    // reorder input if needed
+    if (node_src_desc == conv_src_desc) {
+        conv_src_mem = srcMemPtr->GetPrimitive();
+    } else {
+        conv_src_mem = dnnl::memory(conv_src_desc, context->getEngine());
+        prog.emit(context->getReorderPrim(node_src_desc, conv_src_desc),
+                  {{DNNL_ARG_SRC, srcMemPtr->GetPrimitive()}, {DNNL_ARG_DST, conv_src_mem}});
+    }
+
+    // reorder weights if needed
+    if (node_weight_desc == conv_weight_desc) {
+        conv_weight_mem = wghMemPtr->GetPrimitive();
+    } else {
+        bool constWeight = getParentEdgeAt(1)->getParent()->isConstant();
+        if (constWeight) {
+            // reordering of weight can be done at this last compilation stage
+            conv_weight_mem = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(conv_weight_desc))->GetPrimitive();
+        } else {
+            // reordering of weight has to be done at execution time
+            conv_weight_mem = dnnl::memory(conv_weight_desc, context->getEngine());
+            prog.emit(context->getReorderPrim(node_weight_desc, conv_weight_desc),
+                      {{DNNL_ARG_SRC, wghMemPtr->GetPrimitive()}, {DNNL_ARG_DST, conv_weight_mem}});
+        }
+    }
+
+    // prepare dst memory if output reorder is required
+    bool reorderOutput = false;
+    if (node_dst_desc == conv_dst_desc) {
+        // directly output to final location
+        conv_dst_mem = dstMemPtr->GetPrimitive();
+    } else {
+        // generate output reorder after conv
+        reorderOutput = true;
+        conv_dst_mem = dnnl::memory(conv_dst_desc, context->getEngine());
+    }
+
+    // conv
+    {
+        std::unordered_map<int, memory> args;
+        args[DNNL_ARG_SRC] = conv_src_mem;
+        args[DNNL_ARG_WEIGHTS] = conv_weight_mem;
+        args[DNNL_ARG_DST] = conv_dst_mem;
+        if (withBiases)
+            args[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
+
+        if (preferLegacyZeroPoint) {
+            if (legacyInputZeroPointsMemPtr != nullptr)
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = legacyInputZeroPointsMemPtr->GetPrimitive();
+            if (legacyWeightsZeroPointsMemPtr != nullptr)
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS] = legacyWeightsZeroPointsMemPtr->GetPrimitive();
+            if (legacyOutputCompensationMemPtr != nullptr)
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_DST] = legacyOutputCompensationMemPtr->GetPrimitive();
+        } else {
+            if (stockInputZeroPointsMemPtr != nullptr)
+                args[DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC] = stockInputZeroPointsMemPtr->GetPrimitive();
+        }
+
+        for (auto & entry : convPostOpsArgs[preferLegacyPostOps])
+            args[entry.first] = entry.second->GetPrimitive();
+
+        auto scratchpadMem = getScratchPadMem(conv_pd);
+        args[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+        prog.emit(conv_prim, args);
+    }
+
+    if (reorderOutput) {
+        prog.emit(context->getReorderPrim(conv_dst_desc, node_dst_desc),
+                  {{DNNL_ARG_SRC, conv_dst_mem}, {DNNL_ARG_DST, dstMemPtr->GetPrimitive()}});
+    }
+
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        DEBUG_LOG("verbose##", getName(), "##", conv_pd->info(), "\n");
+    }
+#endif
 }
 
-void Convolution::initOptimalPrimitiveDescriptor() {
-    Node::initOptimalPrimitiveDescriptor();
-    auto selectedPD = getSelectedPrimitiveDescriptor();
-    // Will do the reoder for const weight in prepareParams
-    auto constParent = getParentEdgeAt(1)->getParent();
-    if (constParent->isConstant()) {
-        auto selectedParentPD = constParent->getSelectedPrimitiveDescriptor();
-        auto config = selectedPD->getConfig();
-        selectedWeightDesc = config.inConfs[1].getMemDesc();
-        config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
-        selectedPD->setConfig(config);
+void Program::execute(dnnl::stream stream) {
+    int i = 0;
+    for (auto& s : statements) {
+        DEBUG_LOG(node->getName(), "[", i++, "/", statements.size(), "] ", s.prim.get_primitive_desc()->info());
+        s.prim.execute(stream, s.args);
     }
 }
 
 MemoryPtr Convolution::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        IE_THROW() << "Weight input is not const for node " << getName() << ".";
+    const auto& format = weightDesc->serializeFormat();
+    auto itr = privateWeightCache.find(format);
+    if (privateWeightCache.end() != itr) {
+        return itr->second;
+    }
+
     auto blob = getParentEdgeAt(1)->getMemoryPtr();
     if (!blob)
         IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
@@ -1512,55 +1563,27 @@ MemoryPtr Convolution::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     };
 
     MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
-    auto itr = privateWeightCache.find(format);
-    if (privateWeightCache.end() != itr) {
-        ptr = itr->second;
-    } else {
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(blob->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
+    auto weightCache = context->getWeightsCache();
+    if (weightCache != nullptr) {
+        const std::string string_hash = getName() + "_" + format
+                                        + "_" + std::to_string(blob->GetSize())
+                                        + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
 
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-        privateWeightCache[format] = ptr;
+        ptr = *weightCache->findOrCreate(string_hash, create);
+    } else {
+        ptr = create();
     }
+    privateWeightCache[format] = ptr;
 
     return ptr;
 }
 
-Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
-                                                                const dnnl::memory::desc& inMemDesc,
-                                                                const dnnl::memory::desc& weightMemDesc,
-                                                                const dnnl::memory::desc& outMemDesc,
-                                                                const dnnl::engine& engine,
-                                                                bool constWeight) {
-    execPrim.reset(new dnnl::convolution_forward(pd));
-
-    if (inMemDesc != pd.src_desc()) {
-        inputReorders.insert({DNNL_ARG_SRC, IntermReorder(inMemDesc, pd.src_desc(), engine)});
-    }
-
-    if (weightMemDesc != pd.weights_desc() && !constWeight) {
-        // const weight will be reordered in prepareParams()
-        inputReorders.insert({DNNL_ARG_WEIGHTS, IntermReorder(weightMemDesc, pd.weights_desc(), engine)});
-    }
-
-    if (outMemDesc != pd.dst_desc()) {
-        outputReorders.insert({DNNL_ARG_DST, IntermReorder(pd.dst_desc(), outMemDesc, engine)});
-    }
-}
-
 void Convolution::execute(dnnl::stream strm) {
-    if (!execPtr) {
-        IE_THROW() << "Can't execute Convolution node with name: " << getName() << ", because executor is not compiled";
+    if (!prog) {
+        IE_THROW() << "Can't execute Convolution node with name: " << getName() << ", because prog is not compiled";
     }
 
-    execPtr->exec(primArgs, strm);
+    prog.execute(strm);
 }
 
 void Convolution::executeDynamicImpl(dnnl::stream strm) {

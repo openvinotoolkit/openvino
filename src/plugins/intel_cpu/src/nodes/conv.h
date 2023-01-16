@@ -11,11 +11,34 @@
 #include <vector>
 #include "common/dnnl_executor.h"
 
+#include <common/primitive_hashing_utils.hpp>
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class Eltwise;
+
+struct Statement {
+    dnnl::primitive prim;
+    std::unordered_map<int, dnnl::memory> args;
+    Statement() = default;
+    Statement(Statement&& s) : prim(std::move(s.prim)), args(std::move(s.args)) {}
+    Statement(dnnl::primitive prim, std::unordered_map<int, dnnl::memory> args)
+        : prim(std::move(prim)),
+          args(std::move(args)) {}
+};
+struct Program {
+    Node * node;
+    std::vector<Statement> statements;
+    operator bool() {
+        return !statements.empty();
+    }
+    void emit(dnnl::primitive prim, std::unordered_map<int, dnnl::memory> args) {
+        statements.emplace_back(prim, args);
+    }
+    void execute(dnnl::stream stream);
+};
 
 class Convolution : public Node {
 public:
@@ -29,7 +52,6 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
-    void initOptimalPrimitiveDescriptor() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -86,24 +108,13 @@ private:
     };
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
-    executorPtr execPtr = nullptr;
+    Program prog;
     // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
     // different shapes. Weights will be cached in privateWeightCache.
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
     MemoryDescPtr selectedWeightDesc;
-
-    class ConvolutionExecutor : public DnnlExecutor {
-        public:
-            ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
-                                const dnnl::memory::desc& inMemDesc,
-                                const dnnl::memory::desc& weightMemDesc,
-                                const dnnl::memory::desc& outMemDesc,
-                                const dnnl::engine& engine,
-                                bool constWeight);
-    };
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
