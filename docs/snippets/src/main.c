@@ -6,7 +6,7 @@
 #include <openvino/c/openvino.h>
 //! [include]
 
-int main_c() {
+int main() {
 //! [part1]
 ov_core_t* core = NULL;
 ov_core_create(&core);
