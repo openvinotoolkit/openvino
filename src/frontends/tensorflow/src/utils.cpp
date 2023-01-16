@@ -4,6 +4,8 @@
 
 #include "utils.hpp"
 
+#include <limits>
+
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino_conversions.hpp"
@@ -182,8 +184,27 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     ov::AxisVector permutation_3d = {4, 3, 0, 1, 2};
     filter = ov::frontend::tensorflow::make_transpose(filter, spatial_dims_num == 2 ? permutation_2d : permutation_3d);
 
+    // compute input channels given from the input and the filter
+    // and number of groups required to split the filter
+    auto input_shape = make_shared<ShapeOf>(input, element::i32);
+    auto filter_shape = make_shared<ShapeOf>(filter, element::i32);
+    auto zero_const = make_shared<Constant>(element::i32, Shape{1}, 0);
+    auto one_const = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto two_const = make_shared<Constant>(element::i32, Shape{1}, 2);
+    auto input_cin = make_shared<Slice>(input_shape, one_const, two_const, one_const);
+    auto filter_cin = make_shared<Slice>(filter_shape, one_const, two_const, one_const);
+    auto num_groups = make_shared<Divide>(input_cin, filter_cin);
+
+    // reshape the filter based on the number of groups information
+    auto int_max_const = make_shared<Constant>(element::i32, Shape{1}, std::numeric_limits<int>::max());
+    auto filter_cout = make_shared<Slice>(filter_shape, zero_const, one_const, one_const);
+    auto filter_new_cout = make_shared<Divide>(filter_cout, num_groups);
+    auto shape_cin_xy = make_shared<Slice>(filter_shape, one_const, int_max_const, one_const);
+    auto filter_new_shape = make_shared<Concat>(OutputVector{num_groups, filter_new_cout, shape_cin_xy}, 0);
+    auto new_filter = make_shared<Reshape>(filter, filter_new_shape, false);
+
     ov::Output<ov::Node> conv =
-        std::make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
+        std::make_shared<GroupConvolution>(input, new_filter, strides, pads_begin, pads_end, dilations, auto_pad);
 
     ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, conv, ov::Rank(spatial_dims_num + 2));
     ov::frontend::tensorflow::set_node_name(node.get_name(), conv.get_node_shared_ptr());
