@@ -1,7 +1,7 @@
 #include <openvino/runtime/core.hpp>
 
 
-int cpu_dynamic_shape() {
+int main() {
     {
         //! [static_shape]
         ov::Core core;
