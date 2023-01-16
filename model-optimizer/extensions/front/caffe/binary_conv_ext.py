@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.front.caffe.conv_ext import conv_create_attrs, conv_set_params
