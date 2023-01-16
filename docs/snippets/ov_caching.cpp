@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-void ov_caching_part0() {
+void part0() {
     std::string modelPath = "/tmp/myModel.xml";
     std::string device = "GNA";
     ov::AnyMap config;
@@ -17,7 +17,7 @@ auto compiled = core.compile_model(model, device, config);  // Step 5: LoadNetwo
     }
 }
 
-void ov_caching_part1() {
+void part1() {
     std::string modelPath = "/tmp/myModel.xml";
     std::string device = "GNA";
     ov::AnyMap config;
@@ -30,7 +30,7 @@ auto compiled = core.compile_model(modelPath, device, config);  // Step 2: Compi
     }
 }
 
-void ov_caching_part2() {
+void part2() {
     std::string modelPath = "/tmp/myModel.xml";
     std::string device = "GNA";
     ov::AnyMap config;
@@ -44,7 +44,7 @@ auto compiled = core.compile_model(modelPath, device, config);  // Step 2: Compi
     }
 }
 
-void ov_caching_part3() {
+void part3() {
     std::string deviceName = "GNA";
     ov::AnyMap config;
     ov::Core core;
@@ -60,12 +60,12 @@ bool cachingSupported = std::find(caps.begin(), caps.end(), ov::device::capabili
     }
 }
 
-int ov_caching() {
+int main() {
     try {
-        ov_caching_part0();
-        ov_caching_part1();
-        ov_caching_part2();
-        ov_caching_part3();
+        part0();
+        part1();
+        part2();
+        part3();
     } catch (...) {
     }
     return 0;

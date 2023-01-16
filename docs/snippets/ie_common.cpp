@@ -4,7 +4,7 @@
 
 #include <ie_core.hpp>
 
-int ie_common_cpp() {
+int main() {
     //! [ie:create_core]
     InferenceEngine::Core core;
     //! [ie:create_core]
