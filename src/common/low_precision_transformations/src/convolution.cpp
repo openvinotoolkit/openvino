@@ -307,6 +307,21 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             replace_node(convolution, newConvolution);
             NetworkHelper::copyInfo(convolution, newConvolution);
             convolution = newConvolution;
+        } else {
+            // insert Convert between Subtract and Conv
+            const size_t groupsCount = NetworkHelper::getGroupsCount(convolution);
+            if (groupsCount <= 1 && subtractFromWeights != nullptr) {
+              auto newConvert = std::make_shared<opset1::Convert>(
+                  convolution->get_input_node_shared_ptr(1),
+                  element::i32);
+              newConvert->set_friendly_name(subtractFromWeights->get_friendly_name() + "/to_i8");
+              auto newConvolution = convolution->clone_with_new_inputs({
+                  convolution->input_value(0),
+                  newConvert});
+              replace_node(convolution, newConvolution);
+              NetworkHelper::copyInfo(convolution, newConvolution);
+              convolution = newConvolution;
+            }
         }
 
         reshapeFromWeights = ov::as_type_ptr<opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
