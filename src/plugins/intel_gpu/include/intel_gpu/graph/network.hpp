@@ -252,6 +252,7 @@ private:
     bool _internal;
     bool _is_primary_stream;
     bool _is_dynamic = false;
+    bool _enable_profiling = false;
     bool _reset_arguments;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;

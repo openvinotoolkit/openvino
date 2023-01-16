@@ -1381,7 +1381,7 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
                        output_tensors.cend(),
                        output_labels.begin(),
                        [](const HostTensorPtr& tensor) {
-                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<size_t>();
+                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<label_t>();
                        });
         return true;
     }

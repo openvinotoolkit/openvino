@@ -298,6 +298,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+    add_dependencies(${TARGET_NAME} conditional_compilation_gen)
 endfunction()
 
 function(ov_mark_target_as_cc)
