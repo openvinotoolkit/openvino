@@ -222,16 +222,6 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter> & options) const {
     Parameter result;
-    if (_pluginConfig._availableDevices.end() != std::find(_pluginConfig._availableDevices.begin(),
-                                                           _pluginConfig._availableDevices.end(),
-                                                           DeviceIDParser(name).getDeviceName())) {
-        // Throw exception if request to query ov::device::properties through GetConfig()
-        // GetMetric() should return the value of device properites if
-        // 1. device property had been existed in config cached by AUTO/MULTI plugin.
-        // 2. device property was supported by target device speacified by ov::device::properties.
-        auto property_name = options.find(name)->second.as<std::string>();
-        IE_THROW() << "Unsupported config key " << property_name << " by device " << name;
-    }
     const bool is_new_api = IsNewAPI();
     if (_pluginConfig._keyConfigMap.find(name) != _pluginConfig._keyConfigMap.end()) {
         std::string val = _pluginConfig._keyConfigMap.find(name)->second;
@@ -306,22 +296,6 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _pluginConfig.supportedConfigKeys(GetName()));
-    } else if (_pluginConfig._availableDevices.end() != std::find(_pluginConfig._availableDevices.begin(),
-                                                                  _pluginConfig._availableDevices.end(),
-                                                                  DeviceIDParser(name).getDeviceName())) {
-        auto item = _pluginConfig._keyConfigMap.find(name);
-        auto property_name = options.find(name)->second.as<std::string>();
-        if (item == _pluginConfig._keyConfigMap.end())
-            return GetCore()->get_property(name, property_name, {});
-
-        std::stringstream strm(item->second);
-        std::map<std::string, std::string> devices_property;
-        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-        auto property = devices_property.find(property_name);
-
-        if (property == devices_property.end())
-            return GetCore()->get_property(name, property_name, {});
-        return property->second;
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
