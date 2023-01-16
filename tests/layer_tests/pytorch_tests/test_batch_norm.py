@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -42,6 +42,7 @@ class TestBatchNorm(PytorchLayerTest):
         {"ndim": 5}
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_batch_norm(self, weights, bias, eps, ie_device, precision, ir_version, kwargs_to_prepare_input):
         self._test(*self.create_model(weights, bias, eps),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, dynamic_shapes=False)

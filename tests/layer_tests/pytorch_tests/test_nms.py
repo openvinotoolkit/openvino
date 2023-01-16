@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -33,6 +33,7 @@ class TestNms(PytorchLayerTest):
         return torchvision_nms(), ref_net, "torchvision::nms"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_nms(self, ie_device, precision, ir_version, boxes_num):
         self.boxes_num = boxes_num
         self._test(*self.create_model(), ie_device, precision, ir_version)

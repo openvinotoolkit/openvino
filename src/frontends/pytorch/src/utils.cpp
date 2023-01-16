@@ -280,7 +280,7 @@ OutputVector convert_node(NodeContext* context) {
 ///  conversion.
 /// \return fully converted OV Model
 std::shared_ptr<ov::Model> convert_pytorch_model2(std::shared_ptr<TorchDecoder> pytorch_model,
-                                                 const TensorMap& external_tensor_map) {
+                                                  const TensorMap& external_tensor_map) {
     std::shared_ptr<ov::Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         ParameterVector parameters;
