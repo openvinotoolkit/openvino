@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2023 Intel Corporation
 
 #ifndef OPENCV_GAPI_STREAMING_CAP_HPP
 #define OPENCV_GAPI_STREAMING_CAP_HPP
