@@ -82,10 +82,6 @@ void SubgraphBaseTest::run() {
                         CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 validate();
-                // int b[4];
-                // for (int i = 0; i < 5; ++i) {
-                //     b[i] = i;
-                // }
             }
             status = ov::test::utils::PassRate::Statuses::PASSED;
         } catch (const std::exception& ex) {
