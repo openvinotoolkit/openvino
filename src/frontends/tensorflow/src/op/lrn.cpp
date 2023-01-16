@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -14,23 +15,30 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_lrn_op(const NodeContext& node) {
+    // The normalization is performed along the last dimension
+    default_op_checks(node, 1, {"LRN"});
     auto input = node.get_input(0);
-    auto alpha = node.get_attribute<float>("alpha");
-    auto beta = node.get_attribute<float>("beta");
-    auto bias = node.get_attribute<float>("bias");
-    auto depth_radius = node.get_attribute<int64_t>("depth_radius");
 
-    // OV: Each input value is divided by (bias+(alpha/size)*sum(xi^2 for every xi
-    // in the local region))^beta
-    // TF: sqr_sum[a, b, c, d] = sum(input[a, b, c, d - depth_radius : d +
-    // depth_radius + 1] ** 2)
-    //     output = input / (bias + alpha * sqr_sum) ** beta
-    int64_t size = depth_radius * 2 + 1;
-    alpha = alpha * size;
-    // todo: input is in NHWC, need to apply NHWC to NCHW?
-    auto res = make_shared<LRN>(input, alpha, beta, bias, static_cast<size_t>(size));
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    // retrieve attributes
+    auto depth_radius = node.get_attribute<int64_t>("depth_radius", 5);
+    auto bias = static_cast<double>(node.get_attribute<float>("bias", 1));
+    auto alpha = static_cast<double>(node.get_attribute<float>("alpha", 1));
+    auto beta = static_cast<double>(node.get_attribute<float>("beta", 0.5));
+
+    // adjust attribute values for opset LRN operation
+    size_t attr_size = static_cast<size_t>(depth_radius) * 2 + 1;
+    alpha *= static_cast<double>(attr_size);
+
+    // currently, plugins fallback to the template to execute this operation
+    // the current implementation supports only the normalization across channel (axes={1})
+    // and spatial dimensions (axes={2,3})
+    // so we have to transpose inputs and outputs due to this limitation
+    auto axis = make_shared<Constant>(element::i32, Shape{1}, 1);
+    ov::frontend::tensorflow::convert_nhwc_to_nchw(true, input);
+    auto lrn = make_shared<LRN>(input, axis, alpha, beta, bias, attr_size)->output(0);
+    ov::frontend::tensorflow::convert_nchw_to_nhwc(true, lrn);
+    set_node_name(node.get_name(), lrn.get_node_shared_ptr());
+    return {lrn};
 }
 
 }  // namespace op
