@@ -24,10 +24,7 @@ OutputVector translate_as_tensor(NodeContext& context) {
         }
         if (auto dtype_const = std::dynamic_pointer_cast<opset10::Constant>(dtype_ext_node)) {
             auto pt_type = dtype_const->cast_vector<int64_t>()[0];
-            FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type),
-                                          "Unknown type in aten::as_tensor: ",
-                                          pt_type);
-            dtype = TORCH_TO_OV_TYPE.at(pt_type);
+            dtype = convert_dtype(pt_type);
         }
     }
     cast = context.mark_node(std::make_shared<opset10::Convert>(context.get_input(0), dtype));

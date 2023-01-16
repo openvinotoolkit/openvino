@@ -39,7 +39,7 @@ OutputVector translate_arange(NodeContext& context) {
         end = context.get_input(0);
         out_tensor = end;
         if (!context.input_is_none(1)) {
-            dtype = convert_dtype(context, 1);
+            dtype = convert_dtype(context.const_input<int64_t>(1));
             dtype_applied = true;
         }
     }
@@ -49,7 +49,7 @@ OutputVector translate_arange(NodeContext& context) {
         end = context.get_input(1);
         out_tensor = end;
         if (!context.input_is_none(2)) {
-            dtype = convert_dtype(context, 2);
+            dtype = convert_dtype(context.const_input<int64_t>(2));
             dtype_applied = true;
         }
     }
@@ -60,7 +60,7 @@ OutputVector translate_arange(NodeContext& context) {
         step = context.get_input(2);
         out_tensor = end;
         if (!context.input_is_none(3)) {
-            dtype = convert_dtype(context, 3);
+            dtype = convert_dtype(context.const_input<int64_t>(3));
             dtype_applied = true;
         }
     }

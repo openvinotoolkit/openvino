@@ -246,6 +246,7 @@ public:
                 make_shared<opset10::StridedSlice>(matches.at(tensor_elements),
                                                    make_shared<opset10::Gather>(matches.at(begins), index_1D, zero),
                                                    make_shared<opset10::Gather>(matches.at(ends), index_1D, zero),
+                                                   // TODO: add strides
                                                    mask,
                                                    mask);
 
@@ -254,6 +255,7 @@ public:
                 matches.at(shape_dims),
                 make_shared<opset10::Gather>(matches.at(shape_begins), index_1D, zero),
                 make_shared<opset10::Gather>(matches.at(shape_ends), index_1D, zero),
+                // TODO: add strides
                 mask,
                 mask);
 

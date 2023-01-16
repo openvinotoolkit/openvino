@@ -57,7 +57,7 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
         strides_length = end_pshape[0].get_length();
     } else  // dynamic case
     {
-        NGRAPH_CHECK(begin_pshape.rank().is_dynamic() || begin_pshape.rank().get_length() == 1,
+        NGRAPH_CHECK(begin_pshape.rank().is_static() && begin_pshape.rank().get_length() == 1,
                      "Begin input must be 1D");
         return std::make_shared<op::v1::Broadcast>(op::Constant::create(element::i64, {}, {1}),
                                                    std::make_shared<op::ShapeOf>(begin));

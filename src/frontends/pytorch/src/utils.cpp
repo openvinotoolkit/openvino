@@ -117,8 +117,19 @@ std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
     return context.mark_node(std::make_shared<opset10::ReduceProd>(input_shape, axes, false));
 };
 
-ov::element::Type convert_dtype(NodeContext& context, size_t input_id) {
-    auto pt_type = context.const_input<int64_t>(input_id);
+namespace {
+const std::map<int, element::Type> TORCH_TO_OV_TYPE{{0, element::u8},
+                                                    {1, element::i8},
+                                                    {2, element::i16},
+                                                    {3, element::i32},
+                                                    {4, element::i64},
+                                                    {5, element::f16},
+                                                    {6, element::f32},
+                                                    {7, element::f64},
+                                                    {11, element::boolean}};
+}
+
+ov::element::Type convert_dtype(int64_t pt_type) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_TO_OV_TYPE.count(pt_type), "Unknown type: ", pt_type);
     return TORCH_TO_OV_TYPE.at(pt_type);
 };

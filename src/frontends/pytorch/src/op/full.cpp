@@ -22,7 +22,7 @@ ov::Output<Node> base_translate_full_with_convert(NodeContext& context,
                                                   size_t dtype_id) {
     auto filled_tensor = base_translate_full(context, sizes, value);
     if (!context.input_is_none(dtype_id)) {
-        auto dtype = convert_dtype(context, dtype_id);
+        auto dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
         filled_tensor = context.mark_node(std::make_shared<opset10::Convert>(filled_tensor, dtype));
     }
     return filled_tensor;
