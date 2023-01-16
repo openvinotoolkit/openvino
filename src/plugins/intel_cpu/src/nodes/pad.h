@@ -63,7 +63,10 @@ private:
         void padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         void padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         void padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric = false);
-
+        void paramsInitialization(const PadAttrs& attrs,
+                            const std::vector<MemoryCPtr>& srcMemory,
+                            const std::vector<MemoryCPtr>& dstMemory);
+        void workPartition();
         inline void getDstIdx(const VectorDims& indexes, size_t& dstIdx) const;
 
         struct PadContext {

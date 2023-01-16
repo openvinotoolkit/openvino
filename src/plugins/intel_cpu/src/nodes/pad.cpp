@@ -221,6 +221,7 @@ bool Pad::isExecutable() const {
 }
 
 void Pad::prepareParams() {
+    updateLastInputDims();
     if (srcMemory.empty()) {
         for (int i = 0; i < getOriginalInputsNumber(); i++) {
             srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
@@ -242,7 +243,15 @@ void Pad::prepareParams() {
 Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
                               const std::vector<MemoryCPtr>& srcMemory,
                               const std::vector<MemoryCPtr>& dstMemory,
-                              const std::string& errorPrefix) : errorPrefix(errorPrefix) {
+                              const std::string& errorPrefix)
+    : errorPrefix(errorPrefix) {
+    paramsInitialization(attrs, srcMemory, dstMemory);
+    workPartition();
+}
+
+void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
+                                            const std::vector<MemoryCPtr>& srcMemory,
+                                            const std::vector<MemoryCPtr>& dstMemory) {
     params.attrs = attrs;
     auto& srcMemPtr = srcMemory[DATA_ID];
     auto& dstMemPtr = dstMemory[DATA_ID];
@@ -255,6 +264,11 @@ Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
     const auto& srcDims = srcBlockMemDesc->getBlockDims();
     const auto& dstDims = dstBlockMemDesc->getBlockDims();
 
+    params.attrs.prc = srcMemPtr->getDesc().getPrecision();
+    params.srcDims = srcDims;
+    params.dstDims = dstDims;
+    params.dataSize = params.attrs.prc.size();
+
     auto fillingInParameters =
         [&](std::vector<unsigned int>& parameter, const size_t type, const size_t size, const int value) {
             const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->GetPtr());
@@ -265,7 +279,7 @@ Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
                 parameter[i] = static_cast<unsigned int>(ptr[i]);
             }
         };
-    // if pad begin dynamic
+    // if pad begin/end/value dynamic
     if (params.attrs.padsBegin.empty())
         fillingInParameters(params.attrs.padsBegin, PADS_BEGIN_ID, srcDims.size(), 0);
     if (params.attrs.padsEnd.empty())
@@ -285,7 +299,8 @@ Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
         params.attrs.padsEnd.push_back(0);
     } else {
         auto order = srcBlockMemDesc->getOrder();
-        std::vector<unsigned int> newPadsBegin(params.attrs.padsBegin.size(), 0), newPadsEnd(params.attrs.padsEnd.size(), 0);
+        std::vector<unsigned int> newPadsBegin(params.attrs.padsBegin.size(), 0),
+            newPadsEnd(params.attrs.padsEnd.size(), 0);
         for (size_t i = 0; i < params.attrs.padsBegin.size(); ++i) {
             newPadsBegin[i] = params.attrs.padsBegin[order[i]];
             newPadsEnd[i] = params.attrs.padsEnd[order[i]];
@@ -293,8 +308,6 @@ Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
         params.attrs.padsBegin = newPadsBegin;
         params.attrs.padsEnd = newPadsEnd;
     }
-
-    // collapse dimensions
     params.attrs.beginPadIdx = 0;
     params.attrs.endPadIdx = params.attrs.padsBegin.size() - 1;
 
@@ -318,25 +331,20 @@ Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
         params.attrs.padsEnd.erase(params.attrs.padsEnd.begin() + 1,
                                    params.attrs.padsEnd.begin() + params.attrs.beginPadIdx + 1);
     }
+}
 
-    params.attrs.prc = srcMemPtr->getDesc().getPrecision();
-    params.srcDims = srcDims;
-    params.dstDims = dstDims;
-
-    zeroInputDimsCase = std::any_of(srcDims.begin(),
-                                    srcDims.end(),
+void Pad::PadExecutor::workPartition() {
+    zeroInputDimsCase = std::any_of(params.srcDims.begin(),
+                                    params.srcDims.end(),
                                     [](size_t dim) {
                                         return dim == 0;
                                     }) &&
-                        std::none_of(dstDims.begin(), dstDims.end(), [](size_t dim) {
+                        std::none_of(params.dstDims.begin(), params.dstDims.end(), [](size_t dim) {
                             return dim == 0;
                         });
     if (zeroInputDimsCase) {
         return;
     }
-
-    params.srcDims = srcDims;
-    params.dataSize = params.attrs.prc.size();
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -345,7 +353,6 @@ Pad::PadExecutor::PadExecutor(const PadAttrs& attrs,
         params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
     }
-
     params.lastDstDim = params.dstStrides[std::max(params.attrs.endPadIdx - 1, 0)];
     params.nDimsForWork = params.attrs.endPadIdx - std::max(params.attrs.beginPadIdx, 0);
     params.nThreads = params.nDimsForWork > 0 ? 0 : 1;
