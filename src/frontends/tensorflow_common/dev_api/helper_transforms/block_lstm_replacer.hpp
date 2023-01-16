@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
