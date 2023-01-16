@@ -14,7 +14,7 @@ class PtFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     OPENVINO_OP("PtFrameworkNode", "util", ::ov::op::util::FrameworkNode);
 
-    PtFrameworkNode(const std::shared_ptr<Decoder>& decoder, const OutputVector& inputs, size_t output_size)
+    PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder, const OutputVector& inputs, size_t output_size)
         : ov::op::util::FrameworkNode(inputs, output_size, decoder->get_subgraph_size()),
           m_decoder(decoder) {
         ov::op::util::FrameworkNodeAttrs attrs;
@@ -40,7 +40,7 @@ public:
         }
     }
 
-    PtFrameworkNode(const std::shared_ptr<Decoder>& decoder, const OutputVector& inputs)
+    PtFrameworkNode(const std::shared_ptr<TorchDecoder>& decoder, const OutputVector& inputs)
         : PtFrameworkNode(decoder, inputs, decoder->num_of_outputs()) {}
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
@@ -64,12 +64,12 @@ public:
         return m_decoder->get_op_type();
     }
 
-    Decoder* get_decoder() const {
+    TorchDecoder* get_decoder() const {
         return m_decoder.get();
     }
 
 private:
-    std::shared_ptr<Decoder> m_decoder;
+    std::shared_ptr<TorchDecoder> m_decoder;
 };
 
 }  // namespace pytorch

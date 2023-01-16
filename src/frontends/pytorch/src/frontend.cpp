@@ -70,7 +70,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     try {
         auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
-        auto model = convert_pytorch_model(pytorch_model->m_model);
+        auto model = convert_pytorch_model2(pytorch_model->m_model);
 
         return model;
     } catch (const std::runtime_error& e) {
@@ -116,7 +116,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
             //             "used and treated as `self`\n";
             model->remove_parameter(self);
         } else {
-            std::cout << "[ WARNING ] Couldn't remove parameter[0] in converted Pytorch model\n";
+            std::cout << "[ WARNING ] Couldn't remove parameter[0] in converted PyTorch model\n";
         }
     }
 }
@@ -131,11 +131,14 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     if (variants.size() != 1) {
-        throw std::runtime_error("Pytorch frontend supports exactly one parameter in model representation, got " +
+        throw std::runtime_error("PyTorch Frontend supports exactly one parameter in model representation, got " +
                                  std::to_string(variants.size()) + " instead.");
     }
-    auto decoder = variants[0].as<std::shared_ptr<Decoder>>();
-    return std::make_shared<pytorch::InputModel>(decoder);
+    auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
+    auto tdecoder = std::dynamic_pointer_cast<TorchDecoder>(decoder);
+    FRONT_END_GENERAL_CHECK(tdecoder, "Couldn't cast");
+    //auto tdecoder = variants[0].as<std::shared_ptr<TorchDecoder>>();
+    return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 
 }  // namespace pytorch

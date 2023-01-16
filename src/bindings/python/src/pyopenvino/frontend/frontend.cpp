@@ -12,15 +12,12 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/manager.hpp"
-#include "openvino/frontend/pytorch/decoder.hpp"
-#include "pyopenvino/frontend/pytorch/decoder.hpp"
 #include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
 using namespace ov::frontend;
-using ov::Any;
 
 void regclass_frontend_FrontEnd(py::module m) {
     py::class_<FrontEnd, std::shared_ptr<FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr(), py::module_local());
@@ -28,28 +25,22 @@ void regclass_frontend_FrontEnd(py::module m) {
 
     fem.def(
         "load",
-        [](FrontEnd& self, const py::object& path) {
+        [](FrontEnd& self, const py::object& py_obj) {
             // TODO: Extend to arbitrary number of any parameters, this code shouldn't gate FE universal load function
             try {
-                std::string model_path = Common::utils::convert_path_to_string(path);
+                std::string model_path = Common::utils::convert_path_to_string(py_obj);
                 return self.load(model_path);
             } catch (...) {
                 // Extended for one argument only for this time
-                // TODO: Remove this excplicit dependency on specific Pytorch FE dependent type
-                if (py::isinstance<pytorch::Decoder>(path)) {
-                    auto decoder = path.cast<std::shared_ptr<pytorch::Decoder>>();
-                    return self.load({Any(decoder)});
-                }
-                // no idea what this object is, let it throw
-                throw;
+                return self.load({py_object_to_any(py_obj)});
             }
         },
-        py::arg("path"),
+        py::arg("py_obj"),
         R"(
-                Loads an input model by specified model file path.
+                Loads an input model.
 
-                :param path: Main model file path.
-                :type path: Union[str, pathlib.Path]
+                :param py_obj: Object describing the model. It can be path to model file.
+                :type py_obj: Any
                 :return: Loaded input model.
                 :rtype: openvino.frontend.InputModel
              )");

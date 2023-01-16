@@ -50,6 +50,7 @@ public:
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
             {"paddle", "paddle"},
+            {"pytorch", "pytorch"},
         };
         auto it = predefined_frontends.find(framework);
         std::lock_guard<std::mutex> guard(m_loading_mutex);

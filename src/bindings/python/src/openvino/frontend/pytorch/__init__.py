@@ -18,5 +18,5 @@ try:
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
 except ImportError as err:
-    raise ImportError("OpenVINO Pytorch frontend is not available, please make sure the frontend is built."
+    raise ImportError("OpenVINO PyTorch frontend is not available, please make sure the frontend is built."
                       "{}".format(err))

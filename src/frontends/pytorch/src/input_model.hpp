@@ -13,10 +13,10 @@ namespace pytorch {
 
 class InputModel : public ov::frontend::InputModel {
     friend class FrontEnd;
-    std::shared_ptr<Decoder> m_model;
+    std::shared_ptr<TorchDecoder> m_model;
 
 public:
-    explicit InputModel(std::shared_ptr<Decoder> model) : m_model(model) {}
+    explicit InputModel(std::shared_ptr<TorchDecoder> model) : m_model(model) {}
     // TODO: pass telemetry extension to this ctor
 };
 
