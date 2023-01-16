@@ -5,13 +5,13 @@
 #pragma once
 
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/tensorflow/visibility.hpp"
+#include "openvino/frontend/exception.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class TENSORFLOW_API DecoderBase {
+class DecoderBase {
 public:
     /// \brief Get attribute value by name
     ///

@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class TENSORFLOW_API GraphIterator : ov::RuntimeAttribute {
+class GraphIterator : ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("Variant::GraphIterator");
 
