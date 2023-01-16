@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@
 namespace cldnn {
 namespace onednn {
 
-struct gemm_onednn : typed_primitive_onednn_impl<gemm, dnnl::matmul::desc> {
-    using parent = typed_primitive_onednn_impl<gemm, dnnl::matmul::desc>;
+struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
+    using parent = typed_primitive_onednn_impl<gemm>;
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
@@ -53,7 +53,9 @@ protected:
         }
     }
 
-    static std::shared_ptr<dnnl::matmul::desc> get_gemm_descriptor(const kernel_impl_params& impl_params) {
+    static std::shared_ptr<dnnl::matmul::primitive_desc> get_gemm_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                       const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+        auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<gemm>();
         auto gemm_with_bias = prim->dependencies().size() == 3;
         auto out_l = impl_params.get_output_layout();
@@ -116,21 +118,26 @@ protected:
             dnnl::memory::format_tag bias_fmt = onednn::convert_gemm_data_format(bias_dims);
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
 
-            return std::make_shared<dnnl::matmul::desc>(
+            return std::make_shared<dnnl::matmul::primitive_desc>(
+                engine.get_onednn_engine(),
                 in0_md,
                 in1_md,
                 bias_md,
-                out_md);
+                out_md,
+                attr);
         } else {
-            return std::make_shared<dnnl::matmul::desc>(
+            return std::make_shared<dnnl::matmul::primitive_desc>(
+                engine.get_onednn_engine(),
                 in0_md,
                 in1_md,
-                out_md);
+                out_md,
+                attr);
         }
     }
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
@@ -138,9 +145,11 @@ public:
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
         const char dummy_mem[sizeof(dnnl::matmul::desc)] = {};
@@ -154,16 +163,16 @@ public:
 
         _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
+#endif
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto desc = get_gemm_descriptor(impl_params);
         auto attr = arg.get_onednn_primitive_attributes();
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+        auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<gemm_onednn>(engine, config, desc, attr, prim_desc);
+        return cldnn::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
 };
 
