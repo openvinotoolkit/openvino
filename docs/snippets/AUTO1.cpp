@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-int auto1() {
+int main() {
 {
 //! [part1]
 // Inference Engine API

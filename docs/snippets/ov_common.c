@@ -92,7 +92,7 @@ void outputs_aligned(ov_infer_request_t* infer_request) {
     //! [ov_api_2_0:get_output_tensor_aligned]
 }
 
-int ov_common_c() {
+int main() {
     //! [ov_api_2_0:create_core]
     ov_core_t* core = NULL;
     ov_core_create(&core);
