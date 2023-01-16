@@ -3,7 +3,7 @@
 //
 
 #include "helper_ops/unsupported_constant.hpp"
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;

@@ -5,7 +5,7 @@
 #include "helper_ops/sparse_fill_empty_rows.hpp"
 #include "helper_ops/sparse_segment_ops.hpp"
 #include "ngraph/validation_util.hpp"
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
 

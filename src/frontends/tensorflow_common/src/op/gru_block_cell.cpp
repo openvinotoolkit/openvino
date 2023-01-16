@@ -4,7 +4,7 @@
 
 #include "helper_ops/gru_block_cell.hpp"
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 
 using namespace std;
 using namespace ov;

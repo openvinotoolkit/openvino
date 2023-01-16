@@ -4,7 +4,7 @@
 
 #include <numeric>
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "openvino/core/validation_util.hpp"
 
 using namespace std;

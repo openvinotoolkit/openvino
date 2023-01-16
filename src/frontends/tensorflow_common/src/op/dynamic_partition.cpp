@@ -4,7 +4,7 @@
 
 #include <limits>
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "openvino/opsets/opset9.hpp"
 
 using namespace std;
