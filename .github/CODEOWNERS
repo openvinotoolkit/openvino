@@ -84,6 +84,7 @@
 /src/frontends/ir/ @openvinotoolkit/openvino-ir-frontend-maintainers
 /src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 /src/frontends/tensorflow/  @openvinotoolkit/openvino-tf-frontend-maintainers
+/src/frontends/tensorflow_common/  @openvinotoolkit/openvino-tf-frontend-maintainers
 
 # OpenVINO ONNX Frontend:
 /src/frontends/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers
