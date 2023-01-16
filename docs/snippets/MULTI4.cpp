@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int main() {
+int MULTI4() {
 ov::AnyMap myriad_config, gpu_config;
 //! [part4]
 ov::Core core;

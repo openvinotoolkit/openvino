@@ -6,7 +6,7 @@
 #include <openvino/openvino.hpp>
 // ! [ov:include]
 
-int main() {
+int ov_infer_request() {
 ov::Core core;
 std::shared_ptr<ov::Model> model = core.read_model("model.xml");
 ov::CompiledModel compiled_model;

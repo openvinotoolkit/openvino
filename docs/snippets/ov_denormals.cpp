@@ -4,7 +4,7 @@
 #include <openvino/runtime/core.hpp>
 #include "openvino/runtime/intel_cpu/properties.hpp"
 
-int main() {
+int ov_denormals() {
     try {
         std::string modelPath = "modelWithDenormals.xml";
         std::string device = "CPU";
