@@ -130,6 +130,7 @@ public:
     }
     layout get_node_output_layout(const primitive_id& output_id) const;
     memory::ptr get_output_memory(const primitive_id& output_id);
+    layout get_output_layout(const primitive_id& output_id) const;
     std::vector<layout> get_input_layouts() const;
 
     /// @brief Returns the list of primitive ids before and after graph optimization.
