@@ -94,7 +94,7 @@ void ppp_input_name(ov::preprocess::PrePostProcessor& ppp) {
  //! [ov:preprocess:input_name]
 }
 
-int main() {
+int ov_preprocessing_cpp() {
  std::string model_path;
  std::string input_name;
  //! [ov:preprocess:create]

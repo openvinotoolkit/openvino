@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int main() {
+int auto6() {
 {
 //! [part6]
 ov::Core core;
