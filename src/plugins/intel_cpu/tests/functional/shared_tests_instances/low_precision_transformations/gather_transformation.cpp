@@ -48,6 +48,24 @@ const std::vector<GatherTransformationTestValues> testValues = {
             {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
         }
     },
+    // U8: per-channel quantization, axis match with dequantization channel, dequantization constant shape is less than gather input shape
+    {
+        {1, 3, 4},
+        {1},
+        {0},
+        {1},
+        std::int64_t{0},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        ngraph::element::f32,
+        {
+            256,
+            {3, 1},
+            {0.f, 0.f, 0.f},
+            {25.5f, 25.5f, 25.5f},
+            {0.f, 12.5f, 25.5f},
+            {25.5f, 25.5f + 12.5f * 2, 25.5f + 12.5f * 4}
+        }
+    },
     // 4D
     {
         {3, 4, 100, 2},

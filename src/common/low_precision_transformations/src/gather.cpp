@@ -21,8 +21,8 @@ namespace pass {
 namespace low_precision {
 
 std::shared_ptr<opset1::Constant> gatherDeqConstant(
-    const std::shared_ptr<ngraph::Node> gather,
-    const std::shared_ptr<ngraph::Node> dequantizationConstant) {
+    const std::shared_ptr<ngraph::Node> &gather,
+    const std::shared_ptr<ngraph::Node> &dequantizationConstant) {
     auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(dequantizationConstant);
     auto constantShape = constant->get_shape();
     if (shape_size(constantShape) == 1ul) {
@@ -35,7 +35,10 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
         while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
             constantShape.insert(constantShape.begin(), 1);
         }
-        constant = ngraph::opset1::Constant::create(ngraph::element::i32, { constantShape.size() }, constantShape);
+        const auto newConstant = fold<ngraph::opset1::Broadcast>(
+            constant,
+            ngraph::opset1::Constant::create(ngraph::element::i32, { constantShape.size() }, constantShape));
+        constant = ov::as_type_ptr<ngraph::opset1::Constant>(newConstant);
     }
 
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
@@ -94,11 +97,11 @@ bool GatherTransformation::transform(TransformationContext& context, ngraph::pat
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(gather, defaultPrecisions);
 
     if (dequantization.multiply != nullptr) {
-        auto newConstant = gatherDeqConstant(gather, dequantization.multiplyConstant);
+        const auto newConstant = gatherDeqConstant(gather, dequantization.multiplyConstant);
         replace_node(dequantization.multiplyConstant, newConstant);
     }
     if (dequantization.subtract != nullptr) {
-        auto newConstant = gatherDeqConstant(gather, dequantization.subtractConstant);
+        const auto newConstant = gatherDeqConstant(gather, dequantization.subtractConstant);
         replace_node(dequantization.subtractConstant, newConstant);
     }
 

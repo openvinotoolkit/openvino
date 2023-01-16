@@ -171,6 +171,20 @@ const std::vector<GatherTransformationTestValues> testValues = {
       {{}, {}, {}},
       ngraph::element::u8,
       {{ngraph::element::f32}, {{128}, ngraph::element::f32, {}}, {{0.3f}, ngraph::element::f32, {}}}}},
+    // U8: per-channel quantization, gather axis match with channel, quantization constant shape size is less than input shape
+    {{1},
+     {1},
+     {1},  // axis
+     std::int64_t{0},
+     LayerTransformation::createParamsU8I8(),
+     {ngraph::element::u8,
+      {{ngraph::element::f32},
+       {{128, 64, 32}, ngraph::element::f32, {3, 1}},
+       {{0.3f, 0.2f, 0.1f}, ngraph::element::f32, {3, 1}}}},
+     {ngraph::element::u8,
+      {{}, {}, {}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {{64}, ngraph::element::f32, {}}, {{0.2f}, ngraph::element::f32, {}}}}},
     // U8: per-channel quantization, gather axis and channel doesn't match
     {{1},
      {0},

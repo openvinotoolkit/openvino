@@ -5,6 +5,7 @@
 #include "lpt_ngraph_functions/gather_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include "lpt_ngraph_functions/common/builders.hpp"
 
@@ -28,8 +29,12 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
         ngraph::Shape(gatherIndicesShape),
         gatherIndicesValues);
     const auto axisNode = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ axis.size() }, axis);
-    const std::shared_ptr<Node> gather = std::make_shared<ngraph::opset8::Gather>(
-        dequantizationOp, indicesNode, axisNode, batch_dims);
+    std::shared_ptr<Node> gather;
+    if (opset_version == 7) {
+        gather = std::make_shared<ngraph::opset7::Gather>(dequantizationOp, indicesNode, axisNode, batch_dims);
+    } else {
+        gather = std::make_shared<ngraph::opset8::Gather>(dequantizationOp, indicesNode, axisNode, batch_dims);
+    }
     gather->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(gather) };
@@ -45,6 +50,7 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
     const ngraph::element::Type precisionBeforeFq,
     const FakeQuantizeOnData& fqOnData,
     const int opset_version) {
+
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeFq, inputShape);
 
     const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
@@ -56,7 +62,13 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
         ngraph::Shape(gatherIndicesShape),
         gatherIndicesValues);
     const auto axisNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ axis.size() }, axis);
-    const std::shared_ptr<Node> gather = std::make_shared<ngraph::opset8::Gather>(quantizationOp, indicesNode, axisNode, batch_dims);
+
+    std::shared_ptr<Node> gather;
+    if (opset_version == 7) {
+        gather = std::make_shared<ngraph::opset7::Gather>(quantizationOp, indicesNode, axisNode, batch_dims);
+    } else {
+        gather = std::make_shared<ngraph::opset8::Gather>(quantizationOp, indicesNode, axisNode, batch_dims);
+    }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(gather) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "GatherFunction");
@@ -82,7 +94,14 @@ std::shared_ptr<ngraph::Function> GatherFunction::getReference(
         ngraph::Shape(gatherIndicesShape),
         gatherIndicesValues);
     const auto axisNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ axis.size() }, axis);
-    const auto gather = std::make_shared<ngraph::opset8::Gather>(quantizationOpBefore, indicesNode, axisNode, batch_dims);
+
+    std::shared_ptr<Node> gather;
+    if (opset_version == 7) {
+        gather = std::make_shared<ngraph::opset7::Gather>(quantizationOpBefore, indicesNode, axisNode, batch_dims);
+    } else {
+        gather = std::make_shared<ngraph::opset8::Gather>(quantizationOpBefore, indicesNode, axisNode, batch_dims);
+    }
+
     if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {
         THROW_IE_LPT_EXCEPTION(*quantizationOpBefore) << "unexpected precision '" << precisionAfterOperation << "' after operation";
     }
