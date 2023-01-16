@@ -183,11 +183,8 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_33595,
-        "OnnxBackendNodeModelTest.test_unique_not_sorted_without_axis_cpu",
         "OnnxBackendNodeModelTest.test_unique_sorted_with_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_cpu",
         "OnnxBackendNodeModelTest.test_unique_sorted_with_axis_3d_cpu",
-        "OnnxBackendNodeModelTest.test_unique_sorted_without_axis_cpu",
     ),
     (
         xfail_issue_33651,
