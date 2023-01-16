@@ -4,7 +4,7 @@ With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux v
 
 > **NOTE**: Only CPU is supported for inference with OpenVINO that is installed via HomeBrew.
 
-Installing OpenVINO Runtime from archive files is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
+Installing OpenVINO Runtime from HomeBrew is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. See the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
@@ -94,65 +94,7 @@ See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
-### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
- 
-@sphinxdirective 
-.. tab:: GPU
-
-   To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
-
-.. tab:: NCS 2
-
-   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
-   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
-
-.. tab:: VPU
-
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
-
-   .. warning::
-      While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
-
-.. tab:: GNA
-
-   To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide>`.
-   
-@endsphinxdirective
-
-## <a name="get-started"></a>What's Next?
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
-
-@sphinxdirective
-.. tab:: Get started with Python
-
-   Try the `Python Quick Start Example <https://docs.openvino.ai/2022.3/notebooks/201-vision-monodepth-with-output.html>`_ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
-   
-   .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-      :width: 400
-
-   Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
-   
-   * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2022.3/notebooks/002-openvino-api-with-output.html>`_
-   * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2022.3/notebooks/001-hello-world-with-output.html>`_
-   * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2022.3/notebooks/205-vision-background-removal-with-output.html>`_
-
-.. tab:: Get started with C++
-
-   Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
-   
-   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
-      :width: 400
-
-   Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
-   
-   * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
-   * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
-
-@endsphinxdirective
-
-## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall"></a>Uninstalling OpenVINO
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
