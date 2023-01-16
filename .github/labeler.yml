@@ -120,6 +120,7 @@
 
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
+- 'src/frontends/tensorflow_common/**/*'
 
 'category: tools':
 - any: ['tools/**',
