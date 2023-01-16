@@ -70,9 +70,9 @@ protected:
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 1, 1);
             } else {
                 if (ov::is_scalar(funcInput.get_partial_shape()))
-                    tensor = ov::Tensor{ov::element::f32, ov::Shape{}, &padValue};
+                    tensor = ov::Tensor{funcInput.get_element_type(), ov::Shape{}, &padValue};
                 else
-                    tensor = ov::Tensor{ov::element::i64, targetInputStaticShapes[i], inputValues[i-1]};
+                    tensor = ov::Tensor{funcInput.get_element_type(), targetInputStaticShapes[i], inputValues[i-1]};
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -81,26 +81,33 @@ protected:
         InputShape shapes;
         ngraph::helpers::InputLayerType secondaryInputType;
         ngraph::helpers::PadMode padMode;
+        ov::element::Type dataType;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, secondaryInputType, inType, padsBegin, padsEnd, padValue, padMode, cpuParams) = this->GetParam();
+        std::tie(shapes, secondaryInputType, dataType, padsBegin, padsEnd, padValue, padMode, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType = makeSelectedTypeStr("ref", inType);
+        selectedType = makeSelectedTypeStr("ref", dataType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
-
-        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        for (auto& targetShapes : targetStaticShapes) {
+            targetShapes.push_back({padsBegin.size()});
+            targetShapes.push_back({padsEnd.size()});
+            targetShapes.push_back({});
+        }
+        auto params = ngraph::builder::makeDynamicParams(dataType, inputDynamicShapes);
         std::shared_ptr<ngraph::Node> pad;
         if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
             ov::Shape inShape = {padsBegin.size()};
 
             auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
             auto endNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::i64, inShape);
-            auto valueNode = std::make_shared<ngraph::opset1::Parameter>(ov::element::f32, ov::Shape{});
-
+            std::shared_ptr<ngraph::opset1::Parameter> valueNode = nullptr;
             params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(beginNode));
             params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(endNode));
-            params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(valueNode));
+            if (padMode == ngraph::helpers::PadMode::CONSTANT) {
+                valueNode = std::make_shared<ngraph::opset1::Parameter>(dataType, ov::Shape{});
+                params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(valueNode));
+            }
             pad = ngraph::builder::makePad(params[0], beginNode, endNode, valueNode, padMode);
         } else {
             pad = ngraph::builder::makePad(params[0], padsBegin, padsEnd, padValue, padMode);
@@ -143,6 +150,10 @@ const std::vector<ngraph::helpers::InputLayerType> inputLayerTypes = {
         ngraph::helpers::InputLayerType::PARAMETER
 };
 
+const std::vector<ngraph::helpers::InputLayerType> inputLayerTypesBlocked = {
+    ngraph::helpers::InputLayerType::CONSTANT,
+};
+
 const std::vector<float> argPadValue = {0.f, 2.5f, -1.f};
 
 const std::vector<ngraph::helpers::PadMode> padMode = {
@@ -181,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Smoke),
@@ -211,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 10, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd4DBlocked_Smoke),
@@ -241,7 +252,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked_Full),
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Full),
@@ -271,7 +282,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 10, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked_Full),
                 ::testing::ValuesIn(padsEnd4DBlocked_Full),
@@ -336,7 +347,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic4D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Smoke),
@@ -366,7 +377,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic4D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd4DBlocked_Smoke),
@@ -396,7 +407,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic4D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked_Full),
                 ::testing::ValuesIn(padsEnd4DConstBlocked_Full),
@@ -426,7 +437,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic4D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked_Full),
                 ::testing::ValuesIn(padsEnd4DBlocked_Full),
@@ -468,7 +479,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DConstBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Smoke),
@@ -498,7 +509,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd5DBlocked_Smoke),
@@ -528,7 +539,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DConstBlocked_Full),
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Full),
@@ -558,7 +569,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DBlocked_Full),
                 ::testing::ValuesIn(padsEnd5DBlocked_Full),
@@ -623,7 +634,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic5D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DConstBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Smoke),
@@ -653,7 +664,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic5D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DBlocked_Smoke),
                 ::testing::ValuesIn(padsEnd5DBlocked_Smoke),
@@ -683,7 +694,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic5D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DConstBlocked_Full),
                 ::testing::ValuesIn(padsEnd5DConstBlocked_Full),
@@ -713,7 +724,7 @@ INSTANTIATE_TEST_SUITE_P(
         PadLayerCPUTest,
         ::testing::Combine(
                 ::testing::Values(inputShapesDynamic5D[1]),
-                ::testing::ValuesIn(inputLayerTypes),
+                ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DBlocked_Full),
                 ::testing::ValuesIn(padsEnd5DBlocked_Full),

@@ -61,11 +61,6 @@ bool Pad::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
                 return false;
             }
         }
-
-        if ((pad->get_input_size() == 4 && pad->get_pad_mode() != ngraph::op::PadMode::CONSTANT)) {
-            errorMessage = "Pad value is only support with Constat mode";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -124,7 +119,6 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     isPadValueSpecified = pad->get_input_size() == 4;
     if (pad_mode == ngraph::op::PadMode::CONSTANT) {
         attrs.padMode = CONSTANT;
-        attrs.constPadValue = true;
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
             if (!ngraph::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
@@ -132,6 +126,7 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
             attrs.padValue =
                 ov::as_type_ptr<const ngraph::opset1::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
                     ->cast_vector<float>()[0];
+            attrs.constPadValue = true;
         }
     } else if (pad_mode == ngraph::op::PadMode::EDGE) {
         attrs.padMode = EDGE;
@@ -198,10 +193,12 @@ void Pad::initSupportedPrimitiveDescriptors() {
     };
 
     if (numOfDims == 4 || numOfDims == 5) {
-        if (canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(LayoutType::nCsp8c);
-        if (canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(LayoutType::nCsp16c);
+        if (!shapeHasDataDependency) {
+            if (canUseBlocked(8))
+                pushSupportedPrimitiveDescriptor(LayoutType::nCsp8c);
+            if (canUseBlocked(16))
+                pushSupportedPrimitiveDescriptor(LayoutType::nCsp16c);
+        }
     }
 }
 
