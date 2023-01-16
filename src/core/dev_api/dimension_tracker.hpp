@@ -15,21 +15,6 @@ namespace ov {
 /// \brief Special label value indicate no label set.
 constexpr label_t no_label = 0;
 
-namespace element {
-/// \brief Get element::Type form label type.
-/// \return element::Type of same size in bytes as label_type (size_t)
-inline Type from_label_type() {
-    switch (sizeof(size_t)) {
-    case sizeof(uint16_t):
-        return Type_t::u16;
-    case sizeof(uint32_t):
-        return Type_t::u32;
-    default:
-        return Type_t::u64;
-    }
-}
-}  // namespace element
-
 /// \brief Friend class of Dimension to set, get and track dimensions and their equivalence
 class DimensionTracker {
 public:
