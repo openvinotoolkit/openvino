@@ -15,7 +15,7 @@ from openvino.runtime.passes import (
     LowLatency2,
     Serialize,
 )
-from tests.test_transformations.utils.utils import count_ops, get_test_model
+from tests.test_transformations.utils.utils import count_ops, get_relu_model
 from tests.test_utils.test_utils import create_filename_for_test
 
 
@@ -117,7 +117,7 @@ def test_serialize_pass(request, is_path_xml, is_path_bin):
                                                   is_path_xml,
                                                   is_path_bin)
 
-    func = get_test_model()
+    func = get_relu_model()
 
     manager = Manager()
     manager.register_pass(Serialize(xml_path, bin_path))
