@@ -539,7 +539,28 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
                                                                                    const ov::Tensor& weights,
                                                                                    const std::string& device_name,
                                                                                    const ov::AnyMap& config) {
-    OPENVINO_NOT_IMPLEMENTED;
+    auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+
+    auto cacheManager =
+        coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
+            ._cacheManager;
+    auto cacheContent = CacheContent{cacheManager};
+    if (cacheManager && device_supports_import_export(plugin)) {
+        bool loadedFromCache = false;
+        cacheContent.blobId = CalculateMemoryHash(model_str, weights, parsed._deviceName, plugin, parsed._config);
+        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
+        if (!loadedFromCache) {
+            auto cnnNetwork = read_model(model_str, weights);
+            res = compile_model_impl(cnnNetwork, plugin, parsed._config, {}, cacheContent);
+        }
+    } else {
+        auto cnnNetwork = read_model(model_str, weights);
+        res = compile_model_impl(cnnNetwork, plugin, parsed._config, {}, cacheContent);
+    }
+    return {res._ptr, res._so};
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::import_model(std::istream& model,
