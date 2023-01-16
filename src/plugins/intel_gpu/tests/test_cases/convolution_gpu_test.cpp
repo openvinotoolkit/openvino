@@ -9063,6 +9063,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
         conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
         topology.add(conv_fsv);
     }
+    topology.add(reorder("reorder_bfyx", input_info("conv_fsv"), format::bfyx, data_types::f32));
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
