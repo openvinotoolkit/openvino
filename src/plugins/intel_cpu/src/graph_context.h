@@ -64,6 +64,8 @@ public:
         return isGraphQuantizedFlag;
     }
 
+    dnnl::reorder getReorderPrim(const dnnl::memory::desc& src, const dnnl::memory::desc& dest) const;
+
 private:
     Config config;  // network-level config
 
