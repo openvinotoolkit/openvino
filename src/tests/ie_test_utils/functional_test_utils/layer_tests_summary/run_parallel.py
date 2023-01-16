@@ -301,10 +301,10 @@ class TestParallelRunner:
                 res_test_filters.append(filter)
             is_not_full = True
         # logging for debug
-        for i in range(len(res_test_filters)):
-            filter = res_test_filters[i]
-            cnt = filter.count('\":')
-            logger.info(f"Number of tests in job_{i}: {cnt}")
+        # for i in range(len(res_test_filters)):
+        #     filter = res_test_filters[i]
+        #     cnt = filter.count('\":')
+        #     logger.info(f"Number of tests in job_{i}: {cnt}")
         return res_test_filters
             
     def __get_filters(self):
@@ -382,7 +382,9 @@ class TestParallelRunner:
                 test_name = None
                 test_log = list()
                 dir = None
+                log_str = ""
                 for line in log_file.readlines():
+                    log_str += line
                     if RUN in line:
                         test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
                     if dir is None:
@@ -405,7 +407,8 @@ class TestParallelRunner:
                                 test_log = list()
                                 dir = None
             # logging for debug
-            logger.info(f"Number of tests in {log}: {test_cnt_log}")
+            if test_cnt_log == 0:
+                logger.info(f"Number of tests in {log}: {test_cnt_log}\n{log_str}")
             os.remove(log)
 
         for disabled_test in self._disabled_tests:
