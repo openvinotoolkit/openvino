@@ -50,6 +50,11 @@ def min_per_tensor(acts, **_):
     return calculate_per_tensor_stats(acts, np.min)
 
 
+@compute_act_stats_fn_per_tensor.register('mean')
+def min_per_tensor(acts, **_):
+    return calculate_per_tensor_stats(acts, np.mean)
+
+
 @compute_act_stats_fn_per_tensor.register('abs_max')
 def abs_max_per_tensor(acts, **_):
     return max_per_tensor(np.abs(acts))

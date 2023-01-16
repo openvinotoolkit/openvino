@@ -308,15 +308,10 @@ def symmetric_range(node, fq, weights_stats,
         max_level = weights_stats[node_output.fullname]['max']
         max_level = fix_zero_filters_symmetric(max_level)
         min_level = -max_level
-        # min_level = weights_stats[node_output.fullname]['min']
-        # min_level = fix_zero_filters_symmetric(min_level)
     elif name in batch_inputs_stats:
         max_level = batch_inputs_stats[name]['max']
         min_level = batch_inputs_stats[name]['min']
         max_level = fix_zero_filters_symmetric(max_level)
-        signed = fake_quantize_config[fq.fullname]['signed']
-        min_level = -max_level  # np.zeros(max_level.shape) if np.all(min_level >= 0) and not signed else \
-        # -max_level * fq.levels / (fq.levels - 2)
     else:
         raise Exception(
             'WARNING: Fake quantize node {} is missed'.format(fq.fullname))
@@ -338,19 +333,21 @@ def asymmetric_range(node, fq, weights_stats,
         raise Exception(
             'WARNING: Fake quantize node {} is missed'.format(fq.fullname))
 
-    max_level, min_level = fix_zero_filters_asymmetric(max_level, min_level)
-    min_level = np.where(min_level < 0.0, min_level, 0.0)
-    max_level = np.where(max_level > 0.0, max_level, 0.0)
-    if unify_zp:
-        if name in batch_inputs_stats:
-            raise Exception(
-                'WARING: unify zero point of fake quantize node {} not supported'.format(fq.fullname)
-            )
-        min_level, max_level = tune_range_unify_zp(
-            min_level, max_level, fake_quantize_config[fq.fullname]['bits'])
-    else:
-        min_level, max_level = tune_range(
-            min_level, max_level, fake_quantize_config[fq.fullname]['bits'])
+    is_weights = fq['fq_group'] == 'weights'
+    if is_weights:
+        max_level, min_level = fix_zero_filters_asymmetric(max_level, min_level)
+        min_level = np.where(min_level < 0.0, min_level, 0.0)
+        max_level = np.where(max_level > 0.0, max_level, 0.0)
+        if unify_zp:
+            if name in batch_inputs_stats:
+                raise Exception(
+                    'WARING: unify zero point of fake quantize node {} not supported'.format(fq.fullname)
+                )
+            min_level, max_level = tune_range_unify_zp(
+                min_level, max_level, fake_quantize_config[fq.fullname]['bits'])
+        else:
+            min_level, max_level = tune_range(
+                min_level, max_level, fake_quantize_config[fq.fullname]['bits'])
 
     min_level, max_level = broadcast_fq_values(fq, node, min_level, max_level, fake_quantize_config)
     return min_level, max_level
