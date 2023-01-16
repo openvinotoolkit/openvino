@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -252,6 +252,7 @@ private:
     bool _internal;
     bool _is_primary_stream;
     bool _is_dynamic = false;
+    bool _enable_profiling = false;
     bool _reset_arguments;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
