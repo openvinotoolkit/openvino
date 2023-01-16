@@ -1,0 +1,1 @@
+mo --input_model tf_nasnet_large.onnx --layout nhwc
