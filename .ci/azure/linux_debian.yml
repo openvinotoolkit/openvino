@@ -319,6 +319,12 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Frontend Unit Tests'
 
+  - script: |
+      $(INSTALL_TEST_DIR)/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowCommon.xml
+    env:
+      LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
+    displayName: 'TensorFlow Common Unit Tests'
+
     # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
