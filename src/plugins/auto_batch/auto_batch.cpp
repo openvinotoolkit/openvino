@@ -969,7 +969,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
             reshaped.reshape(shapes);
             executableNetworkWithBatch = ctx ? core->LoadNetwork(reshaped, ctx, deviceConfigNoAutoBatch)
                                              : core->LoadNetwork(reshaped, deviceName, deviceConfigNoAutoBatch);
-        } catch (const ov::Exception&) {
+        } catch (const InferenceEngine::Exception&) {
             metaDevice.batchForDevice = 1;
         }
     }
