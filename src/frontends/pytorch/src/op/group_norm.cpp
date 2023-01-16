@@ -15,7 +15,7 @@ OutputVector translate_group_norm(NodeContext& context) {
     auto data = context.get_input(0);
     auto num_groups = context.const_input<int64_t>(1);
     // input 2 - weights and input 3 - bias are optional without default value, we handle them later
-    auto eps = context.const_input<double>(4);
+    auto eps = static_cast<float>(context.const_input<double>(4));
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(data, element::i64));
     auto scalar_one = context.mark_node(opset10::Constant::create(element::i64, {}, {1}));
     auto shape = context.mark_node(
