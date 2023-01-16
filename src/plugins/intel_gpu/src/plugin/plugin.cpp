@@ -436,6 +436,14 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
 
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {get_supported_properties()};
+    } else if (name == ov::property_desc) {
+        auto prop_name = options.at("PROPERTY_NAME").as<std::string>();
+        if (prop_name == ov::hint::inference_precision) {
+            return ov::Any { ov::Enum<ov::element::Type>({ov::element::f16, ov::element::f32})};
+        } else {
+            OPENVINO_ASSERT(false, "unsupported");
+        }
+
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics(isModelCachingEnabled));
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {

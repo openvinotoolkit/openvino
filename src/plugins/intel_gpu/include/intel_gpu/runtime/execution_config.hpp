@@ -75,8 +75,8 @@ public:
     template <PropertyVisibility visibility, typename... PropertyInitializer, typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
     void register_property_impl() { }
 
-    template <PropertyVisibility visibility, typename T,  PropertyMutability mutability, typename ValueT, typename... PropertyInitializer>
-    void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property, PropertyInitializer&&... properties) {
+    template <PropertyVisibility visibility, typename T,  PropertyMutability mutability, typename DescT, typename ValueT, typename... PropertyInitializer>
+    void register_property_impl(const std::tuple<ov::Property<T, mutability, DescT>, ValueT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<T>>());
         register_property_impl(std::move(p), visibility, std::move(v));
@@ -86,11 +86,12 @@ public:
     template <PropertyVisibility visibility,
               typename T,
               PropertyMutability mutability,
+              typename DescT,
               typename ValueT,
               typename ValidatorT,
               typename... PropertyInitializer>
     typename std::enable_if<std::is_base_of<BaseValidator, ValidatorT>::value, void>::type
-    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
+    register_property_impl(const std::tuple<ov::Property<T, mutability, DescT>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<ValidatorT>(std::get<2>(property)));
         register_property_impl(std::move(p), visibility, std::move(v));
@@ -100,11 +101,12 @@ public:
     template <PropertyVisibility visibility,
               typename T,
               PropertyMutability mutability,
+              typename DescT,
               typename ValueT,
               typename ValidatorT,
               typename... PropertyInitializer>
     typename std::enable_if<std::is_same<std::function<bool(const ov::Any&)>, ValidatorT>::value, void>::type
-    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
+    register_property_impl(const std::tuple<ov::Property<T, mutability, DescT>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>(std::get<2>(property)));
         register_property_impl(std::move(p), visibility, std::move(v));
@@ -126,13 +128,13 @@ public:
         set_user_property(ov::AnyMap{std::forward<Properties>(properties)...});
     }
 
-    template <typename T, PropertyMutability mutability>
-    bool is_set_by_user(const ov::Property<T, mutability>& property) const {
+    template <typename T, PropertyMutability mutability, typename DescT>
+    bool is_set_by_user(const ov::Property<T, mutability, DescT>& property) const {
         return is_set_by_user(property.name());
     }
 
-    template <typename T, PropertyMutability mutability>
-    T get_property(const ov::Property<T, mutability>& property) const {
+    template <typename T, PropertyMutability mutability, typename DescT>
+    T get_property(const ov::Property<T, mutability, DescT>& property) const {
         return get_property(property.name()).template as<T>();
     }
 

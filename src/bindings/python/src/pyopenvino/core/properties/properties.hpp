@@ -14,15 +14,15 @@
 
 namespace py = pybind11;
 
-template <typename T>
-void wrap_property_RO(py::module m, ov::Property<T, ov::PropertyMutability::RO> property, std::string func_name) {
+template <typename T, typename DescT>
+void wrap_property_RO(py::module m, ov::Property<T, ov::PropertyMutability::RO, DescT> property, std::string func_name) {
     m.def(func_name.c_str(), [property]() {
         return property.name();
     });
 }
 
-template <typename T>
-void wrap_property_RW(py::module m, ov::Property<T, ov::PropertyMutability::RW> property, std::string func_name) {
+template <typename T, typename DescT>
+void wrap_property_RW(py::module m, ov::Property<T, ov::PropertyMutability::RW, DescT> property, std::string func_name) {
     m.def(func_name.c_str(), [property]() {
         return property.name();
     });

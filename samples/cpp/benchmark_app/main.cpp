@@ -897,6 +897,14 @@ int main(int argc, char* argv[]) {
 
         // output of the actual settings that the device selected
         auto supported_properties = compiledModel.get_property(ov::supported_properties);
+
+        auto desc = core.get_property("GPU", ov::property_desc, ov::hint::inference_precision);
+
+        auto sup = desc.supported_values;
+        for (auto& v : sup) {
+            std::cerr << "V= " << v << std::endl;
+        }
+
         slog::info << "Model:" << slog::endl;
         for (const auto& cfg : supported_properties) {
             if (cfg == ov::supported_properties)

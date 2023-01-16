@@ -24,6 +24,45 @@
 
 namespace ov {
 
+struct PropertyDescTag {
+    ~PropertyDescTag() = default;
+};
+
+struct PropertyDescBase {
+    ~PropertyDescBase() = default;
+};
+
+template<typename T>
+struct Range : public PropertyDescBase {
+    T lower;
+    T upper;
+    std::function<bool(T)> validator;
+    Range(T min, T max)
+        : lower(lower), upper(upper),
+        validator([this](T v) -> bool {
+            return v >= lower && v < upper;
+        }) { }
+    bool is_valid(T v) {
+        return validator(v);
+    }
+};
+
+template<typename T>
+struct Enum : public PropertyDescBase {
+    std::vector<T> supported_values;
+    std::function<bool(T)> validator;
+
+    Enum(std::vector<T> supported_values, std::function<bool(ov::Any)> validator) : supported_values(supported_values), validator(validator) {}
+    Enum(std::vector<T> supported_values)
+        : supported_values(supported_values)
+        , validator([this](T v) -> bool {
+            return std::find(this->supported_values.begin(), this->supported_values.end(), v) != this->supported_values.end();
+        }) {}
+    bool is_valid(T v) {
+        return validator(v);
+    }
+};
+
 /**
  * @defgroup ov_runtime_cpp_prop_api Device properties
  * @ingroup ov_runtime_cpp_api
@@ -139,7 +178,7 @@ inline std::ostream& operator<<(std::ostream& os, const BaseProperty<T, M>& prop
  * @brief This class is used to bind property name with value type
  * @tparam T type of value used to set or get property
  */
-template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
+template <typename T, PropertyMutability mutability_ = PropertyMutability::RW, typename Desc = PropertyDescBase, typename = typename std::enable_if<std::is_base_of<PropertyDescBase, Desc>::value, bool>::type>
 class Property : public util::BaseProperty<T, mutability_> {
     template <typename V>
     struct Forward {
@@ -209,6 +248,8 @@ struct Property<T, PropertyMutability::RO> : public util::BaseProperty<T, Proper
 static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> supported_properties{
     "SUPPORTED_PROPERTIES"};
 
+static constexpr Property<PropertyDescTag, PropertyMutability::RO> property_desc{"PROPERTY_DESC"};
+
 /**
  * @brief Read-only property to get a std::vector<std::string> of available device IDs
  * @ingroup ov_runtime_cpp_prop_api
@@ -237,7 +278,7 @@ namespace hint {
  * @brief Hint for device to use specified precision for inference
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+static constexpr Property<element::Type, PropertyMutability::RW, Enum<element::Type>> inference_precision{"INFERENCE_PRECISION_HINT"};
 
 /**
  * @brief Enum to define possible priorities hints
@@ -906,4 +947,6 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
+
+
 }  // namespace ov

@@ -580,8 +580,8 @@ public:
      * @param property  Property object.
      * @return Property value.
      */
-    template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
+    template <typename T, PropertyMutability M, typename DescT>
+    T get_property(const std::string& deviceName, const ov::Property<T, M, DescT>& property) const {
         return get_property(deviceName, property.name(), {}).template as<T>();
     }
 
@@ -598,8 +598,8 @@ public:
      * @param arguments  Additional arguments to get a property.
      * @return Property value.
      */
-    template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+    template <typename T, PropertyMutability M, typename DescT>
+    T get_property(const std::string& deviceName, const ov::Property<T, M, DescT>& property, const AnyMap& arguments) const {
         return get_property(deviceName, property.name(), arguments).template as<T>();
     }
 
@@ -617,11 +617,21 @@ public:
      * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
      * @return Property value.
      */
-    template <typename T, PropertyMutability M, typename... Args>
+    template <typename T, PropertyMutability M, typename DescT, typename... Args>
     util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
-                                                        const ov::Property<T, M>& property,
+                                                        const ov::Property<T, M, DescT>& property,
                                                         Args&&... args) const {
         return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
+    }
+
+    // Core API
+    template <typename T1,
+              typename D1 = typename std::enable_if<std::is_same<T1, PropertyDescTag>::value, void>::type,
+              typename T2,
+              PropertyMutability M2,
+              typename D2>
+    D2 get_property(const std::string& deviceName, const ov::Property<T1, PropertyMutability::RO, D1>& property1, const ov::Property<T2, M2, D2>& property2) const {
+        return get_property(deviceName, property1.name(), AnyMap{{"PROPERTY_NAME", property2.name()}}).template as<D2>();
     }
 
     /**
