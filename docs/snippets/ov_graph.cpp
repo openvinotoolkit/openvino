@@ -4,7 +4,7 @@
 #include <openvino/core/core.hpp>
 #include <openvino/opsets/opset8.hpp>
 
-int main() {
+int ov_graph() {
     //! [ov:graph]
     // _____________    _____________
     // | Parameter |    | Parameter |

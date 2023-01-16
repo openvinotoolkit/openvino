@@ -1,6 +1,6 @@
 #include <ie_core.hpp>
 
-int main() {
+int dldt_optimization_guide8() {
 //! [part8]
 while(true) {
     // capture frame

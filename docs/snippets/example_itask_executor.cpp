@@ -8,7 +8,7 @@
 #include <future>
 #include <iostream>
 
-void example1() {
+void example_itask_executor() {
 // ! [itask_executor:define_pipeline]
     // std::promise is move only object so to satisfy copy callable constraint we use std::shared_ptr
     auto promise = std::make_shared<std::promise<void>>();
