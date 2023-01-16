@@ -20,5 +20,6 @@ If you want to install OpenVINO™ Runtime on your Linux machine, there are a fe
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
 * [Install OpenVINO Runtime from APT](installing-openvino-apt.md)
 * [Install OpenVINO Runtime from YUM](installing-openvino-yum.md)
+* [Install OpenVINO Runtime via HomeBrew](installing-openvino-brew-linux.md)
 * [Install OpenVINO with Docker](installing-openvino-docker-linux.md)
 
