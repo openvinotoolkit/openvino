@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,10 +166,10 @@ public:
 
         auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
 
-        const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
+        const auto& tuning_config = impl_param.get_program().get_config().get_property(ov::intel_gpu::tuning_config);
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
-            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
+        if (tuning_config.mode == ov::intel_gpu::TuningMode::tuning_tune_and_cache ||
+            tuning_config.mode == ov::intel_gpu::TuningMode::tuning_retune_and_cache) {
             conv_optional_params.tuningParams.runner =
                 std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
         }

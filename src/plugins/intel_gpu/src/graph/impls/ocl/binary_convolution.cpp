@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,10 +75,10 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        const auto& tuning_config = impl_param.get_program().get_options().get<build_option_type::tuning_config>();
+        const auto& tuning_config = impl_param.get_program().get_config().get_property(ov::intel_gpu::tuning_config);
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
-            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
+        if (tuning_config.mode == ov::intel_gpu::TuningMode::tuning_tune_and_cache ||
+            tuning_config.mode == ov::intel_gpu::TuningMode::tuning_retune_and_cache) {
             optional_params.tuningParams.runner =
                 std::make_shared<gpu::kernel_runner>(impl_param.get_program().get_engine(), impl_param.get_program().get_id(), true);
         }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,8 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for unsigned int
     else if (any.is<unsigned int>()) {
         return py::cast(any.as<unsigned int>());
+    } else if (any.is<uint64_t>()) {
+        return py::cast(any.as<uint64_t>());
     }
     // Check for float
     else if (any.is<float>()) {
@@ -85,6 +87,14 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, int>>()) {
         return py::cast(any.as<std::map<std::string, int>>());
     }
+    // Check for std::map<std::string, uint64_t>
+    else if (any.is<std::map<std::string, uint64_t>>()) {
+        return py::cast(any.as<std::map<std::string, uint64_t>>());
+    }
+    // Check for std::map<element::Type, float>
+    else if (any.is<std::map<ov::element::Type, float>>()) {
+        return py::cast(any.as<std::map<ov::element::Type, float>>());
+    }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
         auto val = any.as<std::vector<ov::PropertyName>>();
@@ -109,6 +119,10 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::streams::Num>());
     } else if (any.is<ov::Affinity>()) {
         return py::cast(any.as<ov::Affinity>());
+    } else if (any.is<ov::device::UUID>()) {
+        std::stringstream uuid_stream;
+        uuid_stream << any.as<ov::device::UUID>();
+        return py::cast(uuid_stream.str());
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);

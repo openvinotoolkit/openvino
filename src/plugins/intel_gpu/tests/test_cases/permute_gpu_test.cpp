@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -551,11 +551,11 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
         reorder("reorder2", input_info("permute"), format::bfyx, data_types::f32),
         permute("out", input_info("reorder2"), { 0, 3, 1, 2}));
 
-    cldnn::build_options options_unfused;
-    options_unfused.set_option(cldnn::build_option::optimize_data(false));
-    options_unfused.set_option(cldnn::build_option::allow_static_input_reorder(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::allow_static_input_reorder(true));
 
-    network unfused(engine, topology_unfused, options_unfused);
+    network unfused(engine, topology_unfused, config);
     unfused.set_input_data("input", input);
 
     // fused network
@@ -566,9 +566,9 @@ TEST(permute_fuse_reorder_gpu_f32, basic_b_fs_yx_fsv4_permute_1_8_16_1)
         reorder("reorder2", input_info("permute"), format::bfyx, data_types::f32), // to be fused to previous permute
         permute("out", input_info("reorder2"), { 0, 3, 1, 2})); // return to original value
 
-    cldnn::build_options options_fused;
-    options_fused.set_option(cldnn::build_option::optimize_data(true));
-    network fused(engine, topology_fused, options_fused);
+    ExecutionConfig config_fused;
+    config_fused.set_property(ov::intel_gpu::optimize_data(true));
+    network fused(engine, topology_fused, config_fused);
     fused.set_input_data("input", input);
 
     auto outputs_fused = fused.execute();
@@ -1683,22 +1683,22 @@ void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& si
     );
 
     // run with permute_ref
-    cldnn::build_options options_ref;
-    cldnn::implementation_desc permute_ref = { format_fsv, "permute_ref" };
-    options_ref.set_option(cldnn::build_option::force_implementations({ {"output", permute_ref} }));
+    ov::intel_gpu::ExecutionConfig config_ref;
+    ov::intel_gpu::ImplementationDesc permute_ref = { format_fsv, "permute_ref" };
+    config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_ref} }));
 
-    cldnn::network network_ref(engine, topology_ref, options_ref);
+    cldnn::network network_ref(engine, topology_ref, config_ref);
     network_ref.set_input_data("input", input);
     auto outputs_ref = network_ref.execute();
     auto output_ref = outputs_ref.begin()->second.get_memory();
     cldnn::mem_lock<type> output_ref_ptr(output_ref, get_test_stream());
 
     // run with permute_tile_8x8_4x4_fsv16
-    cldnn::build_options options_tile;
-    cldnn::implementation_desc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
-    options_tile.set_option(cldnn::build_option::force_implementations({ {"output", permute_tile_8x8_4x4_fsv} }));
+    ExecutionConfig config_tile;
+    ov::intel_gpu::ImplementationDesc permute_tile_8x8_4x4_fsv = { format_fsv, "permute_tile_8x8_4x4_fsv" };
+    config_tile.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"output", permute_tile_8x8_4x4_fsv} }));
 
-    cldnn::network network_tile(engine, topology_ref, options_tile);
+    cldnn::network network_tile(engine, topology_ref, config_tile);
     network_tile.set_input_data("input", input);
     auto outputs_tile = network_tile.execute();
     auto output_tile = outputs_tile.begin()->second.get_memory();
@@ -1866,9 +1866,9 @@ TEST(permute_gpu_f32_dynamic, bfyx_0_2_3_1) {
         input_layout("input", input_layout_dynamic),
         permute("permute", input_info("input"), { 0, 2, 3, 1 }));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto inst = network.get_primitive("permute");
