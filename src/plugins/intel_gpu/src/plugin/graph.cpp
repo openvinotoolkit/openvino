@@ -66,6 +66,10 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    get_engine().create_onednn_engine(config);
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
     ib >> m_program->inputLayouts;
     ib >> primitiveIDs;
     ib >> outputDims;
