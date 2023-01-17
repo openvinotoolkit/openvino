@@ -5,11 +5,11 @@
 #include "markup_optimal_bs.hpp"
 #include "ngraph_transformations/op/fully_connected.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include "rt_info/optimal_batch_size.hpp"
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include "transformations/utils/utils.hpp"
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupOptimalBS, "MarkupOptimalBS", 0);
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupConvolutionOptimalBS, "MarkupConvolutionOptimalBS", 0);
@@ -22,12 +22,12 @@ bool conv_with_fused_add(const std::shared_ptr<ov::Node> node) {
     const auto consumers = node->output(0).get_target_inputs();
     if (consumers.size() == 1) {
         const auto consumer = (*consumers.begin()).get_node();
-        if (ov::is_type<ngraph::opset1::Add>(consumer)) {
+        if (ov::is_type<ov::opset1::Add>(consumer)) {
             const auto second_parent = consumer->get_input_node_shared_ptr(1);
-            if (ov::is_type<ngraph::opset1::Parameter>(second_parent))
+            if (ov::is_type<ov::opset1::Parameter>(second_parent))
                 return true;
-            if (ov::is_type<ngraph::opset1::Convert>(second_parent) &&
-                ov::is_type<ngraph::opset1::Parameter>(second_parent->get_input_node_shared_ptr(0)))
+            if (ov::is_type<ov::opset1::Convert>(second_parent) &&
+                ov::is_type<ov::opset1::Parameter>(second_parent->get_input_node_shared_ptr(0)))
                 return true;
         }
     }
@@ -37,9 +37,9 @@ bool conv_with_fused_add(const std::shared_ptr<ov::Node> node) {
 }  // namespace
 
 ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
-    auto conv_m = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>(ngraph::pattern::has_static_shape());
+    auto conv_m = ov::pass::pattern::wrap_type<ov::opset1::Convolution>(ov::pass::pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
         auto output_shape = m.get_match_value().get_shape();
@@ -74,14 +74,14 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv_m, "MarkupConvolutionOptimalBS");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(conv_m, "MarkupConvolutionOptimalBS");
     this->register_matcher(m, callback);
 }
 
 ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS() {
-    auto group_conv_m = ngraph::pattern::wrap_type<ngraph::opset1::GroupConvolution>(ngraph::pattern::has_static_shape());
+    auto group_conv_m = ov::pass::pattern::wrap_type<ov::opset1::GroupConvolution>(ov::pass::pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
         auto output_shape = m.get_match_value().get_shape();
@@ -105,19 +105,19 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv_m, "MarkupGroupConvolutionOptimalBS");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(group_conv_m, "MarkupGroupConvolutionOptimalBS");
     this->register_matcher(m, callback);
 }
 
 ov::intel_cpu::MarkupFullyConnectedOptimalBS::MarkupFullyConnectedOptimalBS() {
-    auto group_conv_m = ngraph::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(ngraph::pattern::has_static_shape());
+    auto group_conv_m = ov::pass::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>(ov::pass::pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         ov::intel_cpu::set_optimal_bs(m.get_match_root(), m.get_match_value().get_shape()[0]);
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv_m, "MarkupGroupConvolutionOptimalBS");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(group_conv_m, "MarkupGroupConvolutionOptimalBS");
     this->register_matcher(m, callback);
 }
 

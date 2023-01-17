@@ -4,26 +4,26 @@
 
 #include "propagate_optimal_bs.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include "rt_info/optimal_batch_size.hpp"
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include "transformations/utils/utils.hpp"
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 
 using namespace ov::intel_cpu;
 NGRAPH_RTTI_DEFINITION(PropagateOptimalBS, "PropagateOptimalBS", 0);
 
 ov::intel_cpu::PropagateOptimalBS::PropagateOptimalBS() {
-    auto root = ngraph::pattern::any_input(ngraph::pattern::has_static_shape());
+    auto root = ov::pass::pattern::any_input(ov::pass::pattern::has_static_shape());
 
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto node = m.get_match_root();
-        if (has_optimal_bs(node) || is_type<ngraph::opset1::Result>(node))
+        if (has_optimal_bs(node) || is_type<ov::opset1::Result>(node))
             return false;
 
         // TODO: do we really need it?
-        if (is_type<ngraph::opset1::Reshape>(node) || is_type<ngraph::opset1::Concat>(node) ||
-            is_type<ngraph::opset1::Split>(node) || is_type<ngraph::opset1::VariadicSplit>(node))
+        if (is_type<ov::opset1::Reshape>(node) || is_type<ov::opset1::Concat>(node) ||
+            is_type<ov::opset1::Split>(node) || is_type<ov::opset1::VariadicSplit>(node))
             return false;
 
         const auto& pshape = m.get_match_value().get_partial_shape();
@@ -50,6 +50,6 @@ ov::intel_cpu::PropagateOptimalBS::PropagateOptimalBS() {
         return false;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(root, "PropagateOptimalBS");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(root, "PropagateOptimalBS");
     this->register_matcher(m, callback);
 }
