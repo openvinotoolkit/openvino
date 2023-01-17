@@ -128,9 +128,8 @@ public:
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr());
     }
-
-    memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_node_output_layout(const primitive_id& output_id) const;
+    memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_output_layout(const primitive_id& output_id) const;
     std::vector<layout> get_input_layouts() const;
 
@@ -252,6 +251,7 @@ private:
     bool _internal;
     bool _is_primary_stream;
     bool _is_dynamic = false;
+    bool _enable_profiling = false;
     bool _reset_arguments;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
