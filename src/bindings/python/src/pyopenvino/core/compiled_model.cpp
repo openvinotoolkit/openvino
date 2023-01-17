@@ -135,7 +135,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "set_property",
         [](ov::CompiledModel& self, const std::pair<std::string, py::object>& property) {
-            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(_properties);
         },
         py::arg("property"),

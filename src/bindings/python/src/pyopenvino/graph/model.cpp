@@ -796,7 +796,7 @@ void regclass_graph_Model(py::module m) {
             for (size_t i = 0; i < path.size(); i++) {
                 cpp_args[i] = path[i].cast<std::string>();
             }
-            self.set_rt_info<ov::Any>(py_object_to_any(obj), cpp_args);
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), cpp_args);
         },
         py::arg("obj"),
         py::arg("path"),
@@ -811,7 +811,7 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "set_rt_info",
         [](ov::Model& self, const py::object& obj, const py::str& path) -> void {
-            self.set_rt_info<ov::Any>(py_object_to_any(obj), path.cast<std::string>());
+            self.set_rt_info<ov::Any>(Common::utils::py_object_to_any(obj), path.cast<std::string>());
         },
         py::arg("obj"),
         py::arg("path"),
