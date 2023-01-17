@@ -256,24 +256,18 @@ void Core::register_plugins(const std::string& xmlConfigFile) {
 
 RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& params) {
     OPENVINO_ASSERT(deviceName.find("HETERO") != 0, "HETERO device does not support remote context");
-    OPENVINO_ASSERT(deviceName.find("MULTI") != 0, "MULTI device does not support remote context");
-    OPENVINO_ASSERT(deviceName.find("AUTO") != 0, "AUTO device does not support remote context");
     OPENVINO_ASSERT(deviceName.find("BATCH") != 0, "BATCH device does not support remote context");
 
     AnyMap updatedParams = params;
-    std::vector<std::shared_ptr<void>> sovec;
     for (auto& iter : params) {
-        if (iter.second.is<RemoteContext>()) {
-            updatedParams[iter.first] = iter.second.as<RemoteContext>()._impl;
-            for (auto& tmp : iter.second.as<RemoteContext>()._so)
-                sovec.push_back(tmp);
-        }
+        if (iter.second.is<RemoteContext>())
+            updatedParams[iter.first] =
+                ov::SoPtr<InferenceEngine::RemoteContext>(iter.second.as<RemoteContext>()._impl, iter.second.as<RemoteContext>()._so.front());
     }
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, updatedParams));
         auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-        sovec.push_back(remoteContext._so);
-        return {remoteContext._ptr, sovec};
+        return {remoteContext._ptr, {remoteContext._so}};
     });
 }
 

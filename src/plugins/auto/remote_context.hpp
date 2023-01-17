@@ -60,7 +60,7 @@ public:
         std::lock_guard<std::mutex> locker(m_mutex);
         for (auto&& iter : m_contexts) {
             if (iter->getDeviceName() == parser.getDeviceName() + "." + deviceIDLocal) {
-                res = iter;
+                res = iter._ptr;
                 break;
             }
         }
@@ -77,7 +77,7 @@ public:
         m_plugin_name = devicename;
     }
 
-    void AddContext(RemoteContext::Ptr hwcontext) {
+    void AddContext(SoRemoteContext hwcontext) {
         std::lock_guard<std::mutex> locker(m_mutex);
         if (hwcontext) {
             m_contexts.push_back(hwcontext);
@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    std::vector<RemoteContext::Ptr> m_contexts;
+    std::vector<SoRemoteContext> m_contexts;
     std::string m_default_device_id = "0";
     std::string m_plugin_name;
     mutable std::mutex m_mutex;

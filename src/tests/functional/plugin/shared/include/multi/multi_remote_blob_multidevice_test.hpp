@@ -236,3 +236,92 @@ TEST_P(MultiDeviceCreateContextMultipleGPU_Test, canInferOnUserContextWithRemote
         }
     }
 }
+
+TEST_P(MultiDeviceCreateContextMultipleGPU_Test, canEnsureCorrectLifeCycleLoadedContext) {
+    ov::RemoteContext multi_context;
+    {
+        auto ie = ov::Core();
+        std::vector<std::shared_ptr<OpenCL>> ocl_instances;
+        std::vector<ov::RemoteContext> remote_contexts;
+        // construcing seprarate GPU contexts
+        for (int i = 0; i < device_lists.size(); i++) {
+            auto ocl_instance_tmp = std::make_shared<OpenCL>(i);
+            ocl_instances.push_back(ocl_instance_tmp);
+            auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instances[i]->_context.get());
+            remote_contexts.push_back(remote_context);
+        }
+        // creating multi remote context
+        ov::AnyMap context_list;
+        for (auto& iter : remote_contexts) {
+            context_list.insert({iter.get_device_name(), iter});
+        }
+
+        multi_context = ie.create_context(device_names, context_list);
+        // load to MULTI with multi remote context
+        if (cumu_enabled)
+            config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
+        try {
+            auto exec_net_context = ie.compile_model(function, multi_context, config);
+        } catch (...) {
+            // if load failed due to no GPU.1, just let it be
+        }
+    }
+}
+
+TEST_P(MultiDeviceCreateContextMultipleGPU_Test, canEnsureCorrectLifeCycleLoadedTensor) {
+    auto num_request = device_lists.size();
+    std::vector<ov::Tensor> gpu_in_tensors(num_request);
+    std::vector<ov::Tensor> gpu_out_tensors(num_request);
+    {
+        auto ie = ov::Core();
+        std::vector<std::shared_ptr<OpenCL>> ocl_instances;
+        std::vector<ov::RemoteContext> remote_contexts;
+        // construcing seprarate GPU contexts
+        for (int i = 0; i < device_lists.size(); i++) {
+            auto ocl_instance_tmp = std::make_shared<OpenCL>(i);
+            ocl_instances.push_back(ocl_instance_tmp);
+            auto remote_context = ov::intel_gpu::ocl::ClContext(ie, ocl_instances[i]->_context.get());
+            remote_contexts.push_back(remote_context);
+        }
+        // creating multi remote context
+        ov::AnyMap context_list;
+        for (auto& iter : remote_contexts) {
+            context_list.insert({iter.get_device_name(), iter});
+        }
+
+        auto multi_context = ie.create_context(device_names, context_list);
+        // load to MULTI with multi remote context
+        if (cumu_enabled)
+            config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
+        try {
+            auto exec_net_context = ie.compile_model(function, multi_context, config);
+            std::vector<ov::InferRequest> inf_req_context(num_request);
+            std::generate(inf_req_context.begin(), inf_req_context.end(), [&] {
+                return exec_net_context.create_infer_request();
+            });
+            auto input = function->get_parameters().at(0);
+            auto output = function->get_results().at(0);
+            auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+            auto in_size = ov::shape_size(input->get_output_shape(0)) * input->get_output_element_type(0).size();
+            auto out_size = ov::shape_size(output->get_output_shape(0)) * output->get_output_element_type(0).size();
+            std::vector<cl::Buffer> share_input_buffers(num_request);
+            std::vector<cl::Buffer> share_output_buffers(num_request);
+            // Fill input data for ireqs
+            cl_int err;
+            for (int i = 0; i < num_request; i++) {
+                // Allocate shared buffers for input and output data which will be set to infer request
+                share_input_buffers[i] = cl::Buffer(ocl_instances[i]->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
+                share_output_buffers[i] = cl::Buffer(ocl_instances[i]->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+                auto temp_context = remote_contexts[i].as<ov::intel_gpu::ocl::ClContext>();
+                gpu_in_tensors[i] = temp_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), share_input_buffers[i]);
+                gpu_out_tensors[i] = temp_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), share_output_buffers[i]);
+                inf_req_context[i].set_tensor(input, gpu_in_tensors[i]);
+                inf_req_context[i].set_tensor(output, gpu_out_tensors[i]);
+                void* buffer = fakeImageData.data();
+                ocl_instances[i]->_queue.enqueueWriteBuffer(share_input_buffers[i], false, 0, in_size, buffer);
+            }
+        } catch (...) {
+            // if load failed due to no GPU.1, just let it be
+        }
+    }
+}

@@ -38,6 +38,7 @@ using IInferPtr = IE::IInferRequestInternal::Ptr;
 using IExecNetwork = IE::IExecutableNetworkInternal;
 using SoInfer = IE::SoIInferRequestInternal;
 using SoExecNetwork = IE::SoExecutableNetworkInternal;
+using SoRemoteContext = ov::SoPtr<IE::RemoteContext>;
 using Time = std::chrono::time_point<std::chrono::steady_clock>;
 
 template<typename T>

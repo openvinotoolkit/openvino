@@ -987,8 +987,8 @@ RemoteContext::Ptr MultiDeviceInferencePlugin::CreateContext(const InferenceEngi
     MultiRemoteContext::Ptr multiRemoteContext = std::make_shared<MultiRemoteContext>(GetName());
     auto cfg = config;
     for (auto& it : config) {
-        if (it.second.is<RemoteContext::Ptr>())
-            multiRemoteContext->AddContext(it.second.as<RemoteContext::Ptr>());
+        if (it.second.is<SoRemoteContext>())
+            multiRemoteContext->AddContext(it.second.as<SoRemoteContext>());
     }
     return multiRemoteContext;
 }
