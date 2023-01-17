@@ -146,7 +146,7 @@ In this example, the application is written in C++, performs inference [simultan
 - `openvino_auto_batch_plugin` can be also put to the distribution to improve the saturation of [Intel® GPU](../supported_plugins/GPU.md) device. If there is no such plugin, [Automatic Batching](../automatic_batching.md) is turned off.
 - `openvino_onnx_frontend` is used to read source models.
 
-**Auto-Device Selection between CPU and CPU**
+**Auto-Device Selection between GPU and CPU**
 
 In this example, the application is written in C++, performs inference with the [Automatic Device Selection](../auto_device_selection.md) mode, limiting device list to GPU and CPU, and reads models [created using C++ code](../model_representation.md). The following libraries are used:
 - The `openvino` library is a main dependency of the application. It links against this library.
