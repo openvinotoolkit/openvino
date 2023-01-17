@@ -1319,48 +1319,53 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
 impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->forced_impl_type.empty()) {
+    GPU_DEBUG_IF(!debug_config->forced_impl_types.empty()) {
         // Forcing impl type of one primitive
-        std::string forced_impl_type = debug_config->forced_impl_type;
-        if (node.is_type<fully_connected>()) {
-            if (forced_impl_type == "fc:ocl")
-                return impl_types::ocl;
-            else if (forced_impl_type == "fc:onednn")
-                return impl_types::onednn;
-        } else if (node.is_type<detection_output>()) {
-            if (forced_impl_type == "do:cpu")
-                return impl_types::cpu;
-            else if (forced_impl_type == "do:ocl")
-                return impl_types::ocl;
-        } else if (node.is_type<reduce>()) {
-            if (forced_impl_type == "reduce:ocl")
-                return impl_types::ocl;
-            else if (forced_impl_type == "reduce:onednn")
-                return impl_types::onednn;
-        } else if (node.is_type<concatenation>()) {
-            if (forced_impl_type == "concat:ocl")
-                return impl_types::ocl;
-            else if (forced_impl_type == "concat:onednn")
-                return impl_types::onednn;
-         }
+        for (const auto& forced_impl_type : debug_config->forced_impl_types) {
+            if (node.is_type<fully_connected>()) {
+                if (forced_impl_type == "fc:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "fc:onednn")
+                    return impl_types::onednn;
+            } else if (node.is_type<gemm>()) {
+                if (forced_impl_type == "gemm:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "gemm:onednn")
+                    return impl_types::onednn;
+            } else if (node.is_type<detection_output>()) {
+                if (forced_impl_type == "do:cpu")
+                    return impl_types::cpu;
+                else if (forced_impl_type == "do:ocl")
+                    return impl_types::ocl;
+            } else if (node.is_type<reduce>()) {
+                if (forced_impl_type == "reduce:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "reduce:onednn")
+                    return impl_types::onednn;
+            } else if (node.is_type<concatenation>()) {
+                if (forced_impl_type == "concat:ocl")
+                    return impl_types::ocl;
+                else if (forced_impl_type == "concat:onednn")
+                    return impl_types::onednn;
+            }
 
+            // Forcing one layer
+            size_t found_type = forced_impl_type.rfind(":");
+            if (found_type != std::string::npos) {
+                impl_types preferred_type = impl_types::any;
+                auto impl_type = forced_impl_type.substr(found_type + 1);
+                if (impl_type == "ocl")
+                    preferred_type = impl_types::ocl;
+                else if (impl_type == "onednn")
+                    preferred_type = impl_types::onednn;
+                else if (impl_type == "cpu")
+                    preferred_type = impl_types::cpu;
 
-        // Forcing one layer
-        size_t found_type = forced_impl_type.rfind(":");
-        if (found_type != std::string::npos) {
-            impl_types preferred_type = impl_types::any;
-            auto impl_type = forced_impl_type.substr(found_type + 1);
-            if (impl_type == "ocl")
-                preferred_type = impl_types::ocl;
-            else if (impl_type == "onednn")
-                preferred_type = impl_types::onednn;
-            else if (impl_type == "cpu")
-                preferred_type = impl_types::cpu;
-
-            if (node.id() == forced_impl_type.substr(0, found_type)) {
-                GPU_DEBUG_LOG << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
-                              << forced_impl_type.substr(found_type + 1) << std::endl;
-                return preferred_type;
+                if (node.id() == forced_impl_type.substr(0, found_type)) {
+                    GPU_DEBUG_LOG << " Forced implementation type : " << forced_impl_type.substr(0, found_type) << " : "
+                                << forced_impl_type.substr(found_type + 1) << std::endl;
+                    return preferred_type;
+                }
             }
         }
     }
