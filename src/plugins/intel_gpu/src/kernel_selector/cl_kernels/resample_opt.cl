@@ -231,8 +231,6 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
     typedef IN_VEC_TYPE in_vec_t;
     typedef ACC_VEC_TYPE acc_vec_t;
 
-    if (feature_num >= OUTPUT_FEATURE_NUM)
-        return;
 
 #ifdef SAMPLE_TYPE_NEAREST
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
