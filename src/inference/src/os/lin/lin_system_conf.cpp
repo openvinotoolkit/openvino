@@ -232,7 +232,7 @@ void parse_processor_info_linux(const int _processors,
 
         for (int m = 1; m <= _sockets; m++) {
             for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
-                _proc_type_table[0][n] += _proc_type_table[m][n] ;
+                _proc_type_table[0][n] += _proc_type_table[m][n];
             }
         }
     }
