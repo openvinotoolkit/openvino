@@ -70,10 +70,19 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         // std::cout << "New bs: " << new_batch << " metric: " << metric << std::endl;
         // TODO: do we really need this check?
         const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
-        if (original_batch >= optimal_bs)
-            ov::intel_cpu::set_optimal_bs(node, optimal_bs);
-        else
-            ov::intel_cpu::set_optimal_bs(node, original_batch);
+        const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
+        ov::intel_cpu::set_optimal_bs(node, batch_to_set);
+
+        // set optimal bs also for dequantization subtract before convolution
+        // in order to save inseparable Subtract->Convolution sequence after graph partition
+        if (node->get_input_element_type(1).is_integral()) {
+            auto parent = node->get_input_node_shared_ptr(0);
+            if (ov::is_type<opset1::Subtract>(parent) &&
+                parent->get_input_element_type(0).is_integral() &&
+                parent->get_input_element_type(1).is_integral()) {
+                ov::intel_cpu::set_optimal_bs(parent, batch_to_set);
+            }
+        }
 
         return false;
     };
@@ -116,10 +125,19 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
         // std::cout << "New bs: " << new_batch << " metric: " << metric << std::endl;
         // TODO: do we really need this check?
         const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
-        if (original_batch >= optimal_bs)
-            ov::intel_cpu::set_optimal_bs(node, optimal_bs);
-        else
-            ov::intel_cpu::set_optimal_bs(node, original_batch);
+        const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
+        ov::intel_cpu::set_optimal_bs(node, batch_to_set);
+
+        // set optimal bs also for dequantization subtract before convolution
+        // in order to save inseparable Subtract->Convolution sequence after graph partition
+        if (node->get_input_element_type(1).is_integral()) {
+            auto parent = node->get_input_node_shared_ptr(0);
+            if (ov::is_type<opset1::Subtract>(parent) &&
+                parent->get_input_element_type(0).is_integral() &&
+                parent->get_input_element_type(1).is_integral()) {
+                ov::intel_cpu::set_optimal_bs(parent, batch_to_set);
+            }
+        }
 
         return false;
     };
