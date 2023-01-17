@@ -165,6 +165,7 @@ class TestParallelRunner:
             os.mkdir(head)
         self._is_save_cache = True
         self._disabled_tests = list()
+        self._total_test_cnt = 0
 
     def __unzip_achieve(self, zip_path: os.path):
         _, tail = os.path.split(zip_path)
@@ -184,7 +185,7 @@ class TestParallelRunner:
             sys.exit(-1)
         logger.info(f"Achieve {dst_path} was extacted to {dst_dir}")
         os.remove(dst_path)
-        logger.info(f"Achieve {dst_path} was removed")
+        logger.info(f"Achieve {dst_path} was extacted to {dst_dir}")
         return dst_dir
 
 
@@ -344,12 +345,15 @@ class TestParallelRunner:
         final_test_list = list()              
         if len(proved_test_list) > 0:
             self._is_save_cache = False
-            logger.info(f"Test list is taken from cache. Total test counter is {len(proved_test_list)}")
+            logger.info(f"Test list is taken from cache.")
             final_test_list = self.__prepare_smart_filters(proved_test_list)
+            self._total_test_cnt = len(proved_test_list)
         else:
-            logger.info(f"Test list is taken from runtime. Total test counter is {len(test_list_runtime)}")
+            logger.info(f"Test list is taken from runtime.")
             final_test_list = test_list_runtime
             final_test_list.reverse()
+            self._total_test_cnt = len(test_list_runtime)
+        logger.info(f"Total test counter is {self._total_test_cnt}")
         return final_test_list
 
 
@@ -469,6 +473,9 @@ class TestParallelRunner:
         if len(self._disabled_tests):
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
         logger.info(f"Total test count is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
+        if self._total_test_cnt != (test_cnt + len(self._disabled_tests)):
+            logger.error(f"Total test count is {test_cnt + len(self._disabled_tests)} is different with expected {self._total_test_cnt} tests")
+            is_successfull_run = False
         return is_successfull_run
 
 if __name__ == "__main__":
