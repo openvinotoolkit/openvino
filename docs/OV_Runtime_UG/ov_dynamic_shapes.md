@@ -47,9 +47,37 @@ This section describes how to handle dynamically shaped models with OpenVINO Run
 
 ### Configuring the Model
 
-To avoid the methods mentioned in the previous section, there is a way to specify one or multiple dimensions to be dynamic, directly in the model inputs.
-This is achieved with the same reshape method that is used for alternating static shape of inputs.
-Dynamic dimensions are specified as `-1` or the `ov::Dimension()` instead of a positive number used for static dimensions:
+Model input dimensions can be specified as dynamic using the model.reshape method. To set a dynamic dimension, use `-1`, `ov::Dimension()` (C++), or `ov.Dimension()` (Python) as the value for that dimension.
+
+> Note: Some models may already have dynamic shapes out of the box and do not require additional configuration. This can either be because it was generated with dynamic shapes from the source framework, or because it was converted with Model Optimizer to use dynamic shapes. For more information, see the Dynamic Dimensions “Out of the Box” section.
+
+The examples below show how to set dynamic dimensions with a model that has a static `[1, 3, 224, 224]` input shape (such as [mobilenet-v2](https://docs.openvino.ai/latest/omz_models_model_mobilenet_v2.html)). The first example shows how to change the first dimension (batch size) to be dynamic. In the second example, the third and fourth dimensions (height and width) are set as dynamic.
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:reshape_undefined
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_dynamic_shapes.py reshape_undefined
+
+With Python, you may also pass all dimensions as a string and use `?` for the dynamic dimensions (e.g. `model.reshape(“1, 3, ?, ?”)`).
+
+@endsphinxtab
+
+@sphinxtab{C}
+
+@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:reshape_undefined
+
+@endsphinxtab
+
+@endsphinxtabset
+
+The examples above assume that the model has a single input layer. To change models with multiple input layers (such as NLP models), iterate over all the input layers and apply the model.reshape method to each individual layer. For example, the following code sets the second dimension as dynamic in every input layer:
 
 @sphinxtabset
 
@@ -73,8 +101,8 @@ Dynamic dimensions are specified as `-1` or the `ov::Dimension()` instead of a p
 
 @endsphinxtabset
 
-To simplify the code, the examples assume that the model has a single input and single output.
-However, there are no limitations on the number of inputs and outputs to apply dynamic shapes.
+For example, the following code sets the second dimension as dynamic in every input layer:
+For more examples of how to change multiple input layers, see [Changing Input Shapes](ShapeInference.md).
 
 ### Undefined Dimensions "Out Of the Box"
 
