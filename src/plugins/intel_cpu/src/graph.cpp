@@ -457,7 +457,7 @@ void Graph::InitDescriptors() {
                   SPDs.size(),
                   " SupportedPrimitiveDescriptors: ");
         for (int i = 0; i < SPDs.size(); i++)
-            std::cout <<"  [" << i << "]:" << SPDs[i] << std::endl;
+            DEBUG_LOG("   [", i, "]:", SPDs[i]);
 #endif
     }
 
