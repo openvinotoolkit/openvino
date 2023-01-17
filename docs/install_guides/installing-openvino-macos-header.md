@@ -8,6 +8,7 @@
 
    From Archive <openvino_docs_install_guides_installing_openvino_from_archive_macos>
    From PyPI <openvino_docs_install_guides_installing_openvino_pip>
+   Using HomeBrew <openvino_docs_install_guides_installing_openvino_brew>
 
 @endsphinxdirective
 

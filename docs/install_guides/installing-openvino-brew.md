@@ -14,12 +14,12 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 .. tab:: System Requirements
 
-   | Full requirement listing is available in:
+   | Full requirement listing is available on:
    | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Software Requirements
 
-  * [Homebrew](https://brew.sh/)
+  * `Homebrew <https://brew.sh/>`_
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
   * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.7 - 3.10). Install and add to path.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
@@ -31,7 +31,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 @sphinxdirective
 
-1. Make sure that you have installed HomeBrew on your system. If not, follow the instructions on [the Homebrew website](https://brew.sh/) to install and configure it.
+1. Make sure that you have installed HomeBrew on your system. If not, follow the instructions on `the Homebrew website <https://brew.sh/>`_ to install and configure it.
 
 2. Run the following command to install OpenVINO Runtime:
 
