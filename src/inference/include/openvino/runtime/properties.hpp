@@ -66,7 +66,6 @@ private:
 
 /** @cond INTERNAL */
 namespace util {
-struct PropertyTag {};
 
 template <typename... Args>
 struct StringAny;
@@ -85,14 +84,28 @@ struct StringAny<T> {
 template <typename T, typename... Args>
 using EnableIfAllStringAny = typename std::enable_if<StringAny<Args...>::value, T>::type;
 
+struct PropertyTag {};
+
+template <typename P>
+using EnableIfProperty = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, P>::type::value_type;
+
+template <typename P, typename T>
+using EnableIfPropertyT = typename std::enable_if<std::is_base_of<util::PropertyTag, P>::value, T>::type;
+
+template <typename P>
+using GetPropertyType = typename P::value_type;
+
 /**
  * @brief This class is used to bind property name with property type
  * @tparam T type of value used to pass or get property
  */
 template <typename T, PropertyMutability mutability_ = PropertyMutability::RW>
 struct BaseProperty : public PropertyTag {
-    using value_type = T;                                  //!< Property type
-    constexpr static const auto mutability = mutability_;  //!< Property readability
+    friend class NamedProperties;
+    using value_type = T;  //!< Property type
+    constexpr static PropertyMutability mutability() {
+        return mutability_;
+    }
 
     /**
      * @brief Constructs property access variable
@@ -113,7 +126,7 @@ struct BaseProperty : public PropertyTag {
      * @return true if string is the same
      */
     bool operator==(const std::string& str) const {
-        return _name == str;
+        return name() == str;
     }
 
     /**
@@ -227,6 +240,92 @@ static constexpr Property<std::string, PropertyMutability::RO> model_name{"NETWO
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_infer_requests{
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
+
+namespace util {
+
+struct Prefix {
+    std::string str;
+};
+
+template <typename T, PropertyMutability M>
+struct PrefixedProperty : protected Prefix, public Property<T, M> {
+    PrefixedProperty(const std::string& prefix, const std::string& name)
+        : Prefix{prefix + "." + name},
+          Property<T, M>{str.c_str()} {}
+    const std::string& name() const {
+        return str;
+    }
+};
+
+}  // namespace util
+
+/**
+ * @brief Type for property to pass set of properties with predefined name
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct NamedProperties : public util::PropertyTag {
+    /**
+     * @brief Constructs property access variable
+     * @param str_ property name
+     */
+    explicit constexpr NamedProperties(const char* name_) : _name{name_} {}
+
+    /**
+     * @brief Constructs property
+     * @param config set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const AnyMap& config) const {
+        return {_name, config};
+    }
+
+    /**
+     * @brief Constructs property
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param configs Optional pack of pairs: (config parameter name, config parameter value)
+     * @return Pair of string key representation and type erased property value.
+     */
+    template <typename... Properties>
+    inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
+        Properties&&... configs) const {
+        return {_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @tparam T property value type
+     * @tparam M property mutability type
+     * @param property property object without prefix
+     * @return property object with prefix
+     */
+    template <typename P>
+    inline util::EnableIfPropertyT<P, util::PrefixedProperty<util::GetPropertyType<P>, P::mutability()>> operator()(
+        const P& property) const {
+        return {_name, property.name()};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @param property_name name of property object without prefix
+     * @return property object with prefix
+     */
+    inline std::string operator()(const std::string& property_name) const {
+        return std::string{_name} + '.' + property_name;
+    }
+
+    /**
+     * @brief return property set name
+     * @return name string
+     */
+    const std::string name() const {
+        return _name;
+    }
+
+private:
+    const char* _name = nullptr;
+};
 
 /**
  * @brief Hint for device to use specified precision for inference
@@ -645,26 +744,39 @@ static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
 struct Properties {
     /**
      * @brief Constructs property
-     * @param device_name device plugin alias
+     * @param name properties set alias
      * @param config set of property values with names
      * @return Pair of string key representation and type erased property value.
      */
-    inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
+    inline std::pair<std::string, Any> operator()(const std::string& name, const AnyMap& config) const {
+        return {name, config};
     }
 
     /**
      * @brief Constructs property
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
-     * @param device_name device plugin alias
+     * @param name properties set alias
      * @param configs Optional pack of pairs: (config parameter name, config parameter value)
      * @return Pair of string key representation and type erased property value.
      */
     template <typename... Properties>
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
-        const std::string& device_name,
+        const std::string& name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name, AnyMap{std::pair<std::string, Any>{configs}...}};
+    }
+
+    /**
+     * @brief Constructs property object with prefix that contains property set name
+     * @tparam Property property type
+     * @tparam T property value type
+     * @tparam M property mutability type
+     * @param property property object without prefix
+     * @return property object with prefix
+     */
+    template <template <typename, PropertyMutability> class Property, typename T, PropertyMutability M>
+    util::PrefixedProperty<T, M> operator()(const std::string& name, const Property<T, M>& property) const {
+        return {name, property.name()};
     }
 };
 
