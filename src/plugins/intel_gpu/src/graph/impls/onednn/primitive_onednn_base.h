@@ -52,11 +52,12 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             build_primitive(config);
         }
 
-    typed_primitive_onednn_impl(const engine& engine)
+    typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
         : typed_primitive_impl<PType>({}, "undef"),
           _engine(&engine),
           _pd(),
-          _prim() {
+          _prim(),
+          _enable_profiling(config.get_property(ov::enable_profiling)) {
     }
 
     typed_primitive_onednn_impl()
