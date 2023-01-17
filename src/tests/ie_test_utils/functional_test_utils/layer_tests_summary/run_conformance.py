@@ -87,7 +87,7 @@ def parse_arguments():
     ov_help = "OV binary files path. The default way is try to find installed OV by INTEL_OPENVINO_DIR in environmet variables or to find the absolute path of OV repo (by using script path)"
     working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
-    nworkers_help = "Specify number of workers to run in parallel. Set to -1 to utilize all threads. The default value is 1"
+    workers_help = "Specify number of workers to run in parallel. The default value is CPU count - 1"
     gtest_filter_helper = "Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
 
@@ -96,8 +96,8 @@ def parse_arguments():
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=get_ov_path())
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
-    parser.add_argument("-nw", "--num_workers", help=nworkers_help, type=int, required=False, default=1)
-    parser.add_argument("-gtf", "--gtest_filter", help=gtest_filter_helper, type=str, required=False, default=None)
+    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=-1)
+    parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default=None)
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
 
     return parser.parse_args()
@@ -110,7 +110,7 @@ def set_env_variable(env: os.environ, var_name: str, var_value: str):
     return env
 
 class Conformance:
-    def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, num_workers:int, gtest_filter:str, working_dir:os.path):
+    def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int, gtest_filter:str, working_dir:os.path):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -120,9 +120,13 @@ class Conformance:
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
         self._type = type
-        self._num_workers = num_workers
+
+        if not workers:
+            workers = os.cpu_count() - 1
+        self._workers = workers
+
         if not gtest_filter:
-            gtest_filter = "**"
+            gtest_filter = "*"
         self._gtest_filter = gtest_filter
 
     def __download_repo(self, https_url: str, version: str):
@@ -236,10 +240,6 @@ class Conformance:
     def run_conformance(self):
         gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "thirdparty", "gtest-parallel", "gtest_parallel.py")
 
-        if self._num_workers == -1:
-            self._num_workers = os.cpu_count()
-        if self._num_workers > 2:
-            self._num_workers = self._num_workers - 1
         conformance_path = None
         if self._type == "OP":
             conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
@@ -258,7 +258,7 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
 
-        cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {self._num_workers} -d "{logs_dir}" -- ' \
+        cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {self._workers} -d "{logs_dir}" -- ' \
               f'--device {self._device} --input_folders "{conformance_filelist_path}" --gtest_filter={self._gtest_filter} --report_unique_name ' \
               f'--output_folder "{parallel_report_dir}"'
         logger.info(f"Stating conformance: {cmd}")
@@ -299,7 +299,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --models_path = {self._model_path}")
         logger.info(f"[ARGUMENTS] --working_dir = {self._working_dir}")
         logger.info(f"[ARGUMENTS] --type = {self._type}")
-        logger.info(f"[ARGUMENTS] --num_workers = {self._num_workers}")
+        logger.info(f"[ARGUMENTS] --workers = {self._workers}")
         logger.info(f"[ARGUMENTS] --gtest_filter = {self._gtest_filter}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
 
@@ -316,5 +316,5 @@ class Conformance:
 
 if __name__ == "__main__":
     args = parse_arguments()
-    conformance = Conformance(args.device, args.models_path, args.ov_path, args.type, args.num_workers, args.gtest_filter, args.working_dir)
+    conformance = Conformance(args.device, args.models_path, args.ov_path, args.type, args.workers, args.gtest_filter, args.working_dir)
     conformance.start_pipeline(args.dump_conformance)
