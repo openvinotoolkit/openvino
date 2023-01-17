@@ -143,6 +143,13 @@ if(ENABLE_OV_PADDLE_FRONTEND)
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
+if(ENABLE_OV_PYTORCH_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "pytorch_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/pytorch/*")
+    ov_coverage_genhtml(INFO_FILE "pytorch_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
 if(ENABLE_OV_TF_FRONTEND)
     ov_coverage_extract(INPUT "openvino" OUTPUT "tf_frontend"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/tensorflow/*")
