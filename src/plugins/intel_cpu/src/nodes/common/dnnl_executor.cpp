@@ -145,6 +145,7 @@ void DnnlExecutor2::setWeight(MemoryPtr wghMemPtr, bool constWeight, int idx) {
     } else {
         if (constWeight) {
             // reordering of weight can be done at this last compilation stage
+            DEBUG_LOG("=>", prim_weight_desc);
             weight_mem =
                 prepareWeightMemory(wghMemPtr, DnnlExtensionUtils::makeDescriptor(prim_weight_desc))->GetPrimitive();
         } else {
@@ -181,27 +182,32 @@ void DnnlExecutor2::setScratchPad() {
     args[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
 }
 
-MemoryPtr DnnlExecutor2::prepareWeightMemory(MemoryPtr blob, DnnlMemoryDescPtr weightDesc) {
-    const auto& format = weightDesc->serializeFormat();
+MemoryPtr DnnlExecutor2::prepareWeightMemory(MemoryPtr blob, DnnlMemoryDescPtr expectedWeightDesc) {
+    const auto& format = expectedWeightDesc->serializeFormat();
     auto itr = privateWeightCache.find(format);
     if (privateWeightCache.end() != itr) {
         return itr->second;
     }
 
     auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().dims());
+    auto srcWeightDesc = constDnnlMemOutDesc->getDnnlDesc();
+
+    if (srcWeightDesc.data.format_kind == dnnl::impl::format_kind::blocked) {
+        // in fullyconnect layer, src weight's shape may be different but compatible with expected weight layout
+        srcWeightDesc = srcWeightDesc.reshape(expectedWeightDesc->getDnnlDesc().dims());
+    }
+
     auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
+        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(srcWeightDesc);
 
         Memory srcMemory{ context->getEngine() };
         srcMemory.Create(newSrcDesc, blob->GetData());
 
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine());
-        _ptr->Create(weightDesc);
+        _ptr->Create(expectedWeightDesc);
         context->reorderData(srcMemory, *_ptr);
 
-        DEBUG_LOG("prepareWeightMemory", *newSrcDesc, " -> ", *weightDesc);
+        DEBUG_LOG("prepareWeightMemory ", *newSrcDesc, " -> ", *expectedWeightDesc);
         return _ptr;
     };
 
