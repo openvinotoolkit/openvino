@@ -418,8 +418,10 @@ class TestParallelRunner:
                     if test_name is not None:
                         test_log.append(line)
                         # update test_cache with tests. If tests is crashed use -1 as unknown time
-                        time = line[line.rfind("(") + 1:line.rfind("ms)") - 1] if test_name in line else -1
-                        if time and dir:
+                        time = -1
+                        if "ms)" in line:
+                            time = line[line.rfind("(") + 1:line.rfind("ms)") - 1]
+                        if dir:
                             test_times.append((int(time), test_name))
                             if __save_log(logs_dir, dir, test_name):
                                 test_cnt_log += 1
