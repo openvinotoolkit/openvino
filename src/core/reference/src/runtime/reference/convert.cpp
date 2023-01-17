@@ -4,7 +4,9 @@
 
 #include "ngraph/runtime/reference/convert.hpp"
 
-#include "jit_generator.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
+#    include "jit_generator.hpp"
 
 namespace ngraph {
 namespace runtime {
@@ -213,6 +215,9 @@ template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
+
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
+
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
