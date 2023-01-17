@@ -96,7 +96,7 @@ def parse_arguments():
     parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=get_ov_path())
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
-    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=-1)
+    parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default=None)
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
 
@@ -120,11 +120,7 @@ class Conformance:
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
         self._type = type
-
-        if not workers:
-            workers = os.cpu_count() - 1
         self._workers = workers
-
         if not gtest_filter:
             gtest_filter = "*"
         self._gtest_filter = gtest_filter

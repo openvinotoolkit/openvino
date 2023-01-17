@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,11 @@ using HostTensorPtr = std::shared_ptr<runtime::HostTensor>;
 
 namespace ov {
 class Node;
-using TensorLabel = std::vector<size_t>;
+/// \brief Alias for label tensor.
+using TensorLabel = std::vector<label_t>;
+/// \brief Alias for vector of label tensors.
+using TensorLabelVector = std::vector<TensorLabel>;
+
 namespace pass {
 class ReverseShapeAndTypeInfer;
 }
@@ -45,13 +49,17 @@ void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
-    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name = "");
+    Tensor(const element::Type& element_type,
+           const PartialShape& pshape,
+           const std::unordered_set<std::string>& names = {});
+    OPENVINO_DEPRECATED("This constructor is deprecated. Please use constructor with set of names")
+    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
     Tensor& operator=(const Tensor&) = delete;
 
-    std::string get_any_name() const;
+    const std::string& get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
@@ -130,6 +138,7 @@ protected:
     std::string m_legacy_name;
 
     std::unordered_set<std::string> m_names;
+    std::unordered_set<std::string>::const_iterator m_name_it;
     RTMap m_rt_info;
     mutable std::atomic_bool m_shape_changed;
 

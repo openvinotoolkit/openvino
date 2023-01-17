@@ -1,9 +1,8 @@
 
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define GET_UPDATES_INDEX(prefix, idx_order) CAT(prefix, _GET_INDEX)(idx_order)
@@ -72,7 +71,7 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     const uint updatesND[] = {INPUT2_BLOCK_ND};
     const uint indicesND[] = {INPUT1_BLOCK_ND};
     const uint size_to_update = dataND[INDICES_LAST_DIM];
-    
+
     #if INPUT1_DIMS == 4
         const uint indices_dim[INPUT1_DIMS] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
     #elif INPUT1_DIMS == 5
@@ -96,7 +95,7 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         idx[i] = rmd_idx / indicesND[1 + i];
         rmd_idx %= indicesND[1 + i];
     }
-    
+
     uint out[INDICES_MAX_DIM] = {0};
     for (int i = 0; i < indices_dim[INDICES_RANK - 1]; ++i) {
         idx[INDICES_RANK - 1] = i;
@@ -119,13 +118,13 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         out[i] = indices[index];
 
         // Check if tensor size is valid
-        // ex) when data format = bfyx and data shape = { 3, 3, 4, 1 }, indices shape is { 2, 1 } with rank = 2, indices values are { 1.0, 4.0 }, 
+        // ex) when data format = bfyx and data shape = { 3, 3, 4, 1 }, indices shape is { 2, 1 } with rank = 2, indices values are { 1.0, 4.0 },
         //     the second indices value is invalid as data shape has 'b' of size 3, and therefore 4 cannot be a correct index of data
         // If indices value is invalid, saturate value to max valid value (ex. 4.0 -> 2.0)
         if(out[i] >= data_dim[i])
             out[i] = data_dim[i] - 1;
     }
-    
+
     for (int i = 0; i < size_to_update; ++i) {
         // Define updates index
         uint upd[INDICES_MAX_DIM] = {0};
@@ -155,10 +154,10 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
             const uint upd_w = upd[2];
             const uint upd_z = upd[3];
             const uint upd_y = upd[4];
-            const uint upd_x = upd[5];   
+            const uint upd_x = upd[5];
         #endif
         uint upd_idx = GET_UPDATES_INDEX(INPUT2, UPD_ORDER);
-        
+
         // Get output index
         const uint b = out[0];
         const uint f = out[1];
@@ -173,7 +172,7 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
             const uint w = out[2];
             const uint z = out[3];
             const uint y = out[4];
-            const uint x = out[5];   
+            const uint x = out[5];
         #endif
         uint out_idx = GET_OUTPUT_INDEX(ORDER);
         INPUT2_TYPE val = updates[upd_idx];

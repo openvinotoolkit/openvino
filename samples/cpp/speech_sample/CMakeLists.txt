@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,13 +25,23 @@ if(NOT TARGET zlib::zlib)
     if(zlib_FOUND)
         message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
     elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+        # OpenVINO package puts thirdparty to samples dir
         add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/zlib"
+                         "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
+    elseif(EXISTS "${Samples_SOURCE_DIR}/thirdparty/zlib")
+        # Allow running samples CMakeLists.txt as stand alone from openvino sources
+        add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/zlib"
                          "${Samples_BINARY_DIR}/thirdparty/zlib" EXCLUDE_FROM_ALL)
     endif()
 endif()
 
 if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/cnpy")
+    # OpenVINO package puts thirdparty to samples dir
     add_subdirectory("${Samples_SOURCE_DIR}/thirdparty/cnpy"
+                     "${Samples_BINARY_DIR}/thirdparty/cnpy" EXCLUDE_FROM_ALL)
+elseif(EXISTS "${Samples_SOURCE_DIR}/../../thirdparty/cnpy" AND NOT TARGET cnpy)
+    # Allow running samples CMakeLists.txt as stand alone from openvino sources
+    add_subdirectory("${Samples_SOURCE_DIR}/../../thirdparty/cnpy"
                      "${Samples_BINARY_DIR}/thirdparty/cnpy" EXCLUDE_FROM_ALL)
 endif()
 

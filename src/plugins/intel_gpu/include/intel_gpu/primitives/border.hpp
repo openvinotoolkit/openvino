@@ -1,19 +1,12 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Adds border around input.
 ///
@@ -79,7 +72,4 @@ struct border : public primitive_base<border> {
     /// @brief Border value that is used in constant mode.
     float pad_value;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

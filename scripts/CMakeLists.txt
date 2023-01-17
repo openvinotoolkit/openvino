@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,15 +13,11 @@ set(shellcheck_skip_list
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_cpu/thirdparty"
     "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gpu/thirdparty"
     "${OpenVINO_SOURCE_DIR}/src/bindings/python/thirdparty/pybind11"
-    "${OpenVINO_SOURCE_DIR}/tools/pot/thirdparty"
     "${TEMP}")
 
 # TODO fix and enable back
 list(APPEND shellcheck_skip_list
-    "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh"
-    "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_openvino_dependencies.sh"
-    "${OpenVINO_SOURCE_DIR}/src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh"
-    "${OpenVINO_SOURCE_DIR}/src/bindings/python/tests_compatibility/test_onnx/model_zoo_preprocess.sh")
+    "${OpenVINO_SOURCE_DIR}/scripts/install_dependencies/install_NEO_OCL_driver.sh")
 
 if(shellcheck_VERSION VERSION_GREATER_EQUAL 0.7.0)
     list(APPEND shellcheck_skip_list

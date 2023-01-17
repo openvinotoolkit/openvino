@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,8 @@
 #include <ie_plugin_config.hpp>
 #include <cpp/ie_cnn_network.h>
 
-#include <backend/dnn_types.h>
-#include <backend/gna_types.h>
+#include <backend/dnn_types.hpp>
+#include <backend/gna_types.hpp>
 #include <gna/gna_config.hpp>
 #include <gna_plugin.hpp>
 #include <gna_lib_ver_selector.hpp>
@@ -471,7 +471,7 @@ class GNADumpXNNMatcher : public GNATestConfigurability<GNADumpXNNMatcher> {
  protected:
 
     bool match_in_dctor = true;
-    void load(std::shared_ptr<GNAPluginNS::GNAPlugin> & plugin);
+    void load(std::shared_ptr<ov::intel_gna::GNAPlugin> & plugin);
     void match();
 };
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -83,6 +83,9 @@ macro(ie_sse42_optimization_flags flags)
             set(${flags} -xSSE4.2)
         else()
             set(${flags} -msse4.2)
+            if(EMSCRIPTEN)
+                list(APPEND ${flags} -msimd128)
+            endif()
         endif()
     endif()
 endmacro()
@@ -143,11 +146,11 @@ macro(ie_arm_neon_optimization_flags flags)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
         elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
-            set(${flags} -march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon -Wno-unused-command-line-argument)
+            set(${flags} -march=armv7-a+fp -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon -Wno-unused-command-line-argument)
         elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
                (ANDROID_ABI STREQUAL "armeabi-v7a" AND
                 DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
-                set(${flags} -march=armv7-a -mfloat-abi=softfp -mfpu=neon -Wno-unused-command-line-argument)
+                set(${flags} -march=armv7-a+fp -mfloat-abi=softfp -mfpu=neon -Wno-unused-command-line-argument)
         endif()
     else()
         if(AARCH64)
@@ -209,7 +212,7 @@ endfunction()
 # Forced includes certain header file to all target source files
 #
 function(ov_force_include target scope header_file)
-    if(MSVC)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${target} ${scope} /FI"${header_file}")
     else()
         target_compile_options(${target} ${scope} -include "${header_file}")
@@ -220,7 +223,9 @@ endfunction()
 # Compilation and linker flags
 #
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if(NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
@@ -353,11 +358,19 @@ else()
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
+    elseif(EMSCRIPTEN)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE -s EXPORTED_RUNTIME_METHODS=ccall")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ERROR_ON_MISSING_LIBRARIES=1 -s ERROR_ON_UNDEFINED_SYMBOLS=1")
+        # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
+        ie_add_compiler_flags(-sDISABLE_EXCEPTION_CATCHING=0)
+        # ie_add_compiler_flags(-sUSE_PTHREADS=1)
     else()
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
-        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
+        set(exclude_libs "-Wl,--exclude-libs,ALL")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections ${exclude_libs}")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections ${exclude_libs}")
         if(NOT ENABLE_FUZZING)
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--exclude-libs,ALL")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${exclude_libs}")
         endif()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()

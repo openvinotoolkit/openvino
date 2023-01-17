@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,6 +68,13 @@ ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetSupportedKey() const {
     return k;
 }
 
+DeviceFeaturesKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
+}
+
 JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const convolution_params& params,
                                                                         const DispatchData& dispatchData) const {
     auto mem_consts = Parent::GetJitConstants(params, dispatchData);
@@ -81,8 +88,8 @@ JitConstants Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetJitConstants(const co
         auto input_dt = GetActivationType(params);
         std::vector<std::string> idx_order = { "out_b",
                                                "(out_f + ofb * SIMD)",
-                                               "intel_sub_group_shuffle(out_y_shuffle[os / SIMD], os % SIMD)",
-                                               "intel_sub_group_shuffle(out_x_shuffle[os / SIMD], os % SIMD)" };
+                                               "_sub_group_shuffle(out_y_shuffle[os / SIMD], os % SIMD)",
+                                               "_sub_group_shuffle(out_x_shuffle[os / SIMD], os % SIMD)" };
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              idx_order,
                                              "dequantized[ofb][os]",
@@ -184,7 +191,7 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, c
         return false;
     }
 
-    if (conv_params.groups != 1 || conv_params.split != 1)
+    if (conv_params.groups != 1)
         return false;
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {

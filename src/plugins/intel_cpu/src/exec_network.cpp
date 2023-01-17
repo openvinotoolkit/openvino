@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
 #include "exec_network.h"
+#include <low_precision/low_precision.hpp>
 
 #include "async_infer_request.h"
 #include "infer_request.h"
@@ -118,7 +119,6 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         _callbackExecutor = _taskExecutor;
     }
-
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
     std::vector<Task> tasks; tasks.resize(streams);
     _graphs.resize(streams);
@@ -177,12 +177,21 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         std::exception_ptr exception;
         auto makeGraph = [&] {
             try {
+                GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*_mutex.get()};
-                    graphLock._graph.setConfig(_cfg);
+                    // disable weights caching if graph was created only once
+                    auto weightsCache =
+                        _cfg.streamExecutorConfig._streams != 1 ? _numaNodesWeights[numaNodeId] : nullptr;
+
+                    auto isQuantizedFlag =
+                        (_cfg.lpTransformsMode == Config::On) &&
+                        ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(_network.getFunction());
+
+                    ctx = std::make_shared<GraphContext>(_cfg, extensionManager, weightsCache, _mutex, isQuantizedFlag);
                 }
-                graphLock._graph.CreateGraph(_network, extensionManager, _numaNodesWeights[numaNodeId], _mutex);
-            } catch(...) {
+                graphLock._graph.CreateGraph(_network, ctx);
+            } catch (...) {
                 exception = std::current_exception();
             }
         };
@@ -196,19 +205,6 @@ ExecNetwork::GraphGuard::Lock ExecNetwork::GetGraph() const {
         }
     }
     return graphLock;
-}
-
-void ExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
-    {
-        std::lock_guard<std::mutex> lock{*_mutex.get()};
-        _cfg.readProperties(properties);
-    }
-    for (auto& g : _graphs) {
-        auto graphLock = GraphGuard::Lock(g);
-        if (graphLock._graph.IsReady()) {
-            graphLock._graph.setProperty(properties);
-        }
-    }
 }
 
 InferenceEngine::IInferRequestInternal::Ptr ExecNetwork::CreateInferRequest() {
@@ -235,7 +231,7 @@ Parameter ExecNetwork::GetConfigLegacy(const std::string &name) const {
         IE_THROW() << "No graph was found";
     /* legacy implementation return all the parameters which is actually not correct
      * since they are not reconfigurable. Fixed for new API */
-    Config engConfig = GetGraph()._graph.getProperty();
+    Config engConfig = GetGraph()._graph.getConfig();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         return option->second;
@@ -268,12 +264,12 @@ InferenceEngine::Parameter ExecNetwork::GetMetricLegacy(const std::string &name,
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : graph.getProperty()._config) {
+        for (auto && key : graph.getConfig()._config) {
             configKeys.push_back(key.first);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graph.getProperty();
+        Config engConfig = graph.getConfig();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
@@ -290,7 +286,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     // @todo Can't we just use local copy (_cfg) instead?
     auto graphLock = GetGraph();
     const auto& graph = graphLock._graph;
-    const auto& config = graph.getProperty();
+    const auto& config = graph.getConfig();
 
     if (isLegacyAPI()) {
         return GetMetricLegacy(name, graph);
@@ -312,6 +308,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::hint::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
             RO_property(ov::hint::num_requests.name()),
+            RO_property(ov::execution_devices.name()),
         };
     }
 
@@ -354,6 +351,8 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
+    } else if (name == ov::execution_devices) {
+        return decltype(ov::execution_devices)::value_type{_plugin->GetName()};
     }
     /* Internally legacy parameters are used with new API as part of migration procedure.
      * This fallback can be removed as soon as migration completed */

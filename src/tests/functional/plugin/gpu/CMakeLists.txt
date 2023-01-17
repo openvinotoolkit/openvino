@@ -1,8 +1,8 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME gpuFuncTests)
+set(TARGET_NAME ov_gpu_func_tests)
 
 addIeTargetTest(
         NAME

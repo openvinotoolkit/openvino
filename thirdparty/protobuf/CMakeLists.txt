@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,8 +26,10 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 
-# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, becuase it can work via Rosetta
-if(CMAKE_CROSSCOMPILING OR (APPLE AND (HOST_X86_64 AND AARCH64)) )
+# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
+if(CMAKE_CROSSCOMPILING OR
+    (APPLE AND (HOST_X86_64 AND AARCH64)) OR
+    (MSVC AND (HOST_X86_64 AND (AARCH64 OR ARM))))
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build protoc binaries" FORCE)
 else()
     set(protobuf_BUILD_PROTOC_BINARIES ON CACHE BOOL "Build protoc binaries" FORCE)

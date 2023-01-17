@@ -1,8 +1,11 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
 import xml.etree.ElementTree as ET
+
+TEST_STATUS = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]", "interapted": "interapted"}
+RUN = "[ RUN      ]"
 
 def get_logger(app_name: str):
     logging.basicConfig()
