@@ -214,11 +214,11 @@ MemoryPtr DnnlExecutor2::prepareWeightMemory(MemoryPtr blob, DnnlMemoryDescPtr e
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        const std::string string_hash = name + "_" + format
+        const std::string unique_name = name + "_" + format
                                         + "_" + std::to_string(blob->GetSize())
                                         + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
 
-        ptr = *weightCache->findOrCreate(string_hash, create);
+        ptr = *weightCache->findOrCreate(unique_name, create);
     } else {
         ptr = create();
     }
