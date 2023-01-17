@@ -40,7 +40,7 @@ ov::Output<Node> base_translate_full_with_convertlike(NodeContext& context,
 OutputVector translate_full(NodeContext& context) {
     auto sizes = context.get_input(0);
     auto value = context.get_input(1);
-    int num_inputs = context.get_input_size();
+    auto num_inputs = context.get_input_size();
     if (num_inputs < 6) {
         size_t out_id = num_inputs == 3 ? 2 : 3;
         if (!context.input_is_none(out_id)) {
@@ -77,7 +77,7 @@ OutputVector translate_new_full(NodeContext& context) {
 OutputVector translate_zeros(NodeContext& context) {
     auto sizes = context.get_input(0);
     auto value = context.mark_node(opset10::Constant::create(element::f32, Shape{}, {0}));
-    int num_inputs = context.get_input_size();
+    auto num_inputs = context.get_input_size();
     if (num_inputs < 5) {
         size_t out_id = num_inputs == 2 ? 1 : 2;
         if (!context.input_is_none(out_id)) {
@@ -114,7 +114,7 @@ OutputVector translate_new_zeros(NodeContext& context) {
 OutputVector translate_ones(NodeContext& context) {
     auto sizes = context.get_input(0);
     auto value = context.mark_node(opset10::Constant::create(element::f32, Shape{}, {1}));
-    int num_inputs = context.get_input_size();
+    auto num_inputs = context.get_input_size();
     if (num_inputs < 5) {
         size_t out_id = num_inputs == 2 ? 1 : 2;
         if (!context.input_is_none(out_id)) {
