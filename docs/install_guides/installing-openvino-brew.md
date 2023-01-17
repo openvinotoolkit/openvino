@@ -2,7 +2,7 @@
 
 With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via [Homebrew](https://brew.sh/). 
 
-> **NOTE**: Only CPU is supported for inference with OpenVINO that is installed via HomeBrew.
+> **NOTE**: Only CPU is supported for inference if you install OpenVINO via HomeBrew.
 
 Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
@@ -27,13 +27,11 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 @endsphinxdirective
 
-## Installing OpenVINO Runtime
-
-### <a name="install-core"></a>Step 1: Install OpenVINO Core Components
+## <a name="install-core"></a>Installing OpenVINO Runtime
 
 @sphinxdirective
 
-1. Make sure that you have installed HomeBrew on your system. If not, follow the instructions on [the Homebrew website](https://brew.sh/) to install it.
+1. Make sure that you have installed HomeBrew on your system. If not, follow the instructions on [the Homebrew website](https://brew.sh/) to install and configure it.
 
 2. Run the following command to install OpenVINO Runtime:
 
@@ -41,24 +39,13 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
       brew install openvino
 
-   This will install OpenVINO to this directory: `<placehoder>`. 
 
-3. For simplicity, it is useful to create a symbolic link as below:
-
-   .. code-block:: sh
-
-      sudo ln -s <placehoder> openvino_2022
-   
-   .. note:: 
-   
-      If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
+Congratulations, you finished the installation!
 
 @endsphinxdirective
 
-Congratulations, you finished the installation! The `<placehoder>/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
-
-### <a name="model-optimizer"></a>Step 2 (Optional): Install Additional Components
+## (Optional) Install Additional Components
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
@@ -99,7 +86,10 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 ## <a name="uninstall"></a>Uninstalling OpenVINO
 
-To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
+To uninstall OpenVINO, use the following command:
+```sh
+
+```
 
 ## Additional Resources
 
