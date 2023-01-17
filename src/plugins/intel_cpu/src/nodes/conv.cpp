@@ -1119,6 +1119,15 @@ bool Convolution::isPossibleToSkipInitConfig(DnnlDesriptor &desc) const {
 
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+
+    if (idx == 1) {
+        // report plain format for weight, to delay the reordering of weight to prepareParam()
+        // stage where the required format can be exactly determined from actual input shape.
+        auto fmt = DnnlExtensionUtils::GetPlainFormatByRank(desc.dims().size());
+        dnnl::memory::desc plainDesc(desc.dims(), desc.data_type(), fmt);
+        return DnnlExtensionUtils::makeDescriptor(plainDesc);
+    }
+
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
