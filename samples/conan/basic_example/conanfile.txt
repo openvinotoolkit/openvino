@@ -1,5 +1,0 @@
-[requires]
-openvino/2022.3
-
-[generators]
-cmake
