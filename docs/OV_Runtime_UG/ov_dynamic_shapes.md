@@ -38,13 +38,12 @@ The decision about using dynamic shapes should be based on proper benchmarking o
 Unlike statically shaped models, dynamically shaped ones require different inference time, depending on input data shape or input tensor content.
 Furthermore, using the dynamic shapes can bring more overheads in memory and running time of each inference call depending on hardware plugin and model used.
 
-## Handling Dynamic Shapes Natively
+## Handling Dynamic Shapes
 
-This section describes how to handle dynamically shaped models natively with OpenVINO Runtime API version 2022.1 and higher.
-There are three main parts in the flow that differ from static shapes:
- - Configure the model.
- - Prepare data for inference.
- - Read resulting data after inference.
+This section describes how to handle dynamically shaped models with OpenVINO Runtime API version 2022.1 and higher. When using dynamic shapes, there are three main differences in the workflow than with static shapes:
+- Configuring the model
+- Preparing and inferencing dynamic data
+- Dynamic shapes in outputs
 
 ### Configuring the Model
 
