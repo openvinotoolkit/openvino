@@ -116,7 +116,7 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterNonZeroPadsForNC
 TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{4, 1, 1, 3, 3});
         auto space_to_batch =
             std::make_shared<opset6::SpaceToBatch>(data,
                                                    op::Constant::create(element::i64, Shape{4}, {1, 1, 2, 2}),
