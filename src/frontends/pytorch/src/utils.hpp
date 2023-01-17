@@ -41,7 +41,7 @@ ov::op::PadType convert_pad(const std::string& pt_pad);
 
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
 
-std::shared_ptr<ov::Model> convert_pytorch_model2(std::shared_ptr<TorchDecoder> pytorch_model,
+std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
                                                   const TensorMap& external_tensor_map = {});
 
 OutputVector convert_node(NodeContext* context);

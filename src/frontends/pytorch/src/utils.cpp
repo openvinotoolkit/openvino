@@ -284,7 +284,7 @@ OutputVector convert_node(NodeContext* context) {
 ///  which is visible from nested model. Empty external_tensor_map is used as an indication that this is a main body
 ///  conversion.
 /// \return fully converted OV Model
-std::shared_ptr<ov::Model> convert_pytorch_model2(std::shared_ptr<TorchDecoder> pytorch_model,
+std::shared_ptr<ov::Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
                                                   const TensorMap& external_tensor_map) {
     std::shared_ptr<ov::Model> resulting_model;  // define here to make a conversion in a nested scope
     {

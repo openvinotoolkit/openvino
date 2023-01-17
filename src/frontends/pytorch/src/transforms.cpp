@@ -28,30 +28,11 @@ using std::shared_ptr;
 
 const type::List* is_list(const descriptor::Tensor& tensor) {
     // TODO: Use special API to get custom type detalization
-    /*if (falsetensor.get_element_type() == element::custom) {
-        auto custom_type = tensor.get_custom_element_type();
-        if(custom_type.is<type::List>()) {
-            return &custom_type.as<type::List>();
-        }
-    }*/
-
     return nullptr;
 }
 
 std::tuple<bool, Any> is_list_of_tensors(const descriptor::Tensor& tensor) {
     // TODO: Use special API to get custom type detalization
-    /*if (auto list = is_list(tensor)) {
-        if(list->element_type.is<type::Tensor>()) {
-            return std::make_tuple(true, tensor.get_custom_element_type());  // UGLY: used custom type from the top
-    again
-        }
-    }
-
-    return std::make_tuple(false, Any());
-
-    if (tensor.get_element_type() != element::custom)
-        return std::make_tuple(false, Any());
-    Any custom_type = tensor.get_custom_element_type();*/
     Any custom_type;
     if (custom_type.empty()) {
         return std::make_tuple(false, Any());
@@ -76,7 +57,6 @@ std::shared_ptr<FrameworkNode> make_list_pack(const OutputVector& inputs, Any ou
         throw std::runtime_error("Attemt to call make_list_pack with empty output_type");
     }
     // TODO: Use special API to set custom type detalization
-    // list_pack->set_custom_output_type(0, output_type, shape);
     ov::op::util::FrameworkNodeAttrs attrs;
     attrs.set_type_name("PTFE::ListPack");
     list_pack->set_attrs(attrs);
@@ -87,16 +67,13 @@ std::shared_ptr<FrameworkNode> make_list_pack(const OutputVector& inputs, Any ou
 std::shared_ptr<FrameworkNode> cast_internal_node(std::shared_ptr<Node> node, const std::string& type) {
     auto fw_node = std::dynamic_pointer_cast<FrameworkNode>(node);
     if (!fw_node) {
-        // std::cerr << "[ ERROR ] Incorrect matcher triggering\n";
         return nullptr;
     }
     if (fw_node->get_attrs().find("PtTypeName") != fw_node->get_attrs().end()) {
         // This is FW node, not PT FW internal node, don't mix them
-        // std::cerr << "[ ERROR ] This is PtTypeName-node: " << fw_node->get_attrs().at("PtTypeName") << "\n";
         return nullptr;
     }
     if (fw_node->get_attrs().get_type_name() != type) {
-        // std::cerr << "[ ERROR ] Not expected type: " << fw_node->get_type_name() << "\n";
         return nullptr;
     }
 
@@ -113,7 +90,6 @@ public:
             auto node = cast_fw_node(m.get_match_root(), "prim::ListConstruct");
             if (!node)
                 return false;
-            // std::cerr << node << "\n";
             const descriptor::Tensor& list_output = node->output(0).get_tensor();
 
             auto custom_types = is_list_of_tensors(list_output);
@@ -126,8 +102,6 @@ public:
             if (custom_type.empty()) {
                 throw std::runtime_error("Custom element type is empty");
             }
-
-            // std::cerr << "[ PASS INFO ] Start transformation\n";
 
             // Replace a single ListConstruct with 6 constant tensors:
             //   - beginnings of tensor elements of type i32 and shape [0]
@@ -164,8 +138,6 @@ public:
         ParameterVector new_parameters;  // collect decomposed parameters
         for (size_t i = 0; i < parameters.size(); ++i) {
             auto parameter = parameters[i];
-            // std::cerr << "[ PARAMETER ] " << i << "\n";
-            // std::cerr << parameter << "\n";
 
             auto custom_types = is_list_of_tensors(parameter->get_output_tensor(0));
 
@@ -298,7 +270,6 @@ public:
             if (!list_pack_node)
                 return false;
 
-            // std::cerr << append_node << "\n";
             auto custom_types = is_list_of_tensors(append_node->get_output_tensor(0));
 
             if (!std::get<0>(custom_types)) {
@@ -328,13 +299,6 @@ public:
 
             auto initial_elements_const = std::dynamic_pointer_cast<opset10::Constant>(matches.at(elements));
             // New elements content depends on whether we appending to an empty list or not
-            // std::cerr << "Tried to detect constant here: " << matches.at(elements) << "\n";
-            // std::cerr << "Is const: " << bool(initial_elements_const) << " )))))))))))))))))\n";
-            // if (initial_elements_const) {
-            //    std::cerr << "Shape: " << initial_elements_const->get_output_partial_shape(0) << "\n";
-            //    std::cerr << "Size: " << shape_size(initial_elements_const->get_output_shape(0))
-            //              << "  )))))))))))))))))\n";
-            //}
             auto new_elements =
                 (initial_elements_const && shape_size(initial_elements_const->get_output_shape(0)) == 0)
                     ? shared_ptr<Node>(item_flatten)

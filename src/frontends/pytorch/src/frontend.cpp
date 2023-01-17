@@ -61,7 +61,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     try {
         auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
-        auto model = convert_pytorch_model2(pytorch_model->m_model);
+        auto model = convert_pytorch_model(pytorch_model->m_model);
 
         return model;
     } catch (const std::runtime_error& e) {

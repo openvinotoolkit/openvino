@@ -53,7 +53,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) {
     // we will not add Parameters we creeated in inner scope.
     ext_map.insert(m_tensor_map->begin(), m_tensor_map->end());
 
-    auto model = convert_pytorch_model2(subgraph_decoder, ext_map);
+    auto model = convert_pytorch_model(subgraph_decoder, ext_map);
     // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
     // used for generating output.
     for (auto i = subgraph_decoder->inputs().size(); i < model->get_parameters().size(); i++) {
