@@ -11,34 +11,11 @@
 #include <vector>
 #include "common/dnnl_executor.h"
 
-#include <common/primitive_hashing_utils.hpp>
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class Eltwise;
-
-struct Statement {
-    dnnl::primitive prim;
-    std::unordered_map<int, dnnl::memory> args;
-    Statement() = default;
-    Statement(Statement&& s) : prim(std::move(s.prim)), args(std::move(s.args)) {}
-    Statement(dnnl::primitive prim, std::unordered_map<int, dnnl::memory> args)
-        : prim(std::move(prim)),
-          args(std::move(args)) {}
-};
-struct Program {
-    Node * node;
-    std::vector<Statement> statements;
-    operator bool() {
-        return !statements.empty();
-    }
-    void emit(dnnl::primitive prim, std::unordered_map<int, dnnl::memory> args) {
-        statements.emplace_back(prim, args);
-    }
-    void execute(dnnl::stream stream);
-};
 
 class Convolution : public Node {
 public:
@@ -108,13 +85,7 @@ private:
     };
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
-    Program prog;
-    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
-    // different shapes. Weights will be cached in privateWeightCache.
-    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
-    // reference
-    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
-    MemoryDescPtr selectedWeightDesc;
+    DnnlExecutor2 executor;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
@@ -136,7 +107,6 @@ private:
     void appendLegacyZeroPointsArgs();
     void appendZeroPointsArgs();
     void initTryBrgconvFlag();
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
 
     bool withBiases;
     bool withSum;
