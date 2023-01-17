@@ -1,6 +1,6 @@
-# Install OpenVINO™ Runtime on macOS via Homebrew {#openvino_docs_install_guides_installing_openvino_brew_macos}
+# Install OpenVINO™ Runtime via Homebrew {#openvino_docs_install_guides_installing_openvino_brew}
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS via [Homebrew](https://brew.sh/). 
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via [Homebrew](https://brew.sh/). 
 
 > **NOTE**: Only CPU is supported for inference with OpenVINO that is installed via HomeBrew.
 
@@ -33,11 +33,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 @sphinxdirective
 
-1. Make sure that you have installed HomeBrew on your system. If not, you can run the following command in a prompt terminal window to install it:
-
-   .. code-block:: sh
-
-      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+1. Make sure that you have installed HomeBrew on your system. If not, follow the instructions on [the Homebrew website](https://brew.sh/) to install it.
 
 2. Run the following command to install OpenVINO Runtime:
 
@@ -61,21 +57,8 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 Congratulations, you finished the installation! The `<placehoder>/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
-### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
 
-You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the `setupvars.sh` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not `/opt/intel/openvino_2022`, use the correct one instead.
-
-```sh
-source /opt/intel/openvino_2022/setupvars.sh
-```  
-
-If you have more than one OpenVINO™ version on your machine, you can easily switch its version by sourcing the `setupvars.sh` of your choice.
-
-> **NOTE**: The above command must be re-run every time you start a new terminal session. To set up macOS to automatically run the command every time a new terminal is opened, open `~/.zshrc` in your favorite editor and add `source /opt/intel/openvino_2022/setupvars.sh` after the last line. Next time when you open a terminal, you will see `[setupvars.sh] OpenVINO™ environment initialized`. Changing `~/.zshrc` is not recommended when you have multiple OpenVINO versions on your machine and want to switch among them.
-
-The environment variables are set. Continue to the next section if you want to download any additional components.
-
-### <a name="model-optimizer"></a>Step 3 (Optional): Install Additional Components
+### <a name="model-optimizer"></a>Step 2 (Optional): Install Additional Components
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
