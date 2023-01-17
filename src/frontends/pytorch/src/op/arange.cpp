@@ -16,7 +16,7 @@ OutputVector translate_arange(NodeContext& context) {
     auto one = context.mark_node(opset10::Constant::create(element::i32, Shape{}, {1}));
     auto dtype = element::f32;
     bool dtype_applied = false;
-    int num_inputs = context.get_input_size();
+    auto num_inputs = context.get_input_size();
     ov::Output<Node> end;
     ov::Output<Node> out_tensor;
     ov::Output<Node> start = zero;
