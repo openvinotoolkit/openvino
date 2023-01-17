@@ -336,7 +336,7 @@ class TestParallelRunner:
     def __get_filters(self):
         if not os.path.isfile(self._exec_file_path):
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
-            exit(-1)
+            sys.exit(-1)
 
         test_list_runtime = self.__get_test_list_by_runtime()
         test_list_cache = self.__get_test_list_by_cache()
@@ -423,8 +423,8 @@ class TestParallelRunner:
                     if test_name is not None:
                         test_log.append(line)
                         # update test_cache with tests. If tests is crashed use -1 as unknown time
-                        time = line[line.rfind("(") + 1:line.rfind("ms)")-1] if test_name in line else -1
-                        if dir:
+                        time = line[line.rfind("(") + 1:line.rfind("ms)") - 1] if test_name in line else -1
+                        if time and dir:
                             test_times.append((int(time), test_name))
                             if __save_log(logs_dir, dir, test_name):
                                 test_cnt_log += 1
@@ -447,20 +447,22 @@ class TestParallelRunner:
             with open(self._cache_path, "w") as cache_file:
                 cache_file.writelines([f"{time}:\"" + test_name + "\":\n" for time, test_name in test_times])
                 cache_file.close()
+                logger.info(f"Test cache test is saved to: {self._cache_path}")
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
         with open(hash_table_path, "w") as csv_file:
             csv_writer = csv.writer(csv_file, dialect='excel')
             for row in hash_map:
                 csv_writer.writerow(row)
+            logger.info(f"Hashed test list is saved to: {hash_table_path}")
 
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.lst")
         with open(disabled_tests_path, "w") as disabled_tests_file:
-            logger.info(f"Disabled test list will be saved to: {disabled_tests_path}")
             for i in range(len(self._disabled_tests)):
                 self._disabled_tests[i] += "\n"
             disabled_tests_file.writelines(self._disabled_tests)
             disabled_tests_file.close()
+            logger.info(f"Disabled test list is saved to: {disabled_tests_path}")
 
         is_successfull_run = True
         test_cnt = 0
@@ -491,5 +493,6 @@ if __name__ == "__main__":
     conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
+        sys.exit(-1)
     else:
         logger.info("Run is successful")
