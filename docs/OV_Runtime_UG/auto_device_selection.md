@@ -268,7 +268,7 @@ The `ov::hint::model_priority` property enables you to control the priorities of
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
 
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes devices, uncapable of utilizing the Performance Hints option. 
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if AUTO is uncapable of utilizing the Performance Hints option. 
 
 
 @sphinxdirective
