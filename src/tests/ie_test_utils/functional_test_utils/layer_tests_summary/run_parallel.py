@@ -23,14 +23,9 @@ else:
     import thread
 
 FILENAME_LENGTH = 255
-
 LOG_NAME_REPLACE_STR = "##NAME##"
-
 DEFAUALT_PROCESS_TIMEOUT = 3600
-
 MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
-
-
 TEST_STATUS = {
     'passed': "[       OK ]",
     'failed': "[  FAILED  ]",
@@ -67,7 +62,7 @@ def get_test_command_line_args():
             break
     return command_line_args
 
-    
+# Class to read test cache    
 class TestStructure:
     _name = ""
     _time = 0
@@ -166,11 +161,11 @@ class TestParallelRunner:
         self._disabled_tests = list()
         self._total_test_cnt = 0
 
-    def __unzip_achieve(self, zip_path: os.path):
+    def __unzip_archieve(self, zip_path: os.path):
         _, tail = os.path.split(zip_path)
         dst_path = os.path.join(self._working_dir, tail)
         copyfile(zip_path, dst_path)
-        logger.info(f"Achieve {zip_path} was copied to {dst_path}")
+        logger.info(f"Archieve {zip_path} was copied to {dst_path}")
         dst_dir, _ = os.path.splitext(dst_path)
         if tarfile.is_tarfile(zip_path):
             file = tarfile.open(dst_path)
@@ -182,9 +177,9 @@ class TestParallelRunner:
         else:
             logger.error(f"Impossible to extract {zip_path}")
             sys.exit(-1)
-        logger.info(f"Achieve {dst_path} was extacted to {dst_dir}")
+        logger.info(f"Archieve {dst_path} was extacted to {dst_dir}")
         os.remove(dst_path)
-        logger.info(f"Achieve {dst_path} was extacted to {dst_dir}")
+        logger.info(f"Archieve {dst_path} was removed")
         return dst_dir
 
 
@@ -201,7 +196,7 @@ class TestParallelRunner:
                 for _ in argument.split(','):
                     input_path = argument.replace('"', '')
                     if os.path.isfile(input_path) and (tarfile.is_tarfile(input_path) or is_zipfile(input_path)):
-                        input_path = self.__unzip_achieve(input_path)
+                        input_path = self.__unzip_archieve(input_path)
                     buf = utils.prepare_filelist(input_path, "*.xml", logger)
                     buf += ","
                 argument = buf 
