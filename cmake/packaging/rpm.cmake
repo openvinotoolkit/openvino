@@ -237,6 +237,15 @@ macro(ov_cpack_settings)
         set(paddle_copyright "generic")
     endif()
 
+    if(ENABLE_OV_PYTORCH_FRONTEND)
+        set(CPACK_COMPONENT_PYTORCH_DESCRIPTION "OpenVINO PyTorch Frontend")
+        set(CPACK_RPM_PYTORCH_PACKAGE_NAME "libopenvino-pytorch-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_PYTORCH_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_PYTORCH_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages pytorch)
+        set(pytorch_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #
