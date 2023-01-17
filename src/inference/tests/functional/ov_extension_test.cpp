@@ -191,7 +191,7 @@ std::string getIncorrectExtensionPath() {
 }
 
 std::string getOVExtensionRelativePath() {
-    return ov::util::make_plugin_library_name(std::string("./"),
+    return ov::util::make_plugin_library_name(std::string("."),
                                               std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
 }
 
