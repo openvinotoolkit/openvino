@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-int ov_hetero() {
+int main() {
 ov::Core core;
 auto model = core.read_model("sample.xml");
 //! [set_manual_affinities]
