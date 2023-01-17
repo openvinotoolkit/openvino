@@ -24,7 +24,7 @@ struct CPU {
     int _sockets = 0;
     int _cores = 0;
 
-    std::vector<int> _proc_type_table;
+    std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
 
     CPU() {
@@ -100,11 +100,10 @@ void parse_processor_info_linux(const int _processors,
                                 const std::vector<std::vector<std::string>> system_info_table,
                                 int& _sockets,
                                 int& _cores,
-                                std::vector<int>& _proc_type_table,
+                                std::vector<std::vector<int>>& _proc_type_table,
                                 std::vector<std::vector<int>>& _cpu_mapping_table) {
     int n_group = 0;
 
-    _proc_type_table.resize(EFFICIENT_CORE_PROC + 1, 0);
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
 
     auto UpdateProcMapping = [&](const int nproc) {
@@ -141,9 +140,9 @@ void parse_processor_info_linux(const int _processors,
                 _cores++;
                 n_group++;
 
-                _proc_type_table[ALL_PROC] += 2;
-                _proc_type_table[MAIN_CORE_PROC]++;
-                _proc_type_table[HYPER_THREADING_PROC]++;
+                _proc_type_table[0][ALL_PROC] += 2;
+                _proc_type_table[0][MAIN_CORE_PROC]++;
+                _proc_type_table[0][HYPER_THREADING_PROC]++;
 
             } else if ((endpos = system_info_table[nproc][1].find('-', pos)) != std::string::npos) {
                 sub_str = system_info_table[nproc][1].substr(pos, endpos);
@@ -159,8 +158,8 @@ void parse_processor_info_linux(const int _processors,
 
                     _cores++;
 
-                    _proc_type_table[ALL_PROC]++;
-                    _proc_type_table[EFFICIENT_CORE_PROC]++;
+                    _proc_type_table[0][ALL_PROC]++;
+                    _proc_type_table[0][EFFICIENT_CORE_PROC]++;
                 }
 
                 n_group++;
@@ -175,8 +174,8 @@ void parse_processor_info_linux(const int _processors,
                 _cores++;
                 n_group++;
 
-                _proc_type_table[ALL_PROC]++;
-                _proc_type_table[MAIN_CORE_PROC]++;
+                _proc_type_table[0][ALL_PROC]++;
+                _proc_type_table[0][MAIN_CORE_PROC]++;
             }
         }
         return;
@@ -190,6 +189,13 @@ void parse_processor_info_linux(const int _processors,
 
             int core_1;
             int core_2;
+
+            if (0 == _sockets) {
+                _proc_type_table.push_back({0,0,0,0});
+            } else {
+                _proc_type_table.push_back(_proc_type_table[0]);
+                _proc_type_table[0] = {0,0,0,0};
+            }
 
             while (1) {
                 if ((endpos = system_info_table[n][2].find('-', pos)) != std::string::npos) {
@@ -218,6 +224,16 @@ void parse_processor_info_linux(const int _processors,
                 }
             }
             _sockets++;
+        }
+    }
+    if (_sockets > 1) {
+        _proc_type_table.push_back(_proc_type_table[0]);
+        _proc_type_table[0] = {0, 0, 0, 0};
+
+        for (int m = 1; m <= _sockets; m++) {
+            for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
+                _proc_type_table[0][n] += _proc_type_table[m][n] ;
+            }
         }
     }
 };
