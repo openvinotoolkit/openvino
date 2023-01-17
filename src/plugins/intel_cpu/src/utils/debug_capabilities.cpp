@@ -12,6 +12,7 @@
 #include "nodes/eltwise.h"
 #include "snippets/op/subgraph.hpp"
 #include <ie_ngraph_utils.hpp>
+#include "../src/common/verbose.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -97,27 +98,24 @@ void DebugLogEnabled::break_at(const std::string & log) {
 }
 
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
-    char sep = '(';
-    os << "dims:";
-    for (int i = 0; i < desc.data.ndims; i++) {
-        os << sep << desc.data.dims[i];
-        sep = ',';
-    }
-    os << ")";
-
-    sep = '(';
-    os << "strides:";
-    for (int i = 0; i < desc.data.ndims; i++) {
-        os << sep << desc.data.format_desc.blocking.strides[i];
-        sep = ',';
-    }
-    os << ")";
-
-    for (int i = 0; i < desc.data.format_desc.blocking.inner_nblks; i++) {
-        os << desc.data.format_desc.blocking.inner_blks[i] << static_cast<char>('a' + desc.data.format_desc.blocking.inner_idxs[i]);
-    }
-
-    os << " " << dnnl_dt2str(desc.data.data_type);
+    auto getWinoDetailedFormat = [&]() {
+        if (desc.data.format_kind == dnnl_format_kind_wino) {
+            switch (desc.data.format_desc.wino_desc.wino_format) {
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOIoi:
+                return "::wino_aaOIoi";
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOio:
+                return "::wino_aaOio";
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOBiOo:
+                return "::wino_aaOBiOo";
+            case dnnl_wino_memory_format_t::dnnl_wino_wei_OBaaIBOIio:
+                return "::wino_OBaaIBOIio";
+            default:
+                return "::wino_undef";
+            }
+        }
+        return "";
+    };
+    os << dnnl::impl::md2dim_str(&desc.data) << " " << dnnl::impl::md2fmt_str(&desc.data) << getWinoDetailedFormat();
     return os;
 }
 
