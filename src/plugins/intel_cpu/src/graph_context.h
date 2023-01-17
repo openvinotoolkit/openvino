@@ -65,6 +65,7 @@ public:
     }
 
     dnnl::reorder getReorderPrim(const dnnl::memory::desc& src, const dnnl::memory::desc& dest) const;
+    void reorderData(const Memory &input, const Memory &output) const;
 
 private:
     Config config;  // network-level config
