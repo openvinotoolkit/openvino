@@ -6,8 +6,8 @@ from argparse import ArgumentParser
 from subprocess import Popen, STDOUT, TimeoutExpired
 from hashlib import sha256
 from pathlib import Path
-from shutil import rmtree
-from itertools import repeat
+from shutil import rmtree, copyfile
+from zipfile import ZipFile, is_zipfile
 
 import os
 import sys
@@ -15,6 +15,7 @@ import threading
 import platform
 import csv
 import datetime
+import tarfile
 
 if sys.version_info.major >= 3:
     import _thread as thread
@@ -151,9 +152,9 @@ class TaskManager:
 class TestParallelRunner:
     def __init__(self, exec_file_path: os.path, test_command_line: list, worker_num: int, working_dir: os.path, cache_path: os.path):
         self._exec_file_path = exec_file_path
+        self._working_dir = working_dir
         self._command = self.__init_basic_command_line_for_exec_file(test_command_line)
         self._worker_num = worker_num
-        self._working_dir = working_dir
         if not os.path.exists(self._working_dir):
             os.mkdir(self._working_dir)
         if cache_path == "":
@@ -164,6 +165,28 @@ class TestParallelRunner:
             os.mkdir(head)
         self._is_save_cache = True
         self._disabled_tests = list()
+
+    def __unzip_achieve(self, zip_path: os.path):
+        _, tail = os.path.split(zip_path)
+        dst_path = os.path.join(self._working_dir, tail)
+        copyfile(zip_path, dst_path)
+        logger.info(f"Achieve {zip_path} was copied to {dst_path}")
+        dst_dir, _ = os.path.splitext(dst_path)
+        if tarfile.is_tarfile(zip_path):
+            file = tarfile.open(dst_path)
+            file.extractall(dst_dir)
+            file.close()
+        elif is_zipfile(zip_path):
+            with ZipFile(dst_path, 'r') as zObject:
+                zObject.extractall(path=dst_dir)
+        else:
+            logger.error(f"Impossible to extract {zip_path}")
+            sys.exit(-1)
+        logger.info(f"Achieve {dst_path} was extacted to {dst_dir}")
+        os.remove(dst_path)
+        logger.info(f"Achieve {dst_path} was removed")
+        return dst_dir
+
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -176,7 +199,10 @@ class TestParallelRunner:
             if is_input_folder and argument[0] != "-":
                 buf = ""
                 for _ in argument.split(','):
-                    buf = utils.prepare_filelist(argument.replace('"', ''), "*.xml", logger)
+                    input_path = argument.replace('"', '')
+                    if tarfile.is_tarfile(input_path) or is_zipfile(input_path):
+                        input_path = self.__unzip_achieve(input_path)
+                    buf = utils.prepare_filelist(input_path, "*.xml", logger)
                     buf += ","
                 argument = buf 
             else:
