@@ -67,7 +67,12 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
     update_passrates(results)
 
 def prepare_filelist(input_dir: os.path, pattern: str, logger):
-    filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
+    filelist_path = input_dir
+    if os.path.isdir(filelist_path):
+        filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
+    elif os.path.isfile(filelist_path):
+        head, _ = os.path.split(filelist_path)
+        input_dir = head
     if os.path.isfile(filelist_path):
         logger.info(f"{filelist_path} is exists! The script will update it!")
     xmls = Path(input_dir).rglob(pattern)

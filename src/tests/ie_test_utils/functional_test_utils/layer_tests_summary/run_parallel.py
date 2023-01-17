@@ -37,10 +37,9 @@ TEST_STATUS = {
     'hanged': "Test finished by timeout",
     'crashed': "Unexpected application crash with code",
     'skipped': "[  SKIPPED ]",
-    'interapted': "interapted"}
+    'interapted': "interapted",
+    'killed': "Killed"}
 RUN = "[ RUN      ]"
-
-GTEST_RESTRICTED_SYMBOLS = [':', '']
 
 logger = utils.get_logger('test_parallel_runner')
 
@@ -201,7 +200,7 @@ class TestParallelRunner:
                 buf = ""
                 for _ in argument.split(','):
                     input_path = argument.replace('"', '')
-                    if tarfile.is_tarfile(input_path) or is_zipfile(input_path):
+                    if os.path.isfile(input_path) and (tarfile.is_tarfile(input_path) or is_zipfile(input_path)):
                         input_path = self.__unzip_achieve(input_path)
                     buf = utils.prepare_filelist(input_path, "*.xml", logger)
                     buf += ","
@@ -346,13 +345,13 @@ class TestParallelRunner:
         if len(proved_test_list) > 0:
             self._is_save_cache = False
             logger.info(f"Test list is taken from cache.")
-            final_test_list = self.__prepare_smart_filters(proved_test_list)
             self._total_test_cnt = len(proved_test_list)
+            final_test_list = self.__prepare_smart_filters(proved_test_list)
         else:
             logger.info(f"Test list is taken from runtime.")
+            self._total_test_cnt = len(test_list_runtime)
             final_test_list = test_list_runtime
             final_test_list.reverse()
-            self._total_test_cnt = len(test_list_runtime)
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return final_test_list
 
@@ -468,7 +467,7 @@ class TestParallelRunner:
         for test_st, test_res in test_results.items():
             logger.info(f"{test_st} test counter is: {test_res}")
             test_cnt += test_res
-            if (test_st != "passed" or test_st != "skipped") and test_res > 0:
+            if (test_st != "passed" and test_st != "skipped") and test_res > 0:
                 is_successfull_run = False
         if len(self._disabled_tests):
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
@@ -492,3 +491,5 @@ if __name__ == "__main__":
     conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
+    else:
+        logger.info("Run is successful")
