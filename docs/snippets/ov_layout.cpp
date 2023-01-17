@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/core/layout.hpp"
 #include "openvino/core/model.hpp"
 
-int ov_layout() {
+int main() {
     ov::Layout layout;
 //! [ov:layout:simple]
 layout = ov::Layout("NHWC");
