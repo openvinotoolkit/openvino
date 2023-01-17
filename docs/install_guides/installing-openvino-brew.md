@@ -27,7 +27,7 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 @endsphinxdirective
 
-## <a name="install-core"></a>Installing OpenVINO Runtime
+## <a name="install-runtime"></a>Installing OpenVINO Runtime
 
 @sphinxdirective
 
@@ -40,12 +40,12 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
       brew install openvino
 
 
-Congratulations, you finished the installation!
+Congratulations, you've finished the installation!
 
 @endsphinxdirective
 
 
-## (Optional) Install Additional Components
+## (Optional) Installing Additional Components
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
