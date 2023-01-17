@@ -5,8 +5,6 @@
 #include "core_impl.hpp"
 
 #include <memory>
-#include <openvino/core/except.hpp>
-#include <openvino/runtime/remote_context.hpp>
 
 #include "any_copy.hpp"
 #include "check_network_batchable.hpp"
@@ -23,9 +21,11 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"

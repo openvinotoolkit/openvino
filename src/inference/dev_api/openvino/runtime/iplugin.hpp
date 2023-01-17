@@ -30,6 +30,9 @@ class IExtension;
 
 namespace ov {
 
+/**
+ * @brief OpenVINO Plugin Interface 2.0
+ */
 class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin> {
 public:
     /**

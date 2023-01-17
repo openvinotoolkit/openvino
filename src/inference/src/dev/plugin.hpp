@@ -17,6 +17,9 @@ namespace ov {
 
 class CoreImpl;
 
+/**
+ * @brief Plugin wrapper under the plugin interface which is used inside the core interface
+ */
 class Plugin {
     std::shared_ptr<ov::IPlugin> m_ptr;
     std::shared_ptr<void> m_so;

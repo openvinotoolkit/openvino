@@ -27,6 +27,7 @@
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "so_ptr.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -220,12 +221,9 @@ public:
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(
         const std::string& modelPath,
         const std::map<std::string, std::string>& config) override {
-        // FIXME:
-        OPENVINO_NOT_IMPLEMENTED;
-        // return ov::legacy_convert::convert_compiled_model(
-        //     m_plugin->compile_model(ov::legacy_convert::convert_model(network, m_plugin->is_new_api()),
-        //                             ov::any_copy(config),
-        //                             ov::RemoteContext{context, {}}));
+        return ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(
+            m_plugin->compile_model(modelPath, ov::any_copy(config)),
+            {});
     }
 
     void AddExtension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override {
