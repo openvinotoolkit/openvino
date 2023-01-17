@@ -104,8 +104,6 @@ private:
     MemoryPtr getOutputMemory() const;
     VectorDims makeInputDummyShape(const Shape& inpShape) const;
     VectorDims outputStaticShape() const;
-    void appendLegacyZeroPointsArgs();
-    void appendZeroPointsArgs();
     void initTryBrgconvFlag();
 
     bool withBiases;
