@@ -116,7 +116,7 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         if (arg.can_be_optimized())
-            return make_unique<concatenation_onednn>(engine);
+            return make_unique<concatenation_onednn>(engine, config);
         auto prim = impl_params.typed_desc<concatenation>();
         auto attr = arg.get_onednn_primitive_attributes();
         auto prim_desc = get_concatenation_primitive_descriptor(impl_params, *attr, prim->axis);

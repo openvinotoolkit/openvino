@@ -128,9 +128,8 @@ public:
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr());
     }
-
-    memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_node_output_layout(const primitive_id& output_id) const;
+    memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_output_layout(const primitive_id& output_id) const;
     std::vector<layout> get_input_layouts() const;
 
