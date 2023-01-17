@@ -415,7 +415,8 @@ public:
     void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
 
     const std::shared_ptr<InferenceEngine::IInferencePlugin>& get_plugin() const;
-    void set_core(std::weak_ptr<ov::ICore> core);
+    void set_core(const std::weak_ptr<ov::ICore>& core);
+    void set_device_name(const std::string& device_name);
 
 private:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;

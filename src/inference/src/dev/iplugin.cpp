@@ -63,7 +63,7 @@ ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arg
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void ov::IPlugin::set_core(std::weak_ptr<ov::ICore> core) {
+void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;
     auto locked_core = m_core.lock();

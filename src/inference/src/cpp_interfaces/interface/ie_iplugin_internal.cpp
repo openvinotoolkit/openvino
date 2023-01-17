@@ -621,12 +621,17 @@ const std::shared_ptr<InferenceEngine::IInferencePlugin>& IPluginWrapper::get_pl
     return m_old_plugin;
 }
 
-void IPluginWrapper::set_core(std::weak_ptr<ov::ICore> core) {
+void IPluginWrapper::set_core(const std::weak_ptr<ov::ICore>& core) {
     auto locked_core = core.lock();
     auto old_core = std::dynamic_pointer_cast<InferenceEngine::ICore>(locked_core);
     if (old_core)
         m_old_plugin->SetCore(old_core);
     m_core = core;
+}
+
+void IPluginWrapper::set_device_name(const std::string& device_name) {
+    m_plugin_name = device_name;
+    m_old_plugin->SetName(device_name);
 }
 
 }  //  namespace InferenceEngine

@@ -169,7 +169,7 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    void set_core(std::weak_ptr<ov::ICore> core);
+    void set_core(const std::weak_ptr<ov::ICore>& core);
 
     /**
      * @brief Gets reference to ICore interface
@@ -195,14 +195,14 @@ protected:
     IPlugin();
 
 private:
+    friend ::InferenceEngine::IPluginWrapper;
+
     std::string m_plugin_name;                                             //!< A device name that plugins enables
     ov::AnyMap m_properties;                                               //!< A map config keys -> values
     std::weak_ptr<ov::ICore> m_core;                                       //!< A pointer to ICore interface
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                                 //!< Member contains plugin version
     bool m_is_new_api;                                                     //!< A flag which shows used API
-
-    friend InferenceEngine::IPluginWrapper;
 };
 
 }  // namespace ov

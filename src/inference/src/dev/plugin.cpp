@@ -25,7 +25,11 @@ ov::Plugin::Plugin(const std::shared_ptr<ov::IPlugin>& ptr, const std::shared_pt
 }
 
 void ov::Plugin::set_name(const std::string& deviceName) {
-    OV_PLUGIN_CALL_STATEMENT(m_ptr->set_device_name(deviceName));
+    OV_PLUGIN_CALL_STATEMENT({
+        m_ptr->set_device_name(deviceName);
+        if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(m_ptr))
+            wrapper->set_device_name(deviceName);
+    });
 }
 
 void ov::Plugin::set_core(std::weak_ptr<ICore> core) {
