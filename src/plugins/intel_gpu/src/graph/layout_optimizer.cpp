@@ -1838,6 +1838,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
         node.set_preferred_output_fmt(0, expected);
+    }
     return expected;
 }
 
