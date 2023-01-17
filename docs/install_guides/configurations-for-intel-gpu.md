@@ -13,7 +13,7 @@
 
 If you have installed OpenVINO Runtime from the archive file, APT, or YUM, follow these steps to work with GPU:
 
-1. Determine your operating system and it's version: 
+1. Check your operating system and its version: 
    ```sh 
    cat /etc/os-release
    ```
