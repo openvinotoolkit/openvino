@@ -191,10 +191,10 @@ void parse_processor_info_linux(const int _processors,
             int core_2;
 
             if (0 == _sockets) {
-                _proc_type_table.push_back({0,0,0,0});
+                _proc_type_table.push_back({0, 0, 0, 0});
             } else {
                 _proc_type_table.push_back(_proc_type_table[0]);
-                _proc_type_table[0] = {0,0,0,0};
+                _proc_type_table[0] = {0, 0, 0, 0};
             }
 
             while (1) {
