@@ -1,12 +1,10 @@
 # Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
 
-import logging
 
 # Testing operation Conv2D
 # Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/Conv2D
@@ -18,7 +16,8 @@ class TestConv2D(CommonTFLayerTest):
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
     # use_new_frontend - common parameter
-    def create_conv2d_placeholder_const_net(self, input_shape, input_filter, input_strides, input_padding, dilations, ir_version, use_new_frontend):
+    def create_conv2d_placeholder_const_net(self, input_shape, input_filter, input_strides, input_padding, dilations,
+                                            ir_version, use_new_frontend):
         """
             Tensorflow net                  IR net
 
@@ -31,10 +30,10 @@ class TestConv2D(CommonTFLayerTest):
         import tensorflow as tf
 
         if dilations is None:
-            dilations = [1, 1, 1, 1] #default value regarding Documentation
+            dilations = [1, 1, 1, 1]  # default value regarding Documentation
 
         #               Batch   Height Width  Channel
-        expl_paddings = [0, 0,  1, 1,  1, 1,  0, 0]
+        expl_paddings = [0, 0, 1, 1, 1, 1, 0, 0]
 
         if input_padding == 'EXPLICIT' and use_new_frontend == False:
             pytest.xfail(reason="100300")
@@ -47,9 +46,11 @@ class TestConv2D(CommonTFLayerTest):
             tf_filter = tf.compat.v1.placeholder(tf.float32, input_filter, "InputFilter")
 
             if input_padding != 'EXPLICIT':
-                tf.raw_ops.Conv2D(input = tf_input, filter = tf_filter, strides = input_strides, padding = input_padding, dilations = dilations)
+                tf.raw_ops.Conv2D(input=tf_input, filter=tf_filter, strides=input_strides, padding=input_padding,
+                                  dilations=dilations)
             else:
-                tf.raw_ops.Conv2D(input = tf_input, filter = tf_filter, strides = input_strides, padding = input_padding, explicit_paddings=expl_paddings, dilations = dilations)
+                tf.raw_ops.Conv2D(input=tf_input, filter=tf_filter, strides=input_strides, padding=input_padding,
+                                  explicit_paddings=expl_paddings, dilations=dilations)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -67,8 +68,14 @@ class TestConv2D(CommonTFLayerTest):
         dict(input_shape=[1, 10, 10, 4], input_filter=[2, 2, 4, 2], input_strides=[1, 1, 1, 1], dilations=None),
         dict(input_shape=[1, 16, 16, 3], input_filter=[2, 2, 3, 3], input_strides=[1, 2, 2, 1], dilations=[1, 2, 2, 1]),
         pytest.param(
-            dict(input_shape=[1, 224, 224, 3], input_filter=[4, 4, 3, 2], input_strides=[1, 2, 2, 1], dilations=[1, 2, 2, 1]),
+            dict(input_shape=[1, 224, 224, 3], input_filter=[4, 4, 3, 2], input_strides=[1, 2, 2, 1],
+                 dilations=[1, 2, 2, 1]),
             marks=pytest.mark.precommit_tf_fe),
+        # with four groups
+        pytest.param(
+            dict(input_shape=[2, 224, 224, 4], input_filter=[4, 4, 1, 12], input_strides=[1, 2, 2, 1],
+                 dilations=[1, 2, 2, 1]),
+            marks=pytest.mark.precommit_tf_fe)
     ]
 
     @pytest.mark.parametrize("params", test_data)
@@ -77,6 +84,6 @@ class TestConv2D(CommonTFLayerTest):
     def test_conv2d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend, use_old_api):
         self._test(*self.create_conv2d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                             use_new_frontend=use_new_frontend),
                    ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
