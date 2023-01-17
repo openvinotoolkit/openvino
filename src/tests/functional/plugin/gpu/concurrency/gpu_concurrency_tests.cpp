@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ TEST_P(OVConcurrencyTest, canInferTwoExecNets) {
         auto fn = fn_ptrs[i];
 
         auto exec_net = ie.compile_model(fn_ptrs[i], CommonTestUtils::DEVICE_GPU,
-                                         {ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32)});
+                                         ov::num_streams(num_streams), ov::hint::inference_precision(ov::element::f32));
 
         auto input = fn_ptrs[i]->get_parameters().at(0);
         auto output = fn_ptrs[i]->get_results().at(0);

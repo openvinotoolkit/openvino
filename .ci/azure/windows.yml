@@ -73,8 +73,6 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)\install_pkg
     INSTALL_TEST_DIR: $(INSTALL_DIR)\tests
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
-    IB_DIR: C:\Program Files (x86)\IncrediBuild
-    IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
     PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.10.7\x64
     CMAKE_VERSION: 3.24.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
@@ -122,12 +120,6 @@ jobs:
       set
     displayName: 'System info'
 
-  - script: |
-      curl -O https://openvinoweb.z5.web.core.windows.net/incredibuild/install_ib_console.bat
-      call install_ib_console.bat
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Install IncrediBuild'
-
   - checkout: self
     clean: 'true'
     fetchDepth: '1'
@@ -166,7 +158,6 @@ jobs:
       powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       powershell -command "Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip"
       powershell -command "Expand-Archive -Force ninja-win.zip"
-      git clone https://github.com/google/gtest-parallel.git
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
@@ -178,6 +169,7 @@ jobs:
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
+        -DENABLE_CPPLINT=OFF ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_FASTER_BUILD=ON ^
@@ -186,6 +178,7 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
+        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
         -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
@@ -193,7 +186,8 @@ jobs:
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -S $(REPO_DIR) -B $(BUILD_DIR)
+        -S $(REPO_DIR) ^
+        -B $(BUILD_DIR)
     displayName: 'CMake OpenVINO'
 
   - script: dir $(REPO_DIR)\temp\ /s
@@ -201,8 +195,8 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build $(BUILD_DIR) --config Release"
-    displayName: 'Build Win - IB'
+      call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) --build $(BUILD_DIR) --parallel --config Release"
+    displayName: 'Build Win'
 
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
@@ -236,16 +230,17 @@ jobs:
   - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
     displayName: 'Build c samples'
 
-  - script: |
-      python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
+  - script: python -m pip install -r $(INSTALL_TEST_DIR)\smoke_tests\requirements.txt
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
-      call $(SETUPVARS) && set IE_APP_PATH=$(INSTALL_DIR)\samples_bin
-      set IE_APP_PYTHON_PATH=$(INSTALL_DIR)\samples\python\
-      set SHARE=$(INSTALL_DIR)\tests\smoke_tests\samples_smoke_tests_data\
-      set WORKSPACE=$(INSTALL_DIR)
+      call $(SETUPVARS)
       python -m pytest $(INSTALL_DIR)\tests\smoke_tests\  --env_conf $(INSTALL_TEST_DIR)\smoke_tests\env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+    env:
+      IE_APP_PATH: $(INSTALL_DIR)\samples_bin
+      IE_APP_PYTHON_PATH: $(INSTALL_DIR)\samples\python\
+      SHARE: $(INSTALL_DIR)\tests\smoke_tests\samples_smoke_tests_data\
+      WORKSPACE: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
 
   - script: $(CMAKE_CMD) -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)\cmake_install.cmake
@@ -290,13 +285,8 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\Transformations.xml
     displayName: 'Transformations Tests'
 
-    # set PATH=$(IB_DIR);%PATH%
-    # call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineUnitTests-IB.xml
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
-
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieUnitTests.xml
-    displayName: 'IE UT'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
@@ -304,37 +294,28 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-XLinkTests.xml
-    displayName: 'XLink Tests'
-
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieFuncTests.xml
-    displayName: 'IE FuncTests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
-    # set PATH=$(IB_DIR);%PATH%
-    # call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\ov_cpu_func_tests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio*:*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs/mode=CONVERT_TO_TI_MAX_SEQ_LEN_CONST_seq_lengths* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_func_tests-IB.xml /testlevel=24
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_cpu_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_cpu_func_tests.xml
     displayName: 'CPU FuncTests'
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineCAPITests.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
   - script: |
-      set DATA_PATH=$(MODELS_PATH)
-      set MODELS_PATH=$(MODELS_PATH)
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'OV CAPITests'
 
   - task: PublishTestResults@2
@@ -349,7 +330,3 @@ jobs:
       buildPlatform: 'x64' # Optional
       buildConfiguration: 'Windows' # Optional
       #publishRunAttachments: true # Optional
-
-  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
-    displayName: Stop IncrediBuild
-    enabled: 'false'

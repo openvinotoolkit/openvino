@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,7 +84,6 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSplitSupport();
     k.EnableBatching();
     k.EnableGroupedConvolution();
     return k;
@@ -330,7 +329,6 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("DW", params.dilation.x - 1));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("FWD_DATA", 1));
-    jit.AddConstant(MakeJitConstant("IS_DW", "DEPTHWISE_SEPARABLE_OPT"));
     jit.AddConstant(MakeJitConstant("WITH_BIAS", "BIAS_TERM"));
 
     if (is_1stconv || params.groups > 1) {

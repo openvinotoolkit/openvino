@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -213,9 +211,9 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
         reorder("reorder", input_info("quantize"), layout{data_types::f32, format::bfyx, tensor{1,8,2,2}})
     );
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -737,10 +735,10 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-        auto build_ops = build_options();
-        build_ops.set_option(build_option::outputs({"quantize"}));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"quantize"}));
 
-        network net(engine, topo, build_ops);
+        network net(engine, topo, config);
         net.set_input_data("input", input);
 
         auto result = net.execute();
@@ -775,9 +773,8 @@ struct quantize_random_test : testing::TestWithParam<quantize_random_test_params
             FAIL() << "Not supported inputs number: " << params.inputs_num;
         }
 
-        auto buildops_opt = build_options();
 
-        network net_opt(engine, topo_opt, buildops_opt);
+        network net_opt(engine, topo_opt, ExecutionConfig{});
         net_opt.set_input_data("input_opt", input_opt);
 
         auto result_opt = net_opt.execute();
