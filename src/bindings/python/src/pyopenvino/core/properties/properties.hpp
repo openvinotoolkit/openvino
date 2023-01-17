@@ -11,7 +11,6 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "pyopenvino/core/properties/properties.hpp"
-#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -23,18 +22,12 @@ void wrap_property_RO(py::module m, ov::Property<T, ov::PropertyMutability::RO> 
 }
 
 template <typename T>
-void wrap_property_RW(py::module m, ov::Property<T, ov::PropertyMutability::RW> property, std::string func_name, std::string deprecation_message = "") {
-    m.def(func_name.c_str(), [property, deprecation_message]() {
-        if (!deprecation_message.empty()) {
-            Common::utils::deprecation_warning(std::string(property.name()) + " property is deprecated", "", deprecation_message);
-        }
+void wrap_property_RW(py::module m, ov::Property<T, ov::PropertyMutability::RW> property, std::string func_name) {
+    m.def(func_name.c_str(), [property]() {
         return property.name();
     });
 
-    m.def(func_name.c_str(), [property, deprecation_message](T value) {
-        if (!deprecation_message.empty()) {
-            Common::utils::deprecation_warning(std::string(property.name()) + " property is deprecated", "", deprecation_message);
-        }
+    m.def(func_name.c_str(), [property](T value) {
         return property(value);
     });
 }

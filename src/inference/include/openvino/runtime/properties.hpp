@@ -238,12 +238,13 @@ static constexpr Property<element::Type, PropertyMutability::RW> inference_preci
  * @brief Namespace with hint properties
  */
 namespace hint {
+
 /**
- * @brief Hint for device to use specified precision for inference
+ * @brief An alias for inference_precision property for backward compatibility
  * @ingroup ov_runtime_cpp_prop_api
  */
-OPENVINO_DEPRECATED("This was moved to ov:: namespace. Please use ov::inference_precision instead")
-static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+using ov::inference_precision;
+
 /**
  * @brief Enum to define possible priorities hints
  * @ingroup ov_runtime_cpp_prop_api
