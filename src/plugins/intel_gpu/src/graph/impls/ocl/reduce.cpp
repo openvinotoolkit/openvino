@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,14 +76,6 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reduce_impl>(*this);
-    }
-
-    reduce_impl() : parent() {}
-
-    explicit reduce_impl(const reduce_impl& other) : parent(other) {}
-
-    reduce_impl(const reduce_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        this->can_reuse_memory = kd.can_reuse_memory;
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {

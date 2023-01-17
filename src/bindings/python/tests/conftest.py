@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -83,14 +83,6 @@ def model_onnx_path():
     base_path = os.path.dirname(__file__)
     test_onnx = os.path.join(base_path, "test_utils", "utils", "test_model.onnx")
     return test_onnx
-
-
-def plugins_path():
-    base_path = os.path.dirname(__file__)
-    plugins_xml = os.path.join(base_path, "test_utils", "utils", "plugins.xml")
-    plugins_win_xml = os.path.join(base_path, "test_utils", "utils", "plugins_win.xml")
-    plugins_osx_xml = os.path.join(base_path, "test_utils", "utils", "plugins_apple.xml")
-    return (plugins_xml, plugins_win_xml, plugins_osx_xml)
 
 
 def _get_default_model_zoo_dir():

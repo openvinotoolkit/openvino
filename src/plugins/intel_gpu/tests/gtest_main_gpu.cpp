@@ -42,7 +42,7 @@ GTEST_API_ int main(int argc, char** argv) {
 
     //gflags
     gflags::AllowCommandLineReparsing();
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_device_suffix != -1 && cldnn::device_query::device_id == -1)
         cldnn::device_query::device_id = FLAGS_device_suffix;
     //restore cmdline arg for gtest
@@ -54,5 +54,7 @@ GTEST_API_ int main(int argc, char** argv) {
 
     //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
-    return RUN_ALL_TESTS();
+    auto retcode = RUN_ALL_TESTS();
+    delete[] new_argv;
+    return retcode;
 }

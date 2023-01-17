@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,10 +39,10 @@ class PrimitiveFusingTest : public ::BaseFusingTest<fusing_test_params> {
 public:
 
     void execute(fusing_test_params& p) {
-        bo_fused.set_option(build_option::allow_static_input_reorder(true));
+        cfg_fused.set_property(ov::intel_gpu::allow_static_input_reorder(true));
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -78,12 +78,12 @@ TEST_P(format_mismatch_fusing, single_fused_node) {
         reorder("reorder_bfyx", input_info("eltwise"), p.output_format, data_types::f32)
     );
 
-    implementation_desc resample_impl = { p.input_format, "resample_opt" };
-    bo_fused.set_option(build_option::force_implementations({ { "resample_opt", resample_impl } }));
-    implementation_desc ref_resample_impl = { p.input_format, "resample_ref" };
-    bo_not_fused.set_option(build_option::force_implementations({ { "resample_opt", ref_resample_impl } }));
-    implementation_desc ref_eltwise = { p.input_format, "" };
-    bo_not_fused.set_option(build_option::force_implementations({ { "eltwise_data", ref_eltwise } }));
+    ov::intel_gpu::ImplementationDesc resample_impl = { p.input_format, "resample_opt" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_opt", resample_impl } }));
+    ov::intel_gpu::ImplementationDesc ref_resample_impl = { p.input_format, "resample_ref" };
+    cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_opt", ref_resample_impl } }));
+    ov::intel_gpu::ImplementationDesc ref_eltwise = { p.input_format, "" };
+    cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise_data", ref_eltwise } }));
 
     tolerance = 1e-5f;
     execute(p);
@@ -112,12 +112,12 @@ TEST_P(format_mismatch_multiple_fusing, multiple_fused_node) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc resample_impl = { p.input_format, "resample_opt" };
-    bo_fused.set_option(build_option::force_implementations({ { "resample_prim", resample_impl } }));
-    implementation_desc ref_resample_impl = { p.input_format, "resample_ref" };
-    bo_not_fused.set_option(build_option::force_implementations({ { "resample_prim", ref_resample_impl } }));
-    implementation_desc ref_eltwise = { p.input_format, "" };
-    bo_not_fused.set_option(build_option::force_implementations({ { "eltwise_data", ref_eltwise } }));
+    ov::intel_gpu::ImplementationDesc resample_impl = { p.input_format, "resample_opt" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", resample_impl } }));
+    ov::intel_gpu::ImplementationDesc ref_resample_impl = { p.input_format, "resample_ref" };
+    cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample_prim", ref_resample_impl } }));
+    ov::intel_gpu::ImplementationDesc ref_eltwise = { p.input_format, "" };
+    cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise_data", ref_eltwise } }));
 
     tolerance = 1e-5f;
     execute(p);

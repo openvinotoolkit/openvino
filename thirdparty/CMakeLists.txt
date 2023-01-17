@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -186,7 +186,8 @@ endif()
 #
 
 if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
-    if(LINUX)
+    # on Windows and macOS we don't use gflags, because will be dynamically linked
+    if(CMAKE_HOST_LINUX AND LINUX)
         if(OV_OS_RHEL)
             set(gflag_component nothreads_shared)
         elseif(OV_OS_DEBIAN)
