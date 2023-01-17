@@ -355,7 +355,7 @@ When the sample application is complete, you are given the label and confidence 
 
 @endsphinxdirective
 
-The following two examples show how to run the same sample using GPU as the target device.
+The following example shows how to run the same sample using GPU as the target device.
 
 #### Running Inference on GPU
 
