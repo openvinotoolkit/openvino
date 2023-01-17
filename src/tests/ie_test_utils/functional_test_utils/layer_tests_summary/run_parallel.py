@@ -272,7 +272,7 @@ class TestParallelRunner:
         def_length = len(self._command) + len(" --gtest_filter=")
         idx = len(proved_test_list)
         for i in range(len(proved_test_list)):
-            if proved_test_list[i]._time == 0 or proved_test_list[i]._time == -1:
+            if proved_test_list[i]._time == -1 or proved_test_list[i]._time == -2:
                 idx = i
                 break
         
