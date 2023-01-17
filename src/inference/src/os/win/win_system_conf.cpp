@@ -21,7 +21,7 @@ struct CPU {
     int _sockets = 0;
     int _cores = 0;
 
-    std::vector<int> _proc_type_table;
+    std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
 
     CPU() {
@@ -37,7 +37,6 @@ struct CPU {
             return;
         }
 
-        _proc_type_table.resize(EFFICIENT_CORE_PROC + 1, 0);
         _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
         _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
 
@@ -76,16 +75,21 @@ struct CPU {
                 _sockets++;
                 MaskToList(info->Processor.GroupMask->Mask);
                 mask_len = list_len;
-
+                if (0 == _sockets) {
+                    _proc_type_table.push_back({0, 0, 0, 0});
+                } else {
+                    _proc_type_table.push_back(_proc_type_table[0]);
+                    _proc_type_table[0] = {0, 0, 0, 0};
+                }
             } else if (info->Relationship == RelationProcessorCore) {
                 MaskToList(info->Processor.GroupMask->Mask);
 
-                if (_proc_type_table[ALL_PROC] >= _processors) {
+                if (_proc_type_table[0][ALL_PROC] >= _processors) {
                     break;
                 }
 
                 if (0 == list[0]) {
-                    base_proc = _proc_type_table[ALL_PROC];
+                    base_proc = _proc_type_table[0][ALL_PROC];
                 }
 
                 if (2 == list_len) {
@@ -104,8 +108,8 @@ struct CPU {
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
                     _cpu_mapping_table[list[1] + base_proc][CPU_MAP_GROUP_ID] = group;
 
-                    _proc_type_table[MAIN_CORE_PROC]++;
-                    _proc_type_table[HYPER_THREADING_PROC]++;
+                    _proc_type_table[0][MAIN_CORE_PROC]++;
+                    _proc_type_table[0][HYPER_THREADING_PROC]++;
                     group++;
 
                 } else {
@@ -113,7 +117,7 @@ struct CPU {
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_SOCKET_ID] = _sockets;
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_ID] = _cores;
                 }
-                _proc_type_table[ALL_PROC] += list_len;
+                _proc_type_table[0][ALL_PROC] += list_len;
                 _cores++;
 
             } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
@@ -123,15 +127,25 @@ struct CPU {
                     for (int m = 0; m < list_len; m++) {
                         _cpu_mapping_table[list[m] + base_proc][CPU_MAP_CORE_TYPE] = EFFICIENT_CORE_PROC;
                         _cpu_mapping_table[list[m] + base_proc][CPU_MAP_GROUP_ID] = group;
-                        _proc_type_table[EFFICIENT_CORE_PROC]++;
+                        _proc_type_table[0][EFFICIENT_CORE_PROC]++;
                     }
                     group++;
 
                 } else if (1 == list_len) {
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_TYPE] = MAIN_CORE_PROC;
                     _cpu_mapping_table[list[0] + base_proc][CPU_MAP_GROUP_ID] = group;
-                    _proc_type_table[MAIN_CORE_PROC]++;
+                    _proc_type_table[0][MAIN_CORE_PROC]++;
                     group++;
+                }
+            }
+        }
+        if (_sockets > 1) {
+            _proc_type_table.push_back(_proc_type_table[0]);
+            _proc_type_table[0] = {0, 0, 0, 0};
+
+            for (int m = 1; m <= _sockets; m++) {
+                for (int n = 0; n <= EFFICIENT_CORE_PROC; n++) {
+                    _proc_type_table[0][n] += _proc_type_table[m][n];
                 }
             }
         }
