@@ -240,5 +240,34 @@ void DnnlExecutor2::exec(dnnl::stream strm) {
     }
 }
 
+void DnnlExecutor2::setDynamicBatch(int newBatch) {
+    if (!prim) {
+        IE_THROW() << "Can't set dynamic batch for node: " << name << ", because executor is not compiled";
+    }
+
+    if (needReordering()) {
+        IE_THROW() << "Can't execute node " << name << " with dynamic batch via executor with reorders";
+    }
+
+    auto setDynamicBatch = [this](int argType, int newBatch) {
+        auto param = args.find(argType);
+        if (param != args.end()) {
+            auto oldMem = param->second;
+            dnnl::memory::desc newMemDesc(oldMem.get_desc());
+            newMemDesc.data.dims[0] = newBatch;
+            newMemDesc.data.padded_dims[0] = newBatch;
+            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+            args.at(argType) = newMem;
+        }
+    };
+
+    if (!args.empty()) {
+        setDynamicBatch(DNNL_ARG_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DST, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
+    }
+}
+
 }  // namespace intel_cpu
 }   // namespace ov

@@ -92,6 +92,7 @@ class DnnlExecutor2 {
             args[arg_id] = arg;
         }
         void setScratchPad();
+        void setDynamicBatch(int newBatch);
 
     protected:
         const GraphContext::CPtr context;

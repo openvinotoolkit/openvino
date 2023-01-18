@@ -1149,13 +1149,8 @@ dnnl::memory Convolution::getWeights() const {
 }
 
 void Convolution::setDynamicBatchLim(int lim) {
-    if (!executor) {
-        IE_THROW() << "Can't set dynamic batch for Convolution node with name: " << getName() << ", because executor is not compiled";
-    }
-    if (executor.needReordering()) {
-        IE_THROW() << "Can't execute Convolution node with dynamic batch via executor with reorders";
-    }
-    Node::setDynamicBatchLim(lim);
+    dynBatchLim = lim;
+    executor.setDynamicBatch(batchToProcess());
 }
 
 dnnl::memory Convolution::getBias() const {
