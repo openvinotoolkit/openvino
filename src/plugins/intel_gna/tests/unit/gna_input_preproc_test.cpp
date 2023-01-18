@@ -117,13 +117,13 @@ INSTANTIATE_TEST_SUITE_P(GNAInputPrecisionTestSuite, GNAInputPrecisionTestFp32to
                             ::testing::ValuesIn(std::vector<ov::AnyMap> {         // gna config map
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 8.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                             }),
                             ::testing::Values(true),                              // gna device
                             ::testing::Values(false),                             // use low precision
@@ -141,13 +141,13 @@ INSTANTIATE_TEST_SUITE_P(GNAInputPrecisionTestSuite, GNAInputPrecisionTestFp32to
                             ::testing::ValuesIn(std::vector<ov::AnyMap> {        // gna config map
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 4.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.25f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                             }),
                             ::testing::Values(true),                              // gna device
                             ::testing::Values(true),                              // use low precision
@@ -189,13 +189,13 @@ INSTANTIATE_TEST_SUITE_P(GNAInputPrecisionTestSuite, GNAInputPrecisionTestI16toI
                             ::testing::ValuesIn(std::vector<ov::AnyMap> {         // gna config map
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 4.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.25f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                             }),
                             ::testing::Values(true),                              // gna device
                             ::testing::Values(false),                             // use low precision
@@ -214,13 +214,13 @@ INSTANTIATE_TEST_SUITE_P(GNAInputPrecisionTestSuite, GNAInputPrecisionTestI16toI
                             ::testing::ValuesIn(std::vector<ov::AnyMap> {          // gna config map,
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 10.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 20.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                             }),
                             ::testing::Values(true),                              // gna device
                             ::testing::Values(true),                              // use low precision
@@ -239,10 +239,10 @@ INSTANTIATE_TEST_SUITE_P(GNAInputPrecisionTestSuite, GNAInputPrecisionTestU8toI1
                             ::testing::ValuesIn(std::vector<ov::AnyMap> {          // gna config map
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 8.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i16)},
+                                    ov::inference_precision(ngraph::element::i16)},
                             }),
                             ::testing::Values(true),                              // gna device
                             ::testing::Values(false),                             // use low precision
@@ -261,10 +261,10 @@ INSTANTIATE_TEST_SUITE_P(GNAInputPrecisionTestSuite, GNAInputPrecisionTestU8toI8
                             ::testing::ValuesIn(std::vector<ov::AnyMap> {         // gna config map
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                                 {ov::intel_gna::execution_mode(ov::intel_gna::ExecutionMode::SW_EXACT),
                                     ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 4.0f}}),
-                                    ov::hint::inference_precision(ngraph::element::i8)},
+                                    ov::inference_precision(ngraph::element::i8)},
                             }),
                             ::testing::Values(true),                              // gna device
                             ::testing::Values(true),                              // use low precision
