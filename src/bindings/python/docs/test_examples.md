@@ -3,12 +3,12 @@
 #### Building and environment
 Instructions can be found in ["Building the OpenVINO™ Python API"](./build.md).
 
-Install the special requirements file for testing:
+Install the specific requirements file for testing:
 ```
 python -m pip install -r openvino/src/bindings/python/requirements_test.txt
 ```
 
-### Running OpenVINO™ Python API tests
+### Run OpenVINO™ Python API tests
 *For simplicity, all of these commands require to navigate to the main Python API folder first:*
 ```shell
 cd .../openvino/src/bindings/python/
@@ -19,12 +19,12 @@ To run OpenVINO Python API 2.0 tests:
 pytest tests/
 ```
 
-For running OpenVINO Python API 1.0 tests execute this command:
+To run OpenVINO Python API 1.0 tests, use this command:
 ```
 pytest tests_compatibility/
 ```
 
-Test framework *pytest* allows to filter tests with `-k` flag.
+The *pytest* test framework enables you to filter tests with the `-k` flag.
 ```shell
 pytest tests/test_runtime/test_core.py -k "test_available_devices"
 ```
@@ -45,28 +45,28 @@ To run full test suite one can utilize `tox` command:
 tox
 ```
 
-### Check codestyle of Python API
-There are two packages used in the project to check codestyle of python code: *mypy* and *flake8*.
-Additionally OpenVINO™ uses the custom configuration file to exclude some strict rules.
+### Check the codestyle of Python API
+There are two packages used in the project to check the codestyle of python code: *mypy* and *flake8*.
+Besides, OpenVINO™ uses a custom configuration file to exclude some strict rules.
 
-For checking the codestyle of Python API 2.0 execute this command:
+To check the codestyle of Python API 2.0, run the following commands:
 ```
 python -m flake8 ./src/openvino/ --config=setup.cfg
 python -m mypy ./src/openvino --config-file ./setup.cfg
 ```
-For checking the codestyle of compatibility nGraph Python API execute this command:
+To check the codestyle of the compatibility nGraph Python API, run the following commands:
 ```
 python -m flake8 ./src/compatibility/ngraph/ --config=setup.cfg
 python -m mypy ./src/compatibility/ngraph --config-file ./setup.cfg
 ```
-For checking the codestyle of compatibility InferenceEngine Python API execute this command:
+To check the codestyle of the compatibility InferenceEngine Python API, run the following commands:
 ```
 cd src/compatibility/openvino
 python -m flake8 ./ --config=setup.cfg
 python -m mypy ./ --config-file ./setup.cfg
 ```
-Also we suggest to run the codestyle check above tests if some new were added.
-This check should be executed from the main Python API folder.
+Also we suggest to run the codestyle check above the tests folder if some new tests were added.
+This check should be executed from the main Python API folder:
 ```
 python -m flake8 ./tests/ --config=setup.cfg
 ```

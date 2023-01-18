@@ -84,7 +84,7 @@ from openvino.helpers.custom_module import top1_index
 ```
 **Do not forget to include a license on the top of each file!** For demonstration purposes, it has been skipped in the snippets above.
 
-To see changes taking effect, rebuild the project (CMake's install step should be good enough ["How to build OpenVINO" developer documentation](../../../../docs/dev/build.md)) and run your solution:
+To see the changes take effect, [rebuild the project](../../../../docs/dev/build.md) and run your solution:
 ```python
 import openvino.helpers as ov_helpers
 
