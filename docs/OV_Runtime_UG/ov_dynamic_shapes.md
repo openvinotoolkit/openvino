@@ -168,11 +168,11 @@ Depending on the plugin, specifying the upper bounds can be required. For inform
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 
-### Preparing and Inferencing Dynamic Data
+## Preparing and Inferencing Dynamic Data
 
-Preparing a model with the `reshape` method is the first step.
-The second step is passing a tensor with an appropriate shape to infer request.
-This is similar to the [regular steps](integrate_with_your_application.md). However, tensors can now be passed with different shapes for the same executable model and even for the same inference request:
+After configuring a model with the `reshape` method, the next steps are to create tensors with the appropriate data shape and pass them to the model as an inference request. This is similar to the regular steps described in [Integrate OpenVINO™ with Your Application](integrate_with_your_application.md). However, tensors can now be passed into the model with different shapes.
+
+The sample below shows how a model can accept different input shapes. In the first case, the model runs inference on a 1x128 input shape and returns a result. In the second case, a 1x200 input shape is used, which the model can still handle because it is dynamically shaped.
 
 @sphinxtabset
 
@@ -215,6 +215,7 @@ Contrary to previous example, the following one shows the same sequence of two i
 
 @sphinxtab{Python}
 
+TO DO - change Python example
 @snippet  docs/snippets/ov_dynamic_shapes.py get_input_tensor
 
 @endsphinxtab
@@ -226,6 +227,8 @@ Contrary to previous example, the following one shows the same sequence of two i
 @endsphinxtab
 
 @endsphinxtabset
+
+For more information on how to apply input data to a model and run inference, see [OpenVINO™ Inference Request](ov_infer_request.md).
 
 ### Dynamic Shapes in Outputs
 
