@@ -80,6 +80,7 @@
 /src/frontends/ir/ @openvinotoolkit/openvino-ir-frontend-maintainers
 /src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 /src/frontends/tensorflow/  @openvinotoolkit/openvino-tf-frontend-maintainers
+/src/frontends/pytorch/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
 
 # OpenVINO ONNX Frontend:
 /src/frontends/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers
@@ -89,6 +90,8 @@
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
 /tests/layer_tests/ @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-mo-maintainers
+/tests/layer_tests/pytorch_tests/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
+/tests/layer_tests/tensorflow_tests @openvinotoolkit/openvino-tf-frontend-maintainers
 
 # Tools:
 /tools/  @openvinotoolkit/openvino-tools-maintainers
