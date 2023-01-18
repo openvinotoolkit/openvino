@@ -1,5 +1,5 @@
-//
-// Created by pesir on 10/18/2022.
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
