@@ -92,7 +92,13 @@ public:
         for (size_t idx = 0; idx < type_str.size(); idx++) {
             seed = hash_combine(seed, type_str[idx]);
         }
+
+        // hash for number of outputs
         seed = hash_combine(seed, num_outputs);
+
+        // hash for number of inputs
+        auto inputs = dependencies();
+        seed = hash_combine(seed, inputs.size());
         return seed;
     }
 

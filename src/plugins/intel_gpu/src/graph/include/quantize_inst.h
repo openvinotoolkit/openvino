@@ -96,35 +96,33 @@ public:
                                                                        out_shift);
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
-    size_t hash() const override {
-        if (!seed) {
-            seed = parent::hash();
 
-            seed = hash_combine(seed, scale_shift_opt);
-            seed = hash_combine(seed, need_post_scale);
-            seed = hash_combine(seed, need_post_shift);
-            seed = hash_combine(seed, need_pre_shift);
-            seed = hash_combine(seed, need_clamp);
-            seed = hash_combine(seed, need_min_clamp);
-            seed = hash_combine(seed, need_max_clamp);
+    void calculate_hash() override {
+        parent::calculate_hash();
 
-            seed = hash_combine(seed, per_tensor_input_range);
-            seed = hash_combine(seed, per_tensor_input_scale);
-            seed = hash_combine(seed, per_tensor_input_shift);
-            seed = hash_combine(seed, per_tensor_output_range);
-            seed = hash_combine(seed, per_tensor_output_scale);
-            seed = hash_combine(seed, per_tensor_output_shift);
+        seed = hash_combine(seed, scale_shift_opt);
+        seed = hash_combine(seed, need_post_scale);
+        seed = hash_combine(seed, need_post_shift);
+        seed = hash_combine(seed, need_pre_shift);
+        seed = hash_combine(seed, need_clamp);
+        seed = hash_combine(seed, need_min_clamp);
+        seed = hash_combine(seed, need_max_clamp);
 
-            seed = hash_combine(seed, in_lo);
-            seed = hash_combine(seed, in_hi);
-            seed = hash_combine(seed, in_scale);
-            seed = hash_combine(seed, in_shift);
-            seed = hash_combine(seed, out_lo);
-            seed = hash_combine(seed, out_hi);
-            seed = hash_combine(seed, out_scale);
-            seed = hash_combine(seed, out_shift);
-        }
-        return seed;
+        seed = hash_combine(seed, per_tensor_input_range);
+        seed = hash_combine(seed, per_tensor_input_scale);
+        seed = hash_combine(seed, per_tensor_input_shift);
+        seed = hash_combine(seed, per_tensor_output_range);
+        seed = hash_combine(seed, per_tensor_output_scale);
+        seed = hash_combine(seed, per_tensor_output_shift);
+
+        seed = hash_combine(seed, in_lo);
+        seed = hash_combine(seed, in_hi);
+        seed = hash_combine(seed, in_scale);
+        seed = hash_combine(seed, in_shift);
+        seed = hash_combine(seed, out_lo);
+        seed = hash_combine(seed, out_hi);
+        seed = hash_combine(seed, out_scale);
+        seed = hash_combine(seed, out_shift);
     }
 
 private:

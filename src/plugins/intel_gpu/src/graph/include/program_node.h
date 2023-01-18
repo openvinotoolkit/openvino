@@ -370,7 +370,9 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
-    virtual size_t hash() const { return seed; }
+    virtual void calculate_hash() {}
+
+    size_t get_hash() const { return seed; }
 
 protected:
     size_t unique_id = 0;
@@ -412,7 +414,7 @@ protected:
 
     void invalidate_users() const;
 
-    mutable size_t seed = 0;
+    size_t seed = 0;
 
 private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -457,27 +459,24 @@ public:
         return std::static_pointer_cast<const PType>(program_node::get_primitive());
     }
 
-    size_t hash() const override {
-        if (!seed) {
-            // hash for primitive
-            seed = get_primitive()->hash();
+    void calculate_hash() override {
+        // hash for primitive
+        seed = get_primitive()->hash();
 
-            // hash for activations
-            for (auto& act : fused_activations) {
-                seed = hash_combine(seed, act.func);
-                seed = hash_combine(seed, act.params.a);
-                seed = hash_combine(seed, act.params.b);
-            }
-
-            // hash for fused prims
-            for (auto& prim : fused_prims) {
-                seed = hash_combine(seed, prim.desc->type_string());
-                seed = hash_combine(seed, prim.activation);
-                seed = hash_combine(seed, prim.activation_params.a);
-                seed = hash_combine(seed, prim.activation_params.b);
-            }
+        // hash for activations
+        for (auto& act : fused_activations) {
+            seed = hash_combine(seed, act.func);
+            seed = hash_combine(seed, act.params.a);
+            seed = hash_combine(seed, act.params.b);
         }
-        return seed;
+
+        // hash for fused prims
+        for (auto& prim : fused_prims) {
+            seed = hash_combine(seed, prim.desc->hash());
+            seed = hash_combine(seed, prim.activation);
+            seed = hash_combine(seed, prim.activation_params.a);
+            seed = hash_combine(seed, prim.activation_params.b);
+        }
     }
 
 protected:

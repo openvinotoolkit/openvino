@@ -107,13 +107,9 @@ public:
         return params;
     }
 
-    size_t hash() const override {
-        if (!seed) {
-            seed = parent::hash();
-
-            seed = hash_combine(seed, transposed);
-        }
-        return seed;
+    void calculate_hash() override {
+        parent::calculate_hash();
+        seed = hash_combine(seed, transposed);
     }
 
 private:
