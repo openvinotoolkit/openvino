@@ -36,6 +36,9 @@ def _params(request):
 def test_unify_scales(_params, tmp_path, models):
     model_name, model_framework, algorithm, preset, device = _params
 
+    if model_framework == 'mxnet':
+        pytest.skip('Skipped due to conflict with numpy version in mxnet #99501.')
+
     algorithm_config = Dict({
         'algorithms': [{
             'name': algorithm,

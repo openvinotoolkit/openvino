@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,21 +61,21 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 #else // OUTPUT_LAYOUT_B_FS_YX_FSV32
     __global OUTPUT_TYPE* output,
 #endif //OUTPUT_LAYOUT_B_FS_YX_FSV32
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const int fg = get_group_id(0);
     const int x = (int)get_global_id(1) * OUTPUT_X_BLOCK_SIZE;

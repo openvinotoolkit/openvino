@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<border>();
-        auto params = get_default_params<kernel_selector::border_params>(impl_param, 1);
+        auto params = get_default_params<kernel_selector::border_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::border_optional_params>(impl_param.get_program());
 
         size_t rank = impl_param.get_input_layout(0).get_rank();

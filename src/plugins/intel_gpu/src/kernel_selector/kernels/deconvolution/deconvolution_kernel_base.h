@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,28 +20,18 @@ struct deconvolution_params : public weight_bias_params {
     uSize stride;
     uSize dilation;
     uSize padding;
-    uint32_t split = 1;
     uint32_t groups = 1;
-    bool depthwise_separable_opt = false;
 
     std::string to_string() const override;
 
     ParamsKey GetParamsKey() const override {
         ParamsKey k = weight_bias_params::GetParamsKey();
 
-        if (split > 1) {
-            k.EnableSplitSupport();
-        }
-
         if (dilation.x != 1 || dilation.y != 1 || dilation.z != 1) {
             k.EnableDilation();
         }
 
-        if (depthwise_separable_opt) {
-            k.EnableDepthwiseSeparableOpt();
-        }
-
-        if (groups > 1 && !depthwise_separable_opt) {
+        if (groups > 1) {
             k.EnableGroupedConvolution();
         }
 

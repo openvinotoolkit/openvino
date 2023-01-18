@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,12 +54,7 @@ public:
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
-    std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<Node>& start) const;
-    PartialShape calculate_output_shape(const std::vector<int64_t>& starts,
-                                        const std::vector<int64_t>& stops,
-                                        const std::vector<int64_t>& steps,
-                                        const std::vector<int64_t>& axes,
-                                        const PartialShape& data_shape) const;
+    std::shared_ptr<v0::Constant> get_default_const_axes(const Output<Node>& start) const;
 };
 }  // namespace v8
 }  // namespace op

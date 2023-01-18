@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,6 @@ protected:
     virtual JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const;
     static bool CheckWorkGroups(const DispatchData&);
-    static bool CheckPitchForSplitOnly(const convolution_params& params);
     KernelsData GetCommonKernelsData(const Params& params,
                                      const optional_params& options,
                                      const std::string exeMode = EXE_MODE_DEFAULT,

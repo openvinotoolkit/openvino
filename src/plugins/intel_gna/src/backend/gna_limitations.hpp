@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "dnn_types.h"
+#include "dnn_types.hpp"
 #include <cstdint>
 #include <cpp/ie_cnn_network.h>
 #include <ie_algorithm.hpp>
 #include <legacy/ie_layers.h>
 #include "gna_lib_ver_selector.hpp"
 
-namespace GNAPluginNS {
-namespace GNALimitations {
+namespace ov {
+namespace intel_gna {
+namespace limitations {
 
 constexpr uint32_t bufferMaxSize = 65528;
 
@@ -65,7 +66,8 @@ inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
     return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;
 }
 
-namespace Cnn2D {
+namespace cnn2d {
+
 struct IsEqualToLimit {
     uint32_t compared_value;
     std::string what;
@@ -118,11 +120,10 @@ struct VectorOrSquareLimit {
 };
 
 struct RectLimitByChannels {
-    std::vector<std::pair<uint32_t, RectLimit> > limitPerChannel;
+    std::vector<std::pair<uint32_t, RectLimit>> limitPerChannel;
     RectLimit GetByChannels(const uint32_t channels) const;
     bool isValid(const uint32_t h, const uint32_t w, const uint32_t channels) const;
-    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
-        const uint32_t channels, std::string what) const;
+    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w, const uint32_t channels, std::string what) const;
 };
 
 struct RectLimitByChannelsAndPrecision {
@@ -130,8 +131,11 @@ struct RectLimitByChannelsAndPrecision {
     RectLimitByChannels limit_for_int16;
     RectLimitByChannels GetByPrecision(const OvGnaType precision) const;
     bool isValid(const uint32_t h, const uint32_t w, const OvGnaType precision, const uint32_t channels) const;
-    std::string GetErrorOrEmpty(const uint32_t h, const uint32_t w,
-        const OvGnaType precision, const uint32_t channels, std::string what) const;
+    std::string GetErrorOrEmpty(const uint32_t h,
+                                const uint32_t w,
+                                const OvGnaType precision,
+                                const uint32_t channels,
+                                std::string what) const;
 };
 
 class AbstractValidator {
@@ -144,29 +148,51 @@ protected:
 
 public:
     virtual ~AbstractValidator() = default;
-    virtual bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-        OvGnaType inPrecision, bool exception = true) const = 0;
+    virtual bool ValidateCnn2D(const std::string& name,
+                               const uint32_t inHeight,
+                               const uint32_t inWidth,
+                               const uint32_t inChannels,
+                               const uint32_t kH,
+                               const uint32_t kW,
+                               const uint32_t kN,
+                               const uint32_t strideH,
+                               const uint32_t strideW,
+                               const uint32_t dilationH,
+                               const uint32_t dilationW,
+                               OvGnaType inPrecision,
+                               bool exception = true) const = 0;
 
     virtual bool ValidatePooling2D(const std::string& name,
-        const uint32_t windowH, const uint32_t windowW,
-        const uint32_t strideH, const uint32_t strideW,
-        bool exception = true) const = 0;
+                                   const uint32_t windowH,
+                                   const uint32_t windowW,
+                                   const uint32_t strideH,
+                                   const uint32_t strideW,
+                                   bool exception = true) const = 0;
 
     virtual bool ValidateInputPadding(const std::string& name,
-        const uint32_t pad_h_begin, const uint32_t pad_h_end,
-        const uint32_t pad_w_begin, const uint32_t pad_w_end,
-        const uint32_t kernel_h,
-        const uint32_t kernel_w,
-        const bool throwOnError = true) const = 0;
+                                      const uint32_t pad_h_begin,
+                                      const uint32_t pad_h_end,
+                                      const uint32_t pad_w_begin,
+                                      const uint32_t pad_w_end,
+                                      const uint32_t kernel_h,
+                                      const uint32_t kernel_w,
+                                      const bool throwOnError = true) const = 0;
 
     virtual bool ShouldUseOnlyConv2DGnaIface() const = 0;
 
-    virtual bool ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-        OvGnaType inPrecision, bool exception = true) const = 0;
+    virtual bool ValidateCnn1D(const std::string& name,
+                               const uint32_t inHeight,
+                               const uint32_t inWidth,
+                               const uint32_t inChannels,
+                               const uint32_t kH,
+                               const uint32_t kW,
+                               const uint32_t kN,
+                               const uint32_t strideH,
+                               const uint32_t strideW,
+                               const uint32_t dilationH,
+                               const uint32_t dilationW,
+                               OvGnaType inPrecision,
+                               bool exception = true) const = 0;
 
     static std::unique_ptr<AbstractValidator> Create(const std::string&);
 };
@@ -184,29 +210,51 @@ class Validator_30 : public AbstractValidator {
 public:
     Validator_30() = default;
 
-    bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-        OvGnaType inPrecision, bool exception = true) const override;
+    bool ValidateCnn2D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
 
     bool ValidatePooling2D(const std::string& name,
-        const uint32_t windowH, const uint32_t windowW,
-        const uint32_t strideH, const uint32_t strideW,
-        bool exception = true) const override;
+                           const uint32_t windowH,
+                           const uint32_t windowW,
+                           const uint32_t strideH,
+                           const uint32_t strideW,
+                           bool exception = true) const override;
 
     bool ValidateInputPadding(const std::string& name,
-        const uint32_t pad_h_begin, const uint32_t pad_h_end,
-        const uint32_t pad_w_begin, const uint32_t pad_w_end,
-        const uint32_t kernel_h,
-        const uint32_t kernel_w,
-        const bool throwOnError = true) const override;
+                              const uint32_t pad_h_begin,
+                              const uint32_t pad_h_end,
+                              const uint32_t pad_w_begin,
+                              const uint32_t pad_w_end,
+                              const uint32_t kernel_h,
+                              const uint32_t kernel_w,
+                              const bool throwOnError = true) const override;
 
     bool ShouldUseOnlyConv2DGnaIface() const override;
 
-    bool ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
-    const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-    const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-    OvGnaType inPrecision, bool exception = true) const override;
+    bool ValidateCnn1D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
 };
 
 class Validator_35 : public AbstractValidator {
@@ -228,7 +276,30 @@ class Validator_35 : public AbstractValidator {
     static const CnnLimits kCnn1DLimits;
 
     std::string ValidateCnn(const CnnLimits& limits,
-                       const std::string& name,
+                            const std::string& name,
+                            const uint32_t inHeight,
+                            const uint32_t inWidth,
+                            const uint32_t inChannels,
+                            const uint32_t kH,
+                            const uint32_t kW,
+                            const uint32_t kN,
+                            const uint32_t strideH,
+                            const uint32_t strideW,
+                            const uint32_t dilationH,
+                            const uint32_t dilationW,
+                            OvGnaType inPrecision) const;
+
+    std::string ValidatePooling(const CnnLimits& limits,
+                                const std::string& name,
+                                const uint32_t windowH,
+                                const uint32_t windowW,
+                                const uint32_t strideH,
+                                const uint32_t strideW) const;
+
+public:
+    Validator_35() = default;
+
+    bool ValidateCnn2D(const std::string& name,
                        const uint32_t inHeight,
                        const uint32_t inWidth,
                        const uint32_t inChannels,
@@ -239,43 +310,43 @@ class Validator_35 : public AbstractValidator {
                        const uint32_t strideW,
                        const uint32_t dilationH,
                        const uint32_t dilationW,
-                       OvGnaType inPrecision) const;
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
 
-    std::string ValidatePooling(const CnnLimits& limits,
-                                const std::string& name,
+    bool ValidatePooling2D(const std::string& name,
                            const uint32_t windowH,
                            const uint32_t windowW,
                            const uint32_t strideH,
-                           const uint32_t strideW) const;
-
-public:
-    Validator_35() = default;
-
-    bool ValidateCnn2D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-        OvGnaType inPrecision, bool exception = true) const override;
-
-    bool ValidatePooling2D(const std::string& name,
-        const uint32_t windowH, const uint32_t windowW,
-        const uint32_t strideH, const uint32_t strideW,
-        bool exception = true) const override;
+                           const uint32_t strideW,
+                           bool exception = true) const override;
 
     bool ValidateInputPadding(const std::string& name,
-        const uint32_t pad_h_begin, const uint32_t pad_h_end,
-        const uint32_t pad_w_begin, const uint32_t pad_w_end,
-        const uint32_t kernel_h,
-        const uint32_t kernel_w,
-        const bool throwOnError = true) const override;
+                              const uint32_t pad_h_begin,
+                              const uint32_t pad_h_end,
+                              const uint32_t pad_w_begin,
+                              const uint32_t pad_w_end,
+                              const uint32_t kernel_h,
+                              const uint32_t kernel_w,
+                              const bool throwOnError = true) const override;
 
     bool ShouldUseOnlyConv2DGnaIface() const override;
 
-    bool ValidateCnn1D(const std::string& name, const uint32_t inHeight, const uint32_t inWidth,
-        const uint32_t inChannels, const uint32_t kH, const uint32_t kW, const uint32_t kN,
-        const uint32_t strideH, const uint32_t strideW, const uint32_t dilationH, const uint32_t dilationW,
-        OvGnaType inPrecision, bool exception = true) const override;
+    bool ValidateCnn1D(const std::string& name,
+                       const uint32_t inHeight,
+                       const uint32_t inWidth,
+                       const uint32_t inChannels,
+                       const uint32_t kH,
+                       const uint32_t kW,
+                       const uint32_t kN,
+                       const uint32_t strideH,
+                       const uint32_t strideW,
+                       const uint32_t dilationH,
+                       const uint32_t dilationW,
+                       OvGnaType inPrecision,
+                       bool exception = true) const override;
 };
-} // namespace Cnn2D
+
+}  // namespace cnn2d
 
 bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage);
 
@@ -293,5 +364,6 @@ IE_SUPPRESS_DEPRECATED_START
 bool ValidateConvConcatAxis(const InferenceEngine::ConcatLayer* concatLayer);
 IE_SUPPRESS_DEPRECATED_END
 
-} // namespace GNALimitations
-} // namespace GNAPluginNS
+}  // namespace limitations
+}  // namespace intel_gna
+}  // namespace ov

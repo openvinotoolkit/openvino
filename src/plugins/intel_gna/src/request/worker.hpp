@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,8 @@
 
 #include "request_status.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 class ModelWrapper;
@@ -46,7 +47,7 @@ public:
     /**
      * @brief Wait untril request will be not finished for give timeout.
      * @param timeoutMilliseconds timeout in milliseconds
-     * @return status of execution of ongoing request. @see GNAPluginNS::RequestStatus
+     * @return status of execution of ongoing request. @see RequestStatus
      */
     virtual RequestStatus wait(int64_t timeoutMilliseconds) = 0;
 
@@ -85,4 +86,5 @@ public:
 };
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

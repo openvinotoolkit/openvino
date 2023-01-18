@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -46,7 +46,6 @@ def arg_parse_helper(input_model,
         source_layout={},
         target_layout={},
         freeze_placeholder_with_value=None,
-        tensorflow_use_custom_operations_config=None,
         data_type=None,
         tensorflow_custom_operations_config_update=None,
     )

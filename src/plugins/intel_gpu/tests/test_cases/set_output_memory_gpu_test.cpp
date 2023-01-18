@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <cstddef>
 
@@ -319,9 +317,9 @@ TEST(set_output_memory_gpu, basic_opt) {
     primitive_id outputID = "reorder3";
     topology.add(reorder(outputID, input_info("concat"), ol));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -371,7 +369,7 @@ TEST(set_output_memory_gpu, mutable_output_data) {
             /*b1f3*/4.f,  0.5f,  8.f,   8.2f
     };
     set_values(input, input_vec);
-    auto prog = program::build_program(engine, topology, build_options());
+    auto prog = program::build_program(engine, topology, ExecutionConfig{});
     network network(prog, 0);
     network.set_input_data("Add_1396", input);
 

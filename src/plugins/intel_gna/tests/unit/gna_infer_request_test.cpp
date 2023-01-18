@@ -19,8 +19,8 @@
 using namespace ::testing;
 using namespace InferenceEngine;
 
-using GNAPluginNS::GNAInferRequest;
-using GNAPluginNS::GNAPlugin;
+using ov::intel_gna::GNAInferRequest;
+using ov::intel_gna::GNAPlugin;
 using ::testing::InSequence;
 
 class GNAInferRequestTest : public ::testing::Test {

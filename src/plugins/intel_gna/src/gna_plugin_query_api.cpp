@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include <unordered_map>
 #include <memory>
 
-using namespace GNAPluginNS;
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 
@@ -60,6 +59,8 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
         return GNADeviceHelper::GetGnaLibraryVersion();
     } else if (ov::execution_devices == name) {
         return decltype(ov::execution_devices)::value_type {GetName()};
+    } else if (ov::model_name == name) {
+        return _network_name;
     } else {
         const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
             {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},

@@ -1,34 +1,37 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
-    - src/tests/functional/plugin/conformance/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 jobs:
 - job: onnxruntime
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_ONNX_U20_WU2
@@ -55,7 +58,6 @@ jobs:
       uname -a
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
-      echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
       echo cmake info ; which cmake ; cmake --version
       lsb_release
@@ -78,9 +80,9 @@ jobs:
     displayName: 'Make dirs'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
@@ -92,12 +94,10 @@ jobs:
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-      # Speed up tests
-      git clone https://github.com/google/gtest-parallel.git
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
@@ -107,7 +107,6 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_INTEL_GNA=OFF
         -DENABLE_INTEL_GPU=OFF
         -DENABLE_CPPLINT=OFF
@@ -116,30 +115,36 @@ jobs:
         -DENABLE_COMPILE_TOOL=OFF
         -DENABLE_OV_TF_FRONTEND=OFF
         -DENABLE_OV_PADDLE_FRONTEND=OFF
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF
         -DENABLE_OPENVINO_DEBUG=OFF
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_DIR)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Lin ONNX'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_DIR)
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_DIR)/cmake_install.cmake
     displayName: 'Install OpenVINO'
 
   - script: |
       source $(INSTALL_DIR)/setupvars.sh
-      CXXFLAGS="-Wno-error=deprecated-declarations" ./build.sh --config RelWithDebInfo --use_openvino CPU_FP32 --build_shared_lib --parallel --skip_tests --build_dir $(ONNXRUNTIME_BUILD_DIR)
-    workingDirectory: $(ONNXRUNTIME_REPO_DIR)
+      $(ONNXRUNTIME_REPO_DIR)/build.sh \
+        --config RelWithDebInfo \
+        --use_openvino CPU_FP32 \
+        --build_shared_lib \
+        --parallel \
+        --skip_tests \
+        --build_dir $(ONNXRUNTIME_BUILD_DIR)
+    env:
+      CXXFLAGS: "-Wno-error=deprecated-declarations"
     displayName: 'Build Lin ONNX Runtime'
 
   - script: |
       source $(INSTALL_DIR)/setupvars.sh
-      skip_tests=`tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests`
+      skip_tests=$(tr -s '\n ' ':' < $(ONNXRUNTIME_UTILS)/skip_tests)
       ./onnxruntime_test_all --gtest_filter=-$skip_tests
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_test_all'

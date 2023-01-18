@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
 using namespace GNATestIRs;
 
 class FP32NonQuantizedTest : public GNATest<>{

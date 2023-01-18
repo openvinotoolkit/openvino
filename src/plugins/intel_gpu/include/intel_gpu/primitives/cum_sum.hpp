@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 struct cum_sum : public primitive_base<cum_sum> {
     CLDNN_DECLARE_PRIMITIVE(cum_sum)
@@ -39,7 +33,4 @@ struct cum_sum : public primitive_base<cum_sum> {
     /// @brief If set to true will perform the sums in reverse direction.
     bool reverse;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
