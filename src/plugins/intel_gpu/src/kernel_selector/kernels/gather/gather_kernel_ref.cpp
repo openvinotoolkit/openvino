@@ -144,9 +144,10 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
         idx_order[i] = zero_val;
 
     // Fix size to inputs[0] dims size
-    for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
-        idx_order.pop_back();
-
+    if (params.outputs[0].GetDims().size() > params.inputs[0].GetDims().size()) {
+        for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
+            idx_order.pop_back();
+    }
     idx_order[axis] = input_axis_index_macro;
 
     return GetOrderString(idx_order);
