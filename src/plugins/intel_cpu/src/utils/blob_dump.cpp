@@ -159,7 +159,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
            << dims.size() << "D "
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
-    stream << "(" << data_size << ")" <<
+    stream << "(" << data_size << ") " << desc.serializeFormat() <<
     " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->GetData()) << std::dec <<std::endl;
 
     const void *ptr = memory->GetData();
