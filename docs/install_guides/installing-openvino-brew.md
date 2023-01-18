@@ -45,7 +45,7 @@ Full requirement listing is available on the `System Requirements Page <https://
 
 1. Make sure that you have installed HomeBrew on your system. If not, follow the instructions on `the Homebrew website <https://brew.sh/>`_ to install and configure it.
 
-2. Run the following command to install OpenVINO Runtime:
+2. Open a command prompt terminal window, and run the following command to install OpenVINO Runtime:
 
    .. code-block:: sh
 
