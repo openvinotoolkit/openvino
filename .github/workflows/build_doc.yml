@@ -56,7 +56,7 @@ jobs:
           echo "$(pwd)/doxygen-$DOXY_VER/bin/" >> $GITHUB_PATH
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_DOCS=ON -B build
+        run: cmake -DENABLE_DOCS=ON -B build
 
       - name: Cache documentation
         id: cache_sphinx_docs

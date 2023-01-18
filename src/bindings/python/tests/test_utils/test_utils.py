@@ -31,7 +31,7 @@ def test_compare_models():
 def generate_lib_name(device, full_device_name):
     lib_name = ""
     arch = processor()
-    if arch == "x86_64" or "Intel" in full_device_name or device in ["GNA", "HDDL", "MYRIAD", "VPUX"]:
+    if arch == "x86_64" or "Intel" in full_device_name or device in ["GNA", "VPUX"]:
         lib_name = "openvino_intel_" + device.lower() + "_plugin"
     elif arch != "x86_64" and device == "CPU":
         lib_name = "openvino_arm_cpu_plugin"

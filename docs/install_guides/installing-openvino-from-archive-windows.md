@@ -104,21 +104,13 @@ See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on non-CPU Devices
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
+OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. See the instructions below to set up OpenVINO on these devices.
 
 @sphinxdirective
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide windows>`.
 
-.. tab:: VPU
-
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide windows>`.
-   
-.. tab:: NCS 2
-   
-   No additional configurations are needed.
-   
 .. tab:: GNA
 
    To enable the toolkit components to use Intel® Gaussian & Neural Accelerator (GNA) on your system, follow the steps in :ref:`GNA Setup Guide <gna guide windows>`.

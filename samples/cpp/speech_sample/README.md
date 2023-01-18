@@ -58,7 +58,6 @@ Several execution modes are supported via the `-d` flag:
 
 - `CPU` - All calculation are performed on CPU device using CPU Plugin.
 - `GPU` - All calculation are performed on GPU device using GPU Plugin.
-- `MYRIAD` - All calculation are performed on Intel® Neural Compute Stick 2 device using VPU MYRIAD Plugin.
 - `VPUX` - All calculation are performed on VPUX device using VPUX Plugin.
 - `GNA_AUTO` - GNA hardware is used if available and the driver is installed. Otherwise, the GNA device is emulated in fast-but-not-bit-exact mode.
 - `GNA_HW` - GNA hardware is used if available and the driver is installed. Otherwise, an error will occur.
@@ -103,7 +102,7 @@ Options:
     -i "<path>"                Required. Paths to input file or Layers names with corresponding paths to the input files. Example of usage for single file: <file.ark> or <file.npz>. Example of usage for named layers: <layer1>=<file1.ark>,<layer2>=<file2.ark>.
     -m "<path>"                Required. Path to an .xml file with a trained model (required if -rg is missing).
     -o "<path>"                Optional. Output file name to save scores or Layer names with corresponding files names to save scores. Example of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: Example of usage for named layers: <layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.
-    -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, VPUX, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
+    -d "<device>"              Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU as a secondary (e.g. HETERO:GNA,CPU) are supported. The sample will look for a suitable plugin for device specified.
     -pc                        Optional. Enables per-layer performance report.
     -q "<mode>"                Optional. Input quantization mode: static (default), dynamic, or user (use with -sf).
     -qb "<integer>"            Optional. Weight bits for quantization: 8 or 16 (default)
