@@ -158,19 +158,6 @@ If you want to use your model for inference, the model must be converted to the 
 
   * OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. See the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for step-by-step installation instructions.
 
-.. _add-usb-rules:
-
-@endsphinxdirective
-
-
-## Step 5 (Optional): Add USB Rules for an Intel® Neural Compute Stick 2 device
-
-@sphinxdirective
-
-To perform inference on Intel® Neural Compute Stick 2, follow the steps in :ref:`NCS2 Setup Guide <ncs guide raspbianos>`.
-
-.. _get-started:
-
 @endsphinxdirective
 
 

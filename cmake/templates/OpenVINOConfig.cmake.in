@@ -231,29 +231,6 @@ macro(_ov_find_intel_gna_dependencies)
     unset(_OV_ENABLE_INTEL_GNA)
 endmacro()
 
-macro(_ov_find_intel_myriad_dependencies)
-    set(_OV_ENABLE_INTEL_MYRIAD "@ENABLE_INTEL_MYRIAD@")
-    if(_OV_ENABLE_INTEL_MYRIAD)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND AND NOT ANDROID)
-            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
-                set(pkg_config_quiet_arg QUIET)
-            endif()
-            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
-                set(pkg_config_required_arg REQUIRED)
-            endif()
-            pkg_search_module(libusb
-                              ${pkg_config_quiet_arg}
-                              ${pkg_config_required_arg}
-                              IMPORTED_TARGET
-                              libusb-1.0)
-            unset(pkg_config_quiet_arg)
-            unset(pkg_config_required_arg)
-        endif()
-    endif()
-    unset(_OV_ENABLE_INTEL_MYRIAD)
-endmacro()
-
 function(_ov_target_no_deprecation_error)
     if(NOT MSVC)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -282,7 +259,6 @@ set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     _ov_find_tbb()
     _ov_find_intel_gna_dependencies()
-    _ov_find_intel_myriad_dependencies()
 endif()
 
 _ov_find_dependency(Threads)
