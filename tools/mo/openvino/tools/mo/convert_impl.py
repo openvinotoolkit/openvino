@@ -750,15 +750,15 @@ def args_dict_to_list(cli_parser, **kwargs):
 
 
 def get_non_default_params(argv, cli_parser):
+    import numbers
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
-    for arg in vars(argv).keys():
-        arg_value = getattr(argv, arg)
+    for arg, arg_value in vars(argv).items():
         if arg_value != cli_parser.get_default(arg):
             value = depersonalize(arg_value, arg)
             # Skip complex classes in params to prevent
             # serializing it to rt_info
-            if isinstance(value, (str, bool)):
+            if isinstance(value, (str, bool, numbers.Number)):
                 non_default_params[arg] = value
     return non_default_params
 
@@ -818,6 +818,8 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
+    # Input model can be set as object only for --input_model parameter.
+    # --saved_model_dir or meta specific options are only used to store paths to the input model.
     if 'input_model' not in argv:
         return False
     if isinstance(argv['input_model'], (str, Path)):
@@ -825,6 +827,30 @@ def input_model_is_object(argv):
     if argv['input_model'] is None:
         return False
     return True
+
+
+def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
+    if len(args) > 0:
+        args_string = params_to_string(**args)
+        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))
+
+        # get list of all available params for convert_model()
+        all_params = {}
+        for key, value in mo_convert_params.items():
+            all_params.update(value)
+
+        # check that there are no unknown params provided
+        for key, value in args_string.items():
+            if key not in argv and key not in all_params.keys():
+                raise Error("Unrecognized argument: {}".format(key))
+
+            # Non string params like input_model or extensions are ignored by parse_args()
+            # so we need to set them in argv separately
+            if value is not None and getattr(argv, key) != value:
+                setattr(argv, key, value)
+    else:
+        argv = cli_parser.parse_args()
+    return argv
 
 
 def remove_tmp_onnx_model(out_dir):
@@ -835,7 +861,7 @@ def remove_tmp_onnx_model(out_dir):
             os.remove(tmp_onnx_model)
 
 
-def _convert(cli_parser, framework, args):
+def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None
@@ -881,26 +907,7 @@ def _convert(cli_parser, framework, args):
                 remove_tmp_onnx_model(out_dir)
                 return ov_model
 
-        if len(args) > 0:
-            args_string = params_to_string(**args)
-            argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **args_string))
-
-            # get list of all available params for convert_model()
-            all_params = {}
-            for key, value in mo_convert_params.items():
-                all_params.update(value)
-
-            # check that there are no unknown params provided
-            for key, value in args_string.items():
-                if key not in argv and key not in all_params.keys():
-                    raise Error("Unrecognized argument: {}".format(key))
-
-                # Non string params like input_model or extensions are ignored by parse_args()
-                # so we need to set them in argv separately
-                if value is not None and getattr(argv, key) != value:
-                    setattr(argv, key, value)
-        else:
-            argv = cli_parser.parse_args()
+        argv = pack_params_to_args_namespace(args, cli_parser)
 
         if framework is not None:
             setattr(argv, 'framework', framework)

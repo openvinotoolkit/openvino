@@ -61,6 +61,10 @@ class MetaDataTestTF(unittest.TestCase):
                 'MO_version': get_version(),
                 'Runtime_version': get_rt_version(),
                 'legacy_frontend': "True",
+                'conversion_parameters': {
+                    'scale': "1.5",
+                    'batch': "1"
+                }
             }
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
@@ -69,7 +73,7 @@ class MetaDataTestTF(unittest.TestCase):
             out_xml = os.path.join(tmpdir, "model.xml")
             ref_meta = ref_meta_data()
 
-            ov_model = convert_model(model)
+            ov_model = convert_model(model, scale=1.5, batch=1)
             self.check_meta_data(ov_model, ref_meta)
 
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
