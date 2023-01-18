@@ -67,8 +67,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
         // Not expected behavior
-        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
-        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+        R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(SCALAR|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=HW.*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*targetDevice=(AUTO|MULTI).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=CN.*targetDevice=(AUTO|MULTI).*)",
@@ -216,6 +215,10 @@ std::vector<std::string> disabledTestPatterns() {
         // tests are useless on such platforms
         retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
+        // MatMul in Snippets uses BRGEMM that is supported only on AVX512 platforms
+        // Disabled Snippets MHA tests as well because MHA pattern contains MatMul
+        retVector.emplace_back(R"(.*Snippets.*MHA.*)");
+        retVector.emplace_back(R"(.*Snippets.*(MatMul|Matmul).*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

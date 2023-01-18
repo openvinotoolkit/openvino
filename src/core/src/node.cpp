@@ -446,7 +446,7 @@ std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const
 }
 
 ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
-    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor(size_t i)");
+    NGRAPH_CHECK(i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor(size_t i) for node ", *this);
     return m_outputs[i].get_tensor();
 }
 

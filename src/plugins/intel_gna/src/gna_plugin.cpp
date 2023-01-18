@@ -1121,7 +1121,8 @@ std::string GNAPlugin::effectiveGnaCompileTarget() const {
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {
-    return createWorker(createModelWrapperForLoadNetwork(trivial), trivial, fp32Mode);
+    // Do not initialize gna model for fp32 mode (create trivial model wraper)
+    return createWorker(createModelWrapperForLoadNetwork(trivial || fp32Mode), trivial, fp32Mode);
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorker(std::shared_ptr<request::ModelWrapper> modelWrapper,

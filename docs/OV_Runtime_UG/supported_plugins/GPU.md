@@ -37,7 +37,7 @@ Available devices:
 ...
     Device: GPU.1
 ...
-    Device: HDDL
+    Device: GNA
 ```
 
 Then, device name can be passed to the `ov::Core::compile_model()` method:
