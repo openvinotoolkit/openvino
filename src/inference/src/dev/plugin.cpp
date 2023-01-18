@@ -89,13 +89,23 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::import_model(
 }
 
 ov::RemoteContext ov::Plugin::create_context(const AnyMap& params) {
-    // OV_PLUGIN_CALL_STATEMENT(return {_ptr->CreateContext(params), _so});
-    OV_PLUGIN_CALL_STATEMENT(return m_ptr->create_context(params));
+    OV_PLUGIN_CALL_STATEMENT({
+        auto remote = m_ptr->create_context(params);
+        auto so = remote._so;
+        if (m_so)
+            so.emplace_back(m_so);
+        return {remote._impl, so};
+    });
 }
 
 ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) {
-    // OV_PLUGIN_CALL_STATEMENT(return {m_ptr->get_default_context(params), _so});
-    OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_default_context(params));
+    OV_PLUGIN_CALL_STATEMENT({
+        auto remote = m_ptr->get_default_context(params);
+        auto so = remote._so;
+        if (m_so)
+            so.emplace_back(m_so);
+        return {remote._impl, so};
+    });
 }
 
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
@@ -128,7 +138,6 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                 return supported_properties;
             }
         }
-        return m_ptr->get_property(name, arguments);
+        return {m_ptr->get_property(name, arguments), {m_so}};
     });
-    OV_PLUGIN_CALL_STATEMENT(return m_ptr->get_property(name, arguments););
 }

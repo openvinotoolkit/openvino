@@ -28,6 +28,7 @@ namespace ov {
 
 class Core;
 class CoreImpl;
+class Plugin;
 class IPlugin;
 class IInferencePluginWrapper;
 class CompiledModel;
@@ -56,6 +57,7 @@ protected:
     friend class InferenceEngine::IPluginWrapper;
     friend class ov::Core;
     friend class ov::CoreImpl;
+    friend class ov::Plugin;
     friend class ov::IPlugin;
     friend class ov::IInferencePluginWrapper;
     friend class ov::CompiledModel;
