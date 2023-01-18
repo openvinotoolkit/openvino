@@ -4,13 +4,16 @@
 
 #pragma once
 
-#include <ie_extension.h>
+#include <cpp/ie_cnn_network.h>
+
+#include <ie_remote_context.hpp>
 
 #include "any_copy.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
 #include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
+#include "ie_extension.h"
 #include "ie_icore.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
@@ -189,6 +192,12 @@ public:
      */
     void RegisterPluginsInRegistry(const std::string& xmlConfigFile);
 
+    void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
+                             std::string& deviceName,
+                             ov::AnyMap& config);
+
+    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property);
+
 #ifdef OPENVINO_STATIC_LIBRARY
 
     /**
@@ -234,12 +243,6 @@ public:
         const InferenceEngine::CNNNetwork& network,
         const std::shared_ptr<InferenceEngine::RemoteContext>& context,
         const std::map<std::string, std::string>& config) override;
-
-    void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
-                             std::string& deviceName,
-                             ov::AnyMap& config);
-
-    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property);
 
     InferenceEngine::SoExecutableNetworkInternal LoadNetwork(const InferenceEngine::CNNNetwork& network,
                                                              const std::string& deviceNameOrig,
@@ -368,6 +371,14 @@ public:
         ov::Plugin& plugin,
         const ov::AnyMap& parsedConfig,
         const ov::RemoteContext& context,
+        const CacheContent& cacheContent,
+        bool forceDisableCache = false);
+
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
+        const InferenceEngine::CNNNetwork& model,
+        ov::Plugin& plugin,
+        const std::map<std::string, std::string>& parsedConfig,
+        const InferenceEngine::RemoteContext::Ptr& context,
         const CacheContent& cacheContent,
         bool forceDisableCache = false);
 

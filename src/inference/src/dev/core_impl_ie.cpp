@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+
+#include "any_copy.hpp"
+#include "compilation_context.hpp"
 #include "core_impl.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "ie_network_reader.hpp"
 #include "ngraph/op/constant.hpp"
@@ -11,6 +17,39 @@
 
 bool ov::CoreImpl::isNewAPI() const {
     return is_new_api();
+}
+
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetworkImpl(
+    const InferenceEngine::CNNNetwork& network,
+    ov::Plugin& plugin,
+    const std::map<std::string, std::string>& parsedConfig,
+    const InferenceEngine::RemoteContext::Ptr& context,
+    const CacheContent& cacheContent,
+    bool forceDisableCache) {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
+    auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr);
+    OPENVINO_ASSERT(wrapper);
+    auto old_plugin = wrapper->get_plugin();
+    execNetwork = {context ? old_plugin->LoadNetwork(network, parsedConfig, context)
+                           : old_plugin->LoadNetwork(network, parsedConfig),
+                   plugin.m_so};
+    if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
+        try {
+            // need to export network for further import from "cache"
+            OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::Export");
+            cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
+                networkStream << InferenceEngine::CompiledBlobHeader(
+                    InferenceEngine::GetInferenceEngineVersion()->buildNumber,
+                    InferenceEngine::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
+                execNetwork->Export(networkStream);
+            });
+        } catch (...) {
+            cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+            throw;
+        }
+    }
+    return execNetwork;
 }
 
 InferenceEngine::RemoteContext::Ptr ov::CoreImpl::GetDefaultContext(const std::string& deviceName) {
@@ -34,9 +73,46 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     const std::shared_ptr<InferenceEngine::RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
-    ov::RemoteContext ctx{context, {nullptr}};
-    auto compiled_model = compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    if (network.getFunction()) {
+        ov::RemoteContext ctx{context, {nullptr}};
+        auto compiled_model =
+            compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
+        return {compiled_model._ptr, compiled_model._so};
+    }
+    if (context == nullptr) {
+        IE_THROW() << "Remote context is null";
+    }
+    // have to deduce the device name/config from the context first
+    auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
+    std::string& deviceName = parsed._deviceName;
+    std::map<std::string, std::string>& config_with_batch = parsed._config;
+    // if auto-batching is applicable, the below function will patch the device name and config accordingly:
+
+    parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+
+    auto plugin = GetCPPPluginByName(parsed._deviceName);
+
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    auto conf = ov::any_copy(parsed._config);
+    auto cacheManager =
+        coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), conf)
+            ._cacheManager;
+    auto cacheContent = CacheContent{cacheManager};
+    if (cacheManager && device_supports_import_export(plugin)) {
+        cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, ov::any_copy(parsed._config));
+        bool loadedFromCache = false;
+        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, conf, {context, {}}, loadedFromCache);
+        if (!loadedFromCache) {
+            res = LoadNetworkImpl(network, plugin, parsed._config, context, cacheContent);
+        } else {
+            // Temporary workaround until all plugins support caching of original model inputs
+            InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
+        }
+    } else {
+        res = LoadNetworkImpl(network, plugin, parsed._config, context, cacheContent);
+    }
+    return res;
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
@@ -44,9 +120,41 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const std::string& deviceNameOrig,
     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::CNN");
-    auto compiled_model =
-        compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceNameOrig, any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    if (network.getFunction()) {
+        auto compiled_model =
+            compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceNameOrig, any_copy(config));
+        return {compiled_model._ptr, compiled_model._so};
+    }
+    std::string deviceName = deviceNameOrig;
+    std::map<std::string, std::string> config_with_batch = config;
+    bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
+    if (forceDisableCache) {
+        // remove this config key from parsed as plugins can throw unsupported exception
+        parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
+    }
+    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    auto conf = ov::any_copy(parsed._config);
+    auto cacheManager =
+        coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), conf)
+            ._cacheManager;
+    auto cacheContent = CacheContent{cacheManager};
+    if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
+        cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, ov::any_copy(parsed._config));
+        bool loadedFromCache = false;
+        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
+        if (!loadedFromCache) {
+            res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, cacheContent, forceDisableCache);
+        } else {
+            // Temporary workaround until all plugins support caching of original model inputs
+            InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
+        }
+    } else {
+        res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, cacheContent, forceDisableCache);
+    }
+    return {res._ptr, res._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
@@ -73,11 +181,15 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
             if (val) {
                 val(cnnNetwork);
             }
-            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
-                                     plugin,
-                                     conf,
-                                     {},
-                                     cacheContent);
+            if (cnnNetwork.getFunction()) {
+                res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                         plugin,
+                                         conf,
+                                         {},
+                                         cacheContent);
+            } else {
+                res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+            }
         }
     } else if (cacheManager) {
         res = plugin.compile_model(modelPath, conf);
@@ -86,11 +198,15 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
         if (val) {
             val(cnnNetwork);
         }
-        res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
-                                 plugin,
-                                 conf,
-                                 {},
-                                 cacheContent);
+        if (cnnNetwork.getFunction()) {
+            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                     plugin,
+                                     conf,
+                                     {},
+                                     cacheContent);
+        } else {
+            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
+        }
     }
     return {res._ptr, res._so};
 }
