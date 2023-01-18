@@ -64,6 +64,13 @@ OutputVector translate_full_like(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
+OutputVector translate_fill_(NodeContext& context) {
+    auto input = context.get_input(0);
+    auto value = context.get_input(1);
+    auto sizes = context.mark_node(std::make_shared<opset10::ShapeOf>(input));
+    return {base_translate_full_with_convertlike(context, sizes, value, input)};
+};
+
 OutputVector translate_new_full(NodeContext& context) {
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
