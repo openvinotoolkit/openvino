@@ -478,11 +478,11 @@ cdef class IECore:
         
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+            exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
             # export executable network
             exec_net.export(path_to_file_to_save)
             # import previously exported executable network
-            exec_net_imported = ie.import_network(model_file=path_to_file_to_save, device_name="MYRIAD")
+            exec_net_imported = ie.import_network(model_file=path_to_file_to_save, device_name="CPU")
         """
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
@@ -646,12 +646,12 @@ cdef class IECore:
         """
         return self.impl.getConfig(device_name.encode(), config_name.encode())
 
-    ## A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1, MYRIAD\].
+    ## A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1\].
     # If there are more than one device of a specific type, they all are listed followed by a dot and a number.
     @property
     def available_devices(self):
         """
-        A list of devices. The devices are returned as \[CPU, FPGA.0, FPGA.1, MYRIAD\].
+        A list of devices. The devices are returned as \[CPU, GPU.0, GPU.1\].
         If there are more than one device of a specific type, they all are listed followed by a dot and a number.
         """
         cdef vector[string] c_devices = self.impl.getAvailableDevices()
@@ -1239,7 +1239,7 @@ cdef class ExecutableNetwork:
     #  ```python
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.export(path_to_file_to_save)
     #  ```
     def export(self, model_file: str):
@@ -1252,7 +1252,7 @@ cdef class ExecutableNetwork:
     
             ie = IECore()
             net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-            exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+            exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
             exec_net.export(path_to_file_to_save)
         """
         deref(self.impl).exportNetwork(model_file.encode())

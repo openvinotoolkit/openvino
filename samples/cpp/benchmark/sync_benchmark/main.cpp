@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
         // Optimize for latency. Most of the devices are configured for latency by default,
-        // but there are exceptions like MYRIAD
+        // but there are exceptions like GNA
         ov::AnyMap latency{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
 
         // Create ov::Core and use it to compile a model.

@@ -57,22 +57,6 @@ Kaldi-specific parameters:
 
 * You can use the *OpenVINO Speech Recognition* sample application for the sample inference of Kaldi models. This sample supports models with only one output. If your model has several outputs, specify the desired one with the `--output` option.
 
-## Converting a Model for Intel® Movidius™ Myriad™ VPU
-
-If you want to convert a model for inference on Intel® Movidius™ Myriad™ VPU, use the `--remove_memory` option.
-It removes the Memory layers from the OpenVINO IR files. Additional inputs and outputs will appear in the IR files instead.
-Model Optimizer will output the mapping between inputs and outputs. For example:
-```sh
-[ WARNING ]  Add input/output mapped Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
-[ WARNING ]  Add input/output mapped Parameter_1_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out -> Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out
-[ WARNING ]  Add input/output mapped Parameter_0_for_iteration_Offset_fastlstm3.c_trunc__3390 -> Result_for_iteration_Offset_fastlstm3.c_trunc__3390
-```
-Based on this mapping, link inputs and outputs in your application manually as follows:
-
-1. Initialize inputs from the mapping as zeros in the first frame of an utterance.
-2. Copy output blobs from the mapping to the corresponding inputs. For example, data from `Result_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`
-must be copied to `Parameter_0_for_Offset_fastlstm2.r_trunc__2Offset_fastlstm2.r_trunc__2_out`.
-
 ## Supported Kaldi Layers
 For the list of supported standard layers, refer to the [Supported Framework Layers ](@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers) page.
 

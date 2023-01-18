@@ -23,10 +23,6 @@ message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
 
-if(ENABLE_INTEL_MYRIAD)
-    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
-endif()
-
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
     reset_deps_cache(OMP)

@@ -59,10 +59,6 @@
 /src/tests/**/gpu/ @openvinotoolkit/openvino-ie-gpu-maintainers
 /thirdparty/ocl/  @openvinotoolkit/openvino-ie-gpu-maintainers @openvinotoolkit/openvino-ie-gpu-developers
 
-# OpenVINO VPU:
-/src/plugins/intel_myriad  @openvinotoolkit/openvino-ie-vpu-maintainers
-/src/tests/**/myriad/ @openvinotoolkit/openvino-ie-vpu-maintainers
-
 # OpenVINO GNA:
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
 /src/common/legacy/ @openvinotoolkit/openvino-ie-gna-maintainers

@@ -19,8 +19,7 @@ from tests import skip_need_mock_op
 from tests.conftest import model_path
 from tests.test_utils.test_utils import generate_image, get_relu_model
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def create_model_with_memory(input_shape, data_type):
@@ -706,8 +705,8 @@ def test_results_async_infer(device):
 
 
 @pytest.mark.skipif(
-    os.environ.get("TEST_DEVICE") not in ["GPU, FPGA", "MYRIAD"],
-    reason="Device independent test",
+    os.environ.get("TEST_DEVICE") not in ["GPU"],
+    reason="Device dependent test",
 )
 def test_infer_float16(device):
     model = bytes(

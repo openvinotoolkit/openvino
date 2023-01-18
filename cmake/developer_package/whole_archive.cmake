@@ -7,7 +7,7 @@ function links static library without removing any symbol from it.
 
 ieTargetLinkWholeArchive(<target name> <lib1> [<lib2> ...])
 Example:
-ieTargetLinkWholeArchive("MyriadFunctionalTests" "CommonLib" "AnotherLib")
+ieTargetLinkWholeArchive("FunctionalTests" "CommonLib" "AnotherLib")
 
 #]]
 

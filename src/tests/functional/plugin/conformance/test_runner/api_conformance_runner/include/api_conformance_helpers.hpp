@@ -17,12 +17,10 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
             { "HETERO", "openvino_hetero_plugin" },
             { "BATCH", "openvino_auto_batch_plugin" },
             { "MULTI", "openvino_auto_plugin" },
-            { "HDDL", "openvino_intel_hddl_plugin" },
             { "VPUX", "openvino_intel_vpux_plugin" },
             { "CPU", "openvino_intel_cpu_plugin" },
             { "GNA", "openvino_intel_gna_plugin" },
             { "GPU", "openvino_intel_gpu_plugin" },
-            { "MYRIAD", "openvino_intel_myriad_plugin" },
             { "TEMPLATE", "openvino_template_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {

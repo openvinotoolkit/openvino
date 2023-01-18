@@ -22,8 +22,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt --assume-yes install libusb-1.0-0-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install -r ./src/bindings/python/requirements.txt
           # Add for -DENABLE_PYTHON=ON, no cython
@@ -59,7 +57,7 @@ jobs:
           sudo apt --assume-yes install shellcheck
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
+        run: cmake -B build
 
       - name: Shellcheck cmake target
         run: cmake --build build --target ie_shellcheck -j8
@@ -94,7 +92,7 @@ jobs:
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -B build
+        run: cmake -B build
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8

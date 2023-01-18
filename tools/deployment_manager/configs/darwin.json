@@ -49,16 +49,6 @@
         "runtime/lib/intel64/Release/libopenvino_intel_cpu_plugin.so"
       ]
     },
-    "vpu": {
-      "ui_name": "Inference Engine Runtime for Intel(R) Movidius(tm) VPU",
-      "group": ["ie"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "runtime/lib/intel64/Release/libopenvino_intel_myriad_plugin.so",
-        "runtime/lib/intel64/Release/usb-ma2x8x.mvcmd",
-        "runtime/lib/intel64/Release/pcie-ma2x8x.mvcmd"
-      ]
-    },
     "python3.7": {
       "ui_name": "OpenVINO Python API for Python 3.7",
       "group": ["python"],

@@ -15,7 +15,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <vpu/vpu_config.hpp>
 
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
@@ -284,9 +283,6 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
-            } else if (device == "MYRIAD") {
-                device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
-                setThroughputStreams();
             } else if (device == "GNA") {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";

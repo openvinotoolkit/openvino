@@ -14,8 +14,7 @@ from tests_compatibility.test_utils.test_utils import generate_image, generate_r
 import ngraph as ng
 from ngraph.impl import Function, Type
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def create_function_with_memory(input_shape, data_type):

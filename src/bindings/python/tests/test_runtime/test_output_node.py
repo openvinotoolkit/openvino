@@ -8,9 +8,6 @@ from ..conftest import model_path
 import openvino.runtime.opset8 as ops
 from openvino.runtime import Type
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
-
 
 def test_output_replace(device):
     param = ops.parameter([1, 64], Type.i64)

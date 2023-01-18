@@ -90,7 +90,7 @@ Options:
     -load_from_file             Optional. Loads model from file directly without ReadNetwork.
 
   CPU-specific performance options:
-    -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
+    -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU devices
                                 (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
                                 Default value is determined automatically for a device.
                                 Please note that although the automatic selection usually provides a reasonable performance,

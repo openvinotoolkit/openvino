@@ -11,8 +11,7 @@ import openvino.runtime.opset8 as ops
 
 from openvino.runtime import Core, OVAny
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def test_input_type(device):

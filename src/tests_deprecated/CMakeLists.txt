@@ -34,10 +34,6 @@ if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
 
-if (ENABLE_BEH_TESTS)
-    add_subdirectory(behavior)
-endif()
-
 if(ENABLE_TESTS)
     add_subdirectory(unit)
 endif()

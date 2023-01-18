@@ -11,8 +11,6 @@ openvino_tensorflow.set_backend('<backend_name>')
 **OpenVINO™ integration with TensorFlow** accelerates inference across many AI models on a variety of Intel® technologies, such as:
 - Intel® CPUs
 - Intel® integrated GPUs
-- Intel® Movidius™ Vision Processing Units - referred to as VPU
-- Intel® Vision Accelerator Design with 8 Intel Movidius™ MyriadX VPUs - referred to as VAD-M or HDDL
 
 > **NOTE**: For maximum performance, efficiency, tooling customization, and hardware control, we recommend developers to adopt native OpenVINO™ solutions.
 To find out more about the product itself, as well as learn how to use it in your project, check its dedicated [GitHub repository](https://github.com/openvinotoolkit/openvino_tensorflow/tree/master/docs). 

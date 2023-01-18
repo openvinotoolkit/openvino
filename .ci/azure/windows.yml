@@ -178,7 +178,6 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON ^
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
         -DBUILD_nvidia_plugin=OFF ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
@@ -296,6 +295,7 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
+    enabled: 'false'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'

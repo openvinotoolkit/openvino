@@ -355,7 +355,7 @@ When the sample application is complete, you are given the label and confidence 
 
 @endsphinxdirective
 
-The following two examples show how to run the same sample using GPU or MYRIAD as the target device.
+The following example shows how to run the same sample using GPU as the target device.
 
 #### Running Inference on GPU
 
@@ -373,31 +373,6 @@ The following two examples show how to run the same sample using GPU or MYRIAD a
    .. code-block:: bat
 
       .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d GPU
-
-@endsphinxdirective
-
-#### Running Inference on MYRIAD
-
-   > **NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires [additional hardware configuration steps](../install_guides/configurations-for-ncs2.md), as described earlier on this page.
-
-@sphinxdirective
-.. tab:: Linux
-
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d MYRIAD
-
-.. tab:: Windows
-
-   .. code-block:: bat
-
-      .\classification_sample_async.exe -i %USERPROFILE%\Downloads\dog.bmp -m %USERPROFILE%\Documents\ir\googlenet-v1.xml -d MYRIAD
-
-.. tab:: macOS
-
-   .. code-block:: sh
-
-      ./classification_sample_async -i ~/Downloads/dog.bmp -m ~/ir/googlenet-v1.xml -d MYRIAD
 
 @endsphinxdirective
 

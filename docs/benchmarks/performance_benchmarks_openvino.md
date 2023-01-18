@@ -78,7 +78,7 @@ Below are four parameters for measurements, which are key elements to consider f
 @endsphinxdirective
 
 This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside. The presented performance benchmark numbers are based on the release 2022.3 of the Intel® Distribution of OpenVINO™ toolkit.
-The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). 
+The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or GNA). 
 It measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). 
 
 

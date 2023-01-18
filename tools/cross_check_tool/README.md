@@ -50,13 +50,12 @@ Plugin specific arguments:
                         Path to a plugin folder.
   --device DEVICE, -d DEVICE
                         The first target device to infer the model specified
-                        with the -m or --model option. CPU, GPU, HDDL or
-                        MYRIAD are acceptable.
+                        with the -m or --model option. CPU, GPU or GNA are acceptable.
   --config CONFIG, -conf CONFIG
                         Path to config file for -d or -device device plugin
   --reference_device REFERENCE_DEVICE, -ref_d REFERENCE_DEVICE
                         The second target device to infer the model and
-                        compare the metrics. CPU, GPU, HDDL or MYRIAD are
+                        compare the metrics. CPU, GPU or GNA are
                         acceptable.
   --reference_config REFERENCE_CONFIG, -ref_conf REFERENCE_CONFIG
                         Path to config file for -ref_d or -reference_device
@@ -176,7 +175,7 @@ In this case, to run the tool, call `cross_check_tool` on the command line with 
    ```sh
    $python3 cross_check_tool.py    -i <path_to_input_image_or_multi_input_file> \
                    -m <path_to_FP16_xml>                        \
-                   -d MYRIAD                                    \
+                   -d GNA                                       \
                    --dump                                       \
                    --layers <comma_separated_list_of_layers>
    ```

@@ -294,8 +294,6 @@ struct PluginConfig {
                                                      "GPU",
                                                      "GNA",
                                                      "TEMPLATE",
-                                                     "MYRIAD",
-                                                     "HDDL",
                                                      "VPUX",
                                                      "MULTI",
                                                      "HETERO",
