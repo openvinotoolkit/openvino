@@ -19,17 +19,11 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE $<BUILD_INTERFACE:${root
 add_library(openvino::frontend::tensorflow_common::dev ALIAS ${TARGET_NAME}_dev)
 
 target_include_directories(${TARGET_NAME}
-        PUBLIC
-        $<BUILD_INTERFACE:${root_dir}/include>
         PRIVATE
         ${root_dir}/src
         ${root_dir}/dev_api
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
-ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-        SOURCE_DIRECTORY "${root_dir}/include"
-        ADDITIONAL_INCLUDE_DIRECTORIES
-        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 ov_install_static_lib(${TARGET_NAME}_dev ${OV_CPACK_COMP_CORE})
