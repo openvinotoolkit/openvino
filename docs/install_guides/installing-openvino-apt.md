@@ -232,7 +232,7 @@ For more information, refer to :ref:`Build the Sample Applications on Linux <bui
 
 @sphinxdirective
 
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
 
 * Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
 
@@ -243,17 +243,20 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_inference_engine_samples_hello_reshape_ssd_README.html>`_
    * `Automatic speech recognition C++ sample <openvino_inference_engine_samples_speech_sample_README.html>`_
 
+You can also try the following things:
+
+* Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
+* To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
+* See pre-trained deep learning models in our :doc:`Open Model Zoo <model_zoo>`.
+* Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+* See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
+
 @endsphinxdirective
 
 ## Additional Resources
 
 @sphinxdirective
 
-* To convert models for use with OpenVINO, see :doc:`Model Optimizer Developer Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-* See pre-trained deep learning models in our :doc:`Open Model Zoo <model_zoo>`.
-* Try out OpenVINO via `OpenVINO Notebooks <https://docs.openvino.ai/2022.3/notebooks/notebooks.html>`_.
-* To write your own OpenVINO™ applications, see :doc:`OpenVINO Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
-* See sample applications in :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 * Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit.
 * For IoT Libraries & Code Samples see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`_.
 
