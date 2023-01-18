@@ -7,6 +7,7 @@
 #include "helper_ops/sparse_segment_ops.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;
@@ -17,7 +18,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_sparse_reshape_op(const NodeContext& node) {
+OutputVector translate_sparse_reshape_op(const ov::frontend::tensorflow::NodeContext& node) {
     // Currently, the translation for SparseReshape is possible only if new shape value is the same as the input shape
     // value or it is different just by one dynamic dimension of the new shape that can be replace with the
     // corresponding static dimension of the input shape.
@@ -71,7 +72,7 @@ OutputVector translate_sparse_reshape_op(const NodeContext& node) {
     return {input_indices, input_shape};
 }
 
-OutputVector translate_sparse_fill_empty_rows_op(const NodeContext& node) {
+OutputVector translate_sparse_fill_empty_rows_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 3, {"SparseFillEmptyRows"});
     auto input_indices = node.get_input(0);
     auto input_values = node.get_input(1);
@@ -87,7 +88,7 @@ OutputVector translate_sparse_fill_empty_rows_op(const NodeContext& node) {
     return sparse_fill_empty_rows->outputs();
 }
 
-OutputVector translate_sparse_segment_sum_op(const NodeContext& node) {
+OutputVector translate_sparse_segment_sum_op(const ov::frontend::tensorflow::NodeContext& node) {
     auto input_size = node.get_input_size();
     TENSORFLOW_OP_VALIDATION(node,
                              input_size == 3 || input_size == 4,

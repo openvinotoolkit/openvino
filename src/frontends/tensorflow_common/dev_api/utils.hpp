@@ -5,9 +5,16 @@
 #pragma once
 
 #include "openvino/core/validation_util.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+
+#ifndef TENSORFLOW_OP_VALIDATION
+#    define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
+        OPENVINO_ASSERT_HELPER(::ov::frontend::OpValidationFailure,                            \
+                               ("While validating node '" + node_context.get_op_type() + "'"), \
+                               __VA_ARGS__)
+#endif
 
 namespace ov {
 namespace frontend {

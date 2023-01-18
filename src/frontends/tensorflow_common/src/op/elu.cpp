@@ -3,7 +3,6 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 using namespace std;

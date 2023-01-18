@@ -7,14 +7,14 @@
 #include <string>
 #include <vector>
 
-#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/decoder.hpp"
 #include "tf_framework_node.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-class DecoderFake : public ov::frontend::tensorflow::DecoderBase {
+class DecoderFake : public ov::frontend::DecoderBase {
 public:
     explicit DecoderFake() {}
 

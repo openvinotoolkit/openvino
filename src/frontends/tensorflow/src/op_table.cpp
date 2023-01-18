@@ -17,6 +17,17 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
+#define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
+
+TF_OP_CONVERTER(translate_if_op);
+TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_gru_block_cell_op);
+TF_OP_CONVERTER(translate_partitioned_call_op);
+TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
+TF_OP_CONVERTER(translate_sparse_reshape_op);
+TF_OP_CONVERTER(translate_sparse_segment_sum_op);
+TF_OP_CONVERTER(translate_while_op);
+
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file

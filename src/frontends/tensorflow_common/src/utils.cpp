@@ -32,7 +32,7 @@ void ov::frontend::tensorflow::set_out_name(const std::string& out_name, const o
     output.get_tensor().add_names({out_name});
 }
 
-ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend::tensorflow::NodeContext& node,
+ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend::NodeContext& node,
                                                              const std::string& tf_padding) {
     std::set<std::string> supported_ops = {"Conv2D",
                                            "Conv2DBackpropInput",
@@ -80,7 +80,7 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
     return ov::op::PadType::EXPLICIT;
 }
 
-void ov::frontend::tensorflow::fill_explicit_pads_vectors(const ov::frontend::tensorflow::NodeContext& node,
+void ov::frontend::tensorflow::fill_explicit_pads_vectors(const ov::frontend::NodeContext& node,
                                                           bool is_nhwc,
                                                           size_t spatial_dims_num,
                                                           const std::vector<int64_t>& tf_explicit_paddings,
@@ -128,7 +128,7 @@ void ov::frontend::tensorflow::fill_explicit_pads_vectors(const ov::frontend::te
     }
 }
 
-ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::frontend::tensorflow::NodeContext& node,
+ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::frontend::NodeContext& node,
                                                                     size_t spatial_dims_num) {
     TENSORFLOW_OP_VALIDATION(node,
                              spatial_dims_num == 2 || spatial_dims_num == 3,
@@ -240,7 +240,7 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     return {conv};
 }
 
-void ov::frontend::tensorflow::default_op_checks(const ov::frontend::tensorflow::NodeContext& node,
+void ov::frontend::tensorflow::default_op_checks(const ov::frontend::NodeContext& node,
                                                  int min_input_size,
                                                  const std::vector<std::string>& supported_ops) {
     auto op_type = node.get_op_type();

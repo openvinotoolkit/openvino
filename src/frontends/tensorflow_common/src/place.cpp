@@ -5,7 +5,7 @@
 #include "place.hpp"
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/node_context.hpp"
 
 namespace ov {
 namespace frontend {

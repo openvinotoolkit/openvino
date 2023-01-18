@@ -9,9 +9,14 @@
 #include <string>
 
 #include "openvino/core/node_vector.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
+#include "openvino/frontend/node_context.hpp"
 #include "openvino_conversions.hpp"
 #include "utils.hpp"
+
+#define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
+    OPENVINO_ASSERT_HELPER(::ov::frontend::OpValidationFailure,                            \
+                           ("While validating node '" + node_context.get_op_type() + "'"), \
+                           __VA_ARGS__)
 
 using namespace std;
 using namespace ov;
@@ -21,10 +26,10 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
+#define OP_CONVERTER(op) OutputVector op(const ov::frontend::NodeContext& node)
 #define OP_T_CONVERTER(op) \
     template <class T>     \
-    OutputVector op(const NodeContext& node)
+    OutputVector op(const ov::frontend::NodeContext& node)
 
 OP_T_CONVERTER(translate_unary_op);
 OP_T_CONVERTER(translate_binary_op);
@@ -38,7 +43,6 @@ OP_CONVERTER(translate_avg_pool_op);
 OP_CONVERTER(translate_batch_mat_mul_op);
 OP_CONVERTER(translate_batch_to_space_nd_op);
 OP_CONVERTER(translate_bias_add_op);
-OP_CONVERTER(translate_block_lstm_op);
 OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
@@ -67,12 +71,10 @@ OP_CONVERTER(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
-OP_CONVERTER(translate_gru_block_cell_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_identity_n_op);
 OP_CONVERTER(translate_input_arg_op);
 OP_CONVERTER(translate_output_arg_op);
-OP_CONVERTER(translate_if_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
 OP_CONVERTER(translate_is_inf_op);
@@ -91,7 +93,6 @@ OP_CONVERTER(translate_mirror_pad_op);
 OP_CONVERTER(translate_non_max_suppression_op);
 OP_CONVERTER(translate_normalize_l2_op);
 OP_CONVERTER(translate_parallel_dynamic_stitch_op);
-OP_CONVERTER(translate_partitioned_call_op);
 OP_CONVERTER(translate_placeholder_op);
 OP_CONVERTER(translate_placeholder_with_default_op);
 OP_CONVERTER(translate_no_op);
@@ -124,7 +125,6 @@ OP_CONVERTER(translate_size_op);
 OP_CONVERTER(translate_slice_op);
 OP_CONVERTER(translate_softmax_op);
 OP_CONVERTER(translate_space_to_depth_op);
-OP_CONVERTER(translate_sparse_reshape_op);
 OP_CONVERTER(translate_split_op);
 OP_CONVERTER(translate_split_v_op);
 OP_CONVERTER(translate_square_op);
@@ -137,13 +137,10 @@ OP_CONVERTER(translate_top_k_v2_op);
 OP_CONVERTER(translate_transpose_op);
 OP_CONVERTER(translate_unpack_op);
 OP_CONVERTER(translate_where_op);
-OP_CONVERTER(translate_while_op);
 OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_zeros_like_op);
 
 // Translators for internal operations
-OP_CONVERTER(translate_sparse_fill_empty_rows_op);
-OP_CONVERTER(translate_sparse_segment_sum_op);
 OP_CONVERTER(translate_unique_op);
 
 }  // namespace op

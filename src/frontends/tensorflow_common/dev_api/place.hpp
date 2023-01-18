@@ -4,8 +4,8 @@
 
 #pragma once
 
+#include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/tensorflow/decoder.hpp"
 
 namespace ov {
 namespace frontend {

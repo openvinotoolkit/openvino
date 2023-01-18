@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/decoder.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
 namespace ov {
