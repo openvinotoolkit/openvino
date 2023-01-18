@@ -262,7 +262,8 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
     for (auto& iter : params) {
         if (iter.second.is<RemoteContext>())
             updatedParams[iter.first] =
-                ov::SoPtr<InferenceEngine::RemoteContext>(iter.second.as<RemoteContext>()._impl, iter.second.as<RemoteContext>()._so.front());
+                ov::SoPtr<InferenceEngine::RemoteContext>(iter.second.as<RemoteContext>()._impl,
+                                                          iter.second.as<RemoteContext>()._so.front());
     }
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, updatedParams));
