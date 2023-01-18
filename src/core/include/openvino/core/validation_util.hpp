@@ -196,6 +196,7 @@ OPENVINO_API bool are_unique(const std::vector<int64_t>& data);
 /// \param max    Maximum value boiund
 ///
 /// \return Value if between min, max otherwise min or max.
-OPENVINO_API
-int64_t clip(const int64_t& value, const int64_t& min, const int64_t& max);
+OPENVINO_API int64_t clip(const int64_t& value, const int64_t& min, const int64_t& max);
+
+OPENVINO_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
 }  // namespace ov

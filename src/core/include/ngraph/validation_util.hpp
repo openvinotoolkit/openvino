@@ -14,6 +14,7 @@
 #include "openvino/core/validation_util.hpp"
 
 namespace ngraph {
+using ov::could_propagate;
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
 using ov::infer_auto_padding;
@@ -222,8 +223,6 @@ NGRAPH_API std::shared_ptr<op::Constant> get_constant_lowest_of_type(element::Ty
 /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
 /// that all the HostTensorPtrs are not equal to nullptr
 NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);
-
-NGRAPH_API bool could_propagate(const Output<Node>& output, std::vector<Node*>& order);
 
 namespace opset1 {
 ///

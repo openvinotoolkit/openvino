@@ -1167,8 +1167,8 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
     }
 }
 
-bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& order) {
-    bool status = true;
+bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& order) {
+    auto status = true;
 
     std::deque<Node*> nodes_to_calculate = {output.get_node()};
     order.push_back(output.get_node());
@@ -1177,8 +1177,9 @@ bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& ord
         auto current_node = nodes_to_calculate.front();
         nodes_to_calculate.pop_front();
 
-        if (current_node->inputs().empty() && !is_type<op::Constant>(current_node))
+        if (current_node->inputs().empty() && !is_type<op::v0::Constant>(current_node)){
             status = false;
+        }
         else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
             // not a leaf, not a shape_of -- continue to search
             for (const auto& input_value : current_node->input_values()) {
@@ -1223,25 +1224,35 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port) {
     }
 }
 
+bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs, size_t element_limit = 10) {
+    const auto& lhs_shape = lhs.get_shape();
+    const auto& rhs_shape = rhs.get_shape();
+
+    const auto& lhs_et = lhs.get_element_type();
+    const auto& rhs_et = rhs.get_element_type();
+
+    auto are_eq = std::tie(lhs_et, lhs_shape) == std::tie(rhs_et, rhs_shape) && shape_size(lhs_shape) <= element_limit;
+    const auto not_empty_vector = !is_vector(lhs_shape) || lhs_shape.front() != 0;
+
+    if (are_eq && not_empty_vector) {
+        const auto inputs = ov::TensorVector{lhs, rhs};
+        auto equals = ov::Tensor{ov::element::boolean, lhs_shape};
+        auto outputs = ov::TensorVector{equals};
+
+        const auto& param = std::make_shared<ov::op::v0::Parameter>(lhs_et, lhs_shape);
+        are_eq = ov::op::v1::Equal(param, param).evaluate(outputs, inputs) && equals &&
+                 std::all_of(equals.data<bool>(), equals.data<bool>() + equals.get_size(), [](bool eq) {
+                     return eq;
+                 });
+    }
+
+    return are_eq;
+}
+
 bool are_equal(const HostTensorPtr& lhs, const HostTensorPtr& rhs, size_t max_elements_limit = 10) {
-    if (!lhs || !rhs)
-        return false;
-    const auto& lhs_shape = lhs->get_shape();
-    const auto& rhs_shape = rhs->get_shape();
-    OPENVINO_ASSERT(lhs_shape == rhs_shape);
-    const auto& lhs_et = lhs->get_element_type();
-    const auto& rhs_et = rhs->get_element_type();
-    OPENVINO_ASSERT(lhs_et == rhs_et);
-    if (shape_size(lhs_shape) > max_elements_limit)
-        return false;
-    auto mask = std::make_shared<HostTensor>(element::boolean, lhs_shape);
-    const auto& param = std::make_shared<op::Parameter>(lhs_et, lhs_shape);
-    bool eval_status = op::v1::Equal(param, param, ngraph::op::AutoBroadcastType::NUMPY).evaluate({mask}, {lhs, rhs});
-    OPENVINO_ASSERT(eval_status);
-    auto equal = op::Constant(mask).cast_vector<bool>();
-    return std::all_of(equal.begin(), equal.end(), [](bool i) {
-        return i;
-    });
+    return (lhs && rhs) && are_equal({lhs->get_element_type(), lhs->get_shape(), lhs->get_data_ptr()},
+                                     {rhs->get_element_type(), rhs->get_shape(), rhs->get_data_ptr()},
+                                     max_elements_limit);
 }
 
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
