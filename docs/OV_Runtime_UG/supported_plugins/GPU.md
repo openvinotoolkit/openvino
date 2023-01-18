@@ -262,6 +262,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - ov::enable_profiling
 - ov::hint::model_priority
 - ov::hint::performance_mode
+- ov::hint::execution_mode
 - ov::hint::num_requests
 - ov::inference_precision
 - ov::num_streams

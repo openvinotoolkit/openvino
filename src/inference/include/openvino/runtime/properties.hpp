@@ -962,5 +962,4 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
-
 }  // namespace ov
