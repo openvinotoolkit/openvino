@@ -250,14 +250,6 @@ You can also try the following things:
 * See pre-trained deep learning models in our :doc:`Open Model Zoo <model_zoo>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
-
-@endsphinxdirective
-
-## Additional Resources
-
-@sphinxdirective
-
-* Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit.
-* For IoT Libraries & Code Samples see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`_.
+* Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
 @endsphinxdirective
