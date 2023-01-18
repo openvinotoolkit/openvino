@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,7 +176,8 @@ TEST(OVClassBasicTest, smoke_createNonExistingConfigThrows) {
 }
 
 inline std::string getPluginFile() {
-    std::string filename{"mock_engine_valid.xml"};
+    std::string filePostfix{"mock_engine_valid.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -193,7 +194,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
 }
 
 TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename{"mock_engine.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(ov::Core ie(filename), ov::Exception);

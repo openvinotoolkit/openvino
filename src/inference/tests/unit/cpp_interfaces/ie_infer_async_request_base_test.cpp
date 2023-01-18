@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-#include <cpp/ie_infer_request.hpp>
 #include <cpp/ie_executable_network.hpp>
-#include <cpp/ie_plugin.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
+#include <cpp/ie_infer_request.hpp>
+#include <cpp/ie_plugin.hpp>
 
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -95,7 +95,8 @@ TEST_F(InferRequestBaseTests, canCatchUnknownErrorInInfer) {
 // GetPerformanceCounts
 TEST_F(InferRequestBaseTests, canForwardGetPerformanceCounts) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts()).WillOnce(Return(std::map<std::string, InferenceEngineProfileInfo>{}));
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts())
+        .WillOnce(Return(std::map<std::string, InferenceEngineProfileInfo>{}));
     ASSERT_EQ(OK, request->GetPerformanceCounts(info, &dsc)) << dsc.msg;
 }
 
@@ -135,7 +136,7 @@ TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetBlob) {
 // SetBlob
 TEST_F(InferRequestBaseTests, canForwardSetBlob) {
     Blob::Ptr data;
-    const char *name = "";
+    const char* name = "";
     EXPECT_CALL(*mock_impl.get(), SetBlob(name, Ref(data))).Times(1);
     ASSERT_EQ(OK, request->SetBlob(name, data, &dsc));
 }
@@ -165,7 +166,6 @@ TEST_F(InferRequestBaseTests, canReportErrorInSetCompletionCallback) {
     ASSERT_NE(request->SetCompletionCallback(nullptr), OK);
 }
 
-
 class InferRequestTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIInferRequestInternal> mock_request;
@@ -173,9 +173,9 @@ protected:
     ResponseDesc dsc;
 
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    InferenceEngine::SoExecutableNetworkInternal    exeNetwork;
-    MockIInferencePlugin*                           mockIPlugin;
-    InferencePlugin                                 plugin;
+    InferenceEngine::SoExecutableNetworkInternal exeNetwork;
+    MockIInferencePlugin* mockIPlugin;
+    InferencePlugin plugin;
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     MockNotEmptyICNNNetwork mockNotEmptyNet;
     std::string _incorrectName;
@@ -201,12 +201,10 @@ protected:
         request = exeNetwork->CreateInferRequest();
         _incorrectName = "incorrect_name";
         _inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
-        _failedToFindInOutError =
-                "[ NOT_FOUND ] Failed to find input or output with name: \'" + _incorrectName + "\'";
-        _inputDataNotAllocatedError = std::string("[ NOT_ALLOCATED ] Input data was not allocated. Input name: \'")
-                                      + _inputName + "\'";
-        _inputDataIsEmptyError = std::string("Input data is empty. Input name: \'")
-                                 + _inputName + "\'";
+        _failedToFindInOutError = "[ NOT_FOUND ] Failed to find input or output with name: \'" + _incorrectName + "\'";
+        _inputDataNotAllocatedError =
+            std::string("[ NOT_ALLOCATED ] Input data was not allocated. Input name: \'") + _inputName + "\'";
+        _inputDataIsEmptyError = std::string("Input data is empty. Input name: \'") + _inputName + "\'";
     }
 
     IInferRequestInternal::Ptr getInferRequestWithMockImplInside() {
@@ -229,13 +227,12 @@ protected:
         std::string actualError;
         try {
             function();
-        } catch (const Exception &iie) {
+        } catch (const Exception& iie) {
             actualError = iie.what();
         }
         return actualError;
     }
 };
-
 
 // StartAsync
 TEST_F(InferRequestTests, canForwardStartAsync) {
@@ -291,7 +288,7 @@ MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
 
 // GetBlob
 TEST_F(InferRequestTests, canForwardGetBlob) {
-    Blob::Ptr blob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
+    Blob::Ptr blob = make_shared_blob<float>({Precision::FP32, {}, NCHW});
     blob->allocate();
     std::string name = "blob1";
 
@@ -326,5 +323,5 @@ TEST_F(InferRequestTests, throwsIfSetBlobReturnNotOK) {
 
 TEST_F(InferRequestTests, canForwardAnyCallback) {
     EXPECT_CALL(*mock_request.get(), SetCallback(_));
-    ASSERT_NO_THROW(request->SetCallback([] (std::exception_ptr) {}));
+    ASSERT_NO_THROW(request->SetCallback([](std::exception_ptr) {}));
 }

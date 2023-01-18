@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -436,10 +436,10 @@ static UNUSED void addRectangles(unsigned char* data,
             thickness = 1;
         }
 
-        if (static_cast<std::size_t>(x + w) >= width) {
+        if ((static_cast<std::size_t>(x) + w) >= width) {
             w = static_cast<int>(width - x - 1);
         }
-        if (static_cast<std::size_t>(y + h) >= height) {
+        if ((static_cast<std::size_t>(y) + h) >= height) {
             h = static_cast<int>(height - y - 1);
         }
 

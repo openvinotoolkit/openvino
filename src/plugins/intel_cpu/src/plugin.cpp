@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,22 +25,10 @@
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#ifndef __GNUC_PREREQ
-#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
-#endif
-# ifdef _WIN32
-#  include <intrin.h>
-#  include <windows.h>
-# elif !(__GNUC_PREREQ(4, 3) && !defined(__APPLE__))
-#  include <cpuid.h>
-# endif
-#endif
-
 #if defined(__linux__)
-#include <sys/auxv.h>
-#include <signal.h>
-#include <sys/mman.h>
+# include <sys/auxv.h>
+# include <signal.h>
+# include <sys/mman.h>
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -55,7 +43,15 @@ namespace intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+#if defined(__EMSCRIPTEN___)
+    brand_string = "WebAssembly CPU";
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // TODO: extract actual device name
+    brand_string = "RISCV-64 CPU";
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: extract actual device name
+    brand_string = "ARM CPU";
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     const unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
     unsigned int regs[4];
     for (auto addr : addr_list) {
@@ -63,14 +59,14 @@ static std::string getDeviceFullName() {
 #ifdef _WIN32
         __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
-        __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
+        __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #endif
         char *ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
             brand_string += ch[j];
     }
 #else
-    brand_string = "Non Intel Architecture";
+# error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
 #endif
     return brand_string;
 }
@@ -78,7 +74,7 @@ static std::string getDeviceFullName() {
 #if defined(__linux__)
 
 #ifndef AT_MINSIGSTKSZ
-#define AT_MINSIGSTKSZ 51
+# define AT_MINSIGSTKSZ 51
 #endif
 
 class SigAltStackSetup {
@@ -130,12 +126,12 @@ class CPUSpecialSetup {
 public:
     CPUSpecialSetup() = default;
 };
-#else
+#else // __linux__
 class CPUSpecialSetup {
 public:
     CPUSpecialSetup() = default;
 };
-#endif
+#endif // __linux__
 
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),

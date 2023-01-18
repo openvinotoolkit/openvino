@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8920,8 +8920,7 @@ using TestParamType_convolution_gpu_onednn = ::testing::tuple<  int,    // 0 - I
         int,            // 10 - Batch
         format,         // 11 - Input data format
         std::string,    // 12 - Implementation name
-        impl_types,     // 13 - Implementation type
-        bool>;          // 14 - With bias
+        bool>;          // 13 - With bias
 
 struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_convolution_gpu_onednn> {
     static std::string PrintToStringParamName(
@@ -8939,17 +8938,11 @@ struct convolution_gpu_onednn : public ::testing::TestWithParam<TestParamType_co
                           std::to_string(testing::get<9>(param_info.param)) + "_batch" +
                           std::to_string(testing::get<10>(param_info.param)) + "_format" +
                           std::to_string(testing::get<11>(param_info.param)) + "_with_bias_" +
-                          std::to_string(testing::get<14>(param_info.param));
+                          std::to_string(testing::get<13>(param_info.param));
 
         if (testing::get<12>(param_info.param) != "") {
             res += "_kernel_" + testing::get<12>(param_info.param);
         }
-
-        auto impl_type = testing::get<13>(param_info.param);
-        if (impl_type == impl_types::onednn)
-            res += "_onednn_impl";
-        else if (impl_type == impl_types::ocl)
-            res += "_ocl_impl";
 
         return res;
     }
@@ -8961,10 +8954,10 @@ INSTANTIATE_TEST_SUITE_P(conv_onednn_cases,
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
                             // Input data format, Implementation name, WithBias
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, true),
-                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, false)
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, true),
-                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", impl_types::onednn, false)
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
+                            TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
+                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", true),
+                            // TestParamType_convolution_gpu_onednn(8, 8, 1, 32, 32, 3, 3, 1, 1, 1, 32, format::bfyx, "", false)
                         ),
                         convolution_gpu_onednn::PrintToStringParamName);
 
@@ -8992,8 +8985,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     const uint64_t stride = testing::get<9>(GetParam());
     auto input_data_format = testing::get<11>(GetParam());
     auto impl_name = testing::get<12>(GetParam());
-    auto prim_impl_types = testing::get<13>(GetParam());
-    auto with_bias = testing::get<14>(GetParam());
+    auto with_bias = testing::get<13>(GetParam());
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
@@ -9071,11 +9063,11 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
         conv_fsv.output_paddings = {padding({ 0, 0, 0, 0 }, 0.f)};
         topology.add(conv_fsv);
     }
+    topology.add(reorder("reorder_bfyx", input_info("conv_fsv"), format::bfyx, data_types::f32));
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, impl_name, prim_impl_types };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
     config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv","reorder_bfyx"}));
     network network(engine, topology, config);
 
     network.set_input_data("input", input_mem);
@@ -9084,11 +9076,8 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     for (auto& p : network.get_primitives_info())
         std::cerr << p.original_id << " " << p.kernel_id << std::endl;
 
-    auto out_mem = network.get_output("conv_fsv").get_memory();
-    mem_lock<FLOAT16> out_ptr{ out_mem, get_test_stream() };
-    auto out_lay = out_mem->get_layout();
-
-    ASSERT_EQ(out_mem->get_layout().format, format::byxf);
+    auto out_ptr = get_output_values_to_float<FLOAT16>(network, "conv_fsv");
+    auto out_lay = network.get_node_output_layout("conv_fsv");
     ASSERT_EQ(out_lay.batch(), expected_result.size());
     ASSERT_EQ(out_lay.feature(), expected_result[0].size());
     ASSERT_EQ(out_lay.spatial(1), expected_result[0][0].size());
@@ -9192,6 +9181,174 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test.data()[i]);
     }
+}
+
+TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_tensor) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
+                                 2, 2, 3, 4, 6,
+                                 3, 3, 3, 5, 1,
+                                 1, 1, 1, 1, 1 });
+    set_values<int8_t>(weights, {  1, 2, -1,
+                                  -2, 1,  2,
+                                   9, 7, -1,
+
+                                   9, 0, -4,
+                                  -1, 3,  2,
+                                   0, 2,  5 });
+    set_values<uint8_t>(a_zp, { 2 });
+    set_values(biases, { 1.0f, -8.0f });
+
+    VVVF<float> output_vec = {
+        {
+            { 16.0f, 42.0f, -13.0f },
+            { 2.0f, 8.0f, 2.0f }
+        },
+        {
+            { -12.0f, 3.0f, 15.0f },
+            { -7.0f, 1.0f, -16.0f }
+        } };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        data("a_zp", a_zp),
+        convolution("conv", input_info("input"), { "weights" }, { "biases" }, { }, { "a_zp" }, 1, data_types::f32,
+                    { 2, 2 }, { 0, 0 }, { 1, 1 }, tensor{ 1, 2, 3, 2 }, false),
+        reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config;
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_memory = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    auto output_layout = output_memory->get_layout();
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(b_size, 1);
+    for (int f = 0; f < f_size; f++)
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                " x="<< x << " y=" << y << " f=" << f;
+            }
+        }
+}
+
+TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_activations_per_channel) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto input = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 5, 4 } });
+    auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 2, 3, 3 } });
+    auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
+    auto a_zp = engine.allocate_memory({ data_types::u8, format::bfyx, { 1, 2, 1, 1 } });
+
+    set_values<uint8_t>(input, { 1, 2, 3, 4, 5,
+                                 2, 2, 3, 4, 6,
+                                 3, 3, 3, 5, 1,
+                                 1, 1, 1, 1, 1,
+
+                                 1, 2, 3, 4, 5,
+                                 2, 2, 3, 4, 6,
+                                 3, 3, 3, 5, 1,
+                                 1, 1, 1, 1, 1 });
+
+    set_values<int8_t>(weights, {  1, 2, -1,
+                                  -2, 1,  2,
+                                   9, 7, -1,
+
+                                   9, 0, -4,
+                                  -1, 3,  2,
+                                   0, 2,  5,
+
+                                   1, 2, -1,
+                                   -2, 1,  2,
+                                   9, 7, -1,
+
+                                   9, 0, -4,
+                                   -1, 3,  2,
+                                   0, 2,  5 });
+    set_values<uint8_t>(a_zp, { 2, 5 });
+    set_values(biases, { 1.0f, -8.0f });
+
+    VVVF<float> output_vec = {
+        {
+            { -36.0f, 5.0f, -14.0f },
+            { -24.0f, -10.0f, -30.0f }
+        },
+        {
+            { -45.0f, -4.0f, -23.0f },
+            { -33.0f, -19.0f, -39.0f }
+        } };
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        data("a_zp", a_zp),
+        convolution("conv", input_info("input"), { "weights" }, { "biases" }, { }, { "a_zp" }, 1, data_types::f32,
+                    { 2, 2 }, { 0, 0 }, { 1, 1 }, tensor{ 1, 2, 3, 2 }, false),
+        reorder("out", input_info("conv"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config;
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output_memory = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    auto output_layout = output_memory->get_layout();
+    int y_size = output_layout.spatial(1);
+    int x_size = output_layout.spatial(0);
+    int f_size = output_layout.feature();
+    int b_size = output_layout.batch();
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(y_size, 2);
+    ASSERT_EQ(x_size, 3);
+    ASSERT_EQ(f_size, 2);
+    ASSERT_EQ(b_size, 1);
+    for (int f = 0; f < f_size; f++)
+        for (int y = 0; y < y_size; ++y) {
+            for (int x = 0; x < x_size; ++x) {
+                ASSERT_NEAR(output_vec[f][y][x], ((float)output_ptr[f * y_size * x_size + y * x_size + x]), 1e-5f) <<
+                " x="<< x << " y=" << y << " f=" << f;
+            }
+        }
 }
 
 #endif   // ENABLE_ONEDNN_FOR_GPU

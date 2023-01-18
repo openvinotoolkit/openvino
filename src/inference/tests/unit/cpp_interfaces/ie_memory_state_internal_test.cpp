@@ -1,34 +1,33 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include <cpp/ie_executable_network.hpp>
+#include <gtest/gtest.h>
 
+#include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_executable_network_base.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
 
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
+#include "cpp/ie_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
-#include "cpp/ie_plugin.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-
 class InferRequestVariableStateTests : public ::testing::Test {
- protected:
+protected:
     shared_ptr<MockIExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     shared_ptr<MockIVariableStateInternal> mockVariableStateInternal;
-    MockIInferencePlugin*                           mockIPlugin;
-    InferencePlugin                                 plugin;
-    ov::SoPtr<IExecutableNetworkInternal>  net;
-    IInferRequestInternal::Ptr                      req;
+    MockIInferencePlugin* mockIPlugin;
+    InferencePlugin plugin;
+    ov::SoPtr<IExecutableNetworkInternal> net;
+    IInferRequestInternal::Ptr req;
 
     void SetUp() override {
         mockExeNetworkInternal = make_shared<MockIExecutableNetworkInternal>();
@@ -36,7 +35,8 @@ class InferRequestVariableStateTests : public ::testing::Test {
         mockVariableStateInternal = make_shared<MockIVariableStateInternal>();
         ON_CALL(*mockExeNetworkInternal, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
-        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockExeNetworkInternal));
+        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
+            .WillByDefault(Return(mockExeNetworkInternal));
         plugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
         net = plugin.LoadNetwork(CNNNetwork{}, {});
         req = net->CreateInferRequest();
@@ -44,7 +44,7 @@ class InferRequestVariableStateTests : public ::testing::Test {
 };
 
 class VariableStateInternalMockImpl : public IVariableStateInternal {
- public:
+public:
     VariableStateInternalMockImpl(const char* name) : IVariableStateInternal(name) {}
     MOCK_METHOD0(Reset, void());
 };
@@ -57,22 +57,21 @@ TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveName) {
 TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveState) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({Precision::FP32, {3}, C}, data, sizeof(data) / sizeof(*data));
 
     pState->SetState(stateBlob);
     auto saver = pState->GetState();
 
     ASSERT_NE(saver, nullptr);
-    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float *>()[0], 123);
-    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float *>()[1], 124);
-    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float *>()[2], 125);
+    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[0], 123);
+    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[1], 124);
+    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[2], 125);
 }
-
 
 TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveStateByReference) {
     IVariableStateInternal::Ptr pState(new VariableStateInternalMockImpl("VariableStateInternalMockImpl"));
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({Precision::FP32, {3}, C}, data, sizeof(data) / sizeof(*data));
 
     pState->SetState(stateBlob);
 
@@ -82,9 +81,9 @@ TEST_F(InferRequestVariableStateTests, VariableStateInternalCanSaveStateByRefere
     auto saver = pState->GetState();
 
     ASSERT_NE(saver, nullptr);
-    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float *>()[0], 121);
-    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float *>()[1], 122);
-    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float *>()[2], 123);
+    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[0], 121);
+    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[1], 122);
+    ASSERT_FLOAT_EQ(saver->cbuffer().as<const float*>()[2], 123);
 }
 
 // Tests for InferRequest::QueryState
@@ -160,7 +159,7 @@ TEST_F(InferRequestVariableStateTests, InfReqVariableStateCanPropagateSetState) 
     EXPECT_CALL(*mockVariableStateInternal.get(), SetState(_)).WillOnce(SaveArg<0>(&saver));
 
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({Precision::FP32, {3}, C}, data, sizeof(data) / sizeof(*data));
 
     EXPECT_NO_THROW(req->QueryState().front()->SetState(stateBlob));
     ASSERT_FLOAT_EQ(saver->buffer().as<float*>()[0], 123);
@@ -172,7 +171,7 @@ TEST_F(InferRequestVariableStateTests, InfReqVariableStateCanPropagateGetLastSta
     std::vector<IVariableStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};
-    auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
+    auto stateBlob = make_shared_blob<float>({Precision::FP32, {3}, C}, data, sizeof(data) / sizeof(*data));
 
     toReturn.push_back(mockVariableStateInternal);
 
