@@ -41,6 +41,7 @@ OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
+OP_CONVERTER(translate_glu);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
@@ -166,6 +167,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::full", op::translate_full},
         {"aten::full_like", op::translate_full_like},
         {"aten::gelu", op::translate_gelu},
+        {"aten::glu", op::translate_glu},
         {"aten::group_norm", op::translate_group_norm},
         {"aten::ge", op::translate_1to1_match_2_inputs<opset10::GreaterEqual>},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset10::Greater>},
@@ -225,6 +227,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
         {"aten::sigmoid", op::translate_1to1_match_1_inputs<opset10::Sigmoid>},
+        {"aten::sigmoid_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Sigmoid>>},
         {"aten::silu", op::translate_1to1_match_1_inputs<opset10::Swish>},
         {"aten::silu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Swish>>},
         {"aten::sin", op::translate_1to1_match_1_inputs<opset10::Sin>},
