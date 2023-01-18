@@ -359,6 +359,16 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
 
+TEST(OVClassBasicTest, smoke_SetConfigWithSecondaryPropertiesThrows) {
+    ov::Core ie = createCoreWithTemplate();
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_CPU,
+                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
+                 ov::Exception);
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO,
+                                 {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
+                 ov::Exception);
+}
+
 TEST(OVClassBasicTest, smoke_SetConfigWithNoChangeToHWPluginThroughMetaPluginNoThrows) {
     ov::Core ie = createCoreWithTemplate();
     int32_t preValue = -1, curValue = -1;
