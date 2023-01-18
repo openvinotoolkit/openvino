@@ -4,15 +4,12 @@
 
 #include "transformations/common_optimizations/mark_exp_reduceop_to_keep_in_mixed_precision.hpp"
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-
 #include "itt.hpp"
-#include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/reduceop_path.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace std;
 
@@ -25,7 +22,7 @@ public:
     InitMarkReduceOpExp() {
         MATCHER_SCOPE(InitMarkReduceOpExp);
 
-        auto reduce_ops = pattern::wrap_type<opset3::ReduceSum, opset3::ReduceMean>();
+        auto reduce_ops = pattern::wrap_type<opset10::ReduceSum, opset10::ReduceMean>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();

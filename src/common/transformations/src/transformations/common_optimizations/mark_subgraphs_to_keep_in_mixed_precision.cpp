@@ -4,17 +4,14 @@
 
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 
-#include <ngraph/op/util/broadcast_base.hpp>
-#include <ngraph/op/util/gather_base.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-
 #include "itt.hpp"
-#include "ngraph/env_util.hpp"
-#include "openvino/opsets/opset1.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset3.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_div_with_eps_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/mark_exp_reduceop_to_keep_in_mixed_precision.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -33,7 +30,7 @@ public:
     OPENVINO_RTTI("InitMarkToKeepInMixedPrecision", "0");
     InitMarkToKeepInMixedPrecision() {
         MATCHER_SCOPE(InitMarkToKeepInMixedPrecision);
-        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset3::MVN, opset8::MVN, opset8::NormalizeL2, opset8::Exp>();
+        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset3::MVN, opset10::MVN, opset10::NormalizeL2, opset10::Exp>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
@@ -53,27 +50,27 @@ public:
 };
 
 std::shared_ptr<Node> propagate_through_ops =
-    pattern::wrap_type<opset8::Squeeze,
-                       opset8::Unsqueeze,
-                       opset8::Reshape,
+    pattern::wrap_type<opset10::Squeeze,
+                       opset10::Unsqueeze,
+                       opset10::Reshape,
                        op::util::BroadcastBase,
                        op::util::BinaryElementwiseArithmetic,
                        op::util::UnaryElementwiseArithmetic,
-                       opset8::MVN,
+                       opset10::MVN,
                        opset3::MVN,
-                       opset8::NormalizeL2,
-                       opset8::Sqrt,
-                       opset8::StridedSlice,
-                       opset8::ReduceSum,
-                       opset8::ReduceMean,
-                       opset8::Slice,
-                       opset8::VariadicSplit,
-                       opset8::Split,
+                       opset10::NormalizeL2,
+                       opset10::Sqrt,
+                       opset10::StridedSlice,
+                       opset10::ReduceSum,
+                       opset10::ReduceMean,
+                       opset10::Slice,
+                       opset10::VariadicSplit,
+                       opset10::Split,
                        op::util::GatherBase,
-                       opset8::Concat,
-                       opset8::Convert,  // through Convert can go only to Constants
-                       opset8::Constant,
-                       opset8::Tile>();
+                       opset10::Concat,
+                       opset10::Convert,  // through Convert can go only to Constants
+                       opset10::Constant,
+                       opset10::Tile>();
 
 class PropagateUpMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
@@ -96,11 +93,11 @@ public:
             if (!has_marked_output)
                 return false;
 
-            auto convert_node = dynamic_pointer_cast<opset8::Convert>(node);
+            auto convert_node = dynamic_pointer_cast<opset10::Convert>(node);
             if (convert_node) {
                 // if during propagating up there is a Convert it must go to Const,
                 // otherwise interrupt propagation
-                auto const_node = dynamic_pointer_cast<opset8::Constant>(node->input_value(0).get_node_shared_ptr());
+                auto const_node = dynamic_pointer_cast<opset10::Constant>(node->input_value(0).get_node_shared_ptr());
                 if (!const_node)
                     return false;
             }
@@ -126,7 +123,7 @@ public:
                 return false;
 
             // on convert down propagation should be interrupted
-            auto convert_node = dynamic_pointer_cast<opset8::Convert>(node);
+            auto convert_node = dynamic_pointer_cast<opset10::Convert>(node);
             if (convert_node)
                 return false;
 
