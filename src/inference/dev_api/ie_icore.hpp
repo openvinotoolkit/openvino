@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -100,6 +100,27 @@ public:
         const std::function<void(const ie::CNNNetwork&)>& val = nullptr) = 0;
 
     /**
+     * @brief Creates an executable network from a model memory.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param modelStr String data of model
+     * @param weights Model's weights
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @param val Optional callback to perform validation of loaded CNNNetwork, if ReadNetwork is triggered
+     * @return An executable network reference
+     */
+    virtual ie::SoExecutableNetworkInternal LoadNetwork(
+        const std::string& modelStr,
+        const ie::Blob::CPtr& weights,
+        const std::string& deviceName,
+        const std::map<std::string, std::string>& config,
+        const std::function<void(const ie::CNNNetwork&)>& val = nullptr) = 0;
+
+    /**
      * @brief Creates an executable network from a previously exported network
      * @param networkModel network model stream
      * @param deviceName Name of device load executable network on
@@ -149,7 +170,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     virtual std::vector<std::string> GetAvailableDevices() const = 0;

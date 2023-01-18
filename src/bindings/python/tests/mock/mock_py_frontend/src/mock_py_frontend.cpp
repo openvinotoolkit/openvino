@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -365,8 +365,12 @@ InputModel::Ptr FrontEndMockPy::load_impl(const std::vector<ov::Any>& params) co
         m_telemetry->send_error("load_impl_error");
         m_telemetry->send_stack_trace("mock_stack_trace");
     }
-    if (!params.empty() && params[0].is<std::string>()) {
-        m_stat.m_load_paths.push_back(params[0].as<std::string>());
+    if (!params.empty()) {
+        if (params[0].is<std::string>()) {
+            m_stat.m_load_paths.push_back(params[0].as<std::string>());
+        } else {
+            throw ov::Exception("Only path is supported.");
+        }
     }
 
     return std::make_shared<InputModelMockPy>();
