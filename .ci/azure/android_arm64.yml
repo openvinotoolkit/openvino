@@ -37,9 +37,6 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
-variables:
-  - group: github
-
 jobs:
 - job: android_arm64
   # About 150% of total time
@@ -65,19 +62,13 @@ jobs:
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10'
-      addToPath: true
-      architecture: 'x64'
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
-    name: setupPython
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
+      echo ls /usr/bin/python3.10
+      rm -rf /usr/bin/python3
+      sudo ln -s /usr/bin/python3.10 /usr/bin/python3
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
       echo Java info ; which java ; java -version
@@ -121,17 +112,18 @@ jobs:
       set -e
       sudo -E $(OPENVINO_REPO_DIR)/install_build_dependencies.sh
       # Move into contrib install_build_dependencies.sh
-      sudo apt --assume-yes install scons crossbuild-essential-arm64 libprotoc-dev protobuf-compiler default-jdk
+      sudo apt --assume-yes install scons crossbuild-essential-arm64 default-jdk
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
       # Install Android SDK, NDK and TOOLS
+      sudo apt -y --no-install-recommends install unzip
       wget https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip
       unzip commandlinetools-linux-7583922_latest.zip
       yes | ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --licenses
       ./cmdline-tools/bin/sdkmanager --sdk_root=$(ANDROID_TOOLS) --install "ndk-bundle" "platform-tools" "platforms;android-$(ANDROID_SDK_VERSION)"
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
@@ -153,19 +145,18 @@ jobs:
         -DCMAKE_C_LINKER_LAUNCHER=ccache
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        $(OPENVINO_REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(OPENVINO_REPO_DIR)
+        -B $(BUILD_DIR)
 
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - script: |
-      export CCACHE_DIR=$(CCACHE_DIR)
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=50G
-      ninja
-    workingDirectory: $(BUILD_DIR)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build Android ARM64'
 
   - script: ccache --show-stats
