@@ -131,8 +131,8 @@ bool no_bounds_overlap(const pair<HostTensorPtr, HostTensorPtr>& bounds,
 
     return std::find_if_not(uppers.cbegin(), uppers.cend(), [&](const T ub) {
                const auto idx = indices[iteration];
-               auto no_overlap = (is_max_mode && ov::cmp::le(ub, prev_bound)) ||
-                                 (!is_max_mode && ov::cmp::le(prev_bound, lowers[idx]));
+               auto no_overlap = (is_max_mode && ov::cmp::lt(ub, prev_bound)) ||
+                                 (!is_max_mode && ov::cmp::lt(prev_bound, lowers[idx]));
 
                if (iteration < k) {
                    prev_bound = is_max_mode ? lowers[idx] : ub;

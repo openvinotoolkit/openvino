@@ -289,25 +289,25 @@ TYPED_TEST_P(topk_type_prop, propagate_label_and_interval_value_detect_overlaps)
         EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(no_label))));
     }
 
-    // detect top 3 min by value (no overlap)
+    // detect top 2 min by value (no overlap)
+    {
+        const auto k = Constant::create(et, Shape{}, {2});
+        const auto op = this->make_op(labeled_shape_of, k, 0, "min", "value", element::i32);
+
+        const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
+
+        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({{0, 1}, {2, 3}}), PartialShape({4, 1})));
+        EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, ElementsAre(14, 11))));
+    }
+
+    // detect top 3 min by value (overlap)
     {
         const auto k = Constant::create(et, Shape{}, {3});
         const auto op = this->make_op(labeled_shape_of, k, 0, "min", "value", element::i32);
 
         const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
 
-        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape({{0, 1}, {2, 3}, {4, 6}}), PartialShape({4, 1, 0})));
-        EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, ElementsAre(14, 11, 10))));
-    }
-
-    // detect top 4 min by value (overlap)
-    {
-        const auto k = Constant::create(et, Shape{}, {4});
-        const auto op = this->make_op(labeled_shape_of, k, 0, "min", "value", element::i32);
-
-        const auto bc_shapes = this->make_broadcast_shapes_of_topk_outs(op.get());
-
-        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape::dynamic(4), (PartialShape::dynamic(4))));
+        EXPECT_THAT(bc_shapes, ElementsAre(PartialShape::dynamic(3), (PartialShape::dynamic(3))));
         EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(no_label))));
     }
 }
