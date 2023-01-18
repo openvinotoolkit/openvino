@@ -224,14 +224,21 @@ TEST(OVClassBasicTest, smoke_SetConfigHintInferencePrecision) {
     auto value = ov::element::f32;
     const auto precision = InferenceEngine::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_precision));
     ASSERT_EQ(precision, value);
 
     const auto forcedPrecision = ov::element::f32;
 
-    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
-    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_precision(forcedPrecision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_precision));
     ASSERT_EQ(value, forcedPrecision);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto forced_precision_deprecated = ov::element::f32;
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forced_precision_deprecated)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    ASSERT_EQ(value, forced_precision_deprecated);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(OVClassBasicTest, smoke_SetConfigEnableProfiling) {

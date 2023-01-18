@@ -25,7 +25,7 @@ auto model = core.read_model("sample.xml");
 auto compiled_model = core.compile_model(model, "MULTI",
     ov::device::priorities("GPU", "CPU"),
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-    ov::hint::inference_precision(ov::element::f32));
+    ov::inference_precision(ov::element::f32));
 //! [core_compile_model]
 
 //! [compiled_model_set_property]

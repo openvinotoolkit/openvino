@@ -206,7 +206,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        auto infer_precision = config.get_property(ov::hint::inference_precision);
+        auto infer_precision = config.get_property(ov::inference_precision);
         if (infer_precision != ov::element::undefined) {
             if (!fp_precision_supported(infer_precision))
                 infer_precision = fallback_precision;

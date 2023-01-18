@@ -225,7 +225,7 @@ void SubgraphBaseTest::compile_model() {
                 break;
             }
         }
-        configuration.insert({ov::hint::inference_precision.name(), hint});
+        configuration.insert({ov::inference_precision.name(), hint});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);

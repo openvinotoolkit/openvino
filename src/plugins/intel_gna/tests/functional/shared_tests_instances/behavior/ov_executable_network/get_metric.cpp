@@ -173,7 +173,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Combine(
         ::testing::Values("GNA"),
         ::testing::Values(ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 1.0f}}),
-                          ov::hint::inference_precision(ngraph::element::i8),
+                          ov::inference_precision(ngraph::element::i8),
                           ov::hint::num_requests(2),
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION),
                           ov::intel_gna::pwl_max_error_percent(0.2),

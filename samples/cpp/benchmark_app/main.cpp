@@ -500,13 +500,13 @@ int main(int argc, char* argv[]) {
                 auto it_device_infer_precision = device_infer_precision.find(device);
                 if (it_device_infer_precision != device_infer_precision.end()) {
                     // set to user defined value
-                    if (supported(ov::hint::inference_precision.name())) {
-                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                    if (supported(ov::inference_precision.name())) {
+                        device_config.emplace(ov::inference_precision(it_device_infer_precision->second));
                     } else if (device == "MULTI" || device == "AUTO") {
                         // check if the element contains the hardware device property
                         auto value_vec = split(it_device_infer_precision->second, ' ');
                         if (value_vec.size() == 1) {
-                            auto key = ov::hint::inference_precision.name();
+                            auto key = ov::inference_precision.name();
                             device_config[key] = it_device_infer_precision->second;
                         } else {
                             // set device inference_precison properties in the AUTO/MULTI plugin
@@ -523,16 +523,16 @@ int main(int argc, char* argv[]) {
                                     is_dev_set_property[it.first] = false;
                                     device_config.erase(it.first);
                                     device_config.insert(
-                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
+                                        ov::device::properties(it.first, ov::inference_precision(it.second)));
                                 } else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
-                                    property.emplace(ov::hint::inference_precision(it.second));
+                                    property.emplace(ov::inference_precision(it.second));
                                 }
                             }
                         }
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
-                                               ov::hint::inference_precision.name() + "'! " +
+                                               ov::inference_precision.name() + "'! " +
                                                "Please specify -infer_precision for correct devices in format  "
                                                "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
                                                " or via configuration file.");

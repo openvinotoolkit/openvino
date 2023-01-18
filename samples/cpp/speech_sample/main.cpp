@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
                 gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
         }
-        gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        gnaPluginConfig[ov::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
             auto hw_target = ov::intel_gna::HWGeneration::UNDEFINED;
 
