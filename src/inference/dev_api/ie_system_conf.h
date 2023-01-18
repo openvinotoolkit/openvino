@@ -191,7 +191,7 @@ typedef enum {
  */
 INFERENCE_ENGINE_API_CPP(void)
 parse_processor_info_win(char* base_ptr,
-                         DWORD len,
+                         unsigned long len,
                          int& _processors,
                          int& _sockets,
                          int& _cores,
