@@ -34,7 +34,6 @@ public:
         int test_cores = 0;
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
-        std::string test_message = "";
 
         parse_processor_info_linux(test_data._processors,
                                    test_data.system_info_table,
