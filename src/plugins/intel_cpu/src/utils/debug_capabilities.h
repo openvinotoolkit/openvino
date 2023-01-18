@@ -17,6 +17,7 @@
 #include <dnnl_debug.h>
 
 #include "openvino/core/model.hpp"
+#include "cpu_memory.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -88,6 +89,7 @@ public:
     }
 };
 
+std::ostream & operator<<(std::ostream & os, const Memory& mem);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);

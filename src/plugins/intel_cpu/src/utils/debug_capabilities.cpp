@@ -13,6 +13,7 @@
 #include "snippets/op/subgraph.hpp"
 #include <ie_ngraph_utils.hpp>
 #include "../src/common/verbose.hpp"
+#include "blob_dump.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -116,6 +117,13 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
         return "";
     };
     os << dnnl::impl::md2dim_str(&desc.data) << " " << dnnl::impl::md2fmt_str(&desc.data) << getWinoDetailedFormat();
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const Memory& mem) {
+    MemoryPtr memPtr(const_cast<Memory*>(&mem), [](Memory * p){});
+    BlobDumper dumper(memPtr);
+    dumper.dumpAsTxt(os);
     return os;
 }
 
