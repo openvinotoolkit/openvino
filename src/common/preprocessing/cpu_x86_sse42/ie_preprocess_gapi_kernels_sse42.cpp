@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "openvino/core/visibility.hpp"
 #include "ie_preprocess_gapi_kernels.hpp"
 #include "ie_preprocess_gapi_kernels_impl.hpp"
 #include "ie_preprocess_gapi_kernels_sse42.hpp"
@@ -97,7 +98,7 @@ bool calcRowLinear8UC1Impl(sse42_tag,
                     //      function: resize_bilinear_u8
                     //         label: vertical_pass
                     //--------------------------------------------
-#ifdef __i386__
+#ifdef OPENVINO_ARCH_X86
                     __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
                                                           _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
                                                                       reinterpret_cast<const double*>(&src0[1][w])));
@@ -404,7 +405,7 @@ bool calcRowLinear8UC1Impl(sse42_tag,
             for (int x = 0; x < outSz.width; ) {
                 for (; x <= outSz.width - 8; x += 8) {
                     v_uint8x16 t0, t1, t2, t3;
-#ifdef __i386__
+#ifdef OPENVINO_ARCH_X86
                     t0.val = _mm_castpd_si128(_mm_loadh_pd(
                                                   _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 0]])),
                                                               reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 1]])));
@@ -552,7 +553,7 @@ CV_ALWAYS_INLINE bool calcRowLinear_8UC_Impl_(sse42_tag,
                 //      function: resize_bilinear_u8
                 //         label: vertical_pass
                 //--------------------------------------------
-#ifdef __i386__
+#ifdef OPENVINO_ARCH_X86
                     __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
                                                           _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
                                                                       reinterpret_cast<const double*>(&src0[1][w])));
