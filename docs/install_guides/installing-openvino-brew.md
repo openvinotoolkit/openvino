@@ -10,19 +10,33 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 > **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
 
+## Prerequistes
+
+### System Requirements
+
 @sphinxdirective
 
-.. tab:: System Requirements
+Full requirement listing is available on the `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
-   | Full requirement listing is available on:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+@endsphinxdirective
 
-.. tab:: Software Requirements
+### Software Requirements
+
+@sphinxdirective
+
+.. tab:: Linux
 
   * `Homebrew <https://brew.sh/>`_
-  * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default install). 
-  * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.7 - 3.10). Install and add to path.
-  * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory
+  * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
+  * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+
+.. tab:: macOS
+
+  * `Homebrew <https://brew.sh/>`_
+  * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default installation). 
+  * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.7 - 3.10). Install and add it to path.
+  * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory to install it.
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
 @endsphinxdirective
@@ -55,7 +69,7 @@ OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO sample
 
 ## Uninstalling OpenVINO
 
-To uninstall OpenVINO, use the following command:
+To uninstall OpenVINO via HomeBrew, use the following command:
 ```sh
 brew uninstall openvino
 ```
