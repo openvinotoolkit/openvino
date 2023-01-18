@@ -54,8 +54,14 @@ ie_dependent_option (ENABLE_PKGCONFIG_GEN "Enable openvino.pc pkg-config file ge
 # OpenVINO Runtime specific options
 #
 
+if(EMSCRIPTEN)
+    set(THREADING_DEFAULT "SEQ")
+else()
+    set(THREADING_DEFAULT "TBB")
+endif()
+
 # "OneDNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-set(THREADING "TBB" CACHE STRING "Threading")
+set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS "TBB" "TBB_AUTO" "OMP" "SEQ")
 list (APPEND IE_OPTIONS THREADING)
 if (NOT THREADING STREQUAL "TBB" AND
@@ -108,7 +114,7 @@ ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check OpenVINO Runtime 
 
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
-ie_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON)
+ie_dependent_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package" ON "NOT EMSCRIPTEN" OFF)
 
 ie_option (ENABLE_OPENCV "enables custom OpenCV download" OFF)
 

@@ -105,10 +105,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
-    
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-ie_add_compiler_flags(/wd4267)
-endif()
+    ie_add_compiler_flags(/wd4267)
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations
