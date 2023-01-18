@@ -41,11 +41,6 @@ You've completed all required configuration steps to perform inference on proces
 
 ## Windows
 
-This section will help you check if you require driver installation. Install indicated version or higher.
-
-If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
-[Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
-
 To check if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
