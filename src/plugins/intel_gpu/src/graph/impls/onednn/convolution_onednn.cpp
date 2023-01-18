@@ -83,16 +83,24 @@ protected:
         return args;
     }
 
+    int _zero_point_mask;
+    void set_zero_point_mask(int zero_point_mask) {
+        _zero_point_mask = zero_point_mask;
+    }
+
     template <typename T>
-    static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs, cldnn::data_node& node) {
+    static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs,
+                                                cldnn::data_node& node, int& zero_point_mask) {
         int32_t zp_val = DNNL_RUNTIME_S32_VAL;
         bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
         memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
         node.attach_memory(s32_mem, false);
-        attrs->set_zero_points_mask(DNNL_ARG_SRC, is_per_tensor ? 0 : 2);
+        zero_point_mask = is_per_tensor ? 0 : 2;
+        attrs->set_zero_points_mask(DNNL_ARG_SRC, zero_point_mask);
     }
 
-    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
+    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg,
+                                                                          int& zero_point_mask) {
         auto attrs = arg.get_onednn_primitive_attributes();
 
         if (arg.activations_zero_points_term()) {
@@ -104,9 +112,9 @@ protected:
             }
 
             if (a_zp_dtype == data_types::i8) {
-                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>());
+                set_activation_zero_points_attr<data_type_to_type<data_types::i8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
             } else { // if (a_zp_dtype == data_types::u8)
-                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>());
+                set_activation_zero_points_attr<data_type_to_type<data_types::u8>::type>(attrs, a_zp.as<data>(), zero_point_mask);
             }
         }
 
@@ -162,6 +170,8 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
+        ob << _zero_point_mask;
+
         const dnnl::convolution_forward::primitive_desc *typed_pd
             = reinterpret_cast<const dnnl::convolution_forward::primitive_desc *>(&_pd);
 
@@ -180,6 +190,11 @@ public:
     void load(BinaryInputBuffer& ib) override {
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
+
+        ib >> _zero_point_mask;
+        if (_zero_point_mask != -1) {
+            _attrs->set_zero_points_mask(DNNL_ARG_SRC, _zero_point_mask);
+        }
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
 
@@ -228,11 +243,15 @@ public:
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto attr = get_primitive_attributes(arg);
+        int zero_point_mask = -1;
+        auto attr = get_primitive_attributes(arg, zero_point_mask);
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
+        auto conv_onednn_impl = cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc,
+                                                get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
+        conv_onednn_impl->set_zero_point_mask(zero_point_mask);
+        return conv_onednn_impl;
     }
 };
 
