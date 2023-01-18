@@ -145,7 +145,6 @@ void DnnlExecutor2::setWeight(MemoryPtr wghMemPtr, bool constWeight, int idx) {
     } else {
         if (constWeight) {
             // reordering of weight can be done at this last compilation stage
-            DEBUG_LOG("=>", prim_weight_desc);
             weight_mem =
                 prepareWeightMemory(wghMemPtr, DnnlExtensionUtils::makeDescriptor(prim_weight_desc))->GetPrimitive();
         } else {
@@ -214,10 +213,9 @@ MemoryPtr DnnlExecutor2::prepareWeightMemory(MemoryPtr blob, DnnlMemoryDescPtr e
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        const std::string unique_name = name + "_" + format
+        const std::string unique_name = format
                                         + "_" + std::to_string(blob->GetSize())
                                         + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
-
         ptr = *weightCache->findOrCreate(unique_name, create);
     } else {
         ptr = create();
