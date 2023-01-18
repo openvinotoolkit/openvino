@@ -86,6 +86,7 @@ private:
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
     DnnlExecutor2 executor;
+    MemoryCPtr constWeightMemPtr;
 
     void prepareParams() override;
     void execute(dnnl::stream strm) override;

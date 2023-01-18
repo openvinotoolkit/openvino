@@ -37,7 +37,7 @@ namespace {
 
 struct ConvKey {
     DnnlMemoryDescCPtr inp0;
-    DnnlMemoryDescCPtr inp1;
+    dnnl::memory::desc weight;
     DnnlMemoryDescCPtr bias;
     DnnlMemoryDescCPtr out;
 
@@ -59,11 +59,12 @@ size_t ConvKey::hash() const {
 
     size_t seed = 0;
 
-    for (const auto& ptr : {inp0, inp1, bias, out}) {
+    for (const auto& ptr : {inp0, bias, out}) {
         if (ptr) {
             seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
         }
     }
+    seed = hash_combine(seed, get_md_hash(weight.data));
 
     seed = get_vector_hash(seed, stride);
     seed = get_vector_hash(seed, dilation);
@@ -80,8 +81,8 @@ bool ConvKey::operator==(const ConvKey &rhs) const {
     if (inp0 != rhs.inp0) {
         retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
     }
-    if (inp1 != rhs.inp1) {
-        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
+    if (weight != rhs.weight) {
+        retVal = retVal && rhs.weight && weight == rhs.weight;
     }
     if (bias != rhs.bias) {
         retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
@@ -374,6 +375,12 @@ void Convolution::getSupportedDescriptors() {
     bool enforceBrgconv = false;
     attrs.reserve(2);
     withBiases = getOriginalInputsNumber() == 3;
+
+    // only here we can retrieve orginal weight memory, so later we can report weight descriptor based on this
+    auto constWeightNode = std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent());
+    if (constWeightNode && constWeightNode->getType() == Type::Input && constWeightNode->isConstant()) {
+        constWeightMemPtr = constWeightNode->getMemoryPtr();
+    }
 
     if (!implPriorities.empty()) {
         isPrimitivesPriorityDefined = true;
@@ -1120,12 +1127,11 @@ bool Convolution::isPossibleToSkipInitConfig(DnnlDesriptor &desc) const {
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
-    if (idx == 1) {
-        // report plain format for weight, to delay the reordering of weight to prepareParam()
-        // stage where the required format can be exactly determined from actual input shape.
-        auto fmt = DnnlExtensionUtils::GetPlainFormatByRank(desc.dims().size());
-        dnnl::memory::desc plainDesc(desc.dims(), desc.data_type(), fmt);
-        return DnnlExtensionUtils::makeDescriptor(plainDesc);
+    if (idx == 1 && constWeightMemPtr) {
+        // original weight memory is const node, we report same descriptor so no extra reorder
+        // will be inserted by graph, so later prepareParam() can prepare Weight from original
+        // const weight node
+        return constWeightMemPtr->getDescPtr();
     }
 
     if (getInputShapeAtPort(idx).isDynamic()) {
@@ -1326,9 +1332,23 @@ void Convolution::prepareParams() {
         pAttrLocal = initPrimitiveAttr();
     }
 
+    // the actual format/dtype of weight desc used to create primitive
+    // is relaxed:
+    //  - dtype: derive from src type
+    //  - format: use format_tag::any since reorder will be performed afterward.
+    auto src_dt = inMemoryDesc->getDnnlDesc().data.data_type;
+    memory::data_type wdt = static_cast<memory::data_type>(src_dt);
+    if (src_dt == dnnl_s8 || src_dt == dnnl_u8) {
+        wdt = memory::data_type::s8;
+    }
+    auto wghDesc =
+        dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(weightMemoryDesc->getShape().getStaticDims()),
+                           wdt,
+                           memory::format_tag::any);
+
     updatePadding();
     ConvKey key = {inMemoryDesc,
-                   weightMemoryDesc,
+                   wghDesc,
                    biasDesc,
                    outMemoryDesc,
                    stride,
@@ -1342,12 +1362,8 @@ void Convolution::prepareParams() {
     auto engine = getEngine();
     auto builder = [&engine](const ConvKey& key) -> dnnl::convolution_forward {
         auto inDesc = key.inp0->getDnnlDesc();
+        auto wghDesc = key.weight;
         auto outDesc = key.out->getDnnlDesc();
-        // we use format_tag::any for weight memory desc, since caller of builder always ensures
-        // that weight reordering will done properly.
-        auto wghDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
-                                          key.inp1->getDataType(),
-                                          memory::format_tag::any);
         bool withBiases = (key.bias != nullptr);
         dnnl::memory::desc dnnlBiasDesc;
         if (withBiases) {
@@ -1415,8 +1431,12 @@ void Convolution::prepareParams() {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
     auto conv_prim = result.first;
+
+    // the executor is essentially a lower level graph mainly composed of
+    // sequence of oneDNN primitives to accomplish the inference function required
+    // by this CPU node. this executor-graph is dynamically generated here:
     executor.reset(conv_prim);
-    executor.setSrc(srcMemPtr);
+    executor.setSrc(srcMemPtr, getParentEdgeAt(0)->getParent()->isConstant());
     executor.setWeight(wghMemPtr, getParentEdgeAt(1)->getParent()->isConstant());
     executor.setOutput(dstMemPtr);
 
