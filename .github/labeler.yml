@@ -124,6 +124,7 @@
 'category: PyTorch FE':
 - 'src/frontends/pytorch/**/*'
 - 'tests/layer_tests/pytorch_tests/**/*'
+- 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 
 'category: tools':
 - any: ['tools/**',
