@@ -16,6 +16,10 @@ if(ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
 endif()
 
+if(ENABLE_OV_PYTORCH_FRONTEND)
+    add_subdirectory(pytorch)
+endif()
+
 if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()

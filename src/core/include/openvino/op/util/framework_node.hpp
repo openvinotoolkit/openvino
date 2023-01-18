@@ -58,6 +58,10 @@ public:
         return m_attrs.at(key);
     }
 
+    attrs_t::const_iterator find(const std::string& key) const {
+        return m_attrs.find(key);
+    }
+
     bool operator==(const FrameworkNodeAttrs& other) const {
         return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == other.m_attrs;
     }

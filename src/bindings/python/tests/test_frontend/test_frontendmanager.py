@@ -100,7 +100,7 @@ def test_load_wrong_path():
     assert fe is not None
     with pytest.raises(RuntimeError) as e:
         fe.load(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
+    assert "Only path is supported." in str(e.value)
 
 
 @mock_needed

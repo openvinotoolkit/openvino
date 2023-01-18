@@ -261,6 +261,19 @@ macro(ov_cpack_settings)
         set(paddle_copyright "generic")
     endif()
 
+    if(ENABLE_OV_PYTORCH_FRONTEND)
+        set(CPACK_COMPONENT_PYTORCH_DESCRIPTION "OpenVINO PyTorch Frontend")
+        set(CPACK_COMPONENT_PYTORCH_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_PYTORCH_PACKAGE_NAME "libopenvino-pytorch-frontend-${cpack_name_ver}")
+        # since we PYTORCH FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_PYTORCH_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(pytorch
+            # we have different package name strategy; it suggests libopenvino-pytorch-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends pytorch)
+        set(pytorch_copyright "generic")
+    endif()
+
     #
     # core_dev: depends on core and frontends (since frontends don't want to provide its own dev packages)
     #

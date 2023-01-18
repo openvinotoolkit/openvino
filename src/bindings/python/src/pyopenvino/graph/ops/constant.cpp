@@ -80,6 +80,12 @@ void regclass_graph_op_Constant(py::module m) {
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<uint16_t>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<uint32_t>&>());
     constant.def(py::init<const ov::element::Type&, const ov::Shape&, const std::vector<uint64_t>&>());
+    constant.def(py::init([](const ov::element::Type& et, const ov::Shape& sh, int64_t p) {
+        // restore pointer from integer
+        // TODO: Align on bit width
+        void* pp = reinterpret_cast<void*>(p);
+        return std::make_shared<ov::op::v0::Constant>(et, sh, pp);
+    }));
 
     constant.def("get_value_strings", &ov::op::v0::Constant::get_value_strings);
 
