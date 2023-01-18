@@ -71,7 +71,6 @@
 - 'src/frontends/tests/frontend/shared/**/*'
 - any: ['src/tests/**/*',
         '!src/tests/**/gpu/**/*',
-        '!src/tests/**/myriad/**/*',
         '!src/tests/**/inference_engine/**/*']
 
 'category: inference':
@@ -129,7 +128,3 @@
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
-
-'category: VPU':
-- 'src/plugins/intel_myriad/**/*'
-- 'src/tests/**/myriad/**/*'

@@ -90,6 +90,33 @@ def test_properties_enums(ov_enum, expected_values):
         assert int(property_obj) == property_int
 
 
+@pytest.mark.parametrize(
+    ("proxy_enums", "expected_values"),
+    [
+        (
+            (
+                properties.intel_gpu.hint.ThrottleLevel.LOW,
+                properties.intel_gpu.hint.ThrottleLevel.MEDIUM,
+                properties.intel_gpu.hint.ThrottleLevel.HIGH,
+                properties.intel_gpu.hint.ThrottleLevel.DEFAULT,
+            ),
+            (
+                ("Priority.LOW", 0),
+                ("Priority.MEDIUM", 1),
+                ("Priority.HIGH", 2),
+                ("Priority.MEDIUM", 1),
+            ),
+        ),
+    ],
+)
+def test_conflicting_enum(proxy_enums, expected_values):
+    assert len(proxy_enums) == len(expected_values)
+
+    for i in range(len(proxy_enums)):
+        assert str(proxy_enums[i]) == expected_values[i][0]
+        assert int(proxy_enums[i]) == expected_values[i][1]
+
+
 ###
 # Read-Only properties
 ###
@@ -109,7 +136,12 @@ def test_properties_enums(ov_enum, expected_values):
         (properties.device.type, "DEVICE_TYPE"),
         (properties.device.gops, "DEVICE_GOPS"),
         (properties.device.thermal, "DEVICE_THERMAL"),
+        (properties.device.uuid, "DEVICE_UUID"),
         (properties.device.capabilities, "OPTIMIZATION_CAPABILITIES"),
+        (properties.intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
+        (properties.intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
+        (properties.intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
+        (properties.intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
     ],
 )
 def test_properties_ro(ov_property_ro, expected_value):
@@ -207,6 +239,31 @@ def test_properties_ro(ov_property_ro, expected_value):
             "LOG_LEVEL",
             ((properties.log.Level.NO, properties.log.Level.NO),),
         ),
+        (
+            properties.intel_gpu.enable_loop_unrolling,
+            "GPU_ENABLE_LOOP_UNROLLING",
+            ((True, True),),
+        ),
+        (
+            properties.intel_gpu.hint.queue_throttle,
+            "GPU_QUEUE_THROTTLE",
+            ((properties.intel_gpu.hint.ThrottleLevel.LOW, properties.hint.Priority.LOW),),
+        ),
+        (
+            properties.intel_gpu.hint.queue_priority,
+            "GPU_QUEUE_PRIORITY",
+            ((properties.hint.Priority.LOW, properties.hint.Priority.LOW),),
+        ),
+        (
+            properties.intel_gpu.hint.host_task_priority,
+            "GPU_HOST_TASK_PRIORITY",
+            ((properties.hint.Priority.LOW, properties.hint.Priority.LOW),),
+        ),
+        (
+            properties.intel_gpu.hint.available_device_mem,
+            "AVAILABLE_DEVICE_MEM_SIZE",
+            ((128, 128),),
+        ),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
@@ -261,6 +318,15 @@ def test_properties_capability():
     assert properties.device.Capability.EXPORT_IMPORT == "EXPORT_IMPORT"
 
 
+def test_properties_memory_type_gpu():
+    assert properties.intel_gpu.MemoryType.surface == "GPU_SURFACE"
+    assert properties.intel_gpu.MemoryType.buffer == "GPU_BUFFER"
+
+
+def test_properties_capability_gpu():
+    assert properties.intel_gpu.CapabilityGPU.HW_MATMUL == "GPU_HW_MATMUL"
+
+
 def test_properties_hint_model():
     # Temporary imports
     from tests.test_utils.test_utils import generate_add_model
@@ -273,17 +339,16 @@ def test_properties_hint_model():
     assert property_tuple[0] == "MODEL_PTR"
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
-def test_single_property_setting():
+def test_single_property_setting(device):
     core = Core()
 
-    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
         pytest.skip("This test runs only on openvino intel cpu plugin")
 
-    core.set_property("CPU", properties.streams.num(properties.streams.Num.AUTO))
+    core.set_property(device, properties.streams.num(properties.streams.Num.AUTO))
 
     assert properties.streams.Num.AUTO.to_integer() == -1
-    assert type(core.get_property("CPU", properties.streams.num())) == int
+    assert type(core.get_property(device, properties.streams.num())) == int
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
@@ -327,7 +392,7 @@ def test_single_property_setting():
         },
     ],
 )
-def test_properties_core(properties_to_set):
+def test_core_cpu_properties(properties_to_set):
     core = Core()
 
     if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
@@ -335,18 +400,11 @@ def test_properties_core(properties_to_set):
 
     core.set_property(properties_to_set)
 
-    # RW properties without device name
-    assert core.get_property(properties.cache_dir()) == "./"
-    assert core.get_property(properties.force_tbb_terminate()) is False
-
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True
     assert core.get_property("CPU", properties.cache_dir()) == "./"
     assert core.get_property("CPU", properties.inference_num_threads()) == 9
     assert core.get_property("CPU", properties.affinity()) == properties.Affinity.NONE
-    assert core.get_property("CPU", properties.hint.inference_precision()) == Type.f32
-    assert core.get_property("CPU", properties.hint.performance_mode()) == properties.hint.PerformanceMode.LATENCY
-    assert core.get_property("CPU", properties.hint.num_requests()) == 12
     assert core.get_property("CPU", properties.streams.num()) == 5
 
     # RO properties

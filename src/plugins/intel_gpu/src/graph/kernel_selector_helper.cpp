@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -819,17 +819,17 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
+kernel_selector::tuning_mode to_tuning_mode(ov::intel_gpu::TuningMode mode) {
     switch (mode) {
-        case cldnn::tuning_mode::tuning_disabled:
+        case ov::intel_gpu::TuningMode::tuning_disabled:
             return kernel_selector::tuning_mode::TUNING_DISABLED;
-        case cldnn::tuning_mode::tuning_use_cache:
+        case ov::intel_gpu::TuningMode::tuning_use_cache:
             return kernel_selector::tuning_mode::TUNING_USE_CACHE;
-        case cldnn::tuning_mode::tuning_tune_and_cache:
+        case ov::intel_gpu::TuningMode::tuning_tune_and_cache:
             return kernel_selector::tuning_mode::TUNING_TUNE_AND_CACHE;
-        case cldnn::tuning_mode::tuning_use_and_update:
+        case ov::intel_gpu::TuningMode::tuning_use_and_update:
             return kernel_selector::tuning_mode::TUNING_USE_AND_UPDATE;
-        case cldnn::tuning_mode::tuning_retune_and_cache:
+        case ov::intel_gpu::TuningMode::tuning_retune_and_cache:
             return kernel_selector::tuning_mode::TUNING_RETUNE_AND_CACHE;
         default:
             return kernel_selector::tuning_mode::TUNING_DISABLED;
@@ -1021,6 +1021,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supports_intel_subgroups_short = device_info.supports_intel_subgroups_short;
     params.engineInfo.supports_intel_subgroups_char = device_info.supports_intel_subgroups_char;
     params.engineInfo.supports_intel_required_subgroup_size = device_info.supports_intel_required_subgroup_size;
+    params.engineInfo.supports_image = device_info.supports_image;
 
     params.engineInfo.supports_imad = device_info.supports_imad;
     params.engineInfo.supports_immad = device_info.supports_immad;
@@ -1041,8 +1042,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
 
-    auto impl_forcing_bo = program->get_options().get<build_option_type::force_implementations>();
-    const auto& impl_forcing = impl_forcing_bo->forcing;
+    auto impl_forcing = program->get_config().get_property(ov::intel_gpu::force_implementations);
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
@@ -1051,14 +1051,14 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
 
 void set_optional_params(const program& program, kernel_selector::optional_params& params) {
     params.meaningfulKernelsNames = false;
-    params.allowStaticInputReordering = program.get_options().get<build_option_type::optimize_data>()->enabled() ||
-                                        program.get_options().get<build_option_type::allow_static_input_reorder>()->enabled();
+    params.allowStaticInputReordering = program.get_config().get_property(ov::intel_gpu::optimize_data) ||
+                                        program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
     params.allowInputReordering = false;
     params.allowOutputReordering = false;
 
-    const auto& tuning_config = program.get_options().get<build_option_type::tuning_config>();
-    params.tuningParams.mode = to_tuning_mode(tuning_config->config.mode);
-    params.tuningParams.cacheFilePath = tuning_config->config.cache_file_path;
+    const auto& tuning_config = program.get_config().get_property(ov::intel_gpu::tuning_config);
+    params.tuningParams.mode = to_tuning_mode(tuning_config.mode);
+    params.tuningParams.cacheFilePath = tuning_config.cache_file_path;
 }
 
 void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
