@@ -650,22 +650,17 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                     "set_property is supported only for BATCH itself (without devices). "
                     "You can configure the devices with set_property before creating the BATCH on top.");
 
-    bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
-                        device_name.find("MULTI") != std::string::npos ||
-                        device_name.find("HETERO") != std::string::npos;
-    if (!isMetaDevice) {
-        // unsupport to set ov::device::properties to HW device through this function
-        auto devices = GetListOfDevicesInRegistry();
-        for (auto&& config : properties) {
-            auto parsed = parseDeviceNameIntoConfig(config.first);
-            auto is_secondary_config_for_hw_device =
-                std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
-                    return device == parsed._deviceName;
-                });
-            OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
-                            "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
-                            "You can configure the devices through the compile_model()/loadNetwork() API.");
-        }
+    // unsupport to set ov::device::properties to HW device through this function
+    auto devices = GetListOfDevicesInRegistry();
+    for (auto&& config : properties) {
+        auto parsed = parseDeviceNameIntoConfig(config.first);
+        auto is_secondary_config_for_hw_device =
+            std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
+                return device == parsed._deviceName;
+            });
+        OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
+                        "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
+                        "You can configure the devices through the compile_model()/loadNetwork() API.");
     }
     SetConfigForPlugins(properties, device_name);
 }
