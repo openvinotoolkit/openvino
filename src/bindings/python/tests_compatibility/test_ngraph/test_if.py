@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import ngraph as ng
@@ -115,14 +115,14 @@ def simple_if_without_parameters(condition_val):
     condition = ng.constant(condition_val, dtype=bool)
 
     # then_body
-    then_constant = ng.constant(0.7, dtype=float)
+    then_constant = ng.constant(0.7, dtype=np.float32)
     then_body_res_1 = ng.result(then_constant)
     then_body = GraphBody([], [then_body_res_1])
     then_body_inputs = []
     then_body_outputs = [TensorIteratorBodyOutputDesc(0, 0)]
 
     # else_body
-    else_const = ng.constant(9.0, dtype=float)
+    else_const = ng.constant(9.0, dtype=np.float32)
     else_body_res_1 = ng.result(else_const)
     else_body = GraphBody([], [else_body_res_1])
     else_body_inputs = []

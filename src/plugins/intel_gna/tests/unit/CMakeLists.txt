@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,7 @@ endif()
 
 # TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
 if(NOT BUILD_SHARED_LIBS)
-    set(exclude_path EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/(gna_api_stub|gna_wait_test|gna_export_import_test|gna_infer_request_test).cpp")
+    set(exclude_path EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/(gna_api_stub|gna_wait_test|gna_export_import_test|gna_infer_request_test|gna_plugin_load_network_test|gna_mock_api_initializer).cpp")
 endif()
 
 addIeTargetTest(

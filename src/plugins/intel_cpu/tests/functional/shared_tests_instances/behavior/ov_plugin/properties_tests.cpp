@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,14 +89,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBehaviorTests, OVPropertiesDefaultTests,
                 ::testing::ValuesIn(default_properties)),
         OVPropertiesDefaultTests::getTestCaseName);
 
-const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {
+const std::vector<std::pair<ov::AnyMap, std::string>> automultiExeDeviceConfigs = {
             std::make_pair(ov::AnyMap{{ov::device::priorities(CommonTestUtils::DEVICE_CPU)}}, "CPU")
     };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiCompileModelBehaviorTests,
                          OVCompileModelGetExecutionDeviceTests,
-                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(autoExeDeviceConfigs)),
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO,
+                                                              CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(automultiExeDeviceConfigs)),
                          OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_multi_device_properties = {

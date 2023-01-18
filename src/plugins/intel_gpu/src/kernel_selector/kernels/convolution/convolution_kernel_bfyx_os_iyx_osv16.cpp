@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,14 +44,21 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableSubGroup();
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     k.EnableDilation();
     k.EnableGroupedConvolution();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_bfyx_os_iyx_osv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_shuffle();
+    k.requires_reqd_subgroup_size();
+
     return k;
 }
 
@@ -107,7 +114,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
@@ -214,7 +221,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_idx", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"", {"batch_idx", "feature_num", "(or+r)", "(oc+c)"}, "dst", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 

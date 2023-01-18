@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,13 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
+    return k;
+}
+
+DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -186,28 +193,28 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (dtype == Datatype::F16) {
         // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
-        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 2, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 1, AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 4,  2, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 8,  1, AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 2,  2, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 4,  1, AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, AGE_BASED));
+        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 4,  2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 8,  1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 2,  2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 4,  1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
     }
 
     if (dtype == Datatype::F32) {
         // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
-        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 1, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 8,  1, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 4,  1, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 2,  1, AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, AGE_BASED));
+        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 8,  1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 4,  1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 2,  1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
     }
 
     selector.Case([&](const fully_connected_params&) -> tune_params {
-        tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, DEFAULT);
+        tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, EXE_MODE_DEFAULT);
 
         while (batch % result.tile_b != 0)
             result.tile_b--;
@@ -217,12 +224,12 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
             result.dispatch_bsv--;
 
         if (result.tile_b >= 8)
-            result.exec_options = AGE_BASED;
+            result.exec_options = EXE_MODE_AGE_BASED;
 
         return result;
     });
 
-    return selector.Default(tune_params(1, 1, 1, 1, 1, 1, DEFAULT));
+    return selector.Default(tune_params(1, 1, 1, 1, 1, 1, EXE_MODE_DEFAULT));
 }
 
 FullyConnected_bf_tiled::DispatchData

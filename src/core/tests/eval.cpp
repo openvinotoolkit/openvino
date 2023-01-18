@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/cosh.hpp"
+#include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/exp.hpp"
 #include "ngraph/op/fake_quantize.hpp"
@@ -1888,4 +1889,36 @@ TEST(eval, evaluate_fake_quantize_dynamic_input) {
     EXPECT_EQ(result->get_shape(), exp_shape);
     EXPECT_THAT(read_vector<float>(result),
                 Pointwise(FloatEq(), std::vector<float>{2.f, 2.6666667f, 2.6666667f, 3.3333333f, 3.3333333f, 4.f}));
+}
+
+TEST(eval, evaluate_cum_sum_v0) {
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3});
+    auto axis = op::Constant::create<int32_t>(element::i32, Shape{1}, {1});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    float out_expected[6] = {1.f, 3.f, 6.f, 4.f, 9.f, 15.f};
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
+    EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+}
+
+TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
+    auto data = make_shared<op::Parameter>(element::f32, Shape{5});
+    auto axis = op::Constant::create<int32_t>(element::i32, Shape{1}, {0});
+    auto cs = make_shared<op::v0::CumSum>(data, axis, true, true);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[5] = {1.f, 2.f, 3.f, 4.f, 5.f};
+    float out_expected[5] = {14.f, 12.f, 9.f, 5.f, 0.f};
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {5}, input_values}}));
+    EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
 }

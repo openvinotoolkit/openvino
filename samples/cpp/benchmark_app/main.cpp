@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -379,7 +379,7 @@ int main(int argc, char* argv[]) {
             auto ov_perf_hint = get_performance_hint(device, core);
             device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
             if (FLAGS_nireq != 0)
-                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
+                device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -470,26 +470,24 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-                    if (device.find("MYRIAD") == std::string::npos) {  // MYRIAD sets the default number of
-                                                                       // streams implicitly (without _AUTO)
-                        if (supported(key)) {
-                            device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
-                        } else if (supported(ov::num_streams.name())) {
-                            // Use API 2.0 key for streams
-                            key = ov::num_streams.name();
-                            device_config[key] = ov::streams::AUTO;
-                        } else if (device == "MULTI" || device == "AUTO") {
-                            // Set nstreams to default value auto if no nstreams specified from cmd line.
-                            for (auto& hwdevice : hardware_devices) {
-                                std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
-                                auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
-                                setDeviceProperty(core,
-                                                  hwdevice,
-                                                  device_config,
-                                                  ov::num_streams(ov::streams::AUTO),
-                                                  is_dev_set_property,
-                                                  std::make_pair(key, value));
-                            }
+
+                    if (supported(key)) {
+                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
+                    } else if (supported(ov::num_streams.name())) {
+                        // Use API 2.0 key for streams
+                        key = ov::num_streams.name();
+                        device_config[key] = ov::streams::AUTO;
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // Set nstreams to default value auto if no nstreams specified from cmd line.
+                        for (auto& hwdevice : hardware_devices) {
+                            std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
+                            auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
+                            setDeviceProperty(core,
+                                              hwdevice,
+                                              device_config,
+                                              ov::num_streams(ov::streams::AUTO),
+                                              is_dev_set_property,
+                                              std::make_pair(key, value));
                         }
                     }
                 }
@@ -553,7 +551,7 @@ int main(int argc, char* argv[]) {
 
             auto set_nthreads_pin = [&](const std::string& str) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
-                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
@@ -578,9 +576,6 @@ int main(int argc, char* argv[]) {
                 // for CPU and GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();
-            } else if (device.find("MYRIAD") != std::string::npos) {
-                device_config.emplace(ov::log::level(ov::log::Level::WARNING));
-                setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
@@ -921,7 +916,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -938,7 +933,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
             if (shape_groups_num > nireq) {
@@ -958,7 +953,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;

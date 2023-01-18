@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,13 @@ public:
             const std::string &,
             const std::map<std::string, std::string> &,
             const std::function<void(const InferenceEngine::CNNNetwork&)> &));
+    MOCK_METHOD5(
+        LoadNetwork,
+        InferenceEngine::SoExecutableNetworkInternal(const std::string&,
+                                                     const InferenceEngine::Blob::CPtr&,
+                                                     const std::string&,
+                                                     const std::map<std::string, std::string>&,
+                                                     const std::function<void(const InferenceEngine::CNNNetwork&)>&));
 
     MOCK_METHOD3(ImportNetwork, InferenceEngine::SoExecutableNetworkInternal(
         std::istream&, const std::string&, const std::map<std::string, std::string>&));

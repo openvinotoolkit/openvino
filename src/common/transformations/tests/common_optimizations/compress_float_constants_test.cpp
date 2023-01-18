@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
+#include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32) {
 
         function = std::make_shared<ov::Model>(ov::NodeVector{resize}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
@@ -168,7 +168,7 @@ TEST_F(TransformationTestsF, CompressConstants_f32_If) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 
@@ -251,7 +251,7 @@ TEST_F(TransformationTestsF, CompressConstants_f64) {
                                                               ov::Strides{1, 1});
         function = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
         manager.register_pass<ov::pass::CompressFloatConstants>();
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,11 @@ namespace {
             ngraph::element::u8,
             ngraph::element::i16,
             ngraph::element::u16,
+    };
+
+   static const std::vector<ngraph::element::Type> floatPrecisionsCPU = {
+            ngraph::element::f32,
+            ngraph::element::f16
     };
 
     static const std::vector<std::size_t> batchSizesCPU = {
@@ -81,8 +86,16 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getNumericAnyTypeFunctions()),
                                     ::testing::ValuesIn(precisionsCPU),
+                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                            LoadNetworkCacheTestBase::getTestCaseName);
+
+    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Float, LoadNetworkCacheTestBase,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions()),
+                                    ::testing::ValuesIn(floatPrecisionsCPU),
                                     ::testing::ValuesIn(batchSizesCPU),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LoadNetworkCacheTestBase::getTestCaseName);

@@ -1,28 +1,33 @@
 trigger:
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 pr:
+  drafts: 'false'
   branches:
     include:
-    - master
-    - releases/*
+    - 'master'
+    - 'releases/*'
   paths:
-    exclude: 
-    - docs/
-    - /**/docs/*
-    - /**/*.md
-    - README.md
-    - /**/layer_tests_summary/**
+    exclude:
+    - '*/docs/*'
+    - 'docs/*'
+    - '*/*.md'
+    - '*.md'
+    - '*/layer_tests_summary/*'
+    - '*/conformance/*'
+    - 'tools/*'
 
 resources:
   repositories:
@@ -34,7 +39,7 @@ resources:
 jobs:
 - job: LinCC
   # About 150% of total time
-  timeoutInMinutes: 90
+  timeoutInMinutes: '90'
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
@@ -78,30 +83,32 @@ jobs:
     displayName: 'Make dir'
 
   - checkout: self
-    clean: true
-    lfs: false
-    submodules: recursive
+    clean: 'true'
+    fetchDepth: '1'
+    submodules: 'true'
     path: openvino
 
   - script: |
       set -e
       sudo -E $(REPO_DIR)/install_build_dependencies.sh
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - checkout: testdata
-    clean: true
-    lfs: true
+    clean: 'true'
+    fetchDepth: '1'
+    lfs: 'true'
     path: testdata
 
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
+        -DENABLE_CPPLINT=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
@@ -109,30 +116,33 @@ jobs:
         -DENABLE_PROFILING_ITT=ON
         -DSELECTIVE_BUILD=COLLECT
         -DENABLE_INTEL_GPU=OFF
+        -DENABLE_INTEL_GNA=OFF
         -DENABLE_MULTI=OFF
         -DENABLE_AUTO=OFF
         -DENABLE_AUTO_BATCH=OFF
         -DENABLE_HETERO=OFF
         -DENABLE_TEMPLATE=OFF
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_OV_ONNX_FRONTEND=OFF
         -DENABLE_OV_PADDLE_FRONTEND=OFF
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF
         -DENABLE_OV_TF_FRONTEND=OFF
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'Cmake CC COLLECT'
 
   - script: |
-      ninja
-      cmake --build . --target sea_itt_lib
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build LinCC COLLECT'
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+      cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE) --target sea_itt_lib
+    displayName: 'Build CC COLLECT'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
   - script: |
-      python3 thirdparty/itt_collector/runtool/sea_runtool.py --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-    workingDirectory: $(REPO_DIR)
+      python3 $(REPO_DIR)/thirdparty/itt_collector/runtool/sea_runtool.py \
+          --bindir $(REPO_DIR)/bin/intel64/Release -o $(BUILD_DIR)/itt_stat ! \
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+          -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
     displayName: 'Code usage analysis'
 
   - task: CMake@1
@@ -141,16 +151,17 @@ jobs:
         -GNinja
         -DSELECTIVE_BUILD=ON
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)/*.csv
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: 'CMake CC ON'
 
-  - script: cmake --build $(BUILD_DIR)
-    displayName: 'Build LinCC ON'
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    displayName: 'Build CC ON'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files ON'
 
   - script: |
-      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
-    workingDirectory: $(REPO_DIR)
+      $(REPO_DIR)/bin/intel64/Release/benchmark_app -niter 1 -nireq 1 \
+        -m $(MODELS_PATH)/models/test_model/test_model_fp32.xml -d CPU
     displayName: 'Use OpenVINO after CC'

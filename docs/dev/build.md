@@ -74,10 +74,6 @@ For the OpenVINO build next tools are required:
   ```sh
   % python3 -m pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
   ```
-- (native compilation only) libusb library for MYRIAD device and `pkg-config` which is used to find `libusb` files:
-  ```sh
-  % brew install pkg-config libusb
-  ```
 - (Optional; native compilation only) Latest version of TBB library. By default, OpenVINO downloads prebuilt version of TBB 2020.4 library, but if you want to use latest (add `-DENABLE_SYSTEM_TBB=ON` additionally to cmake configuration step):
   ```sh
   % brew install tbb
@@ -303,7 +299,7 @@ mkdir build && cd build
 ```sh
 cmake -DCMAKE_BUILD_TYPE=Release ..
 ```
-> **Note:** By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. Please, read [CMake options for custom compilation](CMakeOptionsForCustomCompilation) for this information.
+> **Note:** By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. Please, read [CMake Options for Custom Compilation](https://github.com/openvinotoolkit/openvino/wiki/CMakeOptionsForCustomCompilation) for this information.
 3. (CMake build) Build OpenVINO project:
 ```sh
 cmake --build . --config Release --jobs=$(nproc --all)
@@ -336,8 +332,6 @@ clang: error: linker command failed with exit code 1 (use -v to see invocation)
 ```
 Disable its usage in cmake or totally remove such library from the system (e.g. `brew uninstall opencv`), because it's pure arm64 and cannot be used to compile x86_64 binaries.
 
-> **Note:** using such way OpenVINO Intel CPU plugin can be cross-compiled, because MYRIAD plugin cannot be linked against `arm64` version of `libusb`
-
 Or you have to explicitly find / compile x86_64 (or even `universal2`) dependencies by yourself and pass it to OpenVINO cmake scripts. E.g. compile oneTBB using additional option `-DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"`, install and then set `export TBBROOT=<universal oneTBB install root>` which will be used by OpenVINO.
     
 <p>
@@ -366,7 +360,7 @@ cd ../openvino
 ```sh
 cmake -DCMAKE_BUILD_TYPE=Release -DOPENVINO_EXTRA_MODULES=../openvino_contrib/modules/arm_plugin ..
 ```
-> **Note:** By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. Please, read [CMake options for custom compilation](CMakeOptionsForCustomCompilation) for this information.
+> **Note:** By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. Please, read [CMake Options for Custom Compilation](https://github.com/openvinotoolkit/openvino/wiki/CMakeOptionsForCustomCompilation) for this information.
 4. (CMake build) Build OpenVINO project:
 ```sh
 cmake --build . --config Release --jobs=$(nproc --all)
@@ -391,8 +385,6 @@ Then try to compile OpenVINO using the steps above, but adding `-DCMAKE_OSX_ARCH
 file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
 /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib: Mach-O 64-bit dynamically linked shared library arm64
 ```
-
-The same for other external dependencies like `libusb`. If you want to enable extra functionality like enable MYRIAD plugin build, you need to provide either x86_64 or universal2 `libusb` library. All other steps are the same as for usual compilation: build, install.
 
 > **Note:** since you are building with `universal2` python libraries, wheel package is created with name `openvino-2022.3.0-000-cp39-cp39-macosx_12_0_universal2.whl` and have proper `universal2` tags, so can *potentially* be used on both Apple Silicon and Intel CPU.
 

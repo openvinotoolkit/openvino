@@ -6,7 +6,9 @@
 
 #include "gna_plugin.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 
 GNAInferRequest::GNAInferRequest(const std::shared_ptr<GNAPlugin>& plg,
                                  const std::vector<std::shared_ptr<const ov::Node>>& inputs,
@@ -170,4 +172,5 @@ void GNAInferRequest::CreateInferRequest() {
     }
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

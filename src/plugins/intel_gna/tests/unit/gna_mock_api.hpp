@@ -1,26 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include <gmock/gmock-generated-function-mockers.h>
-#include <gna2-instrumentation-api.h>
-#include <gna2-model-export-api.h>
-
-#if defined(_WIN32)
-    #ifdef libGNAStubs_EXPORTS
-        #define GNA_STUBS_EXPORT __declspec(dllexport)
-    #else
-        #define GNA_STUBS_EXPORT __declspec(dllimport)
-    #endif
-#else
-    #define GNA_STUBS_EXPORT
-#endif
+#include <gna2-api.h>
+#include <gmock/gmock.h>
+#include <cstdint>
 
 class GNACppApi {
 public:
-    GNA_STUBS_EXPORT GNACppApi();
-    GNA_STUBS_EXPORT ~GNACppApi();
+    GNACppApi();
+    ~GNACppApi();
 
     MOCK_METHOD3(Gna2MemoryAlloc, Gna2Status(
         uint32_t sizeRequested,

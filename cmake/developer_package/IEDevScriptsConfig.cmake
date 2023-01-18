@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -172,6 +172,8 @@ endmacro()
 
 ov_set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
@@ -215,6 +217,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
 # CMake 3.13+: option() honors normal variables.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.19+: An imported target missing its location property fails during generation.
+set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
 # CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
 set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 
@@ -296,6 +300,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+    add_dependencies(${TARGET_NAME} conditional_compilation_gen)
 endfunction()
 
 function(ov_mark_target_as_cc)
