@@ -32,8 +32,10 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
     std::shared_ptr<Node> gather;
     if (opset_version == 7) {
         gather = std::make_shared<ngraph::opset7::Gather>(dequantizationOp, indicesNode, axisNode, batch_dims);
-    } else {
+    } else if (opset_version == 8) {
         gather = std::make_shared<ngraph::opset8::Gather>(dequantizationOp, indicesNode, axisNode, batch_dims);
+    } else {
+        throw std::runtime_error("Unknown opset version");
     }
     gather->set_friendly_name("output");
 
@@ -66,8 +68,10 @@ std::shared_ptr<ngraph::Function> GatherFunction::getOriginal(
     std::shared_ptr<Node> gather;
     if (opset_version == 7) {
         gather = std::make_shared<ngraph::opset7::Gather>(quantizationOp, indicesNode, axisNode, batch_dims);
-    } else {
+    } else if (opset_version == 8) {
         gather = std::make_shared<ngraph::opset8::Gather>(quantizationOp, indicesNode, axisNode, batch_dims);
+    } else {
+        throw std::runtime_error("Unknown opset version");
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(gather) };
@@ -98,8 +102,10 @@ std::shared_ptr<ngraph::Function> GatherFunction::getReference(
     std::shared_ptr<Node> gather;
     if (opset_version == 7) {
         gather = std::make_shared<ngraph::opset7::Gather>(quantizationOpBefore, indicesNode, axisNode, batch_dims);
-    } else {
+    } else if (opset_version == 8) {
         gather = std::make_shared<ngraph::opset8::Gather>(quantizationOpBefore, indicesNode, axisNode, batch_dims);
+    } else {
+        throw std::runtime_error("Unknown opset version");
     }
 
     if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {

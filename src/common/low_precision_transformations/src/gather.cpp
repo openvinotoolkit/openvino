@@ -44,7 +44,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis = normalize_axis(gather->get_friendly_name(), axis, gather->get_input_partial_shape(0).rank());
 
-    // Dequantization channel match with gather axis
+    // Dequantization channel matches with gather axis
     if (constantShape[normalizedAxis] != 1ul) {
         const auto gather7 = ov::as_type_ptr<ngraph::opset7::Gather>(gather);
         if (gather7) {
@@ -136,8 +136,9 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
         return true;
     }
 
-    // If dequantization constant is not scalar, axis must be constant.
-    // If axis is match with dequantization channel, indices must be constant and has 0D or 1D shape so we can do folding.
+    // If dequantization constant is not scalar, Gather axis must be constant.
+    // If the Gather axis matches with dequantization channel, the Gather indices
+    // must be constant and have 0D or 1D shape so we can do folding.
     const auto axisConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(2));
     if (axisConstant == nullptr) {
         return false;
@@ -146,7 +147,7 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
     if (operation->get_input_partial_shape(0).rank().is_dynamic()) {
         return false;
     }
-    const auto canFold = [&](const std::shared_ptr<ngraph::Node> dequantizationConstant, std::shared_ptr<Node> operation) {
+    const auto canBeFolded = [&](const std::shared_ptr<ngraph::Node> dequantizationConstant) {
         auto constantShape = dequantizationConstant->get_shape();
         const auto rank = operation->get_input_partial_shape(0).size();
         if (rank != constantShape.size()) {
@@ -168,9 +169,9 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
         return true;
     };
 
-    if ((dequantization.multiply && !canFold(dequantization.multiplyConstant, operation)) ||
-        (dequantization.subtract && !canFold(dequantization.subtractConstant, operation))) {
-            return false;
+    if ((dequantization.multiply && !canBeFolded(dequantization.multiplyConstant)) ||
+        (dequantization.subtract && !canBeFolded(dequantization.subtractConstant))) {
+        return false;
     }
     return true;
 }
