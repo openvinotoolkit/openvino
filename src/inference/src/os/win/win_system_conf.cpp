@@ -47,7 +47,7 @@ void parse_processor_info_win(char* base_ptr,
                               int& _processors,
                               int& _sockets,
                               int& _cores,
-                              std::vector<int>& _proc_type_table,
+                              std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table) {
     _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
