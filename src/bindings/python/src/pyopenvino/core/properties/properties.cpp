@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,6 +149,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::gops, "gops");
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
+    wrap_property_RO(m_device, ov::device::uuid, "uuid");
 
     // Modules made in pybind cannot easily register attributes, thus workaround is needed.
     // Let's simulate module with attributes by creating empty proxy class called FakeModuleName.

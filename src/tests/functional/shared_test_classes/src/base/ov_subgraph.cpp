@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,7 +210,7 @@ void SubgraphBaseTest::compile_model() {
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
                 configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
         }

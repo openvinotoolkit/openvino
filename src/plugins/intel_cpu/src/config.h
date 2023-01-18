@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,13 +41,14 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-#if defined(__arm__) || defined(__aarch64__)
-    // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
-    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
-    bool enforceBF16 = false;
-#else
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
+    bool manualEnforceBF16 = false;
+#else
+    // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
+    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
+    bool enforceBF16 = false;
     bool manualEnforceBF16 = false;
 #endif
 
