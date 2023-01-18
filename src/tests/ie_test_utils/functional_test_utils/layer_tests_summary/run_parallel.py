@@ -27,13 +27,12 @@ LOG_NAME_REPLACE_STR = "##NAME##"
 DEFAUALT_PROCESS_TIMEOUT = 3600
 MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
 TEST_STATUS = {
-    'passed': "[       OK ]",
-    'failed': "[  FAILED  ]",
-    'hanged': "Test finished by timeout",
-    'crashed': "Unexpected application crash with code",
-    'skipped': "[  SKIPPED ]",
-    'interapted': "interapted",
-    'killed': "Killed"}
+    'passed': ["[       OK ]"],
+    'failed': ["[  FAILED  ]"],
+    'hanged': ["Test finished by timeout"],
+    'crashed': ["Unexpected application crash with code", "Segmentation fault", "Crash happens", "core dumped"],
+    'skipped': ["[  SKIPPED ]"],
+    'interapted': ["interapted", "Killed"]}
 RUN = "[ RUN      ]"
 
 logger = utils.get_logger('test_parallel_runner')
@@ -394,7 +393,7 @@ class TestParallelRunner:
             logger.info(f"Logs directory {logs_dir} is cleaned up")
             rmtree(logs_dir)
         os.mkdir(logs_dir)
-        for test_st, string in TEST_STATUS.items():
+        for test_st, _ in TEST_STATUS.items():
             if not os.path.exists(os.path.join(logs_dir, test_st)):
                 os.mkdir(os.path.join(logs_dir, test_st))
         hash_map = [["Dir", "Hash", "Test Name"]]
@@ -412,9 +411,13 @@ class TestParallelRunner:
                     if RUN in line:
                         test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
                     if dir is None:
-                        for test_st, mes in TEST_STATUS.items():
-                            if mes in line:
-                                dir = test_st
+                        for test_st, mes_list in TEST_STATUS.items():
+                            for mes in mes_list:
+                                if mes in line:
+                                    dir = test_st
+                                    break
+                            if not dir is None:
+                                break
                     if test_name is not None:
                         test_log.append(line)
                         # update test_cache with tests. If tests is crashed use -2 as unknown time
