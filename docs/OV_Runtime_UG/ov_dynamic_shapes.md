@@ -101,32 +101,32 @@ The examples above assume that the model has a single input layer. To change mod
 
 @endsphinxtabset
 
-For example, the following code sets the second dimension as dynamic in every input layer:
 For more examples of how to change multiple input layers, see [Changing Input Shapes](ShapeInference.md).
 
 ### Undefined Dimensions "Out Of the Box"
 
-Dynamic dimensions may appear in the input model without calling the `reshape` method.
-Many DL frameworks support undefined dimensions.
-If such a model is converted with Model Optimizer or read directly by the `Core::read_model`, undefined dimensions are preserved.
-Such dimensions are automatically treated as dynamic ones.
-Therefore, there is no need to call the `reshape` method, if undefined dimensions are already configured in the original or the IR model.
 
-If the input model has undefined dimensions that will not change during inference. It is recommended to set them to static values, using the same `reshape` method of the model.
-From the API perspective, any combination of dynamic and static dimensions can be configured.
+Many DL frameworks support generating models with dynamic (or undefined) dimensions. If such a model is converted with Model Optimizer or read directly by `Core::read_model`, its dynamic dimensions are preserved. These models do not need any additional configuration to use them with dynamic shapes.
 
-Model Optimizer provides identical capability to reshape the model during the conversion, including specifying dynamic dimensions.
-Use this capability to save time on calling `reshape` method in the end application.
-To get information about setting input shapes using Model Optimizer, refer to [Setting Input Shapes](../MO_DG/prepare_model/convert_model/Converting_Model.md).
+To check if a model already has dynamic dimensions, first load it with the `read_model()` method, then check the `partial_shape` property of each layer. If the model has any dynamic dimensions, they will be reported as `?`. For example, the following code will print the name and dimensions of each input layer:
+
+```
+code examples here
+```
+
+If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the `reshape` method to save application memory. The OpenVINO API supports any combination of static and dynamic dimensions.
+
+Static and dynamic dimensions can also be set when converting the model with Model Optimizer. It has identical capabilities to the `reshape` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using Model Optimizer,  refer to [Setting Input Shapes](../MO_DG/prepare_model/convert_model/Converting_Model.md).
 
 ### Dimension Bounds
 
-Apart from a dynamic dimension, the lower and/or upper bounds can also be specified. They define a range of allowed values for the dimension.
-The bounds are coded as arguments for the `ov::Dimension`:
+The lower and/or upper bounds of a dynamic dimension can also be specified. They define a range of allowed values for the dimension. Dimension bounds can be set by passing the lower and upper bounds into the `reshape` method using the options shown below. 
 
 @sphinxtabset
 
 @sphinxtab{C++}
+
+The dimension bounds can be coded as arguments for `ov::Dimension`, as shown in these examples:
 
 @snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:reshape_bounds
 
@@ -134,11 +134,21 @@ The bounds are coded as arguments for the `ov::Dimension`:
 
 @sphinxtab{Python}
 
+Each of these options are equivalent:
+
+- Pass the lower and upper bounds directly into the `reshape` method, e.g. `model.reshape([1, 10), (8,512)])`
+- Pass the lower and upper bounds using ov.Dimension, e.g. `model.reshape([ov.Dimension(1, 10), (8, 512)])`
+- Pass the dimension ranges as strings, e.g. `model.reshape(“1..10, 8..512”)`
+
+The examples below show how to set dynamic dimension bounds for a mobilenet-v2 model with a default static shape of `[1,3,224,224]`.
+
 @snippet docs/snippets/ov_dynamic_shapes.py reshape_bounds
 
 @endsphinxtab
 
 @sphinxtab{C}
+
+The dimension bounds can be coded as arguments for [ov_dimension](https://docs.openvino.ai/latest/structov_dimension.html#doxid-structov-dimension), as shown in these examples:
 
 @snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:reshape_bounds
 
@@ -158,7 +168,7 @@ Depending on the plugin, specifying the upper bounds can be required. For inform
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 
-### Setting Input Tensors
+### Preparing and Inferencing Dynamic Data
 
 Preparing a model with the `reshape` method is the first step.
 The second step is passing a tensor with an appropriate shape to infer request.
