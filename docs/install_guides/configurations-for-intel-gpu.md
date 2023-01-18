@@ -7,29 +7,19 @@
 
 @endsphinxdirective
 
+In case if you are intended to use OpenVINO GPU plugin and offload network inference to Intel® graphics processor, the Intel Graphics Driver should be properly configured on your system.
 
+> **NOTE**: In case you have the driver pre-installed in your system, and you want to rely on it, please skip this guide.
 
 ## Linux
 
-If you have installed OpenVINO Runtime from the archive file, APT, or YUM, follow these steps to work with GPU:
+To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://dgpu-docs.intel.com/installation-guides/index.html).
 
-1. Check your operating system and its version: 
-   ```sh 
-   cat /etc/os-release
-   ```
+Alternatively, you can install one of the earlier versions of the driver based on your internal considerations.
 
-2. You can install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://dgpu-docs.intel.com/installation-guides/index.html) or choose one that we used in internal tests
+Additionally, it is recommended that you refer to the [Intel® Graphics Compute Runtime Github page](https://github.com/intel/compute-runtime/) for the latest instructions and recommendations on GPU driver installation, including the list of supported hardware platforms.
 
-Operation System | Driver version
---- |-------------------------
-Ubuntu 20.04 | [22.35.24055](https://github.com/intel/compute-runtime/releases/tag/22.28.23726)  
-Ubuntu 18.04 | [21.38.21026](https://github.com/intel/compute-runtime/releases/tag/22.28.23726)  
-CentOS 7 | [19.41.14441](https://github.com/intel/compute-runtime/releases/tag/22.28.23726)  
-RHEL 8 | [22.28.23726](https://github.com/intel/compute-runtime/releases/tag/22.28.23726)                     
-
-> **NOTE**: To use the **Intel® Iris® Xe MAX Graphics**, see the [Intel® Iris® Xe MAX Graphics with Linux*](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html) page for driver installation instructions.
-
-Additionally, it is recommended that you refer to the [Intel® Graphics Compute Runtime Github page](https://github.com/intel/compute-runtime/) for the latest instructions and recommendations on GPU driver installation.
+> **NOTE**: For instructions specific for discrete graphics platforms (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series and Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, Intel® Iris Xe MAX (codename DG1)), please refer to [this guide](https://dgpu-docs.intel.com/installation-guides/index.html).
 
 You've completed all required configuration steps to perform inference on processor graphics.
 
@@ -41,19 +31,31 @@ You've completed all required configuration steps to perform inference on proces
 
 ## Windows
 
+To install the Intel Graphics Driver for Windows on your hardware, please proceed with the [instruction](https://www.intel.com/content/www/us/en/support/articles/000005629/graphics.html). 
+
 To check if you have this driver installed:
 
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
-
-2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
-   ![](../img/DeviceManager.PNG)
-
+2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:  
+![](../img/DeviceManager.PNG)
 3. Right-click the adapter name and select **Properties**.
+4. Click the **Driver** tab to see the driver version.  
+![](../img/DeviceDriverVersion.PNG)
 
-4. Click the **Driver** tab to see the driver version. 
-   ![](../img/DeviceDriverVersion.PNG)
 
 You are done updating your device driver and are ready to use your GPU.
+
+## Additional info
+
+In the internal OpenVINO validation the following versions of Intel Graphics Driver were used:
+
+Operation System | Driver version
+--- |-------------------------
+Ubuntu 20.04 | [22.35.24055](https://github.com/intel/compute-runtime/releases/tag/22.35.24055)
+Ubuntu 18.04 | [21.38.21026](https://github.com/intel/compute-runtime/releases/tag/21.38.21026)
+CentOS 7 | [19.41.14441](https://github.com/intel/compute-runtime/releases/tag/19.41.14441)
+RHEL 8 | [22.28.23726](https://github.com/intel/compute-runtime/releases/tag/22.28.23726)
+
 ## What’s Next?
 
 You can try out the toolkit with:
