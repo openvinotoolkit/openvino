@@ -12,7 +12,7 @@ namespace test {
 namespace snippets {
 
 std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvertParams> obj) {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
@@ -21,7 +21,7 @@ std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
     std::ostringstream result;
     result << "IS=";
     for (const auto& sh : inputShape)
-        result << CommonTestUtils::vec2str(sh) << "_";
+        result << CommonTestUtils::vec2str(sh.get_shape()) << "_";
     result << "IT=" << CommonTestUtils::vec2str(types.first) << "_";
     result << "OT=" << CommonTestUtils::vec2str(types.second) << "_";
     result << "#N=" << num_nodes << "_";
@@ -31,11 +31,10 @@ std::string Convert::getTestCaseName(testing::TestParamInfo<ov::test::snippets::
 }
 
 void Convert::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
-
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
     auto f = ov::test::snippets::ConvertFunction(inputShape, types.first[0], types.second[0]);
     function = f.getOriginal();
     output_type = types.second.front();
@@ -85,11 +84,10 @@ void Convert::generate_inputs(const std::vector<ov::Shape>& targetInputStaticSha
 }
 
 void ConvertInput::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
-
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
     auto f = ov::test::snippets::ConvertInputFunction(inputShape, types.first[0], types.second[0]);
     function = f.getOriginal();
 }
@@ -125,10 +123,10 @@ parameters ConvertInput::generate_params_random() const {
 }
 
 void ConvertOutput::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertOutputFunction(inputShape, types.first[0], types.second[0]);
     function = f.getOriginal();
@@ -136,10 +134,10 @@ void ConvertOutput::SetUp() {
 }
 
 void ConvertStub::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertStubFunction(inputShape, types.first[0], types.second[0]);
     function = f.getOriginal();
@@ -147,40 +145,40 @@ void ConvertStub::SetUp() {
 }
 
 void ConvertPartialInputsAndResults::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertPartialInputsAndResultsFunction(inputShape, types.first, types.second);
     function = f.getOriginal();
 }
 
 void ConvertManyOnInputs::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertManyOnInputsFunction(inputShape, types.first);
     function = f.getOriginal();
 }
 
 void ConvertManyOnOutputs::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertManyOnOutputsFunction(inputShape, types.first);
     function = f.getOriginal();
 }
 
 void ConvertManyOnInputOutput::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::pair<std::vector<ov::element::Type>, std::vector<ov::element::Type>> types;
     std::tie(inputShape, types, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
 
     auto f = ov::test::snippets::ConvertManyOnInputOutputFunction(inputShape, types.first, types.second);
     function = f.getOriginal();

@@ -396,12 +396,24 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !enableDynamicBatch;
+
+    auto snippetsMode = enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
+    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
+        const auto& val = snippetsModeProp->second;
+        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
+        else if (val == PluginConfigInternalParams::DISABLE)
+            snippetsMode =  Config::SnippetsMode::Disable;
+        else
+            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+    }
+
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, enableSnippets, enableBF16, isLegacyAPI(), engConfig);
+    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -645,7 +657,18 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const bool enableSnippets = !conf.enableDynamicBatch;
+
+    auto snippetsMode = conf.enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
+    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
+        const auto& val = snippetsModeProp->second;
+        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
+        else if (val == PluginConfigInternalParams::DISABLE)
+            snippetsMode =  Config::SnippetsMode::Disable;
+        else
+            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+    }
 
     auto model = network.getFunction();
     if (model == nullptr) {
@@ -657,7 +680,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
-                                           Transformations transformation(model, enableLPT, enableSnippets, conf.enforceBF16, isLegacyAPI(), engConfig);
+                                           Transformations transformation(model, enableLPT, conf.enforceBF16, isLegacyAPI(), snippetsMode, engConfig);
                                            transformation.UpToCpuSpecificOpSet();
                                            transformation.CpuSpecificOpSet();
                                        },

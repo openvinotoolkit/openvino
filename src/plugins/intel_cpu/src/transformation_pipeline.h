@@ -24,15 +24,15 @@ class Transformations {
 public:
     Transformations(const std::shared_ptr<ov::Model>& initialModel,
                     const bool                        enableLpt,
-                    const bool                        enableSnippets,
                     const bool                        enableBF16,
                     const bool                        isLegacyApi,
+                    Config::SnippetsMode&             snippetsMode,
                     const Config&                     config)
         : model(initialModel),
           enableLpt(enableLpt),
-          enableSnippets(enableSnippets),
           enableBF16(enableBF16),
           isLegacyApi(isLegacyApi),
+          snippetsMode(snippetsMode),
           config(config) {}
 
     void UpToCpuSpecificOpSet();
@@ -41,10 +41,10 @@ public:
 private:
     std::shared_ptr<ov::Model> model;
     const bool    enableLpt;
-    const bool    enableSnippets;
     const bool    enableBF16;
     const bool    isLegacyApi;
     const Config& config;
+    const Config::SnippetsMode snippetsMode;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi);
 

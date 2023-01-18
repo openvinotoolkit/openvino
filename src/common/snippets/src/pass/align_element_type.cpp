@@ -20,13 +20,17 @@ inline auto is_in_op(const std::shared_ptr<ov::Node>& n) -> bool {
         || ov::is_type<ov::op::v0::Constant>(n);
 }
 
-// At the moment Subgraph supports only Eltwise, Convert and FQ (which is decomposed into Eltwises and Convert)
-// And only Eltwises supports execution only in "exec_type". So we can check op type from the opposite
+// At the moment Subgraph supports only Eltwise, Select, Convert, Broadcast and FQ (which is decomposed into Eltwises and Convert) with
+// Softmax (which is decomposed into Eltwises as well)
+// And only Eltwise and Select ops supports execution only in "exec_type". So we can check op type from the opposite
 // NOTE: This check is only for executable which isn't Parameter/Constant/Result
 inline auto op_supports_only_exec_type(const std::shared_ptr<ov::Node>& n) -> bool {
     return !is_in_op(n) &&
            !ov::is_type<ov::op::v0::Result>(n) &&
-           !ov::is_type<ov::op::v0::Convert>(n);
+           !ov::is_type<ov::op::v1::Transpose>(n) &&
+           !ov::is_type<ov::op::v0::Convert>(n) &&
+           !ov::is_type<ov::op::v1::Broadcast>(n) &&
+           !ov::is_type<ov::op::v3::Broadcast>(n);
 }
 
 }  // namespace
@@ -58,7 +62,8 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                 //  - Input is Convert with unsupported destination type
                 //  - Input is Op which support any element type
                 // We couldn't unite these conditions and just check that element type isn't supported exec type
-                // because we don't call validate_and_infer_types() so we don't know new precisions
+                // because we don't call validate_and_infer_types() so we don't know new precisions after setting of original
+                // input and output element types
                 if ((existing_convert && existing_convert->get_destination_type() != exec_type) ||
                     (!op_supports_only_exec_type(shared_input))) {
                     insertConvert(op, i, exec_type);
@@ -89,6 +94,6 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
 }
 
 bool ngraph::snippets::pass::AlignElementType::opNeedsAlignElementType(const std::shared_ptr<ov::Node>& op, const ov::element::Type exec_type) {
-    // At the moment Snippets support only Eltwise/Convert/FQ which one output so we can just call get_element_type()
+    // At the moment Snippets support only Eltwise/Convert/FQ/Select/Softmax/Broadcast which one output so we can just call get_element_type()
     return op_supports_only_exec_type(op) && op->get_element_type() != exec_type;
 }

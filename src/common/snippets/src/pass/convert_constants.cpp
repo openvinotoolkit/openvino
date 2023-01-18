@@ -20,11 +20,16 @@ ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
     ngraph::graph_rewrite_callback callback = [this](ngraph::pattern::Matcher &m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::ConvertConstantsToScalars")
         auto constant = as_type_ptr<ov::op::v0::Constant>(m.get_match_root());
-        auto scalar = std::make_shared<snippets::op::Scalar>(*constant);
+        if (ov::shape_size(constant->get_output_shape(0)) != 1)
+            return false;
+        //  Note that all Constants {1,1,1,1} are converted to Scalar {1} here
+        //  This is needed to simplify shape inference, otherwise {1,1,1,1} Constants can increase output rank
+        //  Also some operations support only scalar shapes, so we need separate scalars and shape [1]
+        const auto shape = constant->get_output_shape(0).size() == 0 ? ov::Shape{} : ov::Shape{1};
+        auto scalar = std::make_shared<snippets::op::Scalar>(ov::op::v0::Constant(*constant, shape));
         scalar->set_friendly_name(constant->get_friendly_name());
         ngraph::copy_runtime_info(constant, scalar);
         ngraph::replace_node(constant, scalar);
-
         return true;
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants), callback);

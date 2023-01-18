@@ -24,15 +24,22 @@ std::string InsertMoveBroadcastTests::getTestCaseName(testing::TestParamInfo<ins
 }
 
 void InsertMoveBroadcastTests::SetUp() {
-    TransformationTestsF::SetUp();
+    LoweringTests::SetUp();
     std::vector<Shape> inputShapes(2);
     std::vector<Shape> broadcastShapes(2);
     std::tie(inputShapes[0], inputShapes[1], broadcastShapes[0], broadcastShapes[1]) = this->GetParam();
-    snippets_function = std::make_shared<AddFunctionLoweredBroadcast>(inputShapes, broadcastShapes);
+    snippets_function = std::make_shared<AddFunctionLoweredBroadcast>(std::vector<PartialShape> {inputShapes[0], inputShapes[1]}, broadcastShapes);
+    if (inputShapes[0].size() != inputShapes[1].size())
+        IE_THROW() << "Expected input shapes of the same size";
+    master_shape = {};
+    for (int i = 0; i < inputShapes[0].size(); i++)
+        master_shape.push_back(static_cast<int64_t>(std::max(inputShapes[0][i], inputShapes[1][i])));
 }
 
 TEST_P(InsertMoveBroadcastTests, AddBroadcast) {
-    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal());
+    PartialShape scheduler_shape({master_shape[master_shape.size() - 2],
+                                  master_shape[master_shape.size() - 1]});
+    auto subgraph = getLoweredSubgraph(snippets_function->getOriginal(), scheduler_shape);
     function = subgraph->body_ptr();
     function_ref = snippets_function->getLowered();
 }

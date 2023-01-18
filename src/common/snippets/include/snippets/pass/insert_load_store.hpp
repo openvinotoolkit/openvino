@@ -13,7 +13,7 @@ namespace pass {
 
 /**
  * @interface InsertLoad
- * @brief Inserts explicit load instruction after each parameter.
+ * @brief Inserts explicit load instruction after each parameter and buffer.
  * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */
@@ -24,7 +24,7 @@ public:
 
 /**
  * @interface InsertStore
- * @brief Inserts explicit store instruction before each result.
+ * @brief Inserts explicit store instruction before each result and buffer.
  * The pass is used to convert model to a canonical form for code generation
  * @ingroup snippets
  */

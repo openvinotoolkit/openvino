@@ -2143,5 +2143,66 @@ void jit_is_nan_emitter::register_table_entries() {
     }
 }
 
+/// SELECT ///
+jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
+        : jit_emitter(host, host_isa, node, exec_prc) {}
+jit_select_emitter::jit_select_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
+        : jit_emitter(host, host_isa, exec_prc) {}
+
+size_t jit_select_emitter::get_inputs_num() const { return 3; }
+
+size_t jit_select_emitter::aux_vecs_count() const {
+    if (host_isa_ == x64::avx512_core)
+        return 0;
+    else if (host_isa_ == x64::avx2)  // tmp vec for mask
+        return 1;
+    else // mask should be xmm0 on sse41 +  tmp vec for mask
+        return 2;
+}
+
+void jit_select_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                   const emitter_context *emit_context) const {
+    if (host_isa_ == x64::sse41) {
+        emit_isa<x64::sse41>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx2) {
+        emit_isa<x64::avx2>(in_vec_idxs, out_vec_idxs);
+    } else if (host_isa_ == x64::avx512_core) {
+        emit_isa<x64::avx512_core>(in_vec_idxs, out_vec_idxs);
+    } else {
+        assert(!"unsupported isa");
+    }
+}
+
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    using Vmm = typename conditional3<isa == x64::sse41, Xmm, isa == x64::avx2, Ymm, Zmm>::type;
+    Vmm vmm_cond = Vmm(in_vec_idxs[0]);
+    Vmm vmm_src0 = Vmm(in_vec_idxs[1]);
+    Vmm vmm_src1 = Vmm(in_vec_idxs[2]);
+    Vmm vmm_dst = Vmm(out_vec_idxs[0]);
+
+    if (isa == x64::sse41) {
+        Vmm vmm_mask = Vmm(aux_vec_idxs[0]);
+        Vmm vmm_zero = Vmm(aux_vec_idxs[1]);
+        h->uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        h->uni_vcmpps(vmm_cond, vmm_cond, vmm_zero, 0x4);
+        if (vmm_mask.getIdx() != vmm_cond.getIdx()) {
+            h->uni_vmovups(vmm_mask, vmm_cond);
+        }
+        if (vmm_src1.getIdx() != vmm_dst.getIdx()) {
+            h->uni_vmovups(vmm_dst, vmm_src1);
+        }
+        h->uni_vblendvps(vmm_dst, vmm_dst, vmm_src0, vmm_mask);
+    } else if (isa == x64::avx2) {
+        Vmm vmm_zero = Vmm(aux_vec_idxs[0]);
+        h->uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+        h->uni_vcmpps(vmm_cond, vmm_cond, vmm_zero, 0x4);
+        h->uni_vblendvps(vmm_dst, vmm_src1, vmm_src0, vmm_cond);
+    } else {
+        h->vptestmd(k_mask, vmm_cond, vmm_cond);
+        h->vblendmps(vmm_dst | k_mask, vmm_src1, vmm_src0);
+    }
+}
 }   // namespace intel_cpu
 }   // namespace ov

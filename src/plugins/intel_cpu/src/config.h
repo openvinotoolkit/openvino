@@ -32,9 +32,16 @@ struct Config {
         DO_On,
     };
 
+    enum SnippetsMode {
+        Enable,
+        IgnoreCallback,
+        Disable,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
+    SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = "";
     int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;

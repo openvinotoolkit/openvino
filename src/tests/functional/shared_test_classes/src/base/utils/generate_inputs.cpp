@@ -43,6 +43,11 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node>& node,
 }
 
 namespace Activation {
+// todo: this is a bug fixed! Merge it separately.
+//  Default parameters InputGenerateData(10, 20, 32768, 1) lead to input generation according to 10 + x/32768,
+//  where x {0, 20}, so all generated values are in the range [10, 10 + 6.1e-4].
+//  Thus all the interval more-or-less fall within the uncertainty validation interval
+//  Fix let the range be at least 20x of resolution
 ov::runtime::Tensor generate(const ov::element::Type& elemType,
                              const ov::Shape& targetShape,
                              InputGenerateData inGenData = InputGenerateData(-1, 2*32768, 32768, 1)) {

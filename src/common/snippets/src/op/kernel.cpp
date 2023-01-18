@@ -5,8 +5,14 @@
 #include "snippets/op/kernel.hpp"
 #include "snippets/generator.hpp"
 
-using namespace std;
-using namespace ngraph;
+namespace ngraph {
+namespace snippets {
+namespace op {
 
-snippets::op::Kernel::Kernel(const std::vector<std::pair<std::shared_ptr<snippets::Emitter>, snippets::RegInfo>>& nested) : Op(), region(nested) {
+Kernel::Kernel(std::vector<AllocatedEmitter> nested, std::shared_ptr<const ov::Model> m)
+: Op(), region(std::move(nested)), model(std::move(m)) {
 }
+
+} // namespace op
+} // namespace snippets
+} // namespace ngraph
