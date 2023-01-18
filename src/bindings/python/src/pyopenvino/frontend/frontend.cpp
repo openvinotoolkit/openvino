@@ -31,7 +31,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                 return self.load(model_path);
             } catch (...) {
                 // Extended for one argument only for this time
-                return self.load({py_object_to_any(py_obj)});
+                return self.load({Common::utils::py_object_to_any(py_obj)});
             }
         },
         py::arg("path"),
