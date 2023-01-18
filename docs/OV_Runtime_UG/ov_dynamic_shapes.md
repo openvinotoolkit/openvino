@@ -103,7 +103,7 @@ The examples above assume that the model has a single input layer. To change mod
 
 For more examples of how to change multiple input layers, see [Changing Input Shapes](ShapeInference.md).
 
-### Undefined Dimensions "Out Of the Box"
+#### Undefined Dimensions "Out Of the Box"
 
 
 Many DL frameworks support generating models with dynamic (or undefined) dimensions. If such a model is converted with Model Optimizer or read directly by `Core::read_model`, its dynamic dimensions are preserved. These models do not need any additional configuration to use them with dynamic shapes.
@@ -118,7 +118,7 @@ If the input model already has dynamic dimensions, that will not change during i
 
 Static and dynamic dimensions can also be set when converting the model with Model Optimizer. It has identical capabilities to the `reshape` method, so you can save time by converting the model with dynamic shapes beforehand rather than in the application code. To get information about setting input shapes using Model Optimizer,  refer to [Setting Input Shapes](../MO_DG/prepare_model/convert_model/Converting_Model.md).
 
-### Dimension Bounds
+#### Dimension Bounds
 
 The lower and/or upper bounds of a dynamic dimension can also be specified. They define a range of allowed values for the dimension. Dimension bounds can be set by passing the lower and upper bounds into the `reshape` method using the options shown below. 
 
@@ -168,7 +168,7 @@ Depending on the plugin, specifying the upper bounds can be required. For inform
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
 
-## Preparing and Inferencing Dynamic Data
+### Preparing and Inferencing Dynamic Data
 
 After configuring a model with the `reshape` method, the next steps are to create tensors with the appropriate data shape and pass them to the model as an inference request. This is similar to the regular steps described in [Integrate OpenVINO™ with Your Application](integrate_with_your_application.md). However, tensors can now be passed into the model with different shapes.
 
@@ -196,48 +196,13 @@ The sample below shows how a model can accept different input shapes. In the fir
 
 @endsphinxtabset
 
-In the example above, the `set_input_tensor` is used to specify input tensors.
-The real dimension of the tensor is always static, because it is a particular tensor and it does not have any dimension variations in contrast to model inputs.
-
-Similar to static shapes, `get_input_tensor` can be used instead of `set_input_tensor`.
-In contrast to static input shapes, when using `get_input_tensor` for dynamic inputs, the `set_shape` method for the returned tensor should be called to define the shape and allocate memory.
-Without doing so, the tensor returned by `get_input_tensor` is an empty tensor. The shape of the tensor is not initialized and memory is not allocated, because infer request does not have information about the real shape that will be provided.
-Setting shape for an input tensor is required when the corresponding input has at least one dynamic dimension, regardless of the bounds.
-Contrary to previous example, the following one shows the same sequence of two infer requests, using `get_input_tensor` instead of `set_input_tensor`:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:get_input_tensor
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-TO DO - change Python example
-@snippet  docs/snippets/ov_dynamic_shapes.py get_input_tensor
-
-@endsphinxtab
-
-@sphinxtab{C}
-
-@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:get_input_tensor
-
-@endsphinxtab
-
-@endsphinxtabset
-
 For more information on how to apply input data to a model and run inference, see [OpenVINO™ Inference Request](ov_infer_request.md).
 
 ### Dynamic Shapes in Outputs
 
-Examples above are valid approaches when dynamic dimensions in output may be implied by propagation of dynamic dimension from the inputs.
-For example, batch dimension in an input shape is usually propagated through the whole model and appears in the output shape.
-It also applies to other dimensions, like sequence length for NLP models or spatial dimensions for segmentation models, that are propagated through the entire network.
+When using dynamic dimensions in the input of a model, one or more output dimensions may also be dynamic depending on how the dynamic inputs are propagated through the model. For example, the batch dimension in an input shape is usually propagated through the whole model and appears in the output shape. It also applies to other dimensions, like sequence length for NLP models or spatial dimensions for segmentation models, that are propagated through the entire network.
 
-Whether the output has dynamic dimensions or not can be verified by querying the output partial shape after the model is read or reshaped.
-The same applies to inputs. For example:
+To determine if the output has dynamic dimensions, the `partial_shape` property of the model’s output layers can be queried after the model has been read or reshaped. The same property can be queried for model inputs. For example:
 
 @sphinxtabset
 
@@ -261,9 +226,9 @@ The same applies to inputs. For example:
 
 @endsphinxtabset
 
-When there are dynamic dimensions in corresponding inputs or outputs, the `?` or ranges like `1..10` appear.
+If the output has any dynamic dimensions, they will be reported as `?` or as a range (e.g.`1..10`).
 
-It can also be verified in a more programmatic way:
+Output layers can also be checked for dynamic dimensions using the `partial_shape.is_dynamic()` property. This can be used on an entire output layer, or on an individual dimension, as shown in these examples:
 
 @sphinxtabset
 
@@ -288,7 +253,6 @@ It can also be verified in a more programmatic way:
 @endsphinxtabset
 
 
-If at least one dynamic dimension exists in an output of a model, a shape of the corresponding output tensor will be set as the result of inference call.
-Before the first inference, memory for such a tensor is not allocated and has the `[0]` shape.
-If the `set_output_tensor` method is called with a pre-allocated tensor, the inference will call the `set_shape` internally, and the initial shape is replaced by the calculated shape.
-Therefore, setting a shape for output tensors in this case is useful only when pre-allocating enough memory for output tensor. Normally, the `set_shape` method of a `Tensor` re-allocates memory only if a new shape requires more storage.
+If at least one dynamic dimension exists in the output layer of a model, the actual shape of the output tensor will be determined during inference. Before the first inference, the output tensor’s memory is not allocated and has a shape of `[0]`.
+
+To pre-allocate space in memory for the output tensor, use the `set_output_tensor` method with the expected shape of the output. This will call the `set_shape` method internally, which will cause the initial shape to be replaced by the calculated shape.
