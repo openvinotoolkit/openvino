@@ -64,20 +64,21 @@ class DnnlExecutor2 {
             : context(context),
               name(name) {}
 
-        void reset(dnnl::primitive p) {
+        void reset(dnnl::primitive p, dnnl::primitive_desc_base prim_desc) {
             prim = p;
-            pd = prim.get_primitive_desc();
-            args.clear();
+            pd = prim_desc;
             inputReorders.clear();
             outputReorders.clear();
             constFoldings.clear();
             constFolded = false;
             // privateWeightCache was kept to always reference weights of different format
+            setScratchPad();
         }
 
         operator bool() {
             return static_cast<bool>(prim);
         }
+
         void exec(dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor2() = default;
@@ -85,23 +86,23 @@ class DnnlExecutor2 {
         dnnl::memory::desc queryMD(const dnnl::query& what, int idx);
         impl_desc_type getImplementationType() const;
 
-        void setSrc(MemoryPtr memPtr, bool isConst, int idx = 0);
-        void setWeight(MemoryPtr memPtr, bool isConst, int idx = 0);
-        void setOutput(MemoryPtr memPtr, int idx = 0);
-        void setArg(int arg_id, dnnl::memory arg) {
-            args[arg_id] = arg;
-        }
-        void setScratchPad();
+        void setArg(int arg_id, dnnl::memory arg_mem, bool isConst = false);
         void setDynamicBatch(int newBatch);
 
     protected:
         const GraphContext::CPtr context;
         std::string name;
+
         dnnl::primitive prim;
-        const_dnnl_primitive_desc_t pd;
+        dnnl::primitive_desc_base pd;
         PrimArgs args;
+
+        // holding scratch pad memory object with callbacks responsible for change memory handle
+        // when underlying scratch pad memory is resized.
+        MemoryPtr scratchpadMem;
+
         struct ConstFolding {
-            MemoryPtr src;
+            dnnl::memory src_mem;
             // before const folding dst_mem is referencing a memory with expected desc but no handle(pointer)
             // and all primitives need this memory as argument have been setup with reference exactly to this memory.
             // after const folding, it's handle will be set to valid pointer with data filled.
@@ -113,18 +114,15 @@ class DnnlExecutor2 {
         std::vector<ConstFolding> constFoldings;
         std::vector<IntermReorder> inputReorders;
         std::vector<IntermReorder> outputReorders;
+        dnnl::memory addConstFolding(dnnl::memory src, std::string privateSrcKey, DnnlMemoryDescPtr expectedWeightDesc);
+        void doConstFolding(ConstFolding& cf);
+        void setScratchPad();
+
         // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
         // different shapes. Weights will be cached in privateWeightCache.
         // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
         // reference
         std::unordered_map<std::string, MemoryPtr> privateWeightCache;
-
-        // holding scratch pad memory object with callbacks responsible for change memory handle
-        // when underlying scratch pad memory is resized.
-        MemoryPtr scratchpadMem;
-
-        dnnl::memory addConstFolding(MemoryPtr src, std::string privateSrcKey, DnnlMemoryDescPtr expectedWeightDesc);
-        void doConstFolding(ConstFolding& cf);
 };
 
 }   // namespace intel_cpu

@@ -1355,7 +1355,7 @@ void Convolution::prepareParams() {
     // builder is allowed to return a primitive requiring input/weight/output with layout different
     // from what specified in the key, external logic handles the extra reordering works needed.
     auto engine = getEngine();
-    auto builder = [&engine](const ConvKey& key) -> dnnl::convolution_forward {
+    auto builder = [&engine](const ConvKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
         auto inDesc = key.inp0->getDnnlDesc();
         auto wghDesc = key.weight;
         auto outDesc = key.out->getDnnlDesc();
@@ -1384,7 +1384,7 @@ void Convolution::prepareParams() {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType) {
                 auto prim_desc = convolution_forward::primitive_desc(itpd.get());
-                return dnnl::convolution_forward(prim_desc);
+                return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
             }
             if (!itpd.next_impl()) {
                 break;
@@ -1413,27 +1413,26 @@ void Convolution::prepareParams() {
         auto relaxedItpd = reorderConvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
         if (static_cast<bool>(relaxedItpd)) {
             auto prim_desc = convolution_forward::primitive_desc(relaxedItpd.get());
-            return dnnl::convolution_forward(prim_desc);
+            return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
         }
         // empty object indicating failure.
-        return dnnl::convolution_forward();
+        return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
-    if (!result.first) {
+    if (!result.first.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
-    auto conv_prim = result.first;
+    auto conv_prim_pd = result.first;
 
-    // the executor is essentially a lower level graph mainly composed of
-    // sequence of oneDNN primitives to accomplish the inference function required
-    // by this CPU node. this executor-graph is dynamically generated here:
-    executor.reset(conv_prim);
-    executor.setSrc(srcMemPtr, getParentEdgeAt(0)->getParent()->isConstant());
-    executor.setWeight(wghMemPtr, getParentEdgeAt(1)->getParent()->isConstant());
-    executor.setOutput(dstMemPtr);
+    // executor handles SRC/WEIGHTS/DST format gaps between primitive and Nodes I/O
+    // by insertting reorders dynamically
+    executor.reset(conv_prim_pd.first, conv_prim_pd.second);
+    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive(), getParentEdgeAt(0)->getParent()->isConstant());
+    executor.setArg(DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive(), getParentEdgeAt(1)->getParent()->isConstant());
+    executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive());
 
     if (withBiases)
         executor.setArg(DNNL_ARG_BIAS, biasMemPtr->GetPrimitive());
@@ -1453,7 +1452,6 @@ void Convolution::prepareParams() {
     for (auto & entry : convPostOpsArgs[preferLegacyPostOps])
         executor.setArg(entry.first, entry.second->GetPrimitive());
 
-    executor.setScratchPad();
 #ifdef CPU_DEBUG_CAPS
     if (result.second == CacheEntryBase::LookUpStatus::Miss) {
         DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitiveDesc()->info(), "\n");

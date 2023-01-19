@@ -95,84 +95,67 @@ const_dnnl_primitive_desc_t DnnlExecutor2::getPrimitiveDesc() const {
     return prim.get_primitive_desc();
 }
 
-dnnl::memory::desc DnnlExecutor2::queryMD(const dnnl::query& what, int idx) {
-    const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, dnnl::convert_to_c(what), idx);
-    return dnnl::memory::desc(*cdesc);
-}
-
 impl_desc_type DnnlExecutor2::getImplementationType() const {
     auto pd = getPrimitiveDesc();
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 
-void DnnlExecutor2::setSrc(MemoryPtr memPtr, bool isConst, int idx) {
-    dnnl::memory ext_mem = memPtr->GetPrimitive();
-    auto ext_desc = ext_mem.get_desc();
-    auto prim_desc = queryMD(dnnl::query::src_md, idx);
-    if (ext_desc == prim_desc) {
-        args[DNNL_ARG_SRC + idx] = ext_mem;
-    } else {
-        dnnl::memory prim_mem;
-        if (isConst) {
-            prim_mem = addConstFolding(memPtr, "s_" + std::to_string(idx), DnnlExtensionUtils::makeDescriptor(prim_desc));
-        } else {
-            prim_mem = dnnl::memory(prim_desc, context->getEngine());
-            inputReorders.emplace_back(context->getReorderPrim(ext_desc, prim_desc),
-                                        PrimArgs{{DNNL_ARG_SRC, ext_mem}, {DNNL_ARG_DST, prim_mem}});
-        }
-        args[DNNL_ARG_SRC + idx] = prim_mem;
-    }
-}
+void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, bool isConst) {
+    memory::desc internal_desc;
+    bool is_output = false;
 
-void DnnlExecutor2::setWeight(MemoryPtr memPtr, bool isConst, int idx) {
-    dnnl::memory ext_mem = memPtr->GetPrimitive();
-    auto ext_desc = ext_mem.get_desc();
-    auto prim_desc = queryMD(dnnl::query::weights_md, idx);
-    if (ext_desc == prim_desc) {
-        args[DNNL_ARG_WEIGHTS + idx] = ext_mem;
+    if (arg_id >= DNNL_ARG_SRC && arg_id <= DNNL_ARG_SRC_3) {
+        internal_desc = pd.src_desc(arg_id - DNNL_ARG_SRC);
+    } else if (arg_id >= DNNL_ARG_WEIGHTS && arg_id <= DNNL_ARG_WEIGHTS_3) {
+        internal_desc = pd.weights_desc(arg_id - DNNL_ARG_WEIGHTS);
+    } else if (arg_id >= DNNL_ARG_DST && arg_id <= DNNL_ARG_DST_2) {
+        internal_desc = pd.dst_desc(arg_id - DNNL_ARG_DST);
+        is_output = true;
     } else {
-        dnnl::memory prim_mem;
-        if (isConst) {
-            // reordering of weight still need to be done at first execution, weight_mem is a stub with valid desc but no handle
-            prim_mem = addConstFolding(memPtr, "w_" + std::to_string(idx), DnnlExtensionUtils::makeDescriptor(prim_desc));
-        } else {
-            // reordering of weight has to be done at execution time
-            prim_mem = dnnl::memory(prim_desc, context->getEngine());
-            inputReorders.emplace_back(context->getReorderPrim(ext_desc, prim_desc),
-                                        PrimArgs{{DNNL_ARG_SRC, ext_mem}, {DNNL_ARG_DST, prim_mem}});
-        }
-        args[DNNL_ARG_WEIGHTS + idx] = prim_mem;
+        // normal ARGS w/o reorder
+        args[arg_id] = external_mem;
+        return;
     }
-}
 
-void DnnlExecutor2::setOutput(MemoryPtr memPtr, int idx) {
-    dnnl::memory ext_mem = memPtr->GetPrimitive();
-    auto ext_desc = ext_mem.get_desc();
-    auto prim_desc = queryMD(dnnl::query::dst_md, idx);
-    if (ext_desc == prim_desc) {
-        // directly output to final location
-        args[DNNL_ARG_DST + idx] = ext_mem;
+    // handl reorders for SRC/WEIGHTS/DST
+    auto external_desc = external_mem.get_desc();
+    if (external_desc == internal_desc) {
+        args[arg_id] = external_mem;
     } else {
-        // generate output reorder after conv
-        dnnl::memory prim_mem = dnnl::memory(prim_desc, context->getEngine());
-        outputReorders.emplace_back(context->getReorderPrim(prim_desc, ext_desc),
-                                    PrimArgs{{DNNL_ARG_SRC, prim_mem}, {DNNL_ARG_DST, ext_mem}});
-        args[DNNL_ARG_DST + idx] = prim_mem;
+        dnnl::memory internal_mem;
+        if (isConst) {
+            internal_mem = addConstFolding(external_mem,
+                                       std::to_string(arg_id),
+                                       DnnlExtensionUtils::makeDescriptor(internal_desc));
+        } else {
+            internal_mem = dnnl::memory(internal_desc, context->getEngine());
+            if (is_output) {
+                outputReorders.emplace_back(context->getReorderPrim(internal_desc, external_desc),
+                                            PrimArgs{{DNNL_ARG_SRC, internal_mem}, {DNNL_ARG_DST, external_mem}});
+            } else {
+                inputReorders.emplace_back(context->getReorderPrim(external_desc, internal_desc),
+                                           PrimArgs{{DNNL_ARG_SRC, external_mem}, {DNNL_ARG_DST, internal_mem}});
+            }
+        }
+        args[arg_id] = internal_mem;
     }
 }
 
 void DnnlExecutor2::setScratchPad() {
-    auto pd = getPrimitiveDesc();
-    auto scratchpadMemoryDesc = DnnlExtensionUtils::query_md(pd, dnnl::query::scratchpad_md);
-    scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
-    args[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    if (pd.get_primitive_attr().get_scratchpad_mode() == dnnl::scratchpad_mode::user) {
+        auto scratchpadMemoryDesc = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMemoryDesc);
+        args[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+    } else {
+        scratchpadMem = nullptr;
+    }
 }
 
-dnnl::memory DnnlExecutor2::addConstFolding(MemoryPtr src,
+dnnl::memory DnnlExecutor2::addConstFolding(dnnl::memory src,
                                             std::string privateSrcKey,
                                             DnnlMemoryDescPtr expectedWeightDesc) {
     ConstFolding cf;
-    cf.src = src;
+    cf.src_mem = src;
     cf.dst_mem = dnnl::memory(expectedWeightDesc->getDnnlDesc(), context->getEngine(), nullptr);
     cf.key = privateSrcKey + "_" + expectedWeightDesc->serializeFormat();
     constFoldings.push_back(cf);
@@ -189,7 +172,7 @@ void DnnlExecutor2::doConstFolding(ConstFolding& cf) {
 
     // create or get from weight cache
     const auto& expectedDesc = cf.dst_mem.get_desc();
-    auto srcWeightDesc = cf.src->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    auto srcWeightDesc = cf.src_mem.get_desc();
     if (srcWeightDesc.data.format_kind == dnnl::impl::format_kind::blocked) {
         // in fullyconnect layer, src weight's shape may be different but compatible with expected weight layout
         srcWeightDesc = srcWeightDesc.reshape(expectedDesc.dims());
@@ -198,7 +181,7 @@ void DnnlExecutor2::doConstFolding(ConstFolding& cf) {
     auto create = [&]() {
         auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(srcWeightDesc);
         Memory srcMemory{context->getEngine()};
-        srcMemory.Create(newSrcDesc, cf.src->GetData());
+        srcMemory.Create(newSrcDesc, cf.src_mem.get_data_handle());
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine());
         _ptr->Create(DnnlExtensionUtils::makeDescriptor(expectedDesc));
         context->reorderData(srcMemory, *_ptr);
@@ -209,8 +192,8 @@ void DnnlExecutor2::doConstFolding(ConstFolding& cf) {
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        const std::string unique_name = cf.key + "_" + std::to_string(cf.src->GetSize()) + "_" +
-                                        std::to_string(reinterpret_cast<uint64_t>(cf.src->GetData()));
+        const std::string unique_name = cf.key + "_" + std::to_string(cf.src_mem.get_desc().get_size()) + "_" +
+                                        std::to_string(reinterpret_cast<uint64_t>(cf.src_mem.get_data_handle()));
         ptr = *weightCache->findOrCreate(unique_name, create);
     } else {
         ptr = create();
