@@ -53,6 +53,20 @@ if (model->output(0).get_partial_shape()[1].is_dynamic()) {
 }
 //! [ov_dynamic_shapes:detect_dynamic]
 }
+{
+//! [ov_dynamic_shapes:check_inputs]
+ov::Core core;
+auto model = core.read_model("model.xml");
+
+// Print info of first input layer
+std::cout << model->input(0).get_partial_shape() << "\n";
+
+// Print info of second input layer
+std::cout << model->input(1).get_partial_shape() << "\n";
+
+//etc
+//! [ov_dynamic_shapes:check_inputs]
+}
 }
 
 void set_tensor() {
