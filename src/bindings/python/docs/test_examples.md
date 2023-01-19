@@ -28,7 +28,7 @@ To run OpenVINO Python API 1.0 tests, use this command:
 pytest tests_compatibility/
 ```
 
-By default, tests are being run on the CPU plugin. If you want to run them on another plugin, 
+By default, tests are run on the CPU plugin. If you want to run them on a different plugin,
 you need to specify this environment variable:
 ```
 export TEST_DEVICE=GPU
