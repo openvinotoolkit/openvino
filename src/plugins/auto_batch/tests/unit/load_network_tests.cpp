@@ -33,7 +33,7 @@ using namespace InferenceEngine;
 
 using PluginLoadNetworkParams = std::tuple<std::map<std::string, std::string>,  // Paramters
                                            std::map<std::string, std::string>,  // Config
-                                           size_t>;                             // Batch Size
+                                           int>;                                // Batch Size
 class PluginLoadNetworkTest : public ::testing::TestWithParam<PluginLoadNetworkParams> {
 public:
     std::shared_ptr<NiceMock<MockICore>> core;
@@ -173,7 +173,7 @@ TEST_P(PluginLoadNetworkTest, PluginLoadBatchedNetworkTestCase) {
 TEST_P(PluginLoadNetworkTest, PluginLoadNetworkGetMetricTestCase) {
     std::map<std::string, std::string> params;
     std::map<std::string, std::string> configs;
-    size_t batch_size;
+    int batch_size;
     std::tie(params, configs, batch_size) = this->GetParam();
 
     ON_CALL(*core, GetConfig(_, StrEq("PERFORMANCE_HINT"))).WillByDefault(Return(params["PERFORMANCE_HINT"]));

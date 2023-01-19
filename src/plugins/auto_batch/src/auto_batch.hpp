@@ -19,13 +19,6 @@
 #include "ie_metric_helpers.hpp"
 #include "threading/ie_thread_safe_containers.hpp"
 
-#ifdef AUTOBATCH_UNITTEST
-#define MOCKTESTMACRO public
-#else
-#define MOCKTESTMACRO protected
-#endif
-
-
 namespace AutoBatchPlugin {
 
 using DeviceName = std::string;
@@ -74,7 +67,7 @@ public:
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
     virtual ~AutoBatchExecutableNetwork();
 
-MOCKTESTMACRO:
+protected:
     static unsigned int ParseTimeoutValue(const std::string&);
     std::atomic_bool _terminate = {false};
     DeviceInformation _device;
@@ -124,7 +117,7 @@ public:
         TIMEOUT_EXECUTED
     } _wasBatchedRequestUsed = eExecutionFlavor::NOT_EXECUTED;
 
-MOCKTESTMACRO:
+protected:
     void CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst, bool bInput);
     void ShareBlobsWithBatchRequest(const std::set<std::string>& batchedIntputs,
                                     const std::set<std::string>& batchedOutputs);
@@ -171,8 +164,13 @@ public:
         const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::RemoteContext::Ptr CreateContext(const InferenceEngine::ParamMap&) override;
+#ifdef AUTOBATCH_UNITTEST
 
-MOCKTESTMACRO:
+public:
+#else
+
+protected:
+#endif
     DeviceInformation ParseMetaDevice(const std::string& devicesBatchCfg,
                                       const std::map<std::string, std::string>& config) const;
 
