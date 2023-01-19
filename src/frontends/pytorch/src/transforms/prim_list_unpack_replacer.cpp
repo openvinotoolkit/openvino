@@ -11,6 +11,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -135,6 +136,64 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             copy_runtime_info({list_unpack, input_node}, to_copy_rt);
             replace_node(list_unpack, outputs);
 
+            return true;
+        }
+
+        if (auto meshgrid = cast_fw_node(input_node, "aten::meshgrid")) {
+            // Input - ListConstruct
+            auto meshgrid_input_node =
+                cast_fw_node(meshgrid->input_value(0).get_node_shared_ptr(), "prim::ListConstruct");
+            if (!meshgrid_input_node) {
+                return false;
+            }
+            OutputVector meshgrid_inputs;
+            for (auto& input : meshgrid_input_node->inputs()) {
+                meshgrid_inputs.push_back(input.get_source_output());
+            }
+
+            // Indexing - Constant with str "ij" or "xy"
+            // TODO - if meshgrid would be placed inside loop body, cast into prim::Constant would failand return false.
+            auto meshgrid_indexing_node =
+                cast_fw_node(meshgrid->input_value(1).get_node_shared_ptr(), "prim::Constant");
+            if (!meshgrid_indexing_node) {
+                return false;
+            }
+            auto meshgrid_indexing_const = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
+                meshgrid->input_value(1).get_node_shared_ptr());
+            auto indexing = meshgrid_indexing_const->get_decoder()->as_string();
+
+            if (indexing == "xy") {
+                std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);
+            }
+            NodeVector cat_shapes{};
+            NodeVector reshapes{};
+            auto const_neg_1 = opset10::Constant::create(element::i64, Shape{1}, {-1});
+            auto const_1 = opset10::Constant::create(element::i64, Shape{1}, {1});
+            int input_idx = 0;
+            for (auto& input : meshgrid_inputs) {
+                auto reshaped_input = std::make_shared<opset10::Reshape>(input, const_neg_1, false);
+                auto shape = std::make_shared<opset10::ShapeOf>(reshaped_input);
+                cat_shapes.push_back(shape);
+                NodeVector cat_inputs{};
+                for (int i = 0; i < meshgrid_inputs.size(); i++) {
+                    cat_inputs.push_back(const_1);
+                }
+                cat_inputs[input_idx] = shape;
+                input_idx++;
+                auto input_cat = std::make_shared<opset10::Concat>(cat_inputs, 0);
+                auto reshape_cat = std::make_shared<opset10::Reshape>(reshaped_input, input_cat, false);
+                reshapes.push_back(reshape_cat);
+            }
+            auto cat = std::make_shared<opset10::Concat>(cat_shapes, 0);
+            OutputVector outputs{};
+            for (auto& reshape : reshapes) {
+                auto out = std::make_shared<opset10::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL);
+                outputs.push_back(out);
+            }
+            if (indexing == "xy") {
+                std::swap(outputs[0], outputs[1]);
+            }
+            replace_node(list_unpack, outputs);
             return true;
         }
         if (auto shape_of = std::dynamic_pointer_cast<opset10::ShapeOf>(input_node)) {
