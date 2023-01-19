@@ -55,6 +55,16 @@ TEST_F(PropagateOptimalBSTest, ConvWithTranspose) {
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
 
+TEST_F(PropagateOptimalBSTest, ConvWithReshape) {
+    ov::PartialShape input_shape{4, 3, -1, -1};
+    ConvWithReshapeFunction builder({input_shape});
+
+    BSMarkup markup{{"convolution", 1}};
+    model = builder.getOriginal(markup);
+    model_ref = builder.getOriginal(markup);
+    ov::pass::InitNodeInfo().run_on_model(model_ref);
+}
+
 TEST_F(PropagateOptimalBSTest, ConvWithReshapeDynamicShapes) {
     ov::PartialShape input_shape{4, 3, -1, -1};
     ConvWithReshapeFunction builder({input_shape});

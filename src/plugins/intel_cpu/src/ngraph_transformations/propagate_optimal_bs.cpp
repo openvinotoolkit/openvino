@@ -21,6 +21,13 @@ ov::intel_cpu::PropagateOptimalBS::PropagateOptimalBS() {
         if (has_optimal_bs(node) || is_type<ov::opset1::Result>(node) || node->get_input_size() == 0)
             return false;
 
+        // don't propagate an optimal batch size through the layers that could set hardcoded output shapes
+        if (is_type<ov::opset1::Interpolate>(node) || is_type<ov::opset4::Interpolate>(node) ||
+            is_type<ov::opset1::Reshape>(node) || is_type<ov::opset1::StridedSlice>(node) ||
+            is_type<ov::opset8::Gather>(node)) {
+            return false;
+        }
+
         auto set_parent_opt_bs = [&node](const std::shared_ptr<ov::Node>& parent) {
             if (!has_optimal_bs(parent))
                 return false;
