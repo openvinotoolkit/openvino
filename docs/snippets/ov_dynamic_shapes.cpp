@@ -67,6 +67,20 @@ std::cout << model->input(1).get_partial_shape() << "\n";
 //etc
 //! [ov_dynamic_shapes:check_inputs]
 }
+{
+ov::Core core;
+auto model = core.read_model("model.xml");
+//! [ov_dynamic_shapes:reshape_multiple_inputs]
+// Assign dynamic shapes to second dimension in every input layer
+std::map<ov::Output<ov::Node>, ov::PartialShape> port_to_shape;
+for (const ov::Output<ov::Node>& input : model->inputs()) {
+    ov::PartialShape shape = input.get_partial_shape();
+    shape[1] = -1
+    port_to_shape[input] = shape;
+}
+model->reshape(port_to_shape);
+//! [ov_dynamic_shapes:reshape_multiple_inputs]
+}
 }
 
 void set_tensor() {
