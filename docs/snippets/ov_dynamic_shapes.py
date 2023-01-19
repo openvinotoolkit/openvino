@@ -95,3 +95,12 @@ input_tensor.shape = [1, 200]
 infer_request.infer()
 data2 = output_tensor.data[:]
 #! [get_input_tensor]
+
+#! [check_inputs]
+core = ov.Core()
+model = core.read_model("model.xml")
+
+# Print model input layer info
+for input_layer in model.inputs:
+    print(input_layer.names, input_layer.partial_shape)
+#! [check_inputs]
