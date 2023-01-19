@@ -21,9 +21,9 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 
 | Options | Values |
 | :--- | :--- |
-| Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation) section) |
+| Validated Models | Acoustic model based on Kaldi\* neural networks (see [Model Preparation](#model-preparation-speech) section) |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin) |
-| Supported devices | See [Execution Modes](#execution-modes) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
+| Supported devices | See [Execution Modes](#execution-modes-speech) section below and [List Supported Devices](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 
 ## How It Works
 
@@ -52,7 +52,7 @@ network.
 >
 > - It is not always possible to use 8-bit weights due to GNA hardware limitations. For example, convolutional layers always use 16-bit weights (GNA hardware version 1 and 2). This limitation will be removed in GNA hardware version 3 and higher.
 
-#### Execution Modes
+#### <a name="execution-modes-speech"></a> Execution Modes
 
 Several execution modes are supported via the `-d` flag:
 
@@ -122,7 +122,7 @@ Options:
 Available target devices:  CPU  GNA  GPU
 ```
 
-### Model Preparation
+### <a name="model-preparation-speech"></a> Model Preparation
 
 You can use the following model optimizer command to convert a Kaldi nnet1 or nnet2 neural model to OpenVINO™ toolkit Intermediate Representation format:
 
