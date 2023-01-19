@@ -28,4 +28,10 @@ public:
                 (const, override));
 };
 
+class MockAutoBatchExecutableNetwork : public AutoBatchExecutableNetwork {
+public:
+    MOCK_METHOD((InferenceEngine::Parameter), GetConfig, (const std::string&), (const, override));
+    MOCK_METHOD((InferenceEngine::Parameter), GetMetric, (const std::string&), (const, override));
+};
+
 }  // namespace MockAutoBatchDevice
