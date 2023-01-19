@@ -887,7 +887,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) 
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOpToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkExpReduceOp>();
         manager.run_passes(model);
     }
 
@@ -934,7 +934,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean)
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOpToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkExpReduceOp>();
         manager.run_passes(model);
     }
 
@@ -981,7 +981,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_withou
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOpToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkExpReduceOp>();
         manager.run_passes(model);
     }
 
@@ -1030,7 +1030,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOpToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkExpReduceOp>();
         manager.run_passes(model);
     }
 
@@ -1065,7 +1065,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
 }
 
 // check marking of Division with eps
-TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision) {
+TEST(TransformationTests, MarkDivWithEps) {
     const float eps_value = 1.e-12f;
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
@@ -1077,7 +1077,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision) {
         auto divide = std::make_shared<Divide>(input_1, add);
 
         model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
-        manager.register_pass<pass::MarkDivWithEpsToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkDivWithEps>();
         manager.run_passes(model);
     }
 
@@ -1117,7 +1117,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithNegativeEx
         auto mul = std::make_shared<Multiply>(input_1, pow);
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
-        manager.register_pass<pass::MarkDivWithEpsToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkDivWithEps>();
         manager.run_passes(model);
     }
 
@@ -1159,7 +1159,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveEx
         auto mul = std::make_shared<Multiply>(input_1, pow);
 
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
-        manager.register_pass<pass::MarkDivWithEpsToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkDivWithEps>();
         manager.run_passes(model);
     }
 
@@ -1198,7 +1198,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
         auto divide = std::make_shared<Divide>(input_1, add);
 
         model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
-        manager.register_pass<pass::MarkDivWithEpsToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkDivWithEps>();
         manager.run_passes(model);
     }
 
@@ -1238,7 +1238,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         auto divide = std::make_shared<Divide>(input, sqrt);
 
         model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
-        manager.register_pass<pass::MarkDivWithEpsToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkDivWithEps>();
         manager.run_passes(model);
     }
 
@@ -1283,7 +1283,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         auto divide = std::make_shared<Divide>(input, sqrt);
 
         model = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
-        manager.register_pass<pass::MarkDivWithEpsToKeepInMixedPrecision>();
+        manager.register_pass<pass::MarkDivWithEps>();
         manager.run_passes(model);
     }
 

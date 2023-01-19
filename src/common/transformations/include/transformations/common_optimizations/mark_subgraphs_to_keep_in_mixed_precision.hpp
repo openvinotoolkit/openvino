@@ -12,8 +12,8 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MarkSugraphsToKeepInMixedPrecision;
-class TRANSFORMATIONS_API MarkExpReduceOpToKeepInMixedPrecision;
-class TRANSFORMATIONS_API MarkDivWithEpsToKeepInMixedPrecision;
+class TRANSFORMATIONS_API MarkExpReduceOp;
+class TRANSFORMATIONS_API MarkDivWithEps;
 
 }  // namespace pass
 }  // namespace ov
@@ -29,14 +29,14 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief: MarkExpReduceOpToKeepInMixedPrecision  marks path that goes
+ * @brief: MarkExpReduceOp  marks path that goes
  * into ReduceSum and ReduceMean. Values that go from Exp to ReduceSum/ReduceMean are precision
  * sensitive and such nodes should be kept in f32 precision for mixed inference.
  */
-class ov::pass::MarkExpReduceOpToKeepInMixedPrecision : public ov::pass::BackwardGraphRewrite {
+class ov::pass::MarkExpReduceOp : public ov::pass::BackwardGraphRewrite {
 public:
-    OPENVINO_RTTI("MarkExpReduceOpToKeepInMixedPrecision", "0");
-    MarkExpReduceOpToKeepInMixedPrecision();
+    OPENVINO_RTTI("MarkExpReduceOp", "0");
+    MarkExpReduceOp();
 };
 
 /**
@@ -47,8 +47,8 @@ public:
  * If both input_1 and input_2 simultaneously happen to be zero to prevent from NaNs and not to loose accuracy,
  * we should calculate such patterns always in fp32 precision even if ov::Model is compressed to fp16.
  */
-class ov::pass::MarkDivWithEpsToKeepInMixedPrecision : public ov::pass::MatcherPass {
+class ov::pass::MarkDivWithEps : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkDivWithEpsToKeepInMixedPrecision", "0");
-    MarkDivWithEpsToKeepInMixedPrecision();
+    OPENVINO_RTTI("MarkDivWithEps", "0");
+    MarkDivWithEps();
 };

@@ -148,10 +148,10 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     Manager manager(get_pass_config());
 
     // Mark root of Division with eps pattern to keep in FP32
-    REGISTER_PASS(manager, MarkDivWithEpsToKeepInMixedPrecision)
+    REGISTER_PASS(manager, MarkDivWithEps)
 
     // is needed to mark only Exponents that go into ReduceSum/ReduceMean
-    REGISTER_PASS(manager, MarkExpReduceOpToKeepInMixedPrecision)
+    REGISTER_PASS(manager, MarkExpReduceOp)
     REGISTER_PASS(manager, InitMarkToKeepInMixedPrecision)
     REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
@@ -212,13 +212,13 @@ public:
     }
 };
 
-MarkExpReduceOpToKeepInMixedPrecision::MarkExpReduceOpToKeepInMixedPrecision() {
+MarkExpReduceOp::MarkExpReduceOp() {
     ADD_MATCHER_FOR_THIS(InitMarkReduceOpExp)
     ADD_MATCHER_FOR_THIS(PropagateUpMarkReduceOpExp)
 }
 
-MarkDivWithEpsToKeepInMixedPrecision::MarkDivWithEpsToKeepInMixedPrecision() {
-    MATCHER_SCOPE(MarkDivWithEpsToKeepInMixedPrecision);
+MarkDivWithEps::MarkDivWithEps() {
+    MATCHER_SCOPE(MarkDivWithEps);
 
     // to detect the following patterns where eps is used to prevent division by zero:
     // input_1/Maximum(input_2, eps)
