@@ -14,6 +14,8 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+// Replace the following graph SpaceToBatch -> Convolution(GroupConvolution) -> BatchToSpace with single
+// Convolution(GroupConvolution) node
 ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     MATCHER_SCOPE(DilatedConvolutionConverter);
     auto data_pattern = pattern::any_input();
