@@ -43,26 +43,27 @@ public:
     void set_property(const ov::AnyMap& config);
 
     SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                     const ov::AnyMap& properties);
+                                                                     const ov::AnyMap& properties) const;
 
     SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
-                                                                     const ov::AnyMap& properties);
+                                                                     const ov::AnyMap& properties) const;
 
     SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                      const ov::RemoteContext& context,
-                                                                     const ov::AnyMap& properties);
+                                                                     const ov::AnyMap& properties) const;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
 
-    SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model, const ov::AnyMap& properties);
+    SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
+                                                                    const ov::AnyMap& properties) const;
 
     SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& networkModel,
                                                                     const ov::RemoteContext& context,
-                                                                    const ov::AnyMap& config);
+                                                                    const ov::AnyMap& config) const;
 
-    ov::RemoteContext create_context(const AnyMap& params);
+    ov::RemoteContext create_context(const AnyMap& params) const;
 
-    ov::RemoteContext get_default_context(const AnyMap& params);
+    ov::RemoteContext get_default_context(const AnyMap& params) const;
 
     Any get_property(const std::string& name, const AnyMap& arguments) const;
 

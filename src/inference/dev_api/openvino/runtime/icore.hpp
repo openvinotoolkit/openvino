@@ -4,7 +4,7 @@
 
 /**
  * @brief A file provides API for Core object
- * @file icore.hpp
+ * @file openvino/runtime/icore.hpp
  */
 
 #pragma once
@@ -59,7 +59,7 @@ public:
     virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(
         const std::shared_ptr<const ov::Model>& model,
         const std::string& device_name,
-        const ov::AnyMap& config = {}) = 0;
+        const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates an executable network from a network object.
@@ -76,7 +76,7 @@ public:
     virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(
         const std::shared_ptr<const ov::Model>& model,
         const ov::RemoteContext& context,
-        const ov::AnyMap& config = {}) = 0;
+        const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates an executable network from a model file.
@@ -92,7 +92,7 @@ public:
      */
     virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
                                                                                  const std::string& device_name,
-                                                                                 const ov::AnyMap& config) = 0;
+                                                                                 const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Creates an executable network from a model memory.
@@ -110,7 +110,7 @@ public:
     virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_str,
                                                                                  const ov::Tensor& weights,
                                                                                  const std::string& device_name,
-                                                                                 const ov::AnyMap& config) = 0;
+                                                                                 const ov::AnyMap& config) const = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -120,9 +120,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
-                                                                                const std::string& device_name = {},
-                                                                                const ov::AnyMap& config = {}) = 0;
+    virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>
+    import_model(std::istream& model, const std::string& device_name = {}, const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -246,7 +245,7 @@ public:
     /**
      * @brief Default virtual destructor
      */
-    virtual ~ICore() = default;
+    virtual ~ICore();
 };
 
 }  // namespace ov

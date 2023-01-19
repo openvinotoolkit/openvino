@@ -30,6 +30,8 @@
 #include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"
 
+ov::ICore::~ICore() = default;
+
 namespace {
 
 template <typename F>
@@ -100,7 +102,7 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
-void ov::CoreImpl::RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
+void ov::CoreImpl::reguster_plugins_in_registry(const std::string& xmlConfigFile) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto parse_result = ParseXml(xmlConfigFile.c_str());
@@ -158,8 +160,8 @@ void ov::CoreImpl::RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
     }
 }
 
-ov::Plugin ov::CoreImpl::GetCPPPluginByName(const std::string& pluginName) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::GetCPPPluginByName");
+ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::get_plugin");
 
     auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
@@ -291,7 +293,7 @@ ov::Plugin ov::CoreImpl::GetCPPPluginByName(const std::string& pluginName) const
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const std::string& device_name,
-    const ov::AnyMap& config) {
+    const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
@@ -305,7 +307,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         // remove this config key from parsed as plugins can throw unsupported exception
         parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
     }
-    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
@@ -334,7 +336,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::RemoteContext& context,
-    const ov::AnyMap& config) {
+    const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (context._impl == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -348,7 +350,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     clean_properties(deviceName, config_with_batch, ov::auto_batch_timeout);
     parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
-    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
@@ -377,7 +379,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     ov::Plugin& plugin,
     const std::shared_ptr<const ov::Model>& model,
     const ov::RemoteContext& context,
-    const ov::AnyMap& config) {
+    const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> cloned_model = model->clone();
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
@@ -499,10 +501,10 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(const std::string& model_path,
                                                                                    const std::string& device_name,
-                                                                                   const ov::AnyMap& config) {
+                                                                                   const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
@@ -510,7 +512,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     auto cacheContent = CacheContent{cacheManager, model_path};
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = CalculateFileHash(model_path, parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = calculate_file_hash(model_path, parsed._deviceName, plugin, parsed._config);
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
@@ -539,9 +541,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(const std::string& model_str,
                                                                                    const ov::Tensor& weights,
                                                                                    const std::string& device_name,
-                                                                                   const ov::AnyMap& config) {
+                                                                                   const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
 
     auto cacheManager =
@@ -550,7 +552,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     auto cacheContent = CacheContent{cacheManager};
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = CalculateMemoryHash(model_str, weights, parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = calculate_memory_hash(model_str, weights, parsed._deviceName, plugin, parsed._config);
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
@@ -566,9 +568,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::import_model(std::istream& model,
                                                                                   const std::string& device_name,
-                                                                                  const ov::AnyMap& config) {
+                                                                                  const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto exec = GetCPPPluginByName(parsed._deviceName).import_model(model, config);
+    auto exec = get_plugin(parsed._deviceName).import_model(model, config);
 
     return {exec._ptr, exec._so};
 }
@@ -578,14 +580,14 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    return GetCPPPluginByName(parsed._deviceName).query_model(model, parsed._config);
+    return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     std::vector<std::string> devices;
     const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
-    for (auto&& deviceName : GetListOfDevicesInRegistry()) {
+    for (auto&& deviceName : get_registered_devices()) {
         std::vector<std::string> devicesIDs;
         try {
             const ie::Parameter p = GetMetric(deviceName, propertyName);
@@ -618,7 +620,7 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
 
 ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& args) {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name, args);
-    return GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
+    return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
 
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& config) {
@@ -667,12 +669,12 @@ bool ov::CoreImpl::is_new_api() const {
 
 ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_name) const {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name, ov::AnyMap{});
-    return GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
+    return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
 
 void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                                        std::string& deviceName,
-                                       ov::AnyMap& config) {
+                                       ov::AnyMap& config) const {
     std::string deviceNameWithBatchSize, deviceNameWithoutBatch;
     // fully strict dims tracking by default (Auto-Batching is enabled implicitly)
     bool strictly_check_dims = true;
@@ -689,7 +691,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
     } else {
         // check if Auto-Batch plugin registered
         try {
-            GetCPPPluginByName("BATCH");
+            get_plugin("BATCH");
         } catch (const std::runtime_error&) {
             return;
         }
@@ -712,7 +714,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         deviceNameWithoutBatch = deviceName;
         auto d = device._deviceName;
         std::vector<std::string> metrics =
-            GetCPPPluginByName(d).get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+            get_plugin(d).get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
         auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
         if (metrics.end() == it)
             return;
@@ -740,7 +742,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
     }
 }
 
-void ov::CoreImpl::clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) {
+void ov::CoreImpl::clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) const {
     // auto-batching is not applicable, if there is auto_batch_timeout, delete it
     if (deviceName.find("BATCH") == std::string::npos) {
         const auto& batch_timeout_mode = config.find(property.as<std::string>());
@@ -770,7 +772,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                         device_name.find("HETERO") != std::string::npos;
     if (!isMetaDevice) {
         // unsupport to set ov::device::properties to HW device through this function
-        auto devices = GetListOfDevicesInRegistry();
+        auto devices = get_registered_devices();
         for (auto&& config : properties) {
             auto parsed = parseDeviceNameIntoConfig(config.first);
             auto is_secondary_config_for_hw_device =
@@ -782,7 +784,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                             "You can configure the devices through the compile_model()/loadNetwork() API.");
         }
     }
-    SetConfigForPlugins(properties, device_name);
+    set_property_for_devivce(properties, device_name);
 }
 
 ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
@@ -796,7 +798,9 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         return decltype(ov::hint::allow_auto_batching)::value_type(flag);
     }
 
-    IE_THROW() << "Exception is thrown while trying to call get_property with unsupported property: '" << name << "'";
+    OPENVINO_UNREACHABLE("Exception is thrown while trying to call get_property with unsupported property: '",
+                         name,
+                         "'");
 }
 
 ov::Any ov::CoreImpl::get_property(const std::string& device_name,
@@ -820,10 +824,10 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
     }
 
     auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
-    return GetCPPPluginByName(parsed._deviceName).get_property(name, parsed._config);
+    return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
-void ov::CoreImpl::UnloadPluginByName(const std::string& deviceName) {
+void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     std::lock_guard<std::mutex> lock(get_mutex());
     auto it = plugins.find(deviceName);
     if (it == plugins.end()) {
@@ -837,7 +841,7 @@ void ov::CoreImpl::UnloadPluginByName(const std::string& deviceName) {
  * @brief Registers plugin meta-data in registry for specified device
  * @param deviceName A name of device
  */
-void ov::CoreImpl::RegisterPluginByName(const std::string& pluginName, const std::string& deviceName) {
+void ov::CoreImpl::register_plugin(const std::string& pluginName, const std::string& deviceName) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto it = pluginRegistry.find(deviceName);
@@ -858,7 +862,7 @@ void ov::CoreImpl::RegisterPluginByName(const std::string& pluginName, const std
  * @brief Provides a list of plugin names in registry; physically such plugins may not be created
  * @return A list of plugin names
  */
-std::vector<std::string> ov::CoreImpl::GetListOfDevicesInRegistry() const {
+std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     std::vector<std::string> listOfDevices;
@@ -876,7 +880,7 @@ std::vector<std::string> ov::CoreImpl::GetListOfDevicesInRegistry() const {
  * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
  *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
  */
-void ov::CoreImpl::SetConfigForPlugins(const ov::AnyMap& configMap, const std::string& deviceName) {
+void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName) {
     auto config = configMap;
     if (config.empty()) {
         return;
@@ -958,68 +962,7 @@ void ov::CoreImpl::SetConfigForPlugins(const ov::AnyMap& configMap, const std::s
     }
 }
 
-/**
- * @brief Get device config it is passed as pair of device_name and `AnyMap`
- * @param configs All set of configs
- * @note  `device_name` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
- *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
- */
-void ov::CoreImpl::ExtractAndSetDeviceConfig(const ov::AnyMap& configs) {
-    for (auto&& config : configs) {
-        auto parsed = parseDeviceNameIntoConfig(config.first);
-        auto devices = GetListOfDevicesInRegistry();
-        auto config_is_device_name_in_regestry =
-            std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
-                return device == parsed._deviceName;
-            });
-        if (config_is_device_name_in_regestry) {
-            SetConfigForPlugins(config.second.as<ov::AnyMap>(), config.first);
-        }
-    }
-}
-
-std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::string& deviceName,
-                                                                    const std::map<std::string, std::string>& configs) {
-    std::vector<std::string> supportedConfigKeys;
-    try {
-        supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-    } catch (ov::Exception&) {
-    }
-    try {
-        for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
-            if (property.is_mutable()) {
-                supportedConfigKeys.emplace_back(std::move(property));
-            }
-        }
-    } catch (ov::Exception&) {
-    }
-    std::map<std::string, std::string> supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = configs.find(key);
-        if (configs.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    for (auto&& config : configs) {
-        auto parsed = parseDeviceNameIntoConfig(config.first);
-        if (deviceName.find(parsed._deviceName) != std::string::npos) {
-            std::stringstream strm(config.second);
-            std::map<std::string, std::string> device_configs;
-            util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
-            for (auto&& device_config : device_configs) {
-                if (util::contains(supportedConfigKeys, device_config.first)) {
-                    supportedConfig[device_config.first] = device_config.second;
-                }
-            }
-            for (auto&& config : parsed._config) {
-                supportedConfig[config.first] = config.second.as<std::string>();
-            }
-        }
-    }
-    return supportedConfig;
-}
-
-void ov::CoreImpl::AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
+void ov::CoreImpl::add_extension(const std::vector<ov::Extension::Ptr>& extensions) {
     std::lock_guard<std::mutex> lock(get_mutex());
     for (const auto& ext : extensions) {
         ov_extensions.emplace_back(ext);
@@ -1035,60 +978,9 @@ const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions()
     return extensions;
 }
 
-const std::vector<ov::Extension::Ptr>& ov::CoreImpl::GetOVExtensions() const {
-    return ov_extensions;
-}
-
-std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
-    std::map<std::string, InferenceEngine::Version> versions;
-    std::vector<std::string> deviceNames;
-
-    {
-        // for compatibility with samples / demo
-        if (deviceName.find("HETERO") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
-            }
-            deviceNames.push_back("HETERO");
-        } else if (deviceName.find("MULTI") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
-            }
-            deviceNames.push_back("MULTI");
-        } else if (deviceName.find("AUTO") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
-            }
-            deviceNames.emplace_back("AUTO");
-        } else if (deviceName.find("BATCH") == 0) {
-            auto pos = deviceName.find_first_of(":");
-            if (pos != std::string::npos) {
-                deviceNames = {InferenceEngine::DeviceIDParser::getBatchDevice(deviceName.substr(pos + 1))};
-            }
-            deviceNames.push_back("BATCH");
-        } else {
-            deviceNames.push_back(deviceName);
-        }
-    }
-
-    for (auto&& deviceName_ : deviceNames) {
-        ie::DeviceIDParser parser(deviceName_);
-        std::string deviceNameLocal = parser.getDeviceName();
-
-        ov::Plugin cppPlugin = GetCPPPluginByName(deviceNameLocal);
-
-        versions[deviceNameLocal] = ov::legacy_convert::convert_plugin(cppPlugin.m_ptr)->GetVersion();
-    }
-
-    return versions;
-}
-
 bool ov::CoreImpl::device_supports_import_export(const std::string& deviceName) const {
     auto parsed = parseDeviceNameIntoConfig(deviceName);
-    auto plugin = GetCPPPluginByName(parsed._deviceName);
+    auto plugin = get_plugin(parsed._deviceName);
     return device_supports_import_export(plugin);
 }
 
@@ -1120,7 +1012,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     const ov::AnyMap& parsedConfig,
     const ov::RemoteContext& context,
     const CacheContent& cacheContent,
-    bool forceDisableCache) {
+    bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
     execNetwork =
@@ -1192,9 +1084,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_
     return execNetwork;
 }
 
-std::map<std::string, std::string> ov::CoreImpl::CreateCompileConfig(const ov::Plugin& plugin,
-                                                                     const std::string& deviceFamily,
-                                                                     const ov::AnyMap& origConfig) const {
+std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov::Plugin& plugin,
+                                                                       const std::string& deviceFamily,
+                                                                       const ov::AnyMap& origConfig) const {
     std::map<std::string, Any> getMetricConfig;
     std::map<std::string, std::string> compileConfig;
 
@@ -1238,24 +1130,24 @@ std::string ov::CoreImpl::CalculateNetworkHash(const InferenceEngine::CNNNetwork
                                                const std::string& deviceFamily,
                                                const ov::Plugin& plugin,
                                                const ov::AnyMap& config) const {
-    auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
+    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
     return InferenceEngine::NetworkCompilationContext::computeHash(network, compileConfig);
 }
 
-std::string ov::CoreImpl::CalculateFileHash(const std::string& modelName,
-                                            const std::string& deviceFamily,
-                                            const ov::Plugin& plugin,
-                                            const ov::AnyMap& config) const {
-    auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
-    return InferenceEngine::NetworkCompilationContext::computeHash(modelName, compileConfig);
-}
-
-std::string ov::CoreImpl::CalculateMemoryHash(const std::string& modelStr,
-                                              const ov::Tensor& weights,
+std::string ov::CoreImpl::calculate_file_hash(const std::string& modelName,
                                               const std::string& deviceFamily,
                                               const ov::Plugin& plugin,
                                               const ov::AnyMap& config) const {
-    auto compileConfig = CreateCompileConfig(plugin, deviceFamily, config);
+    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
+    return InferenceEngine::NetworkCompilationContext::computeHash(modelName, compileConfig);
+}
+
+std::string ov::CoreImpl::calculate_memory_hash(const std::string& modelStr,
+                                                const ov::Tensor& weights,
+                                                const std::string& deviceFamily,
+                                                const ov::Plugin& plugin,
+                                                const ov::AnyMap& config) const {
+    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
     return InferenceEngine::NetworkCompilationContext::computeHash(modelStr, weights, compileConfig);
 }
 

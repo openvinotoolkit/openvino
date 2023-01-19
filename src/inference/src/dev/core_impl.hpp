@@ -131,7 +131,9 @@ private:
     // Core settings (cache config, etc)
     CoreConfig coreConfig;
 
-    InferenceEngine::CacheGuard cacheGuard;
+    Any get_property_for_core(const std::string& name) const;
+
+    mutable InferenceEngine::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
@@ -168,8 +170,50 @@ private:
     std::map<std::string, PluginDescriptor> pluginRegistry;
 
     const bool m_new_api;
-    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
 
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
+        const std::shared_ptr<const ov::Model>& model,
+        ov::Plugin& plugin,
+        const ov::AnyMap& parsedConfig,
+        const ov::RemoteContext& context,
+        const CacheContent& cacheContent,
+        bool forceDisableCache = false) const;
+
+    static ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> load_model_from_cache(
+        const CacheContent& cacheContent,
+        ov::Plugin& plugin,
+        const ov::AnyMap& config,
+        const ov::RemoteContext& context,
+        bool& networkIsImported);
+
+    bool device_supports_import_export(const ov::Plugin& plugin) const;
+
+    bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
+
+    bool device_supports_cache_dir(const ov::Plugin& plugin) const;
+
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(ov::Plugin& plugin,
+                                                                         const std::shared_ptr<const ov::Model>& model,
+                                                                         const ov::RemoteContext& context,
+                                                                         const ov::AnyMap& config) const;
+
+    std::map<std::string, std::string> create_compile_config(const ov::Plugin& plugin,
+                                                             const std::string& deviceFamily,
+                                                             const ov::AnyMap& origConfig) const;
+
+    std::string calculate_file_hash(const std::string& modelName,
+                                    const std::string& deviceFamily,
+                                    const ov::Plugin& plugin,
+                                    const ov::AnyMap& config) const;
+
+    std::string calculate_memory_hash(const std::string& modelStr,
+                                      const ov::Tensor& weights,
+                                      const std::string& deviceFamily,
+                                      const ov::Plugin& plugin,
+                                      const ov::AnyMap& config) const;
+
+    // Legacy API
+    void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
     void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
         try {
@@ -179,6 +223,18 @@ private:
             // in case of shared library is not opened
         }
     }
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
+        const InferenceEngine::CNNNetwork& model,
+        ov::Plugin& plugin,
+        const std::map<std::string, std::string>& parsedConfig,
+        const InferenceEngine::RemoteContext::Ptr& context,
+        const CacheContent& cacheContent,
+        bool forceDisableCache = false);
+
+    std::string CalculateNetworkHash(const InferenceEngine::CNNNetwork& network,
+                                     const std::string& deviceFamily,
+                                     const ov::Plugin& plugin,
+                                     const ov::AnyMap& config) const;
 
 public:
     CoreImpl(bool _newAPI);
@@ -190,13 +246,13 @@ public:
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
-    void RegisterPluginsInRegistry(const std::string& xmlConfigFile);
+    void reguster_plugins_in_registry(const std::string& xmlConfigFile);
 
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
-                             ov::AnyMap& config);
+                             ov::AnyMap& config) const;
 
-    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property);
+    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) const;
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
@@ -205,7 +261,7 @@ public:
      * @note The function supports UNICODE path
      * @param static_registry a statically defined configuration with device / plugin information
      */
-    void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
+    void reguster_plugins_in_registry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(get_mutex());
 
         for (const auto& plugin : static_registry) {
@@ -272,8 +328,6 @@ public:
 
     Any GetMetric(const std::string& deviceName, const std::string& name, const AnyMap& options = {}) const override;
 
-    Any get_property_for_core(const std::string& name) const;
-
     Any GetConfig(const std::string& deviceName, const std::string& name) const override;
 
     /**
@@ -294,48 +348,6 @@ public:
     InferenceEngine::RemoteContext::Ptr CreateContext(const std::string& deviceName,
                                                       const InferenceEngine::ParamMap& params) override;
 
-    /**
-     * @brief Returns reference to CPP plugin wrapper by a device name
-     * @param deviceName A name of device
-     * @return Reference to a CPP plugin wrapper
-     */
-    ov::Plugin GetCPPPluginByName(const std::string& pluginName) const;
-
-    /**
-     * @brief Unload plugin for specified device, but plugin meta-data is still in plugin registry
-     * @param deviceName A name of device
-     */
-    void UnloadPluginByName(const std::string& deviceName);
-
-    /**
-     * @brief Registers plugin meta-data in registry for specified device
-     * @param deviceName A name of device
-     */
-    void RegisterPluginByName(const std::string& pluginName, const std::string& deviceName);
-
-    /**
-     * @brief Provides a list of plugin names in registry; physically such plugins may not be created
-     * @return A list of plugin names
-     */
-    std::vector<std::string> GetListOfDevicesInRegistry() const;
-
-    /**
-     * @brief Sets config values for a plugin or set of plugins
-     * @param deviceName A device name to set config to
-     *        If empty, config is set for all the plugins / plugin's meta-data
-     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
-     *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
-     */
-    void SetConfigForPlugins(const ov::AnyMap& configMap, const std::string& deviceName);
-
-    /**
-     * @brief Get device config it is passed as pair of device_name and `AnyMap`
-     * @param configs All set of configs
-     * @note  `device_name` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
-     *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
-     */
-    void ExtractAndSetDeviceConfig(const ov::AnyMap& configs);
-
     std::map<std::string, std::string> GetSupportedConfig(const std::string& deviceName,
                                                           const std::map<std::string, std::string>& configs) override;
 
@@ -345,69 +357,55 @@ public:
      */
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
 
-    void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions);
-
     /**
      * @brief Provides a list of extensions
      * @return A list of registered extensions
      */
     const std::vector<InferenceEngine::IExtensionPtr>& GetExtensions() const;
 
-    const std::vector<ov::Extension::Ptr>& GetOVExtensions() const;
+    bool DeviceSupportsImportExport(const std::string& deviceName) const override;
 
     std::map<std::string, InferenceEngine::Version> GetVersions(const std::string& deviceName) const;
 
-    bool DeviceSupportsImportExport(const std::string& deviceName) const override;
+    // Common API
+
+    /**
+     * @brief Returns reference to CPP plugin wrapper by a device name
+     * @param deviceName A name of device
+     * @return Reference to a CPP plugin wrapper
+     */
+    ov::Plugin get_plugin(const std::string& pluginName) const;
+
+    /**
+     * @brief Unload plugin for specified device, but plugin meta-data is still in plugin registry
+     * @param deviceName A name of device
+     */
+    void unload_plugin(const std::string& deviceName);
+
+    /**
+     * @brief Registers plugin meta-data in registry for specified device
+     * @param deviceName A name of device
+     */
+    void register_plugin(const std::string& pluginName, const std::string& deviceName);
+
+    /**
+     * @brief Provides a list of plugin names in registry; physically such plugins may not be created
+     * @return A list of plugin names
+     */
+    std::vector<std::string> get_registered_devices() const;
+
+    /**
+     * @brief Sets config values for a plugin or set of plugins
+     * @param deviceName A device name to set config to
+     *        If empty, config is set for all the plugins / plugin's meta-data
+     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
+     *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
+     */
+    void set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName);
+
+    void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
+
     bool device_supports_import_export(const std::string& deviceName) const override;
-
-    bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
-
-    bool device_supports_import_export(const ov::Plugin& plugin) const;
-
-    bool device_supports_cache_dir(const ov::Plugin& plugin) const;
-
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model_impl(
-        const std::shared_ptr<const ov::Model>& model,
-        ov::Plugin& plugin,
-        const ov::AnyMap& parsedConfig,
-        const ov::RemoteContext& context,
-        const CacheContent& cacheContent,
-        bool forceDisableCache = false);
-
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetworkImpl(
-        const InferenceEngine::CNNNetwork& model,
-        ov::Plugin& plugin,
-        const std::map<std::string, std::string>& parsedConfig,
-        const InferenceEngine::RemoteContext::Ptr& context,
-        const CacheContent& cacheContent,
-        bool forceDisableCache = false);
-
-    static ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> load_model_from_cache(
-        const CacheContent& cacheContent,
-        ov::Plugin& plugin,
-        const ov::AnyMap& config,
-        const ov::RemoteContext& context,
-        bool& networkIsImported);
-
-    std::map<std::string, std::string> CreateCompileConfig(const ov::Plugin& plugin,
-                                                           const std::string& deviceFamily,
-                                                           const ov::AnyMap& origConfig) const;
-
-    std::string CalculateNetworkHash(const InferenceEngine::CNNNetwork& network,
-                                     const std::string& deviceFamily,
-                                     const ov::Plugin& plugin,
-                                     const ov::AnyMap& config) const;
-
-    std::string CalculateFileHash(const std::string& modelName,
-                                  const std::string& deviceFamily,
-                                  const ov::Plugin& plugin,
-                                  const ov::AnyMap& config) const;
-
-    std::string CalculateMemoryHash(const std::string& modelStr,
-                                    const ov::Tensor& weights,
-                                    const std::string& deviceFamily,
-                                    const ov::Plugin& plugin,
-                                    const ov::AnyMap& config) const;
 
     // ov::ICore
     std::shared_ptr<ov::Model> read_model(const std::string& model,
@@ -418,24 +416,24 @@ public:
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                          const std::string& device_name,
-                                                                         const ov::AnyMap& config = {}) override;
+                                                                         const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                                          const ov::RemoteContext& context,
-                                                                         const ov::AnyMap& config = {}) override;
+                                                                         const ov::AnyMap& config = {}) const override;
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_path,
                                                                          const std::string& device_name,
-                                                                         const ov::AnyMap& config) override;
+                                                                         const ov::AnyMap& config) const override;
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(const std::string& model_str,
                                                                          const ov::Tensor& weights,
                                                                          const std::string& device_name,
-                                                                         const ov::AnyMap& config) override;
+                                                                         const ov::AnyMap& config) const override;
 
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> import_model(std::istream& model,
                                                                         const std::string& device_name = {},
-                                                                        const ov::AnyMap& config = {}) override;
+                                                                        const ov::AnyMap& config = {}) const override;
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const std::string& device_name,
@@ -454,11 +452,6 @@ public:
     void set_property(const std::string& device_name, const AnyMap& properties) override;
 
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override;
-
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(ov::Plugin& plugin,
-                                                                         const std::shared_ptr<const ov::Model>& model,
-                                                                         const ov::RemoteContext& context,
-                                                                         const ov::AnyMap& config);
 };
 
 }  // namespace ov

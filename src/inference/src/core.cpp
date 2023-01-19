@@ -50,7 +50,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
+    _impl->reguster_plugins_in_registry(::getStaticPluginsRegistry());
 #else
     register_plugins(findPluginXML(xmlConfigFile));
 #endif
@@ -166,7 +166,7 @@ void Core::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     add_extension(std::vector<std::shared_ptr<ov::Extension>>{extension});
 }
 void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
-    OV_CORE_CALL_STATEMENT({ _impl->AddOVExtensions(extensions); });
+    OV_CORE_CALL_STATEMENT({ _impl->add_extension(extensions); });
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
@@ -197,7 +197,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
     modelStream.seekg(currentPos, modelStream.beg);
 
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->GetCPPPluginByName(deviceName).import_model(modelStream, {});
+        auto exec = _impl->get_plugin(deviceName).import_model(modelStream, {});
         return {exec._ptr, exec._so};
     });
 }
@@ -205,10 +205,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
 SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) const {
-    OV_CORE_CALL_STATEMENT({
-        auto qnResult = _impl->query_model(model, deviceName, flatten_sub_properties(deviceName, config));
-        return qnResult;
-    });
+    OV_CORE_CALL_STATEMENT(return _impl->query_model(model, deviceName, flatten_sub_properties(deviceName, config)););
 }
 
 void Core::set_property(const AnyMap& properties) {
@@ -232,7 +229,7 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& pluginName, const std::string& deviceName) {
-    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginByName(pluginName, deviceName););
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(pluginName, deviceName););
 }
 
 void Core::unload_plugin(const std::string& deviceName) {
@@ -240,12 +237,12 @@ void Core::unload_plugin(const std::string& deviceName) {
         ie::DeviceIDParser parser(deviceName);
         std::string devName = parser.getDeviceName();
 
-        _impl->UnloadPluginByName(devName);
+        _impl->unload_plugin(devName);
     });
 }
 
 void Core::register_plugins(const std::string& xmlConfigFile) {
-    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginsInRegistry(xmlConfigFile););
+    OV_CORE_CALL_STATEMENT(_impl->reguster_plugins_in_registry(xmlConfigFile););
 }
 
 RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& params) {
@@ -256,7 +253,7 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
-        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
+        auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
         return {remoteContext._impl, {remoteContext._so}};
     });
 }
@@ -269,7 +266,7 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});
-        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
+        auto remoteContext = _impl->get_plugin(parsed._deviceName).get_default_context(parsed._config);
         return {remoteContext._impl, {remoteContext._so}};
     });
 }

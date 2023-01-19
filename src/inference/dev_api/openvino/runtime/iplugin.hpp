@@ -4,19 +4,19 @@
 
 /**
  * @brief OpenVINO Runtime plugin API wrapper
- * @file iplugin.hpp
+ * @file openvino/runtime/iplugin.hpp
  */
 
 #pragma once
 
 #include <memory>
 
-#include "ie_icore.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "threading/ie_executor_manager.hpp"
 
@@ -75,7 +75,7 @@ public:
 
     /**
      * @brief Compiles model from ov::Model object
-     * @param model_path A path to model
+     * @param model_path A path to model (path can be converted from unicode representation)
      * @param properties A ov::AnyMap of properties relevant only for this load operation
      * @return Created Compiled Model object
      */
@@ -161,11 +161,12 @@ public:
                                             const ov::AnyMap& properties) const = 0;
 
     /**
+     * @deprecated This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release
      * @brief Registers legacy extension within plugin
      * @param extension - pointer to already loaded legacy extension
      */
     OPENVINO_DEPRECATED(
-        "This method allows to load legacy InferenceEngine Extensions and will be removed in 2024.0 release")
+        "This method allows to load legacy Inference Engine Extensions and will be removed in 2024.0 release")
     virtual void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension);
 
     /**
@@ -201,7 +202,6 @@ private:
     friend ::InferenceEngine::IPluginWrapper;
 
     std::string m_plugin_name;                                             //!< A device name that plugins enables
-    ov::AnyMap m_properties;                                               //!< A map config keys -> values
     std::weak_ptr<ov::ICore> m_core;                                       //!< A pointer to ICore interface
     std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                                 //!< Member contains plugin version
@@ -229,11 +229,11 @@ private:
         try {                                                                                            \
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
-        } catch (const InferenceEngine::Exception&) {                                                    \
-            throw;                                                                                       \
+        } catch (const InferenceEngine::Exception& ex) {                                                 \
+            throw ov::Exception(ex.what());                                                              \
         } catch (const std::exception& ex) {                                                             \
-            IE_THROW() << ex.what();                                                                     \
+            throw ov::Exception(ex.what());                                                              \
         } catch (...) {                                                                                  \
-            IE_THROW(Unexpected);                                                                        \
+            throw ov::Exception("Unexpected exception");                                                 \
         }                                                                                                \
     }

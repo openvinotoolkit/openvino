@@ -14,7 +14,7 @@ namespace details {
  * @param function A ngraph function to check for automatic-batching applicability
  * @return An enum value indicating whether the network can be safely batched (with HETERO or as is) or not
  */
-enum NetworkBatchAbility : uint32_t { NO = 0, AS_IS, WITH_HETERO };
+enum class NetworkBatchAbility : uint32_t { NO = 0, AS_IS, WITH_HETERO };
 NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& model,
                                        const std::string& deviceNoBatch,
                                        bool strictly_track_dims);

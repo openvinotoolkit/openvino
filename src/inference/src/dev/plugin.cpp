@@ -56,19 +56,19 @@ void ov::Plugin::set_property(const ov::AnyMap& config) {
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) {
+    const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(const std::string& model_path,
-                                                                                 const ov::AnyMap& properties) {
+                                                                                 const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model_path, properties), m_so});
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::RemoteContext& context,
-    const ov::AnyMap& properties) {
+    const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
 }
 
@@ -78,17 +78,17 @@ ov::SupportedOpsMap ov::Plugin::query_model(const std::shared_ptr<const ov::Mode
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::import_model(std::istream& model,
-                                                                                const ov::AnyMap& properties) {
+                                                                                const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
 }
 
 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::import_model(std::istream& networkModel,
                                                                                 const ov::RemoteContext& context,
-                                                                                const ov::AnyMap& config) {
+                                                                                const ov::AnyMap& config) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
 }
 
-ov::RemoteContext ov::Plugin::create_context(const AnyMap& params) {
+ov::RemoteContext ov::Plugin::create_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->create_context(params);
         auto so = remote._so;
@@ -98,7 +98,7 @@ ov::RemoteContext ov::Plugin::create_context(const AnyMap& params) {
     });
 }
 
-ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) {
+ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->get_default_context(params);
         auto so = remote._so;
@@ -113,7 +113,7 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
         if (ov::supported_properties == name) {
             try {
                 return {m_ptr->get_property(name, arguments), {m_so}};
-            } catch (ie::Exception&) {
+            } catch (const ov::Exception&) {
                 std::vector<ov::PropertyName> supported_properties;
                 try {
                     auto ro_properties =
@@ -124,7 +124,8 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                             supported_properties.emplace_back(ro_property, PropertyMutability::RO);
                         }
                     }
-                } catch (ie::Exception&) {
+                } catch (const ov::Exception&) {
+                } catch (const ie::Exception&) {
                 }
                 try {
                     auto rw_properties = m_ptr->get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), arguments)
@@ -132,7 +133,8 @@ ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& argument
                     for (auto&& rw_property : rw_properties) {
                         supported_properties.emplace_back(rw_property, PropertyMutability::RW);
                     }
-                } catch (ie::Exception&) {
+                } catch (const ov::Exception&) {
+                } catch (const ie::Exception&) {
                 }
                 supported_properties.emplace_back(ov::supported_properties.name(), PropertyMutability::RO);
                 return supported_properties;
