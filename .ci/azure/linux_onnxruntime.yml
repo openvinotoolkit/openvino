@@ -52,15 +52,6 @@ jobs:
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.10'
-      disableDownloadFromRegistry: true
-      addToPath: true
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
-    name: setupPython
-
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
