@@ -3,7 +3,9 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -25,16 +27,16 @@ OutputVector translate_conv_transposend(NodeContext& context) {
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
-        conv = std::make_shared<opset10::ConvolutionBackpropData>(context.get_input(0),
-                                                                  context.get_input(1),
-                                                                  strides,
-                                                                  pads,
-                                                                  pads,
-                                                                  dilations,
-                                                                  pad_type,
-                                                                  output_padding);
+        conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(context.get_input(0),
+                                                                     context.get_input(1),
+                                                                     strides,
+                                                                     pads,
+                                                                     pads,
+                                                                     dilations,
+                                                                     pad_type,
+                                                                     output_padding);
     } else {
-        conv = std::make_shared<opset10::GroupConvolutionBackpropData>(
+        conv = std::make_shared<ov::op::v1::GroupConvolutionBackpropData>(
             context.get_input(0),
             reshape_kernel_for_group(context, context.get_input(0), context.get_input(1), groups),
             strides,
@@ -50,7 +52,7 @@ OutputVector translate_conv_transposend(NodeContext& context) {
         if (bias_rank == 1) {
             bias = reshape_conv_bias(context, bias, conv);
         }
-        conv = context.mark_node(std::make_shared<opset10::Add>(conv, bias));
+        conv = context.mark_node(std::make_shared<ov::op::v1::Add>(conv, bias));
     }
 
     return {conv};
