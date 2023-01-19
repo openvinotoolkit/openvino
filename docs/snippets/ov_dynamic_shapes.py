@@ -73,45 +73,21 @@ executable = core.compile_model(model)
 infer_request = executable.create_infer_request()
 
 #! [set_input_tensor]
-# The first inference call
+# For first inference call, prepare an input tensor with 1x128 shape and run inference request
+Input_data1 = np.ones(shape=[1,128])
+infer_request.infer([input_data1])
 
-# Create tensor compatible to the model input
-# Shape {1, 128} is compatible with any reshape statements made in previous examples
-input_tensor1 = ov.Tensor(model.input().element_type, [1, 128])
-# ... write values to input_tensor_1
+# Get resulting outputs
+Output_tensor1 = infer_request.get_output_tensor()
+Output_data1 = output_tensor.data[:]
 
-# Set the tensor as an input for the infer request
-infer_request.set_input_tensor(input_tensor1)
+# For second inference call, prepare a 1x200 input tensor and run inference request
+Input_data2 = np.ones(shape=[1,200])
+infer_request.infer([input_data2])
 
-# Do the inference
-infer_request.infer()
-
-# Or pass a tensor in infer to set the tensor as a model input and make the inference
-infer_request.infer([input_tensor1])
-
-# Or pass the numpy array to set inputs of the infer request
-input_data = np.ones(shape=[1, 128])
-infer_request.infer([input_data])
-
-# Retrieve a tensor representing the output data
-output_tensor = infer_request.get_output_tensor()
-
-# Copy data from tensor to numpy array
-data1 = output_tensor.data[:]
-
-# The second inference call, repeat steps:
-
-# Create another tensor (if the previous one cannot be utilized)
-# Notice, the shape is different from input_tensor_1
-input_tensor2 = ov.Tensor(model.input().element_type, [1, 200])
-# ... write values to input_tensor_2
-
-infer_request.infer([input_tensor2])
-
-# No need to call infer_request.get_output_tensor() again
-# output_tensor queried after the first inference call above is valid here.
-# But it may not be true for the memory underneath as shape changed, so re-take an output data:
-data2 = output_tensor.data[:]
+# Get resulting outputs
+Output_tensor2 = infer_request.get_output_tensor()
+Output_data2 = output_tensor.data[:]
 #! [set_input_tensor]
 
 infer_request = executable.create_infer_request()
