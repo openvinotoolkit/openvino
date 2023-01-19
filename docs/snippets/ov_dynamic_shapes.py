@@ -104,3 +104,11 @@ model = core.read_model("model.xml")
 for input_layer in model.inputs:
     print(input_layer.names, input_layer.partial_shape)
 #! [check_inputs]
+
+#! [reshape_multiple_inputs]
+# Assign dynamic shapes to second dimension in every input layer
+for input_layer in model.inputs:
+    input_shape = input_layer.partial_shape
+    input_shape[1] = -1
+    model.reshape({input_layer: input_shape})
+#! [reshape_multiple_inputs]
