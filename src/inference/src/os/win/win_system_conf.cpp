@@ -152,6 +152,7 @@ void parse_processor_info_win(const char* base_ptr,
             }
         }
     }
+    _sockets++;
     if (_sockets > 1) {
         _proc_type_table.push_back(_proc_type_table[0]);
         _proc_type_table[0] = {0, 0, 0, 0};
