@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -339,9 +337,9 @@ TEST(mvn_gpu_test, dynamic_across_channels_inside_sqrt_bfyx_normalize_variance_f
     topology.add(input_layout("input", in_layout));
     topology.add(mvn("mvn", input_info("input"), true, 1e-10f, true, true));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto inst = network.get_primitive("mvn");
@@ -851,11 +849,11 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto prim = mvn("mvn", input_info("input"), params.normalize_variance, 1e-10f, false, params.across_channels);
         prim.output_paddings = {output_pad};
         topo.add(prim);
-        auto build_opts = build_options();
-        build_opts.set_option(build_option::outputs({"mvn"}));
-        build_opts.set_option(build_option::force_implementations({ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"mvn"}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
 
-        network net(engine, topo, build_opts);
+        network net(engine, topo, config);
         net.set_input_data("input", input);
 
         auto outputs = net.execute();
@@ -867,11 +865,11 @@ struct mvn_random_test_bsv32 : ::testing::TestWithParam<mvn_basic_test_params> {
         auto prim_opt = mvn("mvn_opt", input_info("input_to_target_layout"), params.normalize_variance, 1e-10f, false, params.across_channels);
         prim_opt.output_paddings = {output_pad};
         topo_opt.add(prim_opt);
-        auto build_opts_opt = build_options();
-        build_opts_opt.set_option(build_option::outputs({"mvn_opt", "input_to_target_layout"}));
-        build_opts_opt.set_option(build_option::force_implementations({ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
+        ExecutionConfig config_opt;
+        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"mvn_opt", "input_to_target_layout"}));
+        config_opt.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn_opt", {params.input_format, "mvn_gpu_b_fs_yx_fsv16_imad"}} }));
 
-        network net_opt(engine, topo_opt, build_opts_opt);
+        network net_opt(engine, topo_opt, config_opt);
         net_opt.set_input_data("input", input);
 
         auto outputs_opt = net_opt.execute();

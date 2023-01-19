@@ -8,28 +8,12 @@ Installing OpenVINO Runtime from archive files is recommended for C++ developers
 
 See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes) for more information on updates in the latest release.
 
-## System Requirements
 
 @sphinxdirective
-.. tab:: Operating Systems
+.. tab:: System Requirements
 
-  * Ubuntu 18.04 long-term support (LTS) x86, 64-bit
-  * Ubuntu 20.04 long-term support (LTS) x86, 64-bit
-  * Red Hat Enterprise Linux 8 x86, 64-bit
-  * CentOS 7 x86, 64-bit (Note that `devtoolset-7` or a higher version is required to compile applications with OpenVINO)
-
-.. tab:: Hardware
-
-  Optimized for these processors:
-
-  * 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
-  * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
-  * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
-  * Intel Atom® processor with support for Intel® Streaming SIMD Extensions 4.1 (Intel® SSE4.1)
-  * Intel Pentium® processor N4200/5, N3350/5, or N3450/5 with Intel® HD Graphics
-  * Intel® Iris® Xe MAX Graphics
-  * Intel® Neural Compute Stick 2
-  * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+   | Full requirement listing is available in:
+   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Processor Notes
 
@@ -71,14 +55,6 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
     
 4. Download the `OpenVINO Runtime archive file for your system <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_, extract the files, rename the extracted folder and move it to the desired path:
 
-   .. tab:: Ubuntu 18.04
-
-      .. code-block:: sh
-   
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu18_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
-         tar -xf openvino_2022.3.0.tgz
-         sudo mv l_openvino_toolkit_ubuntu18_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
-      
    .. tab:: Ubuntu 20.04
 
       .. code-block:: sh
@@ -86,7 +62,15 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
          curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu20_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
          tar -xf openvino_2022.3.0.tgz
          sudo mv l_openvino_toolkit_ubuntu20_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
-      
+  
+   .. tab:: Ubuntu 18.04
+
+      .. code-block:: sh
+   
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/l_openvino_toolkit_ubuntu18_2022.3.0.9052.9752fafe8eb_x86_64.tgz --output openvino_2022.3.0.tgz
+         tar -xf openvino_2022.3.0.tgz
+         sudo mv l_openvino_toolkit_ubuntu18_2022.3.0.9052.9752fafe8eb_x86_64 /opt/intel/openvino_2022.3.0
+
    .. tab:: RHEL 8
 
       .. code-block:: sh
@@ -107,6 +91,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    
    .. code-block:: sh
    
+      cd /opt/intel/openvino_2022.3.0/
       sudo -E ./install_dependencies/install_openvino_dependencies.sh 
 
 6. For simplicity, it is useful to create a symbolic link as below:
@@ -144,25 +129,12 @@ See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
 ### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
+OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. See the instructions below to set up OpenVINO on these devices.
  
 @sphinxdirective 
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
-
-.. tab:: NCS 2
-
-   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
-   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
-
-.. tab:: VPU
-
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
-
-   .. warning::
-      While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
 
 .. tab:: GNA
 

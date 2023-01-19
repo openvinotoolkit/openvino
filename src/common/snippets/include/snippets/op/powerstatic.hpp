@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@ namespace op {
 class PowerStatic : public ov::op::util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("PowerStatic", "SnippetsOpset", ov::op::util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     PowerStatic() = default;
     PowerStatic(const Output <Node> &arg, float power) : UnaryElementwiseArithmetic(arg), power(power) {

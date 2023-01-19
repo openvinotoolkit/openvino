@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,19 +131,26 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(Brgemm, ngraph::snippets::op)
         NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
         NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
+        NGRAPH_OP(Buffer, ngraph::snippets::op)
         NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
         NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
+        NGRAPH_OP(Fill, ngraph::snippets::op)
+        NGRAPH_OP(HorizonMax, ngraph::snippets::op)
+        NGRAPH_OP(HorizonSum, ngraph::snippets::op)
         NGRAPH_OP(Kernel, ngraph::snippets::op)
         NGRAPH_OP(Load, ngraph::snippets::op)
+        NGRAPH_OP(LoadReshape, ngraph::snippets::op)
+        NGRAPH_OP(LoopBegin, ngraph::snippets::op)
+        NGRAPH_OP(LoopEnd, ngraph::snippets::op)
         NGRAPH_OP(Nop, ngraph::snippets::op)
         NGRAPH_OP(PowerStatic, ngraph::snippets::op)
         NGRAPH_OP(Scalar, ngraph::snippets::op)
         NGRAPH_OP(Store, ngraph::snippets::op)
         NGRAPH_OP(Subgraph, ngraph::snippets::op)
-        NGRAPH_OP(Tile, ngraph::snippets::op)
-        NGRAPH_OP(TileScheduler, ngraph::snippets::op)
+        NGRAPH_OP(VectorBuffer, ngraph::snippets::op)
 #undef NGRAPH_OP
 
         return opset;

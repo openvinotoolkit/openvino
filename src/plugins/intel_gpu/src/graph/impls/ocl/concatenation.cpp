@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,46 +57,7 @@ struct concatenation_impl : typed_primitive_impl_ocl<concatenation> {
         return make_unique<concatenation_impl>(*this);
     }
 
-    concatenation_impl() : parent() {}
-
-    explicit concatenation_impl(const concatenation_impl& other) : parent(other),
-        _can_be_optimized(other._can_be_optimized) {}
-
-    concatenation_impl(const concatenation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        if (!arg.can_be_optimized()) {
-            CLDNN_ERROR_NOT_EQUAL(arg.id(),
-                                  "Input count",
-                                  arg.inputs_count(),
-                                  "kds size",
-                                  kd.kernels.size(),
-                                  "Error - not enough kernels for concatenation");
-        }
-
-        set_node_params(arg);
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<concatenation>());
-        const auto& node = arg.as<concatenation>();
-        _can_be_optimized = node.can_be_optimized();
-    }
-
-protected:
-    bool optimized_out(concatenation_inst& instance) const override {
-        return parent::optimized_out(instance) || _can_be_optimized;
-    }
-
 public:
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _can_be_optimized;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _can_be_optimized;
-    }
-
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<concatenation>();
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param);
@@ -115,9 +76,6 @@ public:
 
         return {params, optional_params};
     }
-
-private:
-    bool _can_be_optimized;
 };
 
 namespace detail {
