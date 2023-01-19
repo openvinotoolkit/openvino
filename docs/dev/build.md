@@ -313,7 +313,7 @@ cmake -DCMAKE_INSTALL_PREFIX=<installation location> -P cmake_install.cmake
 
 ### Cross-compilation 
 
-Since OSX version 11.x and Xcode version 12.2, the Apple development tools allows to compile arm64 code on x86 hosts and vice-versa. Based on this, OpenVINO can be compiled even on Apple Silicon machines, then such artifacts can be run on both Intel CPU hosts and Apple Silicon hosts (using [Rosetta]). For this, try to compile OpenVINO using the steps above, but adding `-DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_INTEL_MYRIAD=OFF` on cmake configure stage. But, **don't enable any system library usage explicitly** via CMake options, because they have `arm64` architecture, e.g.:
+Since OSX version 11.x and Xcode version 12.2, the Apple development tools allows to compile arm64 code on x86 hosts and vice-versa. Based on this, OpenVINO can be compiled even on Apple Silicon machines, then such artifacts can be run on both Intel CPU hosts and Apple Silicon hosts (using [Rosetta]). For this, try to compile OpenVINO using the steps above, but adding `-DCMAKE_OSX_ARCHITECTURES=x86_64` on cmake configure stage. But, **don't enable any system library usage explicitly** via CMake options, because they have `arm64` architecture, e.g.:
 ```sh
 file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
 /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib: Mach-O 64-bit dynamically linked shared library arm64
