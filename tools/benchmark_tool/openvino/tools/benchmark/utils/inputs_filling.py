@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -105,7 +105,7 @@ def get_input_data(paths_to_input, app_input_info):
                                    f"provided data shapes. Only {binaries_to_be_used_map[info.name]} binaries will be processed for this input.")
                 elif binaries_to_be_used_map[info.name] < total_frames:
                     logger.warning(f"Some binaries will be dublicated: {total_frames} is required, "
-                                   f"but only {images_to_be_used_map[info.name]} were provided.")
+                                   f"but only {binaries_to_be_used_map[info.name]} were provided.")
             else:
                 if not (info.is_image_info and len(image_sizes) == 1):
                     logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")

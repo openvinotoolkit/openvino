@@ -93,10 +93,10 @@ jobs:
       # Move jdk into contrib
       sudo apt --assume-yes install openjdk-11-jdk
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - task: CMake@1
@@ -104,6 +104,7 @@ jobs:
       # Coverity has too many PARSE_ERROR errors with ENABLE_FASTER_BUILD=ON. Disabling FASTER_BUILD.
       cmakeArgs: >
         -GNinja
+        -DENABLE_CPPLINT=OFF
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_FASTER_BUILD=OFF
@@ -112,8 +113,9 @@ jobs:
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
         -DCMAKE_C_COMPILER_LAUNCHER=ccache
-        $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
+        -S $(REPO_DIR)
+        -B $(BUILD_DIR)
+    displayName: "Cmake configure"
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
@@ -130,12 +132,13 @@ jobs:
     displayName: 'Install coverity tool'
 
   - script: |
-        export CCACHE_DIR=$(CCACHE_DIR)
-        export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-        export CCACHE_BASEDIR=$(Pipeline.Workspace)
-        export CCACHE_MAXSIZE=50G
-        $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
-    workingDirectory: $(BUILD_DIR)
+      $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int \
+        cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin with Coverity'
 
   - script: ccache --show-stats
