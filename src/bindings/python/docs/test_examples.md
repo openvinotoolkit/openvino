@@ -8,6 +8,10 @@ Install the specific requirements file for testing:
 python -m pip install -r openvino/src/bindings/python/requirements_test.txt
 ```
 
+Make sure that Python libraries are added to the user environment variables: 
+```
+export PYTHONPATH=PYTHONPATH:<openvino_repo>/bin/intel64/Release/python_api/python3.7
+```
 ### Run OpenVINO™ Python API tests
 *For simplicity, all of these commands require to navigate to the main Python API folder first:*
 ```shell
@@ -22,6 +26,12 @@ pytest tests/
 To run OpenVINO Python API 1.0 tests, use this command:
 ```
 pytest tests_compatibility/
+```
+
+By default, tests are being run on the CPU plugin. If you want to run them on another plugin, 
+you need to specify this environment variable:
+```
+export TEST_DEVICE=GPU
 ```
 
 The *pytest* test framework enables you to filter tests with the `-k` flag.
