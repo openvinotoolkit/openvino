@@ -343,9 +343,6 @@ def test_properties_hint_model():
 def test_single_property_setting(device):
     core = Core()
 
-    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
-        pytest.skip("This test runs only on openvino intel cpu plugin")
-
     core.set_property(device, properties.streams.num(properties.streams.Num.AUTO))
 
     assert properties.streams.Num.AUTO.to_integer() == -1
