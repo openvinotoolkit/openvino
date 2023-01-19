@@ -9,7 +9,7 @@
 
 In case if you are intended to use OpenVINO GPU plugin and offload network inference to Intel® graphics processor, the Intel Graphics Driver should be properly configured on your system.
 
-> **NOTE**: In case you already have pre-installed driver in your system, and you want to keep it, the installation steps not required.
+> **NOTE**: In case you already have Intel Graphics Driver installed on your system, and you want to keep it, the installation steps are not required.
 
 ## Linux
 
