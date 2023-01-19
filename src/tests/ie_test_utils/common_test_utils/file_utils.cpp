@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/util/file_util.hpp>
 #include <cstring>
+#include <iostream>
+#include <numeric>
+#include <openvino/util/file_util.hpp>
+#include <regex>
+#include <sstream>
 
 #ifdef __APPLE__
 # include <mach-o/dyld.h>
@@ -14,6 +18,8 @@
 #  define NOMINMAX
 # endif
 # include <Windows.h>
+# include <direct.h>
+# include <stdlib.h>
 #else
 # include <dlfcn.h>
 # include <unistd.h>
@@ -43,8 +49,67 @@ std::string getExecutableDirectory() {
     return ov::util::get_directory(path);
 }
 
-std::string getModelFromTestModelZoo(const std::string & relModelPath) {
+std::string getCurrentWorkingDir() {
+    std::string path;
+#ifdef _WIN32
+    char * buffer = _getcwd(NULL, 0);
+    if (buffer != NULL) {
+        path = std::string(buffer);
+        free(buffer);
+    }
+#else
+    char buffer[PATH_MAX];
+    auto result = getcwd(buffer, sizeof(buffer));
+    if (result != NULL) {
+        path = std::string(buffer);
+    } else {
+        int error = errno;
+        std::ostringstream str;
+        str << "Can't get access to the current working directory, error:" << error;
+        throw std::runtime_error(str.str());
+    }
+#endif
+    return path;
+}
+
+std::string getModelFromTestModelZoo(const std::string& relModelPath) {
     return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), relModelPath});
 }
 
-} // namespace CommonTestUtils
+std::string getRelativePath(const std::string& from, const std::string& to) {
+    auto split_path = [](const std::string& path) -> std::vector<std::string> {
+        std::string sep{ov::util::FileTraits<char>::file_separator};
+        std::regex regex(sep.c_str());
+        std::vector<std::string> retvalue(std::sregex_token_iterator(path.begin(), path.end(), regex, -1),
+                                          std::sregex_token_iterator());
+        return retvalue;
+    };
+
+    auto from_vec = split_path(from);
+    auto to_vec = split_path(to);
+
+    auto mismatch_it = std::mismatch(from_vec.begin(), from_vec.end(), to_vec.begin());
+    if (mismatch_it.first == from_vec.end() && mismatch_it.second == to_vec.end()) {
+        return {};
+    }
+
+    std::string separator(1, ov::util::FileTraits<char>::file_separator);
+    std::string output;
+    if (mismatch_it.first != from_vec.end()) {
+        output += std::accumulate(mismatch_it.first,
+                                  from_vec.end(),
+                                  std::string{},
+                                  [&separator](std::string& a, const std::string&) -> std::string {
+                                      return a += ".." + separator;
+                                  });
+    }
+    output += std::accumulate(mismatch_it.second,
+                              to_vec.end(),
+                              std::string{},
+                              [&separator](std::string& a, const std::string& b) -> std::string {
+                                  return a.empty() ? a += b : a += separator + b;
+                              });
+    return output;
+}
+
+}  // namespace CommonTestUtils
