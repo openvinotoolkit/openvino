@@ -12,14 +12,16 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_conv_transposend(NodeContext& context) {
+    auto num_inputs = context.get_input_size();
+    FRONT_END_OP_CONVERSION_CHECK(num_inputs == 8, "Unsupported number of inputs: ", num_inputs);
     auto strides = context.const_input<Strides>(3);
-    // In torch pads at beginning are same as at end
+    // PyTorch support only symmetric padding, padding sizes are the same for begins and ends for each dimension
     auto pads = context.const_input<CoordinateDiff>(4);
     auto output_padding = context.const_input<CoordinateDiff>(5);
     auto pad_type = ov::op::PadType::EXPLICIT;
     auto dilations = context.const_input<Strides>(7);
     auto groups = context.const_input<int64_t>(6);
-    std::cout << dilations << std::endl;
+    FRONT_END_OP_CONVERSION_CHECK(groups > 0, "Number of groups for convolution_transpose should be >= 1");
 
     std::shared_ptr<ov::Node> conv;
     if (groups == 1) {
