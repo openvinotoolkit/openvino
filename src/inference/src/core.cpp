@@ -16,6 +16,20 @@
 #    include "ie_plugins.hpp"
 #endif
 
+namespace {
+std::string resolve_extension_path(const std::string& path) {
+    std::string retvalue;
+    try {
+        const std::string absolute_path = ov::util::get_absolute_file_path(path);
+        retvalue = FileUtils::fileExist(absolute_path) ? absolute_path : path;
+    } catch (const std::runtime_error&) {
+        retvalue = path;
+    }
+    return retvalue;
+}
+
+}  // namespace
+
 namespace ov {
 
 #define OV_CORE_CALL_STATEMENT(...)                     \
@@ -115,7 +129,8 @@ void Core::add_extension(const ie::IExtensionPtr& extension) {
 
 void Core::add_extension(const std::string& library_path) {
     try {
-        add_extension(ov::detail::load_extensions(library_path));
+        const std::string path = resolve_extension_path(library_path);
+        add_extension(ov::detail::load_extensions(path));
     } catch (const std::runtime_error&) {
         try {
             // Try to load legacy extension
@@ -131,7 +146,8 @@ void Core::add_extension(const std::string& library_path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
     try {
-        add_extension(ov::detail::load_extensions(library_path));
+        const std::string path = resolve_extension_path(ov::util::wstring_to_string(library_path));
+        add_extension(ov::detail::load_extensions(ov::util::string_to_wstring(path)));
     } catch (const std::runtime_error&) {
         try {
             // Try to load legacy extension

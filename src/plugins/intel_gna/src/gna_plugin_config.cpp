@@ -185,7 +185,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             }
         } else if (key == ov::hint::performance_mode) {
             performance_mode = ov::util::from_string(value, ov::hint::performance_mode);
-        } else if (key ==  ov::hint::inference_precision) {
+        } else if (key ==  ov::inference_precision) {
             std::stringstream ss(value);
             ss >> inference_precision;
             if ((inference_precision != ov::element::i8) && (inference_precision != ov::element::i16)) {
@@ -194,7 +194,7 @@ OPENVINO_SUPPRESS_DEPRECATED_END
             }
             gnaPrecision = (inference_precision == ov::element::i8) ? Precision::I8 : Precision::I16;
         } else if (key == GNA_CONFIG_KEY(PRECISION)) {
-            check_compatibility(ov::hint::inference_precision.name());
+            check_compatibility(ov::inference_precision.name());
             auto precision = Precision::FromStr(value);
             if (precision != Precision::I8 && precision != Precision::I16) {
                 THROW_GNA_EXCEPTION << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: "
@@ -329,7 +329,7 @@ void Config::AdjustKeyMapValues() {
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     keyConfigMap[ov::hint::performance_mode.name()] = ov::util::to_string(performance_mode);
     if (inference_precision != ov::element::undefined) {
-        keyConfigMap[ov::hint::inference_precision.name()] = ov::util::to_string(inference_precision);
+        keyConfigMap[ov::inference_precision.name()] = ov::util::to_string(inference_precision);
     } else {
         keyConfigMap[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
     }
@@ -370,7 +370,7 @@ Parameter Config::GetParameter(const std::string& name) const {
                 ov::intel_gna::HWGeneration::UNDEFINED);
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
-    } else if (name ==  ov::hint::inference_precision) {
+    } else if (name ==  ov::inference_precision) {
         return inference_precision;
     } else {
         auto result = keyConfigMap.find(name);
@@ -399,7 +399,7 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         { ov::intel_gna::pwl_design_algorithm.name(), model_mutability },
         { ov::intel_gna::pwl_max_error_percent.name(), model_mutability },
         { ov::hint::performance_mode.name(), ov::PropertyMutability::RW },
-        { ov::hint::inference_precision.name(), model_mutability },
+        { ov::inference_precision.name(), model_mutability },
         { ov::hint::num_requests.name(), model_mutability },
         { ov::log::level.name(), ov::PropertyMutability::RW },
         { ov::execution_devices.name(), ov::PropertyMutability::RO },
