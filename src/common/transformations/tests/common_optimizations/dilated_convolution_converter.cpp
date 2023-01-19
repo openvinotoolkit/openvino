@@ -139,7 +139,7 @@ TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
-        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 3, 3});
+        auto filters = std::make_shared<opset6::Parameter>(element::f32, Shape{4, 1, 1, 3, 3});
         auto conv = std::make_shared<opset6::GroupConvolution>(data,
                                                                filters,
                                                                Strides{1, 1},
