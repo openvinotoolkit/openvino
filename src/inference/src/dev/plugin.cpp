@@ -111,9 +111,15 @@ ov::RemoteContext ov::Plugin::get_default_context(const AnyMap& params) const {
 ov::Any ov::Plugin::get_property(const std::string& name, const AnyMap& arguments) const {
     OV_PLUGIN_CALL_STATEMENT({
         if (ov::supported_properties == name) {
+            bool was_exception = false;
             try {
                 return {m_ptr->get_property(name, arguments), {m_so}};
             } catch (const ov::Exception&) {
+                was_exception = true;
+            } catch (const ie::Exception&) {
+                was_exception = true;
+            }
+            if (was_exception) {
                 std::vector<ov::PropertyName> supported_properties;
                 try {
                     auto ro_properties =
