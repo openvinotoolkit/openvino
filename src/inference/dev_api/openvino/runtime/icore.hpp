@@ -162,28 +162,6 @@ public:
     virtual ov::RemoteContext get_default_context(const std::string& device_name) const = 0;
 
     /**
-     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
-     *
-     * @param device_name Name of a device.
-     *
-     * @param properties Map of pairs: (property name, property value).
-     */
-    virtual void set_property(const std::string& device_name, const AnyMap& properties) = 0;
-
-    /**
-     * @brief Sets properties for a device, acceptable keys can be found in openvino/runtime/properties.hpp.
-     *
-     * @tparam Properties Should be the pack of `std::pair<std::string, Any>` types.
-     * @param device_name Name of a device.
-     * @param properties Optional pack of pairs: (property name, property value).
-     */
-    template <typename... Properties>
-    util::EnableIfAllStringAny<void, Properties...> set_property(const std::string& device_name,
-                                                                 Properties&&... properties) {
-        set_property(device_name, AnyMap{std::forward<Properties>(properties)...});
-    }
-
-    /**
      * @brief Gets properties related to device behaviour.
      *
      *
