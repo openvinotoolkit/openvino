@@ -83,19 +83,13 @@ The examples above assume that the model has a single input layer. To change mod
 
 @sphinxtab{C++}
 
-@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:reshape_undefined
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:reshape_multiple_inputs
 
 @endsphinxtab
 
 @sphinxtab{Python}
 
-@snippet docs/snippets/ov_dynamic_shapes.py reshape_undefined
-
-@endsphinxtab
-
-@sphinxtab{C}
-
-@snippet docs/snippets/ov_dynamic_shapes.c ov_dynamic_shapes:reshape_undefined
+@snippet docs/snippets/ov_dynamic_shapes.py reshape_multiple_inputs
 
 @endsphinxtab
 
@@ -110,9 +104,21 @@ Many DL frameworks support generating models with dynamic (or undefined) dimensi
 
 To check if a model already has dynamic dimensions, first load it with the `read_model()` method, then check the `partial_shape` property of each layer. If the model has any dynamic dimensions, they will be reported as `?`. For example, the following code will print the name and dimensions of each input layer:
 
-```
-code examples here
-```
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_dynamic_shapes.cpp ov_dynamic_shapes:check_inputs
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_dynamic_shapes.py check_inputs
+
+@endsphinxtab
+
+@endsphinxtabset
 
 If the input model already has dynamic dimensions, that will not change during inference. If the inputs will not be used dynamically, it is recommended to set them to static values using the `reshape` method to save application memory. The OpenVINO API supports any combination of static and dynamic dimensions.
 
