@@ -66,9 +66,7 @@ public:
     MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const std::string&));
 
     MOCK_CONST_METHOD0(is_new_api, bool());
-    MOCK_CONST_METHOD2(get_supported_property, ov::AnyMap(const std::string&, const ov::AnyMap&));
     MOCK_CONST_METHOD2(create_context, ov::RemoteContext(const std::string& deviceName, const ov::AnyMap& params));
-    MOCK_CONST_METHOD1(device_supports_import_export, bool(const std::string&));
     MOCK_CONST_METHOD0(get_available_devices, std::vector<std::string>());
     MOCK_CONST_METHOD3(query_model,
                        ov::SupportedOpsMap(const std::shared_ptr<const ov::Model>&,

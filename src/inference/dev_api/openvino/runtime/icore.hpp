@@ -144,15 +144,6 @@ public:
     virtual std::vector<std::string> get_available_devices() const = 0;
 
     /**
-     * @brief Checks whether device supports Export & Import functionality of network
-     *
-     * @param device_name - A name of a device to get a metric value.
-     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
-     * this metric returns 'true', False otherwise.
-     */
-    virtual bool device_supports_import_export(const std::string& device_name) const = 0;
-
-    /**
      * @brief Create a new shared context object on specified accelerator device
      * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
      * @param device_name Name of a device to create new shared context on.
@@ -160,14 +151,6 @@ public:
      * @return A shared pointer to a created remote context.
      */
     virtual ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const = 0;
-
-    /**
-     * @brief Get only configs that are suppored by device
-     * @param device_name Name of a device
-     * @param config Map of configs that can contains configs that are not supported by device
-     * @return map of configs that are supported by device
-     */
-    virtual ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const = 0;
 
     virtual bool is_new_api() const = 0;
 
