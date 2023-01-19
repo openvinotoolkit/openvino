@@ -7,26 +7,14 @@ import openvino.runtime as ov
 #! [import]
 
 #! [reshape_undefined]
-core = ov.Core()
-model = core.read_model("model.xml")
+Core = ov.Core()
+Model = core.read_model(“model.xml”)
 
-# Set one static dimension (= 1) and another dynamic dimension (= Dimension())
-model.reshape([1, ov.Dimension()])
+# Set first dimension to be dynamic while keeping others static
+model.reshape([-1, 3, 224, 224])
 
-# The same as above
-model.reshape([1, -1])
-
-# The same as above
-model.reshape("1, ?")
-
-# Or set both dimensions as dynamic if both are going to be changed dynamically
-model.reshape([ov.Dimension(), ov.Dimension()])
-
-# The same as above
-model.reshape([-1, -1])
-
-# The same as above
-model.reshape("?, ?")
+# Or, set third and fourth dimensions as dynamic
+mode.reshape([1, 3, -1, -1])
 #! [reshape_undefined]
 
 #! [reshape_bounds]
