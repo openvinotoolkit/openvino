@@ -1521,17 +1521,10 @@ class ObjectDetectionAPIProposalReplacement(FrontReplacementFromConfigFileSubGra
                                                                dict(name="reshape_swap_proposals_2d"), proposal)
         mark_input_as_in_correct_layout(proposal_reshape_2d, 0)
 
-        # Find closest CropAndResize node in topological order
-        crop_and_resize_nodes_ids = []
+        # Find closest CropAndResize in topological order
         start_node = match.single_input_node(0)[0]
-        passed_start_node = False
-        for node in graph.pseudo_topological_sort():
-            if node == start_node:
-                passed_start_node = True
-                continue
-            if passed_start_node and node.soft_get('op') == 'CropAndResize':
-                crop_and_resize_nodes_ids.append(node.id)
-                break
+        crop_and_resize_nodes_ids = [node.id for node in graph.pseudo_topological_sort_with_start_node(start_node) if
+                                     graph.nodes[node.id]['op'] == 'CropAndResize']
 
         if len(crop_and_resize_nodes_ids) != 0 and swap_proposals:
             # feed the CropAndResize node with a correct boxes information produced with the Proposal layer
