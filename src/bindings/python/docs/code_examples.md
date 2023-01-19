@@ -84,7 +84,7 @@ from openvino.helpers.custom_module import top1_index
 ```
 **Do not forget to include a license on the top of each file!** For demonstration purposes, it has been skipped in the snippets above.
 
-To see changes taking effect, rebuild the project (CMake's install step should be good enough <!-- TODO: Add link to BUILDING.md section -->) and run your solution:
+To see the changes take effect, [rebuild the project](../../../../docs/dev/build.md) and run your solution:
 ```python
 import openvino.helpers as ov_helpers
 
@@ -402,9 +402,8 @@ Great! Now the class has reached its destination, from C++, to Python, to Python
 
 This concludes developer work on OpenVINO™ Python API. Don't forget to recompile your builds and have a good time while writing your code!:)
 
-#### Testing out new code
-All of the code is now written. Let's move on to testing.
+### Testing the new code
 
-Please refer to the Test Guide available here:
+Coding is now finished. Let's move on to testing.
 
-    openvino/src/bindings/python/docs/test_examples.md
+To learn how to test your code, refer to the guide on [how to test OpenVINO™ Python API?](./test_examples.md#Running_OpenVINO™_Python_API_tests)
