@@ -11,6 +11,10 @@
 
 // SnippetS dialect
 NGRAPH_OP(Load, ngraph::snippets::op)
+NGRAPH_OP(LoadReshape, ngraph::snippets::op)
+NGRAPH_OP(LoopBegin, ngraph::snippets::op)
+NGRAPH_OP(LoopEnd, ngraph::snippets::op)
+NGRAPH_OP(Brgemm, ngraph::snippets::op)
 NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
 
 NGRAPH_OP(Store, ngraph::snippets::op)

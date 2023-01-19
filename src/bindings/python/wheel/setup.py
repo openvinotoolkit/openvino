@@ -119,6 +119,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
+    "pytorch_libs": {
+        "name": "pytorch",
+        "prefix": "libs.pytorch",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
     "onnx_libs": {
         "name": "onnx",
         "prefix": "libs.onnx",
