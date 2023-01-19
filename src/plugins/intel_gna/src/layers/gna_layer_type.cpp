@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,16 @@
 #include "gna_layer_type.hpp"
 #include "gna_layer_info.hpp"
 
-GNAPluginNS::LayerType GNAPluginNS::LayerTypeFromStr(const std::string &str) {
+namespace ov {
+namespace intel_gna {
+
+LayerType LayerTypeFromStr(const std::string& str) {
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
         return it->second;
     else
         return LayerType::NO_TYPE;
 }
+
+}  // namespace intel_gna
+}  // namespace ov

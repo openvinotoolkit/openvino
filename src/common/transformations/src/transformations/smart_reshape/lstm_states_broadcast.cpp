@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(const shar
     const auto& body = ti->get_body();  // body is not nullptr -- we checked earlier
 
     map<Parameter*, ov::PartialShape> original_shapes;
-    size_t label = 1;
+    ov::label_t label = 1;
 
     // mark all input dimensions with labels and making them dynamic, keeping original shapes
     for (auto& parameter : body->get_parameters()) {
@@ -64,7 +64,7 @@ shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(const shar
     shared_ptr<Parameter> batch_delivering_parameter;
     size_t index_of_batch_dim = 0;
 
-    size_t batch_label = ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]);
+    ov::label_t batch_label = ov::DimensionTracker::get_label(lstm_cell->get_input_partial_shape(0)[0]);
     for (auto& parameter : body->get_parameters()) {
         auto pshape = parameter->get_partial_shape();
         if (pshape.rank().is_dynamic())

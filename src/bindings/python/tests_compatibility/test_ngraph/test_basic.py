@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -175,7 +175,7 @@ def test_convert_to_uint(destination_type, expected_type):
 
 def test_constant_get_data_bool():
     input_data = np.array([True, False, False, True])
-    node = ng.constant(input_data, dtype=np.bool)
+    node = ng.constant(input_data, dtype=bool)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,10 +42,9 @@ struct RangeArgs {
         step.addTo(topology);
         topology.add(range { "range", { input_info(start.name), input_info(stop.name), input_info(step.name) }, { dt, format::bfyx, tensor{batch(outLen)} } });
 
-        build_options bo;
-        bo.set_option(build_option::allow_new_shape_infer(use_new_shape_infer));
+        ExecutionConfig config(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer));
 
-        network network { tests::get_test_engine(), topology, bo };
+        network network { tests::get_test_engine(), topology, config };
 
         start.setData(network);
         stop.setData(network);
@@ -208,10 +207,10 @@ TEST(range_gpu_test, range_with_select) {
     set_values<int32_t>(input0, {start_val});
     set_values<int32_t>(input2, {step_val});
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    network network { tests::get_test_engine(), topology, bo };
+    network network { tests::get_test_engine(), topology, config };
 
     auto outputs = network.execute();
     auto output = outputs.at("range").get_memory();

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -152,6 +152,6 @@ class Unique(Op):
         # write result to output nodes
         j = 0
         for out_node_ind in node.out_nodes():
-            node.out_node(out_node_ind).value = mo_array(unique_output[j], dtype=np.float)
+            node.out_node(out_node_ind).value = mo_array(unique_output[j], dtype=float)
             node.out_node(out_node_ind).shape = int64_array(node.out_node(out_node_ind).value.shape)
             j += 1

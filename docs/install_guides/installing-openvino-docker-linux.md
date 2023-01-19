@@ -5,7 +5,7 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 ## <a name="system-requirments"></a>System Requirements
 
 @sphinxdirective
-.. tab:: Target Operating Systems with Python Version
+.. tab:: Target Operating Systems with Python Versions
   
   +----------------------------------------------+-------------------------+
   | Operating System                             | Included Python Version |
@@ -38,7 +38,7 @@ This guide provides steps on creating a Docker image with Intel® Distribution o
 There are two ways to install OpenVINO with Docker. You can choose either of them according to your needs:
 * Use a prebuilt image. Do the following steps:
   1. <a href="#get-prebuilt-image">Get a prebuilt image from provided sources</a>.
-  2. <a href="#run-image">Run the image on different devices</a>. To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, <a href="#set-up-hddldaemon">configure the Docker image</a> first before you run the image.
+  2. <a href="#run-image">Run the image on different devices</a>.
   3. <a href="#run-samples">(Optional) Run samples in the Docker image</a>.
 * If you want to customize your image, you can also build a Docker image manually by using the following steps:
   1. <a href="#prepare-dockerfile">Prepare a Dockerfile</a>.
@@ -112,18 +112,6 @@ RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-r
     yum remove -y epel-release
 ```
 
-### <a name="set-up-hddldaemon"></a>Configuring Docker Image for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-
-> **NOTE**: When building the Docker image, create a user in the Dockerfile that has the same UID (User Identifier) and GID (Group Identifier) as the user which that runs hddldaemon on the host, and then run the application in the Docker image with this user. This step is necessary to run the container as a non-root user.
-
-To use the Docker container for inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, do the following steps:
-
-1. Set up the environment on the host machine to be used for running Docker. It is required to execute `hddldaemon`, which is responsible for communication between the HDDL plugin and the board. To learn how to set up the environment (the OpenVINO package or HDDL package must be pre-installed), see [Configuration guide for HDDL device](https://github.com/openvinotoolkit/docker_ci/blob/master/install_guide_vpu_hddl.md) or [Configurations for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux](configurations-for-ivad-vpu.md).
-2. Run `hddldaemon` on the host in a separate terminal session using the following command:
-    ```sh
-    $HDDL_INSTALL_DIR/hddldaemon
-    ```
-    
 ## <a name="run-image"></a>Running the Docker Image on Different Devices
 
 ### Running the Image on CPU
@@ -165,55 +153,6 @@ To make GPU available in the container, attach the GPU to the container using `-
     > **NOTE**: To launch a Linux image on WSL2, make sure that the additional requirements in <a href="#system-requirements">System Requirements</a> are met.
 
 
-### Running the Image on Intel® Neural Compute Stick 2
-
-Run the Docker image with the following command:
-```sh
-docker run -it --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-```
-
-While the command above is not working, you can also run container in the privileged mode, enable the Docker network configuration as host, and mount all devices to the container. Run the following command:
-```sh
-docker run -it --rm --privileged -v /dev:/dev --network=host <image_name>
-```
-
-> **NOTE**: This option is not recommended, as conflicts with Kubernetes and other tools that use orchestration and private networks may occur. Please use it with caution and only for troubleshooting purposes.
-
-#### Known Limitations
-
-- Intel® Neural Compute Stick 2 device changes its VendorID and DeviceID during execution and each time looks for a host system as a brand new device. It means it cannot be mounted as usual.
-- UDEV events are not forwarded to the container by default, and it does not know about the device reconnection. The prebuilt Docker images and provided Dockerfiles include `libusb` rebuilt without UDEV support.
-- Only one NCS2 device connected to the host can be used when running inference in a container.
-
-
-### Running the Image on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-
-> **NOTE**: To run inferences on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, make sure that you have <a href="#set-up-hddldaemon">configured the Docker image</a> first.
-
-Use the following command:
-```sh
-docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
-```
-
-If your application runs inference of a network with a big size (>4MB) of input/output, the HDDL plugin will use shared memory. In this case, you must mount `/dev/shm` as volume:
-```sh
-docker run -it --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp -v /dev/shm:/dev/shm <image_name>
-```
-
-Note the following things: 
-* The device `/dev/ion` needs to be shared to be able to use ion buffers among the plugin, `hddldaemon` and the kernel.
-* Since separate inference tasks share the same HDDL service communication interface (the service creates mutexes and a socket file in `/var/tmp`), `/var/tmp` needs to be mounted and shared among them.
-
-
-#### If the ion Driver is Not Enabled
-
-In some cases, the ion driver is not enabled (for example, due to a newer kernel version or iommu (Input-Output Memory Management Unit) incompatibility). `lsmod | grep myd_ion` returns empty output. To resolve this issue, use the following command:
-```sh
-docker run -it --rm --ipc=host --net=host -v /var/tmp:/var/tmp <image_name>
-```
-If that still does not solve the issue, try starting `hddldaemon` with the root user on host. However, this approach is not recommended. Please use with caution.
-
-
 ## <a name="run-samples"></a>Running Samples in Docker Image
 
 To run the `Hello Classification Sample` on a specific inference device, run the following commands:
@@ -230,20 +169,6 @@ docker run -it --rm <image_name>
 ```sh
 docker run -itu root:root  --rm --device /dev/dri:/dev/dri <image_name>
 /bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp GPU"
-```
-
-**MYRIAD**:
-
-```sh
-docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp MYRIAD"
-```
-
-**HDDL**:
-
-```sh
-docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp -v /dev/shm:/dev/shm <image_name>
-/bin/bash -c "omz_downloader --name googlenet-v1 --precisions FP16 && omz_converter --name googlenet-v1 --precision FP16 && curl -O https://storage.openvinotoolkit.org/data/test_data/images/car_1.bmp && umask 000 && python3 samples/python/hello_classification/hello_classification.py public/googlenet-v1/FP16/googlenet-v1.xml car_1.bmp HDDL"
 ```
 
 ## Additional Resources

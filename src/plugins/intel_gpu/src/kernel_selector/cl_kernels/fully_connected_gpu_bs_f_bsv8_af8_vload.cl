@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
     // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
+    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
 
     #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB)  \
     {   \
@@ -31,7 +30,7 @@
     }
 #else
     // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
+    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
 
     #define MULTIPLY_BLOCKS_8x8(_result, _blockA, _blockB)  \
     {   \
@@ -57,7 +56,7 @@
 #define SUB_GROUP_SIZE 8
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (fully_connected_gpu_xb_bs_xs_xsv8_bsv8_vload)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include <gmock/gmock-generated-function-mockers.h>
+#include <gmock/gmock.h>
 #include <gna2-instrumentation-api.h>
 #include <gna2-inference-api.h>
 #include <gna2-model-export-api.h>

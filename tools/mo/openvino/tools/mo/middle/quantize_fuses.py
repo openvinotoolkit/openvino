@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -20,7 +20,6 @@ class MarkNodesToFuseUpToFakeQuantize(MiddleReplacementPattern):
 
     """
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
         return [DeleteControlFlowEdges]
@@ -73,7 +72,6 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
             replacer duplicates node to fuse (duplicate connections of inputs of node to fuse to duplicates of it)
     """
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_fusing]
 
     def run_after(self):
         return [QuantizeLinearResolver]

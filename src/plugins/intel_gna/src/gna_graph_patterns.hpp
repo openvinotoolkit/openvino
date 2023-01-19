@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,8 @@
 #include "layers/gna_layer_info.hpp"
 #include "ops/util/util.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief checks if it's a reshape from 4d to 3d tensor
@@ -104,7 +105,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         const auto layout = next->outData[0]->getLayout();
         const auto order = next->GetParamAsInts("order");
         if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
-            order != GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
+            order != permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
             order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */) {
             return std::make_pair(nullptr, nullptr);
         }
@@ -155,7 +156,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         const auto layout = prev->outData[0]->getLayout();
         const auto order = prev->GetParamAsInts("order");
         if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
-            order != GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
+            order != permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
             order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
             return std::make_pair(nullptr, nullptr);
         }
@@ -282,7 +283,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
         if (LayerInfo(layer).isEltwise()) {
             auto input1 = InferenceEngine::CNNNetPrevLayer(layer, 0);
             auto input2 = InferenceEngine::CNNNetPrevLayer(layer, 1);
-            if (LayerInfo(input1).isConst()) return findTranspositionInfoRecursive(input2);
+            if (LayerInfo(input1).isConst() || LayerInfo(input1).isInput()) {
+                return findTranspositionInfoRecursive(input2);
+            }
             return findTranspositionInfoRecursive(input1);
         }
 
@@ -427,4 +430,5 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
     return findTranspositionInfoRecursive(layer);
 }
 
-} // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

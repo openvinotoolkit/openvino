@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,6 +12,7 @@ endif()
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
@@ -51,7 +52,7 @@ if(WIN32)
     file (GLOB LIBRARY_HEADERS
          ${LIBRARY_HEADERS}
          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-elseif(NOT APPLE)
+elseif(NOT (APPLE OR EMSCRIPTEN))
     file (GLOB LIBRARY_SRC
           ${LIBRARY_SRC}
           ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
@@ -112,6 +113,10 @@ file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
 
 add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
+                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library
 

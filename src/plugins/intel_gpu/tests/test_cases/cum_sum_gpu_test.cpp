@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -336,9 +334,9 @@ TEST(cum_sum_gpu_fp32, dynamic) {
     topology.add(input_layout("input", in_layout));
     topology.add(cum_sum("cum_sum", input_info("input")));
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto inst = network.get_primitive("cum_sum");

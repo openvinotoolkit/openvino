@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,9 @@ void start_cl_mem_check_2_inputs(bool is_caching_test) {
     int width = 224;
     int height = 224;
     cl_int err;
+
+    if (!device->get_info().supports_image)
+        GTEST_SKIP();
 
     auto data = createSampleData(width, height);
     cl_image_format image_format;
@@ -174,6 +177,9 @@ TEST(cl_mem_check, check_input) {
     auto& device = iter != devices.end() ? iter->second : devices.begin()->second;
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
     auto ocl_instance = std::make_shared<OpenCL>(std::dynamic_pointer_cast<ocl::ocl_device>(device)->get_device());
+
+    if (!device->get_info().supports_intel_planar_yuv)
+        GTEST_SKIP();
 
     int width = 224;
     int height = 224;
@@ -285,7 +291,7 @@ TEST(cl_mem_check, check_write_access_type) {
     }
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto stream = engine->create_stream();
+    auto stream = engine->create_stream({});
 
     size_t values_count = 100;
     size_t values_bytes_count = values_count * sizeof(float);
@@ -322,7 +328,7 @@ TEST(cl_mem_check, check_read_access_type) {
     }
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto stream = engine->create_stream();
+    auto stream = engine->create_stream({});
 
     size_t values_count = 100;
     size_t values_bytes_count = values_count * sizeof(float);

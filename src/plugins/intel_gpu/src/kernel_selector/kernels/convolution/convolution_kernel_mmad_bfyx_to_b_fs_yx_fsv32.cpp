@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,16 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetSupportedKey() const 
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
     k.DisableTuning();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_blocked_read_write();
+    k.requires_blocked_read_write_short();
+    k.requires_blocked_read_write_char();
+    k.requires_subgroups();
+
     return k;
 }
 
@@ -79,7 +87,7 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_m
         return autoTuneOptions[autoTuneIndex];
     }
 
-    AutoTuneOption option = {0, 0, 0, DEFAULT};
+    AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
     auto &params = dynamic_cast<const convolution_params &>(p);
     auto &output = params.outputs[0];

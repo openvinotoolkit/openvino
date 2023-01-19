@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,18 +56,15 @@ static std::shared_ptr<ngraph::Function> simple_function_relu(ngraph::element::T
     return func;
 }
 
-std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctions() {
-    // Wrapper of most part of available builder functions
-    using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
-                                                                             ngraph::element::Type_t type)>;
-    auto inputShapeWrapper = [](ngraphFunctionIS fun, std::vector<size_t> inputShape) {
-        return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
-            auto shape = inputShape;
-            shape[0] = batchSize;
-            return fun(shape, type);
-        };
+ngraphFunctionGenerator LoadNetworkCacheTestBase::inputShapeWrapper(ngraphFunctionIS fun, std::vector<size_t> inputShape) {
+    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+        auto shape = inputShape;
+        shape[0] = batchSize;
+        return fun(shape, type);
     };
+}
 
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions() {
     std::vector<nGraphFunctionWithName> res;
     res.push_back(nGraphFunctionWithName { simple_function_multiply, "SimpleFunctionMultiply"});
     res.push_back(nGraphFunctionWithName { simple_function_relu, "SimpleFunctionRelu"});
@@ -80,9 +77,6 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeKSOFunction, {1, 4, 20, 20}),
         "KSOFunction"});
-    res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
-        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
-    }, "TIwithLSTMcell1"});
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeSingleConv, {1, 3, 24, 24}),
         "SingleConv"});
@@ -104,14 +98,42 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeConvBias, {1, 3, 24, 24}),
         "ConvBias"});
-    res.push_back(nGraphFunctionWithName {
-        inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
-        "ReadConcatSplitAssign"});
     res.push_back(nGraphFunctionWithName{
         inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
         "MatMulBias" });
+    return res;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions() {
+    std::vector<nGraphFunctionWithName> res;
 
     return res;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions() {
+    std::vector<nGraphFunctionWithName> res;
+    res.push_back(nGraphFunctionWithName { [](ngraph::element::Type type, size_t batchSize) {
+        return ngraph::builder::subgraph::makeTIwithLSTMcell(type, batchSize);
+    }, "TIwithLSTMcell1"});
+    return res;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getNumericAnyTypeFunctions() {
+    std::vector<nGraphFunctionWithName> funcs = LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<nGraphFunctionWithName> numericType = LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+
+    return funcs;
+}
+
+std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctions() {
+    std::vector<nGraphFunctionWithName> funcs = LoadNetworkCacheTestBase::getAnyTypeOnlyFunctions();
+    std::vector<nGraphFunctionWithName> numericType = LoadNetworkCacheTestBase::getNumericTypeOnlyFunctions();
+    funcs.insert(funcs.end(), numericType.begin(), numericType.end());
+    std::vector<nGraphFunctionWithName> floatType = LoadNetworkCacheTestBase::getFloatingPointOnlyFunctions();
+    funcs.insert(funcs.end(), floatType.begin(), floatType.end());
+
+    return funcs;
 }
 
 bool LoadNetworkCacheTestBase::importExportSupported(InferenceEngine::Core& ie) const {
@@ -154,7 +176,7 @@ void LoadNetworkCacheTestBase::SetUp() {
 
 void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
-    std::remove(m_cacheFolderName.c_str());
+    CommonTestUtils::removeDir(m_cacheFolderName);
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
     APIBaseTest::TearDown();
 }

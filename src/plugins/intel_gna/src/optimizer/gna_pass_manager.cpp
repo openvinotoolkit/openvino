@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@
 #include <legacy/net_pass.h>
 #include <layers/gna_copy_layer.hpp>
 
-#include "backend/dnn_types.h"
+#include "backend/dnn_types.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
 #include "frontend/quantization.hpp"
@@ -46,8 +46,11 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-using namespace GNAPluginNS;
 using namespace ov::intel_gna::frontend;
+using namespace ov::intel_gna::common;
+
+namespace ov {
+namespace intel_gna {
 
 #define pass_trace() log::debug() << "[" << getName() << "] "
 
@@ -97,14 +100,14 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     });
     IE_ASSERT(inputLayer != nullptr);
     size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? nextLayer->outData[0]->getDims().back() :
-        Get2DReshapedData(nextLayer->outData[0], GNALimitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)->getDims()[1];
+        Get2DReshapedData(nextLayer->outData[0], limitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
             TensorDesc(
                 nextLayer->outData[0]->getTensorDesc().getPrecision(),
                 SizeVector({weightsValues.size()}),
-                Layout::C));
+                                                             InferenceEngine::Layout::C));
     diagLayer->_weights->allocate();
     CopyVectorToBlob(diagLayer->_weights, weightsValues);
     auto dataPtr = std::make_shared<Data>(diagName, nextLayer->outData[0]->getTensorDesc());
@@ -467,18 +470,18 @@ void SubstituteSoftSignPass::run() {
         auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
 
         // first layer after abs must have scale of 1, offset of 1 and power of either 1 or -1
-        if (!common::fp32eq(powerLayer->scale, 1.0f) || !common::fp32eq(powerLayer->offset, 1.0f) ||
-            !common::fp32eq(std::abs(powerLayer->power), 1.0f)) continue;
+        if (!AreFpEq(powerLayer->scale, 1.0f) || !AreFpEq(powerLayer->offset, 1.0f) ||
+            !AreFpEq(std::abs(powerLayer->power), 1.0f)) continue;
         // power == -1, offset = 1, scale = 1
-        if (common::fp32eq(powerLayer->power, -1.0f)) {
+        if (AreFpEq(powerLayer->power, -1.0f)) {
             std::swap(addition, power);
         } else { // power = 1, offset = 1, scale - 1
             power = getNthChild(addition, 0);
             if (!LayerInfo(power).isPower()) continue;
             auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
             // layer after addition must have power of -1, offset of 0 and scale of 1
-            if (!common::fp32eq(powerLayer_1->power, -1.0f) || !common::fp32eq(powerLayer_1->offset, 0.0f) ||
-                !common::fp32eq(powerLayer_1->scale, 1.0f))
+            if (!AreFpEq(powerLayer_1->power, -1.0f) || !AreFpEq(powerLayer_1->offset, 0.0f) ||
+                !AreFpEq(powerLayer_1->scale, 1.0f))
                 continue;
         }
 
@@ -665,7 +668,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             }
             // HWC layout enum is used here as the only available in CNNNetwork for 3D vectors,
             // but the real layout is NCW and it's the one used in order vector later
-            return dims_size == 4 ? Layout::NHWC : Layout::HWC;
+            return dims_size == 4 ? InferenceEngine::Layout::NHWC : InferenceEngine::Layout::HWC;
         };
 
         auto setTransposedOrder = [getTransposedLayout](InferenceEngine::DataPtr data) {
@@ -676,13 +679,17 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             if (LayerInfo(current_layer).isConcat()) {
                 auto concat_layer = dynamic_cast<InferenceEngine::ConcatLayer*> (current_layer.get());
                 auto dims_size = data->getDims().size();
-                concat_layer->_axis = (dims_size == 4 ? GetPermuteOrder(Layout::NHWC, Layout::NCHW) :
+                concat_layer->_axis = (dims_size == 4 ? permute::GetPermuteOrder(InferenceEngine::Layout::NHWC,
+                                                                                 InferenceEngine::Layout::NCHW)
+                                                      :
                     std::vector<int32_t>{0, 2, 1})[concat_layer->_axis];
             }
 
             // NWC->NCW layouts are used here for order vector, see comments a few lines above
             auto dims = data->getDims();
-            auto order = dims.size() == 4 ? GetPermuteOrder(Layout::NCHW, Layout::NHWC) :
+            auto order = dims.size() == 4
+                             ? permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC)
+                                          :
                 std::vector<int32_t>{0, 2, 1};
             InferenceEngine::SizeVector new_dims;
             for (int i = 0; i < dims.size(); ++i) {
@@ -1073,7 +1080,7 @@ void FlattenTrivialConcatPass::run() {
             auto concatInput = getLayerByIndex(input_idx, concatLayer);
 
             auto tensor = InferenceEngine::TensorDesc(concatInput->getTensorDesc());
-            tensor.reshape(SizeVector({1, total_sizes[input_idx]}), Layout::NC);
+            tensor.reshape(SizeVector({1, total_sizes[input_idx]}), InferenceEngine::Layout::NC);
             auto reshapeName = l->name + "_input_"+ std::to_string(input_idx) +"_reshape";
             auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
 
@@ -1090,7 +1097,7 @@ void FlattenTrivialConcatPass::run() {
             auto total_size = std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>());
 
             auto new_tensor = output->getTensorDesc();
-            new_tensor.reshape(SizeVector({1, total_size}), Layout::NC);
+            new_tensor.reshape(SizeVector({1, total_size}), InferenceEngine::Layout::NC);
 
             auto new_output = CNNReplaceDataWithChangedTensorDescription(output, new_tensor);
             log::debug() << "\tChanged " << output->getName() << " dims to 2D" << std::endl;
@@ -1196,7 +1203,7 @@ void InsertConcatAligningFilterPass::run() {
                                         TensorDesc(
                                             concatInput->getTensorDesc().getPrecision(),
                                             SizeVector({filterWeights.size()}),
-                                            Layout::C));
+                                                       InferenceEngine::Layout::C));
                 concatAligningFilter->_weights->allocate();
                 if (!concatAligningFilter->_weights->buffer().as<float*>()) {
                     THROW_GNA_EXCEPTION << "Failed to allocate weights of size " << filterWeights.size() << " for " << filterName;
@@ -1207,10 +1214,10 @@ void InsertConcatAligningFilterPass::run() {
                 // modifying output rows to be used - to avoid modification to original concat we are store num of elements in params
                 dims[1] = num_rows_out;
 
-                if ((concatInput->getLayout() == Layout::NC && dims[0] > 8) ||
-                    (concatInput->getLayout() == Layout::CN && dims[1] > 8)) {
-                    THROW_GNA_EXCEPTION << "unsupported batch number '" <<
-                        (concatInput->getLayout() == Layout::NC ? dims[0] : dims[1]) <<
+                if ((concatInput->getLayout() == InferenceEngine::Layout::NC && dims[0] > 8) ||
+                    (concatInput->getLayout() == InferenceEngine::Layout::CN && dims[1] > 8)) {
+                    THROW_GNA_EXCEPTION << "unsupported batch number '" << (concatInput->getLayout() == InferenceEngine::Layout::NC ? dims[0] : dims[1])
+                                        <<
                         "' in layer '" << concatLayer->name << "'";
                 }
 
@@ -1311,8 +1318,7 @@ void ReorderConcatInputsPass::run() {
 
             auto linkOutData = std::make_shared<Data>(linkName,
                 TensorDesc(Precision::FP32,
-                    SizeVector({ 1 }),
-                    Layout::C));
+                    SizeVector({ 1 }), InferenceEngine::Layout::C));
             getCreatorLayer(linkOutData) = link;
 
             link->outData.push_back(linkOutData);
@@ -1339,7 +1345,7 @@ void InsertSplitAligningFilterPass::run() {
         }
 
         auto outFunctionalLayers = CNNNetGetAllNextLayersSkipCertain(l, -1, [](CNNLayerPtr next_layer) {
-            return GNAPluginNS::LayerInfo(next_layer).isNonFunctional();
+            return LayerInfo(next_layer).isNonFunctional();
         });
         size_t padding = 0;
         for (auto &&outFunctionalLayer : outFunctionalLayers) {
@@ -1386,16 +1392,16 @@ void InsertSplitAligningFilterPass::run() {
                     IE_ASSERT(filterLayer != nullptr);
 
                     // encodes offset to beginning of split layer input
-                    filterLayer->params["offset"] = std::to_string(aligned64_offset / GNALimitations::bytesPerSplitElement);
+                    filterLayer->params["offset"] = std::to_string(aligned64_offset / limitations::bytesPerSplitElement);
                     auto dims = splitOutput->getTensorDesc().getDims();
                     if (dims.size() > 3) {
                         THROW_GNA_EXCEPTION << "unsupported split layer dims size: " << dims.size();
                     }
 
-                    const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / GNALimitations::bytesPerSplitElement;
+                    const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / limitations::bytesPerSplitElement;
                     // TODO consider to use a different number of filters do decrese the number of trailing zeros (additionalPaddingOfFilter)
-                    const auto numberOfFilters = GNALimitations::convMinFiltersNum;
-                    const auto filterSize = ALIGN(offsetOfUnalignment + numberOfFilters, GNALimitations::convFilterSizeDivider);
+                    const auto numberOfFilters = limitations::convMinFiltersNum;
+                    const auto filterSize = ALIGN(offsetOfUnalignment + numberOfFilters, limitations::convFilterSizeDivider);
 
                     // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter + numberOfFilters)
                     // offsetOfUnalignment - the leading zeros in the filter
@@ -1423,7 +1429,7 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_weights = make_shared_blob<float>(TensorDesc(
                             inputData->getTensorDesc().getPrecision(),
                             SizeVector({filterWeights.size()}),
-                            Layout::C));
+                                                           InferenceEngine::Layout::C));
                     filterLayer->_weights->allocate();
                     CopyVectorToBlob(filterLayer->_weights, filterWeights);
 
@@ -1432,7 +1438,7 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_biases = make_shared_blob<float>(TensorDesc(
                         inputData->getTensorDesc().getPrecision(),
                         SizeVector({ biasWeights.size() }),
-                        Layout::C));
+                                                                              InferenceEngine::Layout::C));
                     filterLayer->_biases->allocate();
                     CopyVectorToBlob(filterLayer->_biases, biasWeights);
 
@@ -1451,7 +1457,7 @@ void InsertSplitAligningFilterPass::run() {
             }
 
             // search data that starts from unaligned location
-            currentOffset += outputSize * GNALimitations::bytesPerSplitElement;
+            currentOffset += outputSize * limitations::bytesPerSplitElement;
             splitOutIndex++;
         }
     }
@@ -1489,7 +1495,7 @@ void EltwiseSplitOverChannelsPass::run() {
         auto oData = l->outData.front();
         auto oDims = oData->getDims();
         auto totalElementsSize = details::product(std::begin(oDims), std::end(oDims));
-        if (totalElementsSize <= GNALimitations::bufferMaxSize) {
+        if (totalElementsSize <= limitations::bufferMaxSize) {
             continue;
         }
         auto splitSizesPerAxis = AlignedSplitSizesPerAxis(oDims);
@@ -1601,7 +1607,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
             dataDims = reshaped_data[insData->getName()];
         } else {
             dataDims = HasTo2DReshapeData(l) ?
-                Get2DReshapedData(insData, GNALimitations::GetMinBatchToFitInBuffer(insData), 8)->getDims() :
+                Get2DReshapedData(insData, limitations::GetMinBatchToFitInBuffer(insData), 8)->getDims() :
                 insData->getDims();
         }
 
@@ -1633,7 +1639,7 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         auto tensor = InferenceEngine::TensorDesc(insData->getTensorDesc());
-        tensor.reshape(SizeVector{ batchSize, nElements }, Layout::NC);
+        tensor.reshape(SizeVector{batchSize, nElements}, InferenceEngine::Layout::NC);
         auto reshapeName = scaleShift->name + "_input_" + std::to_string(0) + "_reshape";
         auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
         auto layer_before_scale_shift = getCreatorLayer(insData);
@@ -1948,7 +1954,7 @@ void FuseFQIntoWeightsPass::run() {
                 << LAYER_NAME(weightableLayer) << "\n";
 
             auto biases = weightableLayer->insData.size() == 3 ?
-                LayerUtils::getParamFromInputAsBlob(weightableLayer, biasesIdx) : nullptr;
+                layer_utils::getParamFromInputAsBlob(weightableLayer, biasesIdx) : nullptr;
             auto quantizedWeights = gnaFakeQuantizeLayer.getConstInputData();
 
             // 1. broke existing connections - by detaching fq subgraph from rest of graph
@@ -2031,7 +2037,8 @@ void FuseFQIntoWeightsPass::run() {
             transform->func_id = gnaFakeQuantizeLayer.parseAsActivation();
 
             auto quantizedWeightsData = quantizedWeights->buffer();
-            auto dequantizedWeights = make_shared_blob<float>(TensorDesc(Precision::FP32, { outputSize }, Layout::C));
+            auto dequantizedWeights =
+                make_shared_blob<float>(TensorDesc(Precision::FP32, {outputSize}, InferenceEngine::Layout::C));
             dequantizedWeights->allocate();
 
             auto resultBuffer = dequantizedWeights->buffer();
@@ -2163,8 +2170,8 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
-        if (!LayerInfo(prevLayer).isConst() && !common::fp32eq(inputRange.first.front(), outputRange.first.front()) &&
-            !common::fp32eq(inputRange.second.front(), outputRange.second.front())) {
+        if (!LayerInfo(prevLayer).isConst() && !AreFpEq(inputRange.first.front(), outputRange.first.front()) &&
+            !AreFpEq(inputRange.second.front(), outputRange.second.front())) {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported data range conversion. Input: (" <<
                 inputRange.first.front() << "," << inputRange.second.front() << "), output: (" <<
                 outputRange.first.front() << "," << outputRange.second.front() << ")";
@@ -2459,3 +2466,6 @@ int PassManager::run(int index) {
     }
     return index;
 }
+
+}  // namespace intel_gna
+}  // namespace ov

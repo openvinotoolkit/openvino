@@ -35,6 +35,10 @@ benchmark_app -m model.xml -hint latency
 benchmark_app -m model.xml -hint throughput
 ```
 
+> **NOTE**
+It is up to the user to ensure the environment on which the benchmark is running is optimized for maximum performance.
+Otherwise, different results may occur when using the application in different environment settings (such as power optimization settings, processor overclocking, thermal throttling).
+
 #### Latency
 Latency is the amount of time it takes to process a single inference request. In applications where data needs to be inferenced and acted on as quickly as possible (such as autonomous driving), low latency is desirable. For conventional devices, lower latency is achieved by reducing the amount of parallel processing streams so the system can utilize as many resources as possible to quickly calculate each inference request. However, advanced devices like multi-socket CPUs and modern GPUs are capable of running multiple inference requests while delivering the same latency.
 
@@ -49,7 +53,7 @@ For more information on performance hints, see the [High-level Performance Hints
 
 
 ### Device
-To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and "MYRIAD" (also known as [VPU](../../docs/OV_Runtime_UG/supported_plugins/VPU.md)) devices. In order to use the GPU or VPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
+To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and GNA devices. In order to use the GPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
 
 For example, to run benchmarking on GPU, use:
 
@@ -108,7 +112,7 @@ usage: benchmark_app.py [-h [HELP]] [-i PATHS_TO_INPUT [PATHS_TO_INPUT ...]] -m 
                         [-pin {YES,NO,NUMA,HYBRID_AWARE}] [-exec_graph_path EXEC_GRAPH_PATH] [-pc [PERF_COUNTS]] [-pcsort {no_sort,sort,simple_sort}] [-pcseq [PCSEQ]]
                         [-inference_only [INFERENCE_ONLY]] [-report_type {no_counters,average_counters,detailed_counters}] [-report_folder REPORT_FOLDER] [-dump_config DUMP_CONFIG]
                         [-load_config LOAD_CONFIG] [-infer_precision INFER_PRECISION] [-ip {u8,U8,f16,FP16,f32,FP32}] [-op {u8,U8,f16,FP16,f32,FP32}] [-iop INPUT_OUTPUT_PRECISION]
-                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [-iscale INPUT_SCALE] [-imean INPUT_MEAN]
+                        [-cdir CACHE_DIR] [-lfile [LOAD_FROM_FILE]] [--mean_values [R,G,B]] [--scale_values [R,G,B]]
 
 Options:
   -h [HELP], --help [HELP]
@@ -147,7 +151,7 @@ Options:
                         shape for input tensors. For example, "input1[1,3,224,224][1,3,448,448],input2[1,4][1,8]" or "[1,3,224,224][1,3,448,448] in case of one input size.
   -layout LAYOUT        Optional. Prompts how model layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
-                        Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
+                        Optional. Number of streams to use for inference on the CPU/GPU (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just
                         <nstreams>). Default value is determined automatically for a device. Please note that although the automatic selection usually provides a reasonable performance, it
                         still may be non - optimal for some cases, especially for very small models. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency
                         estimations the number of streams should be set to 1. See samples README for more details.
@@ -214,12 +218,16 @@ Options:
                         Optional. Enable model caching to specified directory
   -lfile [LOAD_FROM_FILE], --load_from_file [LOAD_FROM_FILE]
                         Optional. Loads model from file directly without read_model.
-  -iscale INPUT_SCALE, --input_scale INPUT_SCALE
-                        Optional. Scale values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model.
-                        Example: -iscale data[255,255,255],info[255,255,255]
-  -imean INPUT_MEAN, --input_mean INPUT_MEAN
-                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R, G, B] format. Can be defined for desired input of the model. Example:
-                        -imean data[255,255,255],info[255,255,255]
+  --mean_values [R,G,B]
+                        Optional. Mean values to be used for the input image per channel. Values to be provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--mean_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. Applying the values affects performance and may cause type conversion
+
+  --scale_values [R,G,B]
+                        Optional. Scale values to be used for the input image per channel. Values are provided in the [R,G,B] format. Can be defined for desired input
+                        of the model, for example: "--scale_values data[255,255,255],info[255,255,255]". The exact meaning and order of channels depend on how the
+                        original model was trained. If both --mean_values and --scale_values are specified, the mean is subtracted first and then scale is applied
+                        regardless of the order of options in command line. Applying the values affects performance and may cause type conversion
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.
