@@ -71,11 +71,11 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.10.9'
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.10.9
     name: setupPython
 
   - script: |
