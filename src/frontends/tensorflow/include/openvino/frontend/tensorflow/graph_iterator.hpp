@@ -10,9 +10,10 @@
 
 namespace ov {
 namespace frontend {
+namespace tensorflow {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
-class FRONTEND_API GraphIterator : ov::RuntimeAttribute {
+class TENSORFLOW_API GraphIterator : ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("Variant::GraphIterator");
 
@@ -47,5 +48,6 @@ public:
     virtual std::vector<std::string> get_output_names() const = 0;
 };
 
+}  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

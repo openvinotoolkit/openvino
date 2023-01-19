@@ -73,7 +73,7 @@ public:
     virtual const std::string& get_op_name() const = 0;
 
     /// \brief Destructor
-    virtual ~DecoderBase() = default;
+    virtual ~DecoderBase();
 };
 
 }  // namespace frontend
