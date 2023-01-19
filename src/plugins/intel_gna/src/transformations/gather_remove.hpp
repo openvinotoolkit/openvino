@@ -15,10 +15,10 @@ namespace pass {
 class GatherRemove : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr) : m_subgraph_cpu_map(subgraph_cpu_map) {}
+    GatherRemove(ov::intel_gna::SubgraphCPUMap * subgraph_cpu_map = nullptr) : m_subgraph_cpu_map(subgraph_cpu_map) {}
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;
 private:
-    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
+    ov::intel_gna::SubgraphCPUMap * m_subgraph_cpu_map;
 };
 
 } // namespace pass

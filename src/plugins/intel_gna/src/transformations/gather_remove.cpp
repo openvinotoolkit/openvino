@@ -18,7 +18,6 @@
 
 using namespace ov;
 using namespace ov::intel_gna::pass;
-using namespace GNAPluginNS;
 
 using NodePtr = std::shared_ptr<ngraph::Node>;
 using Function = std::shared_ptr<ngraph::Function>;
@@ -47,17 +46,17 @@ void SwapNames(NodePtr1 node1, NodePtr2 node2) {
 class GatherResultRemove : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherResultRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr);
+    GatherResultRemove(ov::intel_gna::SubgraphCPUMap * subgraph_cpu_map = nullptr);
 private:
-    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
+    ov::intel_gna::SubgraphCPUMap * m_subgraph_cpu_map;
 };
 
 class GatherParamsRemove : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    GatherParamsRemove(GNAPluginNS::SubgraphCPUMap * subgraph_cpu_map = nullptr);
+    GatherParamsRemove(ov::intel_gna::SubgraphCPUMap * subgraph_cpu_map = nullptr);
 private:
-    GNAPluginNS::SubgraphCPUMap * m_subgraph_cpu_map;
+    ov::intel_gna::SubgraphCPUMap * m_subgraph_cpu_map;
 };
 
 } // namespace
