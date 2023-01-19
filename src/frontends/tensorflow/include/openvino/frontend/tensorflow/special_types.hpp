@@ -3,6 +3,7 @@
 //
 
 #pragma once
+
 #include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {

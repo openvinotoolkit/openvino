@@ -8,4 +8,4 @@ ov_add_frontend(NAME tensorflow
                 LINK_LIBRARIES openvino::util openvino::runtime::dev)
 
 set(TARGET_NAME "${FRONTEND_NAME_PREFIX}tensorflow${FRONTEND_NAME_SUFFIX}")
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::tensorflow_common::dev)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::frontend::tensorflow_common)
