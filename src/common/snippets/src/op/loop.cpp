@@ -171,7 +171,6 @@ void LoopEnd::validate_and_infer_types() {
     if (finalization_offsets.empty())
         finalization_offsets.resize(loop_io_size, 0);
     set_output_size(num_inputs - 1);
-    const auto& ins = inputs();
     // All outputs are by-passed from inputs, except for the last one - it connects LoopBegin and LoopEnd
     for (int i = 0; i < num_inputs - 1; i++)
         get_output_descriptor(i).set_tensor_ptr(get_input_descriptor(i).get_output().get_tensor_ptr());
