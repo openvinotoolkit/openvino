@@ -37,24 +37,25 @@ struct CPU {
             return;
         }
 
+        _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
+
         parse_processor_info_win(base_ptr, len, _processors, _sockets, _cores, _proc_type_table, _cpu_mapping_table);
     }
 };
 static CPU cpu;
 
-void parse_processor_info_win(char* base_ptr,
-                              unsigned long len,
-                              int& _processors,
+void parse_processor_info_win(const char* base_ptr,
+                              const unsigned long len,
+                              const int _processors,
                               int& _sockets,
                               int& _cores,
                               std::vector<std::vector<int>>& _proc_type_table,
                               std::vector<std::vector<int>>& _cpu_mapping_table) {
-    _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
     _cpu_mapping_table.resize(_processors, std::vector<int>(CPU_MAP_USED_FLAG + 1, -1));
 
     std::vector<int> list;
 
-    char* info_ptr = base_ptr;
+    char* info_ptr = (char*)base_ptr;
     int list_len = 0;
     int base_proc = 0;
     int mask_len = 0;
