@@ -1,47 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/reshape_dims.cl"
-#include "include/batch_headers/fetch_data.cl"
+#include "include/fetch_utils.cl"
 
-#include "include/batch_headers/data_types.cl"
 #include "include/image_data.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
 
-///////////////////////// Input Index /////////////////////////
-inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if INPUT0_DIMS < 5
-    return INPUT0_GET_INDEX(b, f, y, x);
-#elif INPUT0_DIMS == 5
-    return INPUT0_GET_INDEX(b, f, z, y, x);
-#elif INPUT0_SIMPLE && INPUT0_DIMS == 6
-    return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
-#else
-#error reorder_data.cl: input format - not supported
-#endif
-}
-
-///////////////////////// Output Index /////////////////////////
-
-inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
-{
-#if OUTPUT_DIMS < 5
-    return OUTPUT_GET_INDEX(b, f, y, x);
-#elif OUTPUT_DIMS == 5
-    return OUTPUT_GET_INDEX(b, f, z, y, x);
-#elif OUTPUT_SIMPLE && OUTPUT_DIMS == 6
-    return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
-#else
-#error reorder_data.cl: output format - not supported
-#endif
-}
-
 KERNEL (reorder_data)(
-#if INPUT0_LAYOUT_NV12 || INPUT0_LAYOUT_IMAGE_2D_RGBA
+    OPTIONAL_SHAPE_INFO_ARG
+#if INPUT0_LAYOUT_NV12 || INPUT0_LAYOUT_IMAGE_2D_RGBA || SURFACE_INPUT
     read_only image2d_t input,
 #else
     const __global INPUT_REORDER_TYPE* input,
@@ -89,7 +60,7 @@ KERNEL (reorder_data)(
     const uint w = gid_yx / INPUT0_SIZE_X / INPUT0_SIZE_Y / INPUT0_SIZE_Z % INPUT0_SIZE_W;
 #endif
 
-#if defined INPUT0_LAYOUT_NV12
+#if defined INPUT0_LAYOUT_NV12 && !SURFACE_INPUT
     const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_FILTER_NEAREST | CLK_ADDRESS_CLAMP;
     float4 colorVYU = read_imagef(input, sampler, (int2)(x, y));
 
@@ -105,19 +76,19 @@ KERNEL (reorder_data)(
     OUTPUT_TYPE4 colorRGBA = IMAGE_READ(input, (int2)(x, y));
 #elif defined OUTPUT_LAYOUT_IMAGE_2D_RGBA
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, w, z, y, x);
-    const uint input_idx_R  = FUNC_CALL(get_input_index)(b, 0, w, z, y, x);
-    const uint input_idx_G  = FUNC_CALL(get_input_index)(b, 1, w, z, y, x);
-    const uint input_idx_B  = FUNC_CALL(get_input_index)(b, 2, w, z, y, x);
+    const uint input_idx_R  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 0, w, z, y, x);
+    const uint input_idx_G  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 1, w, z, y, x);
+    const uint input_idx_B  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 2, w, z, y, x);
 #if OUTPUT_FEATURE_NUM == 3
     INPUT_TYPE4 colorRGBA = { TO_INPUT_REORDER_TYPE(input[input_idx_R]), TO_INPUT_REORDER_TYPE(input[input_idx_G]), TO_INPUT_REORDER_TYPE(input[input_idx_B]), TO_INPUT_REORDER_TYPE(0.f) };
 #else
-    const uint input_idx_A  = FUNC_CALL(get_input_index)(b, 3, w, z, y, x);
+    const uint input_idx_A  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, 3, w, z, y, x);
     INPUT_TYPE4 colorRGBA = { TO_INPUT_REORDER_TYPE(input[input_idx_R]), TO_INPUT_REORDER_TYPE(input[input_idx_G]), TO_INPUT_REORDER_TYPE(input[input_idx_B]), TO_INPUT_REORDER_TYPE(input[input_idx_A]) };
 #endif
 #else
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, w, z, y, x);
-    const uint input_idx  = FUNC_CALL(get_input_index)(b, f, w, z, y, x);
-    const uint output_idx = FUNC_CALL(get_output_index)(ov[1],ov[2],ov[3],ov[4], ov[5], ov[6]);
+    const uint input_idx  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
+    const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1,ov.s2,ov.s3,ov.s4,ov.s5,ov.s6);
 
 #if defined MEAN_SUBTRACT_INSIDE_PARAMS
     float res = TO_MEAN_TYPE(input[input_idx]);
@@ -130,43 +101,51 @@ KERNEL (reorder_data)(
     // TODO Add support for 6D mean
     MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, w, z, y, x);
-    res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], /*msv[3], msv[4],*/ msv[5], msv[6])]);
+    res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv.s1, msv.s2, /*msv.s3, msv.s4,*/ msv.s5, msv.s6)]);
 #endif
+#elif SURFACE_INPUT
+    float4 Y = read_imagef(input, (int2)(x, y));
+    float Ycomponent = mad(Y.x, 296.82f, -18.624f);
+    float res = clamp(Ycomponent, 0.f, 255.f);
 #else
     CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
 #endif
 #endif
 
-#if defined INPUT0_LAYOUT_NV12
+#if defined INPUT0_LAYOUT_NV12 && !SURFACE_INPUT
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
-    uint output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(R), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(G), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
 #elif INPUT0_LAYOUT_IMAGE_2D_RGBA
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
-    uint output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s0), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s1), NL_M, NL_N);
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s2), NL_M, NL_N);
 #if INPUT0_FEATURE_NUM == 4
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 3, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
+    output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s3), NL_M, NL_N);
 #endif
 #elif OUTPUT_LAYOUT_IMAGE_2D_RGBA
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
 #if INPUT0_IS_FP && !OUTPUT_IS_FP
+#if CONVERT_TRUNCATE
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(convert_long(res)), ACTIVATION_PARAMS_TYPED);
+#else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+#endif
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif

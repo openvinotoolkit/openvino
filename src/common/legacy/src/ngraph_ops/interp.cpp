@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::Interp);
-BWDCMP_RTTI_DEFINITION(op::ResampleV2);
 
 op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs)
     : Op({image}), m_attrs(attrs) {

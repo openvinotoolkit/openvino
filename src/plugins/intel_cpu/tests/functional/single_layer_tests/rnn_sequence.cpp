@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -161,8 +161,6 @@ protected:
 };
 
 TEST_P(RNNSequenceCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
@@ -253,7 +251,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
       { {1, 1, 10},                                      // Dynamic shape 1
         { {1, 1, 10}, {1, 1, 10}, {1, 1, 10} } },        // Target shapes
-      { {-1},                                             // Dynamic shape 2
+      { {-1},                                            // Dynamic shape 2
         { {1}, {1}, {1} } } },                           // Target shapes
     { { {-1, -1, -1},                                    // #5. Dynamic shape 0
         { {1, 2, 10}, {1, 4, 10}, {1, 8, 10} } },        // Target shapes
@@ -262,13 +260,17 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {-1},                                            // Dynamic shape 2
         { {1}, {1}, {1} } } },                           // Target shapes
     { { {7, {1, 5}, 10},                                 // #6. Dynamic shape 0
-        { {7, 2, 10}, {7, 3, 10}, {7, 4, 10} } },        // Target shapes
+        { {7, 2, 10}, {7, 3, 10}, {7, 5, 10}} },         // Target shapes
       { {7, 1, 1},                                       // Dynamic shape 1
-        { {7, 1, 1}, {7, 1, 1}, {7, 1, 1} } } },         // Target shapes
+        { {7, 1, 1}, {7, 1, 1}, {7, 1, 1} } },           // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {7}, {7}, {7}} }},                             // Target shapes
     { { {5, -1, 10},                                     // #7. Dynamic shape 0
         { {5, 2, 10}, {5, 4, 10}, {5, 5, 10} } },        // Target shapes
       { {5, 1, 10},                                      // Dynamic shape 1
-        { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } } },      // Target shapes
+        { {5, 1, 10}, {5, 1, 10}, {5, 1, 10} } },        // Target shapes
+      { {-1},                                            // Dynamic shape 2
+        { {5}, {5}, {5} } }},                            // Target shapes
     { { {{0, 11}, -1, 10},                               // #8. Dynamic shape 0
         { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },   // Target shapes
       { {-1, 1, 10},                                     // Dynamic shape 1

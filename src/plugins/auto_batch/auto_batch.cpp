@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -645,10 +645,13 @@ InferenceEngine::Parameter AutoBatchExecutableNetwork::GetMetric(const std::stri
                              {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
                               METRIC_KEY(SUPPORTED_METRICS),
                               METRIC_KEY(NETWORK_NAME),
-                              METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+                              METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+                              ov::execution_devices.name()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS,
                              {CONFIG_KEY(AUTO_BATCH_TIMEOUT)});  // only timeout can be changed on the fly
+    } else if (name == ov::execution_devices) {
+        return _networkWithoutBatch->GetMetric(name);
     } else {
         IE_THROW() << "Unsupported Network metric: " << name;
     }

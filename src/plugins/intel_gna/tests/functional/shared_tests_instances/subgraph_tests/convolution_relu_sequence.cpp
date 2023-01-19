@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,10 @@ using namespace SubgraphTestsDefinitions;
 
 namespace {
 
-class GnaConvolutionReluSequenceTest : public ConvolutionReluSequenceTest, GnaLayerTestCheck {
+class GnaConvolutionReluSequenceTest : public ConvolutionReluSequenceTest {
 protected:
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            ConvolutionReluSequenceTest::Run();
-        }
+        ConvolutionReluSequenceTest::Run();
     }
 
     void SetUp() override {

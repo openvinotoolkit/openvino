@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
 
     constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
-    explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator() {}
+    explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp) : jit_uni_def_conv_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -342,10 +342,10 @@ private:
                         size_t ind_off_lh = ind_off_hl + 1;
                         size_t ind_off_ll = ind_off_lh + 1;
 
-                        uni_vmovq(xmm_v1_off, qword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
-                        uni_vmovq(xmm_v2_off, qword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
-                        uni_vmovq(xmm_v3_off, qword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
-                        uni_vmovq(xmm_v4_off, qword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v1_off, dword[aux_reg_sampled_offs + ind_off_ll * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v2_off, dword[aux_reg_sampled_offs + ind_off_hl * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v3_off, dword[aux_reg_sampled_offs + ind_off_lh * jcp_.typesize_sampled_offsets]);
+                        uni_vmovd(xmm_v4_off, dword[aux_reg_sampled_offs + ind_off_hh * jcp_.typesize_sampled_offsets]);
 
                         // w's computation
                         uni_vbroadcastss(vmm_w1, dword[aux_reg_sampled_wei + ind_off_ll * jcp_.typesize_sampled_wei]);
@@ -740,8 +740,8 @@ bool DefConvKey::operator==(const DefConvKey &rhs) const {
 
 } // namespace
 
-DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op,
-        const dnnl::engine& eng, WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+DeformableConvolution::DeformableConvolution(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1221,7 +1221,7 @@ void DeformableConvolution::prepareParams() {
 
     execPtr = nullptr;
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, [] (const DefConvKey& key) -> std::shared_ptr<DefConvExecutor> {
         if (key.implType == impl_desc_type::ref) {
             return std::make_shared<DefConvRefExecutor>(key.defConvAttr, key.descVector);

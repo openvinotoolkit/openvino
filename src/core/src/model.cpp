@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,6 @@
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
 
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
@@ -88,10 +86,6 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
 }
 
 }  // namespace
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-const ov::DiscreteTypeInfo ov::Model::type_info = ov::Model::get_type_info_static();
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::Model::Model(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -1022,7 +1016,7 @@ const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
+    throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
@@ -1038,7 +1032,7 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    throw ov::Exception("Cannot get rt attribute. Keys are incorrect.");
+    throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 const ov::Any& ov::Model::get_attr(const ov::Any& info) const {

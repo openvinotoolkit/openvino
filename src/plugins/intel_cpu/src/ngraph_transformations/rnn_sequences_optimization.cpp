@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,9 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
+#include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
 
@@ -147,7 +148,7 @@ ov::intel_cpu::OptimizeLSTMSequenceTransposes::OptimizeLSTMSequenceTransposes() 
 }
 
 ov::intel_cpu::OptimizeSequenceTransposes::OptimizeSequenceTransposes() {
-    add_matcher<OptimizeLSTMSequenceTransposes>();
-    add_matcher<OptimizeRNNSequenceTransposes>();
-    add_matcher<OptimizeGRUSequenceTransposes>();
+    ADD_MATCHER_FOR_THIS(OptimizeLSTMSequenceTransposes)
+    ADD_MATCHER_FOR_THIS(OptimizeRNNSequenceTransposes)
+    ADD_MATCHER_FOR_THIS(OptimizeGRUSequenceTransposes)
 }

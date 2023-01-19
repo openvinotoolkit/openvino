@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <mutex>
@@ -39,12 +39,20 @@ protected:
         output_tensor = nullptr;
         compiled_model = nullptr;
         infer_request = nullptr;
+        input_const_port = nullptr;
+        input_port = nullptr;
 
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
         OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
         EXPECT_NE(nullptr, model);
+
+        OV_EXPECT_OK(ov_model_const_input(model, &input_const_port));
+        EXPECT_NE(nullptr, input_const_port);
+
+        OV_EXPECT_OK(ov_model_input(model, &input_port));
+        EXPECT_NE(nullptr, input_port);
 
         ov_shape_t tensor_shape = {0, nullptr};
         ov_element_type_e tensor_type;
@@ -64,6 +72,8 @@ protected:
     void TearDown() override {
         ov_tensor_free(input_tensor);
         ov_tensor_free(output_tensor);
+        ov_output_const_port_free(input_const_port);
+        ov_output_port_free(input_port);
         ov_free(in_tensor_name);
         ov_infer_request_free(infer_request);
         ov_compiled_model_free(compiled_model);
@@ -79,6 +89,8 @@ public:
     char* in_tensor_name;
     ov_tensor_t* input_tensor;
     ov_tensor_t* output_tensor;
+    ov_output_const_port_t* input_const_port;
+    ov_output_port_t* input_port;
     static std::mutex m;
     static bool ready;
     static std::condition_variable condVar;
@@ -195,6 +207,14 @@ TEST_P(ov_infer_request, set_input_tensor_by_index) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
 }
 
+TEST_P(ov_infer_request, set_tensor_by_port) {
+    OV_EXPECT_OK(ov_infer_request_set_tensor_by_port(infer_request, input_port, input_tensor));
+}
+
+TEST_P(ov_infer_request, set_tensor_by_const_port) {
+    OV_EXPECT_OK(ov_infer_request_set_tensor_by_const_port(infer_request, input_const_port, input_tensor));
+}
+
 TEST_P(ov_infer_request, set_input_tensor) {
     OV_EXPECT_OK(ov_infer_request_set_input_tensor(infer_request, input_tensor));
 }
@@ -224,6 +244,14 @@ TEST_P(ov_infer_request, get_tensor) {
 
 TEST_P(ov_infer_request, get_input_tensor_by_index) {
     OV_EXPECT_OK(ov_infer_request_get_input_tensor_by_index(infer_request, 0, &output_tensor));
+}
+
+TEST_P(ov_infer_request, get_tensor_by_const_port) {
+    OV_EXPECT_OK(ov_infer_request_get_tensor_by_const_port(infer_request, input_const_port, &output_tensor));
+}
+
+TEST_P(ov_infer_request, get_tensor_by_port) {
+    OV_EXPECT_OK(ov_infer_request_get_tensor_by_port(infer_request, input_port, &output_tensor));
 }
 
 TEST_P(ov_infer_request, get_input_tensor) {
@@ -287,6 +315,19 @@ TEST_P(ov_infer_request, infer_async) {
 
     if (!HasFatalFailure()) {
         OV_EXPECT_OK(ov_infer_request_wait(infer_request));
+
+        OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
+        EXPECT_NE(nullptr, output_tensor);
+    }
+}
+
+TEST_P(ov_infer_request, infer_async_wait_for) {
+    OV_EXPECT_OK(ov_infer_request_set_input_tensor_by_index(infer_request, 0, input_tensor));
+
+    OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
+
+    if (!HasFatalFailure()) {
+        OV_EXPECT_OK(ov_infer_request_wait_for(infer_request, 10));
 
         OV_EXPECT_OK(ov_infer_request_get_output_tensor_by_index(infer_request, 0, &output_tensor));
         EXPECT_NE(nullptr, output_tensor);

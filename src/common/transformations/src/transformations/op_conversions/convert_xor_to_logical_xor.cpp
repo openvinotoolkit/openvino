@@ -1,0 +1,38 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
+
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset10.hpp>
+
+#include "itt.hpp"
+
+ov::pass::ConvertXorToLogicalXor::ConvertXorToLogicalXor() {
+    MATCHER_SCOPE(ConvertXorToLogicalXor);
+
+    auto xor_v1 = pattern::wrap_type<ov::opset1::Xor>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto xor_v1_node = std::dynamic_pointer_cast<ov::opset1::Xor>(m.get_match_root());
+        if (!xor_v1_node)
+            return false;
+
+        const auto& autobroad = xor_v1_node->get_autob();
+
+        auto logical_xor_v10 = std::make_shared<ov::opset10::LogicalXor>(xor_v1_node->input_value(0),
+                                                                         xor_v1_node->input_value(1),
+                                                                         autobroad);
+        logical_xor_v10->set_friendly_name(xor_v1_node->get_friendly_name());
+        ov::copy_runtime_info(xor_v1_node, logical_xor_v10);
+        ov::replace_node(xor_v1_node, logical_xor_v10);
+
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(xor_v1, matcher_name);
+    register_matcher(m, callback);
+}

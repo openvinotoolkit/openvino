@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "base_reference_cnn_test.hpp"
@@ -109,7 +109,7 @@ void ReferenceCNNTest::Validate() {
         outputs_legacy.emplace_back(element::f32, result->get_shape(), outData);
     }
     for (size_t i = 0; i < outputs_legacy.size(); i++) {
-        CommonReferenceTest::ValidateBlobs(outputs_legacy[i], outputs_ov20[i], threshold, abs_threshold);
+        CommonReferenceTest::ValidateBlobs(outputs_legacy[i], outputs_ov20[i], i, threshold, abs_threshold);
     }
 }
 

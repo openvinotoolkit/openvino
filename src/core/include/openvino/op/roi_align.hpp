@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v3 {
 class OPENVINO_API ROIAlign : public Op {
 public:
     OPENVINO_OP("ROIAlign", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     enum class PoolingMode { AVG, MAX };
 
     ROIAlign() = default;
@@ -161,7 +160,6 @@ public:
         : EnumAttributeAdapterBase<op::v3::ROIAlign::PoolingMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 std::ostream& operator<<(std::ostream& s, const op::v9::ROIAlign::PoolingMode& mode);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from ngraph.opset1.ops import absolute
@@ -75,6 +75,7 @@ from ngraph.opset7.ops import idft
 from ngraph.opset8.ops import if_op
 from ngraph.opset10.ops import interpolate
 from ngraph.opset9.ops import irdft
+from ngraph.opset10.ops import is_finite
 from ngraph.opset10.ops import is_inf
 from ngraph.opset10.ops import is_nan
 from ngraph.opset8.ops import i420_to_bgr
@@ -171,5 +172,6 @@ from ngraph.opset1.ops import tensor_iterator
 from ngraph.opset1.ops import tile
 from ngraph.opset3.ops import topk
 from ngraph.opset1.ops import transpose
+from ngraph.opset10.ops import unique
 from ngraph.opset1.ops import unsqueeze
 from ngraph.opset1.ops import variadic_split

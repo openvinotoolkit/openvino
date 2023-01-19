@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,10 @@ namespace intel_gpu {
 
 static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
-
-    int64_t rank = op->get_input_partial_shape(0).size();
+    auto input_pshape = op->get_input_partial_shape(0);
+    int64_t rank = input_pshape.size();
 
     auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
     if (!axes_constant) {
@@ -45,12 +45,16 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
     }
 
     auto reducePrim = cldnn::reduce(layerName,
-                                    inputPrimitives[0],
+                                    inputs[0],
                                     mode,
                                     axes,
                                     keep_dims);
 
     p.add_primitive(*op, reducePrim);
+
+    if (input_pshape.is_dynamic() || p.use_new_shape_infer()) {
+        return;
+    }
 
     auto resultLayerName = layerName;
     auto out_dims = op->get_output_shape(0).size();
@@ -69,7 +73,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
                 outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
                                           1, TensorValue(out_shape[2]));
         }
-        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor);
+        auto reshape_prim = cldnn::reshape(resultLayerName, cldnn::input_info(layerName), outTensor);
         p.add_primitive(*op, reshape_prim);
     }
 
@@ -85,7 +89,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
             out_format = cldnn::format::bfyx;
 
         auto reorder_prim = cldnn::reorder(reorderLayerName,
-                                           resultLayerName,
+                                           cldnn::input_info(resultLayerName),
                                            out_format,
                                            out_dt,
                                            std::vector<float>(),

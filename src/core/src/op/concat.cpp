@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Concat);
 
 op::Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -150,6 +148,6 @@ bool op::Concat::evaluate_label(TensorLabelVector& output_labels) const {
 
     const auto& output_tensor = std::make_shared<HostTensor>(element::u64, get_output_shape(0));
     evaluate({output_tensor}, idx_inputs);
-    output_labels[0] = std::make_shared<Constant>(output_tensor)->cast_vector<size_t>();
+    output_labels[0] = std::make_shared<Constant>(output_tensor)->cast_vector<ov::label_t>();
     return true;
 }

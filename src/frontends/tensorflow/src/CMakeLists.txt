@@ -1,29 +1,11 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ie_add_compiler_flags(/wd4244)
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4267)
-endif()
-
-if(NOT CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
-    set(linkable_frontend LINKABLE_FRONTEND)
-endif()
-
 ov_add_frontend(NAME tensorflow
-                ${linkable_frontend}
+                LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
                 LINK_LIBRARIES openvino::util openvino::runtime::dev)
-
-# give a different name during installation to OpenVINO package
-set(target_name "${FRONTEND_NAME_PREFIX}tensorflow${FRONTEND_NAME_SUFFIX}")
-set_target_properties(${target_name} PROPERTIES OUTPUT_NAME openvino_tensorflow_fe)
-
-if(NOT TARGET openvino::frontend::tensorflow)
-    add_library(openvino::frontend::tensorflow ALIAS ${target_name})
-endif()
 
 # add object library used in tests for private transformations
 
@@ -31,7 +13,6 @@ add_library(openvino_tensorflow_frontend_static_tests STATIC EXCLUDE_FROM_ALL
     helper_transforms/block_lstm_replacer.cpp
     helper_transforms/embedding_segments_feature_fusing.cpp
     helper_transforms/gru_block_cell_replacer.cpp
-    helper_transforms/unique_replacer.cpp
     pass/transpose_sinking.cpp
     exception.cpp
     openvino_conversions.cpp

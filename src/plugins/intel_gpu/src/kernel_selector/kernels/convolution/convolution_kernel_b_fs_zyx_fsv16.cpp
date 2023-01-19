@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@ namespace kernel_selector {
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
 
+namespace {
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
                                                         bool is_vector) {
     std::vector<std::string> idx_order;
@@ -62,6 +63,7 @@ FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, 
              FusedOpsConfiguration::IndexType::TENSOR_COORD,
              Tensor::DataChannelName::BATCH };
 }
+}  // namespace
 
 ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     ParamsKey k;
@@ -82,11 +84,15 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableSplitSupport();
     k.EnableBatching();
-    k.EnableSubGroup();
-    k.EnableSubGroupShort();
     k.EnableGroupedConvolution();
+    return k;
+}
+
+DeviceFeaturesKey ConvolutionKernel_b_fs_zyx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
     return k;
 }
 
@@ -323,7 +329,6 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     jit.AddConstant(MakeJitConstant("DW", params.dilation.x - 1));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("FWD_DATA", 1));
-    jit.AddConstant(MakeJitConstant("IS_DW", "DEPTHWISE_SEPARABLE_OPT"));
     jit.AddConstant(MakeJitConstant("WITH_BIAS", "BIAS_TERM"));
 
     if (is_1stconv || params.groups > 1) {

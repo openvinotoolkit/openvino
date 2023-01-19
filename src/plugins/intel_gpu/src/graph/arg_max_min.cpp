@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,10 @@
 #include <string>
 #include <limits>
 
+#include "topk_shape_inference.hpp"
+
 namespace cldnn {
-primitive_type_id arg_max_min::type_id() {
-    static primitive_type_base<arg_max_min> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(arg_max_min)
 
 layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<arg_max_min>();
@@ -22,11 +21,11 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     bool values_first = desc->values_first;
     data_types output_data_type;
     data_types output_idx_type;
-    output_data_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    output_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.input_layouts.size() == 3) {
         output_idx_type = impl_param.get_input_layout(2).data_type;
     } else {
-        output_idx_type = *(desc->output_data_type);
+        output_idx_type = *(desc->output_data_types[0]);
     }
     auto size_check = [&](size_t tensor_size) {
         if (desc->input.size() == 1 && values_first)
@@ -67,6 +66,41 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
     sizes[desc->axis] = desc->top_k;
     return layout{output_data_type, format, tensor(format::get_default_format(input_layout.get_rank()), sizes)};
 }
+
+template<typename ShapeType>
+std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const& /*node*/, const kernel_impl_params& impl_param) {
+    std::vector<layout> layouts;
+
+    auto desc = impl_param.typed_desc<arg_max_min>();
+    auto input_layout = impl_param.get_input_layout();
+
+    ov::op::v1::TopK op;
+    op.set_axis(input_layout.get<ShapeType>().rank(), desc->axis);
+    op.set_mode(desc->mode);
+    op.set_sort_type(desc->sort);
+
+    std::vector<ShapeType> output_shapes = { ShapeType{}, ShapeType{} };
+    std::vector<ShapeType> input_shapes = {
+        input_layout.get<ShapeType>(),
+        ShapeType{}
+    };
+
+    int64_t top_k = desc->top_k;
+
+    auto top_k_tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::i64, ov::Shape{1}, static_cast<void*>(&top_k));
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
+        {1, top_k_tensor}
+    };
+    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+
+    for (size_t i = 0; i < desc->num_outputs; ++i) {
+        auto dt = desc->output_data_types[i].value_or(input_layout.data_type);
+        layouts.push_back({output_shapes[i], dt, format::get_default_format(output_shapes[i].size())});
+    }
+    return layouts;
+}
+
+template std::vector<layout> arg_max_min_inst::calc_output_layouts<ov::PartialShape>(arg_max_min_node const& node, const kernel_impl_params& impl_param);
 
 std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {
     auto desc = node.get_primitive();

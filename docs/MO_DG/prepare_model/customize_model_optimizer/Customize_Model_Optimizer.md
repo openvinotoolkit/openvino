@@ -256,10 +256,8 @@ There are several middle transformations responsible for changing model layout f
 
 This layout change is disabled automatically if the model does not have operations that OpenVINO&trade needs to execute in the NCHW layout, for example, Convolutions in NHWC layout.
 
-It is still possible to force Model Optimizer to do a layout change, using `--disable_nhwc_to_nchw` command-line parameter, although it is not advised.
 
-
-Layout change is a complex problem and will be addressed here very briefly. For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
+For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
 
 1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five
 dimensional) tensors as if they were in NHWC layout to NCHW layout: `nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]` for
@@ -270,9 +268,12 @@ calculation in order to perform shape calculation in a correct layout.
 3. Model Optimizer inserts [Transpose](../../../ops/movement/Transpose_1.md) operations for some operations with
 specific conditions, identified during a model conversion, to produce correct inference results.
 
-The list of main transformations responsible for a layout change are: `extensions/middle/ApplyPermutations.py`,
-`extensions/middle/InsertLayoutPropagationTransposes.py`, `extensions/middle/MarkSubgraphsWithCorrectLayout.py`,
-`extensions/middle/ApplyNHWCtoNCHWpermutation.py` and `extensions/middle/LayoutChangeForConstantShapePaths.py`.
+The main transformations responsible for a layout change are: 
+* `extensions/middle/ApplyPermutations.py`
+* `extensions/middle/InsertLayoutPropagationTransposes.py`
+* `extensions/middle/MarkSubgraphsWithCorrectLayout.py`
+* `extensions/middle/ApplyNHWCtoNCHWpermutation.py`
+* `extensions/middle/LayoutChangeForConstantShapePaths.py`
 
 ### Back Phase <a name="back-phase"></a>
 The back phase starts after the layout change to NCHW. This phase contains mostly the following transformations:

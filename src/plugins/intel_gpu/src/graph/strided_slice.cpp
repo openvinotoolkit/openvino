@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,7 @@
 #include "strided_slice_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id strided_slice::type_id() {
-    static primitive_type_base<strided_slice> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(strided_slice)
 
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
@@ -36,21 +33,33 @@ template<typename ShapeType>
 std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<strided_slice>();
     auto input0_layout = impl_param.get_input_layout(0);
+    auto input0_shape = input0_layout.get<ShapeType>();
+    auto input0_rank = input0_shape.size();
 
     auto& constant_mem = impl_param.memory_deps;
+    auto begin_data = desc->begin;
+    auto end_data = desc->end;
+    auto strides_data = desc->strides;
 
-    if (!constant_mem.count(1) || !constant_mem.count(2) || !constant_mem.count(3)) {
+    if ((begin_data.empty() && !constant_mem.count(1))
+        || (end_data.empty() && !constant_mem.count(2))
+        || (strides_data.empty() && !constant_mem.count(3))) {
         auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
         return { layout{out_shape, input0_layout.data_type, format::get_default_format(out_shape.rank().get_length())} };
     }
 
     ov::op::v1::StridedSlice op;
+
+    ShapeType begin_shape = begin_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ begin_data.size() };
+    ShapeType end_shape = end_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ end_data.size() };
+    ShapeType strides_shape = strides_data.empty() ? ov::Shape{ input0_rank } : ov::Shape{ strides_data.size() };
+
     std::vector<ShapeType> output_shapes = {ShapeType{}};
     std::vector<ShapeType> input_shapes = {
-        input0_layout.get<ShapeType>(),
-        impl_param.get_input_layout(1).get<ShapeType>(),
-        impl_param.get_input_layout(2).get<ShapeType>(),
-        impl_param.get_input_layout(3).get<ShapeType>()
+        input0_shape,
+        begin_shape,
+        end_shape,
+        strides_shape
     };
 
     op.set_begin_mask(desc->begin_mask);
@@ -59,24 +68,37 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     op.set_shrink_axis_mask(desc->shrink_axis_mask);
     op.set_ellipsis_mask_mask(desc->ellipsis_mask);
 
-    auto mem1 = constant_mem.at(1);
-    auto mem2 = constant_mem.at(2);
-    auto mem3 = constant_mem.at(3);
+    std::map<size_t, ngraph::HostTensorPtr> const_data;
+    if (!begin_data.empty() && !end_data.empty() && !strides_data.empty()) {
+        auto begin_tensor = make_host_tensor({ begin_shape, data_types::i64, format::bfyx }, static_cast<void*>(begin_data.data()));
+        auto end_tensor = make_host_tensor({ end_shape, data_types::i64, format::bfyx }, static_cast<void*>(end_data.data()));
+        auto strides_tensor = make_host_tensor({ strides_shape, data_types::i64, format::bfyx }, static_cast<void*>(strides_data.data()));
 
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(mem1, impl_param.prog.get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(mem2, impl_param.prog.get_stream());
-    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(mem3, impl_param.prog.get_stream());
+        const_data.emplace(1, begin_tensor);
+        const_data.emplace(2, end_tensor);
+        const_data.emplace(3, strides_tensor);
 
-    auto tensor1 = make_host_tensor(mem1->get_layout(), lock1.data());
-    auto tensor2 = make_host_tensor(mem2->get_layout(), lock2.data());
-    auto tensor3 = make_host_tensor(mem3->get_layout(), lock3.data());
+        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    } else {
+        auto begin_mem = constant_mem.at(1);
+        auto end_mem = constant_mem.at(2);
+        auto strides_mem = constant_mem.at(3);
 
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> const_data = {
-        {1, tensor1},
-        {2, tensor2},
-        {3, tensor3},
-    };
-    ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock1(begin_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock2(end_mem, impl_param.prog->get_stream());
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> lock3(strides_mem, impl_param.prog->get_stream());
+
+        auto begin_tensor = make_host_tensor(begin_mem->get_layout(), lock1.data());
+        auto end_tensor = make_host_tensor(end_mem->get_layout(), lock2.data());
+        auto strides_tensor = make_host_tensor(strides_mem->get_layout(), lock3.data());
+
+        const_data.emplace(1, begin_tensor);
+        const_data.emplace(2, end_tensor);
+        const_data.emplace(3, strides_tensor);
+
+        ov::op::v1::shape_infer(&op, input_shapes, output_shapes, const_data);
+    }
+
     auto output_format = format::get_default_format(output_shapes[0].size());
 
     return { layout{output_shapes[0], input0_layout.data_type, output_format} };
@@ -96,6 +118,9 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     strided_slice_info.add("begin_param id", node.get_dependency(1).id());
     strided_slice_info.add("end_param id", node.get_dependency(2).id());
     strided_slice_info.add("stride_param id", node.get_dependency(3).id());
+    strided_slice_info.add("begin", node.get_primitive()->begin);
+    strided_slice_info.add("end", node.get_primitive()->end);
+    strided_slice_info.add("strides", node.get_primitive()->strides);
     strided_slice_info.add("begin mask", node.get_primitive()->begin_mask);
     strided_slice_info.add("end mask", node.get_primitive()->end_mask);
     strided_slice_info.add("new axis mask", node.get_primitive()->new_axis_mask);

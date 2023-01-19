@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 inline uint FUNC(calc_linear_offset)(uint b, uint f, uint w, uint z, uint y, uint x)
@@ -36,14 +35,19 @@ KERNEL(reduce_ref)(
 #if INPUT0_DIMS == 4
     const uint w    = 0;
     const uint z    = 0;
-    const uint out_idx = OUTPUT_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
     const uint z    = wz % OUTPUT_SIZE_Z;
     const uint w    = 0;
-    const uint out_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
 #elif INPUT0_DIMS == 6
     const uint z    = wz % OUTPUT_SIZE_Z;
     const uint w    = wz / OUTPUT_SIZE_Z;
+#endif
+
+#if OUTPUT_DIMS == 4
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, y, x);
+#elif OUTPUT_DIMS == 5
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
+#elif OUTPUT_DIMS == 6
     const uint out_idx = OUTPUT_GET_INDEX(b, f, w, z, y, x);
 #endif
 

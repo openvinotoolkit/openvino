@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/space_to_batch_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
+ov::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
     MATCHER_SCOPE(SpaceToBatchFusion);
     auto data_pattern = pattern::any_input();
     auto reshape_before_pattern =
@@ -92,7 +92,7 @@ ngraph::pass::SpaceToBatchFusion::SpaceToBatchFusion() {
             return false;
         auto block_size = static_cast<int64_t>(space_to_depth->get_block_size());
         auto block_shape =
-            op::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
+            opset6::Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 1, block_size, block_size});
         auto space_to_batch = register_new_node<opset6::SpaceToBatch>(pattern_map.at(data_pattern),
                                                                       block_shape,
                                                                       pattern_map.at(pads_begin_pattern),

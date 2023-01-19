@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,7 @@ int main(int argc, char *argv[]) {
             ov::test::utils::OpSummary::setSaveReportTimeout(timeout);
         } else if (std::string(argv[i]).find("--device_suffix") != std::string::npos) {
             std::string deviceSuffix = std::string(argv[i]).substr(std::string("--device_suffix").length() + 1);
-            // TODO: uncomment after plugin impl merge
-            // ov::test::set_device_suffix(deviceSuffix);
+            ov::test::set_device_suffix(deviceSuffix);
         }
     }
 

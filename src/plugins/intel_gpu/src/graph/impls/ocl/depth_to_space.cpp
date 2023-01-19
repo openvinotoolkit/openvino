@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,34 +18,24 @@ namespace ocl {
 struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
     using parent = typed_primitive_impl_ocl<depth_to_space>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::depth_to_space_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::depth_to_space_params, kernel_selector::depth_to_space_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<depth_to_space_impl>(*this);
     }
 
-public:
-    static primitive_impl* create(const depth_to_space_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<depth_to_space>();
+        auto params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::depth_to_space_optional_params>(impl_param.get_program());
 
-        auto depth_to_space_params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
-        auto depth_to_space_optional_params =
-            get_default_optional_params<kernel_selector::depth_to_space_optional_params>(arg.get_program());
-
-        depth_to_space_params.block_size = prim->block_size;
-        depth_to_space_params.mode = prim->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
-                                                                                                    : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
-
-        auto& kernel_selector = kernel_selector::depth_to_space_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(depth_to_space_params, depth_to_space_optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto depth_to_space = new depth_to_space_impl(arg, best_kernels[0]);
-
-        return depth_to_space;
+        params.block_size = primitive->block_size;
+        params.mode = primitive->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+                                                                           : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
+        return {params, optional_params};
     }
 };
 
@@ -67,9 +57,11 @@ attach_depth_to_space_impl::attach_depth_to_space_impl() {
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
     };
-    implementation_map<depth_to_space>::add(impl_types::ocl, depth_to_space_impl::create, dt, fmt);
+    implementation_map<depth_to_space>::add(impl_types::ocl, typed_primitive_impl_ocl<depth_to_space>::create<depth_to_space_impl>, dt, fmt);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::depth_to_space_impl)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,11 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/core/validation_util.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 #include <tuple>
 #include <unordered_set>
@@ -17,6 +18,8 @@
 #include <vector>
 
 #include "itt.hpp"
+
+using namespace ov;
 
 namespace {
 // This function creates a partition of its argument into groups consisting of adjacent identical elements.
@@ -43,8 +46,8 @@ std::vector<std::vector<uint64_t>> grouped_vector(const std::vector<uint64_t>& v
     return result;
 }
 
-std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_concat(
-    const std::shared_ptr<ngraph::opset8::Concat>& concat) {
+std::pair<std::shared_ptr<opset8::Split>, uint64_t> get_split_before_concat(
+    const std::shared_ptr<opset8::Concat>& concat) {
     // This function gets producers of the 'concat' node, checks that the following conditions are fulfilled:
     // 1) all producers for 'concat' are Split nodes;
     // 2) 'concat' has only one unique producer ('split');
@@ -56,10 +59,10 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
     // these conditions is false, this functions returns nullptr.
 
     std::vector<uint64_t> idx;
-    std::shared_ptr<ngraph::opset8::Split> split;
+    std::shared_ptr<opset8::Split> split;
     for (const auto& input : concat->input_values()) {
         // If 'concat' has some non-Split producer, then the transformation is not applicable.
-        auto split_op = std::dynamic_pointer_cast<ngraph::opset8::Split>(input.get_node_shared_ptr());
+        auto split_op = std::dynamic_pointer_cast<opset8::Split>(input.get_node_shared_ptr());
         if (!split)
             split = split_op;
         if (!split_op || split != split_op)
@@ -107,7 +110,7 @@ std::pair<std::shared_ptr<ngraph::opset8::Split>, uint64_t> get_split_before_con
 }
 }  // namespace
 
-ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination) {
+ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(SplitConcatPairToInterpolateFusion);
     // This transformation looks for Interpolate layer implemented using simple operations, namely Split and Concat,
     // and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
@@ -138,8 +141,8 @@ ngraph::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFu
     // by number of output ports of 'split'.
     //
     // Detect only concat, because we don't know how many inputs will go into concat.
-    auto concat_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    auto concat_pattern = ngraph::pattern::wrap_type<opset8::Concat>();
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto concat = std::dynamic_pointer_cast<opset8::Concat>(m.get_match_root());
         if (!concat)
             return false;

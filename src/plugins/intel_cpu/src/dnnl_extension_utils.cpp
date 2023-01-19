@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,6 +146,22 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
     } else {
         IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
     }
+}
+
+DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
+    auto query = dnnl::convert_to_c(what);
+    const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+    if (!cdesc)
+        IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
+    return DnnlExtensionUtils::makeDescriptor(*cdesc);
+}
+
+std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
+    const char *res;
+    dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, &res);
+    if (status != dnnl_success)
+        IE_THROW() << "query_impl_info_str failed.";
+    return std::string(res);
 }
 
 }   // namespace intel_cpu

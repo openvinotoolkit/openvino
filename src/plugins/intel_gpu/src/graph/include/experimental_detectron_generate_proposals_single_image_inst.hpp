@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 #include "primitive_inst.h"
@@ -32,6 +30,7 @@ template <>
 class typed_primitive_inst<experimental_detectron_generate_proposals_single_image>
         : public typed_primitive_inst_base<experimental_detectron_generate_proposals_single_image> {
     using parent = typed_primitive_inst_base<experimental_detectron_generate_proposals_single_image>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(const experimental_detectron_generate_proposals_single_image_node& node, kernel_impl_params const& impl_param);

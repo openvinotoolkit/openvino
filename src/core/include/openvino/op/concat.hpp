@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API Concat : public Op {
 public:
     OPENVINO_OP("Concat", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a concatenation operation.
     Concat() = default;

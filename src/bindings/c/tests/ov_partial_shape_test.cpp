@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
@@ -134,4 +134,28 @@ TEST(ov_partial_shape, ov_shape_to_partial_shape) {
     ov_partial_shape_free(&partial_shape);
     ov_shape_free(&shape);
     ov_free(tmp);
+}
+
+TEST(ov_partial_shape, ov_partial_shape_is_dynamic) {
+    ov_partial_shape_t partial_shape;
+
+    int64_t rank = 5;
+    ov_dimension_t dims[5] = {{10, 10}, {-1, -1}, {30, 30}, {40, 40}, {50, 50}};
+    OV_ASSERT_OK(ov_partial_shape_create(rank, dims, &partial_shape));
+    ASSERT_TRUE(ov_partial_shape_is_dynamic(partial_shape));
+
+    ov_partial_shape_t partial_shape_rank_dynamic;
+    ov_rank_t rank_dynamic = {-1, -1};
+    OV_ASSERT_OK(ov_partial_shape_create_dynamic(rank_dynamic, nullptr, &partial_shape_rank_dynamic));
+    ASSERT_TRUE(ov_partial_shape_is_dynamic(partial_shape_rank_dynamic));
+
+    ov_partial_shape_t partial_shape_static;
+    int64_t rank_static = 5;
+    ov_dimension_t dims_static[5] = {{10, 10}, {20, 20}, {30, 30}, {40, 40}, {50, 50}};
+    OV_ASSERT_OK(ov_partial_shape_create(rank_static, dims_static, &partial_shape_static));
+    ASSERT_FALSE(ov_partial_shape_is_dynamic(partial_shape_static));
+
+    ov_partial_shape_free(&partial_shape);
+    ov_partial_shape_free(&partial_shape_rank_dynamic);
+    ov_partial_shape_free(&partial_shape_static);
 }

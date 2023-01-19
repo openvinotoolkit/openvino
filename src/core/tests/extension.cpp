@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,7 @@ TEST(extension, create_model_from_extension) {
         auto fill_tensor = [](ov::Tensor& tensor) {
             int32_t* data = tensor.data<int32_t>();
             for (size_t i = 0; i < tensor.get_size(); i++)
-                data[i] = i;
+                data[i] = static_cast<int32_t>(i);
         };
 
         ov::TensorVector inputs;

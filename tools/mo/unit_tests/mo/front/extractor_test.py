@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -16,6 +16,7 @@ from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
+from openvino.runtime import PartialShape
 
 
 class FakePythonParam:
@@ -537,11 +538,11 @@ class TestUserDataRepack(UnitTestWithMockedTelemetry):
 
     def test_error(self):
         graph = build_graph(self.nodes, self.edges)
-        self.assertRaises(Error, input_user_data_repack, graph, tuple([1, 227, 227, 3]), None)
+        self.assertRaises(Error, input_user_data_repack, graph, PartialShape([1, 227, 227, 3]), None)
 
     def test_error_2(self):
         graph = build_graph(self.nodes, self.edges)
-        self.assertRaises(Error, input_user_data_repack, graph, tuple([1, 227, 227, 3]), None)
+        self.assertRaises(Error, input_user_data_repack, graph, PartialShape([1, 227, 227, 3]), None)
 
     def test_error_3(self):
         graph = build_graph(self.nodes, self.edges)
@@ -549,7 +550,7 @@ class TestUserDataRepack(UnitTestWithMockedTelemetry):
 
     def test_input_and_freeze(self):
         graph = build_graph(self.nodes, self.edges)
-        shape_1 = tuple([1, 160, 160, 3])
+        shape_1 = PartialShape([1, 160, 160, 3])
         input, freeze_placeholder = input_user_data_repack(graph, shape_1, {'Bb': True})
         self.assertDictEqual(input, {'A': [{'shape': shape_1, 'port': None}], 'B': [{'shape': None, 'port': None}]})
         self.assertDictEqual(freeze_placeholder, {'B': True})

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/async_infer_queue.hpp"
@@ -163,7 +163,7 @@ public:
 
 void regclass_AsyncInferQueue(py::module m) {
     py::class_<AsyncInferQueue, std::shared_ptr<AsyncInferQueue>> cls(m, "AsyncInferQueue");
-    cls.doc() = "openvino.runtime.AsyncInferQueue represents helper that creates a pool of asynchronous"
+    cls.doc() = "openvino.runtime.AsyncInferQueue represents a helper that creates a pool of asynchronous"
                 "InferRequests and provides synchronization functions to control flow of a simple pipeline.";
 
     cls.def(py::init<ov::CompiledModel&, size_t>(),

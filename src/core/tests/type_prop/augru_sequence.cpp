@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/augru_sequence.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/opsets/opset9.hpp"
@@ -11,6 +12,7 @@
 
 using namespace std;
 using namespace ov;
+using namespace testing;
 
 struct augru_sequence_parameters {
     Dimension batch_size = 8;
@@ -258,7 +260,7 @@ TEST(type_prop, augru_sequence_all_inputs_dynamic_rank) {
     EXPECT_EQ(augru_sequence->get_output_element_type(1), param.et);
 }
 
-TEST(type_prop, augru_sequence_invalid_attention_gate) {
+TEST(type_prop, augru_sequence_invalid_attention_gate_seq_length) {
     augru_sequence_parameters params;
 
     params.batch_size = 8;
@@ -272,13 +274,28 @@ TEST(type_prop, augru_sequence_invalid_attention_gate) {
     auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{params.batch_size, 999, 1});
     augru_sequence->set_argument(6, invalid_attention_gate);
 
-    try {
-        augru_sequence->validate_and_infer_types();
-        FAIL() << "AUGRUSequence node was created with invalid data.";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Dimension `seq_length` must be the same for `X` and `A` inputs."));
-    }
+    OV_EXPECT_THROW(augru_sequence->validate_and_infer_types(),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Dimension `seq_length` must be the same for `X` and `A` inputs"));
+}
+
+TEST(type_prop, augru_sequence_invalid_attention_gate_batch) {
+    augru_sequence_parameters params;
+
+    params.batch_size = 8;
+    params.num_directions = 1;
+    params.seq_length = 6;
+    params.input_size = 4;
+    params.hidden_size = 128;
+    params.et = element::f32;
+
+    auto augru_sequence = augru_seq_init(params);
+    auto invalid_attention_gate = make_shared<opset9::Parameter>(params.et, PartialShape{999, params.seq_length, 1});
+    augru_sequence->set_argument(6, invalid_attention_gate);
+
+    OV_EXPECT_THROW(augru_sequence->validate_and_infer_types(),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Dimension `batch_size` must be the same for `X` and `A` inputs"));
 }
 
 namespace {

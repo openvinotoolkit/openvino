@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -237,7 +237,7 @@ MultiSchedule::~MultiSchedule() {
                 reqAllStartTimes.splice(reqAllStartTimes.end(), request._startTimes);
                 reqAllEndTimes.splice(reqAllEndTimes.end(), request._endTimes);
             }
-            unsigned int count = reqAllStartTimes.size();
+            size_t count = reqAllStartTimes.size();
             IE_ASSERT(count == reqAllEndTimes.size());
             reqAllStartTimes.sort(std::less<Time>());
             reqAllEndTimes.sort(std::less<Time>());

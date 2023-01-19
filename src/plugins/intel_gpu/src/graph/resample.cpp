@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "resample_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -12,10 +10,7 @@
 #include "interpolate_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id resample::type_id() {
-    static primitive_type_base<resample> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(resample)
 
 layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
@@ -23,43 +18,52 @@ layout resample_inst::calc_output_layout(resample_node const& node, kernel_impl_
 
     auto output_type = input_layout.data_type;
     if ((input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8)
-        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST) {
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::NEAREST
+        && desc->operation_type != resample::InterpolateOp::InterpolateMode::LINEAR_ONNX) {
         output_type = data_types::f32;
     }
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    return desc->output_pattern.empty() ? layout({output_type, input_layout.format, desc->output_size}) :
-                                          layout({desc->output_pattern, output_type, input_layout.format});
+    return desc->sizes.empty() ? layout({output_type, input_layout.format, desc->output_size}) :
+                                 layout({desc->sizes, output_type, input_layout.format});
 }
 
 template<typename ShapeType>
 std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<resample>();
     auto input_layout = impl_param.get_input_layout(0);
-
-    auto& memory_deps = impl_param.memory_deps;
+    auto input_shape = input_layout.get<ShapeType>();
+    size_t input_rank = input_shape.size();
 
     ov::op::v4::Interpolate op;
     op.set_attrs(desc->get_attrs());
 
-    ShapeType pattern_shape = impl_param.input_layouts.size() == 2 ? impl_param.input_layouts[1].get<ShapeType>()
-                                                                   : ov::Shape{ desc->output_pattern.size() };
+    ShapeType sizes_shape = desc->sizes.empty() ? ov::Shape{ input_rank }
+                                                : ov::Shape{ desc->sizes.size() };
+    ShapeType scales_shape = desc->scales.empty() ? ov::Shape{ input_rank }
+                                                  : ov::Shape{ desc->scales.size() };
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::vector<ShapeType> input_shapes = {
-        impl_param.input_layouts[0].get<ShapeType>(),
-        pattern_shape,
-        ov::Shape{ desc->scales.size() },
+        input_shape,
+        sizes_shape,
+        scales_shape,
         ov::Shape{ desc->axes.size() }
     };
 
+    auto& memory_deps = impl_param.memory_deps;
     std::map<size_t, ngraph::HostTensorPtr> const_data;
 
+    auto sizes_data = desc->sizes;
     auto scales_data = desc->scales;
-    auto scales_tensor = make_host_tensor({ ov::PartialShape{ ov::Shape{scales_data.size()} }, data_types::f32, format::bfyx },
-                                            static_cast<void*>(scales_data.data()));
-    const_data.emplace(2, scales_tensor);
+
+    bool sizes_calc_mod = desc->get_attrs().shape_calculation_mode == ov::op::v4::Interpolate::ShapeCalcMode::SIZES;
+
+    if (((sizes_data.empty() && !memory_deps.count(1)) || !sizes_calc_mod) &&
+        ((scales_data.empty() && !memory_deps.count(2)) || sizes_calc_mod)) {
+       return { layout{ShapeType::dynamic(input_rank), input_layout.data_type, input_layout.format} };
+    }
 
     auto axes_data = desc->axes;
     if (axes_data.empty()) {
@@ -74,22 +78,30 @@ std::vector<layout> resample_inst::calc_output_layouts(resample_node const& /*no
     auto pads_end = desc->pads_end;
     ov::op::v4::correct_pads_attr(&op, pads_begin, pads_end, input_shapes);
 
-    auto pattern_data = desc->output_pattern;
-    if (memory_deps.count(1)) {
-        auto pattern_mem = memory_deps.at(1);
-
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> pattern_lock(pattern_mem, impl_param.prog.get_stream());
-
-        auto pattern_ptr = pattern_lock.data();
-        auto pattern_tensor = make_host_tensor(pattern_mem->get_layout(), pattern_ptr);
-
-        const_data.emplace(1, pattern_tensor);
-        ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+    if (sizes_calc_mod) {
+        if (!sizes_data.empty()) {
+            auto sizes_tensor = make_host_tensor({ sizes_shape, data_types::i64, format::bfyx }, static_cast<void*>(sizes_data.data()));
+            const_data.emplace(1, sizes_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        } else {
+            auto sizes_mem = memory_deps.at(1);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(sizes_mem, impl_param.prog->get_stream());
+            auto sizes_tensor = make_host_tensor(sizes_mem->get_layout(), lock.data());
+            const_data.emplace(1, sizes_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        }
     } else {
-        auto pattern_tensor = make_host_tensor({ pattern_shape, data_types::i64, format::bfyx },
-                                                 static_cast<void*>(pattern_data.data()));
-        const_data.emplace(1, pattern_tensor);
-        ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        if (!scales_data.empty()) {
+            auto scales_tensor = make_host_tensor({ scales_shape, data_types::f32, format::bfyx }, static_cast<void*>(scales_data.data()));
+            const_data.emplace(2, scales_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        } else {
+            auto scales_mem = memory_deps.at(2);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(scales_mem, impl_param.prog->get_stream());
+            auto scales_tensor = make_host_tensor(scales_mem->get_layout(), lock.data());
+            const_data.emplace(2, scales_tensor);
+            ov::op::v4::shape_infer(&op, pads_begin, pads_end, input_shapes, output_shapes, {const_data});
+        }
     }
 
     return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
@@ -155,8 +167,8 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
-    resample_info.add("output padding lower size", desc->output_padding.lower_size());
-    resample_info.add("output padding upper size", desc->output_padding.upper_size());
+    resample_info.add("output padding lower size", desc->output_paddings[0].lower_size());
+    resample_info.add("output padding upper size", desc->output_paddings[0].upper_size());
 
     node_info->add("resample_info", resample_info);
     node_info->dump(primitive_description);

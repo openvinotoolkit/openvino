@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -634,7 +634,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator {
         return { *this, internal::make_shared(res, *this) };
     }
 
-    jit_kernel();
+    jit_kernel(const char *name);
 
     template<typename RegType>
     const RegType & reserve();

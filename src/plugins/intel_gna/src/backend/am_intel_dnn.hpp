@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,18 +8,17 @@
 #include <string>
 #include <vector>
 
-#include "dnn_types.h"
-#include "gna_types.h"
+#include "dnn_types.hpp"
+#include "gna_types.hpp"
 #include "gna/gna_config.hpp"
 
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "common/gna_target.hpp"
 #include "memory/gna_memory.hpp"
 #include <gna2-model-api.h>
 
-using GNAPluginNS::memory::GNAMemoryInterface;
-
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace backend {
 
 class AMIntelDNN {
@@ -28,24 +27,15 @@ public:
             : ptr_active_outputs_(NULL),
               num_active_outputs_(0),
               input_scale_factor_(1.0),
-              num_left_context(0),
-              num_right_context(0),
               do_rotate_input(false),
-              do_rotate_output(false),
               num_rotate_rows(0),
               num_rotate_columns(0),
-              num_rotate_output_rows(0),
-              num_rotate_output_columns(0),
-              softmax_type(kSoftmaxNone),
-              ptr_sumgroup_sizes(NULL),
-              num_sumgroup_sizes(0),
-              ptr_priors(NULL),
               compute_precision_(kDnnNumNumberType) {
     }
 
     ~AMIntelDNN();
 
-    void Init(GNAMemoryInterface * memoryInterface,
+    void Init(memory::GNAMemoryInterface * memoryInterface,
             intel_dnn_number_type_t compute_precision,
             float scale_factor);
 
@@ -284,9 +274,31 @@ public:
                                  true);
     }
 
+    template <class T>
+    void AdvanceOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
+        if (i == cmp.size() - 1 || cmp[i + 1].operation != kDnnPiecewiselinearOp) {
+            ++operation;
+        }
+    }
 
-    float OutputScaleFactor(uint32_t component_index) {
-        return OutputScaleFactor(component[component_index]);
+    template <class T>
+    void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
+        if (i == cmp.size() - 1 ||
+            ((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
+            operation++;
+        }
+    }
+
+    template <class T>
+    void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
+        if (i == cmp.size() - 1 ||
+            ((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
+            operation++;
+        }
+    }
+
+    float OutputScaleFactor(uint32_t cmp_index) {
+        return OutputScaleFactor(component[cmp_index]);
     }
 
     float OutputScaleFactor(intel_dnn_component_t &comp);
@@ -318,19 +330,10 @@ public:
     uint32_t num_outputs();
 
     std::vector<intel_dnn_component_t> component;
-    uint32_t num_left_context;
-    uint32_t num_right_context;
     uint32_t new_num_conv_columns = 0;
     bool do_rotate_input;
-    bool do_rotate_output;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
-    uint32_t num_rotate_output_rows = 0;
-    uint32_t num_rotate_output_columns = 0;
-    DnnSoftmaxType softmax_type;
-    uint32_t *ptr_sumgroup_sizes;
-    uint32_t num_sumgroup_sizes;
-    float *ptr_priors;
 
     void WriteInputAndOutputText();
 
@@ -339,7 +342,7 @@ public:
     void BeginNewWrite(uint32_t index);
 
 private:
-    GNAMemoryInterface* memory = nullptr;
+    memory::GNAMemoryInterface* memory = nullptr;
     uint32_t *ptr_active_outputs_;
     uint32_t num_active_outputs_;
     intel_dnn_number_type_t compute_precision_;
@@ -442,6 +445,20 @@ private:
         void*& ptr_filters,
         void*& ptr_biases);
 
+    static void InitDWSCComponentPrivate(intel_dnn_component_t& comp,
+                                         OvGnaTensor inputTensor,
+                                         OvGnaTensor outputTensor,
+                                         OvGnaTensor filterTensor,
+                                         OvGnaTensor biasTensor,
+                                         std::array<uint32_t, 2> convStride,
+                                         std::array<uint32_t, 2> zeroPadding,
+                                         float weight_scale_factor,
+                                         float output_scale_factor,
+                                         void*& ptr_inputs,
+                                         void*& ptr_outputs,
+                                         void*& ptr_filters,
+                                         void*& ptr_biases);
+
     static void InitAffineComponentPrivate(intel_dnn_component_t &comp,
                                            uint32_t num_rows_in,
                                            uint32_t num_columns,
@@ -464,5 +481,7 @@ private:
     std::string getDumpFolderName();
     std::string getRefFolderName();
 };
+
 }  // namespace backend
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

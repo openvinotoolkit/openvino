@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -47,7 +47,7 @@ from openvino.tools.mo.ops.psroipooling import PSROIPoolingOp
 from openvino.tools.mo.ops.split import Split
 from openvino.tools.mo.ops.transpose import Transpose
 from openvino.tools.mo.front.common.layout import get_batch_dim, get_height_dim, get_width_dim
-from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, mo_array
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, mo_array, dynamic_dimension_value
 from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
 from openvino.tools.mo.front.extractor import output_user_data_repack, add_output_ops
 from openvino.tools.mo.front.subgraph_matcher import SubgraphMatch
@@ -422,8 +422,8 @@ def calculate_placeholder_spatial_shape(graph: Graph, match: SubgraphMatch, pipe
     if user_shapes and input_name in user_shapes and user_shapes[input_name]:
         user_defined_shape = user_shapes[input_name][0]['shape']
         if user_defined_shape is not None:
-            user_defined_height = user_defined_shape[1]
-            user_defined_width = user_defined_shape[2]
+            user_defined_height = user_defined_shape[1].get_min_length() if user_defined_shape[1].is_static else dynamic_dimension_value
+            user_defined_width = user_defined_shape[2].get_min_length() if user_defined_shape[2].is_static else dynamic_dimension_value
 
     # the parameters below are set if the fixed_shape_resizer is used
     resizer_height = pipeline_config.get_param('resizer_image_height')

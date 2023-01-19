@@ -14,29 +14,24 @@ namespace ocl {
 struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
     using parent = typed_primitive_impl_ocl<bucketize>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::bucketize_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::bucketize_params, kernel_selector::bucketize_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<bucketize_impl>(*this);
     }
 
-    static primitive_impl* create(const bucketize_node& arg, const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<bucketize>();
         auto params = get_default_params<kernel_selector::bucketize_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::bucketize_optional_params>(arg.get_program());
+        auto optional_params = get_default_optional_params<kernel_selector::bucketize_optional_params>(impl_param.get_program());
 
-        auto primitive = arg.get_primitive();
         params.with_right_bound = primitive->with_right_bound;
-        params.inputs.push_back(convert_data_tensor(arg.buckets().get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
-        const auto& kernel_selector = kernel_selector::bucketize_kernel_selector::Instance();
-        const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        return new bucketize_impl(arg, best_kernels.front());
+        return {params, optional_params};
     }
 };
 
@@ -68,9 +63,11 @@ attach_bucketize_impl::attach_bucketize_impl() {
             keys.emplace(t, f);
         }
     }
-    implementation_map<bucketize>::add(impl_types::ocl, bucketize_impl::create, keys);
+    implementation_map<bucketize>::add(impl_types::ocl, typed_primitive_impl_ocl<bucketize>::create<bucketize_impl>, keys);
 }
 }  // namespace detail
 
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::bucketize_impl)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace cldnn {
 namespace cpu {
 
 using namespace cldnn::cpu;
-
+namespace {
 struct result_indices {
     float score;
     int batch_index;
@@ -330,7 +330,7 @@ void store_third_output(stream& stream, memory::ptr mem, const std::vector<resul
 }
 
 void run(non_max_suppression_inst& instance) {
-    auto prim = instance.node.get_primitive();
+    auto prim = instance.node->get_primitive();
     auto& stream = instance.get_network().get_stream();
 
     auto boxes = load_boxes(stream, instance.input_boxes_mem(), prim->center_point_box);
@@ -365,6 +365,7 @@ void run(non_max_suppression_inst& instance) {
                           soft_nms_sigma,
                           prim->sort_result_descending);
 
+    // Legacy APIs using mutable inputs for multiple outputs
     if (instance.has_third_output()) {
         store_third_output(stream, instance.third_output_mem(), result);
     }
@@ -375,11 +376,25 @@ void run(non_max_suppression_inst& instance) {
         return;
     }
 
+    // New API for mutiple outputs support
+    if (instance.outputs_memory_count() == 3)
+        store_third_output(stream, instance.output_memory_ptr(2), result);
+
+    if (instance.outputs_memory_count() >= 2) {
+        store_second_output(stream, instance.output_memory_ptr(1), result);
+        store_first_output(stream, instance.output_memory_ptr(), result);
+        return;
+    }
+
     store_result(stream, instance.output_memory_ptr(), result);
 }
 
+}  // namespace
+
 struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
     using parent = typed_primitive_impl<non_max_suppression>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<non_max_suppression_impl>(*this);
@@ -401,8 +416,8 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return ev;
     }
 
-    static primitive_impl* create(const non_max_suppression_node&, const kernel_impl_params&) {
-        return new non_max_suppression_impl();
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
+        return make_unique<non_max_suppression_impl>();
     }
     void init_kernels(const kernels_cache&) override {}
 };
@@ -419,3 +434,5 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }  // namespace detail
 }  // namespace cpu
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::non_max_suppression_impl)

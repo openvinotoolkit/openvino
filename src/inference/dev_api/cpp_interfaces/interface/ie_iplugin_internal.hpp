@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,8 +199,8 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
-                                                                    const std::map<std::string, std::string>& config);
+    virtual ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                              const std::map<std::string, std::string>& config);
 
     /**
      * @brief Registers extension within plugin

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <openvino/op/parameter.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
 #include <utils/shape_inference/static_shape.hpp>
+
+#include "utils/shape_inference/static_shape.hpp"
 
 #pragma once
 
@@ -90,6 +92,7 @@ class OpStaticShapeInferenceTest : public testing::Test {
 protected:
     ShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
+    std::shared_ptr<TOp> op;
 
     template <class... Args>
     std::shared_ptr<TOp> make_op(Args&&... args) {

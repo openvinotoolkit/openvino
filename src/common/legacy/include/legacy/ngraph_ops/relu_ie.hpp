@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace op {
 class ReLUIE : public Op {
 public:
     OPENVINO_OP("ReLUIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     ReLUIE(const Output<Node> & data, const float & negative_slope, const element::Type output_type);
 

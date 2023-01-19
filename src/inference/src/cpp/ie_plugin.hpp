@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,11 @@ struct InferencePlugin {
     }
 
     ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-        PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
+        ov::SoPtr<IExecutableNetworkInternal> res;
+        PLUGIN_CALL_STATEMENT(res = _ptr->LoadNetwork(modelPath, config));
+        if (!res._so)
+            res._so = _so;
+        return res;
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& network,
@@ -196,7 +200,11 @@ public:
     }
 
     SoPtr<ie::IExecutableNetworkInternal> compile_model(const std::string& modelPath, const std::map<std::string, std::string>& config) {
-        OV_PLUGIN_CALL_STATEMENT(return {_ptr->LoadNetwork(modelPath, config), _so});
+        SoPtr<ie::IExecutableNetworkInternal> res;
+        OV_PLUGIN_CALL_STATEMENT(res = _ptr->LoadNetwork(modelPath, config));
+        if (!res._so)
+            res._so = _so;
+        return res;
     }
 
     ie::QueryNetworkResult query_model(const ie::CNNNetwork& network,

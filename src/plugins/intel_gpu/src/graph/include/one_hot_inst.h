@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/one_hot.hpp"
 #include "primitive_inst.h"
@@ -31,6 +30,7 @@ using one_hot_node = typed_program_node<one_hot>;
 template <>
 class typed_primitive_inst<one_hot> : public typed_primitive_inst_base<one_hot> {
     using parent = typed_primitive_inst_base<one_hot>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

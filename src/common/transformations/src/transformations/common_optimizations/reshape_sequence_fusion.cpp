@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -16,13 +16,13 @@
 
 namespace {
 bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
-    const auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node_out.get_node_shared_ptr());
+    const auto const_node = std::dynamic_pointer_cast<ov::opset8::Constant>(node_out.get_node_shared_ptr());
     if (!const_node) {
         // Lower bound of the value
         auto lb = ngraph::evaluate_lower_bound(node_out);
         if (!lb)
             return false;
-        const auto lb_const_node = std::make_shared<ngraph::opset8::Constant>(lb);
+        const auto lb_const_node = std::make_shared<ov::opset8::Constant>(lb);
         const auto& lb_values = lb_const_node->cast_vector<int64_t>();
 
         // The pattern is valid if all lower bound values are higher than zero (not a special number)
@@ -38,7 +38,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
         if (!ub)
             return false;
 
-        const auto ub_const_node = std::make_shared<ngraph::opset8::Constant>(ub);
+        const auto ub_const_node = std::make_shared<ov::opset8::Constant>(ub);
         const auto& ub_values = ub_const_node->cast_vector<int64_t>();
         if (lb_values.size() != ub_values.size())
             return false;
@@ -62,7 +62,7 @@ bool has_valid_pattern(const ov::Output<ov::Node>& node_out) {
 }
 }  // namespace
 
-ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
+ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimination) {
     MATCHER_SCOPE(ReshapeSequenceFusion);
     auto reshape_input = pattern::any_input();
     auto reshape_a_pattern = pattern::wrap_type<opset8::Constant>();

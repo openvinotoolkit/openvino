@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,11 +35,11 @@ struct ExperimentalPGGParams {
           refData(CreateTensor(outRefShape, iType, refValues)),
           testcaseName(testcaseName) {
               std::vector<IT> featureMapValues(shape_size(featureMapShape.get_shape()));
-              std::iota(featureMapValues.begin(), featureMapValues.end(), 0);
+              std::iota(featureMapValues.begin(), featureMapValues.end(), 0.f);
               featureMapData = CreateTensor(iType, featureMapValues);
 
               std::vector<IT> imageSizeInfoValues(shape_size(imageSizeInfoShape.get_shape()));
-              std::iota(imageSizeInfoValues.begin(), imageSizeInfoValues.end(), 0);
+              std::iota(imageSizeInfoValues.begin(), imageSizeInfoValues.end(), 0.f);
               imageSizeInfoData = CreateTensor(iType, imageSizeInfoValues);
 
               if (shape_size(outRefShape) > refValues.size())

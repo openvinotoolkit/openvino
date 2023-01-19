@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,6 @@
 #include <ie_input_info.hpp>
 
 #include "descriptions/gna_desc.hpp"
-#include "gna_plugin_log.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "gna2-model-api.h"
 
@@ -35,16 +34,16 @@ public:
 private:
     Gna2Model * gna2model_;
     MemoryType states, *pstates_ = nullptr;
-    GNAPluginNS::GnaInputs inputs_;
-    GNAPluginNS::GnaOutputs outputs_;
+    ov::intel_gna::GnaInputs inputs_;
+    ov::intel_gna::GnaOutputs outputs_;
     TranspositionInfoMap inputs_transpose_info_;
     TranspositionInfoMap outputs_transpose_info_;
-    GNAPluginNS::HeaderLatest::ModelHeader model_header_;
+    ov::intel_gna::header_latest::ModelHeader model_header_;
     GNAVersionSerializer version_;
 
-    void ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs);
+    void ImportInputs(std::istream &is, void* basePtr, ov::intel_gna::GnaInputs &inputs);
 
-    void ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS::GnaOutputs &outputs);
+    void ImportOutputs(std::istream &is, void* basePtr, ov::intel_gna::GnaOutputs &outputs);
 
     void ImportTranspositionInfo(std::istream &is, std::string &name, std::vector<TranspositionInfo> &transpositionInfo);
 
@@ -54,7 +53,7 @@ private:
      * @brief Update input or output description to support importing of < 2.8 format where tensor_names were not present
      * @param nodeDesc input or output description to be appended
      */
-    void AppendTensorNameIfNeeded(GNAPluginNS::GnaDesc& nodeDesc) const;
+    void AppendTensorNameIfNeeded(ov::intel_gna::GnaDesc& nodeDesc) const;
 
  public:
     GNAModelSerial(Gna2Model* model, MemoryType& states_holder)
@@ -63,14 +62,14 @@ private:
     }
 
     GNAModelSerial(Gna2Model* model,
-                   GNAPluginNS::GnaInputs& inputs,
-                   GNAPluginNS::GnaOutputs& outputs)
+                   ov::intel_gna::GnaInputs& inputs,
+                   ov::intel_gna::GnaOutputs& outputs)
         : gna2model_(model),
           inputs_(inputs),
           outputs_(outputs) {
     }
 
-    void setHeader(GNAPluginNS::HeaderLatest::ModelHeader header) {
+    void setHeader(ov::intel_gna::header_latest::ModelHeader header) {
         model_header_ = header;
     }
 
@@ -101,9 +100,9 @@ private:
      * @param is - opened input stream
      * @return
      */
-    static GNAPluginNS::HeaderLatest::ModelHeader ReadHeader(std::istream &is);
+    static ov::intel_gna::header_latest::ModelHeader ReadHeader(std::istream &is);
 
-    GNAPluginNS::HeaderLatest::RuntimeEndPoint ReadEndPoint(std::istream &is);
+    ov::intel_gna::header_latest::RuntimeEndPoint ReadEndPoint(std::istream &is);
 
     /**
      * @brief Import model from FS into preallocated buffer,
@@ -115,8 +114,8 @@ private:
     void Import(void *basePointer,
                 size_t gnaGraphSize,
                 std::istream &is,
-                GNAPluginNS::GnaInputs &inputs,
-                GNAPluginNS::GnaOutputs &outputs,
+                ov::intel_gna::GnaInputs &inputs,
+                ov::intel_gna::GnaOutputs &outputs,
                 TranspositionInfoMap& inputstranspositionInfo,
                 TranspositionInfoMap& outputstranspositionInfo,
                 std::string& modelLibVersion);

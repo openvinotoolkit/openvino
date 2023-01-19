@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,7 @@ TEST_P(copy_and_read_buffer, basic) {
         return;
     }
     try {
-        ocl::ocl_stream stream(*_engine);
+        ocl::ocl_stream stream(*_engine, {});
 
         size_t values_count = 100;
         size_t values_bytes_count = values_count * sizeof(float);
@@ -135,7 +135,7 @@ TEST_P(copy_and_read_buffer, basic) {
                 cldnn::mem_lock<float> lock(host_buf, stream);
                 std::copy(src_buffer.begin(), src_buffer.end(), lock.data());
             }
-            casted->copy_from(stream, *host_buf);
+            casted->copy_from(stream, *host_buf, true);
             break;
         }
         default:
@@ -184,7 +184,7 @@ TEST_P(fill_buffer, DISABLED_basic) {
         return;
     }
     try {
-        ocl::ocl_stream stream(*_engine);
+        ocl::ocl_stream stream(*_engine, {});
         auto queue = stream.get_cl_queue();
         auto usm_helper = stream.get_usm_helper();
 

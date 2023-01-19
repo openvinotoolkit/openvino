@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,15 @@
 #include "gna/gna_config.hpp"
 #include "common/gna_target.hpp"
 #include "common/versioning.hpp"
+#include "log/log.hpp"
 
 #include "gna2-tlv-writer.h"
 
 #include <cstdint>
 #include <fstream>
 #include <numeric>
+
+using namespace ov::intel_gna;
 
 void * ExportSueLegacyUsingGnaApi2(
     uint32_t modelId,
@@ -88,8 +91,8 @@ std::vector<char> GetStringAsTlv(Gna2TlvType type, const std::string& s) {
 
 Gna2DeviceVersion getEmbeddedTargetFromCompileTarget(const std::string compileTarget) {
     static const std::map<std::string, Gna2DeviceVersion> targetMap = {
-        {GNAPluginNS::common::kGnaTarget3_1, Gna2DeviceVersionEmbedded3_1},
-        {GNAPluginNS::common::kGnaTarget3_5, Gna2DeviceVersionEmbedded3_5},
+        {common::kGnaTarget3_1, Gna2DeviceVersionEmbedded3_1},
+        {common::kGnaTarget3_5, Gna2DeviceVersionEmbedded3_5},
     };
     auto found = targetMap.find(compileTarget);
     if (found == targetMap.end()) {
@@ -123,7 +126,7 @@ std::string WriteAllEndpoints(std::ostream& outStream,
         outStream.write(scaleFactorTlv.data(), scaleFactorTlv.size());
     }
     if (allEndpoints.size() != 1) {
-        gnawarn() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
+        log::warning() << "Number of endpoints: " << allEndpoints.size() << " for " << endPointType << "\n";
     }
 
     std::stringstream stream;

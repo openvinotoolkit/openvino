@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,76 +12,66 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
+
+void normalize_block_shape_pads_crops(const NodeContext& node,
+                                      Output<Node>& block_shape,
+                                      Output<Node>& pads_crops_begin,
+                                      Output<Node>& pads_crops_end) {
     auto input = node.get_input(0);
-    auto block_shape = node.get_input(1);
-    auto crops = node.get_input(2);
+    block_shape = node.get_input(1);
+    auto paddings_crops = node.get_input(2);
 
-    // ng_crops should be of shape N=[ng_input.get_shape()).size()]
-    // But TF's ng_crops input is limited only to the spatial dimensions (neither
-    // batch nor innermost),
-    // which would mean OV inputs have missing ng_crops[0] and ng_crops[N].
-    // Hence, pad ng_crops with zeros at both ends
+    // make sure that paddings_crops and block_shape to have the same type
+    paddings_crops = make_shared<Convert>(paddings_crops, block_shape.get_element_type())->output(0);
 
-    // return with input if rank < 2 as OV's impl doesn't support it
-    const auto& input_pshape = input.get_partial_shape();
-    const auto& block_shape_pshape = block_shape.get_partial_shape();
-    if (input_pshape.rank().is_static() && block_shape_pshape.rank().is_static()) {
-        auto N = input_pshape.rank().get_length();
-        if (N < 2)
-            return {input};
-    } else {
-        // TODO: support dynamic rank
-        TENSORFLOW_OP_VALIDATION(node, false, "Dynamic rank is not supported.");
-    }
+    // compute the input rank and a shape of block_shape [M]
+    // it is needed to normalize block_shape, pads_begin and pads_end
+    auto input_rank = compute_subgraph_scalar_rank(input, element::i32, false);
+    auto M = make_shared<ShapeOf>(block_shape, element::i32);
 
-    auto N = input_pshape.rank().get_length();
+    // compute a number of padding elements required to normalize block_shape
+    // in the beggining and in the end
+    auto num_begin = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto num_end = make_shared<Subtract>(input_rank, M)->output(0);
+    num_end = make_shared<Subtract>(num_end, num_begin)->output(0);
 
-    // TODO: support dynamic shape
-    TENSORFLOW_OP_VALIDATION(node,
-                             block_shape_pshape[0].is_static(),
-                             "First dimension of block_shape input should be static.");
-    auto M = static_cast<int64_t>(block_shape_pshape[0].get_length());
+    // split paddings of shape [M, 2] into pads_begin and pads_end of shape [M]
+    auto split_axis = make_shared<Constant>(element::i32, Shape{}, 1);
+    auto paddings_crops_split = make_shared<Split>(paddings_crops, split_axis, 2);
+    pads_crops_begin = make_shared<Squeeze>(paddings_crops_split->output(0), split_axis)->output(0);
+    pads_crops_end = make_shared<Squeeze>(paddings_crops_split->output(1), split_axis)->output(0);
 
-    auto padded_crops =
-        make_shared<Pad>(crops,
-                         make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{1, 0}),
-                         make_shared<Constant>(crops.get_element_type(), Shape{2}, std::vector<int64_t>{N - M - 1, 0}),
-                         ov::op::PadMode::CONSTANT);
+    // normalize block_shape to have it of the same length as the input rank
+    auto one_const = make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1);
+    block_shape = make_shared<Pad>(block_shape, num_begin, num_end, one_const, ov::op::PadMode::CONSTANT)->output(0);
 
-    // Padding needs to be done for block_shape as done for crops above but with
-    // value=1
-    auto padded_block_shape = make_shared<Pad>(
-        block_shape,
-        make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{1}),
-        make_shared<Constant>(block_shape.get_element_type(), Shape{1}, std::vector<int64_t>{N - M - 1}),
-        make_shared<Constant>(block_shape.get_element_type(), Shape{}, 1),
-        ov::op::PadMode::CONSTANT);
+    // normalize pads_begin and pads_end to have it of the same length as the input rank
+    auto zero_const = make_shared<Constant>(pads_crops_begin.get_element_type(), Shape{}, 0);
+    auto pad_mode = ov::op::PadMode::CONSTANT;
+    pads_crops_begin = make_shared<Pad>(pads_crops_begin, num_begin, num_end, zero_const, pad_mode)->output(0);
+    pads_crops_end = make_shared<Pad>(pads_crops_end, num_begin, num_end, zero_const, pad_mode)->output(0);
+}
 
-    auto target_axis = make_shared<Constant>(element::i64, Shape{}, 1);
-    // split into two 1-D vectors crops_begin and crops_end along axis 1
-    auto crops_split = make_shared<Split>(padded_crops, target_axis, 2);
+OutputVector translate_space_to_batch_nd_op(const NodeContext& node) {
+    default_op_checks(node, 3, {"SpaceToBatchND"});
+    auto input = node.get_input(0);
+    Output<Node> block_shape, pads_begin, pads_end;
 
-    // crops: [[0, 1], [1, 2], ...]
-    // crops_split: [[[0], [1]], [[1], [2]], ...]
-    // crops_begin: [0, 1, ...], crops_end: [1, 2, ...]
-    auto axes = make_shared<Constant>(element::i32, Shape{}, -1);
-    auto crops_begin = make_shared<Squeeze>(crops_split->outputs()[0], axes);
-    auto crops_end = make_shared<Squeeze>(crops_split->outputs()[1], axes);
+    normalize_block_shape_pads_crops(node, block_shape, pads_begin, pads_end);
+    auto space_to_batch = make_shared<SpaceToBatch>(input, block_shape, pads_begin, pads_end);
+    set_node_name(node.get_name(), space_to_batch);
+    return {space_to_batch};
+}
 
-    // types of block_shape and crops inputs must be the same according to the specification
-    auto converted_padded_block_shape = make_shared<Convert>(padded_block_shape, crops_begin->get_element_type());
+OutputVector translate_batch_to_space_nd_op(const NodeContext& node) {
+    default_op_checks(node, 3, {"BatchToSpaceND"});
+    auto input = node.get_input(0);
+    Output<Node> block_shape, crops_begin, crops_end;
 
-    if (node.get_op_type() == "BatchToSpaceND") {
-        auto res = make_shared<BatchToSpace>(input, converted_padded_block_shape, crops_begin, crops_end);
-        set_node_name(node.get_name(), res);
-        return res->outputs();
-    } else if (node.get_op_type() == "SpaceToBatchND") {
-        auto res = make_shared<SpaceToBatch>(input, converted_padded_block_shape, crops_begin, crops_end);
-        set_node_name(node.get_name(), res);
-        return res->outputs();
-    }
-    TENSORFLOW_OP_VALIDATION(node, false, "No translator found.");
+    normalize_block_shape_pads_crops(node, block_shape, crops_begin, crops_end);
+    auto batch_to_space = make_shared<BatchToSpace>(input, block_shape, crops_begin, crops_end);
+    set_node_name(node.get_name(), batch_to_space);
+    return {batch_to_space};
 }
 
 }  // namespace op

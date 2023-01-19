@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <istream>
@@ -73,39 +73,61 @@ void get_port_range(const std::shared_ptr<ov::op::v0::Constant> &constant_input,
 std::shared_ptr<ov::Node> clone(const std::shared_ptr<ov::Node> &node, LayerTestsUtils::OPInfo &meta) {
     ov::OutputVector op_inputs;
     bool has_parameters = false;
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        const auto input = node->input(i).get_source_output();
+
+    auto add_input_func = [&](size_t index) {
+        const auto input = node->input(index).get_source_output();
         auto port_info = LayerTestsUtils::PortInfo();
         const auto constant = ov::get_constant_from_source(input);
+        std::shared_ptr<ov::Node> input_node;
         if (constant) {
             get_port_range(constant, port_info);
             float weights_size =
-                    static_cast<float>(ov::shape_size(constant->get_shape()) *
-                                       constant->get_element_type().size()) / (1024 * 1024);
-            if (weights_size > ClonersMap::constant_size_threshold_mb) {
-                std::cout << "Constant with size " << weights_size << " detected on port " << i << " of OP " << node
+                static_cast<float>(ov::shape_size(constant->get_shape()) * constant->get_element_type().size()) /
+                (1024 * 1024);
+            // Here we check for a big (by memory consuption) size constant, or case when Constant-only input
+            // has been covered and we need to add first Constant as a Parameter
+            if (weights_size > ClonersMap::constant_size_threshold_mb || (!has_parameters && index == 0)) {
+                std::cout << "Constant with size " << weights_size << " detected on port " << index << " of OP " << node
                           << std::endl
                           << "The constant will be replaced with parameter and initial data ranges meta info"
                           << std::endl;
-                auto param = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(),
-                                                                                           constant->get_shape());
-                op_inputs.push_back(param);
+                input_node =
+                    std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
+
+                if (!has_parameters && index == 0) {
+                    // Resets port info to defaults
+                    port_info.convert_to_const = false;
+                    port_info.min = std::numeric_limits<double>::min();
+                    port_info.max = std::numeric_limits<double>::max();
+                }
 
                 has_parameters = true;
-
             } else {
-                const auto clone = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(),
-                                                                              constant->get_shape(),
-                                                                              constant->get_data_ptr());
-                op_inputs.push_back(clone);
+                input_node = std::make_shared<ov::op::v0::Constant>(constant->get_element_type(),
+                                                                          constant->get_shape(),
+                                                                          constant->get_data_ptr());
             }
         } else {
+            input_node = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(), input.get_partial_shape());
+
             has_parameters = true;
-            auto param = std::make_shared<ov::op::v0::Parameter>(input.get_element_type(),
-                                                                 input.get_partial_shape());
-            op_inputs.push_back(param);
         }
-        meta.ports_info[i] = port_info;
+
+        if (index > 0)
+            op_inputs.push_back(input_node);
+        else
+            op_inputs.insert(op_inputs.begin(), input_node);
+
+        meta.ports_info[index] = port_info;
+    };
+    // Try to add all inputs, except first
+    for (size_t i = 1; i < node->get_input_size(); ++i) {
+        add_input_func(i);
+    }
+    if (node->get_input_size() > 0) {
+        // In case of first input, if we haven't found a Parameter yet (means Constants-only input)
+        // we will add a first constant as a Parameter input explicitly
+        add_input_func(0);
     }
     if (!has_parameters) {
         return nullptr;

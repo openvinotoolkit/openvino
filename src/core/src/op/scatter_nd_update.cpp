@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterNDUpdate);
 
 shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
@@ -53,7 +51,8 @@ bool evaluate(const HostTensorPtr& arg0,
                                                         arg1->get_shape(),
                                                         arg2->get_shape());
     } else {
-        throw ngraph_error("Unexpected type");
+        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
+                            " for ScatterNDUpdate evaluate method.");
     }
 
     return true;

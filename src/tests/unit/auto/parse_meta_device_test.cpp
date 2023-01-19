@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,11 +162,10 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
     bool throwException;
     std::tie(priorityDevices, metaDevices, throwException) = this->GetParam();
 
-    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
+    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1 + !throwException);
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
-    EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(metaDevices.size());
+    EXPECT_CALL(*core, GetAvailableDevices()).Times(1 + !throwException);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
     } else {
@@ -174,6 +173,11 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
        compare(result, metaDevices);
        for (unsigned int i = 0 ; i < result.size(); i++) {
            EXPECT_EQ(result[i].devicePriority, 0);
+       }
+       auto result2 = plugin->ParseMetaDevices(priorityDevices, {{ov::device::priorities.name(), ""}});
+       compare(result2, metaDevices);
+       for (unsigned int i = 0 ; i < result.size(); i++) {
+           EXPECT_EQ(result2[i].devicePriority, 0);
        }
     }
 }

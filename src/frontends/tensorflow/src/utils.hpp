@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,13 +26,21 @@ void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& no
 bool is_conditional_edge(const std::string& input_tensor_name);
 
 template <typename T>
-void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
-    auto ng_input = node.get_input(static_cast<int>(input_index));
-    if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
+void get_const_input(const NodeContext& node, int input_index, std::vector<T>* vector) {
+    auto input_size = static_cast<int>(node.get_input_size());
+    auto node_name = node.get_name();
+    auto node_type = node.get_op_type();
+    FRONT_END_GENERAL_CHECK(0 <= input_index && input_index < input_size,
+                            "[TensorFlow Frontend] Internal error: Node " + node_name + " has " +
+                                std::to_string(input_size) + " inputs, but requested input port index to be " +
+                                std::to_string(input_size));
+    auto ov_input = node.get_input(input_index);
+    if (auto constant = get_constant_from_source(ov_input)) {
         *vector = constant->cast_vector<T>();
         return;
     }
-    FRONT_END_THROW("Node must be converted to Constant.");
+    FRONT_END_THROW("[TensorFlow Frontend] Internal error: Input " + std::to_string(input_index) +
+                    " cannot be folded to Constant for node " + node_name + " of type " + node_type);
 }
 
 ov::op::PadType convert_tf_padding(const NodeContext& node, const std::string& tf_padding);
@@ -52,6 +60,11 @@ ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
                                         ov::pass::NodeRegistry& rg);
 
+ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string& padding_mode);
+
+Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
+                                          element::Type output_type,
+                                          bool as_scalar = false);
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

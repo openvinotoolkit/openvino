@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "openvino/op/parameter.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "utils.hpp"
 #include "utils/shape_inference/static_shape.hpp"
 
 using namespace ov;
@@ -18,7 +19,8 @@ using TestParams = std::tuple<int64_t,      // concatenation axis
                               StaticShape   // Expected shape
                               >;
 
-class ConcatStaticShapeInferenceTest : public TestWithParam<TestParams> {
+class ConcatStaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v0::Concat>,
+                                       public WithParamInterface<TestParams> {
 protected:
     void SetUp() override {
         std::tie(concat_axis, input_shapes, exp_shape) = GetParam();
@@ -26,15 +28,14 @@ protected:
         for (const auto& in : input_shapes) {
             params.make<op::v0::Parameter>(element::f32, in.get_shape());
         }
-        concat = std::make_shared<op::v0::Concat>(params.get(), concat_axis);
+        op = std::make_shared<op::v0::Concat>(params.get(), concat_axis);
+
+        output_shapes = ShapeVector(1);
     }
 
     int64_t concat_axis;
-    StaticShape exp_shape;
-    ShapeVector input_shapes;
 
     pass::NodeRegistry params{};
-    std::shared_ptr<op::v0::Concat> concat;
 };
 
 /** \brief Concatenate simple 1d shapes. */
@@ -66,9 +67,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /** \brief Check shape_infer for concat op on static shapes. */
 TEST_P(ConcatStaticShapeInferenceTest, concat_static) {
-    auto output_shapes = ShapeVector(1);
-
-    shape_infer(concat.get(), input_shapes, output_shapes);
+    shape_infer(op.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.front(), exp_shape);
 }

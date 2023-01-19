@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ public:
                 // Stress condition, can't recover function to original state
                 std::cerr << "Unrecoverable error occurred during preprocessing. Model is corrupted, exiting: "
                           << ex.what();
-                exit(EXIT_FAILURE);
+                // exit(EXIT_FAILURE);
             }
         }
     }

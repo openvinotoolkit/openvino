@@ -18,32 +18,42 @@ namespace onednn {
 
 static void reorder_unreduced_axis_no_fusion(const cldnn::layout& input_layout, cldnn::layout& output_layout, std::vector<int64_t> axes) {
     auto in_dims = input_layout.get_tensor().sizes();
+    auto num_dims = input_layout.format.dimension();
+    auto num_spatial = format::spatial_num(input_layout.format);
+    size_t num_others = num_dims - num_spatial;
 
     for (size_t idx = 0; idx < axes.size(); idx++) {
-        in_dims[axes[idx]] = 1;
+        if (axes[idx] < static_cast<int64_t>(num_others))
+            in_dims[axes[idx]] = 1;
+        else
+            in_dims[(num_dims - axes[idx] - 1 + num_others)] = 1;
     }
 
     auto output_tensor = output_layout.get_tensor();
-    for (size_t idx = 0; idx < in_dims.size(); idx++) {
+    for (size_t idx = 0; idx < output_layout.get_rank(); idx++) {
         output_tensor.raw[idx] = in_dims[idx];
     }
 
     output_layout.set_tensor(output_tensor);
 }
 
-struct reduction_onednn : typed_primitive_onednn_impl<reduce, dnnl::reduction::desc> {
-    using parent = typed_primitive_onednn_impl<reduce, dnnl::reduction::desc>;
+struct reduction_onednn : typed_primitive_onednn_impl<reduce> {
+    using parent = typed_primitive_onednn_impl<reduce>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<reduction_onednn>(*this);
     }
 
-    static std::shared_ptr<dnnl::reduction::desc> get_reduction_descriptor(const kernel_impl_params& impl_params) {
+    static std::shared_ptr<dnnl::reduction::primitive_desc> get_reduction_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                               const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+        auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<reduce>();
         auto input_layout = impl_params.get_input_layout(0);
-        auto output_layout = impl_params.output_layout;
+        auto output_layout = impl_params.get_output_layout();
 
         // A clDNN Reduce reorders un-reduced axes of its output tensor to b-f and spatial order when keep_dims is false.
         // oneDNN reduction does not allow this. So this function reverts it.
@@ -76,22 +86,51 @@ protected:
             default: throw std::runtime_error("unsupported reduce mode");
         }
 
-        return std::make_shared<dnnl::reduction::desc>(
+        return std::make_shared<dnnl::reduction::primitive_desc>(
+            engine.get_onednn_engine(),
             alg,
             input_md,
             output_md,
             p,
-            eps);
+            eps,
+            attr);
     }
 
 public:
-    static primitive_impl* create(const reduce_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
-        auto desc = get_reduction_descriptor(impl_params);
-        auto attr = arg.get_onednn_primitive_attributes();
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+    void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        parent::save(ob);
 
-        return new reduction_onednn(engine, desc, attr, prim_desc);
+        ob << make_data(&_desc->data, sizeof(dnnl_reduction_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+#endif
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        parent::load(ib);
+
+        _desc = std::make_shared<dnnl::reduction::desc>();
+        ib >> make_data(&_desc->data, sizeof(dnnl_reduction_desc_t));
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
+        _prim = dnnl::primitive(_pd, prim_cache);
+#endif
+    }
+
+    static std::unique_ptr<primitive_impl> create(const reduce_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
+        auto attr = arg.get_onednn_primitive_attributes();
+        auto prim_desc = get_reduction_primitive_descriptor(impl_params, *attr);
+
+        return cldnn::make_unique<reduction_onednn>(engine, config, attr, *prim_desc);
     }
 };
 
@@ -106,12 +145,18 @@ attach_reduction_onednn::attach_reduction_onednn() {
     };
     std::vector<format::type> fmt = {
         format::bfyx,
+        format::bfzyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
+        format::b_fs_zyx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
         format::bs_fs_yx_bsv16_fsv32,
         format::bs_fs_yx_bsv32_fsv16,
         format::bs_fs_yx_bsv32_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32,
     };
 
     implementation_map<reduce>::add(impl_types::onednn, reduction_onednn::create, dt, fmt);
@@ -120,3 +165,5 @@ attach_reduction_onednn::attach_reduction_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::reduction_onednn)

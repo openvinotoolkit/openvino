@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,15 +14,19 @@ function(ie_generate_dev_package_config)
     endforeach()
     add_custom_target(ie_dev_targets DEPENDS ${all_dev_targets})
 
-    # if we've found system gflags
-    if(gflags_DIR)
-        set(gflags_BINARY_DIR "${gflags_DIR}")
+    set(PATH_VARS "OpenVINO_SOURCE_DIR")
+    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+        list(APPEND PATH_VARS "gflags_BINARY_DIR")
+        # if we've found system gflags
+        if(gflags_DIR)
+            set(gflags_BINARY_DIR "${gflags_DIR}")
+        endif()
     endif()
 
     configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
                                   "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
                                   INSTALL_DESTINATION share # not used
-                                  PATH_VARS "OpenVINO_SOURCE_DIR;gflags_BINARY_DIR"
+                                  PATH_VARS ${PATH_VARS}
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
@@ -47,15 +51,19 @@ function(ov_generate_dev_package_config)
     endforeach()
     add_custom_target(ov_dev_targets DEPENDS ${all_dev_targets})
 
-    # if we've found system gflags
-    if(gflags_DIR)
-        set(gflags_BINARY_DIR "${gflags_DIR}")
+    set(PATH_VARS "OpenVINO_SOURCE_DIR")
+    if(ENABLE_SAMPLES OR ENABLE_COMPILE_TOOL OR ENABLE_TESTS)
+        list(APPEND PATH_VARS "gflags_BINARY_DIR")
+        # if we've found system gflags
+        if(gflags_DIR)
+            set(gflags_BINARY_DIR "${gflags_DIR}")
+        endif()
     endif()
 
     configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINODeveloperPackageConfig.cmake.in"
                                   "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig.cmake"
                                   INSTALL_DESTINATION share # not used
-                                  PATH_VARS "OpenVINO_SOURCE_DIR;gflags_BINARY_DIR"
+                                  PATH_VARS ${PATH_VARS}
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"

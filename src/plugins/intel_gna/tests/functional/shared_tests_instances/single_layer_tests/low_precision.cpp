@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,10 @@ using namespace LowPrecisionTestDefinitions;
 
 namespace {
 
-class GnaLowPrecisionTest : public LowPrecisionTest, GnaLayerTestCheck {
+class GnaLowPrecisionTest : public LowPrecisionTest {
 protected:
     void Run() override {
-        GnaLayerTestCheck::SkipTestCheck();
-
-        if (!GnaLayerTestCheck::skipTest) {
-            LowPrecisionTest::Run();
-        }
+        LowPrecisionTest::Run();
     }
 
     void SetUp() override {

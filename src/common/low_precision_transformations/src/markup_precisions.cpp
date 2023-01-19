@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,9 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
@@ -220,6 +221,8 @@ bool ngraph::pass::low_precision::MarkupPrecisions::isSupported(const std::share
         { name<opset1::Transpose>() },
         { name<opset1::Unsqueeze>() },
         { name<opset1::VariadicSplit>() },
+        { name<opset5::LSTMSequence>() },
+        { name<opset6::GRUSequence>() },
     };
 
     return supportedOps.find(node->get_type_name()) != supportedOps.end();

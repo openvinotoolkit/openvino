@@ -1,11 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
-#include "frontend/quantization.hpp"
 
 using TranspozedData = std::tuple<std::vector<uint16_t>*, int, int>;
 

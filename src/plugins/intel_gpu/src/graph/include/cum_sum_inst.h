@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/cum_sum.hpp"
 #include "primitive_inst.h"
@@ -24,6 +23,7 @@ using cum_sum_node = typed_program_node<cum_sum>;
 template <>
 class typed_primitive_inst<cum_sum> : public typed_primitive_inst_base<cum_sum> {
     using parent = typed_primitive_inst_base<cum_sum>;
+    using parent::parent;
 
 public:
     static layout calc_output_layout(cum_sum_node const& node, kernel_impl_params const& impl_param);

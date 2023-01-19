@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,8 @@ void gather(const T* const data,
 
     int64_t axis_size = data_shape[axis];
     int64_t data_offset, out_offset, idx;
+    // for out of bound indices is filled with zeros
+    std::fill(out, out + shape_size(out_shape), 0);
 
     for (int64_t batch = 0; batch < batch_size; batch++)
         for (int64_t outer_idx = 0; outer_idx < outer_size; outer_idx++) {
@@ -40,13 +42,11 @@ void gather(const T* const data,
             out_offset = batch_out_mul * batch + indices_size * inner_size * outer_idx;
             for (int64_t i = 0; i < indices_size; i++) {
                 idx = indices[i + batch_indices_mul * batch];
-                // clang-format off
-                            // todo: check if bound check is needed
-                            // if (idx >= axis_size || (idx < 0 && -idx >= axis_size))
-                            //    throw std::domain_error{"indices values of Gather exceed size along axis"};
-                // clang-format on
                 if (idx < 0)
                     idx += axis_size;
+                // for out of bound values have to be filled with zeros
+                if (idx >= axis_size || idx < 0)
+                    continue;
 
                 const auto src_begin = std::next(data, data_offset + inner_size * idx);
                 const auto src_end = std::next(src_begin, inner_size);

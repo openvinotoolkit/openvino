@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::ProposalIE);
 
 op::ProposalIE::ProposalIE(const Output<Node>& class_probs, const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape, const ProposalAttrs& attrs)

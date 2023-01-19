@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/broadcast.hpp"
@@ -32,6 +31,7 @@ using broadcast_node = typed_program_node<broadcast>;
 template <>
 class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadcast> {
     using parent = typed_primitive_inst_base<broadcast>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

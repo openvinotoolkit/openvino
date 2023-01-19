@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API RNNCellDecomposition;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -28,8 +28,14 @@ class TRANSFORMATIONS_API RNNCellDecomposition;
  * *
  */
 
-class ngraph::pass::RNNCellDecomposition : public ngraph::pass::MatcherPass {
+class ov::pass::RNNCellDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RNNCellDecomposition", "0");
     RNNCellDecomposition();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::RNNCellDecomposition;
+}  // namespace pass
+}  // namespace ngraph

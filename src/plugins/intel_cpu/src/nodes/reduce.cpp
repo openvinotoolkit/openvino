@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator() {}
+    : jit_uni_reduce_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -549,10 +549,20 @@ private:
             case memory::data_type::s32:
                 if (isa == cpu::x64::avx512_core) {
                     kxnord(k_mask, k_mask, k_mask);
-                    vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    } else {
+                        vpgatherdd(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else if (isa == cpu::x64::avx2) {
                     uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                    vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    } else {
+                        vpgatherdd(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else {
                     pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
                 }
@@ -1079,7 +1089,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1728,8 +1738,8 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1871,10 +1881,6 @@ bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
-std::vector<VectorDims> Reduce::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(REDUCE_INDEXES));
-}
-
 void Reduce::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -1912,7 +1918,7 @@ void Reduce::prepareParams() {
         setPostOps(attr, dst_dims, true);
 
         ReduceKey key = {jcp, attr.get_post_ops()};
-        auto cache = getRuntimeCache();
+        auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
             IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";

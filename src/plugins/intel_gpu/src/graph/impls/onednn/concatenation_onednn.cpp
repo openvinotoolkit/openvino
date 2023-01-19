@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,11 @@
 namespace cldnn {
 namespace onednn {
 
-struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, void, dnnl::concat::primitive_desc, dnnl::concat> {
-    using parent = typed_primitive_onednn_impl<concatenation, void, dnnl::concat::primitive_desc, dnnl::concat>;
+struct concatenation_onednn : typed_primitive_onednn_impl<concatenation, dnnl::concat::primitive_desc, dnnl::concat> {
+    using parent = typed_primitive_onednn_impl<concatenation, dnnl::concat::primitive_desc, dnnl::concat>;
     using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
 protected:
     std::unique_ptr<primitive_impl> clone() const override {
@@ -32,12 +34,14 @@ protected:
         int input_idx = DNNL_ARG_MULTIPLE_SRC;
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             auto& input = instance.input_memory(i);
-            args.insert({ input_idx++, input.get_onednn_memory(_pd.src_desc(static_cast<int>(i))) });
+            auto offset = onednn::get_f_offset(instance.get_input_layout(), _pd.dnnl::primitive_desc_base::src_desc(i));
+            args.insert({input_idx++, input.get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(i), offset)});
         }
 
         {
             auto& output = instance.output_memory();
-            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dst_desc())});
+            auto offset = onednn::get_f_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
 
         configure_post_ops_arguments(instance, args);
@@ -45,33 +49,79 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_descriptor(const kernel_impl_params& impl_params) {
-        auto prim = impl_params.typed_desc<concatenation>();
-
-        auto& engine = impl_params.prog.get_engine();
+    static std::shared_ptr<dnnl::concat::primitive_desc> get_concatenation_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                      const dnnl::primitive_attr& attr,
+                                                                                      const int64_t axis) {
+        auto& engine = impl_params.prog->get_engine();
         std::vector<dnnl::memory::desc> input_mds;
         for (size_t i = 0; i < impl_params.input_layouts.size(); i++) {
             input_mds.push_back(onednn::layout_to_memory_desc(impl_params.get_input_layout(i)));
         }
-        auto output_md = onednn::layout_to_memory_desc(impl_params.output_layout);
+        auto output_md = onednn::layout_to_memory_desc(impl_params.get_output_layout());
         return std::make_shared<dnnl::concat::primitive_desc>(
+            engine.get_onednn_engine(),
             output_md,
-            prim->axis,
+            axis,
             input_mds,
-            engine.get_onednn_engine());
+            attr);
     }
 
 public:
-    static primitive_impl* create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
-        auto& engine = impl_params.prog.get_engine();
+    void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        if (_prim.get(true) == nullptr) {
+            ob << false;
+            return;
+        } else {
+            ob << true;
+        }
+
+        parent::save(ob);
+
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernlImplParams());
+        auto prim = impl_params->typed_desc<concatenation>();
+        ob << prim->axis;
+
+        std::vector<uint8_t> prim_cache;
+        prim_cache = _prim.get_cache_blob();
+        ob << prim_cache;
+#endif
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
+        bool has_prim;
+        ib >> has_prim;
+
+        if (!has_prim)
+            return;
+
+        parent::load(ib);
+
+        int64_t prim_axis;
+        ib >> prim_axis;
+
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernlImplParams());
+        auto desc = get_concatenation_descriptor(*impl_params, prim_axis, ib.get_engine());
+        _pd = *desc;
+
+        std::vector<uint8_t> prim_cache;
+        ib >> prim_cache;
+
+        _prim = dnnl::concat(_pd, prim_cache);
+#endif
+    }
+
+    static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
+        auto& engine = impl_params.prog->get_engine();
+        auto& config = impl_params.prog->get_config();
         if (arg.can_be_optimized())
-            return new concatenation_onednn(engine);
-        auto desc = get_concatenation_descriptor(impl_params);
+            return make_unique<concatenation_onednn>(engine, config);
+        auto prim = impl_params.typed_desc<concatenation>();
         auto attr = arg.get_onednn_primitive_attributes();
+        auto prim_desc = get_concatenation_primitive_descriptor(impl_params, *attr, prim->axis);
 
-        std::shared_ptr<void> dummy = nullptr;
-
-        return new concatenation_onednn(engine, dummy, attr, *desc);
+        return cldnn::make_unique<concatenation_onednn>(engine, config, attr, *prim_desc);
     }
 };
 
@@ -108,3 +158,5 @@ attach_concatenation_onednn::attach_concatenation_onednn() {
 }  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::concatenation_onednn)

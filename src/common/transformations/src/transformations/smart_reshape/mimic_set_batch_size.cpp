@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 
 #include "itt.hpp"
+
+using namespace ngraph;
 
 bool ngraph::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@ using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::Convolution);
-
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,
@@ -100,8 +98,6 @@ shared_ptr<Node> op::v1::Convolution::get_default_value() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 // *** ConvolutionBackpropData OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::ConvolutionBackpropData);
-
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,
                                                          const Output<Node>& output_shape,

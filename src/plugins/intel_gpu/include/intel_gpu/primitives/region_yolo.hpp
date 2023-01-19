@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Normalizes results so they sum to 1.
 /// @details
@@ -26,14 +19,14 @@ struct region_yolo : public primitive_base<region_yolo> {
     /// @param input Input primitive id.
     /// @param dimension Defines a scope of normalization (see #dimension).
     region_yolo(const primitive_id& id,
-                const primitive_id& input,
+                const input_info& input,
                 const uint32_t coords,
                 const uint32_t classes,
                 const uint32_t num,
                 const uint32_t mask_size = 0,
                 const bool do_softmax = true,
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           coords(coords),
           classes(classes),
           num(num),
@@ -49,8 +42,5 @@ struct region_yolo : public primitive_base<region_yolo> {
     uint32_t mask_size;
     bool do_softmax;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
 #pragma once

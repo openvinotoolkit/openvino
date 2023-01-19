@@ -3,7 +3,6 @@
 //
 
 #include "include/batch_headers/common.cl"
-#include "include/batch_headers/data_types.cl"
 
 #define VSIZE 8
 #define VLOAD CAT(vload, VSIZE)
@@ -23,7 +22,7 @@ KERNEL (gather_nonzero_ref)(const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* out_mem = output;
 #endif
 
-    int count_nzero = output_shape[1];
+    int count_nzero = output_shape[0];
 #if OV_INPUT_RANK == 1 // b
     #define ADD_IDXS \
         int b = input_idx_v / INPUT0_BATCH_PITCH; \
@@ -116,6 +115,7 @@ KERNEL (gather_nonzero_ref)(const __global INPUT0_TYPE* input,
             }
         }
     }
+
     // leftovers
     for (;input_idx < TOTAL_DATA_SIZE; ++input_idx) {
         int input_idx_v = input_idx;
@@ -124,7 +124,6 @@ KERNEL (gather_nonzero_ref)(const __global INPUT0_TYPE* input,
             ADD_IDXS;
          }
     }
-    
 #ifdef USE_LOCAL_MEM
     // write back to global mem
     int local_out_iter = 0;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace op {
 class SwishIE : public Op {
 public:
     OPENVINO_OP("SwishIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     explicit SwishIE(const Output<Node> &input, float alpha = 1.0);
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,13 @@
 #include <legacy/details/ie_cnn_network_tools.h>
 #include "gna_data_types.hpp"
 #include "gna_graph_tools.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "ops/util/util.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief checks if it's a reshape from 4d to 3d tensor
@@ -104,7 +105,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         const auto layout = next->outData[0]->getLayout();
         const auto order = next->GetParamAsInts("order");
         if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
-            order != GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
+            order != permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
             order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */) {
             return std::make_pair(nullptr, nullptr);
         }
@@ -128,8 +129,10 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
             // Check if reshape is expected for this pattern:
             // the next layer has the both, height and width dimensions > 1
             IE_ASSERT(in_dims_size == 3 || in_dims_size == 4);
-            size_t height = in_dims_size == 3 ? 1 : GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::H);
-            size_t width = GetDataDimSize(next->insData[0].lock(), InferenceEngine::DataDimName::W);
+            size_t height = in_dims_size == 3 ? 1
+                                              : InferenceEngine::GetDataDimByName(next->insData[0].lock(),
+                                                                                  InferenceEngine::DataDimName::H);
+            size_t width = InferenceEngine::GetDataDimByName(next->insData[0].lock(), InferenceEngine::DataDimName::W);
             if (out_dims_size < 3 || height != 1 || width != 1) {
                 return std::make_pair(nullptr, nullptr);
             }
@@ -153,7 +156,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         const auto layout = prev->outData[0]->getLayout();
         const auto order = prev->GetParamAsInts("order");
         if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
-            order != GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
+            order != permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
             order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
             return std::make_pair(nullptr, nullptr);
         }
@@ -178,11 +181,12 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
             // Check if reshape is expected for this pattern:
             // the previous layer has number of channels > 1 and one of height/width dimensions is also > 1
             in_dims_size = parent->insData[0].lock()->getDims().size();
-            out_dims_size = parent->outData[0]->getDims().size();
+            const auto out_dims = parent->outData[0]->getDims();
+            out_dims_size = out_dims.size();
             IE_ASSERT(out_dims_size == 3 || out_dims_size == 4);
-            size_t channels = GetDataDimSize(parent->outData[0], static_cast<uint32_t>(out_dims_size - 1));
-            size_t height = out_dims_size == 3 ? 1 : GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H);
-            size_t width = GetDataDimSize(parent->outData[0], static_cast<uint32_t>(InferenceEngine::DataDimName::W));
+            size_t channels = InferenceEngine::GetDimFromFront(out_dims, 1);
+            size_t height = out_dims_size == 3 ? 1 : InferenceEngine::GetDataDimByName(parent->outData[0], InferenceEngine::DataDimName::H);
+            size_t width = InferenceEngine::GetDimFromBack(out_dims, 3);
             if (in_dims_size < 3 || channels != 1 && (height != 1 || width != 1)) {
                 return std::make_pair(nullptr, nullptr);
             }
@@ -259,9 +263,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
         auto getTransposeInfoFromData = [](InferenceEngine::DataPtr data, bool transpose = true) {
-            auto rows = InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::C);
-            auto columns = InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::H) *
-                           InferenceEngine::GetDataDimSize(data, InferenceEngine::DataDimName::W);
+            auto rows = InferenceEngine::GetDataDimByName(data, InferenceEngine::DataDimName::C);
+            auto columns = InferenceEngine::GetDataDimByName(data, InferenceEngine::DataDimName::H) *
+                           InferenceEngine::GetDataDimByName(data, InferenceEngine::DataDimName::W);
             return std::vector<TranspositionInfo>{{transpose, rows, columns}};
         };
         if (LayerInfo(layer).isConvolution() || LayerInfo(layer).isPooling()) {
@@ -279,7 +283,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromPrevLayers(Infere
         if (LayerInfo(layer).isEltwise()) {
             auto input1 = InferenceEngine::CNNNetPrevLayer(layer, 0);
             auto input2 = InferenceEngine::CNNNetPrevLayer(layer, 1);
-            if (LayerInfo(input1).isConst()) return findTranspositionInfoRecursive(input2);
+            if (LayerInfo(input1).isConst() || LayerInfo(input1).isInput()) {
+                return findTranspositionInfoRecursive(input2);
+            }
             return findTranspositionInfoRecursive(input1);
         }
 
@@ -355,9 +361,9 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
     std::function<std::vector<TranspositionInfo>(InferenceEngine::CNNLayerPtr)> findTranspositionInfoRecursive =
         [&findTranspositionInfoRecursive](InferenceEngine::CNNLayerPtr layer) -> std::vector<TranspositionInfo> {
         if (LayerInfo(layer).isConvolution()) {
-            auto rows = InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::C);
-            auto columns = InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::H) *
-                           InferenceEngine::GetDataDimSize(layer->input(), InferenceEngine::DataDimName::W);
+            auto rows = InferenceEngine::GetDataDimByName(layer->input(), InferenceEngine::DataDimName::C);
+            auto columns = InferenceEngine::GetDataDimByName(layer->input(), InferenceEngine::DataDimName::H) *
+                           InferenceEngine::GetDataDimByName(layer->input(), InferenceEngine::DataDimName::W);
             return {{true, rows, columns}};
         }
 
@@ -424,4 +430,5 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
     return findTranspositionInfoRecursive(layer);
 }
 
-} // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

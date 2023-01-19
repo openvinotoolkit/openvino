@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <shared_node_info.hpp>
 #include <test_common.hpp>
 
@@ -1971,4 +1972,71 @@ TEST(model, set_meta_information) {
     EXPECT_NO_THROW(f->get_rt_info<std::string>({key, "test1"}));
     EXPECT_EQ(f->get_rt_info<std::string>({key, "test1"}), "1");
     EXPECT_EQ(f->get_rt_info<int>({key, "test1"}), 1);
+}
+
+TEST(model, set_complex_meta_information) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto relu = std::make_shared<ov::opset8::Relu>(arg0);
+    relu->set_friendly_name("relu");
+    relu->get_output_tensor(0).set_names({"relu_t", "identity"});
+    auto f = std::make_shared<ov::Model>(relu, ov::ParameterVector{arg0});
+
+    const auto check_rt_info = [](const std::shared_ptr<ov::Model>& model) {
+        EXPECT_TRUE(model->has_rt_info("config", "type_of_model"));
+        EXPECT_TRUE(model->has_rt_info("config", "converter_type"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "threshold"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "min"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "max"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "type"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "directed"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_tree", "nodes"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "labels", "label_groups", "ids"));
+        EXPECT_TRUE(model->has_rt_info("config", "model_parameters", "mean_values"));
+
+        EXPECT_EQ("classification", model->get_rt_info<std::string>("config", "type_of_model"));
+        EXPECT_EQ("classification", model->get_rt_info<std::string>("config", "converter_type"));
+        EXPECT_FLOAT_EQ(13.23f, model->get_rt_info<float>("config", "model_parameters", "threshold"));
+        EXPECT_FLOAT_EQ(-3.245433f, model->get_rt_info<float>("config", "model_parameters", "min"));
+        EXPECT_FLOAT_EQ(3.2342233f, model->get_rt_info<float>("config", "model_parameters", "max"));
+        EXPECT_EQ("tree",
+                  model->get_rt_info<std::string>("config", "model_parameters", "labels", "label_tree", "type"));
+        EXPECT_EQ(true, model->get_rt_info<bool>("config", "model_parameters", "labels", "label_tree", "directed"));
+        EXPECT_EQ(std::vector<std::string>{},
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_tree",
+                                                               "nodes"));
+        std::vector<std::string> str_vec{"sasd", "fdfdfsdf"};
+        EXPECT_EQ(str_vec,
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_groups",
+                                                               "ids"));
+        std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
+        EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
+    };
+
+    // Fill meta data
+    f->set_rt_info("classification", "config", "type_of_model");
+    f->set_rt_info("classification", "config", "converter_type");
+    f->set_rt_info(13.23f, "config", "model_parameters", "threshold");
+    f->set_rt_info(-3.245433f, "config", "model_parameters", "min");
+    f->set_rt_info(3.2342233f, "config", "model_parameters", "max");
+    f->set_rt_info("tree", "config", "model_parameters", "labels", "label_tree", "type");
+    f->set_rt_info(true, "config", "model_parameters", "labels", "label_tree", "directed");
+    f->set_rt_info(std::vector<std::string>{}, "config", "model_parameters", "labels", "label_tree", "nodes");
+    f->set_rt_info(std::vector<std::string>{"sasd", "fdfdfsdf"},
+                   "config",
+                   "model_parameters",
+                   "labels",
+                   "label_groups",
+                   "ids");
+    f->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
+
+    check_rt_info(f);
 }

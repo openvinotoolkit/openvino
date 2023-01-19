@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "lstm_dynamic_timeloop_inst.h"
 #include "primitive_base.hpp"
@@ -18,13 +16,17 @@ namespace ocl {
 struct lstm_dynamic_timeloop_impl : typed_primitive_impl_ocl<lstm_dynamic_timeloop> {
     using parent = typed_primitive_impl_ocl<lstm_dynamic_timeloop>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::lstm_dynamic_timeloop_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::lstm_dynamic_timeloop_params, kernel_selector::lstm_dynamic_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<lstm_dynamic_timeloop_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(typed_primitive_inst<lstm_dynamic_timeloop>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_dynamic_timeloop>& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_memory_ptr(), instance.dyn_length_memory()};
         if (instance.last_hidden_output_term())
@@ -39,7 +41,7 @@ protected:
     }
 
 public:
-    static primitive_impl* create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
+    static std::unique_ptr<primitive_impl> create(const lstm_dynamic_timeloop_node& arg, const kernel_impl_params& impl_param) {
         auto dlstm_timeloop_params = get_default_params<kernel_selector::lstm_dynamic_timeloop_params>(impl_param);
 
         // dyn length
@@ -74,19 +76,12 @@ public:
 
         // finially get best kernel
         auto dlstm_timeloop_optional_params =
-            get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(arg.get_program());
+            get_default_optional_params<kernel_selector::lstm_dynamic_optional_params>(impl_param.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_dynamic_timeloop_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(dlstm_timeloop_params, dlstm_timeloop_optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(dlstm_timeloop_params, dlstm_timeloop_optional_params);
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto lstm_dynamic = new lstm_dynamic_timeloop_impl(arg, best_kernels[0]);
-
-        return lstm_dynamic;
+        return make_unique<lstm_dynamic_timeloop_impl>(best_kernel);
     }
 };
 
@@ -102,3 +97,5 @@ attach_lstm_dynamic_timeloop_impl::attach_lstm_dynamic_timeloop_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_dynamic_timeloop_impl)

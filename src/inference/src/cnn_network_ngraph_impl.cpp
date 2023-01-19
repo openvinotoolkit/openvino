@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,12 +32,14 @@
 // TODO: remove this pass usage
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <openvino/cc/pass/itt.hpp>
 #include <transformations/common_optimizations/dimension_tracking.hpp>
 #include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/disable_decompression_convert_constant_folding.hpp>
-#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
@@ -146,10 +148,13 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
       _new_api(newAPI) {
     {
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::FixRtInfo>();
-        m.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-        m.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
-        m.register_pass<ov::pass::FoldSubgraphEmptyInputs>();
+        using namespace ngraph::pass;
+        REGISTER_PASS(m, FixRtInfo)
+        using namespace ov::pass;
+        REGISTER_PASS(m, EliminateScatterUpdate)
+        REGISTER_PASS(m, RemoveConcatZeroDimInput)
+        REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParams)
+        REGISTER_PASS(m, FoldSubgraphEmptyInputs)
         m.run_passes(_ngraph_function);
     }
     // Restore usual attributes for CNNNetwork
@@ -210,7 +215,8 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     _ngraph_function = ngraph::clone_function(*network.getFunction());
     {
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::FixRtInfo>();
+        using namespace ngraph::pass;
+        REGISTER_PASS(m, FixRtInfo)
         m.run_passes(_ngraph_function);
     }
     validateFunctionNames();
@@ -393,7 +399,8 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::Par
 
         try {
             ngraph::pass::Manager ssr_manager;
-            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+            using namespace ngraph::pass;
+            REGISTER_PASS(ssr_manager, SmartReshape)
             ssr_manager.run_passes(_ngraph_function);
 
             reshape(inputShapes);
@@ -423,6 +430,57 @@ StatusCode CNNNetworkNGraphImpl::reshape(const std::map<std::string, SizeVector>
         shapes[shape.first] = ngraph::PartialShape(shape.second);
     return reshape(shapes, responseDesc);
 }
+
+namespace {
+void collect_dynamism_signature(const std::shared_ptr<ov::Model>& ov_model,
+                                std::map<std::string, std::map<std::string, size_t>>& signatures,
+                                bool obfuscate) {
+    for (const auto& op : ov_model->get_ordered_ops()) {
+        const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
+
+        std::stringstream shape_representation;
+        for (const auto& input : op->input_values()) {
+            bool first = true;
+            shape_representation << "{";
+            for (const auto& dimension : input.get_partial_shape()) {
+                if (!first)
+                    shape_representation << ",";
+                first = false;
+
+                if (obfuscate)
+                    shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                else
+                    shape_representation << dimension;
+            }
+            shape_representation << "} ";
+        }
+        shape_representation << "-> ";
+        for (const auto& output : op->outputs()) {
+            bool first = true;
+            shape_representation << "{";
+            for (const auto& dimension : output.get_partial_shape()) {
+                if (!first)
+                    shape_representation << ",";
+                first = false;
+
+                if (obfuscate)
+                    shape_representation << (dimension.is_dynamic() ? "D" : "S");
+                else
+                    shape_representation << dimension;
+            }
+            shape_representation << "} ";
+        }
+        signatures[type_name][shape_representation.str()]++;
+
+        // collect dynamism signature for sub-graphs of multi-subgraph operation
+        if (const auto multi_sub_graph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            int num_subgraphs = static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
+            for (int i = 0; i < num_subgraphs; i++)
+                collect_dynamism_signature(multi_sub_graph_op->get_function(i), signatures, obfuscate);
+        }
+    }
+}
+}  // namespace
 
 void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::reshape");
@@ -455,14 +513,17 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
-                manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-                manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
-                manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
-                manager.register_pass<::ngraph::pass::ConvertNMS9ToNMSIEInternal>();
-                manager.register_pass<::ngraph::pass::ConvertGP9ToGPIEInternal>();
-                manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
-                manager.register_pass<::ov::pass::DisableDecompressionConvertConstantFolding>();
-                manager.register_pass<::ngraph::pass::ConstantFolding>();
+                using namespace ngraph::pass;
+                REGISTER_PASS(manager, ConvertNMS5ToLegacyMatcher, false)
+                REGISTER_PASS(manager, ConvertMulticlassNmsToMulticlassNmsIE, false)
+                REGISTER_PASS(manager, ConvertMatrixNmsToMatrixNmsIE, false)
+                REGISTER_PASS(manager, ConvertNMS9ToNMSIEInternal)
+                REGISTER_PASS(manager, ConvertGP9ToGPIEInternal)
+                using namespace ov::pass;
+                REGISTER_PASS(manager, MarkDequantizationSubgraph)
+                REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
+                REGISTER_PASS(manager, ConstantFolding)
+
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
                     specialized_ngraph_function);
@@ -472,50 +533,16 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
         }
 
 #if 0
-        bool obfuscate = true; // set to false to get exact dimensions
+        bool obfuscate = true;  // set to false to get exact dimensions
         std::map<std::string, std::map<std::string, size_t>> signatures;
-        for (const auto& op : _ngraph_function->get_ordered_ops()) {
-            const auto& type_name = string(op->get_type_info().name) + "_" + to_string(op->get_type_info().version);
 
-            std::stringstream shape_representation;
-            for (const auto& input : op->input_values()) {
-                bool first = true;
-                shape_representation << "{";
-                for (const auto& dimension : input.get_partial_shape()) {
-                    if (!first)
-                        shape_representation << ",";
-                    first = false;
-
-                    if (obfuscate)
-                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
-                    else
-                        shape_representation << dimension;
-                }
-                shape_representation << "} ";
-            }
-            shape_representation << "-> ";
-            for (const auto& output: op->outputs())  {
-                bool first = true;
-                shape_representation << "{";
-                for (const auto& dimension : output.get_partial_shape()) {
-                    if (!first)
-                        shape_representation << ",";
-                    first = false;
-
-                    if (obfuscate)
-                        shape_representation << (dimension.is_dynamic() ? "D" : "S");
-                    else
-                        shape_representation << dimension;
-                }
-                shape_representation << "} ";
-            }
-            signatures[type_name][shape_representation.str()]++;
-        }
+        collect_dynamism_signature(_ngraph_function, signatures, obfuscate);
 
         for (const auto& item : signatures)
             for (const auto& shape_to_count : item.second)
                 std::cout << item.first << " " << shape_to_count.second << "x " << shape_to_count.first << std::endl;
 #endif
+
         std::unordered_set<std::string> opName;
         for (const auto& result : specialized_ngraph_function->get_results()) {
             addOutput(result->input_value(0));
@@ -542,10 +569,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlPath,
-                                                   binPath,
-                                                   custom_opsets,
-                                                   ov::pass::Serialize::Version::IR_V10);
+        using namespace ov::pass;
+        REGISTER_PASS(manager, Serialize, xmlPath, binPath, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -566,7 +591,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, std::ostream& b
             custom_opsets.insert(begin(opset), end(opset));
         }
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10);
+        using namespace ov::pass;
+        REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
     } catch (const Exception& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
@@ -589,7 +615,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binB
 
         std::stringstream binBuf;
         ngraph::pass::Manager manager;
-        manager.register_pass<ov::pass::Serialize>(xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10);
+        using namespace ov::pass;
+        REGISTER_PASS(manager, Serialize, xmlBuf, binBuf, custom_opsets, ov::pass::Serialize::Version::IR_V10)
         manager.run_passes(_ngraph_function);
 
         std::streambuf* pbuf = binBuf.rdbuf();
@@ -672,7 +699,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             inShapes[parameter->get_friendly_name()] = shape;
         }
         ngraph::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SetBatchSize>();
+        using namespace ngraph::pass;
+        REGISTER_PASS(ssr_manager, SetBatchSize)
         ssr_manager.run_passes(_ngraph_function);
 
         return reshape(inShapes, responseDesc);

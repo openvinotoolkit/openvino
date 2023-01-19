@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +17,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -40,6 +41,8 @@ public:
     }
 
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
+    // void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -75,6 +78,42 @@ private:
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
     dnnl::memory::data_type outputDataType;
+
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+    bool useConv1x1 = false;
+    impl_desc_type implementationTypeIP;
+    MemoryDescPtr weightDescIP;
+    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
+    // different shapes. Weights will be cached in privateWeightCache.
+    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
+    // reference
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+
+    class ExecutorInnerProduct : public DnnlExecutor {
+        public:
+            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
+    };
+
+    class ExecutorConv1x1 : public DnnlExecutor {
+        public:
+            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
+    };
+
+    static DnnlDesriptor createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
+                                                         DnnlMemoryDescCPtr weightDescPtr,
+                                                         DnnlMemoryDescCPtr biasDescPtr,
+                                                         DnnlMemoryDescCPtr outputDescPtr);
+
+    bool canBeExecutedInConv1x1() const;
+    MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
+
+    // sparse weights
+    bool useSparseWeights = false;
+    int nnzCount = -1;
+    float minSparseRate = 1.f;
+    float weiSparseRate = 0.f;
+    bool useSparseWeightsDecompression();
 };
 
 }   // namespace node

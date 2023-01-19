@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,6 @@ namespace v0 {
 class OPENVINO_API RNNCell : public util::RNNCellBase {
 public:
     OPENVINO_OP("RNNCell", "opset1", util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     RNNCell();
     ///

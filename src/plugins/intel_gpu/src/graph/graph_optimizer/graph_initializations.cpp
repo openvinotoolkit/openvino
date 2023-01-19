@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "program_node.h"
@@ -31,11 +29,13 @@
 using namespace cldnn;
 
 namespace cldnn {
+namespace {
 std::string get_id_string(size_t i) {
     std::stringstream ss;
     ss << std::setw(5) << std::setfill('0') << i;
     return ss.str();
 }
+}  // namespace
 
 void graph_initializations::handle_split_node(program& p, split_node& node) {
     if (!node.get_users().empty()) {
@@ -291,9 +291,9 @@ void graph_initializations::handle_lstm_node(program& p, lstm_node& node) {
     }
     // if there is no next lstm, concatenation is created
     if (!has_lstm_children) {
-        std::vector<primitive_id> output_ids_offsets;
+        std::vector<input_info> output_ids_offsets;
         for (auto& e : output_map) {
-            output_ids_offsets.push_back(e.second.first);
+            output_ids_offsets.push_back(input_info(e.second.first));
         }
         primitive_id concatenation_id = node.id() + ":concat";
         auto concatenation_primitive = std::make_shared<concatenation>(concatenation_id, output_ids_offsets, 1);
@@ -343,7 +343,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                              dyn_length_id,
                                              weights_id,
                                              bias_id,
-                                             node.get_primitive()->output_padding);
+                                             node.get_primitive()->output_paddings[0]);
     auto& lstm_dynamic_input_node = p.get_or_create(lstm_dynamic_input_primitive);
     p.add_connection(node.input(), lstm_dynamic_input_node);  // connect real input to dlstm_input
     // connect other deps
@@ -369,7 +369,7 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
                                                 init_cell_id,
                                                 node.clip(),
                                                 node.input_forget(),
-                                                lstm_dynamic_input_primitive->output_padding);
+                                                lstm_dynamic_input_primitive->output_paddings[0]);
     auto& lstm_dynamic_timeloop_node = p.get_or_create(lstm_dynamic_timeloop_primitive);
     p.add_connection(lstm_dynamic_input_node, lstm_dynamic_timeloop_node);  // connect dlstm_input to dlstm_timeloop
     // connect other deps
@@ -400,9 +400,9 @@ void graph_initializations::handle_dynamic_lstm_node(program& p, lstm_dynamic_no
 }
 
 void graph_initializations::set_outputs(program& p) {
-    auto outputs_option = p.get_options().get<build_option_type::outputs>();
-    if (!outputs_option->outputs.empty()) {
-        for (auto const& output : outputs_option->outputs) {
+    auto custom_outputs = p.get_config().get_property(ov::intel_gpu::custom_outputs);
+    if (!custom_outputs.empty()) {
+        for (auto const& output : custom_outputs) {
             auto o_node = p.get_node_ptr(output);
             o_node->set_output(true);
             p.outputs.push_back(o_node.get());

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -16,9 +16,6 @@ from openvino.tools.mo.utils.versions_checker import get_environment_setup
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 try:
     import tensorflow.compat.v1 as tf_v1
-
-    # disable eager execution of TensorFlow 2 environment immediately
-    tf_v1.disable_eager_execution()
     import tensorflow as tf
     from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
@@ -175,9 +172,81 @@ def deducing_metagraph_path(meta_graph_file: str):
     return meta_graph_file
 
 
+def freeze_tf2_concrete_function(model, concrete_func, env_setup):
+
+    if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
+        frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                        lower_control_flow=False,
+                                                        aggressive_inlining=True)  # pylint: disable=E1123
+    else:
+        frozen_func = convert_variables_to_constants_v2(concrete_func,
+                                                        lower_control_flow=False)  # pylint: disable=E1123
+    graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
+
+    input_names = []
+    if hasattr(model, 'inputs') and model.inputs is not None:
+        # Extract tensor names order from Keras model
+        input_names = [tensor.name for tensor in model.inputs]
+
+    # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
+    # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
+    # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
+    # order alignment.
+    output_names = [tensor.name for tensor in frozen_func.outputs]
+
+    inputs_outputs_order = (input_names, output_names)
+
+    return graph_def, {}, 'tf2', inputs_outputs_order
+
+
+def prepare_graph_def(model):
+    from tensorflow.python.training.tracking.base import Trackable  # pylint: disable=no-name-in-module,import-error
+    if isinstance(model, tf_v1.GraphDef):
+        nodes_to_clear_device = model.node
+        for node in nodes_to_clear_device:
+            node.device = ""
+        return model, {}, "tf", None
+    if isinstance(model, tf.keras.Model):
+        env_setup = get_environment_setup("tf")
+
+        assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
+
+        model_inputs = []
+        for inp in model.inputs:
+            if isinstance(inp, tf.Tensor):
+                model_inputs.append(inp)
+            elif tf.keras.backend.is_keras_tensor(inp):
+                model_inputs.append(inp.type_spec)
+            else:
+                raise Error("Unknown input tensor type {}".format(type(input)))
+
+        @tf.function
+        def tf_function(x):
+            return model(x)
+
+        conc_func = tf_function.get_concrete_function(model_inputs)
+        return freeze_tf2_concrete_function(model, conc_func, env_setup)
+    if isinstance(model, Trackable):
+        env_setup = get_environment_setup("tf")
+        return saved_model_load(model, env_setup)
+    raise Exception("Unknown model type {}.".format(type(model)))
+
+
+def saved_model_load(imported, env_setup):
+    # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
+    concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+    # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
+    # and a model with Embedding operation cannot properly converted to IR without this function parameter
+
+    return freeze_tf2_concrete_function(imported, concrete_func, env_setup)
+
+
 def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpoint: str = "",
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
                       user_output_node_names_list: list = []):
+
+    if not isinstance(graph_file_name, str) and graph_file_name is not None:
+        return prepare_graph_def(graph_file_name)
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf_v1.GraphDef()
     if isinstance(graph_file_name, str) and (re.match(r'.*\.(ckpt|meta)$', graph_file_name)):
@@ -230,8 +299,6 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             # saved model directory
             try:
                 env_setup = get_environment_setup("tf")
-                # enable eager execution temporarily while TensorFlow 2 model is being loaded
-                tf_v1.enable_eager_execution()
 
                 try:
                     # Code to extract Keras model.
@@ -241,38 +308,8 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 except:
                     imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 
-                # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
-                concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
-                # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
-                # and a model with Embedding operation cannot properly converted to IR without this function parameter
-                if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
-                    frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                                    lower_control_flow=False,
-                                                                    aggressive_inlining=True)  # pylint: disable=E1123
-                else:
-                    frozen_func = convert_variables_to_constants_v2(concrete_func,
-                                                                    lower_control_flow=False)  # pylint: disable=E1123
-                graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
-                # disable eager execution since next steps are executed with a graph in non-eager mode
-                tf_v1.disable_eager_execution()
-
-                input_names = []
-                if hasattr(imported, 'inputs') and imported.inputs is not None:
-                    # Extract tensor names order from Keras model
-                    input_names = [tensor.name for tensor in imported.inputs]
-
-                # After model freezing output tensor names are changing and recieve "Func/PartitionedCall" prefix,
-                # so output_names from saved_model cannot be used. Here tensor names from frozen graph are used,
-                # as TF adds indexed Identity nodes during freezing to each output, so this indexing is used for
-                # order alignment.
-                output_names = [tensor.name for tensor in frozen_func.outputs]
-
-                inputs_outputs_order = (input_names, output_names)
-
-                return graph_def, variables_values, 'tf2', inputs_outputs_order
+                return saved_model_load(imported, env_setup)
             except:
-                # disable eager execution since TensorFlow 1 model is handled
-                tf_v1.disable_eager_execution()
                 # code to extract GraphDef for TF 1.0 SavedModel format
                 tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
                 with tf_v1.Session() as sess:
@@ -287,11 +324,19 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+
+    # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
+    # the main thing is to differentiate this format from text frozen format and checkpoint
+    # that can utilize input_model option
+    if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint:
+        return None
+
+    user_output_node_names_list = argv.output.split(',') if argv.output else None
     graph_def, _, _, _ = load_tf_graph_def(
         graph_file_name=argv.input_model,
         is_binary=not argv.input_model_is_text,
         checkpoint=argv.input_checkpoint,
-        user_output_node_names_list=argv.output,
+        user_output_node_names_list=user_output_node_names_list,
         model_dir=argv.saved_model_dir,
         meta_graph_file=argv.input_meta_graph,
         saved_model_tags=argv.saved_model_tags)

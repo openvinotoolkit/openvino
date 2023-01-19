@@ -1,21 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "detection_output_inst.h"
 #include "primitive_type_base.h"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id detection_output::type_id() {
-    static primitive_type_base<detection_output> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
 layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "detection_output_node!");
     auto desc = impl_param.typed_desc<detection_output>();
@@ -180,4 +178,92 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
                      "Detection output layer doesn't support input padding in Prior-Box input");
 }
 
+void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    // argument (struct detection_output)
+    ob << argument->id;
+    ob << argument->input[0].pid;
+    ob << argument->input[1].pid;
+    ob << argument->input[2].pid;
+    ob << make_data(&argument->output_paddings[0], sizeof(argument->output_paddings[0]));
+    ob << argument->num_classes;
+    ob << argument->keep_top_k;
+    ob << argument->share_location;
+    ob << argument->background_label_id;
+    ob << argument->nms_threshold;
+    ob << argument->top_k;
+    ob << argument->eta;
+    ob << make_data(&argument->code_type, sizeof(argument->code_type));
+    ob << argument->variance_encoded_in_target;
+    ob << argument->confidence_threshold;
+    ob << argument->prior_info_size;
+    ob << argument->prior_coordinates_offset;
+    ob << argument->prior_is_normalized;
+    ob << argument->input_width;
+    ob << argument->input_height;
+    ob << argument->decrease_label_id;
+    ob << argument->clip_before_nms;
+    ob << argument->clip_after_nms;
+}
+
+void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    primitive_id id;
+    primitive_id input_location;
+    primitive_id input_confidence;
+    primitive_id input_prior_box;
+    uint32_t num_classes;
+    uint32_t keep_top_k;
+    bool share_location;
+    int background_label_id;
+    float nms_threshold;
+    int top_k;
+    float eta;
+    prior_box_code_type code_type;
+    bool variance_encoded_in_target;
+    float confidence_threshold;
+    int32_t prior_info_size;
+    int32_t prior_coordinates_offset;
+    bool prior_is_normalized;
+    int32_t input_width;
+    int32_t input_height;
+    bool decrease_label_id;
+    bool clip_before_nms;
+    bool clip_after_nms;
+    // primitive_id ext_prim_id;
+    padding output_padding;
+
+    ib >> id;
+    ib >> input_location;
+    ib >> input_confidence;
+    ib >> input_prior_box;
+    ib >> make_data(&output_padding, sizeof(output_padding));
+    ib >> num_classes;
+    ib >> keep_top_k;
+    ib >> share_location;
+    ib >> background_label_id;
+    ib >> nms_threshold;
+    ib >> top_k;
+    ib >> eta;
+    ib >> make_data(&code_type, sizeof(code_type));
+    ib >> variance_encoded_in_target;
+    ib >> confidence_threshold;
+    ib >> prior_info_size;
+    ib >> prior_coordinates_offset;
+    ib >> prior_is_normalized;
+    ib >> input_width;
+    ib >> input_height;
+    ib >> decrease_label_id;
+    ib >> clip_before_nms;
+    ib >> clip_after_nms;
+
+    argument = std::make_shared<detection_output>(
+        id, input_info(input_location), input_info(input_confidence), input_info(input_prior_box),
+        num_classes, keep_top_k, share_location, background_label_id, nms_threshold, top_k, eta, code_type,
+        variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
+        prior_is_normalized, input_width, input_height, decrease_label_id, clip_before_nms, clip_after_nms,
+        output_padding);
+}
 }  // namespace cldnn

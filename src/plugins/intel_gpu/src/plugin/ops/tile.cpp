@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto repeatsNode = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
@@ -41,16 +41,16 @@ static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>
 
             auto targetShape = tensor_from_dims(inputDims);
 
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[0], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeName, inputs[0], targetShape);
 
             p.add_primitive(*op, reshapePrim);
 
-            inputPrimitives[0] = reshapeName;
+            inputs[0] = cldnn::input_info(reshapeName);
         }
     }
 
     auto tilePrim = cldnn::tile(layerName,
-                                inputPrimitives[0],
+                                inputs[0],
                                 repeats);
 
     p.add_primitive(*op, tilePrim);

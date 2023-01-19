@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -75,7 +75,7 @@ class TestSqueeze(CommonTFLayerTest):
     test_data_3D = [
         dict(shape=[1, 1, 3], axis=[]),
         dict(shape=[1, 1, 3], axis=[0]),
-        dict(shape=[1, 1, 3], axis=[-1])
+        dict(shape=[1, 3, 1], axis=[-1])
     ]
 
     # TODO mark as precommit (after successfully passing in nightly)

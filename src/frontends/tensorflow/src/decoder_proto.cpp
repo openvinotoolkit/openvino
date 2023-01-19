@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,6 +67,9 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
             case ov::element::i64:
                 val_i = tensor_proto.int64_val()[i];
                 break;
+            case ov::element::f16:
+                val_i = float16::from_bits(tensor_proto.half_val()[i]);
+                break;
             case ov::element::f32:
                 val_i = tensor_proto.float_val()[i];
                 break;
@@ -101,10 +104,14 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case ::tensorflow::AttrValue::ValueCase::kI:
         return attrs[0].i();
     case ::tensorflow::AttrValue::ValueCase::kShape: {
-        std::vector<ov::Dimension> dims;
         const auto& tf_shape = attrs[0].shape();
-        for (int i = 0; i < tf_shape.dim_size(); i++) {
-            dims.emplace_back(tf_shape.dim(i).size());
+        if (tf_shape.unknown_rank()) {
+            return ov::PartialShape::dynamic();
+        }
+        auto shape_rank = tf_shape.dim_size();
+        std::vector<ov::Dimension> dims(shape_rank);
+        for (int i = 0; i < shape_rank; ++i) {
+            dims[i] = static_cast<ov::Dimension::value_type>(tf_shape.dim(i).size());
         }
         return ov::PartialShape(dims);
     }
@@ -133,14 +140,22 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             return std::vector<bool>(list.b().begin(), list.b().end());
 
         if (list.shape_size()) {
-            std::vector<ov::PartialShape> res;
-            for (const auto& it : list.shape()) {
-                std::vector<ov::Dimension> dims;
-                for (int i = 0; i < it.dim_size(); i++) {
-                    dims.emplace_back(it.dim(i).size());
+            auto shapes_size = list.shape_size();
+            std::vector<ov::PartialShape> res(shapes_size);
+            for (int shape_ind = 0; shape_ind < shapes_size; ++shape_ind) {
+                auto shape = list.shape(shape_ind);
+                if (shape.unknown_rank()) {
+                    res[shape_ind] = ov::PartialShape::dynamic();
+                } else {
+                    auto shape_rank = shape.dim_size();
+                    std::vector<ov::Dimension> dims(shape_rank);
+                    for (int dim_ind = 0; dim_ind < shape_rank; ++dim_ind) {
+                        dims[dim_ind] = static_cast<ov::Dimension::value_type>(shape.dim(dim_ind).size());
+                    }
+                    res[shape_ind] = dims;
                 }
-                res.emplace_back(dims);
             }
+            return res;
         }
 
         if (list.type_size()) {
@@ -224,6 +239,10 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 val_size = tensor_proto.int64_val_size();
                 extract_compressed_tensor_content<int64_t>(tensor_proto, val_size, &res);
                 break;
+            case ov::element::f16:
+                val_size = tensor_proto.half_val_size();
+                extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
+                break;
             case ov::element::f32:
                 val_size = tensor_proto.float_val_size();
                 extract_compressed_tensor_content<float>(tensor_proto, val_size, &res);
@@ -244,10 +263,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                                 name,
                                 "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kFunc:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Function type for '",
-                                name,
-                                "' attribute is not supported.");
+        // attrs[0].func() returns NameAttrList object from which
+        // we retrieve the function name
+        // Further, InputModel object is created for FunctionDef with this name
+        // and is converted to ov::Model object.
+        return attrs[0].func().name();
     default:
         FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
     }
@@ -260,12 +280,15 @@ size_t DecoderProto::get_input_size() const {
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
-    // TODO: handle body graph nodes with a couple of columns
+    // Body graph nodes may have two colons `:`, for example,
+    // producer_name:z:2 means that producer operation name is `producer_name`
+    // and output port is 2
     std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
-    auto delim_pos = producer_port_name.find(':');
-    if (delim_pos != std::string::npos) {
-        producer_name = producer_port_name.substr(0, delim_pos);
-        auto port_id = producer_port_name.substr(delim_pos + 1);
+    auto first_colon = producer_port_name.find_first_of(":");
+    auto last_colon = producer_port_name.find_last_of(":");
+    if (first_colon != std::string::npos && last_colon != std::string::npos) {
+        producer_name = producer_port_name.substr(0, first_colon);
+        auto port_id = producer_port_name.substr(last_colon + 1);
         FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
                                 "Port id is not specified or not a number. Value: ",
                                 port_id);

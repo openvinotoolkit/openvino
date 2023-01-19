@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@ namespace v0 {
 class OPENVINO_API Interpolate : public Op {
 public:
     OPENVINO_OP("Interpolate", "opset1");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Structure that specifies attributes for interpolation
     struct Attributes {
         // specify dimension indices where interpolation is applied, and `axes` is any
@@ -84,7 +83,6 @@ namespace v4 {
 class OPENVINO_API Interpolate : public Op {
 public:
     OPENVINO_OP("Interpolate", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief PartialShape calculation mode
     ///
@@ -350,7 +348,6 @@ public:
         : EnumAttributeAdapterBase<op::v0::Interpolate::InterpolateMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v0::Interpolate::InterpolateMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 template <>
 class OPENVINO_API AttributeAdapter<op::v4::Interpolate::InterpolateMode>
@@ -360,7 +357,6 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::InterpolateMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::InterpolateMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -371,7 +367,6 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::CoordinateTransformMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -382,7 +377,6 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::NearestMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::NearestMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -393,6 +387,5 @@ public:
         : EnumAttributeAdapterBase<op::v4::Interpolate::ShapeCalcMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::v4::Interpolate::ShapeCalcMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,6 +105,18 @@ public:
             IE_THROW() << "Data is empty!";
         }
         return _inputData->getName();
+    }
+
+    /**
+     * @brief Changes the name of the input data provided by the user.
+     *
+     * @param newName A new name of the input data to set
+     */
+    void setName(const std::string& newName) {
+        if (!_inputData) {
+            IE_THROW() << "Data is empty!";
+        }
+        _inputData->setName(newName);
     }
 
     /**

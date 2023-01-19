@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """ngraph module namespace, exposing factory functions for all ops and other classes."""
@@ -6,6 +6,7 @@
 
 try:
     from ngraph.impl import util
+
     __version__ = util.get_ngraph_version_string()
 except ImportError:
     __version__ = "0.0.0.dev0"
@@ -91,6 +92,7 @@ from ngraph.opset10 import idft
 from ngraph.opset10 import if_op
 from ngraph.opset10 import interpolate
 from ngraph.opset10 import irdft
+from ngraph.opset10 import is_finite
 from ngraph.opset10 import is_inf
 from ngraph.opset10 import is_nan
 from ngraph.opset10 import i420_to_bgr
@@ -187,6 +189,7 @@ from ngraph.opset10 import tensor_iterator
 from ngraph.opset10 import tile
 from ngraph.opset10 import topk
 from ngraph.opset10 import transpose
+from ngraph.opset10 import unique
 from ngraph.opset10 import unsqueeze
 from ngraph.opset10 import variadic_split
 

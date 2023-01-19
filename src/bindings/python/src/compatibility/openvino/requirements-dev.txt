@@ -1,5 +1,6 @@
-opencv-python>=3.4.4.19
-pytest==4.0.1
-attrs==19.1.0
+pytest>=5.0,<=7.0.1; python_version < '3.10'
+pytest==7.2.0; python_version >= '3.10'
+py>=1.9.0
+attrs==22.1.0
 pytest-html==1.19.0
-cython>=0.29.22
+cython>=0.29.32

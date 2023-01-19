@@ -1,13 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <legacy/ie_layers.h>
-#include "gna_graph_tools.hpp"
+#include <cstdint>
+#include <vector>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class GNACropLayer {
     InferenceEngine::CNNLayerPtr cropLayer;
 
@@ -24,44 +27,21 @@ public:
     void *gna_ptr = nullptr;
 };
 
+struct SimpleCrop {
+    size_t start_offset;
+    size_t crop_size;
+};
+
 /**
  * @brief returns parameters extracted from Crop layer: elements offset, elements output size and axes
  * @param cropLayer pointer to a Crop layer
  */
-inline std::tuple<size_t, size_t, std::vector<int32_t>> GetCropParams(InferenceEngine::CropLayer* cropLayer) {
-    IE_ASSERT(!cropLayer->axis.empty());
-    IE_ASSERT(cropLayer->axis.size() == cropLayer->dim.size());
-    IE_ASSERT(cropLayer->axis.size() == cropLayer->offset.size());
+SimpleCrop get_crop_params(const std::vector<int32_t>& axis_in,
+                                  const std::vector<int32_t>& offset_in,
+                                  const std::vector<int32_t>& dim_in,
+                                  const std::vector<size_t>& input_dims);
 
-    std::vector<int> axis, dim, offset;
-    auto inputs = cropLayer->insData.begin()->lock();
-    for (int n = 0; n < cropLayer->axis.size(); n++) {
-        uint32_t input_dim = GetDataDimSize(inputs, inputs->getDims().size() - cropLayer->axis[n]);
-        // Exclude crop layer components that do nothing
-        if (cropLayer->offset[n] == 0 && cropLayer->dim[n] == input_dim) {
-            continue;
-        }
-        axis.push_back(cropLayer->axis[n]);
-        dim.push_back(cropLayer->dim[n]);
-        offset.push_back(cropLayer->offset[n]);
-    }
+SimpleCrop GetCropParams(InferenceEngine::CropLayer* cropLayer);
 
-    if (axis.size() != 1) {
-        THROW_GNA_EXCEPTION <<
-            "Crop layer does not support the number of (non-trivial) cropped dimensions more than 1, provided: "
-            << axis.size() << ".";
-    }
-
-    size_t cropOffset = offset.front();
-    size_t cropOutputSize = dim.front();
-
-    // fix for crop on tensor dim > 2D
-    for (int n = axis[0]+1; n < cropLayer->dim.size(); n++) {
-        cropOffset *= cropLayer->dim[n];
-        cropOutputSize *= cropLayer->dim[n];
-    }
-
-    return std::make_tuple(cropOffset, cropOutputSize, axis);
-}
-
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

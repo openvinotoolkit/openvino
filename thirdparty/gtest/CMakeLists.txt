@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -33,7 +33,7 @@ foreach(target IN LISTS gtest_targets)
                 set_target_properties(${target} PROPERTIES COMPILE_OPTIONS "${_target_cxx_flags}")
             endif()
         endif()
-    elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR
         CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         target_compile_options(${target} PRIVATE -Wno-undef)
         if(CMAKE_COMPILER_IS_GNUCXX)

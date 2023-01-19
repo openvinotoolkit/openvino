@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 #include <map>
 #include <gna2-model-api.h>
-#include "gna_plugin_log.hpp"
+#include "log/debug.hpp"
 #include "gna2_model_helper.hpp"
 
 Gna2DataType Gna2DataTypeFromBytes(uint32_t num_bytes_per_input) {

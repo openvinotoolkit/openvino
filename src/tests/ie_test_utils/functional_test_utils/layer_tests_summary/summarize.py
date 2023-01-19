@@ -1,14 +1,21 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
 import csv
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 
 from jinja2 import Environment, FileSystemLoader
 
 from utils import utils
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
 
 NOT_RUN = "NOT RUN"
 NA = "N/A"
@@ -50,10 +57,10 @@ def parse_arguments():
 def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
 
-    summary = ET.Element("report")
+    summary = Element("report")
     timestamp = None
-    summary_results = ET.SubElement(summary, "results")
-    ops_list = ET.SubElement(summary, "ops_list")
+    summary_results = SubElement(summary, "results")
+    ops_list = SubElement(summary, "ops_list")
     for xml_path in xml_paths:
         try:
             xml_root = ET.parse(xml_path).getroot()
@@ -67,7 +74,7 @@ def merge_xmls(xml_paths: list):
 
         for op in xml_root.find("ops_list"):
             if ops_list.find(op.tag) is None:
-                ET.SubElement(ops_list, op.tag)
+                SubElement(ops_list, op.tag)
 
         for device in xml_root.find("results"):
             device_results = summary_results.find(device.tag)
@@ -103,7 +110,7 @@ def merge_xmls(xml_paths: list):
     return summary
 
 
-def collect_statistic(root: ET.Element, is_conformance_mode: bool):
+def collect_statistic(root: Element, is_conformance_mode: bool):
     logger.info("Statistic collecting is started")
     trusted_ops = dict()
     pass_rate_avg = dict()
@@ -218,7 +225,7 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     logger.info(f'Final CSV report is saved to {csv_filename}')
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
+def create_summary(summary_root: Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
         utils.update_conformance_test_counters(summary_root, logger)
@@ -250,7 +257,8 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 
     device_list = sorted(device_list)
 
-    file_loader = FileSystemLoader('template')
+    script_dir, script_name = os.path.split(os.path.abspath(__file__))
+    file_loader = FileSystemLoader(os.path.join(script_dir, 'template'))
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
@@ -271,3 +279,4 @@ if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
     create_summary(summary_root, args.out,  [] if args.expected_devices is None else args.expected_devices, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
+    

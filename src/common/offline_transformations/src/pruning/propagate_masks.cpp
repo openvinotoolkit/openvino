@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,11 +7,11 @@
 #include <memory>
 #include <ngraph/coordinate_transform.hpp>
 #include <ngraph/log.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <ngraph/op/gelu.hpp>
+#include <ngraph/op/max_pool.hpp>
+#include <ngraph/op/shape_of.hpp>
+#include <ngraph/op/softmax.hpp>
+#include <ngraph/opsets/opset10.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
@@ -41,6 +41,17 @@ class Concat;
 }  // namespace pass
 }  // namespace ngraph
 
+namespace ov {
+namespace pass {
+namespace mask_propagation {
+
+class VariadicSplit;
+class Split;
+
+}  // namespace mask_propagation
+}  // namespace pass
+}  // namespace ov
+
 static ngraph::Shape broadcast_shape_to_rank(ngraph::Shape shape_to_broadcast, int64_t dst_rank) {
     auto initial_rank = static_cast<int64_t>(shape_to_broadcast.size());
     auto num_of_broadcased_dims = dst_rank - initial_rank;
@@ -55,7 +66,7 @@ public:
     MatMul() {
         auto a = pattern::any_input(pattern::has_static_shape());
         auto b = pattern::any_input(pattern::has_static_shape());
-        auto matmul = pattern::wrap_type<opset6::MatMul>({a, b});
+        auto matmul = pattern::wrap_type<opset10::MatMul>({a, b});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -86,7 +97,7 @@ public:
                 a_mask_row = a_mask.get();
             auto b_mask_row = b_mask.get();
 
-            const auto matmul_op = std::dynamic_pointer_cast<opset6::MatMul>(m_matmul.get_node_shared_ptr());
+            const auto matmul_op = std::dynamic_pointer_cast<opset10::MatMul>(m_matmul.get_node_shared_ptr());
             const auto transpose_a = matmul_op->get_transpose_a();
             const auto transpose_b = matmul_op->get_transpose_b();
 
@@ -191,7 +202,7 @@ public:
     Convolution() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input(pattern::has_static_shape());
-        auto conv = pattern::wrap_type<opset6::Convolution>({input, weights});
+        auto conv = pattern::wrap_type<opset10::Convolution>({input, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -270,7 +281,7 @@ public:
     GroupConvolution() {
         auto input = pattern::any_input(pattern::has_static_dim(1));
         auto weights = pattern::any_input(pattern::has_static_shape());
-        auto group_conv = pattern::wrap_type<opset6::GroupConvolution>({input, weights});
+        auto group_conv = pattern::wrap_type<opset10::GroupConvolution>({input, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -294,7 +305,7 @@ public:
             auto weights_mask = getMask(m_weights);
             if (!weights_mask) {
                 // Setting mask only if weights are constant
-                if (ngraph::is_type<opset6::Constant>(m_output.get_node_shared_ptr())) {
+                if (ngraph::is_type<opset10::Constant>(m_output.get_node_shared_ptr())) {
                     weights_mask = std::make_shared<Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
@@ -356,9 +367,9 @@ public:
         auto input = pattern::any_input(pattern::has_static_shape());
         auto shape = pattern::any_input();
         // Working only for Reshapes on Group Convolution weights
-        auto reshape = pattern::wrap_type<opset6::Reshape>({input, shape}, pattern::consumers_count(1));
+        auto reshape = pattern::wrap_type<opset10::Reshape>({input, shape}, pattern::consumers_count(1));
         auto gconv =
-            pattern::wrap_type<opset6::GroupConvolution>({pattern::any_input(), reshape}, pattern::has_static_shape());
+            pattern::wrap_type<opset10::GroupConvolution>({pattern::any_input(), reshape}, pattern::has_static_shape());
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -418,14 +429,14 @@ public:
 
             const auto m_shape_consumers = m_shape.get_target_inputs();
             const auto output_shape = constant->get_shape();
-            const auto axis = opset6::Constant::create(ov::element::i8, {}, {0});
+            const auto axis = opset10::Constant::create(element::i8, {}, {0});
             auto dims_to_keep_vec = std::vector<size_t>{2, 3, 4};
 
             const auto dims_to_keep =
-                opset6::Constant::create(m_shape.get_element_type(), {dims_to_keep_vec.size()}, dims_to_keep_vec);
-            const auto gather = std::make_shared<opset6::Gather>(m_shape, dims_to_keep, axis);
-            const auto concat = std::make_shared<opset6::Concat>(
-                NodeVector{opset6::Constant::create(m_shape.get_element_type(), {2}, {-1, 1}), gather},
+                opset10::Constant::create(m_shape.get_element_type(), {dims_to_keep_vec.size()}, dims_to_keep_vec);
+            const auto gather = std::make_shared<opset10::Gather>(m_shape, dims_to_keep, axis);
+            const auto concat = std::make_shared<opset10::Concat>(
+                NodeVector{opset10::Constant::create(m_shape.get_element_type(), {2}, {-1, 1}), gather},
                 0);
             for (auto consumer : m_shape_consumers)
                 consumer.replace_source_output(concat);
@@ -446,7 +457,7 @@ public:
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
         auto eltwise =
-            pattern::wrap_type<opset6::Add, opset6::Subtract, opset6::Maximum, opset6::Minimum, opset6::Multiply>(
+            pattern::wrap_type<opset10::Add, opset10::Subtract, opset10::Maximum, opset10::Minimum, opset10::Multiply>(
                 {input, weights},
                 pattern::has_static_rank());
         // TODO: add Div, Power support
@@ -465,13 +476,13 @@ public:
             if (!((weights_rank > 2 && input_rank > 2) || weights_rank == input_rank))
                 return false;
 
-            if (m_output.get_node_shared_ptr()->get_autob() != ov::op::AutoBroadcastType::NUMPY) {
+            if (m_output.get_node_shared_ptr()->get_autob() != op::AutoBroadcastType::NUMPY) {
                 NGRAPH_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
                              << " because node is using unsupported broadcast mode." << std::endl;
                 return false;
             }
             // Case when input masks should be united instead of intersection
-            bool union_eltwise_type = ngraph::is_type<opset6::Multiply>(m_output.get_node_shared_ptr());
+            bool union_eltwise_type = ngraph::is_type<opset10::Multiply>(m_output.get_node_shared_ptr());
 
             using dims_set = std::set<int64_t>;
             auto input_shape_broadcasted_dims = dims_set();
@@ -636,7 +647,7 @@ public:
         auto output_low = pattern::any_input(pattern::has_static_shape());
         auto output_high = pattern::any_input(pattern::has_static_shape());
         auto fake_quantize =
-            pattern::wrap_type<opset6::FakeQuantize>({input, input_low, input_high, output_low, output_high});
+            pattern::wrap_type<opset10::FakeQuantize>({input, input_low, input_high, output_low, output_high});
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_input = pattern_map.at(input);
@@ -694,7 +705,7 @@ public:
                                        m_input_high.get_node_shared_ptr(),
                                        m_output_low.get_node_shared_ptr(),
                                        m_output_high.get_node_shared_ptr()};
-            auto fq_node = std::dynamic_pointer_cast<op::FakeQuantize>(m_output.get_node_shared_ptr());
+            auto fq_node = std::dynamic_pointer_cast<opset10::FakeQuantize>(m_output.get_node_shared_ptr());
             if (!fq_node)
                 return false;
             size_t idx = 0;
@@ -742,12 +753,12 @@ public:
 class ngraph::pass::mask_propagation::Concat : public MatcherPass {
 public:
     Concat() {
-        auto concat = pattern::wrap_type<opset6::Concat>(pattern::has_static_shape());
+        auto concat = pattern::wrap_type<opset10::Concat>(pattern::has_static_shape());
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_output = pattern_map.at(concat);
-            auto concat_ptr = std::dynamic_pointer_cast<opset6::Concat>(m_output.get_node_shared_ptr());
+            auto concat_ptr = std::dynamic_pointer_cast<opset10::Concat>(m_output.get_node_shared_ptr());
             if (!concat_ptr) {
                 return false;
             }
@@ -844,25 +855,26 @@ class ngraph::pass::mask_propagation::PassThrough : public MatcherPass {
 public:
     PassThrough() {
         auto unary_op = pattern::wrap_type<op::util::UnaryElementwiseArithmetic,
-                                           opset6::Clamp,
-                                           opset6::Swish,
-                                           opset6::Elu,
-                                           opset6::HardSigmoid,
-                                           opset6::PRelu,
-                                           opset6::Mish,
-                                           opset6::Softmax,
-                                           opset8::Softmax,
-                                           opset6::SoftPlus,
-                                           opset6::Convert,
-                                           opset6::ConvertLike,
-                                           opset6::AvgPool,
-                                           opset6::MaxPool,
-                                           opset6::ROIPooling,
-                                           opset6::PSROIPooling,
-                                           opset6::Pad,
-                                           opset6::MVN,
-                                           opset6::Gelu,
-                                           opset7::Gelu>();
+                                           opset10::Clamp,
+                                           opset10::Swish,
+                                           opset10::Elu,
+                                           opset10::HardSigmoid,
+                                           opset10::PRelu,
+                                           opset10::Mish,
+                                           op::v1::Softmax,
+                                           opset10::Softmax,
+                                           opset10::SoftPlus,
+                                           opset10::Convert,
+                                           opset10::ConvertLike,
+                                           opset10::AvgPool,
+                                           op::v1::MaxPool,
+                                           opset10::MaxPool,
+                                           opset10::ROIPooling,
+                                           opset10::PSROIPooling,
+                                           opset10::Pad,
+                                           opset10::MVN,
+                                           op::v0::Gelu,
+                                           opset10::Gelu>();
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -885,9 +897,9 @@ class ngraph::pass::mask_propagation::Reduce : public MatcherPass {
 public:
     Reduce() {
         auto inputs = pattern::any_input();
-        auto weights = pattern::wrap_type<opset6::Constant>();
+        auto weights = pattern::wrap_type<opset10::Constant>();
         auto pooling_by_reduce =
-            pattern::wrap_type<opset6::ReduceMin, opset6::ReduceMax, opset6::ReduceMean>({inputs, weights});
+            pattern::wrap_type<opset10::ReduceMin, opset10::ReduceMax, opset10::ReduceMean>({inputs, weights});
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -898,7 +910,7 @@ public:
             // Check reduce operation reduces only dimension without masks
             if (auto input_mask = getMask(m_input)) {
                 auto output_mask = std::make_shared<Mask>(m_output.get_partial_shape().rank().get_length());
-                const auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+                const auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
                 const auto reduce_dims = constant->cast_vector<int64_t>();
 
                 auto input_mask_row = input_mask.get();
@@ -1102,7 +1114,7 @@ public:
     Reshape() {
         auto inputs = pattern::any_input(pattern::has_static_shape());
         auto weights = pattern::any_input();
-        auto reshape = pattern::wrap_type<opset6::Reshape>({inputs, weights}, pattern::has_static_shape());
+        auto reshape = pattern::wrap_type<opset10::Reshape>({inputs, weights}, pattern::has_static_shape());
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
@@ -1113,10 +1125,10 @@ public:
             // Check if this reshape is before group convolution
             // In such case this reshape should be processed by GroupConvolutionReshape pass
             for (const auto inp : m_output.get_target_inputs())
-                if (is_type<opset6::GroupConvolution>(inp.get_node()))
+                if (is_type<opset10::GroupConvolution>(inp.get_node()))
                     return true;
 
-            auto constant = std::dynamic_pointer_cast<opset6::Constant>(m_weights.get_node_shared_ptr());
+            auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
                 constant = get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
@@ -1356,7 +1368,7 @@ public:
     Transpose() {
         auto input = pattern::any_input();
         auto weights = pattern::any_input();
-        auto transpose = pattern::wrap_type<opset6::Transpose>({input, weights});
+        auto transpose = pattern::wrap_type<opset10::Transpose>({input, weights});
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             const auto& m_input = pattern_map.at(input);
@@ -1420,6 +1432,160 @@ public:
     }
 };
 
+static ngraph::Mask::Ptr create_connect_split_output_mask(ngraph::Mask::Ptr input_mask,
+                                                          const int64_t axis,
+                                                          const uint64_t split_start,
+                                                          const uint64_t split_end) {
+    auto output_mask = std::make_shared<ngraph::Mask>();
+    auto input_mask_raw = input_mask.get();
+    output_mask->add_callback(
+        [input_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+            cur_mask->copy_and_slice_mask_from(input_mask_raw, axis, split_start, split_end);
+            return true;
+        },
+        input_mask);
+    auto output_mask_raw = output_mask.get();
+    input_mask->add_callback(
+        [output_mask_raw, axis, split_start, split_end](ngraph::Mask::Ptr cur_mask) -> bool {
+            auto& dim_mask = cur_mask->at(axis);
+            auto it = dim_mask.lower_bound(split_start);
+            while (it != dim_mask.end() && *it < split_end) {
+                it = dim_mask.erase(it);
+            }
+            for (size_t j = 0; j < output_mask_raw->size(); j++) {
+                const auto& dim_mask = output_mask_raw->at(j);
+                if (j == axis) {
+                    for (auto d : dim_mask)
+                        cur_mask->at(j).insert(d + split_start);
+                } else {
+                    cur_mask->at(j) = dim_mask;
+                }
+            }
+            return true;
+        },
+        output_mask);
+
+    return output_mask;
+}
+
+class ov::pass::mask_propagation::VariadicSplit : public MatcherPass {
+public:
+    VariadicSplit() {
+        auto input_pattern = pattern::any_input(pattern::has_static_rank());
+        auto axis_pattern = pattern::wrap_type<ngraph::opset10::Constant>();
+        auto split_lengths_pattern = pattern::wrap_type<ngraph::opset10::Constant>();
+        auto split_pattern =
+            pattern::wrap_type<ngraph::opset10::VariadicSplit>({input_pattern, axis_pattern, split_lengths_pattern});
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto axis_node = as_type<ngraph::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
+            const auto& input = pattern_map.at(input_pattern);
+            const auto input_mask = ngraph::getMask(input);
+            auto split = pattern_map.at(split_pattern).get_node();
+            auto split_lengths_const =
+                as_type<ngraph::opset10::Constant>(pattern_map.at(split_lengths_pattern).get_node());
+
+            if (!axis_node)
+                return false;
+            if (!input_mask)
+                return false;
+            if (!split_lengths_const)
+                return false;
+
+            auto split_lengths = split_lengths_const->cast_vector<int64_t>();
+            auto axis = axis_node->cast_vector<int64_t>()[0];
+            if (axis < 0)
+                axis += input_mask->size();
+
+            // adjust split_lengths if needed
+            // split_lengths can contain -1 value
+            int minus_one_length_idx = -1;
+            int64_t total_lengths = 0;
+            for (int i = 0; i < split_lengths.size(); i++) {
+                if (split_lengths[i] == -1) {
+                    minus_one_length_idx = i;
+                    continue;
+                }
+                total_lengths += split_lengths[i];
+            }
+            if (minus_one_length_idx >= 0 && !input_mask->at(axis).empty()) {
+                const auto& input_shape = input.get_partial_shape();
+                if (input_shape[axis].is_dynamic())
+                    return false;
+                auto split_dim = input_shape[axis].get_length();
+                split_lengths[minus_one_length_idx] = split_dim - total_lengths;
+            }
+
+            uint64_t split_start = 0;
+            uint64_t split_end = 0;
+            std::vector<ngraph::Mask::Ptr> output_masks;
+            for (size_t i = 0; i < split->get_output_size(); i++) {
+                split_end += split_lengths[i];
+                output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
+                ngraph::setMask(split->output(i), output_masks[i]);
+                split_start = split_end;
+            }
+            for (const auto& output_mask : output_masks) {
+                output_mask->apply_callback(input_mask);
+            }
+            return true;
+        };
+        auto m = std::make_shared<pattern::Matcher>(split_pattern, "VariadicSplitMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
+class ov::pass::mask_propagation::Split : public MatcherPass {
+public:
+    Split() {
+        auto input_pattern = pattern::any_input(pattern::has_static_rank());
+        auto axis_pattern = pattern::wrap_type<ngraph::opset10::Constant>();
+        auto split_pattern = pattern::wrap_type<ngraph::opset10::Split>({input_pattern, axis_pattern});
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            auto axis_node = as_type<ngraph::opset10::Constant>(pattern_map.at(axis_pattern).get_node());
+            const auto& input = pattern_map.at(input_pattern);
+            const auto input_mask = ngraph::getMask(input);
+
+            if (!axis_node)
+                return false;
+
+            if (!input_mask)
+                return false;
+
+            auto axis = axis_node->cast_vector<int64_t>()[0];
+            if (axis < 0)
+                axis += input_mask->size();
+
+            const auto& input_shape = input.get_partial_shape();
+            if (input_shape[axis].is_dynamic())
+                return false;
+            const auto& split = pattern_map.at(split_pattern).get_node();
+            auto num_splits = split->get_output_size();
+            auto split_dim = static_cast<uint64_t>(input_shape[axis].get_length());
+
+            uint64_t split_start = 0;
+            auto split_step = split_dim / num_splits;
+            uint64_t split_end = split_step;
+            std::vector<ngraph::Mask::Ptr> output_masks;
+            for (size_t i = 0; i < split->get_output_size(); i++) {
+                output_masks.push_back(create_connect_split_output_mask(input_mask, axis, split_start, split_end));
+                ngraph::setMask(split->output(i), output_masks[i]);
+                split_start = split_end;
+                split_end += split_step;
+            }
+            for (const auto& output_mask : output_masks) {
+                output_mask->apply_callback(input_mask);
+            }
+            return true;
+        };
+        auto m = std::make_shared<pattern::Matcher>(split_pattern, "SplitMaskPropagation");
+        register_matcher(m, callback);
+    }
+};
+
 class ngraph::pass::mask_propagation::StopPropagation : public MatcherPass {
 public:
     StopPropagation() {
@@ -1461,7 +1627,7 @@ public:
             if (any_input_with_masks) {
                 // Set mask to stop op first input tensor to prevent mask rewriting for
                 // nodes which share output tensor with previous node.
-                if (ngraph::is_type<opset6::Result>(m_output.get_node_shared_ptr()))
+                if (ngraph::is_type<opset10::Result>(m_output.get_node_shared_ptr()))
                     setMask(*m_output.get_node()->inputs().begin(), output_mask);
                 else
                     setMask(m_output, output_mask);
@@ -1479,7 +1645,7 @@ public:
     SkipPropagation() {
         // Skip mask propagation for ShapeOf operation to prevent this opearation to be
         // processed as stop op.
-        auto node = pattern::wrap_type<opset6::ShapeOf, opset1::ShapeOf>();
+        auto node = pattern::wrap_type<opset10::ShapeOf, op::v0::ShapeOf>();
         ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
             return true;
         };
@@ -1501,6 +1667,8 @@ ngraph::pass::PropagateMasks::PropagateMasks() {
     add_matcher<mask_propagation::Transpose>();
     add_matcher<mask_propagation::FakeQuantize>();
     add_matcher<mask_propagation::Concat>();
+    add_matcher<ov::pass::mask_propagation::VariadicSplit>();
+    add_matcher<ov::pass::mask_propagation::Split>();
     add_matcher<mask_propagation::SkipPropagation>();
     add_matcher<mask_propagation::StopPropagation>();
 }

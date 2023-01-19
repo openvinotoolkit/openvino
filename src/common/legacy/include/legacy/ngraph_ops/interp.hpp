@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,6 @@ struct InterpolateIEAttrs {
 class Interp : public Op {
 public:
     OPENVINO_OP("Interp", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs);
 
@@ -56,7 +55,6 @@ struct ResampleIEAttrs {
 class ResampleV2 : public Op {
 public:
     OPENVINO_OP("ResampleV2", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     ResampleV2(const Output<Node>& image,
                const Output<Node>& output_shape,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -200,11 +200,11 @@ void ApiSummary::saveReport() {
         for (const auto& stat_device : stat_entity.second) {
             pugi::xml_node entry = currentEntity.append_child(stat_device.first.c_str());
             entry.append_attribute("implemented").set_value(stat_device.second.isImplemented);
-            entry.append_attribute("passed").set_value(stat_device.second.passed);
-            entry.append_attribute("failed").set_value(stat_device.second.failed);
-            entry.append_attribute("skipped").set_value(stat_device.second.skipped);
-            entry.append_attribute("crashed").set_value(stat_device.second.crashed);
-            entry.append_attribute("hanged").set_value(stat_device.second.hanged);
+            entry.append_attribute("passed").set_value(static_cast<unsigned long long>(stat_device.second.passed));
+            entry.append_attribute("failed").set_value(static_cast<unsigned long long>(stat_device.second.failed));
+            entry.append_attribute("skipped").set_value(static_cast<unsigned long long>(stat_device.second.skipped));
+            entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(stat_device.second.crashed));
+            entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(stat_device.second.hanged));
             entry.append_attribute("passrate").set_value(stat_device.second.getPassrate());
         }
     }

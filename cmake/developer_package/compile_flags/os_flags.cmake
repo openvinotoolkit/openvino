@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,7 +6,9 @@ include(ProcessorCount)
 include(CheckCXXCompilerFlag)
 
 #
-# Disables deprecated warnings generation
+# disable_deprecated_warnings()
+#
+# Disables deprecated warnings generation in current scope (directory, function)
 # Defines ie_c_cxx_deprecated varaible which contains C / C++ compiler flags
 #
 macro(disable_deprecated_warnings)
@@ -35,7 +37,9 @@ macro(disable_deprecated_warnings)
 endmacro()
 
 #
-# Don't threat deprecated warnings as errors
+# ie_deprecated_no_errors()
+#
+# Don't threat deprecated warnings as errors in current scope (directory, function)
 # Defines ie_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
 #
 macro(ie_deprecated_no_errors)
@@ -67,6 +71,8 @@ macro(ie_deprecated_no_errors)
 endmacro()
 
 #
+# ie_sse42_optimization_flags(<output flags>)
+#
 # Provides SSE4.2 compilation flags depending on an OS and a compiler
 #
 macro(ie_sse42_optimization_flags flags)
@@ -83,10 +89,15 @@ macro(ie_sse42_optimization_flags flags)
             set(${flags} -xSSE4.2)
         else()
             set(${flags} -msse4.2)
+            if(EMSCRIPTEN)
+                list(APPEND ${flags} -msimd128)
+            endif()
         endif()
     endif()
 endmacro()
 
+#
+# ie_avx2_optimization_flags(<output flags>)
 #
 # Provides AVX2 compilation flags depending on an OS and a compiler
 #
@@ -108,6 +119,8 @@ macro(ie_avx2_optimization_flags flags)
     endif()
 endmacro()
 
+#
+# ie_avx512_optimization_flags(<output flags>)
 #
 # Provides common AVX512 compilation flags for AVX512F instruction set support
 # depending on an OS and a compiler
@@ -134,30 +147,35 @@ macro(ie_avx512_optimization_flags flags)
     endif()
 endmacro()
 
+#
+# ie_arm_neon_optimization_flags(<output flags>)
+#
 macro(ie_arm_neon_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # nothing
+        # nothing to define; works out of box
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
-            set(${flags} -mfpu=neon)
+            set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
         elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
-            set(${flags} -march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon)
+            set(${flags} -march=armv7-a+fp -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon -Wno-unused-command-line-argument)
         elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
                (ANDROID_ABI STREQUAL "armeabi-v7a" AND
                 DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
-            set(${flags} -march=armv7-a -mfloat-abi=softfp -mfpu=neon)
+                set(${flags} -march=armv7-a+fp -mfloat-abi=softfp -mfpu=neon -Wno-unused-command-line-argument)
         endif()
     else()
         if(AARCH64)
             set(${flags} -O2 -ftree-vectorize)
         elseif(ARM)
-            set(${flags} -mfpu=neon)
+            set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
         endif()
     endif()
 endmacro()
 
+#
+# ov_disable_all_warnings(<target1 [target2 target3 ...]>)
 #
 # Disables all warnings for 3rd party targets
 #
@@ -185,12 +203,16 @@ function(ov_disable_all_warnings)
 endfunction()
 
 #
+# ie_enable_lto()
+#
 # Enables Link Time Optimization compilation
 #
 macro(ie_enable_lto)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endmacro()
 
+#
+# ie_add_compiler_flags(<flag1 [flag2 flag3 ...>])
 #
 # Adds compiler flags to C / C++ sources
 #
@@ -206,10 +228,12 @@ function(ov_add_compiler_flags)
 endfunction()
 
 #
+# ov_force_include(<target> <PUBLIC | PRIVATE | INTERFACE> <header file>)
+#
 # Forced includes certain header file to all target source files
 #
 function(ov_force_include target scope header_file)
-    if(MSVC)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${target} ${scope} /FI"${header_file}")
     else()
         target_compile_options(${target} ${scope} -include "${header_file}")
@@ -220,7 +244,9 @@ endfunction()
 # Compilation and linker flags
 #
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if(NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
@@ -268,9 +294,17 @@ if(WIN32)
         if (CMAKE_VERSION VERSION_LESS 3.24)
             ie_add_compiler_flags(/WX)
         endif()
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /WX")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /WX")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WX")
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             ie_add_compiler_flags(/Qdiag-warning:47,1740,1786)
         endif()
+    endif()
+
+    if(AARCH64 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT MSVC_VERSION LESS 1930)
+        # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro
+        ie_add_compiler_flags(-D_ARM64_DISTINCT_NEON_TYPES)
     endif()
 
     # Compiler specific flags
@@ -310,7 +344,7 @@ if(WIN32)
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 else()
-    if (CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
+    if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
         # TODO: enable for C sources as well
         # ie_add_compiler_flags(-Werror)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -321,9 +355,9 @@ else()
     ie_add_compiler_flags(-Wreturn-type)
     ie_add_compiler_flags(-Wunused-variable)
 
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    if(OV_COMPILER_IS_APPLECLANG)
         ie_add_compiler_flags(-Wswitch)
-    elseif(UNIX)
+    else()
         ie_add_compiler_flags(-Wuninitialized -Winit-self)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             ie_add_compiler_flags(-Winconsistent-missing-override
@@ -350,17 +384,29 @@ else()
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-dead_strip")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-dead_strip")
-    elseif(LINUX)
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
-        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections -Wl,--exclude-libs,ALL")
+    elseif(EMSCRIPTEN)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE -s EXPORTED_RUNTIME_METHODS=ccall")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ERROR_ON_MISSING_LIBRARIES=1 -s ERROR_ON_UNDEFINED_SYMBOLS=1")
+        # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
+        ie_add_compiler_flags(-sDISABLE_EXCEPTION_CATCHING=0)
+        # ie_add_compiler_flags(-sUSE_PTHREADS=1)
+    else()
+        set(exclude_libs "-Wl,--exclude-libs,ALL")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections ${exclude_libs}")
+        set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--gc-sections ${exclude_libs}")
         if(NOT ENABLE_FUZZING)
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--exclude-libs,ALL")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${exclude_libs}")
         endif()
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
     endif()
 endif()
 
+#
+# link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
+#
 # Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
+#
 function(link_system_libraries TARGET_NAME)
     set(MODE PRIVATE)
 
@@ -379,4 +425,17 @@ function(link_system_libraries TARGET_NAME)
             target_link_libraries(${TARGET_NAME} ${MODE} ${arg})
         endif()
     endforeach()
+endfunction()
+
+#
+# ov_try_use_gold_linker()
+#
+# Tries to use gold linker in current scope (directory, function)
+#
+function(ov_try_use_gold_linker)
+    # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
+    if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold" PARENT_SCOPE)
+    endif()
 endfunction()

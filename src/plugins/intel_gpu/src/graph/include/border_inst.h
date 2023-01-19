@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/border.hpp"
 #include "primitive_inst.h"
@@ -31,6 +30,7 @@ using border_node = typed_program_node<border>;
 template <>
 class typed_primitive_inst<border> : public typed_primitive_inst_base<border> {
     using parent = typed_primitive_inst_base<border>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

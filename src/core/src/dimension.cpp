@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <openvino/util/common_util.hpp>
 #include <sstream>
 
 #include "dimension_tracker.hpp"
@@ -18,27 +19,45 @@ namespace {
 /**
  * \brief Merges two labels.
  *
- *  | label_a | label_b | result  |
- *  |---------|---------|---------|
- *  | X       | X       | X       |
- *  | X       | 0       | X       |
- *  | 0       | X       | X       |
- *  | X       | Y       | Y       | (if merge_unequal == true)
- *  | X       | Y       | 0       | (if merge_unequal == false)
+ *  | label_a  | label_b  | result   |
+ *  |----------|----------|----------|
+ *  | X        | X        | X        |
+ *  | X        | no label | X        |
+ *  | no label | X        | X        |
+ *  | X        | Y        | Y        | (if merge_unequal == true)
+ *  | X        | Y        | no label | (if merge_unequal == false)
  *
- * \param label_a
- * \param label_b
- * \return size_t
+ * \param label_a  First input label.
+ * \param label_b  Second input label.
+ *
+ * \return ov::label_t Merged label value
  */
-size_t merge_labels(const size_t label_a, const size_t label_b, bool merge_unequal = true) {
-    if (label_a == label_b || label_b == 0)
+ov::label_t merge_labels(const ov::label_t label_a, const ov::label_t label_b, bool merge_unequal = true) {
+    if (label_a == label_b || label_b == ov::no_label)
         return label_a;
-    else if (merge_unequal || label_a == 0)
+    else if (merge_unequal || label_a == ov::no_label)
         return label_b;
     else
-        return 0;
+        return ov::no_label;
 }
 
+int64_t stringToInt64(const std::string& valStr) {
+    int64_t ret{0};
+    std::istringstream ss(valStr);
+    if (!ss.eof()) {
+        ss >> ret;
+    }
+    return ret;
+}
+
+bool check_all_digits(const std::string& value) {
+    auto val = ov::util::trim(value);
+    for (const auto& c : val) {
+        if (!std::isdigit(c) || c == '-')
+            return false;
+    }
+    return true;
+}
 Dimension::value_type dimension_length(Interval::value_type vt) {
     return vt == Interval::s_max ? -1 : vt;
 }
@@ -65,6 +84,48 @@ Dimension::Dimension(value_type dimension)
 
 Dimension::Dimension(value_type min_dimension, value_type max_dimension)
     : m_dimension(min_dimension == -1 ? 0 : min_dimension, max_dimension == -1 ? Interval::s_max : max_dimension) {}
+
+Dimension::Dimension(const std::string& value) {
+    auto val = ov::util::trim(value);
+    if (val == "?" || val == "-1") {
+        m_dimension = {0, Interval::s_max};
+        return;
+    }
+    if (val.find("..") == std::string::npos) {
+        OPENVINO_ASSERT(check_all_digits(val), "Cannot parse dimension: \"" + val + "\"");
+        m_dimension = {stringToInt64(val)};
+        return;
+    }
+
+    std::string min_value_str = val.substr(0, val.find(".."));
+    min_value_str = ov::util::trim(min_value_str);
+
+    int64_t min_value;
+    if (min_value_str.empty())
+        min_value = 0;
+    else {
+        OPENVINO_ASSERT(check_all_digits(min_value_str), "Cannot parse min bound: \"" + min_value_str + "\"");
+        min_value = stringToInt64(min_value_str);
+    }
+
+    std::string max_value_str = val.substr(val.find("..") + 2);
+    max_value_str = ov::util::trim(max_value_str);
+
+    int64_t max_value;
+    if (max_value_str.empty())
+        max_value = Interval::s_max;
+    else {
+        OPENVINO_ASSERT(check_all_digits(max_value_str), "Cannot parse max bound: \"" + max_value_str + "\"");
+        max_value = stringToInt64(max_value_str);
+    }
+    m_dimension = Interval(min_value, max_value);
+}
+
+std::string Dimension::to_string() const {
+    std::stringstream dim_str_stream;
+    dim_str_stream << Dimension(m_dimension);
+    return dim_str_stream.str();
+}
 
 Dimension Dimension::operator+(const Dimension& dim) const {
     if (dim.m_dimension == 0)
@@ -125,11 +186,16 @@ bool Dimension::same_scheme(const Dimension& dim) const {
 }
 
 bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) {
-    auto result = d1.m_dimension & d2.m_dimension;
-    if (result.empty()) {
+    const auto result_interval = d1.m_dimension & d2.m_dimension;
+
+    if (result_interval.empty()) {
         return false;
+    } else if ((&dst == &d1) || (&dst == &d2)) {
+        // If dst is one of inputs object change interval only.
+        dst.m_dimension = result_interval;
+    } else {
+        dst = Dimension(result_interval);
     }
-    dst = result;
 
     if (auto& t = d1.m_table_of_equivalence)
         t->set_as_equal(d1, d2);

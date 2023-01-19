@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,13 +23,14 @@ public:
     kernel_selector_base();
     virtual ~kernel_selector_base() {}
 
-    virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const = 0;
+    KernelData get_best_kernel(const Params& params, const optional_params& options) const;
 
 protected:
     template <typename T>
     inline void Attach() {
         implementations.push_back(std::make_shared<T>());
     }
+    virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const = 0;
 
     virtual KernelsData GetNaiveBestKernel(const Params& params,
                                            const optional_params& options,

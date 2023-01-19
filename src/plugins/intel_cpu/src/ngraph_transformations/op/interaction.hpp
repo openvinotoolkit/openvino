@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,17 @@ public:
 
     ngraph::element::Type get_output_type() const { return m_output_type; }
 
+    void set_fq_scales(const std::vector<float>& scales) {
+        m_fq_scales = scales;
+    }
+
+    const std::vector<float>& get_output_scales() const {
+        return m_fq_scales;
+    }
+
 private:
     ngraph::element::Type m_output_type;
+    std::vector<float> m_fq_scales;
 };
 
 }   // namespace intel_cpu

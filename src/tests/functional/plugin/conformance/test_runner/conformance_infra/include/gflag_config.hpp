@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,11 @@
 
 // gflags supports uint32 starting from v2.2 only
 #ifndef DEFINE_uint32
-#    define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#   ifdef GFLAGS_NAMESPACE
+#       define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(GFLAGS_NAMESPACE::uint32, U, name, val, txt)
+#   else
+#       define DEFINE_uint32(name, val, txt) DEFINE_VARIABLE(gflags::uint32, U, name, val, txt)
+#   endif
 #endif
 
 namespace ov {

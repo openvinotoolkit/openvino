@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE);
-BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE2);
-BWDCMP_RTTI_DEFINITION(op::NonMaxSuppressionIE3);
 
 op::NonMaxSuppressionIE::NonMaxSuppressionIE(const Output<Node> &boxes,
                                              const Output<Node> &scores,

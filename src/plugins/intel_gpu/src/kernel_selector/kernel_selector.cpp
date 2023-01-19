@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,12 @@ kernel_selector_base::kernel_selector_base() {
 #endif
 }
 
+KernelData kernel_selector_base::get_best_kernel(const Params& params, const optional_params& options) const {
+    auto kernels = GetBestKernels(params, options);
+    OPENVINO_ASSERT(!kernels.empty(), "[GPU] Couldn't find a suitable kernel for ", params.layerID, " params raw string: ", params.to_cache_string_v2());
+    return kernels[0];
+}
+
 KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
                                                      const optional_params& options,
                                                      KernelType kType) const {
@@ -101,12 +107,8 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
             }
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
-            GPU_DEBUG_GET_INSTANCE(debug_config);
-            GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                    << kernelName << " - " << ex.what() << std::endl;
-            }
+            kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+            GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
         }
     }
 
@@ -196,12 +198,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 }
             } catch (std::runtime_error& ex) {
                 // we have to handle it in order to avoid exception in KernelSelector as much we can
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                    kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                    GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                        << kernelName << " - " << ex.what() << std::endl;
-                }
+                kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+                GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
             }
         }
     }
@@ -225,12 +223,8 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                     }
                 } catch (std::runtime_error& ex) {
                     // we have to handle it in order to avoid exception in KernelSelector as much we can
-                    GPU_DEBUG_GET_INSTANCE(debug_config);
-                    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-                        kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
-                        GPU_DEBUG_COUT << "layerID: " << params.layerID << " kenrel: "
-                            << kernelName << " - " << ex.what() << std::endl;
-                    }
+                    kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+                    GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kenrel: " << kernelName << " - " << ex.what() << std::endl;
                 }
             }
         }
@@ -260,6 +254,8 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
     std::multiset<PriorityPair, decltype(comparePriority)> sortedImpls(comparePriority);
     KernelList result;
 
+    auto device_features_key = params.engineInfo.get_supported_device_features_key();
+
     if (params.GetType() == kType && options.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
         bool forceImplementation = !params.forceImplementation.empty();
@@ -267,6 +263,11 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, con
             const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
                 continue;
+
+            auto required_device_features_key = impl->get_required_device_features_key(params, options);
+            if (!device_features_key.supports(required_device_features_key))
+                continue;
+
             if (forceImplementation && params.forceImplementation != impl->GetName())
                 continue;
             sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);

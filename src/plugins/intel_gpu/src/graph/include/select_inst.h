@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/select.hpp"
 #include "primitive_inst.h"
@@ -26,8 +25,11 @@ using select_node = typed_program_node<select>;
 template <>
 class typed_primitive_inst<select> : public typed_primitive_inst_base<select> {
     using parent = typed_primitive_inst_base<select>;
+    using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const select_node& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(select_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(select_node const& node);
     typed_primitive_inst(network& network, select_node const& node);

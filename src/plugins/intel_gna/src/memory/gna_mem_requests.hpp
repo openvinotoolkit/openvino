@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,10 +8,10 @@
 #include <vector>
 #include <algorithm>
 
-#include "gna_plugin_log.hpp"
 #include "gna_mem_regions.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 enum rType : uint8_t {
@@ -21,7 +21,7 @@ enum rType : uint8_t {
     REQUEST_INITIALIZER = 0x8,
 };
 
-#ifdef GNA_HEAP_PROFILER
+#ifdef GNA_MEMORY_DUMP
 
 inline const char* rTypeToStr(uint8_t type) {
    const char* strType = "UNKNOWN";
@@ -127,5 +127,7 @@ struct MemRequest {
                                         _initializer(initializer) {
     }
 };
+
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

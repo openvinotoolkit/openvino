@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <immintrin.h>
 #include <stdint.h>
+
+#include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
 

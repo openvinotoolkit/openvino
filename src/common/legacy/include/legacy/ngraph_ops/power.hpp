@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace op {
 class PowerIE : public Op {
 public:
     OPENVINO_OP("PowerIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
     PowerIE() = default;
     PowerIE(const Output<Node>& data_batch,
             const float power, const float scale, const float shift, const element::Type output_type = element::undefined);

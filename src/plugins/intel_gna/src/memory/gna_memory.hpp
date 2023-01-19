@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,19 +19,20 @@
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 #include "gna_allocator.hpp"
-#include "gna_plugin_log.hpp"
+#include "log/log.hpp"
 #include "memory/gna_allocator.hpp"
 
-#ifdef GNA_HEAP_PROFILER
+#ifdef GNA_MEMORY_DUMP
 #include <iomanip>
 #endif
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 class GNAFloatAllocator : public std::allocator < uint8_t > {
  public:
-    void setTag(void*, GNAPluginNS::memory::rRegion) {
+    void setTag(void*, memory::rRegion) {
     }
 };
 
@@ -108,7 +109,7 @@ protected:
             if (queue.second->calcSize(_is_compact_mode) != 0) {
                 // 3rd stage -- allocation total memory setting to 0 internally
                 queue.second->_basePtr = allocate(ALIGN(queue.second->getSize(), _page_alignment));
-                gnalog() << rRegionToStr(queue.second->_region_type) << "(" << static_cast<void*>(queue.second->_basePtr.get()) << ")"
+                log::debug() << rRegionToStr(queue.second->_region_type) << "(" << static_cast<void*>(queue.second->_basePtr.get()) << ")"
                          << " allocated: " << ALIGN(queue.second->getSize(), _page_alignment) << std::endl;
                 // 4th stage -- setting proper GNA memory region tag for embedded TLV export
                 _allocator.setTag(queue.second->getBasePtr(), queue.first);
@@ -116,7 +117,7 @@ protected:
                 allocateRegion(queue.second.get());
             }
         }
-#ifdef GNA_HEAP_PROFILER
+#ifdef GNA_MEMORY_DUMP
         memoryDump();
 #endif
     }
@@ -154,10 +155,10 @@ protected:
     }
 
     template<class T>
-    void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
+    void iterate_binded(memory::MemRequest & reference, const T & visitor) {
         for (auto &re : getQueue(REGION_AUTO)->_mem_requests) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
-                // std::cout << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
+                // log::trace() << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
                 if (re._ptr_in == re._ptr_out) continue;
@@ -165,7 +166,7 @@ protected:
                 iterate_binded(re, visitor);
             }
         }
-#ifdef GNA_HEAP_PROFILER
+#ifdef GNA_MEMORY_DUMP
         memoryDump();
 #endif
     }
@@ -245,7 +246,7 @@ protected:
                 binded._element_size = reference._element_size;
             });
 
-            gnalog() << static_cast<void*>(cptr) << "(" << sz + re._padding << ")" << std::endl;
+            log::debug() << static_cast<void*>(cptr) << "(" << sz + re._padding << ")" << std::endl;
             switch (re._type & ~REQUEST_BIND) {
                 case REQUEST_ALLOCATE :
                     break;
@@ -268,7 +269,7 @@ protected:
         }
     }
 
-#ifdef GNA_HEAP_PROFILER
+#ifdef GNA_MEMORY_DUMP
     void memoryDump() {
         for (const auto &queue : _mem_queues) {
             std::ofstream dumpFile("gna_memory_requests_" + rRegionToStr(queue.first) + ".txt", std::ios::out);
@@ -291,4 +292,5 @@ protected:
 };
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

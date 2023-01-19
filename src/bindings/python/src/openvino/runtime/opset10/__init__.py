@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime.opset1.ops import absolute
@@ -76,6 +76,7 @@ from openvino.runtime.opset7.ops import idft
 from openvino.runtime.opset8.ops import if_op
 from openvino.runtime.opset10.ops import interpolate
 from openvino.runtime.opset9.ops import irdft
+from openvino.runtime.opset10.ops import is_finite
 from openvino.runtime.opset10.ops import is_inf
 from openvino.runtime.opset10.ops import is_nan
 from openvino.runtime.opset8.ops import i420_to_bgr
@@ -172,5 +173,6 @@ from openvino.runtime.opset1.ops import tensor_iterator
 from openvino.runtime.opset1.ops import tile
 from openvino.runtime.opset3.ops import topk
 from openvino.runtime.opset1.ops import transpose
+from openvino.runtime.opset10.ops import unique
 from openvino.runtime.opset1.ops import unsqueeze
 from openvino.runtime.opset1.ops import variadic_split

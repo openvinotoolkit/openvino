@@ -1,37 +1,76 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov;
+using namespace ov::opset10;
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+OutputVector translate_select_base_op(const NodeContext& node,
+                                      const Output<Node>& condition,
+                                      const Output<Node>& x,
+                                      const Output<Node>& y) {
+    // at this point all inputs are NumPy broadcastable
+    auto select = make_shared<opset10::Select>(condition, x, y);
+    set_node_name(node.get_name(), select);
+    return {select};
+}
+
+OutputVector translate_select_v2_op(const NodeContext& node) {
+    // according to the TensorFlow documentation. See in the code:
+    // https://github.com/tensorflow/tensorflow/blob/v2.4.1/tensorflow/lite/kernels/select.cc#L188-L211
+    //
+    // SelectV2 op selects values of 'x' if the corresponding value of 'condition'
+    // is true or the value of 'y' if false. There are valid condition input sizes:
+    // 1. Either the same shape (in which case the select is elementwise), or
+    // 2. Broadcastable shapes between 'condition', 'x' and 'y'.
+    default_op_checks(node, 3, {"SelectV2"});
+    // no preparation for inputs are needed
+    // inputs are already NumPy broadcastable
+    return translate_select_base_op(node, node.get_input(0), node.get_input(1), node.get_input(2));
+}
+
 OutputVector translate_select_op(const NodeContext& node) {
-    TENSORFLOW_OP_VALIDATION(node, node.get_input_size() == 3, "Select op cannot be converted");
-    auto in_1 = node.get_input(0);
-    auto in_2 = node.get_input(1);
-    auto in_3 = node.get_input(2);
-    if (in_1.get_partial_shape().is_static() && in_2.get_partial_shape().is_static()) {
-        // select broadcast
-        if (in_1.get_shape().size() == 1 && in_2.get_shape().size() > 1) {
-            std::vector<uint64_t> axes(in_2.get_shape().size() - 1);
-            std::iota(axes.begin(), axes.end(), 1);
-            auto unsqueeze_axes = make_shared<Constant>(ov::element::i64, Shape{in_2.get_shape().size() - 1}, axes);
-            auto unsqueeze = make_shared<Unsqueeze>(in_1, unsqueeze_axes);
-            auto res = make_shared<Select>(unsqueeze, in_2, in_3);
-            set_node_name(node.get_name(), res);
-            return res->outputs();
-        }
-    }
-    auto res = make_shared<Select>(in_1, in_2, in_3);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    // according to the TensorFlow documentation. See in the code:
+    // https://github.com/tensorflow/tensorflow/blob/v2.4.1/tensorflow/lite/kernels/select.cc#L188-L211
+    //
+    // Select op selects values of 'x' if the corresponding value of 'condition' is
+    // true or the value of 'y' if false. There are valid condition input sizes:
+    // 1. Either the same shape (in which case the select is elementwise), or
+    // 2. condition must be Rank 1 and match over the first dimension, or
+    // 3. condition is scalar
+    default_op_checks(node, 3, {"Select"});
+    auto condition = node.get_input(0);
+    auto x = node.get_input(1);
+    auto y = node.get_input(2);
+
+    // compute number of dimensions to unsqueeze the condition
+    auto cond_rank = compute_subgraph_scalar_rank(condition, element::i32);
+    auto x_rank = compute_subgraph_scalar_rank(x, element::i32);
+    auto num_new_axes = make_shared<Subtract>(x_rank, cond_rank);
+
+    // generate a new shape for the condition
+    auto const_one = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto new_subshape = make_shared<Broadcast>(const_one, num_new_axes);
+    auto cond_shape = make_shared<ShapeOf>(condition, element::i32);
+    // use extra dimensions in the begin to avoid concatenation of empty tensors that is not supported by Concat
+    auto const_1 = make_shared<Constant>(element::i32, Shape{1}, 1);
+    auto new_cond_shape = make_shared<Concat>(OutputVector{const_1, cond_shape, new_subshape}, 0);
+
+    // prepare the condition to have the same rank as operands `x` and `y`
+    auto prep_cond = make_shared<Reshape>(condition, new_cond_shape, false)->output(0);
+    // squeeze prep_cond by one extra dimension specially added
+    auto const_0 = make_shared<Constant>(element::i32, Shape{1}, 0);
+    prep_cond = make_shared<Squeeze>(prep_cond, const_0);
+
+    return translate_select_base_op(node, prep_cond, x, y);
 }
 }  // namespace op
 }  // namespace tensorflow

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace intel_gpu {
 static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                                        const cldnn::convert_color::color_format from_color,
                                        const cldnn::convert_color::color_format to_color) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto outDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
@@ -34,18 +34,20 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
     }
 
     if (outShape.batch[0] > 1 && memory_type == cldnn::convert_color::memory_type::image) {
-        std::vector<cldnn::primitive_id> convert_color_names;
+        std::vector<cldnn::input_info> convert_color_names;
         for (int b = 0; b < outShape.batch[0]; ++b) {
-            cldnn::primitive::primitive_id_arr batchedInputPrimitives = { inputPrimitives[0] + "_" + std::to_string(b),
-                                                                          inputPrimitives[1] + "_" + std::to_string(b)};
+            cldnn::primitive::input_info_arr batched_inputs = {
+                cldnn::input_info(inputs[0].pid + "_" + std::to_string(b), inputs[0].idx),
+                cldnn::input_info(inputs[1].pid + "_" + std::to_string(b), inputs[1].idx)
+            };
             cldnn::primitive_id batched_prim_id = layerName + "_" + std::to_string(b);
-            convert_color_names.emplace_back(batched_prim_id);
+            convert_color_names.emplace_back(cldnn::input_info(batched_prim_id));
             auto new_shape = outShape;
             new_shape.batch[0] = 1;
             out_layout.set_tensor(new_shape);
 
             p.add_primitive(*op, cldnn::convert_color(batched_prim_id,
-                                                      batchedInputPrimitives,
+                                                      batched_inputs,
                                                       from_color,
                                                       to_color,
                                                       memory_type,
@@ -54,7 +56,7 @@ static void CreateCommonConvertColorOp(Program& p, const std::shared_ptr<ngraph:
         p.add_primitive(*op, cldnn::concatenation(layerName, convert_color_names, 0));
     } else {
         p.add_primitive(*op, cldnn::convert_color(layerName,
-                                                  inputPrimitives,
+                                                  inputs,
                                                   from_color,
                                                   to_color,
                                                   memory_type,

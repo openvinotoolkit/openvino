@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -478,51 +478,47 @@ inline uint get_is_os_zyx_isa8_osv8_isv4_index(uint o, uint i, uint z, uint y, u
     return idx;
 }
 
-inline uint get_g_os_is_zyx_isa8_osv8_isv2_index(uint g, uint o, uint i, uint z, uint y, uint x, uint size_x,
-                                                 uint size_y, uint size_z, uint size_ifm, uint size_ofm, uint offset)
+inline uint get_g_os_is_zyx_isa_osv_isv_index(uint g, uint o, uint i, uint z, uint y, uint x,
+                                              uint size_x, uint size_y, uint size_z, uint size_ifm, uint size_ofm, uint offset,
+                                              uint isa, uint osv, uint isv)
 {
-    const uint isv2_idx = i % 2;
-    const uint osv_idx = o % 8;
-    const uint isv1_idx = (i / 2) % 8;
-    const uint is_idx = i / 16;
-    const uint os_idx = o / 8;
+    const uint isv2_idx = i % isv;
+    const uint osv_idx = o % osv;
+    const uint isv1_idx = (i / isv) % isa;
+    const uint is_idx = i / (isa * isv);
+    const uint os_idx = o / osv;
 
-    const uint if_16_aligned = ((size_ifm + 15) / 16);
-    const uint of_8_aligned = ((size_ofm + 7) / 8);
+    const uint if_aligned = ((size_ifm + (isa * isv) - 1) / (isa * isv));
+    const uint of_aligned = ((size_ofm + (osv - 1)) / osv);
 
     size_t idx = offset +
                  isv2_idx +
-                 osv_idx * 2 +
-                 isv1_idx * 8 * 2 +
-                 x * 8 * 8 * 2 +
-                 y * size_x * 8 * 8 * 2 +
-                 z * size_y * size_x * 8 * 8 * 2 +
-                 is_idx * size_z * size_y * size_x * 8 * 8 * 2 +
-                 os_idx * if_16_aligned * size_z * size_y * size_x * 8 * 8 * 2 +
-                 g * of_8_aligned * if_16_aligned * size_z * size_y * size_x * 8 * 8 * 2;
+                 osv_idx * isv +
+                 isv1_idx * osv * isv +
+                 x * isa * osv * isv +
+                 y * size_x * isa * osv * isv +
+                 z * size_y * size_x * isa * osv * isv +
+                 is_idx * size_z * size_y * size_x * isa * osv * isv +
+                 os_idx * if_aligned * size_z * size_y * size_x * isa * osv * isv +
+                 g * of_aligned * if_aligned * size_z * size_y * size_x * isa * osv * isv;
 
     return idx;
 }
 
-#define GET_FILTER_G_OS_IS_ZYX_ISA8_OSV8_ISV2_INDEX(prefix, g, o, i, z, y, x) \
-    get_g_os_is_zyx_isa8_osv8_isv2_index(                                     \
-        g, o, i, z, y, x,                                                     \
-        CAT(prefix, _SIZE_X),                                                 \
-        CAT(prefix, _SIZE_Y),                                                 \
-        CAT(prefix, _SIZE_Z),                                                 \
-        CAT(prefix, _IFM_NUM),                                                \
-        CAT(prefix, _OFM_NUM),                                                \
-        CAT(prefix, _OFFSET))
+#define GET_FILTER_G_OS_IS_ZYX_ISA_OSV_ISV_INDEX(prefix, g, o, i, z, y, x, isa, osv, isv) \
+    get_g_os_is_zyx_isa_osv_isv_index(                                                    \
+        g, o, i, z, y, x,                                                                 \
+        CAT(prefix, _SIZE_X),                                                             \
+        CAT(prefix, _SIZE_Y),                                                             \
+        CAT(prefix, _SIZE_Z),                                                             \
+        CAT(prefix, _IFM_NUM),                                                            \
+        CAT(prefix, _OFM_NUM),                                                            \
+        CAT(prefix, _OFFSET),                                                             \
+        isa, osv, isv)
 
-#define GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV2_INDEX(prefix, o, i, z, y, x) \
-    get_g_os_is_zyx_isa8_osv8_isv2_index(                                \
-        0, o, i, z, y, x,                                                \
-        CAT(prefix, _SIZE_X),                                            \
-        CAT(prefix, _SIZE_Y),                                            \
-        CAT(prefix, _SIZE_Z),                                            \
-        CAT(prefix, _IFM_NUM),                                           \
-        CAT(prefix, _OFM_NUM),                                           \
-        CAT(prefix, _OFFSET))
+#define GET_FILTER_OS_IS_ZYX_ISA8_OSV8_ISV2_INDEX(prefix, o, i, z, y, x)            GET_FILTER_G_OS_IS_ZYX_ISA_OSV_ISV_INDEX(prefix, 0, o, i, z, y, x, 8, 8, 2)
+#define GET_FILTER_G_OS_IS_ZYX_ISA8_OSV8_ISV2_INDEX(prefix, g, o, i, z, y, x)       GET_FILTER_G_OS_IS_ZYX_ISA_OSV_ISV_INDEX(prefix, g, o, i, z, y, x, 8, 8, 2)
+#define GET_FILTER_G_OS_IS_ZYX_ISA8_OSV8_ISV4_INDEX(prefix, g, o, i, z, y, x)       GET_FILTER_G_OS_IS_ZYX_ISA_OSV_ISV_INDEX(prefix, g, o, i, z, y, x, 8, 8, 4)
 
 #define GET_FILTER_IS_OS_ZYX_ISA8_OSV8_ISV2_INDEX(prefix, o, i, z, y, x) \
     get_is_os_zyx_isa8_osv8_isv2_index(                                  \
@@ -1722,6 +1718,8 @@ inline uint get_g_os_zyx_is_osv_isv_index(uint g, uint o, uint i, uint z, uint y
 #define GET_FILTER_G_OS_YX_IS_OSV8_ISV2_INDEX(tensor, g, o, i, y, x)        GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 2)
 #define GET_FILTER_G_OS_YX_IS_OSV8_ISV4_INDEX(tensor, g, o, i, y, x)        GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 4)
 
+#define GET_FILTER_G_OS_ZYX_IS_OSV8_ISV2_INDEX(tensor, g, o, i, z, y, x)    GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 2)
+#define GET_FILTER_G_OS_ZYX_IS_OSV8_ISV4_INDEX(tensor, g, o, i, z, y, x)    GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 4)
 #define GET_FILTER_G_OS_ZYX_IS_OSV16_ISV4_INDEX(tensor, g, o, i, z, y, x)   GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 16, 4)
 #define GET_FILTER_G_OS_ZYX_IS_OSV16_ISV16_INDEX(tensor, g, o, i, z, y, x)  GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 16, 16)
 #define GET_FILTER_G_OS_ZYX_IS_OSV16_ISV32_INDEX(tensor, g, o, i, z, y, x)  GET_FILTER_G_OS_ZYX_IS_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 16, 32)
@@ -1789,7 +1787,7 @@ inline uint get_g_os_y_is_x_osv_isv_index(uint g, uint o, uint i, uint y, uint x
 #define GET_FILTER_G_OS_Y_IS_X_OSV8_ISV2_INDEX(tensor, g, o, i, y, x)       GET_FILTER_G_OS_Y_IS_X_OSV_ISV_INDEX(tensor, g, o, i, y, x, 8, 2)
 #define GET_FILTER_G_OS_Y_IS_X_OSV8_ISV4_INDEX(tensor, g, o, i, y, x)       GET_FILTER_G_OS_Y_IS_X_OSV_ISV_INDEX(tensor, g, o, i, y, x, 8, 4)
 
-inline uint get_os_zy_is_x_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
+inline uint get_g_os_zy_is_x_osv_isv_index(uint g, uint o, uint i, uint z, uint y, uint x,
                                                 uint o_size, uint i_size, uint z_size, uint y_size, uint x_size,
                                                 uint osv, uint isv) {
     uint is_size = (i_size + isv - 1) / isv;
@@ -1807,6 +1805,7 @@ inline uint get_os_zy_is_x_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
     uint y_pitch = is_pitch * is_size;
     uint z_pitch = y_pitch * y_size;
     uint os_pitch = z_pitch * z_size;
+    uint g_pitch = os_pitch * os_size;
 
     uint index = 0;
     index += isv_index * isv_pitch;
@@ -1816,12 +1815,13 @@ inline uint get_os_zy_is_x_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
     index += y * y_pitch;
     index += z * z_pitch;
     index += os_index * os_pitch;
+    index += g * g_pitch;
     return index;
 }
 
-#define GET_FILTER_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, o, i, z, y, x, osv, isv)             \
-    get_os_zy_is_x_osv_isv_index(                                                        \
-    o, i, z, y, x,                                                                       \
+#define GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, osv, isv)        \
+    get_g_os_zy_is_x_osv_isv_index(                                                      \
+    g, o, i, z, y, x,                                                                    \
     CAT(tensor, _OFM_NUM),                                                               \
     CAT(tensor, _IFM_NUM),                                                               \
     CAT(tensor, _SIZE_Z),                                                                \
@@ -1830,5 +1830,7 @@ inline uint get_os_zy_is_x_osv_isv_index(uint o, uint i, uint z, uint y, uint x,
     osv, isv)
 
 
-#define GET_FILTER_OS_ZY_IS_X_OSV8_ISV2_INDEX(tensor, o, i, z, y, x)            GET_FILTER_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, o, i, z, y, x, 8, 2)
-#define GET_FILTER_OS_ZY_IS_X_OSV8_ISV4_INDEX(tensor, o, i, z, y, x)            GET_FILTER_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, o, i, z, y, x, 8, 4)
+#define GET_FILTER_OS_ZY_IS_X_OSV8_ISV2_INDEX(tensor, o, i, z, y, x)            GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, 0, o, i, z, y, x, 8, 2)
+#define GET_FILTER_OS_ZY_IS_X_OSV8_ISV4_INDEX(tensor, o, i, z, y, x)            GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, 0, o, i, z, y, x, 8, 4)
+#define GET_FILTER_G_OS_ZY_IS_X_OSV8_ISV2_INDEX(tensor, g, o, i, z, y, x)       GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 2)
+#define GET_FILTER_G_OS_ZY_IS_X_OSV8_ISV4_INDEX(tensor, g, o, i, z, y, x)       GET_FILTER_G_OS_ZY_IS_X_OSV_ISV_INDEX(tensor, g, o, i, z, y, x, 8, 4)

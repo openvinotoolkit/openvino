@@ -1,13 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "utils.hpp"
 
+#include <limits>
+
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino_conversions.hpp"
 
+using namespace ov;
+using namespace ov::op;
+using namespace ov::opset10;
 using namespace ov::opset8;
+using namespace std;
+using namespace ov::frontend::tensorflow;
 
 void ov::frontend::tensorflow::set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
@@ -38,14 +46,15 @@ ov::op::PadType ov::frontend::tensorflow::convert_tf_padding(const ov::frontend:
                                            "AvgPool",
                                            "AvgPool3D"};
     auto op_type = node.get_op_type();
-
-    TENSORFLOW_OP_VALIDATION(node,
-                             supported_ops.count(op_type),
-                             "Conversion of padding mode for " + op_type + " is not supported.");
     TENSORFLOW_OP_VALIDATION(
         node,
-        tf_padding == "VALID" || tf_padding == "SAME" || tf_padding == "EXPLICIT",
-        "The deconvolutional operation must have one of the padding type: VALID, SAME, and EXPLICIT.");
+        supported_ops.count(op_type),
+        "OpenVINO TensorFlow Frontend does not support conversion of padding type for " + op_type + " operation.");
+
+    std::set<std::string> supported_modes = {"VALID", "SAME", "EXPLICIT"};
+    TENSORFLOW_OP_VALIDATION(node,
+                             supported_modes.count(tf_padding),
+                             "OpenVINO TensorFlow Frontend does not support " + tf_padding + " padding mode.");
 
     if (tf_padding == "VALID") {
         return ov::op::PadType::VALID;
@@ -175,8 +184,56 @@ ov::OutputVector ov::frontend::tensorflow::translate_convolution_op(const ov::fr
     ov::AxisVector permutation_3d = {4, 3, 0, 1, 2};
     filter = ov::frontend::tensorflow::make_transpose(filter, spatial_dims_num == 2 ? permutation_2d : permutation_3d);
 
-    ov::Output<ov::Node> conv =
-        std::make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
+    bool input_channels_static = false;
+    int64_t num_groups = 1;
+    auto input_shape = input.get_partial_shape();
+    auto filter_shape = filter.get_partial_shape();
+    if (input_shape.rank().is_static() && filter_shape.rank().is_static()) {
+        auto input_rank = static_cast<size_t>(input_shape.rank().get_length());
+        auto filter_rank = static_cast<size_t>(filter_shape.rank().get_length());
+        TENSORFLOW_OP_VALIDATION(node, input_rank == (spatial_dims_num + 2), "Internal error: incorrect input rank.");
+        TENSORFLOW_OP_VALIDATION(node, filter_rank == input_rank, "Internal error: incorrect filter rank.");
+        auto input_channels_size = input_shape[1];
+        auto filter_channels_size = filter_shape[1];
+        if (input_channels_size.is_static() && filter_channels_size.is_static()) {
+            // we assume that input channel size will not be changed if they are already static
+            // this will simplify us to differentiate Convolution and GroupConvolution cases
+            num_groups = input_channels_size.get_length() / filter_channels_size.get_length();
+            TENSORFLOW_OP_VALIDATION(node,
+                                     num_groups >= 1,
+                                     "Internal error: number of groups for Convolutional operation is not positive.");
+            input_channels_static = true;
+        }
+    }
+
+    ov::Output<ov::Node> conv;
+    if (input_channels_static && num_groups == 1) {
+        // regular convolutional operation
+        // we assume that input channel size will not be changed if they are already static
+        conv = std::make_shared<Convolution>(input, filter, strides, pads_begin, pads_end, dilations, auto_pad);
+    } else {
+        // grouped convolutional operation
+        // compute input channels given from the input and the filter
+        // and number of groups required to split the filter
+        auto input_shape = make_shared<ShapeOf>(input, element::i32);
+        auto filter_shape = make_shared<ShapeOf>(filter, element::i32);
+        auto zero_const = make_shared<Constant>(element::i32, Shape{1}, 0);
+        auto one_const = make_shared<Constant>(element::i32, Shape{1}, 1);
+        auto two_const = make_shared<Constant>(element::i32, Shape{1}, 2);
+        auto input_cin = make_shared<Slice>(input_shape, one_const, two_const, one_const);
+        auto filter_cin = make_shared<Slice>(filter_shape, one_const, two_const, one_const);
+        auto num_groups = make_shared<Divide>(input_cin, filter_cin);
+
+        // reshape the filter based on the number of groups information
+        auto int_max_const = make_shared<Constant>(element::i32, Shape{1}, std::numeric_limits<int>::max());
+        auto filter_cout = make_shared<Slice>(filter_shape, zero_const, one_const, one_const);
+        auto filter_new_cout = make_shared<Divide>(filter_cout, num_groups);
+        auto shape_cin_xy = make_shared<Slice>(filter_shape, one_const, int_max_const, one_const);
+        auto filter_new_shape = make_shared<Concat>(OutputVector{num_groups, filter_new_cout, shape_cin_xy}, 0);
+        auto new_filter = make_shared<Reshape>(filter, filter_new_shape, false);
+        conv =
+            std::make_shared<GroupConvolution>(input, new_filter, strides, pads_begin, pads_end, dilations, auto_pad);
+    }
 
     ov::frontend::tensorflow::convert_nchw_to_nhwc(is_nhwc, conv, ov::Rank(spatial_dims_num + 2));
     ov::frontend::tensorflow::set_node_name(node.get_name(), conv.get_node_shared_ptr());
@@ -210,4 +267,38 @@ ov::Output<ov::Node> ov::frontend::tensorflow::get_elements_number_1d(const ov::
     auto shape = rg.make<ShapeOf>(output, output_type);
     auto num_elements = rg.make<Squeeze>(shape);
     return num_elements;
+}
+
+PadMode ov::frontend::tensorflow::convert_padding_mode(const NodeContext& node, const std::string& padding_mode) {
+    std::set<std::string> supported_ops = {"MirrorPad"};
+    auto op_type = node.get_op_type();
+    TENSORFLOW_OP_VALIDATION(
+        node,
+        supported_ops.count(op_type),
+        "OpenVINO TensorFlow Frontend does not support conversion of padding mode for " + op_type + " operation.");
+
+    std::set<std::string> supported_modes = {"REFLECT", "SYMMETRIC"};
+    TENSORFLOW_OP_VALIDATION(node,
+                             supported_modes.count(padding_mode),
+                             "OpenVINO TensorFlow Frontend does not support " + padding_mode + " padding mode.");
+
+    if (padding_mode == "REFLECT") {
+        return PadMode::REFLECT;
+    } else if (padding_mode == "SYMMETRIC") {
+        return PadMode::SYMMETRIC;
+    }
+
+    return PadMode::REFLECT;
+}
+
+Output<Node> ov::frontend::tensorflow::compute_subgraph_scalar_rank(const Output<Node>& output,
+                                                                    element::Type output_type,
+                                                                    bool as_scalar) {
+    auto shape_of = make_shared<opset10::ShapeOf>(output, output_type);
+    auto rank_of = make_shared<opset10::ShapeOf>(shape_of, output_type);
+
+    if (as_scalar) {
+        return make_shared<opset10::Squeeze>(rank_of);
+    }
+    return rank_of;
 }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "primitive_inst.h"
@@ -33,8 +32,11 @@ using count_nonzero_node = typed_program_node<count_nonzero>;
 template <>
 class typed_primitive_inst<count_nonzero> : public typed_primitive_inst_base<count_nonzero> {
     using parent = typed_primitive_inst_base<count_nonzero>;
+    using parent::parent;
 
 public:
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(count_nonzero_node const& node);
 
@@ -62,6 +64,7 @@ public:
         OPENVINO_ASSERT(dependencies.size() == 2, "[GPU] Primitive ", id(), " has invalid number of depndencies");
         return get_dependency(index);
     }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1}; }
 };
 
 using gather_nonzero_node = typed_program_node<gather_nonzero>;
@@ -69,8 +72,11 @@ using gather_nonzero_node = typed_program_node<gather_nonzero>;
 template <>
 class typed_primitive_inst<gather_nonzero> : public typed_primitive_inst_base<gather_nonzero> {
     using parent = typed_primitive_inst_base<gather_nonzero>;
+    using parent::parent;
 
 public:
+    template <typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gather_nonzero_node const& /*node*/, kernel_impl_params const& impl_param);
     static layout calc_output_layout(gather_nonzero_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_nonzero_node const& node);
 

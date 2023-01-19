@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "kernel_selector_helper.h"
 #include "kernel_selector/kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/kernels/resample/resample_kernel_base.h"
+#include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -128,43 +129,43 @@ inline kernel_selector::interpolate_axis convert_axis(int64_t axis, size_t rank)
 struct resample_impl : typed_primitive_impl_ocl<resample> {
     using parent = typed_primitive_impl_ocl<resample>;
     using parent::parent;
+    using kernel_selector_t = kernel_selector::resample_kernel_selector;
+    using kernel_params_t = std::pair<kernel_selector::resample_params, kernel_selector::resample_optional_params>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<resample_impl>(*this);
     }
 
-    static primitive_impl* create(const resample_node& arg, const kernel_impl_params& impl_param) {
-        const auto& primitive = arg.get_primitive();
-        auto us_params = get_default_params<kernel_selector::resample_params>(impl_param);
-        auto us_optional_params =
-            get_default_optional_params<kernel_selector::resample_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<resample>();
+        auto params = get_default_params<kernel_selector::resample_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::resample_optional_params>(impl_param.get_program());
 
-        size_t dimsNum = impl_param.output_layout.get_rank();
-        us_params.resampleType = convert_to_sample_type(primitive->operation_type);
-        us_params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
-        us_params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
-        us_params.shapeCalculationMode = convert_to_shape_calculation_mode(primitive->shape_calc_mode);
-        us_params.antialias = primitive->antialias;
-        us_params.cube_coeff = primitive->cube_coeff;
+        size_t dimsNum = impl_param.get_output_layout().get_rank();
+        params.resampleType = convert_to_sample_type(primitive->operation_type);
+        params.nearestMode = convert_to_nearest_mode(primitive->round_mode);
+        params.coordTransMode = convert_to_coord_transform_mode(primitive->coord_trans_mode);
+        params.shapeCalculationMode = convert_to_shape_calculation_mode(primitive->shape_calc_mode);
+        params.antialias = primitive->antialias;
+        params.cube_coeff = primitive->cube_coeff;
 
-        us_params.pads_begin = convert_pads(primitive->pads_begin, dimsNum);
-        us_params.pads_end = convert_pads(primitive->pads_end, dimsNum);
+        params.pads_begin = convert_pads(primitive->pads_begin, dimsNum);
+        params.pads_end = convert_pads(primitive->pads_end, dimsNum);
 
-        for (size_t i = 0; i < primitive->scales.size(); i++) {
-            us_params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = primitive->scales[i];
+        auto scales = primitive->scales;
+        bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
+        if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
+            auto mem = impl_param.memory_deps.at(2);
+            scales = read_vector<float>(mem, impl_param.prog->get_stream());
         }
 
-        auto& kernel_selector = kernel_selector::resample_kernel_selector::Instance();
-        auto best_kernels = kernel_selector.GetBestKernels(us_params, us_optional_params);
+        for (size_t i = 0; i < scales.size(); ++i) {
+            params.axesAndScales[convert_axis(primitive->axes[i], dimsNum)] = scales[i];
+        }
 
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Best_kernel.empty()",
-                         best_kernels.empty(),
-                         "Cannot find a proper kernel with this arguments");
-
-        auto resample = new resample_impl(arg, best_kernels[0]);
-
-        return resample;
+        return {params, optional_params};
     }
 };
 
@@ -200,9 +201,11 @@ attach_resample_impl::attach_resample_impl() {
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
 
-    implementation_map<resample>::add(impl_types::ocl, resample_impl::create, keys);
+    implementation_map<resample>::add(impl_types::ocl, typed_primitive_impl_ocl<resample>::create<resample_impl>, keys);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)

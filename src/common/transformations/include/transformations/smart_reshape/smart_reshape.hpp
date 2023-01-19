@@ -1,23 +1,31 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
+
+#include "transformations_visibility.hpp"
+
+namespace ov {
+namespace pass {
+
+class TRANSFORMATIONS_API SmartReshape;
+
+}  // namespace pass
+}  // namespace ov
+
+class ov::pass::SmartReshape : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SmartReshape", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+};
 
 namespace ngraph {
 namespace pass {
-
-class NGRAPH_API SmartReshape;
-
+using ov::pass::SmartReshape;
 }  // namespace pass
 }  // namespace ngraph
-
-class ngraph::pass::SmartReshape : public ngraph::pass::FunctionPass {
-public:
-    OPENVINO_RTTI("SmartReshape", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
-};

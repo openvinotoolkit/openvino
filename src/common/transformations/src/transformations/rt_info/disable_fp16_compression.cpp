@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ void ov::enable_fp16_compression(const std::shared_ptr<Node>& node) {
     rt_info.erase(DisableFP16Compression::get_type_info_static());
 }
 
-bool ov::fp16_compression_is_disabled(const std::shared_ptr<Node>& node) {
+bool ov::fp16_compression_is_disabled(const std::shared_ptr<const Node>& node) {
     const auto& rt_info = node->get_rt_info();
     return rt_info.count(DisableFP16Compression::get_type_info_static());
 }

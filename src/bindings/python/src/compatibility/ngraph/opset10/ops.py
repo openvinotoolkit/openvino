@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -76,13 +76,22 @@ def interpolate(
     attrs["pads_begin"] = [] if pads_begin is None else pads_begin
     attrs["pads_end"] = [] if pads_end is None else pads_end
 
-    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image,
-                                                                                 output_shape,
-                                                                                 scales, axes)
+    inputs = as_nodes(image, output_shape, scales) if axes is None else as_nodes(image, output_shape, scales, axes)
 
     # This is an update of the operator version, so even though this is opset 10,
     # the operator is taken from opset 4.
     return _get_node_factory_opset4().create("Interpolate", inputs, attrs)
+
+
+@nameable_op
+def is_finite(data: NodeInput, name: Optional[str] = None) -> Node:
+    """Performs element-wise mapping from NaN and Infinity to False. Other values are mapped to True.
+
+    :param  data:          A tensor of floating-point numeric type and arbitrary shape.
+    :param  name:          Optional name for the output node. The default is None.
+    :return: Node representing is_finite operation.
+    """
+    return _get_node_factory_opset10().create("IsFinite", as_nodes(data))
 
 
 @nameable_op
@@ -124,3 +133,41 @@ def is_nan(data: NodeInput, name: Optional[str] = None) -> Node:
     :return: Node representing is_nan operation.
     """
     return _get_node_factory_opset10().create("IsNaN", as_nodes(data))
+
+
+@nameable_op
+def unique(
+    data: NodeInput,
+    axis: Optional[NodeInput] = None,
+    sorted: Optional[bool] = True,
+    index_element_type: Optional[str] = "i64",
+    count_element_type: Optional[str] = "i64",
+    name: Optional[str] = None,
+) -> Node:
+    """Operator which selects and returns unique elements or unique slices of the input tensor.
+
+    :param  data:               Input data tensor.
+    :param  axis:               (Optional) An input tensor containing the axis value.
+                                If not provided or None, data input is considered as a flattened tensor.
+                                Default value: None.
+    :param  sorted:             (Optional) Controls the order of the returned unique values,
+                                sorts ascendingly when true.
+                                Default value: True.
+    :param  index_element_type: (Optional) The data type set for outputs containing indices.
+                                Default value: "i64".
+    :param  count_element_type: (Optional) The data type set for the output with repetition count.
+                                Default value: "i64".
+    :param name:                (Optional) A name for the output node. Default value: None.
+    :return: Node representing Unique operation.
+    """
+    if axis is None:
+        inputs = as_nodes(data)
+    else:
+        inputs = as_nodes(data, axis)
+
+    attributes = {
+        "sorted": sorted,
+        "index_element_type": index_element_type,
+        "count_element_type": count_element_type,
+    }
+    return _get_node_factory_opset10().create("Unique", inputs, attributes)

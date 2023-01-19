@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,11 @@
 #include <vector>
 
 #include "atomic_guard.hpp"
-#include "ngraph_ops/type_relaxed.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "ov_ops/type_relaxed.hpp"
 
 using namespace ngraph;
 using namespace std;

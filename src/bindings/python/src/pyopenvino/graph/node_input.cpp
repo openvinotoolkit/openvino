@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ void regclass_graph_Input(py::module m) {
                 A reference to the tensor descriptor for this input.
 
                 :return: Tensor of the input.
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
                )");
     input.def("get_rt_info",
               (ov::RTMap & (ov::Input<ov::Node>::*)()) & ov::Input<ov::Node>::get_rt_info,

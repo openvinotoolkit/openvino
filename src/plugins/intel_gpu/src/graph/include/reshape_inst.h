@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/reshape.hpp"
 #include "primitive_inst.h"
@@ -42,6 +41,7 @@ using reshape_node = typed_program_node<reshape>;
 template <>
 class typed_primitive_inst<reshape> : public typed_primitive_inst_base<reshape> {
     using parent = typed_primitive_inst_base<reshape>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>
@@ -50,6 +50,8 @@ public:
     static std::string to_string(reshape_node const& node);
 
     typed_primitive_inst(network& network, reshape_node const& node);
+
+    void update_output_memory() override;
 
 private:
     void on_execute() override;

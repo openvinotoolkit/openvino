@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,7 +17,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
 
-add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME} STATIC
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -26,9 +26,10 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
-                                     PRIVATE ngraph_reference openvino::runtime::dev)
+                                     PRIVATE ngraph_reference ov_shape_inference openvino::runtime::dev)
 
-target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                          PRIVATE $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
@@ -45,3 +46,5 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 # install
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
+
+openvino_developer_export_targets(COMPONENT ${OV_CPACK_COMP_CORE} TARGETS ${TARGET_NAME})

@@ -2,13 +2,14 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 # type: ignore
-from openvino.pyopenvino.passes import MatcherPass
-from openvino.pyopenvino.passes import GraphRewrite as GraphRewriteBase
-from openvino.pyopenvino.passes import BackwardGraphRewrite as BackwardGraphRewriteBase
+from openvino._pyopenvino.passes import MatcherPass
+from openvino._pyopenvino.passes import GraphRewrite as GraphRewriteBase
+from openvino._pyopenvino.passes import BackwardGraphRewrite as BackwardGraphRewriteBase
 
 
 class GraphRewrite(GraphRewriteBase):
     """GraphRewrite that additionally holds python transformations objects."""
+
     def __init__(self) -> None:
         super().__init__()
         self.passes_list = []  # need to keep python instances alive
@@ -21,6 +22,7 @@ class GraphRewrite(GraphRewriteBase):
 
 class BackwardGraphRewrite(BackwardGraphRewriteBase):
     """BackwardGraphRewriteBase that additionally holds python transformations objects."""
+
     def __init__(self) -> None:
         super().__init__()
         self.passes_list = []  # need to keep python instances alive

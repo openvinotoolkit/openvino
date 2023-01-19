@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -229,15 +229,21 @@ static constexpr Property<uint32_t, PropertyMutability::RO> optimal_number_of_in
     "OPTIMAL_NUMBER_OF_INFER_REQUESTS"};
 
 /**
+ * @brief Hint for device to use specified precision for inference
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+
+/**
  * @brief Namespace with hint properties
  */
 namespace hint {
 
 /**
- * @brief Hint for device to use specified precision for inference
+ * @brief An alias for inference_precision property for backward compatibility
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<element::Type, PropertyMutability::RW> inference_precision{"INFERENCE_PRECISION_HINT"};
+using ov::inference_precision;
 
 /**
  * @brief Enum to define possible priorities hints
@@ -295,7 +301,7 @@ enum class PerformanceMode {
     UNDEFINED = -1,             //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
-    CUMULATIVE_THROUGHPUT = 3,  //!< Optimize for cumulative throughput
+    CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
 };
 
 /** @cond INTERNAL */
@@ -360,6 +366,56 @@ static constexpr Property<std::shared_ptr<ov::Model>> model{"MODEL_PTR"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RW> allow_auto_batching{"ALLOW_AUTO_BATCHING"};
+
+/**
+ * @brief Enum to define possible execution mode hints
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class ExecutionMode {
+    UNDEFINED = -1,   //!<  Undefined value, settings may vary from device to device
+    PERFORMANCE = 1,  //!<  Optimize for max performance
+    ACCURACY = 2,     //!<  Optimize for max accuracy
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
+    switch (mode) {
+    case ExecutionMode::UNDEFINED:
+        return os << "UNDEFINED";
+    case ExecutionMode::PERFORMANCE:
+        return os << "PERFORMANCE";
+    case ExecutionMode::ACCURACY:
+        return os << "ACCURACY";
+    default:
+        throw ov::Exception{"Unsupported execution mode hint"};
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "PERFORMANCE") {
+        mode = ExecutionMode::PERFORMANCE;
+    } else if (str == "ACCURACY") {
+        mode = ExecutionMode::ACCURACY;
+    } else if (str == "UNDEFINED") {
+        mode = ExecutionMode::UNDEFINED;
+    } else {
+        throw ov::Exception{"Unsupported execution mode: " + str};
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief High-level OpenVINO Execution hint
+ * unlike low-level properties that are individual (per-device), the hints are something that every device accepts
+ * and turns into device-specific settings
+ * Execution mode hint controls preferred optimization targets (performance or accuracy) for given model
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
+
 }  // namespace hint
 
 /**
@@ -372,6 +428,11 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
  * @brief Namespace with log level property and its possible values
  */
 namespace log {
+
+#ifdef DEBUG
+#    define _OV_WAS_DEBUG DEBUG
+#    undef DEBUG
+#endif
 
 /**
  * @brief Enum to define possible log levels
@@ -433,6 +494,11 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
+
+#ifdef _OV_WAS_DEBUG
+#    define DEBUG _OV_WAS_DEBUG
+#    undef _OV_WAS_DEBUG
+#endif
 }  // namespace log
 
 /**
@@ -455,6 +521,12 @@ static constexpr Property<Level> level{"LOG_LEVEL"};
  * @endcode
  */
 static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
+
+/**
+ * @brief Read-only property to notify user that compiled model was loaded from the cache
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
@@ -884,4 +956,10 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
  * environment variable is set (as affinity is configured explicitly)
  */
 static constexpr Property<Affinity> affinity{"AFFINITY"};
+
+/**
+ * @brief The devices that the inference task been executed.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ TEST(attributes, shapeof_op1) {
     NodeBuilder::get_ops().register_factory<op::v0::ShapeOf>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     auto shapeof = make_shared<op::v0::ShapeOf>(data);
-    NodeBuilder builder(shapeof);
+    NodeBuilder builder(shapeof, {data});
     auto g_shapeof = ov::as_type_ptr<op::v0::ShapeOf>(builder.create());
 
     const auto expected_attr_count = 0;
@@ -30,7 +30,7 @@ TEST(attributes, shapeof_op3) {
     NodeBuilder::get_ops().register_factory<op::v3::ShapeOf>();
     auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4});
     auto shapeof = make_shared<op::v3::ShapeOf>(data, element::Type_t::i64);
-    NodeBuilder builder(shapeof);
+    NodeBuilder builder(shapeof, {data});
     auto g_shapeof = ov::as_type_ptr<op::v3::ShapeOf>(builder.create());
 
     const auto expected_attr_count = 1;

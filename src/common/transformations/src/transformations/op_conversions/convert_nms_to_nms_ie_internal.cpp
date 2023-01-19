@@ -1,26 +1,26 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/nms_ie_internal.hpp"
+#include "ov_ops/nms_ie_internal.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
+ov::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
     MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
+    auto nms = ngraph::pattern::wrap_type<ov::opset5::NonMaxSuppression>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto nms_5 = std::dynamic_pointer_cast<ov::opset5::NonMaxSuppression>(m.get_match_root());
         if (!nms_5 || transformation_callback(nms_5)) {
             return false;
         }
@@ -29,11 +29,11 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         const std::size_t num_of_inputs = new_args.size();
 
         const auto& arg2 =
-            num_of_inputs > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+            num_of_inputs > 2 ? new_args.at(2) : ov::opset5::Constant::create(element::i32, Shape{}, {0});
         const auto& arg3 =
-            num_of_inputs > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+            num_of_inputs > 3 ? new_args.at(3) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg4 =
-            num_of_inputs > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+            num_of_inputs > 4 ? new_args.at(4) : ov::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new nGraph operations
         NodeVector new_ops;
@@ -61,15 +61,14 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
 
         int center_point_box = 0;
         switch (nms_5->get_box_encoding()) {
-        case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
+        case ::ov::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
             center_point_box = 1;
             break;
-        case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
+        case ::ov::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
             center_point_box = 0;
             break;
         default:
-            throw ngraph_error("NonMaxSuppression layer " + nms_5->get_friendly_name() +
-                               " has unsupported box encoding");
+            throw Exception("NonMaxSuppression layer " + nms_5->get_friendly_name() + " has unsupported box encoding");
         }
 
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};

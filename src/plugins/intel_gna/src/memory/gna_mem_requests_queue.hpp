@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,12 +12,15 @@
 
 #include <ie_api.h>
 #include <legacy/ie_layers.h>
-#include "gna_plugin_log.hpp"
+#include "log/log.hpp"
 #include "gna_mem_requests.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
 
-namespace GNAPluginNS {
+using namespace ov::intel_gna;
+
+namespace ov {
+namespace intel_gna {
 namespace memory {
 
 /**
@@ -198,10 +201,10 @@ public:
     }
 
     template<class T>
-    void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
+    void iterate_binded(memory::MemRequest & reference, const T & visitor) {
         for (auto &re : _mem_requests) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
-                // std::cout << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
+                log::trace() << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
                 if (re._ptr_in == re._ptr_out) continue;
@@ -282,4 +285,5 @@ public:
 };
 
 }  // namespace memory
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

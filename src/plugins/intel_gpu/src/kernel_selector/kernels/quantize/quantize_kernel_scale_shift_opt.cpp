@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,8 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 
     auto output = params.outputs[0];
 
-    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 || output.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
+    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 || output.GetLayout() == DataLayout::b_fs_yx_fsv32 ||
+        output.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         dispatchData.gws[0] = output.Z().v *output.Y().v * output.X().v;
         dispatchData.gws[1] = Align(output.Feature().v, sub_group_size);
         dispatchData.gws[2] = output.Batch().v;
@@ -67,7 +68,8 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+        params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -265,7 +265,7 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
     // no need to print this information for executable graph information serialization because it is not IR.
     if (!execGraphInfoSerialization) {
         netXml.append_attribute("version").set_value("6");
-        netXml.append_attribute("batch").set_value(network.getBatchSize());
+        netXml.append_attribute("batch").set_value(static_cast<unsigned long long>(network.getBatchSize()));
     }
 
     pugi::xml_node layers = netXml.append_child("layers");
@@ -285,7 +285,7 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
         layer.append_attribute("name").set_value(node->name.c_str());
         layer.append_attribute("type").set_value(node->type.c_str());
         layer.append_attribute("precision").set_value(precision.name());
-        layer.append_attribute("id").set_value(i);
+        layer.append_attribute("id").set_value(static_cast<unsigned long long>(i));
 
         if (!execGraphInfoSerialization) {
             UpdateStdLayerParams(node);
@@ -307,10 +307,10 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
                 const DataPtr d = node->insData[iport].lock();
                 pugi::xml_node port = input.append_child("port");
 
-                port.append_attribute("id").set_value(iport);
+                port.append_attribute("id").set_value(static_cast<unsigned long long>(iport));
 
                 for (auto dim : d->getDims()) {
-                    port.append_child("dim").text().set(dim);
+                    port.append_child("dim").text().set(static_cast<unsigned long long>(dim));
                 }
             }
         }
@@ -319,11 +319,11 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
                 pugi::xml_node port = output.append_child("port");
 
-                port.append_attribute("id").set_value(node->insData.size() + oport);
+                port.append_attribute("id").set_value(static_cast<unsigned long long>(node->insData.size() + oport));
                 port.append_attribute("precision").set_value(node->outData[oport]->getPrecision().name());
 
                 for (const auto dim : node->outData[oport]->getDims()) {
-                    port.append_child("dim").text().set(dim);
+                    port.append_child("dim").text().set(static_cast<unsigned long long>(dim));
                 }
             }
         }
@@ -333,8 +333,8 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
                 if (!dataIt.second) continue;
                 size_t dataSize = dataIt.second->byteSize();
                 pugi::xml_node data = blobsNode.append_child(dataIt.first.c_str());
-                data.append_attribute("offset").set_value(dataOffset);
-                data.append_attribute("size").set_value(dataSize);
+                data.append_attribute("offset").set_value(static_cast<unsigned long long>(dataOffset));
+                data.append_attribute("size").set_value(static_cast<unsigned long long>(dataSize));
                 data.append_attribute("precision").set_value(dataIt.second->getTensorDesc().getPrecision().name());
 
                 dataOffset += dataSize;
@@ -364,11 +364,11 @@ std::size_t FillXmlDoc(const InferenceEngine::CNNNetwork& network, pugi::xml_doc
                                                    << inputTo.first << "during serialization of IR";
                             }
                             pugi::xml_node edge = edges.append_child("edge");
-                            edge.append_attribute("from-layer").set_value(itFrom->second);
-                            edge.append_attribute("from-port").set_value(oport + node->insData.size());
+                            edge.append_attribute("from-layer").set_value(static_cast<unsigned long long>(itFrom->second));
+                            edge.append_attribute("from-port").set_value(static_cast<unsigned long long>(oport + node->insData.size()));
 
-                            edge.append_attribute("to-layer").set_value(itTo->second);
-                            edge.append_attribute("to-port").set_value(iport);
+                            edge.append_attribute("to-layer").set_value(static_cast<unsigned long long>(itTo->second));
+                            edge.append_attribute("to-port").set_value(static_cast<unsigned long long>(iport));
                         }
                     }
                 }

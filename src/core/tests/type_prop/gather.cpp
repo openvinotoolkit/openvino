@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "dimension_tracker.hpp"
 #include "ngraph/ngraph.hpp"
 #include "util/type_prop.hpp"
@@ -77,7 +78,7 @@ TEST(type_prop, gather_v1_incorrect_axis_shape) {
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
     auto axis = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    OV_EXPECT_THROW(make_shared<op::v1::Gather>(params, indices, axis),
+    OV_EXPECT_THROW(auto g = make_shared<op::v1::Gather>(params, indices, axis),
                     NodeValidationFailure,
                     HasSubstr("Axis input must be scalar or have 1 element"));
 }
@@ -87,7 +88,7 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank) {
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
     auto axis = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
 
-    OV_EXPECT_THROW(make_shared<op::v1::Gather>(params, indices, axis),
+    OV_EXPECT_THROW(auto g = make_shared<op::v1::Gather>(params, indices, axis),
                     ov::AssertFailure,
                     HasSubstr("out of the tensor rank range"));
 }
@@ -364,7 +365,7 @@ TEST(type_prop, gather_7_incorrect_axis_shape) {
     auto I = make_shared<op::Parameter>(element::i64, Shape{4});
     auto A = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A),
                     NodeValidationFailure,
                     HasSubstr("Axis input must be scalar or have 1 element"));
 }
@@ -375,7 +376,7 @@ TEST(type_prop, gather_7_axis_out_of_input_rank) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
     int64_t batch_dims = 0;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     ov::AssertFailure,
                     HasSubstr("out of the tensor rank range"));
 }
@@ -389,7 +390,8 @@ TEST(type_prop, gather_7_dynamic_batch_dims_inconsistent) {
     int64_t axis = 1;
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("data and indices must have equal or intersecting sizes until batch_dims"));
 }
@@ -404,7 +406,7 @@ TEST(type_prop, gather_7_batch_dims_less_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 2;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
 }
@@ -419,7 +421,7 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 3;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("batch_dims must be <= indices_rank"));
 }
@@ -434,7 +436,7 @@ TEST(type_prop, gather_7_indices_type_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("Indices element type must be of an integral number type"));
 }
@@ -449,7 +451,7 @@ TEST(type_prop, gather_7_axis_type_check) {
     auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("Axis element type must be of an integral number type"));
 }
@@ -731,7 +733,7 @@ TEST(type_prop, gather_v8_incorrect_axis_shape) {
     auto I = make_shared<op::Parameter>(element::i64, Shape{4});
     auto A = make_shared<op::Parameter>(element::i64, Shape{2});
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A),
                     NodeValidationFailure,
                     HasSubstr("Axis input must be scalar or have 1 element"));
 }
@@ -742,7 +744,7 @@ TEST(type_prop, gather_v8_axis_out_of_input_rank) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
     int64_t batch_dims = 0;
 
-    OV_EXPECT_THROW(make_shared<op::v8::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v8::Gather>(D, I, A, batch_dims),
                     ov::AssertFailure,
                     HasSubstr("out of the tensor rank range"));
 }
@@ -757,7 +759,7 @@ TEST(type_prop, gather_v8_dynamic_batch_dims_inconsistent) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 1;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("data and indices must have equal or intersecting sizes until batch_dims"));
 }
@@ -772,7 +774,7 @@ TEST(type_prop, gather_v8_batch_dims_less_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 2;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("After normalization batch_dims must be <= axis. But instead got: batch_dims ="));
 }
@@ -787,7 +789,7 @@ TEST(type_prop, gather_v8_batch_dims_less_indices_rank_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 3;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("batch_dims must be <= indices_rank"));
 }
@@ -802,7 +804,7 @@ TEST(type_prop, gather_v8_indices_type_check) {
     auto A = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("Indices element type must be of an integral number type"));
 }
@@ -817,7 +819,7 @@ TEST(type_prop, gather_v8_axis_type_check) {
     auto A = make_shared<op::Constant>(element::f32, Shape{1}, vector<int64_t>{axis});
     int64_t batch_dims = 0;
 
-    OV_EXPECT_THROW(make_shared<op::v7::Gather>(D, I, A, batch_dims),
+    OV_EXPECT_THROW(auto g = make_shared<op::v7::Gather>(D, I, A, batch_dims),
                     NodeValidationFailure,
                     HasSubstr("Axis element type must be of an integral number type"));
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,7 +25,7 @@ macro(ie_avx512_core_optimization_flags flags)
             set(${flags} -xCORE-AVX512)
         else()
             set(${flags} -mavx512f -mavx512bw -mavx512dq -mfma)
-            if(OV_COMPILER_IS_CONDA)
+            if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
                 list(APPEND ${flags} -Wno-error=maybe-uninitialized -Wno-maybe-uninitialized)
             endif()
         endif()
@@ -58,7 +58,7 @@ endif()
 
 
 # Workaround for GCC version 5.4 and 5.5 bugs in Debug configuration.
-if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
+if (CMAKE_COMPILER_IS_GNUCXX AND
     (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5) AND
     (CMAKE_BUILD_TYPE STREQUAL Debug))
     set(GNU_5_DEBUG_CASE ON)
@@ -79,16 +79,17 @@ endif()
 if(ARM OR AARCH64)
     ie_arm_neon_optimization_flags(neon_flags)
 
+    file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
+    file(GLOB NEON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.cpp)
+
+    list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
+    list(APPEND LIBRARY_SRC ${NEON_SRC})
+
     if(neon_flags)
-        file(GLOB NEON_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.hpp)
-        file(GLOB NEON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/arm_neon/*.cpp)
-
-        list(APPEND LIBRARY_HEADERS ${NEON_HEADERS})
-        list(APPEND LIBRARY_SRC ${NEON_SRC})
-
         set_source_files_properties(${NEON_SRC} PROPERTIES COMPILE_OPTIONS "${neon_flags}")
-        add_definitions(-DHAVE_NEON=1)
     endif()
+
+    add_definitions(-DHAVE_NEON=1)
 endif()
 
 # Create object library
@@ -97,7 +98,6 @@ if(ENABLE_GAPI_PREPROCESSING)
     add_library(${TARGET_NAME}_obj OBJECT
                 ${LIBRARY_SRC}
                 ${LIBRARY_HEADERS})
-
     ie_faster_build(${TARGET_NAME}_obj UNITY)
 
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace v0 {
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Gelu", "opset2", util::UnaryElementwiseArithmetic, 0);
-    BWDCMP_RTTI_DECLARATION;
 
     Gelu();
     /// \brief Constructs a Gelu operation.
@@ -45,7 +44,6 @@ namespace v7 {
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Gelu", "opset7", util::UnaryElementwiseArithmetic, 7);
-    BWDCMP_RTTI_DECLARATION;
 
     Gelu() = default;
     /// \brief Constructs a Gelu operation.
@@ -83,6 +81,5 @@ public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "common_test_utils/common_utils.hpp"
 #include "file_utils.h"
 #include "openvino/core/any.hpp"
 #include "openvino/openvino.hpp"
@@ -239,10 +240,10 @@ public:
             <config value="{ 'compression': { 'algorithms': [ { 'name': 'DefaultQuantization', 'params': { 'num_samples_for_tuning': 2000, 'preset': 'performance', 'stat_subset_size': 300, 'use_layerwise_tuning': false } } ], 'dump_intermediate_model': true, 'target_device': 'ANY' }, 'engine': { 'models': [ { 'name': 'bert-small-uncased-whole-word-masking-squad-0001', 'launchers': [ { 'framework': 'openvino', 'adapter': { 'type': 'bert_question_answering', 'start_token_logits_output': 'output_s', 'end_token_logits_output': 'output_e' }, 'inputs': [ { 'name': 'input_ids', 'type': 'INPUT', 'value': 'input_ids' }, { 'name': 'attention_mask', 'type': 'INPUT', 'value': 'input_mask' }, { 'name': 'token_type_ids', 'type': 'INPUT', 'value': 'segment_ids' } ], 'device': 'cpu' } ], 'datasets': [ { 'name': 'squad_v1_1_msl384_mql64_ds128_lowercase', 'annotation_conversion': { 'converter': 'squad', 'testing_file': 'PATH', 'max_seq_length': 384, 'max_query_length': 64, 'doc_stride': 128, 'lower_case': true, 'vocab_file': 'PATH' }, 'reader': { 'type': 'annotation_features_extractor', 'features': [ 'input_ids', 'input_mask', 'segment_ids' ] }, 'postprocessing': [ { 'type': 'extract_answers_tokens', 'max_answer': 30, 'n_best_size': 20 } ], 'metrics': [ { 'name': 'F1', 'type': 'f1', 'reference': 0.9157 }, { 'name': 'EM', 'type': 'exact_match', 'reference': 0.8504 } ], '_command_line_mapping': { 'testing_file': 'PATH', 'vocab_file': [ 'PATH' ] } } ] } ], 'stat_requests_number': null, 'eval_requests_number': null, 'type': 'accuracy_checker' } }" />
             <version value="invalid version" />
         </optimization>
-    <framework>
-        <batch value="1"/>
-        <chunk_size value="16"/>
-    </framework>
+        <framework>
+            <batch value="1"/>
+            <chunk_size value="16"/>
+        </framework>
     </rt_info>
 </net>
 )V0G0N";
@@ -392,8 +393,8 @@ TEST_F(MetaData, get_meta_data_as_map) {
 }
 
 TEST_F(MetaData, get_meta_data_from_removed_file) {
-    std::string file_path =
-        InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator + "test_model.xml";
+    std::string file_path = InferenceEngine::getIELibraryPath() + ov::util::FileTraits<char>::file_separator +
+                            CommonTestUtils::generateTestFilePrefix() + "_test_model.xml";
     // Create file
     {
         std::ofstream ir(file_path);

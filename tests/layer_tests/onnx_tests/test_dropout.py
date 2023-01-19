@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestDropout(Caffe2OnnxLayerTest):
+class TestDropout(OnnxRuntimeLayerTest):
     def create_net(self, shape, ratio, ir_version, opset=None):
         """
             ONNX net                                IR net
@@ -77,7 +77,7 @@ class TestDropout(Caffe2OnnxLayerTest):
         from onnx import helper
         from onnx import TensorProto
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         concat_axis = 0
         output_shape = shape.copy()

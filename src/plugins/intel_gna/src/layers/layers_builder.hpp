@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,9 @@
 #include <caseless.hpp>
 #include "gna_graph_compiler.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class LayersBuilder {
     using CreatorFnc = std::function<void(GNAGraphCompiler*, InferenceEngine::CNNLayerPtr)>;
 
@@ -26,4 +28,6 @@ public:
         return LayerBuilder;
     }
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::LSTMCellIE);
 
 op::LSTMCellIE::LSTMCellIE(const Output<Node>& X, const Output<Node>& H_t, const Output<Node>& C_t,
                            const Output<Node>& WR, const Output<Node>& B, std::size_t hidden_size,

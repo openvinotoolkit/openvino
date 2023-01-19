@@ -4,19 +4,25 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertConvertLike;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
-class ngraph::pass::ConvertConvertLike : public ngraph::pass::MatcherPass {
+class ov::pass::ConvertConvertLike : public ov::pass::MatcherPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_RTTI("ConvertConvertLike", "0");
     ConvertConvertLike();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ConvertConvertLike;
+}  // namespace pass
+}  // namespace ngraph

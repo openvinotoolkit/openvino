@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,12 @@ ParamsKey ExperimentalDetectronDetectionOutputKernelRef::GetSupportedKey() const
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
+
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableTensorPitches();
     return k;
 }
 
@@ -82,7 +84,9 @@ JitConstants ExperimentalDetectronDetectionOutputKernelRef::GetJitConstants(
     if (params.class_agnostic_box_regression) {
         jit.AddConstant(MakeJitConstant("CLASS_AGNOSTIC_BOX_REGRESSION", true));
     }
-
+    if (!SimpleLayout(params.inputs[0].GetLayout())) {
+        jit.AddConstant(MakeJitConstant("USE_BLOCKED_FORMAT", true));
+    }
     return jit;
 }
 

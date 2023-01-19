@@ -7,10 +7,17 @@
 #include <kernel_selector.h>
 
 namespace kernel_selector {
+class experimental_detectron_prior_grid_generator_kernel_selector : public kernel_selector_base {
+public:
+    static experimental_detectron_prior_grid_generator_kernel_selector& Instance() {
+        static experimental_detectron_prior_grid_generator_kernel_selector instance_;
+        return instance_;
+    }
 
-/*
- * ExperimentalDetectronPriorGridGenerator kernel selector
- */
-kernel_selector_base& experimental_detectron_prior_grid_generator_instance();
+    experimental_detectron_prior_grid_generator_kernel_selector();
 
+    virtual ~experimental_detectron_prior_grid_generator_kernel_selector() {}
+
+    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+};
 }  // namespace kernel_selector

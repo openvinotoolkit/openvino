@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,11 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id mvn::type_id() {
-    static primitive_type_base<mvn> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(mvn)
 
 layout mvn_inst::calc_output_layout(mvn_node const& node, kernel_impl_params const& impl_param) {
     auto input_node_layout = impl_param.get_non_padded_input_layout();
-    auto output_type = impl_param.desc->output_data_type ? *impl_param.desc->output_data_type : input_node_layout.data_type;
+    auto output_type = impl_param.desc->output_data_types[0].value_or(input_node_layout.data_type);
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -25,27 +22,6 @@ layout mvn_inst::calc_output_layout(mvn_node const& node, kernel_impl_params con
 
     return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }
-
-template<typename ShapeType>
-std::vector<layout> mvn_inst::calc_output_layouts(mvn_node const& /*node*/, const kernel_impl_params& impl_param) {
-    auto desc = impl_param.typed_desc<mvn>();
-    auto input_layout = impl_param.get_input_layout(0);
-
-    auto output_type = impl_param.desc->output_data_type ? *impl_param.desc->output_data_type
-                                                         : input_layout.data_type;
-    if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
-    }
-
-    ShapeType input_shape = input_layout.get<ShapeType>();
-    ShapeType output_shape = input_shape;
-
-    format output_format = format::adjust_to_rank(input_layout.format, output_shape.size());
-
-    return { layout{output_shape, output_type, output_format} };
-}
-
-template std::vector<layout> mvn_inst::calc_output_layouts<ov::PartialShape>(mvn_node const& node, const kernel_impl_params& impl_param);
 
 std::string mvn_inst::to_string(mvn_node const& node) {
     auto node_info = node.desc_to_json();

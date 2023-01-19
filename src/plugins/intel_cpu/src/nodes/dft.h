@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,40 +8,63 @@
 #include <node.h>
 #include <string>
 
+#include "kernels/dft_uni_kernel.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
 class DFT : public Node {
 public:
-    DFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
     ~DFT() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
+
+    void prepareParams() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void dftNd(float* output, const std::vector<size_t>& outputStrides) const;
-    void fft(float* data, int64_t dataLength, bool parallelize = false) const;
-    void naiveDFT(float* data, size_t dataLength) const;
+    std::vector<int32_t> getAxes() const;
+    void createJITKernels(bool hasDFT, bool hasFFT);
 
-    std::vector<std::pair<float, float>> generateTwiddles(size_t n_complex) const;
+    void dftNd(float* output,
+               const VectorDims& outputShape,
+               const VectorDims& outputStrides,
+               const std::vector<int32_t>& axes,
+               bool inverse) const;
 
-    std::unordered_map<size_t, std::vector<std::pair<float, float>>> twiddlesMap;
+    void fft(float* inBuffer,
+             float* outBuffer,
+             int64_t dataLength,
+             bool inverse,
+             bool parallelize,
+             const float** resultBuf) const;
+    void naiveDFT(float* data, size_t dataLength, bool inverse) const;
+
+    std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse) const;
+    void updateTwiddlesFFT(size_t n_complex, bool inverse);
+
+    std::unique_ptr<jit_uni_dft_kernel> dftKernel = nullptr;
+    std::unique_ptr<jit_uni_fft_kernel> fftKernel = nullptr;
+
+    std::vector<float> twiddlesFFT;
+    std::unordered_map<size_t, std::vector<float>> twiddlesMapDFT;
+
     std::vector<int32_t> axes;
-    std::vector<size_t> outputShape;
     std::vector<size_t> inputShape;
     std::string layerErrorPrefix;
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
     static constexpr float PI = 3.141592653589793238462643f;
+
     bool inverse;
+    bool lastInverse;
 };
 
 }   // namespace node

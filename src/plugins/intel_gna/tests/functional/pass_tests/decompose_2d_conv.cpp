@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "transformations/init_node_info.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "../shared_tests_instances/skip_tests_check.hpp"
 
 using namespace ngraph;
 using namespace opset1;
@@ -101,6 +102,8 @@ public:
     }
 
 protected:
+    GnaLayerTestCheck gnaVersionCheck;
+
     void SetUp() override {
         threshold = 0.015f;
         convSpecificParams convParams;
@@ -199,10 +202,21 @@ protected:
 
         auto result = std::make_shared<Result>(lastOp);
         function = std::make_shared<Function>(ResultVector{result}, ParameterVector{input});
+        gnaVersionCheck.SetUp(targetDevice);
     }
 };
 
+using Gna35Decompose2DConvTest = Decompose2DConvTest;
+
 TEST_P(Decompose2DConvTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(Gna35Decompose2DConvTest, CompareWithRefs) {
+    if (gnaVersionCheck.gnaLibVersionLessThan("3.5")) {
+        GTEST_SKIP() << gnaVersionCheck.getLastCmpResultMsg() << std::endl;
+        return;
+    }
     Run();
 }
 
@@ -365,6 +379,14 @@ const std::vector<std::map<std::string, std::string>> configsGNA30 = {
     }
 };
 
+const std::vector<std::map<std::string, std::string>> configsGNA35 = {
+    {
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_SCALE_FACTOR_0", "1"},
+        {"GNA_EXEC_TARGET", "GNA_TARGET_3_5"}
+    }
+};
+
 const std::vector<op::PadType> padTypesGNA30 = {
     op::PadType::VALID,
 };
@@ -410,5 +432,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA30, Decompose2DConvTest,
         ::testing::ValuesIn(input2DNHWCGNA30),
         ::testing::ValuesIn(modelsGNA30)),
     Decompose2DConvTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Decompose2DConvGNA35, Gna35Decompose2DConvTest,
+    ::testing::Combine(
+        conv2DParamsGNA30,
+        miscParamsGNA30,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configsGNA35),
+        ::testing::ValuesIn(input2DNHWCGNA30),
+        ::testing::ValuesIn(modelsGNA30)),
+    Gna35Decompose2DConvTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions

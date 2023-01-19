@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "activation.hpp"
@@ -10,12 +9,6 @@
 #include <algorithm>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Weights orders
 /// @details Specifies the order in which the weights are concatenated.
@@ -72,7 +65,7 @@ struct lstm : public primitive_base<lstm> {
     /// @brief Output selection. Default the entire hidden sequence is returned.
     /// @param offset_order Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     lstm(const primitive_id& id,
-         const std::vector<primitive_id>& input,
+         const std::vector<input_info>& input,
          const primitive_id& weights,
          const primitive_id& recurrent,
          const primitive_id& bias = "",
@@ -86,7 +79,7 @@ struct lstm : public primitive_base<lstm> {
          const lstm_output_selection output_selection = lstm_output_selection::sequence,
          const lstm_weights_order offset_order = lstm_weights_order::iofz,
          const padding& output_padding = padding())
-        : primitive_base(id, input, output_padding),
+        : primitive_base(id, input, {output_padding}),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -160,14 +153,14 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
     /// @param input hidden Primitive id containing hidden data. Provide empty string if using lstm without hidden values.
     /// @param direction default = 0, bidirectional = 1.
     lstm_gemm(const primitive_id& id,
-              const primitive_id& input,
+              const input_info& input,
               const primitive_id& weights,
               const primitive_id& recurrent,
               const primitive_id& bias = "",
               const primitive_id& hidden = "",
               const uint32_t direction = 0,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           weights(weights),
           recurrent(recurrent),
           bias(bias),
@@ -212,7 +205,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
     lstm_elt(const primitive_id& id,
-             const primitive_id& input,
+             const input_info& input,
              const primitive_id& cell = "",
              const float clip = 0,
              const bool input_forget = 0,
@@ -223,7 +216,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           cell(cell),
           clip(clip),
           input_forget(input_forget),
@@ -256,7 +249,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

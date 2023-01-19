@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief mode for the @ref depth_to_space primitive.
 enum class depth_to_space_mode : int32_t {
@@ -33,11 +26,11 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     /// @param block_size Block size.
     /// @param mode Depth division mode.
     depth_to_space(const primitive_id& id,
-                   const primitive_id& input,
+                   const input_info& input,
                    const size_t block_size,
                    const depth_to_space_mode mode,
                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding)
+        : primitive_base(id, {input}, {output_padding})
         , block_size(block_size)
         , mode(mode) {}
 
@@ -46,7 +39,4 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     /// @brief depth division mode
     depth_to_space_mode mode;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

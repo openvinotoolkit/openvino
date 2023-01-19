@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //
@@ -208,6 +208,17 @@ public:
         return result.str();
     }
     static const char* getMatch() { return T::getMatch(); }
+    void test_output() {
+        std::stringstream what;
+        std::streambuf* sbuf = std::cout.rdbuf();
+        std::streambuf *ebuf = std::cerr.rdbuf();
+        std::cout.rdbuf(what.rdbuf());
+        std::cerr.rdbuf(what.rdbuf());
+        LoadNetwork();
+        EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
+        std::cout.rdbuf(sbuf);
+        std::cerr.rdbuf(ebuf);
+    }
 protected:
     void SetUp() override {
         InferenceEngine::SizeVector inputShape;
@@ -230,12 +241,7 @@ using ConvConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatNHWCAxis>;
 using ConvConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatNHWCAxis>;
 
 TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::stringstream what;
-    std::streambuf* sbuf = std::cout.rdbuf();
-    std::cout.rdbuf(what.rdbuf());
-    LoadNetwork();
-    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
-    std::cout.rdbuf(sbuf);
+    test_output();
 };
 
 // TODO: this test is left for future when GNA plugin handles const tranposition required for concats with interleaved layers
@@ -244,12 +250,7 @@ TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
 //};
 
 TEST_P(MatMulConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::stringstream what;
-    std::streambuf* sbuf = std::cout.rdbuf();
-    std::cout.rdbuf(what.rdbuf());
-    LoadNetwork();
-    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
-    std::cout.rdbuf(sbuf);
+    test_output();;
 };
 
 TEST_P(MatMulConcatRestrictionsPos, CompareWithRefImpl) {
@@ -272,12 +273,7 @@ TEST_P(ConvNCHWConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvNHWCConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::stringstream what;
-    std::streambuf* sbuf = std::cout.rdbuf();
-    std::cout.rdbuf(what.rdbuf());
-    LoadNetwork();
-    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
-    std::cout.rdbuf(sbuf);
+    test_output();
 };
 
 TEST_P(ConvNHWCConcatRestrictionsPos, CompareWithRefImpl) {
@@ -285,12 +281,7 @@ TEST_P(ConvNHWCConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvConcatNHWCRestrictionsNeg, CompareWithRefImpl) {
-    std::stringstream what;
-    std::streambuf* sbuf = std::cout.rdbuf();
-    std::cout.rdbuf(what.rdbuf());
-    LoadNetwork();
-    EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
-    std::cout.rdbuf(sbuf);
+    test_output();
 };
 
 TEST_P(ConvConcatNHWCRestrictionsPos, CompareWithRefImpl) {

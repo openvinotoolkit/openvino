@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestBatchNormalization(Caffe2OnnxLayerTest):
+class TestBatchNormalization(OnnxRuntimeLayerTest):
     def create_net(self, shape, epsilon, precision, ir_version, opset=None):
         """
             ONNX net                                  IR net

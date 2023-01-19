@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,7 +21,7 @@ endif()
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29.22")
+set(ie_python_req "cython>=0.29.32")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
@@ -66,7 +66,7 @@ function(ov_check_python_build_conditions)
     # check pyopenvino requirements to OV 2.0 API
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
                           RESULT_VAR ov_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m install -r ${ov_python_req} for OV API 2.0 requirements"
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ov_python_req} for OV API 2.0 requirements"
                           MESSAGE_MODE TRACE)
     # ov_python_req are not mandatory for build
     set(ov_python_req_FOUND ON)
@@ -138,6 +138,11 @@ if(LINUX)
         set(ENABLE_WHEEL_DEFAULT OFF)
         message(${message_mode} "patchelf is not found. It is required to build OpenVINO Runtime wheel. Install via apt-get install patchelf")
     endif()
+endif()
+
+if(CMAKE_VERSION VERSION_LESS 3.15)
+    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 
 # this option should not be a part of OpenVINODeveloperPackage

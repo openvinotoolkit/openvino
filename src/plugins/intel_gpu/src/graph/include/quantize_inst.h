@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/quantize.hpp"
 #include "primitive_inst.h"
@@ -133,6 +132,7 @@ using quantize_node = typed_program_node<quantize>;
 template <>
 class typed_primitive_inst<quantize> : public typed_primitive_inst_base<quantize> {
     using parent = typed_primitive_inst_base<quantize>;
+    using parent::parent;
 
 public:
     template<typename ShapeType>

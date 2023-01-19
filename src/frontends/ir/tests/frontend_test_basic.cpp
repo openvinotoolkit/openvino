@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "frontend_test.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 class IRFrontendTests : public ::testing::Test, public IRFrontendTestsImpl {
 protected:
@@ -956,4 +957,433 @@ TEST_F(IRFrontendTests, wrong_opset) {
 
     ASSERT_THROW(model = core.read_model(testModel, ov::Tensor()), ov::Exception);
     ASSERT_FALSE(!!model);
+}
+
+TEST_F(IRFrontendTests, extension_proposal_network) {
+    // the Proposal with 2 inputs was initially marked as "extension" operation but later was added to opset
+    // the test checks that IR reader properly instantiate the "extension" Proposal as "opset6" Proposal
+    std::string xmlModel = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="in1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,12,34,62"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>12</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="in2" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,24,34,62"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>24</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="in3" type="Const" version="opset1">
+            <data element_type="f32" offset="0" shape="3" size="12"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="proposal" type="Proposal" precision="FP32" id="3" version="extension">
+            <data feat_stride="16" base_size="16" min_size="16" ratio="2.669000" scale="4.000000,6.000000,9.000000,16.000000,24.000000,32.000000" pre_nms_topn="6000" post_nms_topn="200" nms_thresh="0.600000"/>
+            <input>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>12</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>24</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+                <port id="3">
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="3" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>5</dim>
+                </port>
+                <port id="4" precision="FP32">
+                    <dim>1000</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>200</dim>
+                    <dim>5</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="3" to-port="1"/>
+        <edge from-layer="1" from-port="0" to-layer="3" to-port="2"/>
+        <edge from-layer="2" from-port="0" to-layer="3" to-port="3"/>
+        <edge from-layer="3" from-port="4" to-layer="4" to-port="0"/>
+    </edges>
+    </net>
+    )V0G0N";
+
+    std::vector<unsigned char> buffer(12, 0);
+    float* floatBuffer = reinterpret_cast<float*>(buffer.data());
+    floatBuffer[0] = 0;
+    floatBuffer[1] = 0;
+    floatBuffer[2] = 0;
+
+    createTemporalModelFile(xmlModel, buffer);
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = core.read_model(xmlFileName, binFileName));
+    ASSERT_TRUE(!!model);
+
+    for (auto op : model->get_ordered_ops()) {
+        if (op->get_friendly_name() == "proposal" &&
+            op->get_type_info() == ov::opset6::Proposal::get_type_info_static()) {
+            return;
+        }
+    }
+    FAIL() << "Custom proposal layer is not an opset6 operation.";
+}
+
+TEST_F(IRFrontendTests, model_with_tensor_names_with_spaces) {
+    std::string testModel = R"V0G0N(
+            <net name="graph" version="11">
+            <layers>
+                <layer id="1" name="input1" type="Parameter" version="opset1">
+                    <data shape="1,4,512" element_type="f32"/>
+                    <output>
+                        <port id="0" precision="FP32" names="input1">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="0" name="input2" type="Parameter" version="opset1">
+                    <data shape="1,4,512" element_type="f32"/>
+                    <output>
+                        <port id="0" precision="FP32" names="input2">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="2" name="output 0([1 4 512])" type="Add" version="opset1">
+                    <data auto_broadcast="numpy"/>
+                    <input>
+                        <port id="0" precision="FP32">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                        <port id="1" precision="FP32">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </input>
+                    <output>
+                        <port id="2" precision="FP32" names="output 0([1 4 512])">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </output>
+                </layer>
+                <layer id="3" name="output 0([1 4 512])/sink_port_0" type="Result" version="opset1">
+                    <input>
+                        <port id="0" precision="FP32">
+                            <dim>1</dim>
+                            <dim>4</dim>
+                            <dim>512</dim>
+                        </port>
+                    </input>
+                </layer>
+            </layers>
+            <edges>
+                <edge from-layer="0" from-port="0" to-layer="2" to-port="1"/>
+                <edge from-layer="1" from-port="0" to-layer="2" to-port="0"/>
+                <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+            </edges>
+        </net>
+        )V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    ASSERT_TRUE(!!model);
+
+    auto outputs = model->outputs();
+    EXPECT_EQ(outputs.size(), 1);
+    auto names = outputs.at(0).get_names();
+    EXPECT_EQ(names.size(), 1);
+    auto it = names.find("output 0([1 4 512])");
+    EXPECT_NE(it, names.end());
+}
+
+TEST_F(IRFrontendTests, model_with_tensor_names_add_output) {
+    std::string testModel = R"V0G0N(
+<net name="graph" version="11">
+	<layers>
+		<layer id="1" name="input1" type="Parameter" version="opset1">
+			<data shape="1,4,512" element_type="f32"/>
+			<output>
+				<port id="0" precision="FP32" names="input1">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="0" name="input2" type="Parameter" version="opset1">
+			<data shape="1,4,512" element_type="f32"/>
+			<output>
+				<port id="0" precision="FP32" names="input2">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Add 221" type="Add" version="opset1">
+			<data auto_broadcast="numpy"/>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32" names="output add">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="output 0([1 4 512])" type="ReLU" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32" names="output 0([1 4 512])">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="output 0([1 4 512])/sink_port_0" type="Result" version="opset1">
+			<rt_info>
+				<attribute name="fused_names" version="0" value="output 0([1 4 512])/sink_port_0"/>
+			</rt_info>
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>512</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="0"/>
+		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+		<edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
+	</edges>
+</net>)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    std::string tensor_name = "output add";
+
+    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    ASSERT_TRUE(!!model);
+
+    model->add_output(tensor_name);
+    auto outputs = model->outputs();
+    EXPECT_EQ(outputs.size(), 2);
+    auto names = outputs.at(1).get_names();
+    EXPECT_EQ(names.size(), 1);
+    auto it = names.find(tensor_name);
+    EXPECT_NE(it, names.end());
+}
+
+TEST_F(IRFrontendTests, name_with_comma) {
+    std::string testModel = R"V0G0N(
+<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32" names="input">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="ReLU" version="opset1">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="relu\,t, identity_t">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+    std::string tensor_name = "relu,t";
+
+    ASSERT_NO_THROW(model = core.read_model(testModel, ov::Tensor()));
+    ASSERT_TRUE(!!model);
+
+    model->add_output(tensor_name);
+    auto outputs = model->outputs();
+    EXPECT_EQ(outputs.size(), 1);
+    auto names = outputs.at(0).get_names();
+    auto it = names.find(tensor_name);
+    EXPECT_NE(it, names.end());
+}
+
+TEST_F(IRFrontendTests, DetectionOutput) {
+    std::string testModel = R"V0G0N(
+<net name="DetectionOutput" version="11">
+	<layers>
+		<layer id="2" name="Parameter_186617" type="Parameter" version="opset1">
+			<data shape="1,60" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Parameter_186618" type="Parameter" version="opset1">
+			<data shape="1,165" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>165</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="0" name="Parameter_186619" type="Parameter" version="opset1">
+			<data shape="1,1,60" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="DetectionOutput_186620" type="DetectionOutput" version="opset1">
+			<data num_classes="11" background_label_id="0" top_k="75" variance_encoded_in_target="true" keep_top_k="50" code_type="caffe.PriorBoxParameter.CORNER" share_location="true" nms_threshold="0.5" confidence_threshold="0.30000001192092896" clip_after_nms="true" clip_before_nms="true" decrease_label_id="true" normalized="true" input_height="1" input_width="1" objectness_score="0.40000000596046448" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>165</dim>
+				</port>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>60</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>50</dim>
+					<dim>7</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Result_186621" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>50</dim>
+					<dim>7</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="2" />
+		<edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="3" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
+    std::shared_ptr<ov::Model> model;
+
+    ASSERT_NO_THROW(model = getWithIRFrontend(testModel));
+    ASSERT_TRUE(!!model);
 }

@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ShuffleChannelsFusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -31,8 +31,14 @@ class TRANSFORMATIONS_API ShuffleChannelsFusion;
  *        and are not necessary when ShuffleChannelsFusion using inside CommonOptimizations
  */
 
-class ngraph::pass::ShuffleChannelsFusion : public ngraph::pass::MatcherPass {
+class ov::pass::ShuffleChannelsFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ShuffleChannelsFusion", "0");
     ShuffleChannelsFusion(const bool reshape_constants_check);
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::ShuffleChannelsFusion;
+}  // namespace pass
+}  // namespace ngraph

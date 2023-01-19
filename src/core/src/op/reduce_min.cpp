@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,8 +40,6 @@ bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
 }
 }  // namespace
 }  // namespace minop
-
-BWDCMP_RTTI_DEFINITION(op::v1::ReduceMin);
 
 op::v1::ReduceMin::ReduceMin(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {

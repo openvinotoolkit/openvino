@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ TEST(attributes, one_hot_op) {
     int64_t axis = 3;
 
     auto one_hot = make_shared<opset1::OneHot>(indices, depth, on_value, off_value, axis);
-    NodeBuilder builder(one_hot);
+    NodeBuilder builder(one_hot, {indices, depth, on_value, off_value});
     auto g_one_hot = ov::as_type_ptr<opset1::OneHot>(builder.create());
 
     EXPECT_EQ(g_one_hot->get_axis(), one_hot->get_axis());

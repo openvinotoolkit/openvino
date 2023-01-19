@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
@@ -100,21 +101,24 @@ kernel_selector::data_layout to_data_layout(format f);
 cldnn::format from_data_layout(kernel_selector::data_layout l);
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped);
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l);
-kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode);
-kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
+kernel_selector::tuning_mode to_tuning_mode(ov::intel_gpu::TuningMode mode);
+kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped = false);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
 struct kernel_impl_params {
     bool has_runtime_layouts = false;
-    const program& prog;
+    const program *prog;
     std::shared_ptr<const primitive> desc;
     size_t unique_id;
     std::vector<layout> input_layouts;
-    layout output_layout;
+    std::vector<layout> output_layouts;
     std::vector<tensor> input_offsets;
     std::vector<cldnn::fused_primitive_desc> fused_desc;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+#endif // ENABLE_ONEDNN_FOR_GPU
     std::vector<activation_func> fused_act_funcs;
     std::vector<activation_additional_params> activation_params;
 
@@ -130,20 +134,22 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
+    kernel_impl_params() {}
+
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
                        size_t _uid,
                        const std::vector<layout>& _in_layouts,
-                       layout _out_layout,
+                       const std::vector<layout>& _out_layouts,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs,
                        const std::vector<activation_func>& _fused_act_funcs,
                        const std::vector<activation_additional_params>& _act_params)
                        : has_runtime_layouts(true)
-                       , prog(_prog)
+                       , prog(&_prog)
                        , desc(_desc)
                        , unique_id(_uid)
                        , input_layouts(_in_layouts)
-                       , output_layout(_out_layout)
+                       , output_layouts(_out_layouts)
                        , fused_desc(_fused_descs)
                        , fused_act_funcs(_fused_act_funcs)
                        , activation_params(_act_params)
@@ -164,6 +170,14 @@ struct kernel_impl_params {
         return result;
     }
 
+    layout get_output_layout(size_t idx = 0) const {
+        OPENVINO_ASSERT(output_layouts.size() > idx,
+                        "The size of output layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ",",
+                        "but the size of output layouts is ", output_layouts.size());
+        return output_layouts[idx];
+    }
+
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
     layout get_fused_output_layout() const {
@@ -174,6 +188,13 @@ struct kernel_impl_params {
 
     template <class PType>
     std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
+
+    void save(BinaryOutputBuffer& ob) const;
+    void load(BinaryInputBuffer& ib);
+    const program& get_program() const {
+        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
+        return *prog;
+    }
 };
 
 template <typename T = std::uint32_t>
@@ -216,16 +237,16 @@ inline void convert_new_activation_func(const p_type primitive, std::vector<kern
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params);
 
 template <typename params_t>
-inline params_t get_default_params(const kernel_impl_params& param_info, uint32_t split = 1) {
+inline params_t get_default_params(const kernel_impl_params& param_info) {
     params_t params;
 
     set_params(param_info, params);
 
     const auto& input_layout = param_info.get_input_layout(0);
-    const auto& output_layout = param_info.output_layout;
+    const auto& output_layout = param_info.get_output_layout(0);
 
-    params.inputs[0] = convert_data_tensor(input_layout, split);
-    params.outputs[0] = convert_data_tensor(output_layout, split);
+    params.inputs[0] = convert_data_tensor(input_layout);
+    params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
 
     convert_fused_activation_func_params(param_info, params.activations);
@@ -282,18 +303,12 @@ inline params_t get_default_params(const kernel_impl_params& param_info, uint32_
 }
 
 template <typename params_t>
-inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, uint32_t split = 1, uint32_t groups = 1,
-                                                bool has_group_dimension = false) {
-    params_t params = get_default_params<params_t>(param_info, split);
+inline params_t get_weights_bias_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false) {
+    params_t params = get_default_params<params_t>(param_info);
     params.weights = convert_weights_tensor(*param_info.weights_layout, has_group_dimension);
 
     if (param_info.bias_layout) {
         auto bias_layout = *param_info.bias_layout;
-        if (groups != 1) {
-            auto bias_size = bias_layout.get_tensor();
-            bias_size.feature[0] /= static_cast<int>(groups);
-            bias_layout.set_tensor(bias_size);
-        }
         params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
     }
 
@@ -301,9 +316,8 @@ inline params_t get_weights_bias_default_params(const kernel_impl_params& param_
 }
 
 template <typename params_t>
-params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, uint32_t split = 1, uint32_t groups = 1,
-                                                   bool has_group_dimension = false) {
-    params_t params = get_weights_bias_default_params<params_t>(param_info, split, groups, has_group_dimension);
+params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& param_info, bool has_group_dimension = false) {
+    params_t params = get_weights_bias_default_params<params_t>(param_info, has_group_dimension);
 
     if (param_info.weights_zero_points_layout) {
         params.weights_zero_points.push_back(

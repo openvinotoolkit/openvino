@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,8 +54,6 @@ public:
     const ::ov::DiscreteTypeInfo& get_type_info() const {
         return get_type_info_static();
     }
-    OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
-    static const ov::DiscreteTypeInfo type_info;
 
     Model(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
@@ -578,7 +576,6 @@ public:
     AttributeAdapter(std::shared_ptr<ov::Model>& value) : DirectValueAccessor<std::shared_ptr<ov::Model>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Model>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Helper method to get associated batch size for a Model

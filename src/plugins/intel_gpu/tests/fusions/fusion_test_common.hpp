@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,15 +18,12 @@ using namespace ::tests;
 template<typename T>
 class BaseFusingTest : public ::testing::TestWithParam<T> {
 public:
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    cldnn::engine& engine = get_onednn_test_engine();
-#else
     cldnn::engine& engine = get_test_engine();
-#endif
     cldnn::topology topology_fused;
     cldnn::topology topology_non_fused;
-    cldnn::build_options bo_fused;
-    cldnn::build_options bo_not_fused;
+
+    ExecutionConfig cfg_fused;
+    ExecutionConfig cfg_not_fused;
 
     float tolerance = 0.0f;
 
@@ -34,9 +31,9 @@ public:
     static const int max_random = 200;
 
     void SetUp() override {
-        bo_fused.set_option(build_option::optimize_data(true));
-        bo_not_fused.set_option(build_option::optimize_data(false));
-        bo_not_fused.set_option(build_option::allow_static_input_reorder(true));
+        cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
+        cfg_not_fused.set_property(ov::intel_gpu::optimize_data(false));
+        cfg_not_fused.set_property(ov::intel_gpu::allow_static_input_reorder(true));
     }
 
     void compare(network& not_fused, network& fused, T& p, bool count_reorder = false) {
@@ -89,7 +86,7 @@ public:
             cldnn::mem_lock<int16_t> ref(output_not_fused_prim, get_test_stream());
             cldnn::mem_lock<int16_t> output_ptr(output_fused_prim, get_test_stream());
             for (size_t i = 0; i < output_fused_prim->get_layout().count(); i++) {
-                ASSERT_NEAR(float16_to_float32(ref[i]), float16_to_float32(output_ptr[i]), tolerance) << "i = " << i;
+                ASSERT_NEAR(half_to_float(ref[i]), half_to_float(output_ptr[i]), tolerance) << "i = " << i;
             }
         }
     }
@@ -139,7 +136,7 @@ public:
             VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec(s.count(), float32_to_float16(fill_value));
+            VF<uint16_t> rnd_vec(s.count(), float_to_half(fill_value));
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f32) {
             VF<float> rnd_vec(s.count(), fill_value);
@@ -205,7 +202,7 @@ public:
         return layout{ p.data_type, p.input_format, p.out_shape };
     }
 
-    layout get_weights_layout(T& p, const int32_t /* split */ = 1) {
+    layout get_weights_layout(T& p) {
         cldnn::tensor weights_tensor;
         if (p.groups == 1) {
             weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.feature[0]),
@@ -217,7 +214,7 @@ public:
         return layout{p.weights_type, p.weights_format, weights_tensor};
     }
 
-    layout get_weights_layout(T& p, const int32_t /* split */, cldnn::format f) {
+    layout get_weights_layout(T& p, cldnn::format f) {
         cldnn::tensor weights_tensor;
         weights_tensor = cldnn::tensor(batch(p.out_shape.feature[0]), feature(static_cast<int32_t>(p.in_shape.feature[0] / p.groups)),
                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2]));

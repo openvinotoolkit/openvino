@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,10 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <gna_plugin_log.hpp>
+#include "log/log.hpp"
+#include "log/debug.hpp"
 
+using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
 
 ReorderActivationAndPooling::ReorderActivationAndPooling() {
@@ -43,7 +45,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto act = pool_node->input_value(0).get_node_shared_ptr();
         IE_ASSERT(act != nullptr);
 
-        gnalog() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
+        log::debug() << "Reorder " << pool_node->get_friendly_name() << " and  " << act->get_friendly_name() << "\n";
 
         auto node_before_act = act->input_value(0).get_node_shared_ptr();
         IE_ASSERT(node_before_act != nullptr);
@@ -52,7 +54,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto new_pool = std::make_shared<ngraph::opset7::MaxPool>(node_before_act, pool->get_strides(), pool->get_pads_begin(),
                                                                   pool->get_pads_end(), kernel_shape, pool->get_rounding_type(),
                                                                   pool->get_auto_pad());
-        for (auto input : consumers) {
+        for (auto& input : consumers) {
             input.replace_source_output(new_pool);
         }
 

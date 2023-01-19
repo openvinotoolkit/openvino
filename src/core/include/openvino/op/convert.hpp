@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ov {
 namespace op {
@@ -14,7 +15,6 @@ namespace v0 {
 class OPENVINO_API Convert : public Op {
 public:
     OPENVINO_OP("Convert", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     Convert() = default;

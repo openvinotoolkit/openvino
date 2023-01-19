@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of Input.
                 :type index: int
                 :return: Tensor of the input i
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_element_type",
              &ov::Node::get_element_type,
@@ -217,7 +217,7 @@ void regclass_graph_Node(py::module m) {
                 :param index: Index of the output.
                 :type index: int
                 :return: Tensor of the output i
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
              )");
     node.def("get_type_name",
              &ov::Node::get_type_name,

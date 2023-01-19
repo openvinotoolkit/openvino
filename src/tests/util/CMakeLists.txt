@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,7 +15,8 @@ add_library(ngraph_test_util STATIC EXCLUDE_FROM_ALL ${UTIL_SRC})
 
 ie_faster_build(ngraph_test_util UNITY)
 
-target_link_libraries(ngraph_test_util PUBLIC openvino::runtime openvino::core::dev openvino::util gtest gmock)
+target_link_libraries(ngraph_test_util PUBLIC openvino::runtime openvino::core::dev openvino::util gtest gmock
+    PRIVATE ov_shape_inference)
 target_include_directories(ngraph_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(ngraph_test_util PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 

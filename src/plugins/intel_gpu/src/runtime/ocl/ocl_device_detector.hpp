@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,12 @@ public:
 
     std::map<std::string, device::ptr> get_available_devices(void *user_context, void *user_device, int ctx_device_id = 0, int target_tile_id = -1) const;
 
+    static std::vector<device::ptr> sort_devices(const std::vector<device::ptr>& devices_list);
+
 private:
-    std::vector<device::ptr> create_device_list(bool out_out_order) const;
-    std::vector<device::ptr> create_device_list_from_user_context(bool out_out_order, void* user_context, int ctx_device_id = 0) const;
-    std::vector<device::ptr> create_device_list_from_user_device(bool out_out_order, void* user_device) const;
+    std::vector<device::ptr> create_device_list() const;
+    std::vector<device::ptr> create_device_list_from_user_context(void* user_context, int ctx_device_id = 0) const;
+    std::vector<device::ptr> create_device_list_from_user_device(void* user_device) const;
 };
 
 }  // namespace ocl

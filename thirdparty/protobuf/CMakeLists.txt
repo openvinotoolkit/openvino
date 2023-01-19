@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,8 +26,10 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 
-# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, becuase it can work via Rosetta
-if(CMAKE_CROSSCOMPILING OR (APPLE AND (HOST_X86_64 AND AARCH64)) )
+# note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
+if(CMAKE_CROSSCOMPILING OR
+    (APPLE AND (HOST_X86_64 AND AARCH64)) OR
+    (MSVC AND (HOST_X86_64 AND (AARCH64 OR ARM))))
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build protoc binaries" FORCE)
 else()
     set(protobuf_BUILD_PROTOC_BINARIES ON CACHE BOOL "Build protoc binaries" FORCE)
@@ -71,11 +73,6 @@ endif()
 if(NOT protobuf_BUILD_PROTOC_BINARIES)
     include(ExternalProject)
 
-    set(HOST_PROTOC_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protobuf/cmake")
-    set(HOST_PROTOC_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_build")
-    set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_install")
-    set(HOST_PROTOC_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/host_protoc_root")
-
     if(YOCTO_AARCH64)
         # need to unset several variables which can set env to cross-environment
         foreach(var SDKTARGETSYSROOT CONFIG_SITE OECORE_NATIVE_SYSROOT OECORE_TARGET_SYSROOT
@@ -84,7 +81,9 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
                     CONFIGURE_FLAGS CFLAGS CXXFLAGS LDFLAGS CPPFLAGS KCFLAGS OECORE_DISTRO_VERSION
                     OECORE_SDK_VERSION ARCH CROSS_COMPILE OE_CMAKE_TOOLCHAIN_FILE OPENSSL_CONF
                     OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX PKG_CONFIG_SYSROOT_DIR PKG_CONFIG_PATH)
-            list(APPEND cmake_env --unset=${var})
+            if(DEFINED ENV{${var}})
+                list(APPEND cmake_env --unset=${var})
+            endif()
         endforeach()
 
         # filter out PATH from yocto locations
@@ -105,46 +104,72 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
         set(HOST_CMAKE_COMMAND "${CMAKE_COMMAND}")
     endif()
 
-    # compile flags
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        set(compile_flags "-Wno-undef -Wno-error")
+    # if env has CMAKE_TOOLCHAIN_FILE, we need to skip it
+    if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
+        list(APPEND cmake_env --unset=CMAKE_TOOLCHAIN_FILE)
     endif()
 
+    # compile flags
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
+    endif()
+
+    set(HOST_PROTOC_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/build")
+    set(HOST_PROTOC_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
+    set(HOST_PROTOC_CMAKE_COMMAND "${CMAKE_COMMAND}" -E env ${cmake_env} "${HOST_CMAKE_COMMAND}")
+
     ExternalProject_Add(host_protoc
-        SOURCE_DIR "${HOST_PROTOC_SOURCE_DIR}"
-        CONFIGURE_COMMAND
-            "${CMAKE_COMMAND}" -E env ${cmake_env}
-                "${HOST_CMAKE_COMMAND}"
-                # "-DCMAKE_GENERATOR=${CMAKE_GENERATOR}"
-                "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-                "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
-                "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
-                "-DCMAKE_CXX_FLAGS=${compile_flags}"
-                "-DCMAKE_C_FLAGS=${compile_flags}"
-                "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
-                "-DCMAKE_INSTALL_PREFIX=${HOST_PROTOC_INSTALL_DIR}"
-                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-                # protoc specific
-                "-DTHREADS_PREFER_PTHREAD_FLAG=${THREADS_PREFER_PTHREAD_FLAG}"
-                "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
-                "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
-                "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
-                "-S${HOST_PROTOC_SOURCE_DIR}"
-                "-B${HOST_PROTOC_BUILD_DIR}"
-        BINARY_DIR "${HOST_PROTOC_BUILD_DIR}"
+        # Directory Options
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+        PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
+        BINARY_DIR "${HOST_PROTOC_BINARY_DIR}"
         INSTALL_DIR "${HOST_PROTOC_INSTALL_DIR}"
-        PREFIX "${HOST_PROTOC_PREFIX_DIR}"
+        # Configure Step Options:
+        CMAKE_COMMAND
+            ${HOST_PROTOC_CMAKE_COMMAND}
+        CMAKE_ARGS
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
+            "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
+            "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
+            "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
+            "-DCMAKE_CXX_FLAGS=${compile_flags}"
+            "-DCMAKE_C_FLAGS=${compile_flags}"
+            "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+            "-DCMAKE_INSTALL_PREFIX=${HOST_PROTOC_INSTALL_DIR}"
+            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            # protoc specific
+            "-DTHREADS_PREFER_PTHREAD_FLAG=${THREADS_PREFER_PTHREAD_FLAG}"
+            "-Dprotobuf_VERBOSE=${protobuf_VERBOSE}"
+            "-Dprotobuf_BUILD_TESTS=${protobuf_BUILD_TESTS}"
+            "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
+        CMAKE_GENERATOR "${CMAKE_GENERATOR}"
+        SOURCE_SUBDIR
+            "protobuf/cmake"
+        # Build Step Options:
+        BUILD_COMMAND
+            ${HOST_PROTOC_CMAKE_COMMAND}
+                --build "${HOST_PROTOC_BINARY_DIR}"
+                --config Release
+                -- protoc libprotobuf-lite
+        # Test Step Options:
+        TEST_EXCLUDE_FROM_MAIN ON
+        # Target Options:
         EXCLUDE_FROM_ALL ON
     )
 
+    set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
     add_executable(protobuf::protoc IMPORTED GLOBAL)
+    set_property(TARGET protobuf::protoc APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
     set_target_properties(protobuf::protoc PROPERTIES
-        IMPORTED_LOCATION_RELEASE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc")
+        IMPORTED_LOCATION_RELEASE "${PROTOC_EXECUTABLE}")
+    set_target_properties(protobuf::protoc PROPERTIES
+        MAP_IMPORTED_CONFIG_DEBUG Release
+        MAP_IMPORTED_CONFIG_MINSIZEREL Release
+        MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
     add_dependencies(protobuf::protoc host_protoc)
 
     set(PROTOC_DEPENDENCY host_protoc PARENT_SCOPE)
-    set(PROTOC_EXECUTABLE "${HOST_PROTOC_INSTALL_DIR}/bin/protoc" PARENT_SCOPE)
+    set(PROTOC_EXECUTABLE "${PROTOC_EXECUTABLE}" PARENT_SCOPE)
 else()
     set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
     set(PROTOC_DEPENDENCY protoc PARENT_SCOPE)

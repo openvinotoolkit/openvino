@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -198,5 +198,7 @@ _OPENVINO_OP_REG(GenerateProposals, ov::op::v9)
 _OPENVINO_OP_REG(MulticlassNms, ov::op::v9)
 
 // New operations added in opset10
+_OPENVINO_OP_REG(IsFinite, ov::op::v10)
 _OPENVINO_OP_REG(IsInf, ov::op::v10)
 _OPENVINO_OP_REG(IsNaN, ov::op::v10)
+_OPENVINO_OP_REG(Unique, ov::op::v10)

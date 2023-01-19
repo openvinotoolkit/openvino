@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,6 @@ inline element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
     }
     return maxType;
 }
-
-BWDCMP_RTTI_DEFINITION(op::ScaleShiftIE);
 
 op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias, const element::Type output_type)
     : Op({data_batch, weights, bias}), output_type(output_type) {

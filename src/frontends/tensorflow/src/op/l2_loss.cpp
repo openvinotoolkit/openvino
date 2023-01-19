@@ -1,12 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov;
+using namespace ov::opset10;
 
 namespace ov {
 namespace frontend {
@@ -14,31 +15,22 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_l2_loss_op(const NodeContext& node) {
+    // L2Loss performs the following: output = sum(input ** 2) / 2
+    default_op_checks(node, 1, {"L2Loss"});
     auto input = node.get_input(0);
 
-    vector<float> val;
-    val.push_back(2.0);
-    auto const_2 = make_shared<Constant>(input.get_element_type(), Shape{}, 2);
-    auto pow = make_shared<Multiply>(input, input);
-    auto p_shape = input.get_partial_shape();
+    auto const_two = make_shared<Constant>(input.get_element_type(), Shape{}, 2);
+    auto squared_input = make_shared<Power>(input, const_two);
 
-    Output<Node> reduction_axes;
-    if (p_shape.rank().is_static()) {
-        vector<int64_t> axes(p_shape.size());
-        iota(axes.begin(), axes.end(), 0);
-        reduction_axes = make_shared<Constant>(element::i64, Shape{axes.size()}, axes);
-    } else {
-        auto shape = make_shared<ShapeOf>(input);
-        auto rank = make_shared<ShapeOf>(shape);
-        auto start = make_shared<Constant>(element::i64, Shape{1}, 0);
-        auto step = make_shared<Constant>(element::i64, Shape{1}, 1);
-        reduction_axes = make_shared<Range>(start, rank, step, element::i64);
-    }
+    auto input_rank = compute_subgraph_scalar_rank(input, element::i32, true);
+    auto const_zero = make_shared<Constant>(element::i32, Shape{}, 0);
+    auto const_one = make_shared<Constant>(element::i32, Shape{}, 1);
+    auto reduction_axes = make_shared<Range>(const_zero, input_rank, const_one, element::i32);
+    auto squared_input_sum = make_shared<ReduceSum>(squared_input, reduction_axes);
 
-    auto sum = make_shared<ReduceSum>(pow, reduction_axes);
-    auto res = make_shared<Divide>(sum, const_2);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    auto l2_loss = make_shared<Divide>(squared_input_sum, const_two);
+    set_node_name(node.get_name(), l2_loss);
+    return {l2_loss};
 }
 
 }  // namespace op

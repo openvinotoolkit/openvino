@@ -10,15 +10,6 @@
 
 namespace cldnn {
 
-template <>
-struct typed_program_node<dft> : public typed_program_node_base<dft> {
-    using typed_program_node_base::typed_program_node_base;
-
-    program_node& input() const {
-        return get_dependency(0);
-    }
-};
-
 using dft_node = typed_program_node<dft>;
 
 template <>

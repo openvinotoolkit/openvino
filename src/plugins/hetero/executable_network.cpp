@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,23 +111,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto InputNode = [](const ngraph::Input<ngraph::Node>& input) {
         return input.get_source_output().get_node();
     };
-
-    // Set results, constants and parameters affinity
-    for (auto&& node : clonedFunction->get_ops()) {
-        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
-            if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-                auto& nodeWithAffinityName =
-                    ngraph::op::is_output(node)
-                        ? node->input_value(0).get_node()->get_friendly_name()
-                        : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
-                auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
-                if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    IE_THROW() << "Node " << nodeWithAffinityName << " was not assigned on any pointed device.";
-                }
-                queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
-            }
-        }
-    }
 
     std::unordered_set<std::string> devices;
     NodeMap<std::string> affinities;
@@ -632,7 +615,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             executableNetwork,
         });
     }
-
     const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
         const auto elementType = ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
@@ -908,7 +890,8 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                  ov::optimal_number_of_infer_requests.name()};
+                                                  ov::optimal_number_of_infer_requests.name(),
+                                                  ov::execution_devices.name()};
 
         {
             std::vector<::Metrics> pluginMetrics;
@@ -957,6 +940,16 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
                              desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
+    } else if (name == ov::execution_devices) {
+        std::vector<std::string> exeDevices;
+        std::set<std::string> s;
+        for (auto&& subnetwork : _networks) {
+            if (s.count(subnetwork._device) != 0)
+                continue;
+            s.insert(subnetwork._device);
+            exeDevices.push_back(subnetwork._device);
+        }
+        return decltype(ov::execution_devices)::value_type{exeDevices};
     } else {
         // find metric key among plugin metrics
         for (auto&& desc : _networks) {

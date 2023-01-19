@@ -1,14 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
 
 import numpy as np
 import pytest
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestTranspose(Caffe2OnnxLayerTest):
+class TestTranspose(OnnxRuntimeLayerTest):
     def create_net(self, shape, perm, ir_version):
         """
             ONNX net                                  IR net
@@ -80,7 +80,7 @@ class TestTranspose(Caffe2OnnxLayerTest):
         from onnx import helper
         from onnx import TensorProto
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
         constant_transposed = np.transpose(constant, perm)
 
         concat_axis = 0

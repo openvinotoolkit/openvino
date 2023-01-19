@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -139,7 +139,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 A reference to the tensor descriptor for this output.
 
                 :return: Tensor of the output.
-                :rtype: openvino.pyopenvino.DescriptorTensor
+                :rtype: openvino._pyopenvino.DescriptorTensor
                )");
     output.def("get_rt_info",
              (ov::RTMap & (ov::Output<VT>::*)()) &  ov::Output<VT>::get_rt_info,

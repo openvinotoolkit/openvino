@@ -1,33 +1,51 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
 #include <legacy/layer_transform.hpp>
-#include <frontend/model_quantizer.hpp>
+#include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
 
 using namespace InferenceEngine;
-using namespace GNAPluginNS;
+using namespace ov::intel_gna::frontend;
 using namespace GNATestIRs;
 
 class I8QuantisationTest : public GNATest<> {
  protected:
-    ModelQuantizer q;
-    LayersQuantizer lc = LayersQuantizer (1.0f);
-
-    InferenceEngine::CNNLayerPtr  quantize (InferenceEngine::CNNLayerPtr lp) {
+    InferenceEngine::CNNLayerPtr  quantize(InferenceEngine::CNNLayerPtr lp) {
         auto newLayer = InferenceEngine::injectData<QuantizedLayerParams>(lp);
-        transformLayer(newLayer, lc);
+        Config gna_config;
+        gna_config.gnaPrecision = InferenceEngine::Precision::I16;
+        gna_config.gnaFlags.input_low_precision = false;
+        LayerQuantizer lq(gna_config);
+        lq.quantize(*newLayer);
         return newLayer;
     };
 
-    void SetUp() override  {
+    InferenceEngine::CNNNetwork quantize_single_input_model(const InferenceEngine::CNNNetwork& model, float scale_factor) const {
+        auto scale_factors = std::vector<float>({scale_factor});
+
+        GnaInputs inputs;
+        InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
+
+        auto input_layer = getCreatorLayer(inputs_map.begin()->second->getInputData()).lock();
+        inputs[input_layer->name].scale_factor = scale_factor;
+
+        Config gna_config;
+        gna_config.gnaPrecision = InferenceEngine::Precision::I16;
+        gna_config.gnaFlags.input_low_precision = false;
+
+        return ModelQuantizer(gna_config, false).quantize(
+            model,
+            [](const InferenceEngine::CNNNetwork&, bool run_before_copy, bool low_precision) {},
+            inputs);
     }
 
+    void SetUp() override {}
 };
 
 // TODO: add test for FC weights after quantization
@@ -71,7 +89,7 @@ TEST_F(I8QuantisationTest, inputPrecisionIs16Bits){
     Core ie;
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
-    auto newNet = q.quantize(network, 1000);
+    auto newNet = quantize_single_input_model(network, 1000);
     InputsDataMap inputs = newNet.getInputsInfo();
     auto inputLayer = getCreatorLayer(getInputTo(inputs.begin()->second->getInputData()).begin()->second->insData.front().lock()).lock();
 
@@ -86,7 +104,7 @@ TEST_F(I8QuantisationTest, FCDimensionIs1){
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModel(), weights);
 
-    ASSERT_NO_THROW(q.quantize(network, 1000));
+    ASSERT_NO_THROW(quantize_single_input_model(network, 1000));
 }
 
 TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){
@@ -97,7 +115,7 @@ TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){
     Core ie;
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
-    auto newNet = q.quantize(network, 1000);
+    auto newNet = quantize_single_input_model(network, 1000);
     InputsDataMap inputs = newNet.getInputsInfo();
     auto affineDataPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second->outData.front();
 
@@ -112,7 +130,7 @@ TEST_F(I8QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     Core ie;
     auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
-    q.quantize(network, 1000);
+    quantize_single_input_model(network, 1000);
 }
 
 TEST_F(I8QuantisationTest, LSTMCell_quantize) {
@@ -123,7 +141,7 @@ TEST_F(I8QuantisationTest, LSTMCell_quantize) {
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModel(), weights);
 
-    ASSERT_NO_THROW(q.quantize(network, 1000));
+    ASSERT_NO_THROW(quantize_single_input_model(network, 1000));
 }
 
 TEST_F(I8QuantisationTest, LSTMCell_unaligned_quantize) {
@@ -134,7 +152,7 @@ TEST_F(I8QuantisationTest, LSTMCell_unaligned_quantize) {
     Core ie;
     auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
-    ASSERT_NO_THROW(q.quantize(network, 1000));
+    ASSERT_NO_THROW(quantize_single_input_model(network, 1000));
 }
 
 TEST_F(I8QuantisationTest, TI_quantize) {
@@ -145,5 +163,5 @@ TEST_F(I8QuantisationTest, TI_quantize) {
     Core ie;
     auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 
-    ASSERT_NO_THROW(q.quantize(network, 1000));
+    ASSERT_NO_THROW(quantize_single_input_model(network, 1000));
 }

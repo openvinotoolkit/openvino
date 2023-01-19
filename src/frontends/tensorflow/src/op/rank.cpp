@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,13 @@ namespace tensorflow {
 namespace op {
 
 ov::OutputVector translate_rank_op(const NodeContext& node) {
-    auto data = node.get_input(0);
-    auto shape_of_1 = make_shared<ShapeOf>(data, ov::element::i32);
-    auto res = make_shared<ShapeOf>(shape_of_1, ov::element::i32);
-    set_node_name(node.get_name(), res);
-    return res->outputs();
+    default_op_checks(node, 1, {"Rank"});
+    auto input = node.get_input(0);
+    auto input_shape = make_shared<ShapeOf>(input, ov::element::i32);
+    auto unsqueeze_input_rank = make_shared<ShapeOf>(input_shape, ov::element::i32);
+    auto input_rank = make_shared<Squeeze>(unsqueeze_input_rank);
+    set_node_name(node.get_name(), input_rank);
+    return {input_rank};
 }
 
 }  // namespace op

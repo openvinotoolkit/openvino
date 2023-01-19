@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v0 {
 class OPENVINO_API Tile : public Op {
 public:
     OPENVINO_OP("Tile", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     Tile() = default;
     /// \brief Perform dynamic padding of a tensor
@@ -31,8 +30,11 @@ public:
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    bool evaluate_lower(const HostTensorVector& outputs) const override;
+    bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
     bool evaluate_tile(const HostTensorVector& outputs, const HostTensorVector& inputs) const;

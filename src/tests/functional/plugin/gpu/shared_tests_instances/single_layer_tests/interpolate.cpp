@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,6 +194,18 @@ const auto interpolate5dCasesLinearOnnxMode = ::testing::Combine(
         ::testing::ValuesIn(default5dAxes),
         ::testing::ValuesIn(default5dScales));
 
+const auto interpolate5dCasesNearestMode = ::testing::Combine(
+        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5dbegin),//pad begin
+        ::testing::ValuesIn(pads5dend),//pad ends
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(default5dAxes),
+        ::testing::ValuesIn(default5dScales));
+
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(netPrecisions),
@@ -246,5 +258,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dLinearOnnx, GPUInterpolateLayerTest
         ::testing::Values(additional_config)),
     InterpolateLayerTest::getTestCaseName);
 
-
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_5dNearest, GPUInterpolateLayerTest, ::testing::Combine(
+        interpolate5dCasesNearestMode,
+        ::testing::ValuesIn(netOnnx5dPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(in5dShapes),
+        ::testing::ValuesIn(target5dShapes),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(additional_config)),
+    InterpolateLayerTest::getTestCaseName);
 } // namespace

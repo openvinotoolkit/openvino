@@ -1,21 +1,23 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <vector>
 
-namespace ngraph {
+#include "transformations_visibility.hpp"
+
+namespace ov {
 namespace pass {
 
-class NGRAPH_API Proposal1Scales;
-class NGRAPH_API Proposal4Scales;
+class TRANSFORMATIONS_API Proposal1Scales;
+class TRANSFORMATIONS_API Proposal4Scales;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -32,14 +34,21 @@ class NGRAPH_API Proposal4Scales;
  *      Parameter [batch, 3 or 4] -> Reshape [-1] -> StridedSlice[0: 3 or 4] -(in: 3)-> PriorBox
  */
 
-class ngraph::pass::Proposal1Scales : public ngraph::pass::MatcherPass {
+class ov::pass::Proposal1Scales : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Proposal1Scales", "0");
     Proposal1Scales();
 };
 
-class ngraph::pass::Proposal4Scales : public ngraph::pass::MatcherPass {
+class ov::pass::Proposal4Scales : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("Proposal4Scales", "0");
     Proposal4Scales();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::Proposal1Scales;
+using ov::pass::Proposal4Scales;
+}  // namespace pass
+}  // namespace ngraph

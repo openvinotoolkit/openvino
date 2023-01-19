@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,15 @@ void infer_auto_padding(const Shape& image_shape,
                         const op::PadType pad_type,
                         CoordinateDiff& padding_above,
                         CoordinateDiff& padding_below);
+
+/// \brief Normalize value to the max if value is negative.
+///
+/// \param value  Input value to normalize.
+/// \param max    Value used for normalization
+///
+/// \return Value if positive otherwise return value + max
+OPENVINO_API
+int64_t normalize(const int64_t& value, const int64_t& max);
 
 /// \brief      Handle out of range axis.
 ///
@@ -108,9 +117,9 @@ int64_t normalize_axis(const std::string& node_description,
 /// If any negative axis in vector, it counts from the last to the first axis,
 /// by adding tensor_rank to axis. Changes axes vector inplace.
 ///
-/// \param[in]  node  The node with requested axes.
-/// \param[in]  tensor_rank       The corresponding tensor rank.
-/// \param[in]  axes              The requested vector of axes.
+/// \param[in]      node         The node with requested axes.
+/// \param[in]      tensor_rank  The corresponding tensor rank.
+/// \param[in,out]  axes         The requested vector of axes.
 ///
 OPENVINO_API
 void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
@@ -157,4 +166,36 @@ OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, co
 /// \param labels  Label tensor for check.
 /// \return True if there is no labels, otherwise false.
 OPENVINO_API bool has_no_labels(const TensorLabel& labels);
+
+/// \brief Get the node input partial shapes.
+///
+/// \param node   Node to extract input shapes.
+///
+/// \return Vector of PartialShapes of each input.
+OPENVINO_API std::vector<PartialShape> get_node_input_partial_shapes(const ov::Node& node);
+
+/// \brief Check if rank is compatible to any of rank from container.
+///
+/// \param rank   Rank to check.
+/// \param ranks  VEctor of ranks used to check input rank compatibility.
+///
+/// \return True if rank compatible to any from ranks, otherwise false.
+OPENVINO_API bool is_rank_compatible_any_of(const ov::Rank& rank, const std::vector<ov::Rank>& ranks);
+
+/// \brief Check if values in vector are unique.
+///
+/// \param data  Input data to check.
+///
+/// \return True if unique otherwise false.
+OPENVINO_API bool are_unique(const std::vector<int64_t>& data);
+
+/// \brief Clip value to minimum if below min, or to maximum of above max.
+///
+/// \param value  Value to be clipped.
+/// \param min    Minimum value bound.
+/// \param max    Maximum value boiund
+///
+/// \return Value if between min, max otherwise min or max.
+OPENVINO_API
+int64_t clip(const int64_t& value, const int64_t& min, const int64_t& max);
 }  // namespace ov

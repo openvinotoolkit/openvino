@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ MockPlugin::LoadNetwork(const CNNNetwork& network,
     }
 }
 
-std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>
 MockPlugin::LoadNetwork(const std::string &modelPath,
                         const std::map<std::string, std::string> &config) {
     if (_target) {

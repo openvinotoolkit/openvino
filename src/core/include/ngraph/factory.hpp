@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "ngraph/compatibility.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
@@ -37,17 +36,9 @@ public:
     }
 
     /// \brief Register a custom factory for DERIVED_TYPE
-    template <typename DERIVED_TYPE,
-              typename std::enable_if<!HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
+    template <typename DERIVED_TYPE>
     void register_factory(Factory factory) {
         register_factory(DERIVED_TYPE::get_type_info_static(), factory);
-    }
-
-    template <typename DERIVED_TYPE, typename std::enable_if<HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
-    void register_factory(Factory factory) {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        register_factory(DERIVED_TYPE::type_info, factory);
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Register the defualt constructor factory for DERIVED_TYPE
@@ -63,17 +54,9 @@ public:
     }
 
     /// \brief Check to see if DERIVED_TYPE has a registered factory
-    template <typename DERIVED_TYPE,
-              typename std::enable_if<!HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
+    template <typename DERIVED_TYPE>
     bool has_factory() {
         return has_factory(DERIVED_TYPE::get_type_info_static());
-    }
-
-    template <typename DERIVED_TYPE, typename std::enable_if<HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
-    bool has_factory() {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        return has_factory(DERIVED_TYPE::type_info);
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     /// \brief Create an instance for type_info
@@ -84,17 +67,9 @@ public:
     }
 
     /// \brief Create an instance using factory for DERIVED_TYPE
-    template <typename DERIVED_TYPE,
-              typename std::enable_if<!HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
+    template <typename DERIVED_TYPE>
     BASE_TYPE* create() const {
         return create(DERIVED_TYPE::get_type_info_static());
-    }
-
-    template <typename DERIVED_TYPE, typename std::enable_if<HasTypeInfoMember<DERIVED_TYPE>::value, bool>::type = true>
-    BASE_TYPE* create() const {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        return create(DERIVED_TYPE::type_info);
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
 protected:

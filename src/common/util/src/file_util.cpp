@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/util/file_util.hpp"
@@ -52,7 +52,14 @@
 
 std::string ov::util::get_file_name(const std::string& s) {
     std::string rc = s;
+    // Linux-style separator
     auto pos = s.find_last_of('/');
+    if (pos != std::string::npos) {
+        rc = s.substr(pos + 1);
+        return rc;
+    }
+    // Windows-style separator
+    pos = s.find_last_of('\\');
     if (pos != std::string::npos) {
         rc = s.substr(pos + 1);
     }
@@ -109,7 +116,11 @@ std::string join_paths(const std::string& s1, const std::string& s2) {
         } else if (s1.size() > 0) {
             rc = s1;
             if (rc[rc.size() - 1] != '/') {
+#ifndef _WIN32
                 rc += '/';
+#else
+                rc += '\\';
+#endif
             }
             rc += s2;
         } else {
@@ -197,6 +208,10 @@ static void iterate_files_worker(const std::string& path,
                     }
                     break;
                 case DT_REG:
+                case DT_UNKNOWN:
+                    // Comment from READDIR(3):
+                    //     only some filesystems have full support for returning the file type in d_type.
+                    //     All applications must properly handle a return of DT_UNKNOWN.
                     func(path_name, false);
                     break;
                 default:
@@ -400,7 +415,7 @@ static std::string get_ov_library_path_a() {
     }
     GetModuleFileNameA(hm, (LPSTR)ov_library_path, sizeof(ov_library_path));
     return get_path_name(std::string(ov_library_path));
-#elif defined(__APPLE__) || defined(__linux__)
+#elif defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
     Dl_info info;
     dladdr(reinterpret_cast<void*>(ov::util::get_ov_lib_path), &info);
     return get_path_name(ov::util::get_absolute_file_path(info.dli_fname)).c_str();
@@ -434,7 +449,7 @@ std::wstring ov::util::get_ov_lib_path_w() {
     }
     GetModuleFileNameW(hm, (LPWSTR)ov_library_path, sizeof(ov_library_path) / sizeof(ov_library_path[0]));
     return get_path_name(std::wstring(ov_library_path));
-#    elif defined(__linux__) || defined(__APPLE__)
+#    elif defined(__linux__) || defined(__APPLE__) || defined(__EMSCRIPTEN__)
     return ov::util::string_to_wstring(get_ov_library_path_a());
 #    else
 #        error "Unsupported OS"

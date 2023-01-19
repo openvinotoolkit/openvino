@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ TEST(attributes, gather_elements_op) {
     int64_t axis = 0;
 
     auto gather_el = make_shared<opset6::GatherElements>(arg1, arg2, axis);
-    NodeBuilder builder(gather_el);
+    NodeBuilder builder(gather_el, {arg1, arg2});
     auto g_gather_el = ov::as_type_ptr<opset6::GatherElements>(builder.create());
 
     EXPECT_EQ(g_gather_el->get_axis(), gather_el->get_axis());

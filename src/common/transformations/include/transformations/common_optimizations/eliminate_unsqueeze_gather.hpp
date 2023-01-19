@@ -1,23 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 
-#include "ngraph/pattern/matcher.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API EliminateUnsqueezeGather;
 class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -25,7 +23,7 @@ class TRANSFORMATIONS_API EliminateGatherUnsqueeze;
  * that was previously added by Unsqueeze
  */
 
-class ngraph::pass::EliminateUnsqueezeGather : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateUnsqueezeGather : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateUnsqueezeGather", "0");
     EliminateUnsqueezeGather();
@@ -37,8 +35,15 @@ public:
  * Unsqueeze makes it a 1D tensor
  */
 
-class ngraph::pass::EliminateGatherUnsqueeze : public ngraph::pass::MatcherPass {
+class ov::pass::EliminateGatherUnsqueeze : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();
 };
+
+namespace ngraph {
+namespace pass {
+using ov::pass::EliminateGatherUnsqueeze;
+using ov::pass::EliminateUnsqueezeGather;
+}  // namespace pass
+}  // namespace ngraph

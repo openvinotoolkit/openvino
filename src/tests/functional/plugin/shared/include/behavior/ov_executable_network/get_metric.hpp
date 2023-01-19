@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,7 +72,7 @@ protected:
 public:
     void SetUp() override {
         target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + std::string(",") + CommonTestUtils::DEVICE_CPU;;
+        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
         OVClassNetworkTest::SetUp();
@@ -82,6 +82,7 @@ using OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS = OVClas
 using OVClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS = OVClassHeteroExecutableNetworkGetMetricTest;
 using OVClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME = OVClassHeteroExecutableNetworkGetMetricTest;
 using OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK = OVClassHeteroExecutableNetworkGetMetricTest;
+using OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES = OVClassHeteroExecutableNetworkGetMetricTest;
 
 //
 // ImportExportNetwork
@@ -339,12 +340,35 @@ TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
 
     std::string targets;
     OV_ASSERT_NO_THROW(targets = compiled_model.get_property(ov::device::priorities));
-    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU;
+    auto expectedTargets = target_device;
 
     std::cout << "Compiled model fallback targets: " << targets << std::endl;
     ASSERT_EQ(expectedTargets, targets);
 }
 
+TEST_P(OVClassHeteroExecutableNetworkGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+    std::vector<std::string> expectedTargets = {target_device};
+#ifdef ENABLE_INTEL_CPU
+    auto layermap = ie.query_model(actualNetwork, heteroDeviceName);
+    for (auto &iter : layermap) {
+        if (iter.first.find("Concat") != std::string::npos)
+            layermap[iter.first] = CommonTestUtils::DEVICE_CPU;
+    }
+    for (auto& node : actualNetwork->get_ops()) {
+        auto affinity = layermap[node->get_friendly_name()];
+        node->get_rt_info()["affinity"] = affinity;
+    }
+    if (target_device.find(CommonTestUtils::DEVICE_CPU) == std::string::npos)
+        expectedTargets = {target_device, CommonTestUtils::DEVICE_CPU};
+#endif
+    auto compiled_model = ie.compile_model(actualNetwork, heteroDeviceName);
+
+    std::vector<std::string> exeTargets;
+    OV_ASSERT_NO_THROW(exeTargets = compiled_model.get_property(ov::execution_devices));
+
+    ASSERT_EQ(expectedTargets, exeTargets);
+}
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

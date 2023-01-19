@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 
 using namespace std;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v8::If);
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 
 ov::op::v8::If::If(const Output<Node>& execution_condition) : If() {
@@ -74,19 +73,6 @@ bool ov::op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("else_inputs", m_input_descriptions[ELSE_BODY_INDEX]);
     visitor.on_attribute("else_outputs", m_output_descriptions[ELSE_BODY_INDEX]);
     return true;
-}
-
-void ov::op::v8::If::validate_and_infer_type_body(
-    const std::shared_ptr<ov::Model>& body,
-    const ngraph::op::util::MultiSubgraphInputDescriptionVector& input_descriptors) {
-    for (const auto& input_description : input_descriptors) {
-        auto index = input_description->m_input_index;
-
-        auto body_parameter = body->get_parameters().at(input_description->m_body_parameter_index);
-        auto input_partial_shape = input_value(index).get_partial_shape();
-        body_parameter->set_partial_shape(input_partial_shape);
-    }
-    body->validate_nodes_and_infer_types();
 }
 
 void ov::op::v8::If::validate_and_infer_types() {
@@ -166,14 +152,17 @@ void ov::op::v8::If::validate_and_infer_types() {
             auto else_node_result =
                 m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
 
+            element::Type merged_type;
             NODE_VALIDATION_CHECK(this,
-                                  then_node_result.get_element_type() == else_node_result.get_element_type(),
+                                  element::Type::merge(merged_type,
+                                                       then_node_result.get_element_type(),
+                                                       else_node_result.get_element_type()),
                                   "type of then_body output is not equal type of else_body output");
 
             // shape inference for output and associated with it body outputs
             auto partial_shape =
                 resolve_shape(then_node_result.get_partial_shape(), else_node_result.get_partial_shape());
-            set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
+            set_output_type(output_index, merged_type, partial_shape);
         }
     }
 }
@@ -201,30 +190,6 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
     op->validate_and_infer_types();
 
     return op;
-}
-
-ov::op::v8::If::OutputMap ov::op::v8::If::get_mapping_outputs_on_body_description(
-    const ngraph::op::util::MultiSubgraphOutputDescriptionVector& output_descriptors) {
-    OutputMap outputs_map = OutputMap();
-    std::unordered_set<int64_t> checked_results_in_body;
-
-    for (const auto& output_description : output_descriptors) {
-        auto out_index = output_description->m_output_index;
-        auto internal_result_index = output_description->m_body_value_index;
-        NODE_VALIDATION_CHECK(this,
-                              checked_results_in_body.count(internal_result_index) == 0,
-                              "Incorrect associating in then_body! Result ",
-                              internal_result_index,
-                              " is already associated with another output!");
-        NODE_VALIDATION_CHECK(this,
-                              outputs_map.count(out_index) == 0,
-                              "Incorrect associating in then_body! Several results try to "
-                              "associate with the same output!");
-        checked_results_in_body.insert(internal_result_index);
-        outputs_map.insert({out_index, output_description});
-    }
-
-    return outputs_map;
 }
 
 void ov::op::v8::If::set_input(const Output<Node>& value,

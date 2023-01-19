@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -95,6 +96,10 @@ bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const Transforma
     }
 
     if (!FakeQuantizeTransformation::checkElementwise(operation)) {
+        return false;
+    }
+
+    if (!getAttribute<SkipCleanupAttribute>(operation).empty()) {
         return false;
     }
 

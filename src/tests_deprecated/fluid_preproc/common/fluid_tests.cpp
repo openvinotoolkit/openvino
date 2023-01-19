@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -163,6 +163,7 @@ test::Scalar to_test(cv::Scalar const& sc) { return {sc[0], sc[1], sc[2], sc[3]}
 cv::ColorConversionCodes toCvtColorCode(InferenceEngine::ColorFormat in,
                                      InferenceEngine::ColorFormat out) {
     using namespace InferenceEngine;
+    IE_SUPPRESS_DEPRECATED_START
     static const std::map<std::pair<ColorFormat, ColorFormat>, cv::ColorConversionCodes> types = {
         {{ColorFormat::RGBX, ColorFormat::BGRX}, cv::COLOR_RGBA2BGRA},
         {{ColorFormat::RGBX, ColorFormat::BGR}, cv::COLOR_RGBA2BGR},
@@ -179,6 +180,7 @@ cv::ColorConversionCodes toCvtColorCode(InferenceEngine::ColorFormat in,
         {{ColorFormat::NV12, ColorFormat::BGR}, cv::COLOR_YUV2BGR_NV12},
         {{ColorFormat::NV12, ColorFormat::RGB}, cv::COLOR_YUV2RGB_NV12}
     };
+    IE_SUPPRESS_DEPRECATED_END
     return types.at(std::make_pair(in, out));
 }
 
@@ -825,6 +827,8 @@ TEST_P(ResizeTestIE, AccuracyTest)
         EXPECT_LE(cv::norm(out_mat_ocv, out_mat, cv::NORM_INF), tolerance);
     }
 }
+
+IE_SUPPRESS_DEPRECATED_START
 
 TEST_P(ColorConvertTestIE, AccuracyTest)
 {
