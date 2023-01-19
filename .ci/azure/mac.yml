@@ -70,12 +70,10 @@ jobs:
 
   steps:
   - task: UsePythonVersion@0
+    displayName: Get Python 3.10
     inputs:
       versionSpec: '3.10'
-      disableDownloadFromRegistry: true
-      addToPath: true
-      githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+      addToPath: false
     name: setupPython
 
   - script: |
