@@ -131,7 +131,11 @@ class PytorchLayerTest:
         is_ok = True
         for i in range(len(infer_res)):
             cur_fw_res = flatten_fw_res[i].to(memory_format=torch.contiguous_format).numpy(
+<<<<<<< HEAD
             ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
+=======
+            ) if isinstance(flatten_fw_res[i], torch.Tensor) else fw_res[i]
+>>>>>>> add transformation for prim::min and TupleConstruct + ListConstruct
             cur_ov_res = infer_res[compiled.output(i)]
             print(f"fw_re: {cur_fw_res};\n ov_res: {cur_ov_res}")
             if not np.allclose(cur_ov_res, cur_fw_res,
