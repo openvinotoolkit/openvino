@@ -58,6 +58,7 @@ void parse_processor_info_win(const char* base_ptr,
     char* info_ptr = (char*)base_ptr;
     int list_len = 0;
     int base_proc = 0;
+    int proc_count = 0;
     int mask_len = 0;
     int group = 0;
     _sockets = -1;
@@ -97,12 +98,12 @@ void parse_processor_info_win(const char* base_ptr,
         } else if (info->Relationship == RelationProcessorCore) {
             MaskToList(info->Processor.GroupMask->Mask);
 
-            if (_proc_type_table[0][ALL_PROC] >= _processors) {
+            if (proc_count >= _processors) {
                 break;
             }
 
             if (0 == list[0]) {
-                base_proc = _proc_type_table[0][ALL_PROC];
+                base_proc = proc_count;
             }
 
             if (2 == list_len) {
@@ -131,6 +132,7 @@ void parse_processor_info_win(const char* base_ptr,
                 _cpu_mapping_table[list[0] + base_proc][CPU_MAP_CORE_ID] = _cores;
             }
             _proc_type_table[0][ALL_PROC] += list_len;
+            proc_count += list_len;
             _cores++;
 
         } else if ((info->Relationship == RelationCache) && (info->Cache.Level == 2)) {
