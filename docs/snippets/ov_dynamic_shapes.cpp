@@ -75,7 +75,7 @@ auto model = core.read_model("model.xml");
 std::map<ov::Output<ov::Node>, ov::PartialShape> port_to_shape;
 for (const ov::Output<ov::Node>& input : model->inputs()) {
     ov::PartialShape shape = input.get_partial_shape();
-    shape[1] = -1
+    shape[1] = -1;
     port_to_shape[input] = shape;
 }
 model->reshape(port_to_shape);
