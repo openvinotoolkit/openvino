@@ -8,7 +8,7 @@
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset2.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -23,29 +23,21 @@ using namespace std;
 namespace ov {
 namespace pass {
 
-class InitMarkToKeepInMixedPrecision : public pass::MatcherPass {
-public:
-    OPENVINO_RTTI("InitMarkToKeepInMixedPrecision", "0");
-    InitMarkToKeepInMixedPrecision() {
-        MATCHER_SCOPE(InitMarkToKeepInMixedPrecision);
-        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset3::MVN, opset10::MVN, opset10::NormalizeL2, opset10::Exp>();
+MarkNormalizationOps::MarkNormalizationOps() {
+    MATCHER_SCOPE(MarkNormalizationOps);
+    auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, opset10::MVN, opset10::NormalizeL2>();
 
-        matcher_pass_callback callback = [=](pattern::Matcher& m) {
-            const auto& node = m.get_match_root();
-            if (!node)
-                return false;
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& node = m.get_match_root();
+        if (!node)
+            return false;
 
-            auto exp_op = dynamic_pointer_cast<opset3::Exp>(node);
-            if (exp_op != nullptr && !is_reduceop_path(exp_op))
-                return false;
-
-            disable_fp16_compression(node);
-            return true;
-        };
-        auto m = make_shared<pattern::Matcher>(ops_to_be_kept_fp32, matcher_name);
-        register_matcher(m, callback);
-    }
-};
+        disable_fp16_compression(node);
+        return true;
+    };
+    auto m = make_shared<pattern::Matcher>(ops_to_be_kept_fp32, matcher_name);
+    register_matcher(m, callback);
+}
 
 std::shared_ptr<Node> propagate_through_ops =
     pattern::wrap_type<opset10::Squeeze,
@@ -55,7 +47,7 @@ std::shared_ptr<Node> propagate_through_ops =
                        op::util::BinaryElementwiseArithmetic,
                        op::util::UnaryElementwiseArithmetic,
                        opset10::MVN,
-                       opset3::MVN,
+                       opset2::MVN,
                        opset10::NormalizeL2,
                        opset10::Sqrt,
                        opset10::StridedSlice,
@@ -150,9 +142,8 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     // Mark root of Division with eps pattern to keep in FP32
     REGISTER_PASS(manager, MarkDivWithEps)
 
-    // is needed to mark only Exponents that go into ReduceSum/ReduceMean
-    REGISTER_PASS(manager, MarkExpReduceOp)
-    REGISTER_PASS(manager, InitMarkToKeepInMixedPrecision)
+    REGISTER_PASS(manager, MarkExpInReduceOpPath)
+    REGISTER_PASS(manager, MarkNormalizationOps)
     REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
@@ -165,11 +156,11 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     return false;  // no need to revalidate
 }
 
-class InitMarkReduceOpExp : public pass::MatcherPass {
+class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("InitMarkReduceOpExp", "0");
-    InitMarkReduceOpExp() {
-        MATCHER_SCOPE(InitMarkReduceOpExp);
+    OPENVINO_RTTI("InitMarkReduceOpPath", "0");
+    InitMarkReduceOpPath() {
+        MATCHER_SCOPE(InitMarkReduceOpPath);
 
         auto reduce_ops = pattern::wrap_type<opset10::ReduceSum, opset10::ReduceMean>();
 
@@ -185,11 +176,11 @@ public:
     }
 };
 
-class PropagateUpMarkReduceOpExp : public pass::MatcherPass {
+class PropagateMarkUpReduceOpPath : public pass::MatcherPass {
 public:
-    OPENVINO_RTTI("PropagateUpMarkReduceOpExp", "0");
-    PropagateUpMarkReduceOpExp() {
-        MATCHER_SCOPE(PropagateUpMarkReduceOpExp);
+    OPENVINO_RTTI("PropagateMarkUpReduceOpPath", "0");
+    PropagateMarkUpReduceOpPath() {
+        MATCHER_SCOPE(PropagateMarkUpReduceOpPath);
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
@@ -201,7 +192,7 @@ public:
                     if (out_inputs.get_element_type().is_real() &&
                         is_reduceop_path(out_inputs.get_node()->shared_from_this())) {
                         mark_reduceop_path(node);
-                        return true;
+                        return false;
                     }
                 }
             }
@@ -212,9 +203,35 @@ public:
     }
 };
 
-MarkExpReduceOp::MarkExpReduceOp() {
-    ADD_MATCHER_FOR_THIS(InitMarkReduceOpExp);
-    ADD_MATCHER_FOR_THIS(PropagateUpMarkReduceOpExp);
+class MarkExp : public pass::MatcherPass {
+public:
+    // only exponent that go into ReduceOp should be marked as precision sensitive
+    OPENVINO_RTTI("MarkExp", "0");
+    MarkExp() {
+        MATCHER_SCOPE(MarkExp);
+        auto exp_pattern = pattern::wrap_type<opset10::Exp>();
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& node = m.get_match_root();
+            if (!node)
+                return false;
+
+            if (!is_reduceop_path(node))
+                return false;
+
+            disable_fp16_compression(node);
+            return true;
+        };
+        auto m = make_shared<pattern::Matcher>(exp_pattern, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+MarkExpInReduceOpPath::MarkExpInReduceOpPath() {
+    // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
+    ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);
+    ADD_MATCHER_FOR_THIS(PropagateMarkUpReduceOpPath);
+    ADD_MATCHER_FOR_THIS(MarkExp);
 }
 
 MarkDivWithEps::MarkDivWithEps() {

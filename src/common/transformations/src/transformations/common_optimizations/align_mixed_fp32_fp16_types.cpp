@@ -55,7 +55,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 if (!out_inputs.get_element_type().is_real())
                     continue;
 
-                // todo: if we don't skip Results there is an error on GPU at
+                // todo xxx-101766: if we don't skip Results there is an error on GPU at
                 // src/plugins/intel_gpu/src/plugin/ops/result.cpp:33
                 // IE_THROW() << "Can't find output " << inputID << " in OutputsDataMap";
                 if (std::dynamic_pointer_cast<opset10::Result>(out_node))

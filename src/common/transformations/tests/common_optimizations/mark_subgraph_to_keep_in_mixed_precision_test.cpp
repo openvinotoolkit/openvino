@@ -6,6 +6,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset2.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
@@ -67,7 +68,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
@@ -123,7 +124,7 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_with_reducemean) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
     ASSERT_TRUE(result.valid) << result.message;
 }
@@ -171,9 +172,135 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkNormalizationOps_1) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+        auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
+        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
+        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkNormalizationOps>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+        auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
+        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
+        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(addition_const);
+        disable_fp16_compression(mvn_1);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkNormalizationOps_2) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
+        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
+        auto matmul_1 = make_shared<MatMul>(normalizel2_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkNormalizationOps>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+        auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
+        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
+        auto matmul_1 = make_shared<MatMul>(normalizel2_1, input_2);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(addition_const);
+        disable_fp16_compression(normalizel2_1);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, MarkNormalizationOps_3) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+        auto mvn_1 = make_shared<opset2::MVN>(input_1, AxisSet{3}, true, 1.0e-8);
+        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
+        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
+
+        model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::MarkNormalizationOps>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto input_1 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto input_2 = make_shared<Parameter>(element::f32, Shape{1, 3, 224, 224});
+        auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
+        auto mvn_1 = make_shared<opset2::MVN>(input_1, AxisSet{3}, true, 1.0e-8);
+        auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
+        auto matmul_1 = make_shared<MatMul>(mvn_1, input_2);
+
+        // marking nodes to be kept in fp32 for mixed precision
+        disable_fp16_compression(addition_const);
+        disable_fp16_compression(mvn_1);
+
+        model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // need to compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
@@ -236,9 +363,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
@@ -301,9 +428,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    //    ASSERT_TRUE(result.valid);
+    //    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
@@ -316,8 +443,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
         auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 = make_shared<Unsqueeze>(mvn_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(add_1, input_2);
+        auto unsqueeze_1 = make_shared<Unsqueeze>(mvn_1, addition_const);
+        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -331,12 +458,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
         auto mvn_1 = make_shared<MVN>(input_1, reduction_axes, true, 1.0e-8f, op::MVNEpsMode::INSIDE_SQRT);
         auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 = make_shared<Unsqueeze>(mvn_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(add_1, input_2);
+        auto unsqueeze_1 = make_shared<Unsqueeze>(mvn_1, addition_const);
+        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
         disable_fp16_compression(addition_const);
-        disable_fp16_compression(add_1);
+        disable_fp16_compression(unsqueeze_1);
         disable_fp16_compression(mvn_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -346,9 +473,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_4) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
@@ -361,8 +488,8 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
         auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 = make_shared<Unsqueeze>(normalizel2_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(add_1, input_2);
+        auto unsqueeze_1 = make_shared<Unsqueeze>(normalizel2_1, addition_const);
+        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
@@ -376,12 +503,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         auto reduction_axes = Constant::create(element::i64, Shape{1}, {-1});
         auto normalizel2_1 = make_shared<NormalizeL2>(input_1, reduction_axes, 1.0e-8f, ov::op::EpsMode::MAX);
         auto addition_const = Constant::create(element::f32, Shape{1}, {0.1f});
-        auto add_1 = make_shared<Unsqueeze>(normalizel2_1, addition_const);
-        auto matmul_1 = make_shared<MatMul>(add_1, input_2);
+        auto unsqueeze_1 = make_shared<Unsqueeze>(normalizel2_1, addition_const);
+        auto matmul_1 = make_shared<MatMul>(unsqueeze_1, input_2);
 
         // marking nodes to be kept in fp32 for mixed precision
         disable_fp16_compression(addition_const);
-        disable_fp16_compression(add_1);
+        disable_fp16_compression(unsqueeze_1);
         disable_fp16_compression(normalizel2_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
@@ -391,12 +518,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
+TEST(TransformationTests, keep_precission_sensitive_fp32_6) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
 
@@ -429,12 +556,12 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_5__) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
+TEST(TransformationTests, keep_precission_sensitive_fp32_7) {
     shared_ptr<Model> model, model_ref;
     pass::Manager manager;
     // subgraph from t2t-vit-7
@@ -590,9 +717,9 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_300) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, DivisionByZeroMinimalPattern) {
@@ -629,9 +756,9 @@ TEST(TransformationTests, DivisionByZeroMinimalPattern) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, PowWithNegativeExponent) {
@@ -675,9 +802,9 @@ TEST(TransformationTests, PowWithNegativeExponent) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, PowWithPositiveExponent) {
@@ -715,9 +842,9 @@ TEST(TransformationTests, PowWithPositiveExponent) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, DivisionByZeroMinimalPatternUnchanged) {
@@ -751,9 +878,9 @@ TEST(TransformationTests, DivisionByZeroMinimalPatternUnchanged) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
@@ -808,9 +935,9 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
@@ -865,9 +992,9 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) {
@@ -887,7 +1014,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) 
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOp>();
+        manager.register_pass<pass::MarkExpInReduceOpPath>();
         manager.run_passes(model);
     }
 
@@ -905,6 +1032,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) 
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
         mark_reduceop_path(exp_1);
+        disable_fp16_compression(exp_1);
         mark_reduceop_path(reduce_sum_1);
     }
 
@@ -912,9 +1040,9 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) 
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean) {
@@ -934,7 +1062,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean)
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOp>();
+        manager.register_pass<pass::MarkExpInReduceOpPath>();
         manager.run_passes(model);
     }
 
@@ -952,6 +1080,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean)
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
         mark_reduceop_path(exp_1);
+        disable_fp16_compression(exp_1);
         mark_reduceop_path(reduce_mean_1);
     }
 
@@ -959,9 +1088,9 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean)
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_without_exp) {
@@ -981,7 +1110,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_withou
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOp>();
+        manager.register_pass<pass::MarkExpInReduceOpPath>();
         manager.run_passes(model);
     }
 
@@ -1005,9 +1134,9 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_withou
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_through_unsqueeze) {
@@ -1030,7 +1159,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
 
         model = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
 
-        manager.register_pass<pass::MarkExpReduceOp>();
+        manager.register_pass<pass::MarkExpInReduceOpPath>();
         manager.run_passes(model);
     }
 
@@ -1051,6 +1180,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
         mark_reduceop_path(exp_1);
+        disable_fp16_compression(exp_1);
         mark_reduceop_path(unsqueeze_1);
         mark_reduceop_path(reduce_sum_1);
     }
@@ -1059,9 +1189,9 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
         FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = func_comparator(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 // check marking of Division with eps
@@ -1098,9 +1228,9 @@ TEST(TransformationTests, MarkDivWithEps) {
 
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithNegativeExponent) {
@@ -1139,9 +1269,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithNegativeEx
                         .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveExponent) {
@@ -1180,9 +1310,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveEx
                         .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnchanged) {
@@ -1217,9 +1347,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
                         .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtAndWithMax) {
@@ -1262,9 +1392,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
                         .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
 
 TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtAndWithAdd) {
@@ -1307,7 +1437,7 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
                         .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
     result = fc(model, model_ref);
-    ASSERT_TRUE(result.valid);
+    ASSERT_TRUE(result.valid) << result.message;
 }
