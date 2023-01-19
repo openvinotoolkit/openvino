@@ -441,9 +441,9 @@ public:
 
     std::vector<std::string> get_available_devices() const override;
 
-    ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) override;
+    ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) override;
+    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
 
     bool is_new_api() const override;
 

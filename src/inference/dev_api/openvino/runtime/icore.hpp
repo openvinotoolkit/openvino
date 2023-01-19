@@ -159,7 +159,7 @@ public:
      * @param params Map of device-specific shared context parameters.
      * @return A shared pointer to a created remote context.
      */
-    virtual ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) = 0;
+    virtual ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const = 0;
 
     /**
      * @brief Get only configs that are suppored by device
@@ -167,7 +167,7 @@ public:
      * @param config Map of configs that can contains configs that are not supported by device
      * @return map of configs that are supported by device
      */
-    virtual ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) = 0;
+    virtual ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const = 0;
 
     virtual bool is_new_api() const = 0;
 

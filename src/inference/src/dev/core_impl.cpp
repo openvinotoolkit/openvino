@@ -618,12 +618,12 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     return devices;
 }
 
-ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& args) {
+ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& args) const {
     auto parsed = ov::parseDeviceNameIntoConfig(device_name, args);
     return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
 
-ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& config) {
+ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& config) const {
     std::vector<std::string> supportedConfigKeys;
     try {
         supportedConfigKeys = GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
