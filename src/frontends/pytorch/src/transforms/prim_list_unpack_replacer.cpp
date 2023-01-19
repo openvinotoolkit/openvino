@@ -146,6 +146,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             if (!meshgrid_input_node) {
                 return false;
             }
+            NodeVector rt_copy_from{list_unpack, input_node, meshgrid_input_node};
             OutputVector meshgrid_inputs;
             for (auto& input : meshgrid_input_node->inputs()) {
                 meshgrid_inputs.push_back(input.get_source_output());
@@ -165,6 +166,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 if (!meshgrid_indexing_node) {
                     return false;
                 }
+                rt_copy_from.push_back(meshgrid_indexing_node);
                 auto meshgrid_indexing_const = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
                     meshgrid->input_value(1).get_node_shared_ptr());
                 indexing = meshgrid_indexing_const->get_decoder()->as_string();
@@ -172,7 +174,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 return false;
             }
 
-            if (indexing == "xy") {
+            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
                 std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);
             }
             NodeVector cat_shapes{};
@@ -195,14 +197,18 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 reshapes.push_back(reshape_cat);
             }
             auto cat = std::make_shared<opset10::Concat>(cat_shapes, 0);
+            NodeVector to_copy_rt{cat};
+            to_copy_rt.push_back(cat);
             OutputVector outputs{};
             for (auto& reshape : reshapes) {
                 auto out = std::make_shared<opset10::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL);
+                to_copy_rt.push_back(out);
                 outputs.push_back(out);
             }
-            if (indexing == "xy") {
+            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
                 std::swap(outputs[0], outputs[1]);
             }
+            copy_runtime_info(rt_copy_from, to_copy_rt);
             replace_node(list_unpack, outputs);
             return true;
         }
