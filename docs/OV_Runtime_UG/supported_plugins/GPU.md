@@ -138,7 +138,7 @@ It is done by specifying `MULTI:GPU.1,GPU.0` as a target device.
 For more details, see the [Multi-device execution](../multi_device.md).
 
 ### Automatic Batching
-The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware 
+The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware
 platform and model. Therefore, automatic batching is enabled by default when `ov::optimal_batch_size` is `> 1` and `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
 Alternatively, it can be enabled explicitly via the device notion, for example `BATCH:GPU`.
 
@@ -238,7 +238,7 @@ For usage examples, refer to the [RemoteTensor API](./GPU_RemoteTensor_API.md).
 For more details, see the [preprocessing API](../preprocessing_overview.md).
 
 ### Model Caching
-Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels, so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option. 
+Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels, so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option.
 Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the `ov::cache_dir` property enabled.
 
 > **NOTE**: Full model caching support is currently implemented as a preview feature. To activate it, set the OV_GPU_CACHE_MODEL environment variable to 1.
@@ -262,8 +262,9 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - ov::enable_profiling
 - ov::hint::model_priority
 - ov::hint::performance_mode
+- ov::hint::execution_mode
 - ov::hint::num_requests
-- ov::hint::inference_precision
+- ov::inference_precision
 - ov::num_streams
 - ov::compilation_num_threads
 - ov::device::id
