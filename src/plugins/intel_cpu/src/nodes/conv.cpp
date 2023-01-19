@@ -1430,8 +1430,11 @@ void Convolution::prepareParams() {
     // executor handles SRC/WEIGHTS/DST format gaps between primitive and Nodes I/O
     // by insertting reorders dynamically
     executor.reset(conv_prim_pd.first, conv_prim_pd.second);
-    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive(), getParentEdgeAt(0)->getParent()->isConstant());
-    executor.setArg(DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive(), getParentEdgeAt(1)->getParent()->isConstant());
+    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive());
+    executor.setArg(DNNL_ARG_WEIGHTS,
+                    wghMemPtr->GetPrimitive(),
+                    getParentEdgeAt(1)->getParent()->isConstant() ? DnnlExecutor2::arg_mem_type::constant
+                                                                  : DnnlExecutor2::arg_mem_type::normal);
     executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive());
 
     if (withBiases)
@@ -1454,7 +1457,7 @@ void Convolution::prepareParams() {
 
 #ifdef CPU_DEBUG_CAPS
     if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitiveDesc()->info(), "\n");
+        DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");
     }
 #endif
 }

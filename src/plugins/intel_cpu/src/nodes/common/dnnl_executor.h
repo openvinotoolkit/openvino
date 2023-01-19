@@ -70,6 +70,7 @@ class DnnlExecutor2 {
             inputReorders.clear();
             outputReorders.clear();
             constFoldings.clear();
+            updateHandles.clear();
             constFolded = false;
             // privateWeightCache was kept to always reference weights of different format
             setScratchPad();
@@ -82,12 +83,25 @@ class DnnlExecutor2 {
         void exec(dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor2() = default;
-        const_dnnl_primitive_desc_t getPrimitiveDesc() const;
+        const dnnl::primitive & getPrimitive() const {
+            return prim;
+        }
+        const dnnl::primitive_desc_base & getPrimitiveDesc() const {
+            return pd;
+        }
         dnnl::memory::desc queryMD(const dnnl::query& what, int idx);
         impl_desc_type getImplementationType() const;
 
-        void setArg(int arg_id, dnnl::memory arg_mem, bool isConst = false);
+        // Arg type specification.
+        enum class arg_mem_type {
+            normal,
+            constant,
+            reinterpret
+        };
+
+        void setArg(int arg_id, dnnl::memory arg_mem, arg_mem_type atype = arg_mem_type::normal);
         void setDynamicBatch(int newBatch);
+        void setArgDynamicBatch(int arg_id, int newBatch);
 
     protected:
         const GraphContext::CPtr context;
@@ -101,6 +115,17 @@ class DnnlExecutor2 {
         // when underlying scratch pad memory is resized.
         MemoryPtr scratchpadMem;
 
+        // will set handle of src_mem into dst_mem before each execution
+        struct UpdateHandle {
+            dnnl::memory src_mem;
+            void* handle;
+            dnnl::memory dst_mem;
+            UpdateHandle(dnnl::memory src_mem, dnnl::memory dst_mem)
+                : src_mem(src_mem),
+                  dst_mem(dst_mem),
+                  handle(nullptr) {}
+        };
+
         struct ConstFolding {
             dnnl::memory src_mem;
             // before const folding dst_mem is referencing a memory with expected desc but no handle(pointer)
@@ -112,6 +137,7 @@ class DnnlExecutor2 {
 
         bool constFolded;
         std::vector<ConstFolding> constFoldings;
+        std::vector<UpdateHandle> updateHandles;
         std::vector<IntermReorder> inputReorders;
         std::vector<IntermReorder> outputReorders;
         dnnl::memory addConstFolding(dnnl::memory src, std::string privateSrcKey, DnnlMemoryDescPtr expectedWeightDesc);

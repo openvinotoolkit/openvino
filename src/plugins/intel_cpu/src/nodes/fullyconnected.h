@@ -79,8 +79,7 @@ private:
     static const size_t BIAS_ID = 2;
     dnnl::memory::data_type outputDataType;
 
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
-    executorPtr execPtr = nullptr;
+    DnnlExecutor2 executor;
     bool useConv1x1 = false;
     impl_desc_type implementationTypeIP;
     MemoryDescPtr weightDescIP;
@@ -90,23 +89,12 @@ private:
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
-    class ExecutorInnerProduct : public DnnlExecutor {
-        public:
-            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
-    };
-
-    class ExecutorConv1x1 : public DnnlExecutor {
-        public:
-            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
-    };
-
     static DnnlDesriptor createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
                                                          DnnlMemoryDescCPtr weightDescPtr,
                                                          DnnlMemoryDescCPtr biasDescPtr,
                                                          DnnlMemoryDescCPtr outputDescPtr);
 
     bool canBeExecutedInConv1x1() const;
-    MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
 
     // sparse weights
     bool useSparseWeights = false;

@@ -114,7 +114,7 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
 }
 
 FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false), executor(context, getName()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
@@ -260,8 +260,7 @@ void FullyConnected::prepareParams() {
 
     auto engine = getEngine();
 
-    auto builder = [&engine](const FCKey& key) -> executorPtr {
-        executorPtr execPtr = nullptr;
+    auto builder = [&engine](const FCKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
         if (key.useConv1x1) {
             auto desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out);
             primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
@@ -280,143 +279,123 @@ void FullyConnected::prepareParams() {
             }
 
             if (prim_desc) {
-                execPtr = std::make_shared<ExecutorConv1x1>(prim_desc);
+                return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
             }
         }
+
         // fallback
-        if (!execPtr) {
-            auto inDesc = key.inp0->getDnnlDesc();
-            if (inDesc.dims().size() == 3) {
-                auto inDims = inDesc.dims();
-                auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-                inDesc = inDesc.reshape(normalizedInDims);
-            }
-
-            auto outDesc = key.out->getDnnlDesc();
-            if (outDesc.dims().size() == 3) {
-                auto outDims = outDesc.dims();
-                auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
-                outDesc = outDesc.reshape(normalizedOutDims);
-            }
-
-            std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
-            if (key.bias) {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
-                                                                            inDesc,
-                                                                            key.inp1->getDnnlDesc(),
-                                                                            key.bias->getDnnlDesc(),
-                                                                            outDesc);
-            } else {
-                fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
-                                                                            inDesc,
-                                                                            key.inp1->getDnnlDesc(),
-                                                                            outDesc);
-            }
-            DnnlDesriptor desc(fcDsc);
-            primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-            inner_product_forward::primitive_desc prim_desc;
-
-            while (static_cast<bool>(itpd))  {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == key.implType) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    return nullptr;
-                }
-            }
-
-            execPtr = std::make_shared<ExecutorInnerProduct>(prim_desc);
+        auto inDesc = key.inp0->getDnnlDesc();
+        if (inDesc.dims().size() == 3) {
+            auto inDims = inDesc.dims();
+            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+            inDesc = inDesc.reshape(normalizedInDims);
         }
-        return execPtr;
+
+        auto outDesc = key.out->getDnnlDesc();
+        if (outDesc.dims().size() == 3) {
+            auto outDims = outDesc.dims();
+            auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
+            outDesc = outDesc.reshape(normalizedOutDims);
+        }
+
+        std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
+        if (key.bias) {
+            fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
+                                                                        inDesc,
+                                                                        key.inp1->getDnnlDesc(),
+                                                                        key.bias->getDnnlDesc(),
+                                                                        outDesc);
+        } else {
+            fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
+                                                                        inDesc,
+                                                                        key.inp1->getDnnlDesc(),
+                                                                        outDesc);
+        }
+        DnnlDesriptor desc(fcDsc);
+        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        inner_product_forward::primitive_desc prim_desc;
+
+        while (static_cast<bool>(itpd))  {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            if (impl_type == key.implType) {
+                prim_desc = itpd.get();
+                break;
+            }
+            if (!itpd.next_impl()) {
+                // empty objects to indicate error
+                return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
+            }
+        }
+        return std::make_pair(dnnl::inner_product_forward(prim_desc), prim_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-
-    if (!result.first) {
+    auto prim_pd = result.first;
+    if (!prim_pd.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    auto prevExecPtr = execPtr;
-    execPtr = result.first;
+    auto wghMemPtr = getParentEdgeAt(1)->getMemoryPtr();
 
-    if (execPtr) {
-        // no executor yet or shapes changed
-        if (!prevExecPtr || prevExecPtr->getSrcDesc() != execPtr->getSrcDesc()) {
-            auto oldMem = srcMemPtr->GetPrimitive();
-            // fast path: wanted is same with parent node output, typical is static shape with inner product
-            if (execPtr->getSrcDesc() == inDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_SRC] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getSrcDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
-        }
-        if (!prevExecPtr || prevExecPtr->getDstDesc() != execPtr->getDstDesc()) {
-            auto oldMem = dstMemPtr->GetPrimitive();
-            if (execPtr->getDstDesc() == outDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_DST] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDstDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
-        }
-        if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
-        }
-        // changed shapes may also cause the kernel type changed
-        selected_pd->setImplementationType(execPtr->getImplementationType());
-        // WA: We update implType to know whether weights decompression was used inside the kernel
-        if (selected_pd->getImplementationType() == ov::intel_cpu::brgemm_avx512_amx && useSparseWeights) {
-            selected_pd->setImplementationType(ov::intel_cpu::brgemm_sparse_avx512_amx);
-        }
-        // maybe expected 1x1 conv is not created, update the flag depends on the real type
-        useConv1x1 = execPtr->getImplementationType() == brgconv_avx512_1x1;
+    executor.reset(prim_pd.first, prim_pd.second);
+    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive(), DnnlExecutor2::arg_mem_type::reinterpret);
+    executor.setArg(DNNL_ARG_WEIGHTS,
+                    wghMemPtr->GetPrimitive(),
+                    getParentEdgeAt(1)->getParent()->isConstant() ? DnnlExecutor2::arg_mem_type::constant
+                                                                  : DnnlExecutor2::arg_mem_type::normal);
+    executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive(), DnnlExecutor2::arg_mem_type::reinterpret);
 
-        if (withBiases) {
-            primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
-        }
+    if (withBiases)
+        executor.setArg(DNNL_ARG_BIAS, biasMemPtr->GetPrimitive());
 
-        appendPostOpArgs(*attr, primArgs, postOpsArgs);
-
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-#ifdef CPU_DEBUG_CAPS
-        if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-            DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
-        }
-#endif
-    } else {
-        IE_THROW() << "Executor is not created for node " << getName() << ".";
+    // changed shapes may also cause the kernel type changed
+    auto impl_type = executor.getImplementationType();
+    selected_pd->setImplementationType(impl_type);
+    // WA: We update implType to know whether weights decompression was used inside the kernel
+    if (selected_pd->getImplementationType() == ov::intel_cpu::brgemm_avx512_amx && useSparseWeights) {
+        selected_pd->setImplementationType(ov::intel_cpu::brgemm_sparse_avx512_amx);
     }
+    // maybe expected 1x1 conv is not created, update the flag depends on the real type
+    useConv1x1 = (impl_type == brgconv_avx512_1x1);
+
+    for (auto & entry : postOpsArgs) {
+        executor.setArg(entry.first, entry.second->GetPrimitive());
+    }
+
+#ifdef CPU_DEBUG_CAPS
+    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
+        DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");
+    }
+#endif
 }
 
 void FullyConnected::setDynamicBatchLim(int lim) {
-    if (!execPtr) {
+    if (!executor) {
         IE_THROW() << "Can't set dynamic batch for FullyConnected node with name: " << getName() << ", because executor is not compiled";
     }
-    if (execPtr->needReordering()) {
+    if (executor.needReordering()) {
         IE_THROW() << "Can't execute FullyConnected node with dynamic batch via executor with reorders";
     }
 
-    auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
+    auto setBatchPrimArgs = [this](int arg_id, const dnnl::memory& oldMem) {
         dnnl::memory::desc newMemDesc(oldMem.get_desc());
         newMemDesc.data.dims[0] = batchToProcess();
         newMemDesc.data.padded_dims[0] = batchToProcess();
         auto dims = newMemDesc.dims();
-
         if (dims.size() == 3) {
             std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
             newMemDesc = newMemDesc.reshape(normalizedDims);
+            executor.setArgDynamicBatch(arg_id, dims[0] * dims[1]);
+        } else {
+            executor.setArgDynamicBatch(arg_id, dims[0]);
         }
-
-        primArgs.at(argType) = dnnl::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
     };
 
     if (useConv1x1) {
-        Node::setDynamicBatchLim(lim);
+        dynBatchLim = lim;
+        executor.setDynamicBatch(batchToProcess());
     } else {
         dynBatchLim = lim;
         setBatchPrimArgs(DNNL_ARG_SRC, getParentEdgesAtPort(0)[0]->getMemory().GetPrimitive());
@@ -425,28 +404,10 @@ void FullyConnected::setDynamicBatchLim(int lim) {
 }
 
 void FullyConnected::execute(dnnl::stream strm) {
-    if (!execPtr) {
+    if (!executor) {
         IE_THROW() << "Can't execute FullyConnected node with name: " << getName() << ", because executor is not compiled";
     }
-
-    // in cases parameter -> FullyConnected or dynamic shapes
-    // we keep old pointer to data in primArgs on second iteration with same input shapes
-    auto updateMemoryPtr = [this](int argType) {
-        auto param = primArgs.find(argType);
-        if (param != primArgs.end()) {
-            if (argType == DNNL_ARG_SRC && (getInputShapeAtPort(DATA_ID).getRank() == 3 || useConv1x1)) {
-                primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
-            }
-            if (argType == DNNL_ARG_DST && (getOutputShapeAtPort(0).getRank() == 3 || useConv1x1)) {
-                primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
-            }
-        }
-    };
-
-    updateMemoryPtr(DNNL_ARG_SRC);
-    updateMemoryPtr(DNNL_ARG_DST);
-
-    execPtr->exec(primArgs, strm);
+    executor.exec(strm);
 }
 
 void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
@@ -842,59 +803,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     return retVal;
-}
-
-FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::inner_product_forward(pd));
-}
-
-FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    execPrim.reset(new dnnl::convolution_forward(pd));
-}
-
-MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        IE_THROW() << "Weight input is not const for node " << getName() << ".";
-    auto blob = getParentEdgeAt(1)->getMemoryPtr();
-    if (!blob)
-        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
-
-    auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().dims());
-    auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-        Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, blob->GetData());
-
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-        _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
-
-        return _ptr;
-    };
-
-    MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
-    auto itr = privateWeightCache.find(format);
-    if (privateWeightCache.end() != itr) {
-        ptr = itr->second;
-    } else {
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(blob->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-        privateWeightCache[format] = ptr;
-    }
-
-    return ptr;
 }
 
 bool FullyConnected::useSparseWeightsDecompression() {

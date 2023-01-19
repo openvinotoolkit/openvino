@@ -86,21 +86,35 @@ impl_desc_type DnnlExecutor::getImplementationType() const {
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
 }
 
-
 bool DnnlExecutor2::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-const_dnnl_primitive_desc_t DnnlExecutor2::getPrimitiveDesc() const {
-    return prim.get_primitive_desc();
-}
-
 impl_desc_type DnnlExecutor2::getImplementationType() const {
-    auto pd = getPrimitiveDesc();
-    return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
+    return parse_impl_name(pd.impl_info_str());
 }
 
-void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, bool isConst) {
+// scenario
+//    infer[i-1](shape1) ===>  infer[i](shape2) ==> infer[i+1](shape2)
+//
+// shape change happens at infer[i], DnnlExecutor will be updated with
+// the input/output/internal memory objects of new sizes.
+//
+// at infer[i+1], shape is unchanged, DnnlExecutor is not updated, so
+//  1. descriptors of input/output/internal memory
+//  2. the primitives: main or internal reorders
+// are all unchanged, but the memory pointer may be updated, especially
+// when it's from Input node, due to some optimizations for eliminating copies.
+//
+// because external_mem is referencing the same dnnl::memory object referenced by Edges,
+// thus any changes to the actual addresses still can be sensed by all
+// primitives in the DnnlExecutor.
+//
+// things becomes different when we're trying to build a different memory object to wrap
+// a memory with different pointer, at infer[i+1], this object needs to be updated
+// again at each inference. we remember such operation in updateHandles.
+//
+void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, arg_mem_type atype) {
     memory::desc internal_desc;
     bool is_output = false;
 
@@ -120,14 +134,17 @@ void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, bool isConst) 
     // handl reorders for SRC/WEIGHTS/DST
     auto external_desc = external_mem.get_desc();
     if (external_desc == internal_desc) {
+        // atype is ignored when descriptor is the same
         args[arg_id] = external_mem;
     } else {
         dnnl::memory internal_mem;
-        if (isConst) {
+        if (atype == arg_mem_type::constant) {
+            // runtime const-folding style reordering is required
             internal_mem = addConstFolding(external_mem,
-                                       std::to_string(arg_id),
-                                       DnnlExtensionUtils::makeDescriptor(internal_desc));
-        } else {
+                                           std::to_string(arg_id),
+                                           DnnlExtensionUtils::makeDescriptor(internal_desc));
+        } else if (atype == arg_mem_type::normal) {
+            // runtime reorder is required
             internal_mem = dnnl::memory(internal_desc, context->getEngine());
             if (is_output) {
                 outputReorders.emplace_back(context->getReorderPrim(internal_desc, external_desc),
@@ -136,6 +153,10 @@ void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, bool isConst) 
                 inputReorders.emplace_back(context->getReorderPrim(external_desc, internal_desc),
                                            PrimArgs{{DNNL_ARG_SRC, external_mem}, {DNNL_ARG_DST, internal_mem}});
             }
+        } else if (atype == arg_mem_type::reinterpret) {
+            // runtime handle update is required
+            internal_mem = dnnl::memory(internal_desc, context->getEngine(), nullptr);
+            updateHandles.emplace_back(external_mem, internal_mem);
         }
         args[arg_id] = internal_mem;
     }
@@ -203,23 +224,58 @@ void DnnlExecutor2::doConstFolding(ConstFolding& cf) {
 }
 
 void DnnlExecutor2::exec(dnnl::stream strm) {
+    // update internal memory reinterpreted from external memory
+    // using different descriptors
+    for (auto& u : updateHandles) {
+        auto cur_handle = u.src_mem.get_data_handle();
+        if (cur_handle != u.handle) {
+            u.handle = cur_handle;
+            u.dst_mem.set_data_handle_no_pads_proc(u.handle);
+        }
+    }
+
     // const folding is done once at first execution
     if (!constFolded) {
-        for (auto & cf : constFoldings)
+        for (auto& cf : constFoldings)
             doConstFolding(cf);
         constFolded = true;
     }
 
-    // pre-reordering
-    for (auto & s : inputReorders) {
+    // input reordering
+    for (auto& s : inputReorders) {
         s.prim.execute(strm, s.args);
     }
 
+    // main primitive
     prim.execute(strm, args);
 
-    // post-reordering
-    for (auto & s : outputReorders) {
+    // output reordering
+    for (auto& s : outputReorders) {
         s.prim.execute(strm, s.args);
+    }
+}
+
+void DnnlExecutor2::setArgDynamicBatch(int arg_id, int newBatch) {
+    auto param = args.find(arg_id);
+    if (param != args.end()) {
+        auto oldMem = param->second;
+        dnnl::memory::desc newMemDesc(oldMem.get_desc());
+        newMemDesc.data.dims[0] = newBatch;
+        newMemDesc.data.padded_dims[0] = newBatch;
+        dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+
+        // update "updateHandles" records to keep track of this new reinterpreted memory
+        bool found = false;
+        for (auto & u : updateHandles) {
+            if (u.dst_mem == oldMem) {
+                u.dst_mem = newMem;
+                found = true;
+            }
+        }
+        if (!found) {
+            updateHandles.emplace_back(oldMem, newMem);
+        }
+        args.at(arg_id) = newMem;
     }
 }
 
@@ -232,23 +288,11 @@ void DnnlExecutor2::setDynamicBatch(int newBatch) {
         IE_THROW() << "Can't execute node " << name << " with dynamic batch via executor with reorders";
     }
 
-    auto setDynamicBatch = [this](int argType, int newBatch) {
-        auto param = args.find(argType);
-        if (param != args.end()) {
-            auto oldMem = param->second;
-            dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            newMemDesc.data.dims[0] = newBatch;
-            newMemDesc.data.padded_dims[0] = newBatch;
-            dnnl::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
-            args.at(argType) = newMem;
-        }
-    };
-
     if (!args.empty()) {
-        setDynamicBatch(DNNL_ARG_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DST, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
-        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
+        setArgDynamicBatch(DNNL_ARG_SRC, newBatch);
+        setArgDynamicBatch(DNNL_ARG_DST, newBatch);
+        setArgDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
+        setArgDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
     }
 }
 
