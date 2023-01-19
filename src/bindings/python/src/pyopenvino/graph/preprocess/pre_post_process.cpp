@@ -453,6 +453,7 @@ static void regenum_graph_ColorFormat(py::module m) {
         .value("I420_THREE_PLANES", ov::preprocess::ColorFormat::I420_THREE_PLANES)
         .value("RGB", ov::preprocess::ColorFormat::RGB)
         .value("BGR", ov::preprocess::ColorFormat::BGR)
+        .value("GRAY", ov::preprocess::ColorFormat::GRAY)
         .value("RGBX", ov::preprocess::ColorFormat::RGBX)
         .value("BGRX", ov::preprocess::ColorFormat::BGRX)
         .export_values();
