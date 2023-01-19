@@ -66,35 +66,35 @@ public:
     MOCK_METHOD1(GetDefaultContext, InferenceEngine::RemoteContext::Ptr(const std::string&));
 
     MOCK_CONST_METHOD0(is_new_api, bool());
-    MOCK_METHOD2(get_supported_property, ov::AnyMap(const std::string&, const ov::AnyMap&));
-    MOCK_METHOD2(create_context, ov::RemoteContext(const std::string& deviceName, const ov::AnyMap& params));
+    MOCK_CONST_METHOD2(get_supported_property, ov::AnyMap(const std::string&, const ov::AnyMap&));
+    MOCK_CONST_METHOD2(create_context, ov::RemoteContext(const std::string& deviceName, const ov::AnyMap& params));
     MOCK_CONST_METHOD1(device_supports_import_export, bool(const std::string&));
     MOCK_CONST_METHOD0(get_available_devices, std::vector<std::string>());
     MOCK_CONST_METHOD3(query_model,
                        ov::SupportedOpsMap(const std::shared_ptr<const ov::Model>&,
                                            const std::string&,
                                            const ov::AnyMap&));
-    MOCK_METHOD3(import_model,
-                 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(std::istream&,
-                                                                        const std::string&,
-                                                                        const ov::AnyMap&));
-    MOCK_METHOD3(compile_model,
-                 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(const std::shared_ptr<const ov::Model>&,
-                                                                        const std::string&,
-                                                                        const ov::AnyMap&));
-    MOCK_METHOD3(compile_model,
-                 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(const std::shared_ptr<const ov::Model>&,
-                                                                        const ov::RemoteContext&,
-                                                                        const ov::AnyMap&));
-    MOCK_METHOD3(compile_model,
-                 ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(const std::string&,
-                                                                        const std::string&,
-                                                                        const ov::AnyMap&));
-    MOCK_METHOD4(compile_model,
-                 InferenceEngine::SoExecutableNetworkInternal(const std::string&,
-                                                              const ov::Tensor&,
-                                                              const std::string&,
-                                                              const ov::AnyMap&));
+    MOCK_CONST_METHOD3(import_model,
+                       ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(std::istream&,
+                                                                              const std::string&,
+                                                                              const ov::AnyMap&));
+    MOCK_CONST_METHOD3(compile_model,
+                       ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(const std::shared_ptr<const ov::Model>&,
+                                                                              const std::string&,
+                                                                              const ov::AnyMap&));
+    MOCK_CONST_METHOD3(compile_model,
+                       ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(const std::shared_ptr<const ov::Model>&,
+                                                                              const ov::RemoteContext&,
+                                                                              const ov::AnyMap&));
+    MOCK_CONST_METHOD3(compile_model,
+                       ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(const std::string&,
+                                                                              const std::string&,
+                                                                              const ov::AnyMap&));
+    MOCK_CONST_METHOD4(compile_model,
+                       InferenceEngine::SoExecutableNetworkInternal(const std::string&,
+                                                                    const ov::Tensor&,
+                                                                    const std::string&,
+                                                                    const ov::AnyMap&));
     MOCK_CONST_METHOD3(read_model, std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&, bool));
     MOCK_CONST_METHOD2(read_model, std::shared_ptr<ov::Model>(const std::string&, const std::string&));
     MOCK_CONST_METHOD1(get_default_context, ov::RemoteContext(const std::string&));
