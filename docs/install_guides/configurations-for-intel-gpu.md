@@ -9,17 +9,16 @@
 
 In case if you are intended to use OpenVINO GPU plugin and offload network inference to Intel® graphics processor, the Intel Graphics Driver should be properly configured on your system.
 
-> **NOTE**: In case you have the driver pre-installed in your system, and you want to rely on it, please skip this guide.
+> **NOTE**: In case you already have pre-installed driver in your system, and you want to keep it, the installation steps not required.
 
 ## Linux
 
-To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://dgpu-docs.intel.com/installation-guides/index.html).
+To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://github.com/intel/compute-runtime/releases/latest).
+> **NOTE**: For instructions specific for discrete graphics platforms (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series and Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, Intel® Iris Xe MAX (codename DG1)), please refer to [this guide](https://dgpu-docs.intel.com/installation-guides/index.html).
 
 Alternatively, you can install one of the earlier versions of the driver based on your internal considerations.
 
-Additionally, it is recommended that you refer to the [Intel® Graphics Compute Runtime Github page](https://github.com/intel/compute-runtime/) for the latest instructions and recommendations on GPU driver installation, including the list of supported hardware platforms.
-
-> **NOTE**: For instructions specific for discrete graphics platforms (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series and Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, Intel® Iris Xe MAX (codename DG1)), please refer to [this guide](https://dgpu-docs.intel.com/installation-guides/index.html).
+Additionally, it is recommended that you refer to the [Intel® Graphics Compute Runtime Github page](https://github.com/intel/compute-runtime/) for the instructions and recommendations on GPU driver installation specific to particular release, including the list of supported hardware platforms.
 
 You've completed all required configuration steps to perform inference on processor graphics.
 
