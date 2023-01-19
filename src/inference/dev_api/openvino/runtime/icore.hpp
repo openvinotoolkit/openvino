@@ -121,7 +121,7 @@ public:
      * @return An executable network reference
      */
     virtual ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>
-    import_model(std::istream& model, const std::string& device_name = {}, const ov::AnyMap& config = {}) const = 0;
+    import_model(std::istream& model, const std::string& device_name, const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration

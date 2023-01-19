@@ -233,7 +233,5 @@ private:
             throw ov::Exception(ex.what());                                                              \
         } catch (const std::exception& ex) {                                                             \
             throw ov::Exception(ex.what());                                                              \
-        } catch (...) {                                                                                  \
-            throw ov::Exception("Unexpected exception");                                                 \
         }                                                                                                \
     }

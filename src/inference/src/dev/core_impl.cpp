@@ -18,6 +18,7 @@
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "iplugin_wrapper.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/core/any.hpp"
@@ -102,7 +103,7 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
-void ov::CoreImpl::reguster_plugins_in_registry(const std::string& xmlConfigFile) {
+void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto parse_result = ParseXml(xmlConfigFile.c_str());
@@ -384,111 +385,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
-        // if IR `version` is not set, suppose it's IR v10 for old API
-        // it allows to use operation names in set_ / get_tensor instead of tensor_names
-        if (!cloned_model->has_rt_info("version")) {
-            cloned_model->set_rt_info(int64_t(10), "version");
-            // // re-create `network` with new patched `function`
-            // OPENVINO_SUPPRESS_DEPRECATED_START
-            // auto new_impl = std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(
-            //     cloned_model,
-            //     std::vector<InferenceEngine::IExtensionPtr>{},
-            //     IsNewAPI());
-            // auto network = InferenceEngine::CNNNetwork(new_impl);
-            // cloned_model = network.getFunction();
-            // OPENVINO_SUPPRESS_DEPRECATED_END
-        }
-
-        // Add pre-processing
-        ov::preprocess::PrePostProcessor preproc(cloned_model);
-
-        for (size_t i = 0; i < cloned_model->inputs().size(); i++) {
-            ov::Output<const ov::Node> input{cloned_model->input(i).get_node(), cloned_model->input(i).get_index()};
-            InferenceEngine::InputInfo::Ptr input_info;
-            // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
-            // ExecutableNetwork
-            ov::legacy_convert::fill_input_info(input, input_info);
-            if (input_info) {
-                preproc.input(i).tensor().set_element_type(
-                    InferenceEngine::details::convertPrecision(input_info->getPrecision()));
-                std::stringstream stream;
-                stream << input_info->getLayout();
-                preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
-
-                auto& preProc = input_info->getPreProcess();
-
-                // Resize
-                switch (preProc.getResizeAlgorithm()) {
-                case InferenceEngine::ResizeAlgorithm::RESIZE_AREA:
-                    preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST);
-                    preproc.input(i).tensor().set_spatial_dynamic_shape();
-                    break;
-                case InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR:
-                    preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-                    preproc.input(i).tensor().set_spatial_dynamic_shape();
-                    break;
-                default:
-                    // nothing to do
-                    break;
-                }
-
-                switch (preProc.getColorFormat()) {
-                case InferenceEngine::RGB:
-                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::RGB);
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-                    preproc.input(i).model().set_layout({"NCHW"});
-                    break;
-                case InferenceEngine::RGBX:
-                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::RGBX);
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-                    preproc.input(i).model().set_layout({"NCHW"});
-                    break;
-                case InferenceEngine::BGR:
-                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::BGR);
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-                    preproc.input(i).model().set_layout({"NCHW"});
-                    break;
-                case InferenceEngine::BGRX:
-                    preproc.input(i).tensor().set_color_format(ov::preprocess::ColorFormat::BGRX);
-                    preproc.input(i).preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-                    preproc.input(i).model().set_layout({"NCHW"});
-                    break;
-                default:
-                    // nothing to do
-                    break;
-                }
-
-                switch (preProc.getMeanVariant()) {
-                case InferenceEngine::MEAN_IMAGE: {
-                    std::vector<float> scale;
-                    std::vector<InferenceEngine::Blob::Ptr> data;
-                    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
-                        data.emplace_back(preProc[i]->meanData);
-                        scale.emplace_back(preProc[i]->stdScale);
-                    }
-                    OPENVINO_NOT_IMPLEMENTED;
-                    // preproc.input(i).preprocess().scale(scale).custom([](const ov::Output<ov::Node>& node) {
-                    //     // Custom nodes can be inserted as Pre-processing steps
-                    //     return std::make_shared<ov::opset8::Abs>(node);
-                    // });
-                    break;
-                }
-                case InferenceEngine::MEAN_VALUE: {
-                    std::vector<float> mean, scale;
-                    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
-                        mean.emplace_back(preProc[i]->meanValue);
-                        scale.emplace_back(preProc[i]->stdScale);
-                    }
-                    preproc.input(i).preprocess().mean(mean).scale(scale);
-                    break;
-                }
-                default:
-                    // nothing to do
-                    break;
-                }
-            }
-        }
-        cloned_model = preproc.build();
+        OPENVINO_NOT_IMPLEMENTED;
     }
 
     if (!context._impl) {
@@ -1127,6 +1024,14 @@ std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov:
 }
 
 std::string ov::CoreImpl::CalculateNetworkHash(const InferenceEngine::CNNNetwork& network,
+                                               const std::string& deviceFamily,
+                                               const ov::Plugin& plugin,
+                                               const ov::AnyMap& config) const {
+    InferenceEngine::CNNNetwork net(network);
+    return CalculateNetworkHash(net, deviceFamily, plugin, config);
+}
+
+std::string ov::CoreImpl::CalculateNetworkHash(InferenceEngine::CNNNetwork& network,
                                                const std::string& deviceFamily,
                                                const ov::Plugin& plugin,
                                                const ov::AnyMap& config) const {

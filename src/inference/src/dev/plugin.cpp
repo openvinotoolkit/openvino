@@ -8,6 +8,7 @@
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
+#include "iplugin_wrapper.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \
     OPENVINO_ASSERT(m_ptr != nullptr, "OpenVINO Runtime Plugin was not initialized."); \

@@ -11,6 +11,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
 #include "ie_network_reader.hpp"
+#include "iplugin_wrapper.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"

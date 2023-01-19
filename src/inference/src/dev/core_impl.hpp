@@ -236,6 +236,11 @@ private:
                                      const ov::Plugin& plugin,
                                      const ov::AnyMap& config) const;
 
+    std::string CalculateNetworkHash(InferenceEngine::CNNNetwork& network,
+                                     const std::string& deviceFamily,
+                                     const ov::Plugin& plugin,
+                                     const ov::AnyMap& config) const;
+
 public:
     CoreImpl(bool _newAPI);
 
@@ -246,7 +251,7 @@ public:
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
-    void reguster_plugins_in_registry(const std::string& xmlConfigFile);
+    void register_plugins_in_registry(const std::string& xmlConfigFile);
 
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
@@ -261,7 +266,7 @@ public:
      * @note The function supports UNICODE path
      * @param static_registry a statically defined configuration with device / plugin information
      */
-    void reguster_plugins_in_registry(const decltype(::getStaticPluginsRegistry())& static_registry) {
+    void register_plugins_in_registry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(get_mutex());
 
         for (const auto& plugin : static_registry) {

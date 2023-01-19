@@ -50,7 +50,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->reguster_plugins_in_registry(::getStaticPluginsRegistry());
+    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
 #else
     register_plugins(findPluginXML(xmlConfigFile));
 #endif
@@ -242,7 +242,7 @@ void Core::unload_plugin(const std::string& deviceName) {
 }
 
 void Core::register_plugins(const std::string& xmlConfigFile) {
-    OV_CORE_CALL_STATEMENT(_impl->reguster_plugins_in_registry(xmlConfigFile););
+    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xmlConfigFile););
 }
 
 RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& params) {

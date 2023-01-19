@@ -26,6 +26,7 @@
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
+#include "iplugin_wrapper.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "so_ptr.hpp"
 #include "transformations/utils/utils.hpp"

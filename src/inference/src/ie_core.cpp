@@ -65,7 +65,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->reguster_plugins_in_registry(::getStaticPluginsRegistry());
+    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
 #else
     RegisterPlugins(ov::findPluginXML(xmlConfigFile));
 #endif
@@ -318,7 +318,7 @@ void Core::RegisterPlugin(const std::string& pluginName, const std::string& devi
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
-    _impl->reguster_plugins_in_registry(xmlConfigFile);
+    _impl->register_plugins_in_registry(xmlConfigFile);
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
