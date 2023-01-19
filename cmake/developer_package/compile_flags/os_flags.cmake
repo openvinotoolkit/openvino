@@ -6,7 +6,9 @@ include(ProcessorCount)
 include(CheckCXXCompilerFlag)
 
 #
-# Disables deprecated warnings generation
+# disable_deprecated_warnings()
+#
+# Disables deprecated warnings generation in current scope (directory, function)
 # Defines ie_c_cxx_deprecated varaible which contains C / C++ compiler flags
 #
 macro(disable_deprecated_warnings)
@@ -35,7 +37,9 @@ macro(disable_deprecated_warnings)
 endmacro()
 
 #
-# Don't threat deprecated warnings as errors
+# ie_deprecated_no_errors()
+#
+# Don't threat deprecated warnings as errors in current scope (directory, function)
 # Defines ie_c_cxx_deprecated_no_errors varaible which contains C / C++ compiler flags
 #
 macro(ie_deprecated_no_errors)
@@ -65,6 +69,8 @@ macro(ie_deprecated_no_errors)
 endmacro()
 
 #
+# ie_sse42_optimization_flags(<output flags>)
+#
 # Provides SSE4.2 compilation flags depending on an OS and a compiler
 #
 macro(ie_sse42_optimization_flags flags)
@@ -89,6 +95,8 @@ macro(ie_sse42_optimization_flags flags)
 endmacro()
 
 #
+# ie_avx2_optimization_flags(<output flags>)
+#
 # Provides AVX2 compilation flags depending on an OS and a compiler
 #
 macro(ie_avx2_optimization_flags flags)
@@ -109,6 +117,8 @@ macro(ie_avx2_optimization_flags flags)
     endif()
 endmacro()
 
+#
+# ie_avx512_optimization_flags(<output flags>)
 #
 # Provides common AVX512 compilation flags for AVX512F instruction set support
 # depending on an OS and a compiler
@@ -135,11 +145,14 @@ macro(ie_avx512_optimization_flags flags)
     endif()
 endmacro()
 
+#
+# ie_arm_neon_optimization_flags(<output flags>)
+#
 macro(ie_arm_neon_optimization_flags flags)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # nothing
+        # nothing to define; works out of box
     elseif(ANDROID)
         if(ANDROID_ABI STREQUAL "arm64-v8a")
             set(${flags} -mfpu=neon -Wno-unused-command-line-argument)
@@ -159,6 +172,8 @@ macro(ie_arm_neon_optimization_flags flags)
     endif()
 endmacro()
 
+#
+# ov_disable_all_warnings(<target1 [target2 target3 ...]>)
 #
 # Disables all warnings for 3rd party targets
 #
@@ -186,12 +201,16 @@ function(ov_disable_all_warnings)
 endfunction()
 
 #
+# ie_enable_lto()
+#
 # Enables Link Time Optimization compilation
 #
 macro(ie_enable_lto)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endmacro()
 
+#
+# ie_add_compiler_flags(<flag1 [flag2 flag3 ...>])
 #
 # Adds compiler flags to C / C++ sources
 #
@@ -206,6 +225,8 @@ function(ov_add_compiler_flags)
     ie_add_compiler_flags(${ARGN})
 endfunction()
 
+#
+# ov_force_include(<target> <PUBLIC | PRIVATE | INTERFACE> <header file>)
 #
 # Forced includes certain header file to all target source files
 #
@@ -277,6 +298,11 @@ if(WIN32)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
             ie_add_compiler_flags(/Qdiag-warning:47,1740,1786)
         endif()
+    endif()
+
+    if(AARCH64 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT MSVC_VERSION LESS 1930)
+        # otherwise, _ARM64_EXTENDED_INTRINSICS is defined, which defines 'mvn' macro
+        ie_add_compiler_flags(-D_ARM64_DISTINCT_NEON_TYPES)
     endif()
 
     # Compiler specific flags
@@ -374,7 +400,11 @@ else()
     endif()
 endif()
 
+#
+# link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
+#
 # Links provided libraries and include their INTERFACE_INCLUDE_DIRECTORIES as SYSTEM
+#
 function(link_system_libraries TARGET_NAME)
     set(MODE PRIVATE)
 
@@ -395,6 +425,11 @@ function(link_system_libraries TARGET_NAME)
     endforeach()
 endfunction()
 
+#
+# ov_try_use_gold_linker()
+#
+# Tries to use gold linker in current scope (directory, function)
+#
 function(ov_try_use_gold_linker)
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
