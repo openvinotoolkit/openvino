@@ -1,6 +1,9 @@
 name: Documentation
 on: [push, pull_request]
 
+env:
+  DOXY_VER: '1.9.6'
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -65,16 +68,9 @@ jobs:
           tar -xf doxyrest-2.1.3-linux-amd64.tar.xz
           echo "$(pwd)/doxyrest-2.1.3-linux-amd64/bin/" >> $GITHUB_PATH
           # install doxygen
-          mkdir doxygen
-          cd doxygen
-          git clone --depth 1 https://github.com/doxygen/doxygen.git -b Release_1_9_2
-          cmake \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -S doxygen \
-            -B ../doxygen-build
-          cmake --build ../doxygen-build -j`nproc`
-          sudo cmake --build ../doxygen-build --target install
+          wget https://www.doxygen.nl/files/doxygen-$DOXY_VER.linux.bin.tar.gz
+          tar -xzf doxygen-$DOXY_VER.linux.bin.tar.gz
+          echo "$(pwd)/doxygen-$DOXY_VER/bin/" >> $GITHUB_PATH
 
       - name: CMake doc
         run: |
@@ -92,16 +88,16 @@ jobs:
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache
-      
+
       - name: Build doc
         run: |
           cmake --build build --target sphinx_docs -j`nproc`
-      
+
       - name: Archive HTML
         run: |
           zip -r openvino_html.zip _build
         working-directory: build/docs
-      
+
       - name: Run Pytest
         run: |
           pytest --doxygen="./build/docs/doxygen.log" \
@@ -121,7 +117,7 @@ jobs:
         with:
           name: openvino_doc_pytest
           path: build/docs/_artifacts/
-      
+
       - name: 'Upload doxygen.log'
         if: always()
         uses: actions/upload-artifact@v2
