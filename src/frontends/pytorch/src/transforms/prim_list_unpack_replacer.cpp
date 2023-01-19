@@ -151,16 +151,26 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 meshgrid_inputs.push_back(input.get_source_output());
             }
 
+            std::string indexing = "";
             // Indexing - Constant with str "ij" or "xy"
-            // TODO - if meshgrid would be placed inside loop body, cast into prim::Constant would failand return false.
-            auto meshgrid_indexing_node =
-                cast_fw_node(meshgrid->input_value(1).get_node_shared_ptr(), "prim::Constant");
-            if (!meshgrid_indexing_node) {
+            if (meshgrid->inputs().size() == 1) {
+                // No input for indexing argument, use default.
+                indexing = "ij";
+            } else if (meshgrid->inputs().size() == 2) {
+                // Get indexing value from sed input.
+                // TODO - if meshgrid would be placed inside loop body, cast into prim::Constant would fail due to being
+                // Parameter and return false.
+                auto meshgrid_indexing_node =
+                    cast_fw_node(meshgrid->input_value(1).get_node_shared_ptr(), "prim::Constant");
+                if (!meshgrid_indexing_node) {
+                    return false;
+                }
+                auto meshgrid_indexing_const = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
+                    meshgrid->input_value(1).get_node_shared_ptr());
+                indexing = meshgrid_indexing_const->get_decoder()->as_string();
+            } else {
                 return false;
             }
-            auto meshgrid_indexing_const = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
-                meshgrid->input_value(1).get_node_shared_ptr());
-            auto indexing = meshgrid_indexing_const->get_decoder()->as_string();
 
             if (indexing == "xy") {
                 std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);
