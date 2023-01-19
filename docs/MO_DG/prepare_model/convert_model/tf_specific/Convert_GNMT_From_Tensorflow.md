@@ -4,7 +4,7 @@ This tutorial explains how to convert Google Neural Machine Translation (GNMT) m
 
 There are several public versions of TensorFlow GNMT model implementation available on GitHub. This tutorial explains how to convert the GNMT model from the [TensorFlow Neural Machine Translation (NMT) repository](https://github.com/tensorflow/nmt) to the IR.
 
-## Creating a Patch File <a name="patch-file"></a>
+## Creating a Patch File <a name="patch-file-gnmt"></a>
 
 Before converting the model, you need to create a patch file for the repository. The patch modifies the framework code by adding a special command-line argument to the framework options that enables inference graph dumping:
 
@@ -164,7 +164,7 @@ This tutorial assumes the use of the trained GNMT model from `wmt16_gnmt_4_layer
 The OpenVINO assumes that a model is used for inference only. Hence, before converting the model into the IR, you need to transform the training graph into the inference graph.
 For the GNMT model, the training graph and the inference graph have different decoders: the training graph uses a greedy search decoding algorithm, while the inference graph uses a beam search decoding algorithm.
 
-1. Apply the `GNMT_inference.patch` patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
+1. Apply the `GNMT_inference.patch` patch to the repository. Refer to the <a href="#patch-file-gnmt">Create a Patch File</a> instructions if you do not have it:
 ```sh
  git apply /path/to/patch/GNMT_inference.patch
 ```
