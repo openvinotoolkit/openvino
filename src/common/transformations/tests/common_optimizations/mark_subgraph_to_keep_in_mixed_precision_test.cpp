@@ -909,7 +909,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) 
     }
 
     const FunctionsComparator func_comparator =
-            FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -956,7 +956,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean)
     }
 
     const FunctionsComparator func_comparator =
-            FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1002,7 +1002,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_withou
     }
 
     const FunctionsComparator func_comparator =
-            FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1056,7 +1056,7 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
     }
 
     const FunctionsComparator func_comparator =
-            FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = func_comparator(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1092,9 +1092,9 @@ TEST(TransformationTests, MarkDivWithEps) {
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
 
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
@@ -1134,9 +1134,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithNegativeEx
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1175,9 +1175,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_PowWithPositiveEx
         model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1212,9 +1212,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_MinimalPatternUnc
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input_1, input_2});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1257,9 +1257,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);
@@ -1302,9 +1302,9 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const auto fc = FunctionsComparator::with_default()
-            .enable(FunctionsComparator::PRECISIONS)
-            .enable(FunctionsComparator::RUNTIME_KEYS)
-            .enable(FunctionsComparator::CONST_VALUES);
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::RUNTIME_KEYS)
+                        .enable(FunctionsComparator::CONST_VALUES);
     // need to compare twice to ensure that no extra nodes are marked
     FunctionsComparator::Result result = fc(model_ref, model);
     ASSERT_TRUE(result.valid);

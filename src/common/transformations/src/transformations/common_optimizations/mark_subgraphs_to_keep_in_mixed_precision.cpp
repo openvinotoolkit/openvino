@@ -213,8 +213,8 @@ public:
 };
 
 MarkExpReduceOp::MarkExpReduceOp() {
-    ADD_MATCHER_FOR_THIS(InitMarkReduceOpExp)
-    ADD_MATCHER_FOR_THIS(PropagateUpMarkReduceOpExp)
+    ADD_MATCHER_FOR_THIS(InitMarkReduceOpExp);
+    ADD_MATCHER_FOR_THIS(PropagateUpMarkReduceOpExp);
 }
 
 MarkDivWithEps::MarkDivWithEps() {
