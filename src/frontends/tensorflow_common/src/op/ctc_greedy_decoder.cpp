@@ -22,7 +22,7 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     auto sequence_length = node.get_input(1);
 
     // retrieve attribute for CTCGreedyDecoder
-    auto merge_repeated = node.get_attribute<bool>("merge_repeated", true);
+    auto merge_repeated = node.get_attribute<bool>("merge_repeated", false);
     auto blank_index = node.get_attribute<int64_t>("blank_index", -1);
 
     // In TensorFlow the input is going in a format [time_size, batch_size, num_classes]
@@ -34,8 +34,11 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     if (blank_index == -1) {
         // default value for blank index means it should be equal to num_classes - 1
         // in this case it is not required to specify the third input for OpenVINO CTCGreedyDecoderSeqLen
-        ctc_greedy_decoder =
-            make_shared<CTCGreedyDecoderSeqLen>(inputs, sequence_length, merge_repeated, ov::element::i64);
+        ctc_greedy_decoder = make_shared<CTCGreedyDecoderSeqLen>(inputs,
+                                                                 sequence_length,
+                                                                 merge_repeated,
+                                                                 ov::element::i64,
+                                                                 ov::element::i64);
     } else {
         auto blank_index_const = make_shared<Constant>(sequence_length.get_element_type(), ov::Shape{}, blank_index);
         ctc_greedy_decoder = make_shared<CTCGreedyDecoderSeqLen>(inputs,
@@ -62,9 +65,9 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     auto max_seq_len = make_shared<ReduceMax>(ctc_greedy_decoder->output(1), max_seq_len_axis, true);
     // inputs shape is in the form [batch_size, time_size, num_classes]
     auto inputs_shape = make_shared<ShapeOf>(inputs, ov::element::i64);
-    auto slice_start = make_shared<Constant>(ov::element::i64, ov::Shape{}, 0);
-    auto slice_end = make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
-    auto slice_step = make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
+    auto slice_start = make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0);
+    auto slice_end = make_shared<Constant>(ov::element::i64, ov::Shape{1}, 1);
+    auto slice_step = make_shared<Constant>(ov::element::i64, ov::Shape{1}, 1);
     auto batch_size = make_shared<Slice>(inputs_shape, slice_start, slice_end, slice_step);
     auto dense_shape = make_shared<Concat>(OutputVector{batch_size, max_seq_len}, 0);
 
@@ -81,7 +84,7 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     set_node_name(node.get_name() + ":2", dense_shape);
     set_node_name(node.get_name() + ":3", neg_sum_logits);
 
-    return {decoded_indices, decoded_values, dense_shape, neg_sum_logits};
+    return {decoded_indices_transposed, decoded_values, dense_shape, neg_sum_logits};
 }
 }  // namespace op
 }  // namespace tensorflow
