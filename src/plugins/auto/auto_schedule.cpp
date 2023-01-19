@@ -343,13 +343,14 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             context.executableNetwork = _autoSContext->_core->LoadNetwork(modelPath, device, deviceConfig);
         } else {
             std::shared_ptr<RemoteContext> tempCtx = _autoSContext->_remoteContext;
-            if (_autoSContext->_remoteContext) {
+            if (tempCtx) {
                 // cumulative case, need to update device name of the remote context
                 if (device.find("MULTI") != std::string::npos) {
                     tempCtx->as<MultiRemoteContext>()->updateDeviceName("MULTI");
+                    // insert device priority for multi plugin
                     deviceConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = device.substr(6);
                 } else {
-                    tempCtx = _autoSContext->_remoteContext->as<MultiRemoteContext>()->GetTargetContext(device);
+                    tempCtx = tempCtx->as<MultiRemoteContext>()->GetTargetContext(device);
                 }
             }
             context.executableNetwork = tempCtx ? _autoSContext->_core->LoadNetwork(network, tempCtx, deviceConfig)

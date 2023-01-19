@@ -10,20 +10,17 @@
  */
 #pragma once
 
-#include <ie_remote_context.hpp>
+#include "ie_remote_context.hpp"
+#include "ie_core.hpp"
 #include <memory>
 #include <string>
-
-#include "ie_compound_blob.h"
-#include "ie_core.hpp"
 
 namespace MultiDevicePlugin {
 
 /**
  * @brief This class represents an abstraction for Multi plugin remote context
  * which is wrapper of underline hardware remote contexts.
- * The plugin object derived from this class can be obtained either with
- * GetContext() method of Executable network or using CreateContext() Core call.
+ * The plugin object derived from this class can be obtained using CreateContext() Core call.
  */
 class MultiRemoteContext : public RemoteContext {
 public:
@@ -90,7 +87,7 @@ public:
 
 private:
     std::vector<SoRemoteContext> m_contexts;
-    std::string m_default_device_id = "0";
+    static const char* m_default_device_id;
     std::string m_plugin_name;
     mutable std::mutex m_mutex;
 };

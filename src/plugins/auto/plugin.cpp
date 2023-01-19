@@ -53,7 +53,7 @@ namespace {
         return METRIC_VALUE(FP32);
     }
 }  // namespace
-
+const char* MultiRemoteContext::m_default_device_id = "0";
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
 
