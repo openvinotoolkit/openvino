@@ -74,6 +74,8 @@ TEST(op, cos_op_use_different_opsets) {
     ov::op::opset6::Cos op6;
     ov::op::opset7::Cos op7;
     ov::op::opset8::Cos op8;
+    ov::op::opset9::Cos op9;
+    ov::op::opset10::Cos op10;
 }
 
 TEST(op, sin_op_use_different_opsets) {
@@ -85,4 +87,6 @@ TEST(op, sin_op_use_different_opsets) {
     ov::op::opset6::Sin op6;
     ov::op::opset7::Sin op7;
     ov::op::opset8::Sin op8;
+    ov::op::opset9::Sin op9;
+    ov::op::opset10::Sin op10;
 }
