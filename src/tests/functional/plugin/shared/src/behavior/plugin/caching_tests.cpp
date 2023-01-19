@@ -176,7 +176,7 @@ void LoadNetworkCacheTestBase::SetUp() {
 
 void LoadNetworkCacheTestBase::TearDown() {
     CommonTestUtils::removeFilesWithExt(m_cacheFolderName, "blob");
-    std::remove(m_cacheFolderName.c_str());
+    CommonTestUtils::removeDir(m_cacheFolderName);
     core->SetConfig({{CONFIG_KEY(CACHE_DIR), {}}});
     APIBaseTest::TearDown();
 }
