@@ -7,7 +7,7 @@
   * There is also an open-source version of OpenVINO™ that can be compiled for arch64 (see `build instructions <https://github.com/openvinotoolkit/openvino/wiki/BuildingForRaspbianStretchOS>`_).
 @endsphinxdirective
 
-## Development and Target Systems 
+## Development and Target Systems
 
 @sphinxdirective
 .. tab:: System Requirements
@@ -32,9 +32,9 @@
    .. code-block:: sh
 
       sudo mkdir -p /opt/intel
-   
+
    .. note::
-   
+
       The `/opt/intel` path is the recommended folder path for administrators or root users. If you prefer to install OpenVINO in regular userspace, the recommended path is `/home/<USER>/intel`. You may use a different path if desired.
 
 3. Go to your `~/Downloads` directory and download OpenVINO Runtime archive file for Debian from `OpenVINO package repository <https://storage.openvinotoolkit.org/repositories/openvino/packages/2022.3/linux/>`_.
@@ -74,15 +74,15 @@
    .. code-block:: sh
 
       sudo -E ./install_dependencies/install_openvino_dependencies.sh
-   
+
 6. For simplicity, it is useful to create a symbolic link as below:
 
    .. code-block:: sh
 
       sudo ln -s openvino_2022.3.0 openvino_2022
-   
+
    .. note::
-   
+
       If you have already installed a previous release of OpenVINO 2022, a symbolic link to the `openvino_2022` folder may already exist. Unlink the previous link with `sudo unlink openvino_2022`, and then re-run the command above.
 
 @endsphinxdirective
@@ -166,13 +166,13 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 
 ## Additional Resources
 @sphinxdirective
-      
+
 * :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer User Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
 * Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
-* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_ 
+* IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit`_
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
