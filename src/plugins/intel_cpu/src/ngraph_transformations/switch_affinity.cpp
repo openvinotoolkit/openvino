@@ -21,8 +21,33 @@ namespace {
 using namespace ngraph;
 
 void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
-    std::string path = "C://models//" + name;
+    std::string path = "/home/vgolubev/models/" + name;
     ngraph::pass::Serialize(path + ".xml", path + ".bin").run_on_model(model);
+}
+
+void force_replace_output(Output<Node> target, const Output<Node>& replacement) {
+    // Update output tensor name
+    const std::string new_name = ngraph::op::util::get_ie_output_name(target);
+    replacement.get_node()->set_friendly_name(new_name);
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    const auto& output_tensor_name = ov::descriptor::get_ov_tensor_legacy_name(target.get_tensor());
+    if (!output_tensor_name.empty()) {
+        ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output_tensor_name);
+    } else {
+        ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), new_name);
+    }
+
+    // Save replacement tensor name before replacement as they will be overridden by the target tensor name
+    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(replacement.get_tensor());
+
+    target.replace(replacement);
+
+    // Restore back original replacement tensor name
+    ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), tensor_name);
+    NGRAPH_SUPPRESS_DEPRECATED_END
+
+    copy_runtime_info({replacement.get_node_shared_ptr(), target.get_node_shared_ptr()},
+                      replacement.get_node_shared_ptr());
 }
 
 void setBatch(const std::shared_ptr<ov::Model> model, size_t batch) {
@@ -143,7 +168,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         // TODO: batch dimension could be non-zero
         const size_t concat_axis = 0;
         const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, concat_axis);
-        replace_output_update_name(elem.first, concat->output(0));
+        force_replace_output(elem.first, concat->output(0));
         ov::intel_cpu::cleanMemoryFormats(concat);
     }
     return true;
