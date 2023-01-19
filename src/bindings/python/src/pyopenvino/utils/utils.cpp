@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "openvino/frontend/decoder.hpp"
 
 namespace Common {
 namespace utils {
@@ -233,6 +234,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+        // FrontEnd Decoder
+    } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
+        // Custom FrontEnd Types
+    } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
+        return py::cast<ov::frontend::type::Tensor>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
+        return py::cast<ov::frontend::type::List>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;
