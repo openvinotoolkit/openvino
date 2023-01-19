@@ -10,17 +10,11 @@ void reshape_with_dynamics() {
 ov::Core core;
 auto model = core.read_model("model.xml");
 
-// Set one static dimension (= 1) and another dynamic dimension (= Dimension())
-model->reshape({{1, ov::Dimension()}});  // {1,?}
+// Set first dimension as dynamic (ov::Dimension()) and remaining dimensions as static
+model->reshape({{ov::Dimension(), 3, 224, 224}});  // {?,3,224,224}
 
-// The same as above
-model->reshape({{1, -1}}); // {1,?}
-
-// Or set both dimensions as dynamic if both are going to be changed dynamically
-model->reshape({{ov::Dimension(), ov::Dimension()}});  // {?,?}
-
-// The same as above
-model->reshape({{-1, -1}});  // {?,?}
+// Or, set third and fourth dimensions as dynamic
+model->reshape({{1, 3, ov::Dimension(), ov::Dimension()}});  // {1,3,?,?}
 //! [ov_dynamic_shapes:reshape_undefined]
 //! [ov_dynamic_shapes:reshape_bounds]
 // Both dimensions are dynamic, first has a size within 1..10 and the second has a size within 8..512
