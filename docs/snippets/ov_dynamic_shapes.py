@@ -30,17 +30,11 @@ model.reshape("?, ?")
 #! [reshape_undefined]
 
 #! [reshape_bounds]
-# Both dimensions are dynamic, first has a size within 1..10 and the second has a size within 8..512
-model.reshape([ov.Dimension(1, 10), ov.Dimension(8, 512)])
+# Example 1 - set first dimension as dynamic (no bounds) and third and fourth dimensions to range of 112..448
+model.reshape([-1, 3, (112, 448), (112, 448)])
 
-# The same as above
-model.reshape([(1, 10), (8, 512)])
-
-# The same as above
-model.reshape("1..10, 8..512")
-
-# Both dimensions are dynamic, first doesn't have bounds, the second is in the range of 8..512
-model.reshape([-1, (8, 512)])
+# Example 2 - Set first dimension to a range of 1..8 and third and fourth dimensions to range of 112..448
+model.reshape([(1, 8), 3, (112, 448), (112, 448)])
 #! [reshape_bounds]
 
 model = core.read_model("model.xml")
