@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,11 @@
 #include <transformations/utils/utils.hpp>
 #include "backend/gna_limitations.hpp"
 
-
-using namespace ov::intel_gna::pass;
 using namespace ngraph;
+
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 struct MVNData {
     size_t N;
@@ -59,8 +61,8 @@ static bool GetVerifiedMVNData(const std::shared_ptr<opset8::MVN> mvn, MVNData& 
     IE_ASSERT(axes_const);
     auto element_type = axes_const->get_element_type();
 
-    if (!(element_type == element::Type_t::i64 ? ValidateAxes<int64_t>(axes_const, mvn_shape_size) :
-        ValidateAxes<int32_t>(axes_const, mvn_shape_size)))
+    if (!(element_type == element::Type_t::i64 ? ValidateAxes<int64_t>(axes_const, mvn_shape_size)
+                                               : ValidateAxes<int32_t>(axes_const, mvn_shape_size)))
         return false;
 
     if (mvn_shape_size == 4) {
@@ -79,7 +81,7 @@ static bool GetVerifiedMVNData(const std::shared_ptr<opset8::MVN> mvn, MVNData& 
 
     // Check if average must be split
     mvn_data.num_parts = 1;
-    while (mvn_data.W / mvn_data.num_parts > GNAPluginNS::GNALimitations::convFilterMaxSize) {
+    while (mvn_data.W / mvn_data.num_parts > limitations::convFilterMaxSize) {
         mvn_data.num_parts *= 2;
     }
 
@@ -97,40 +99,71 @@ static bool GetVerifiedMVNData(const std::shared_ptr<opset8::MVN> mvn, MVNData& 
     return true;
 }
 
-static std::shared_ptr<Node> NormalizeVariance(const std::shared_ptr<opset8::MVN> mvn, const MVNData& mvn_data,
-    const std::shared_ptr<opset8::Add>& subtract_mean, const std::shared_ptr<opset8::Constant>& avg_broadcast_const) {
+static std::shared_ptr<Node> NormalizeVariance(const std::shared_ptr<opset8::MVN> mvn,
+                                               const MVNData& mvn_data,
+                                               const std::shared_ptr<opset8::Add>& subtract_mean,
+                                               const std::shared_ptr<opset8::Constant>& avg_broadcast_const) {
     // Prepare consts
     auto combined_C_H = mvn_data.C * mvn_data.H;
 
     std::vector<float> avg_weights(8 * mvn_data.W / mvn_data.num_parts, 1.0f / mvn_data.W);
-    auto avg_weights_const = opset8::Constant::create(mvn_data.element_type, Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1}, avg_weights);
+    auto avg_weights_const =
+        opset8::Constant::create(mvn_data.element_type, Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1}, avg_weights);
     std::vector<float> eps_tensor(combined_C_H * mvn_data.W, mvn_data.eps);
-    auto eps_tensor_const = opset8::Constant::create(mvn_data.element_type, Shape{1, combined_C_H * mvn_data.W}, eps_tensor);
+    auto eps_tensor_const =
+        opset8::Constant::create(mvn_data.element_type, Shape{1, combined_C_H * mvn_data.W}, eps_tensor);
     std::vector<float> minus_half(combined_C_H * mvn_data.W, -0.5f);
-    auto minus_half_const = opset8::Constant::create(mvn_data.element_type, Shape{1, combined_C_H * mvn_data.W}, minus_half);
+    auto minus_half_const =
+        opset8::Constant::create(mvn_data.element_type, Shape{1, combined_C_H * mvn_data.W}, minus_half);
 
     // Calculate square of the difference between input and its mean
     auto squared_diff = std::make_shared<opset8::Multiply>(subtract_mean, subtract_mean);
     squared_diff->set_friendly_name(mvn_data.name + "_SqrDiff");
 
     // Calculate sum of the squares
-    auto squared_diff_reshape = std::make_shared<opset8::Reshape>(squared_diff,
-        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, combined_C_H * mvn_data.num_parts, 1ull, mvn_data.W / mvn_data.num_parts}), false);
-    auto transposed_input_3 = std::make_shared<opset8::Transpose>(squared_diff_reshape, opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
-    auto transposed_avg_conv_3 = std::make_shared<opset8::Convolution>(transposed_input_3, avg_weights_const,
-        Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1}, op::PadType::VALID);
+    auto squared_diff_reshape = std::make_shared<opset8::Reshape>(
+        squared_diff,
+        opset8::Constant::create(
+            element::i64,
+            Shape{4},
+            Shape{mvn_data.N, combined_C_H * mvn_data.num_parts, 1ull, mvn_data.W / mvn_data.num_parts}),
+        false);
+    auto transposed_input_3 =
+        std::make_shared<opset8::Transpose>(squared_diff_reshape,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
+    auto transposed_avg_conv_3 = std::make_shared<opset8::Convolution>(transposed_input_3,
+                                                                       avg_weights_const,
+                                                                       Strides{1, 1},
+                                                                       CoordinateDiff{0, 0},
+                                                                       CoordinateDiff{0, 0},
+                                                                       Strides{1, 1},
+                                                                       op::PadType::VALID);
     transposed_avg_conv_3->set_friendly_name(mvn_data.name + "_Avg3");
-    auto avg_conv_3 = std::make_shared<opset8::Transpose>(transposed_avg_conv_3, opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
-    auto reshape_avg_conv_3 = std::make_shared<opset8::Reshape>(avg_conv_3,
-        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}), false);
-    auto transposed_input_4 = std::make_shared<opset8::Transpose>(reshape_avg_conv_3, opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
+    auto avg_conv_3 =
+        std::make_shared<opset8::Transpose>(transposed_avg_conv_3,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+    auto reshape_avg_conv_3 = std::make_shared<opset8::Reshape>(
+        avg_conv_3,
+        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}),
+        false);
+    auto transposed_input_4 =
+        std::make_shared<opset8::Transpose>(reshape_avg_conv_3,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
     auto transposed_avg_conv_4 = std::make_shared<opset8::Convolution>(transposed_input_4,
-        avg_broadcast_const, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1}, op::PadType::VALID);
+                                                                       avg_broadcast_const,
+                                                                       Strides{1, 1},
+                                                                       CoordinateDiff{0, 0},
+                                                                       CoordinateDiff{0, 0},
+                                                                       Strides{1, 1},
+                                                                       op::PadType::VALID);
     transposed_avg_conv_4->set_friendly_name(mvn_data.name + "_Avg4");
-    auto avg_conv_4 = std::make_shared<opset8::Transpose>(transposed_avg_conv_4,
-        opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
-    auto reshape_avg_conv_4 = std::make_shared<opset8::Reshape>(avg_conv_4,
-        opset8::Constant::create(element::i64, Shape{2}, Shape{1ull, combined_C_H * mvn_data.W}), false);
+    auto avg_conv_4 =
+        std::make_shared<opset8::Transpose>(transposed_avg_conv_4,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+    auto reshape_avg_conv_4 = std::make_shared<opset8::Reshape>(
+        avg_conv_4,
+        opset8::Constant::create(element::i64, Shape{2}, Shape{1ull, combined_C_H * mvn_data.W}),
+        false);
     std::shared_ptr<Node> inv_stdev;
 
     // Create normalization part of the graph
@@ -152,8 +185,17 @@ static std::shared_ptr<Node> NormalizeVariance(const std::shared_ptr<opset8::MVN
     auto normalized_output = std::make_shared<opset8::Multiply>(subtract_mean, inv_stdev);
     normalized_output->set_friendly_name(mvn_data.name + "_Output");
 
-    copy_runtime_info(mvn, {squared_diff, squared_diff_reshape, transposed_input_3, transposed_avg_conv_3, avg_conv_3, reshape_avg_conv_3,
-        transposed_input_4, transposed_avg_conv_4, avg_conv_4, reshape_avg_conv_4});
+    copy_runtime_info(mvn,
+                      {squared_diff,
+                       squared_diff_reshape,
+                       transposed_input_3,
+                       transposed_avg_conv_3,
+                       avg_conv_3,
+                       reshape_avg_conv_3,
+                       transposed_input_4,
+                       transposed_avg_conv_4,
+                       avg_conv_4,
+                       reshape_avg_conv_4});
 
     return normalized_output;
 }
@@ -163,38 +205,70 @@ static void Decompose(const std::shared_ptr<opset8::MVN> mvn, const MVNData& mvn
     auto combined_C_H = mvn_data.C * mvn_data.H;
 
     std::vector<float> neg_avg_weights(8 * mvn_data.W / mvn_data.num_parts, -1.0f / mvn_data.W);
-    auto neg_avg_weights_const = opset8::Constant::create(mvn_data.element_type, Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1}, neg_avg_weights);
+    auto neg_avg_weights_const = opset8::Constant::create(mvn_data.element_type,
+                                                          Shape{8, mvn_data.W / mvn_data.num_parts, 1, 1},
+                                                          neg_avg_weights);
 
     std::vector<float> avg_broadcast(8 * mvn_data.W * mvn_data.num_parts, 0.0f);
     for (size_t i = 0; i < mvn_data.W * mvn_data.num_parts; i++) {
         avg_broadcast[i * 8] = 1.0f;
     }
-    auto avg_broadcast_const = opset8::Constant::create(mvn_data.element_type, Shape{mvn_data.W, 8 * mvn_data.num_parts, 1, 1}, avg_broadcast);
+    auto avg_broadcast_const =
+        opset8::Constant::create(mvn_data.element_type, Shape{mvn_data.W, 8 * mvn_data.num_parts, 1, 1}, avg_broadcast);
 
     // Create average calculation part of the graph
     // We assume C = 1 case (combined channels)
     const auto input = mvn->input_value(0);
-    auto reshape = std::make_shared<opset8::Reshape>(input,
-        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, 1ull, combined_C_H, mvn_data.W}), false);
-    auto input_4d = std::make_shared<opset8::Reshape>(reshape,
-        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, combined_C_H * mvn_data.num_parts, 1ull, mvn_data.W / mvn_data.num_parts}), false);
-    auto input_2d = std::make_shared<opset8::Reshape>(reshape,
-        opset8::Constant::create(element::i64, Shape{2}, Shape{1ull, combined_C_H * mvn_data.W}), false);
-    auto transposed_input_1 = std::make_shared<opset8::Transpose>(input_4d, opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
-    auto transposed_avg_conv_1 = std::make_shared<opset8::Convolution>(transposed_input_1, neg_avg_weights_const,
-        Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1}, op::PadType::VALID);
+    auto reshape = std::make_shared<opset8::Reshape>(
+        input,
+        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, 1ull, combined_C_H, mvn_data.W}),
+        false);
+    auto input_4d = std::make_shared<opset8::Reshape>(
+        reshape,
+        opset8::Constant::create(
+            element::i64,
+            Shape{4},
+            Shape{mvn_data.N, combined_C_H * mvn_data.num_parts, 1ull, mvn_data.W / mvn_data.num_parts}),
+        false);
+    auto input_2d = std::make_shared<opset8::Reshape>(
+        reshape,
+        opset8::Constant::create(element::i64, Shape{2}, Shape{1ull, combined_C_H * mvn_data.W}),
+        false);
+    auto transposed_input_1 =
+        std::make_shared<opset8::Transpose>(input_4d, opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
+    auto transposed_avg_conv_1 = std::make_shared<opset8::Convolution>(transposed_input_1,
+                                                                       neg_avg_weights_const,
+                                                                       Strides{1, 1},
+                                                                       CoordinateDiff{0, 0},
+                                                                       CoordinateDiff{0, 0},
+                                                                       Strides{1, 1},
+                                                                       op::PadType::VALID);
     transposed_avg_conv_1->set_friendly_name(mvn_data.name + "_Avg1");
-    auto avg_conv_1 = std::make_shared<opset8::Transpose>(transposed_avg_conv_1, opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
-    auto reshape_avg_conv_1 = std::make_shared<opset8::Reshape>(avg_conv_1,
-        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}), false);
-    auto transposed_input_2 = std::make_shared<opset8::Transpose>(reshape_avg_conv_1, opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
+    auto avg_conv_1 =
+        std::make_shared<opset8::Transpose>(transposed_avg_conv_1,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+    auto reshape_avg_conv_1 = std::make_shared<opset8::Reshape>(
+        avg_conv_1,
+        opset8::Constant::create(element::i64, Shape{4}, Shape{mvn_data.N, 1ull, combined_C_H, 8 * mvn_data.num_parts}),
+        false);
+    auto transposed_input_2 =
+        std::make_shared<opset8::Transpose>(reshape_avg_conv_1,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 3, 1, 2}));
     auto transposed_avg_conv_2 = std::make_shared<opset8::Convolution>(transposed_input_2,
-        avg_broadcast_const, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1}, op::PadType::VALID);
+                                                                       avg_broadcast_const,
+                                                                       Strides{1, 1},
+                                                                       CoordinateDiff{0, 0},
+                                                                       CoordinateDiff{0, 0},
+                                                                       Strides{1, 1},
+                                                                       op::PadType::VALID);
     transposed_avg_conv_2->set_friendly_name(mvn_data.name + "_Avg2");
-    auto avg_conv_2 = std::make_shared<opset8::Transpose>(transposed_avg_conv_2,
-        opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
-    auto avg_conv_2_2d = std::make_shared<opset8::Reshape>(avg_conv_2,
-        opset8::Constant::create(element::i64, Shape{2}, Shape{1ull, combined_C_H * mvn_data.W}), false);
+    auto avg_conv_2 =
+        std::make_shared<opset8::Transpose>(transposed_avg_conv_2,
+                                            opset8::Constant::create(element::i64, Shape{4}, {0, 2, 3, 1}));
+    auto avg_conv_2_2d = std::make_shared<opset8::Reshape>(
+        avg_conv_2,
+        opset8::Constant::create(element::i64, Shape{2}, Shape{1ull, combined_C_H * mvn_data.W}),
+        false);
     auto subtract_mean = std::make_shared<opset8::Add>(input_2d, avg_conv_2_2d);
     subtract_mean->set_friendly_name(mvn_data.name + "_SubMean");
 
@@ -207,15 +281,31 @@ static void Decompose(const std::shared_ptr<opset8::MVN> mvn, const MVNData& mvn
 
     // Reshape (combined channels) back to get the final output
     if (mvn->get_output_shape(0).size() == 3) {
-        mvn_output = std::make_shared<opset8::Reshape>(pre_output,
-            opset8::Constant::create(element::i64, Shape{3}, {mvn_data.C, mvn_data.H, mvn_data.W}), false);
+        mvn_output = std::make_shared<opset8::Reshape>(
+            pre_output,
+            opset8::Constant::create(element::i64, Shape{3}, {mvn_data.C, mvn_data.H, mvn_data.W}),
+            false);
     } else {
-        mvn_output = std::make_shared<opset8::Reshape>(pre_output,
-            opset8::Constant::create(element::i64, Shape{4}, {mvn_data.N, mvn_data.C, mvn_data.H, mvn_data.W}), false);
+        mvn_output = std::make_shared<opset8::Reshape>(
+            pre_output,
+            opset8::Constant::create(element::i64, Shape{4}, {mvn_data.N, mvn_data.C, mvn_data.H, mvn_data.W}),
+            false);
     }
 
-    copy_runtime_info(mvn, {reshape, input_4d, input_2d, transposed_input_1, transposed_avg_conv_1, avg_conv_1, reshape_avg_conv_1,
-        transposed_input_2, transposed_avg_conv_2, avg_conv_2, avg_conv_2_2d, subtract_mean, mvn_output});
+    copy_runtime_info(mvn,
+                      {reshape,
+                       input_4d,
+                       input_2d,
+                       transposed_input_1,
+                       transposed_avg_conv_1,
+                       avg_conv_1,
+                       reshape_avg_conv_1,
+                       transposed_input_2,
+                       transposed_avg_conv_2,
+                       avg_conv_2,
+                       avg_conv_2_2d,
+                       subtract_mean,
+                       mvn_output});
 
     // We need retain the MVN layer name, so its output can be used as a network result
     replace_node(mvn, mvn_output);
@@ -263,3 +353,7 @@ DecomposeMVN::DecomposeMVN() {
     auto m = std::make_shared<pattern::Matcher>(mvn, matcher_name);
     this->register_matcher(m, callback);
 }
+
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov

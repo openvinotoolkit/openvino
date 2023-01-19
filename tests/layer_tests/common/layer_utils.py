@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import subprocess
 import sys
@@ -23,14 +23,14 @@ class BaseInfer:
         self.name = name
         self.res = None
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
         raise RuntimeError("This is base class, please implement infer function for the specific framework")
 
     def get_inputs_info(self, precision) -> dict:
         raise RuntimeError("This is base class, please implement get_inputs_info function for the specific framework")
 
-    def infer(self, input_data, infer_timeout=10):
-        self.res = multiprocessing_run(self.fw_infer, [input_data], self.name, infer_timeout)
+    def infer(self, input_data, config=None, infer_timeout=10):
+        self.res = multiprocessing_run(self.fw_infer, [input_data, config], self.name, infer_timeout)
         return self.res
 
 
@@ -41,7 +41,7 @@ class IEInfer(BaseInfer):
         self.model = model
         self.weights = weights
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
 
         print("Inference Engine version: {}".format(ie_get_version()))
         print("Creating IE Core Engine...")
@@ -49,7 +49,7 @@ class IEInfer(BaseInfer):
         print("Reading network files")
         net = ie.read_network(self.model, self.weights)
         print("Loading network")
-        exec_net = ie.load_network(net, self.device)
+        exec_net = ie.load_network(net, self.device, config)
         print("Starting inference")
         result = exec_net.infer(input_data)
 
@@ -78,14 +78,14 @@ class InferAPI20(BaseInfer):
         self.weights = weights
         self.use_new_frontend = use_new_frontend
 
-    def fw_infer(self, input_data):
+    def fw_infer(self, input_data, config=None):
         print("Inference Engine version: {}".format(ie2_get_version()))
         print("Creating IE Core Engine...")
         ie = Core()
         print("Reading network files")
         net = ie.read_model(self.model, self.weights)
         print("Loading network")
-        exec_net = ie.compile_model(net, self.device)
+        exec_net = ie.compile_model(net, self.device, config)
         print("Starting inference")
         request = exec_net.create_infer_request()
         request_result = request.infer(input_data)

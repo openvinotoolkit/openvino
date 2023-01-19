@@ -48,7 +48,7 @@ Options:
                         Required. Path to an image file(s).
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
-                        GPU, MYRIAD, HDDL or HETERO: is acceptable. The sample
+                        GPU or HETERO: is acceptable. The sample
                         will look for a suitable plugin for device specified.
                         Default value is CPU.
 ```

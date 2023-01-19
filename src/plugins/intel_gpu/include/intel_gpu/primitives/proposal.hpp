@@ -1,20 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 #define CLDNN_ROI_VECTOR_SIZE 5
 
@@ -173,7 +167,4 @@ struct proposal : public primitive_base<proposal> {
     bool normalize;
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

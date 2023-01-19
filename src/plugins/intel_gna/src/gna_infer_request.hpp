@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,9 @@
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "request_status.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 class GNAPlugin;
 
 class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
@@ -60,4 +62,6 @@ private:
     uint32_t _infer_request_idx = kRequestIndexInvalid;
     std::shared_ptr<GNAPlugin> plg;
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

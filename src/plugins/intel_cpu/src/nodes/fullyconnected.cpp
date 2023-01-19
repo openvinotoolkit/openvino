@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,13 +113,16 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
     return true;
 }
 
-FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
+FullyConnected::FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)), withBiases(false) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "FullyConnected node with name '" + getName() + "'";
 
         withBiases = inputShapes.size() == 3;
+
+        if (context->getConfig().fcSparseWeiDecompressionRate < 1.0f)
+            minSparseRate = context->getConfig().fcSparseWeiDecompressionRate;
     } else {
         IE_THROW(NotImplemented) << errorMessage;
     }
@@ -330,7 +333,7 @@ void FullyConnected::prepareParams() {
         return execPtr;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -867,7 +870,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
 
         MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
         _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, getRuntimeCache());
+        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
 
         return _ptr;
     };
@@ -878,6 +881,7 @@ MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
     if (privateWeightCache.end() != itr) {
         ptr = itr->second;
     } else {
+        auto weightCache = context->getWeightsCache();
         if (weightCache != nullptr) {
             const std::string string_hash = getName() + "_" + format
                                             + "_" + std::to_string(blob->GetSize())

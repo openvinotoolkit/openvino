@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //  pwl_design.cpp : simple activation function designer
@@ -28,7 +28,7 @@
 #include "pwl.h"
 #include "log/debug.hpp"
 #include "log/log.hpp"
-#include "gna_slope_scale.h"
+#include "gna_slope_scale.hpp"
 #include "common/numerical_utils.hpp"
 #include "ops/reference/pwl.hpp"
 

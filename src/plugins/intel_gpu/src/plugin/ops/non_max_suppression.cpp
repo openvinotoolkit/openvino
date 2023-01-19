@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -105,7 +105,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                     tensor_from_dims(op->get_output_shape(2)));
 
                 GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-                shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutSecond));
+                shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutSecond));
 
                 cldnn::primitive_id non_max_supression_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
                 auto nms_mutable_prim_second = cldnn::mutable_data(non_max_supression_mutable_id_w_second,
@@ -121,7 +121,7 @@ static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_pt
                     cldnn::tensor(static_cast<int32_t>(outputIndices), 3, 1, 1));
 
                 GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-                shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutFirst));
+                shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutFirst));
 
                 cldnn::primitive_id non_max_supression_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";
                 auto nms_mutable_prim_first = cldnn::mutable_data(non_max_supression_mutable_id_w_first,

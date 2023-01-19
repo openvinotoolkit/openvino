@@ -38,10 +38,7 @@ The logic behind the choice is as follows:
 | 2        || iGPU                                                | FP32, FP16, BIN                     |
 |          || (e.g. Intel® UHD Graphics 620 (iGPU))               |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
-| 3        || Intel® Movidius™ Myriad™ X VPU                      | FP16                                |
-|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  |                                     |
-+----------+------------------------------------------------------+-------------------------------------+
-| 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
+| 3        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
 |          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
 @endsphinxdirective
@@ -54,7 +51,7 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 
 Note that if you choose to exclude CPU from the priority list, it will be unable to support the initial model compilation stage.
      
-![autoplugin_accelerate]
+![](../img/autoplugin_accelerate.svg)
 
 This mechanism can be easily observed in the [Using AUTO with Benchmark app sample](#using-auto-with-openvino-samples-and-benchmark-app) section, showing how the first-inference latency (the time it takes to compile the model and perform the first inference) is reduced when using AUTO. For example: 
 
@@ -271,7 +268,7 @@ The `ov::hint::model_priority` property enables you to control the priorities of
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
 
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad devices, uncapable of utilizing the Performance Hints option. 
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if AUTO is uncapable of utilizing the Performance Hints option. 
 
 
 @sphinxdirective
@@ -303,7 +300,7 @@ benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 For limited device choice:
 
 ```sh
-benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+benchmark_app –d AUTO:CPU,GPU,GNA –m <model> -i <input> -niter 1000
 ```
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	
@@ -318,11 +315,9 @@ For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.
    No demos are yet fully optimized for AUTO, by means of selecting the most suitable device, using the GPU streams/throttling, and so on.
 @endsphinxdirective
 
-## See Also
+## Additional Resources
 
 - [Debugging AUTO](AutoPlugin_Debugging.md)
 - [Running on Multiple Devices Simultaneously](./multi_device.md)
 - [Supported Devices](supported_plugins/Supported_Devices.md)
 
-
-[autoplugin_accelerate]: ../img/autoplugin_accelerate.png
