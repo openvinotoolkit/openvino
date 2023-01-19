@@ -423,12 +423,14 @@ void prepare_buffer_fusing::run(program& p) {
                     auto& dep = node.get_dependency(0);
                     if (dep.is_type<crop>() && dep.can_be_optimized()) {
                         auto dep_pad = dep.get_output_layout().data_padding;
-                        if (dep_pad.lower_size().batch[0] == 0 && dep_pad.upper_size().batch[0] == 0 &&
+                        OPENVINO_ASSERT(
+                            dep_pad.lower_size().batch[0] == 0 && dep_pad.upper_size().batch[0] == 0 &&
                             dep_pad.lower_size().spatial[0] == 0 && dep_pad.upper_size().spatial[0] == 0 &&
-                            dep_pad.lower_size().spatial[1] == 0 && dep_pad.upper_size().spatial[1] == 0) {
-                            opt_lower_pad += dep_pad.lower_size().feature[0];
-                            opt_upper_pad += dep_pad.upper_size().feature[0];
-                        }
+                            dep_pad.lower_size().spatial[1] == 0 && dep_pad.upper_size().spatial[1] == 0,
+                            "batch, y, x of pad should be aligned to 0.");
+
+                        opt_lower_pad += dep_pad.lower_size().feature[0];
+                        opt_upper_pad += dep_pad.upper_size().feature[0];
                     }
 
                     node.set_output_padding(
