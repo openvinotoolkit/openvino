@@ -72,8 +72,7 @@ jobs:
   - task: UsePythonVersion@0
     displayName: Get Python 3.10
     inputs:
-      versionSpec: '3.10'
-      addToPath: false
+      versionSpec: '3.10.x'
     name: setupPython
 
   - script: |
