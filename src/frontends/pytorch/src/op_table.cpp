@@ -26,14 +26,15 @@ OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_convnd);
+OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_elu);
+OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
-OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_floor_divide);
@@ -141,6 +142,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::conv1d", op::translate_convnd},
         {"aten::conv2d", op::translate_convnd},
         {"aten::conv3d", op::translate_convnd},
+        {"aten::conv_transpose1d", op::translate_conv_transposend},
+        {"aten::conv_transpose2d", op::translate_conv_transposend},
+        {"aten::conv_transpose3d", op::translate_conv_transposend},
         {"aten::convolution", op::translate_convolution},
         {"aten::cos", op::translate_1to1_match_1_inputs<opset10::Cos>},
         {"aten::cos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cos>>},
