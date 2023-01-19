@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -307,14 +307,14 @@ const std::vector<ConfigParams> testConfigs = {
                                                ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_KEEMBAY,  8, 0},
                                                ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
                                                ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_KEEMBAY,  2, 0},
-                                               ConfigParams {false, 3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_MYRIAD,  1, 0},
-                                               ConfigParams {true,  3, -1, false, 2, -1, true, CommonTestUtils::DEVICE_MYRIAD,  6, 0},
-                                               ConfigParams {false, 3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
-                                               ConfigParams {true,  3, -1, true, 2, -1, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
-                                               ConfigParams {false, 3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_MYRIAD,  1, 0},
-                                               ConfigParams {true,  3, 5, false, 2, 5, true, CommonTestUtils::DEVICE_MYRIAD,  6, 0},
-                                               ConfigParams {false, 3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
-                                               ConfigParams {true,  3, 5, true, 2, 5, false, CommonTestUtils::DEVICE_MYRIAD,  2, 0},
+                                               ConfigParams {false, 3, -1, false, 2, -1, true, "MYRIAD",  1, 0},
+                                               ConfigParams {true,  3, -1, false, 2, -1, true, "MYRIAD",  6, 0},
+                                               ConfigParams {false, 3, -1, true, 2, -1, false, "MYRIAD",  2, 0},
+                                               ConfigParams {true,  3, -1, true, 2, -1, false, "MYRIAD",  2, 0},
+                                               ConfigParams {false, 3, 5, false, 2, 5, true, "MYRIAD",  1, 0},
+                                               ConfigParams {true,  3, 5, false, 2, 5, true, "MYRIAD",  6, 0},
+                                               ConfigParams {false, 3, 5, true, 2, 5, false, "MYRIAD",  2, 0},
+                                               ConfigParams {true,  3, 5, true, 2, 5, false, "MYRIAD",  2, 0},
                                               };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetworkGetMetric,

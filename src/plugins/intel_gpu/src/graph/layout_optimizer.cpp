@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1416,7 +1416,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 const size_t kBatchNum = scores_layout.batch();
                 const size_t kClassNum = scores_layout.feature();
                 const size_t kNStreams =
-                    static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
+                    static_cast<size_t>(node.get_program().get_config().get_property(ov::streams::num));
                 const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
                 preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
             }
@@ -1668,11 +1668,19 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     auto output_layout = node.get_output_layout();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
-    bool allow_new_shape_infer = node.get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    bool allow_new_shape_infer = node.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
 
     if (allow_new_shape_infer) {
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_dependency(0).get_output_layout(false).get_rank());
+
+        // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
+        auto out_lay_rank = node.get_output_layout(false).get_rank();
+        auto in_lay_rank = node.get_dependencies().size() > 0 ? node.get_dependency(0).get_output_layout(false).get_rank() : out_lay_rank;
+        if (in_lay_rank != out_lay_rank)
+            node.set_preferred_input_fmt(0, get_preferred_format(node.get_dependency(0)));
+
+        // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
         for (auto u : node.get_users()) {
             for (auto dep_idx : u->get_shape_infer_dependencies()) {
                 if (u->get_dependencies().size() <= dep_idx)
@@ -1828,6 +1836,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
     }
 
+    if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
+        node.set_preferred_output_fmt(0, expected);
+    }
     return expected;
 }
 
@@ -2013,7 +2024,7 @@ bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const
     }
 }
 
-void layout_optimizer::set_implementation_forcing(const implementation_forcing_map& map) {
+void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map) {
     for (const auto& kv : map) {
         _forcing_map.emplace(kv.first, std::make_pair(kv.second.output_format, kv.second.impl_type));
     }

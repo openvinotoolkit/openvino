@@ -55,7 +55,7 @@ For more information on performance hints, see the [High-level Performance Hints
 
 
 ### Device
-To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and "MYRIAD" (also known as [VPU](../../../docs/OV_Runtime_UG/supported_plugins/VPU.md)) devices. In order to use the GPU or VPU, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
+To set which device benchmarking runs on, use the `-d <device>` argument. This will tell benchmark_app to run benchmarking on that specific device. The benchmark app supports "CPU", "GPU", and "GNA" devices. In order to use the GPU or GNA, the system must have the appropriate drivers installed. If no device is specified, benchmark_app will default to using CPU.
 
 For example, to run benchmarking on GPU, use:
 
@@ -140,7 +140,7 @@ Options:
     -latency_percentile           Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
 
   device-specific performance options:
-    -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
+    -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU or GPU devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
     -nthreads  <integer>          Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -pin  <string>  ("YES"|"CORE") / "HYBRID_AWARE" / ("NO"|"NONE") / "NUMA"  Optional. Explicit inference threads binding options (leave empty to let the OpenVINO make a choice):
                                 enabling threads->cores pinning("YES", which is already default for any conventional CPU),

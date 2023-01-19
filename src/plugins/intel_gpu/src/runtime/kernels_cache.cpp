@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,7 @@ namespace cldnn {
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
-    auto path = _engine.configuration().kernels_cache_path;
+    auto path = _config.get_property(ov::cache_dir);
     if (path.empty()) {
         return {};
     }
@@ -76,7 +76,7 @@ bool kernels_cache::is_cache_enabled() const {
         }
     }
 
-    return !_engine.configuration().kernels_cache_path.empty();
+    return !_config.get_property(ov::cache_dir).empty();
 }
 
 size_t kernels_cache::get_max_kernels_per_batch() const {
@@ -156,8 +156,16 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     }
 }
 
-kernels_cache::kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str)
-                                : _engine(engine), _prog_id(prog_id), batch_header_str(std::move(batch_header_str)) { }
+kernels_cache::kernels_cache(engine& engine,
+                             const ExecutionConfig& config,
+                             uint32_t prog_id,
+                             InferenceEngine::CPUStreamsExecutor::Ptr task_executor,
+                             const std::vector<std::string>& batch_header_str)
+    : _engine(engine)
+    , _task_executor(task_executor)
+    , _config(config)
+    , _prog_id(prog_id)
+    , batch_header_str(std::move(batch_header_str)) { }
 
 kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_string>& kernel_string,
@@ -188,8 +196,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
 
-    bool dump_sources = !_engine.configuration().sources_dumps_dir.empty() || batch.dump_custom_program;
-    std::string dump_sources_dir = _engine.configuration().sources_dumps_dir;
+    bool dump_sources = batch.dump_custom_program;
+    std::string dump_sources_dir = "";
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
         dump_sources = true;
@@ -205,7 +213,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             current_dump_file_name += '/';
 
         current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
-                               + "_part_" + std::to_string(batch.batch_id) + ".cl";
+                               + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ".cl";
     }
 
     std::ofstream dump_file;
@@ -371,35 +379,36 @@ void kernels_cache::build_all() {
     if (!_pending_compilation)
         return;
 
-    std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
-    if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl,
-                                                                    _engine.configuration(), _engine.get_task_executor()));
-    }
+    ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
     std::vector<batch_program> batches;
     {
         std::lock_guard<std::mutex> lock(_mutex);
         get_program_source(_kernels_code, &batches);
     }
 
-    auto _task_executor = _engine.get_task_executor();
-    std::exception_ptr exception;
-    std::vector<InferenceEngine::Task> tasks;
-    for (size_t idx = 0; idx < batches.size(); idx++) {
-        auto& batch = batches[idx];
-        tasks.push_back([this, &_build_engine, &batch, &exception] {
-            try {
-                build_batch(*_build_engine, batch);
-            } catch(...) {
-                exception = std::current_exception();
-            }
-        });
-    }
-    _task_executor->runAndWait(tasks);
-    tasks.clear();
+    if (_task_executor) {
+        std::exception_ptr exception;
+        std::vector<InferenceEngine::Task> tasks;
+        for (size_t idx = 0; idx < batches.size(); idx++) {
+            auto& batch = batches[idx];
+            tasks.push_back([this, &_build_engine, &batch, &exception] {
+                try {
+                    build_batch(_build_engine, batch);
+                } catch(...) {
+                    exception = std::current_exception();
+                }
+            });
+        }
+        _task_executor->runAndWait(tasks);
+        tasks.clear();
 
-    if (exception) {
-        std::rethrow_exception(exception);
+        if (exception) {
+            std::rethrow_exception(exception);
+        }
+    } else {
+        for (size_t idx = 0; idx < batches.size(); idx++) {
+            build_batch(_build_engine, batches[idx]);
+        }
     }
 
     {
@@ -458,8 +467,7 @@ void kernels_cache::compile() {
 
     std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
     if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl,
-                                                                    _engine.configuration(), _engine.get_task_executor()));
+        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl));
     }
 
     // create batches
@@ -497,8 +505,7 @@ void kernels_cache::save(BinaryOutputBuffer& ob) const {
     }
     ob << entry_point_to_id;
 
-    std::unique_ptr<ocl::ocl_engine> build_engine =
-        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
+    std::unique_ptr<ocl::ocl_engine> build_engine = cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
 
     std::vector<std::vector<unsigned char>> precompiled_kernels;
 
@@ -540,7 +547,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
     std::unique_ptr<ocl::ocl_engine> build_engine =
-        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl, _engine.configuration(), _engine.get_task_executor());
+        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
 
     std::map<std::string, std::string> entry_point_to_id;
     std::vector<std::vector<unsigned char>> precompiled_kernels;

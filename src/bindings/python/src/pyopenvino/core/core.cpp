@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::pair<std::string, py::object>& property) {
-            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(_properties);
         },
         py::arg("property"),
@@ -78,7 +78,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "set_property",
         [](ov::Core& self, const std::string& device_name, const std::pair<std::string, py::object>& property) {
-            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(device_name, _properties);
         },
         py::arg("device_name"),
@@ -555,7 +555,7 @@ void regclass_Core(py::module m) {
 
                                     GIL is released while running this function.
 
-                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, MYRIAD...
+                                    :returns: A list of devices. The devices are returned as: CPU, GPU.0, GPU.1, GNA...
                                         If there more than one device of specific type, they are enumerated with .# suffix.
                                         Such enumerated device can later be used as a device name in all Core methods like:
                                         compile_model, query_model, set_property and so on.

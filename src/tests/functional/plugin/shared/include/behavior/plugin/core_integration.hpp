@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -144,7 +144,8 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
 }
 
 inline std::string getPluginFile() {
-    std::string filename{"mock_engine_valid.xml"};
+    std::string filePostfix{"mock_engine_valid.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_" + filePostfix;
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
@@ -161,7 +162,7 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
 }
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
-    std::string filename{"mock_engine.xml"};
+    std::string filename = CommonTestUtils::generateTestFilePrefix() + "_mock_engine.xml";
     std::string content{"<ie><plugins><plugin location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(filename, content);
     ASSERT_THROW(InferenceEngine::Core  ie(filename), InferenceEngine::Exception);
@@ -355,23 +356,6 @@ TEST_P(IEClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
 //
 // ImportNetwork
 //
-
-TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
-    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-
-    if (target_device == CommonTestUtils::DEVICE_GPU) {
-        ASSERT_THROW(ie.ImportNetwork("model", target_device), InferenceEngine::NetworkNotRead);
-
-        const std::string modelName = "compiled_blob.blob";
-        {
-            std::ofstream file(modelName);
-            file << "content";
-        }
-
-        EXPECT_THROW(ie.ImportNetwork(modelName, target_device), InferenceEngine::NotImplemented);
-        ASSERT_EQ(0, std::remove(modelName.c_str()));
-    }
-}
 
 TEST(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();

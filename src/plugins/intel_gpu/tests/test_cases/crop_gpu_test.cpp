@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "test_utils.h"
@@ -757,11 +757,11 @@ TEST(crop_gpu, basic_in1x4x1x1_split) {
     std::vector<float> out1 = { -1.f, 2.f,-3.f };
     std::vector<float> out2 = { 4.f, };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -805,10 +805,10 @@ TEST(crop_gpu, basic_in1x4x1x1_crop_pad) {
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     std::vector<float> out1 = { -1.f, 2.f,-3.f };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -873,11 +873,11 @@ TEST(crop_gpu, basic_i32_in1x4x1x1_split) {
     std::vector<int32_t> out1 = { -1, 2,-3 };
     std::vector<int32_t> out2 = { 4, };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -948,11 +948,11 @@ TEST(crop_gpu, basic_i64_in1x4x1x1_split) {
     std::vector<int64_t> out1 = { -1, 2,-3 };
     std::vector<int64_t> out2 = { 4, };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -999,8 +999,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     //  Out2:
     //  f0: 4.0
     // disable memory pool when we want to check optimized out internal results
-    engine_configuration cfg{ false, queue_types::out_of_order, std::string(), priority_mode_types::disabled,  throttle_mode_types::disabled, false /*mem_pool*/ };
-    auto engine = engine::create(engine_types::ocl, runtime_types::ocl, cfg);
+    auto engine = engine::create(engine_types::ocl, runtime_types::ocl);
     auto batch_num = 1;
     auto feature_num = 4;
     auto x_size = 1;
@@ -1026,11 +1025,12 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     std::vector<float> out1 = { 0.f, 2.f,0.f };
     std::vector<float> out2 = { 4.f, };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::debug(true)); //required to have optimized crop despite the fact that it's specified as an output
 
-    network network(*engine, topology, bo);
+    ExecutionConfig cfg{
+        ov::intel_gpu::enable_memory_pool(false),
+        ov::intel_gpu::optimize_data(true)
+    };
+    network network(*engine, topology, cfg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1038,7 +1038,7 @@ TEST(crop_gpu, basic_in1x4x1x1_split_w_relu) {
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     // check if crop has been executed in place
-    auto in_place = engine->is_the_same_buffer(*outputs.at("crop1").get_memory(), *outputs.at("relu").get_memory());
+    auto in_place = engine->is_the_same_buffer(*network.get_output_memory("crop1"), *network.get_output_memory("relu"));
     ASSERT_TRUE(in_place);
 
     for (size_t i = 0; i < out1.size();i++)
@@ -1210,15 +1210,15 @@ TEST_P(crop_gpu, pad_test) {
         res.insert(res.end(), res_data.begin(), res_data.end());
     }
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     cldnn::network::ptr network;
 
     if (is_caching_test) {
         membuf mem_buf;
         {
-            cldnn::network _network(engine, topology, bo);
+            cldnn::network _network(engine, topology, config);
             std::ostream out_mem(&mem_buf);
             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
             _network.save(ob);
@@ -1229,7 +1229,7 @@ TEST_P(crop_gpu, pad_test) {
             network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
         }
     } else {
-        network = std::make_shared<cldnn::network>(engine, topology, bo);
+        network = std::make_shared<cldnn::network>(engine, topology, config);
     }
 
     network->set_input_data("input", input);
@@ -1304,9 +1304,9 @@ TEST(crop_gpu, dynamic_i32_in2x3x2x2_crop_offsets) {
         4, -5, 8, 8,
         -14, -15, -16, -17 };
     set_values(input, input_vec);
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
@@ -1363,12 +1363,12 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     std::vector<int32_t> out1 = { -1, 2 };
     std::vector<int32_t> out2 = { -3, 4 };
     set_values(input_mem, input_vec);
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 
@@ -1425,12 +1425,12 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     set_values(axis_mem, {1});
     set_values(splits_length_mem, splits_vec);
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 
@@ -1471,11 +1471,11 @@ TEST(crop_gpu, static_split_batch) {
 
     set_values(input_mem, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::outputs(topology.get_primitives_ids()));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(topology.get_primitives_ids()));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 

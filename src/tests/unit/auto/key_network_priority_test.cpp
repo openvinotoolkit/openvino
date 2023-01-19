@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,7 +89,7 @@ public:
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
+       ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
@@ -113,13 +113,13 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
-            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 3},
+            {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
     } else {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 0},
-            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 0},
+            {"MYRIAD", {}, 2, "01", "MYRIAD_01", 0},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
 
@@ -148,13 +148,13 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
-            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 3},
+            {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
     } else {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 0},
-            {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 0},
+            {"MYRIAD", {}, 2, "01", "MYRIAD_01", 0},
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
 
@@ -269,7 +269,7 @@ const std::vector<ConfigParams> testConfigs = {
     // metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
     // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
     // {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01", 2},
-    // {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01", 3},
+    // {"MYRIAD", {}, 2, "01", "MYRIAD_01", 3},
     // {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 4}};
     // cpu > igpu > dgpu > MYRIAD > VPUX
     ConfigParams {"FP32", true, {PriorityParams {0, "CPU_01"},

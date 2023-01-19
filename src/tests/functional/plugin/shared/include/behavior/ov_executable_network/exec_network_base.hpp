@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifcorer: Apache-2.0
 //
 
@@ -135,10 +135,6 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadNetworkFromMemory) {
             </edges>
         </net>
         )V0G0N";
-
-    if (target_device.find("GNA") != std::string::npos) {
-        GTEST_SKIP();
-    }
     EXPECT_NO_THROW(auto execNet = core->compile_model(model, ov::Tensor(), target_device, configuration));
 }
 
@@ -680,8 +676,9 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalFunction) {
 
 // Load correct network to Plugin to get executable network
 TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
-    const std::string m_out_xml_path_1 = "precisionsAsInOriginalIR.xml";
-    const std::string m_out_bin_path_1 = "precisionsAsInOriginalIR.bin";
+    auto filePrefix = CommonTestUtils::generateTestFilePrefix();
+    const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
+    const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
 
     ov::CompiledModel execNet;
