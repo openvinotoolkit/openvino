@@ -100,7 +100,7 @@ public:
      * @brief Sets properties for plugin, acceptable keys can be found in openvino/runtime/properties.hpp
      * @param properties ov::AnyMap of properties
      */
-    virtual void set_property(const ov::AnyMap& properties);
+    virtual void set_property(const ov::AnyMap& properties) = 0;
 
     /**
      * @brief Gets properties related to plugin behaviour.
@@ -110,7 +110,7 @@ public:
      *
      * @return Value of a property corresponding to the property name.
      */
-    virtual ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const;
+    virtual ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const = 0;
 
     /**
      * @brief Creates a remote context instance based on a map of properties

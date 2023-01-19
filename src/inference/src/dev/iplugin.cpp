@@ -26,14 +26,6 @@ void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtensio
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-void ov::IPlugin::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-ov::Any ov::IPlugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;
