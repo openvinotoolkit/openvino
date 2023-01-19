@@ -473,10 +473,11 @@ InferenceEngine::Parameter CompiledModel::GetMetric(const std::string &name) con
             ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RO},
             ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RO},
             ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RO},
             ov::PropertyName{ov::num_streams.name(), PropertyMutability::RO},
             ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO}
         };
