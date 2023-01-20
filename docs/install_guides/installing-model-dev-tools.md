@@ -30,7 +30,7 @@ for model training or creation; or installation into a new environment.
 
 ### Installation into an Existing Environment with the Source Deep Learning Framework
 
-To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into an existing environment
+To install OpenVINO Development Tools (see the [Install the Package](#install-the-package) section of this article) into an existing environment
 with the deep learning framework used for the model training or creation, run the following command:
 
 ```sh
@@ -96,7 +96,7 @@ Make sure `pip` is installed in your environment and upgrade it to the latest ve
 python -m pip install --upgrade pip
 ```
 
-#### Step 4. Install the Package
+#### Step 4. <a name="install-the-package"></a> Install the Package
 
 To install and configure the components of the development package together with validated versions of specific frameworks, use the commands below.
 
