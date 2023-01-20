@@ -12,7 +12,7 @@
 
 This article introduces how Automatic Device Selection works and how to use it for inference.
 
-## How AUTO Works
+## <a name="how-auto-works"></a> How AUTO Works
 
 The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
 which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
@@ -287,7 +287,7 @@ Although the methods described above are currently the preferred way to execute 
 
 @endsphinxdirective
 
-## Using AUTO with OpenVINO Samples and Benchmark app
+## <a name="using-auto-with-openvino-samples-and-benchmark-app"></a> Using AUTO with OpenVINO Samples and Benchmark app
 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 

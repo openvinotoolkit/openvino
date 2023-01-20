@@ -4,7 +4,7 @@ You Only Look At CoefficienTs (YOLACT) is a simple, fully convolutional model fo
 The PyTorch implementation is publicly available in [this GitHub repository](https://github.com/dbolya/yolact).
 The YOLACT++ model is not supported, because it uses deformable convolutional layers that cannot be represented in ONNX format.
 
-## Creating a Patch File <a name="patch-file"></a>
+## Creating a Patch File <a name="patch-file-yolact"></a>
 
 Before converting the model, create a patch file for the repository.
 The patch modifies the framework code by adding a special command-line argument to the framework options. The argument enables inference graph dumping:
@@ -142,7 +142,7 @@ git checkout 57b8f2d95e62e2e649b382f516ab41f949b57239
 
 **Step 3**. Export the model to ONNX format.
 
-1. Apply the `YOLACT_onnx_export.patch` patch to the repository. Refer to the <a href="#patch-file">Create a Patch File</a> instructions if you do not have it:
+1. Apply the `YOLACT_onnx_export.patch` patch to the repository. Refer to the <a href="#patch-file-yolact">Create a Patch File</a> instructions if you do not have it:
 ```sh
 git apply /path/to/patch/YOLACT_onnx_export.patch
 ```

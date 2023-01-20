@@ -2,7 +2,7 @@
 
 The guide presents a basic workflow for building and running C++ code samples in OpenVINO. Note that these steps will not work with the Python samples. 
 
-To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the <a href="#prerequisites">Prerequisites</a> section for instructions.
+To get started, you must first install OpenVINO Runtime, install OpenVINO Development tools, and build the sample applications. See the <a href="#prerequisites-samples">Prerequisites</a> section for instructions.
 
 Once the prerequisites have been installed, perform the following steps:
 
@@ -11,7 +11,7 @@ Once the prerequisites have been installed, perform the following steps:
 3. <a href="#download-media">Download media files to run inference.</a>
 4. <a href="#run-image-classification">Run inference with the Image Classification sample application and see the results.</a>
 
-## <a name="prerequisites"></a>Prerequisites
+## <a name="prerequisites-samples"></a>Prerequisites
 
 ### Install OpenVINO Runtime
 

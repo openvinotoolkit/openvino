@@ -108,7 +108,7 @@ For setting relevant configuration, refer to the
 [Integrate with Customer Application](../integrate_with_your_application.md) topic
 (step 3 "Configure input and output").
 
-### Supported Layers
+### <a name="supported-layers"></a> Supported Layers
 The following layers are supported by the plugins:
 
 | Layers                         | GPU           | CPU           | VPU           | GNA           | Arm® CPU    |
