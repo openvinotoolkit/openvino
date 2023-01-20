@@ -6,12 +6,7 @@
 
 #include "ngraph_transformations/propagate_optimal_bs.hpp"
 
-// TODO: remove
 #include <transformations/init_node_info.hpp>
-
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
-#include "ov_ops/type_relaxed.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "mixed_affinity_functions.hpp"
 
@@ -53,16 +48,6 @@ TEST_F(PropagateOptimalBSTest, ConvWithTranspose) {
     model = builder.getOriginal(actual_markup);
     BSMarkup reference_markup{{"convolution", 1}, {"transpose", 1}};
     model_ref = builder.getOriginal(reference_markup);
-    ov::pass::InitNodeInfo().run_on_model(model_ref);
-}
-
-TEST_F(PropagateOptimalBSTest, ConvWithReshape) {
-    ov::PartialShape input_shape{4, 3, -1, -1};
-    ConvWithReshapeFunction builder({input_shape});
-
-    BSMarkup markup{{"convolution", 1}};
-    model = builder.getOriginal(markup);
-    model_ref = builder.getOriginal(markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
 

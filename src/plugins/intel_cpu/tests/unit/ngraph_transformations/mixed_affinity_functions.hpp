@@ -52,9 +52,23 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() override;
 };
 
+class ConvWithSplitAndResultFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvWithSplitAndResultFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
 class TwoConvAndAddFunction : public MixedAffinityFunctionBase {
 public:
     explicit TwoConvAndAddFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
+class TwoConvWithS2BFunction : public MixedAffinityFunctionBase {
+public:
+    explicit TwoConvWithS2BFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
 };
