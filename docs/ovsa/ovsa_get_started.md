@@ -100,7 +100,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 <br>
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-![Security Add-on Diagram](ovsa_diagram.png)
+![Security Add-on Diagram](ovsa_diagram.svg)
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in [this document](https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md)
 
@@ -650,7 +650,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
 > **TIP**: The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named `ovsa_isv`. It is possible to have all roles set up on the same Host Machine.
 
-![OpenVINO™ Security Add-on Example Diagram](ovsa_example.png)
+![OpenVINO™ Security Add-on Example Diagram](ovsa_example.svg)
 
 ### Model Developer Instructions
 
