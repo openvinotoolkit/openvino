@@ -82,8 +82,7 @@ jobs:
 
   steps:
   - script: |
-      echo $AGENT_TOOLSDIRECTORY
-      ls /agent/_work/_tool
+      ls -la /agent/_work/_tool
 
   - task: UsePythonVersion@0
     inputs:
