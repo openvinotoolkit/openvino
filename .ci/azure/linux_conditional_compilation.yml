@@ -36,6 +36,9 @@ resources:
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
 
+variables:
+  - group: github
+
 jobs:
 - job: LinCC
   # About 150% of total time
@@ -70,7 +73,7 @@ jobs:
   - bash: |
       #!/bin/bash
       python -V
-      
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami

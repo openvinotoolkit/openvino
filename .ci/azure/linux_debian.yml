@@ -34,6 +34,9 @@ resources:
     name: openvinotoolkit/testdata
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: Lin_Debian
   # About 150% of total time
@@ -64,7 +67,7 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
-    
+
   steps:
   - task: UsePythonVersion@0
     inputs:
