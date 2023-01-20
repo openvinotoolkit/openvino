@@ -11,7 +11,6 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -152,25 +151,8 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 meshgrid_inputs.push_back(input.get_source_output());
             }
 
-            std::string indexing = "";
-            // Indexing - Constant with str "ij" or "xy"
-            if (meshgrid->inputs().size() == 1) {
-                // No input for indexing argument, use default.
-                indexing = "ij";
-            } else if (meshgrid->inputs().size() == 2) {
-                // Get indexing value from second input to node.
-                auto meshgrid_indexing_node =
-                    cast_fw_node(meshgrid->input_value(1).get_node_shared_ptr(), "prim::Constant");
-                if (!meshgrid_indexing_node) {
-                    return false;
-                }
-                rt_copy_from.push_back(meshgrid_indexing_node);
-                auto meshgrid_indexing_const = std::dynamic_pointer_cast<ov::frontend::pytorch::PtFrameworkNode>(
-                    meshgrid->input_value(1).get_node_shared_ptr());
-                indexing = meshgrid_indexing_const->get_decoder()->as_string();
-            } else {
-                return false;
-            }
+            auto meshgrid_attrs = meshgrid->get_attrs();
+            std::string indexing = meshgrid_attrs["indexing"];
 
             if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
                 std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);

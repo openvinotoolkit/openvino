@@ -11,12 +11,16 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_meshgrid(NodeContext& context) {
-    auto node = context.mark_node(std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs()));
-    node->set_argument(0, context.get_input_from_visible_context(0));
+    OutputVector inputs{context.get_input_from_visible_context(0)};
+    std::string indexing = "ij";
     if (!context.input_is_none(1)) {
-        node->set_argument(1, context.get_input_from_visible_context(1));
+        indexing = context.const_input<std::string>(1);
     }
-    return {node};
+    auto node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs);
+    auto attrs = node->get_attrs();
+    attrs["indexing"] = indexing;
+    node->set_attrs(attrs);
+    return {context.mark_node(node)};
 };
 
 }  // namespace op
