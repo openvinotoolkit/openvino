@@ -27,11 +27,7 @@ function(add_common_utils ADD_TARGET_NAME)
     )
 
     # USE_STATIC_IE is passed
-    if(ARGN)
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
-    else()
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
-    endif()
+    target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
 
     ie_faster_build(${ADD_TARGET_NAME}
         UNITY
@@ -58,7 +54,6 @@ function(add_common_utils ADD_TARGET_NAME)
         PUBLIC
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
-            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 
