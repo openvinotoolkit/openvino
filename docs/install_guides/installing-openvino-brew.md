@@ -2,7 +2,9 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via `Homebrew <https://brew.sh/>`_. See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via `Homebrew <https://brew.sh/>`_. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components>` for more information.
+
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
@@ -59,11 +61,11 @@ Full requirement listing is available on the `System Requirements Page <https://
 
       brew install openvino
 
-
 Congratulations, you've finished the installation!
 
-@endsphinxdirective
+.. _intall additional components:
 
+@endsphinxdirective
 
 ## (Optional) Installing Additional Components
 

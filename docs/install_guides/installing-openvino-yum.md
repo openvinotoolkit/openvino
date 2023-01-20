@@ -2,7 +2,9 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the YUM repository. See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the YUM repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components>` for more information.
+
+See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
@@ -102,7 +104,6 @@ To list available OpenVINO packages, use the following command:
 
 @endsphinxdirective
 
-
 #### Check for Installed Packages and Version
 
 Run the following command:
@@ -113,38 +114,9 @@ Run the following command:
 
       yum list installed 'openvino*'
 
-@endsphinxdirective
-
-
-#### Uninstalling OpenVINO Runtime
-
-@sphinxdirective
-
-.. tab:: The Latest Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum autoremove openvino
-
-
-.. tab::  A Specific Version
-
-   Run the following command:
-
-   .. code-block:: sh
-
-      sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
-
-   For example:
-
-   .. code-block:: sh
-
-      sudo yum autoremove openvino-2022.3.0
+.. _intall additional components:
 
 @endsphinxdirective
-
 
 ### Step 3 (Optional): Install Additional Components
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
@@ -176,6 +148,33 @@ To build the C++ or C sample applications for Linux, run the `build_samples.sh` 
 @endsphinxdirective
 
 For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.html#build-samples-linux">Build the Sample Applications on Linux</a>.
+
+### Uninstalling OpenVINO Runtime
+
+@sphinxdirective
+
+To uninstall OpenVINO Runtime via YUM, run the following commands based on your needs:
+
+.. tab:: The Latest Version
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino
+
+
+.. tab::  A Specific Version
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino-<VERSION>.<UPDATE>.<PATCH>
+
+   For example:
+
+   .. code-block:: sh
+
+      sudo yum autoremove openvino-2022.3.0
+
+@endsphinxdirective
 
 ## What's Next?
 
