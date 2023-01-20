@@ -7,7 +7,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/split.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
