@@ -6,6 +6,8 @@ if (NOT ENABLE_INTEL_GNA)
     return()
 endif()
 
+add_subdirectory(legacy)
+
 set(TARGET_NAME "openvino_intel_gna_plugin")
 
 if (ENABLE_INTEL_GNA_DEBUG)
