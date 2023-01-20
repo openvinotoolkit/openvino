@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op_table.hpp"
 
+#include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset9.hpp"
 
@@ -15,6 +16,17 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+
+#define TF_OP_CONVERTER(op) OutputVector op(const ov::frontend::tensorflow::NodeContext& node)
+
+TF_OP_CONVERTER(translate_if_op);
+TF_OP_CONVERTER(translate_block_lstm_op);
+TF_OP_CONVERTER(translate_gru_block_cell_op);
+TF_OP_CONVERTER(translate_partitioned_call_op);
+TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
+TF_OP_CONVERTER(translate_sparse_reshape_op);
+TF_OP_CONVERTER(translate_sparse_segment_sum_op);
+TF_OP_CONVERTER(translate_while_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
@@ -50,7 +62,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Tanh", translate_unary_op<opset8::Tanh>},
         {"Swish", translate_unary_op<opset8::Swish>},
 
-        // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
+        // note: BinaryOp translator declaration for each op must be added in binary_op.cpp file
         {"Add", translate_binary_op<opset8::Add>},
         {"AddV2", translate_binary_op<opset8::Add>},
         {"Equal", translate_binary_op<opset8::Equal>},
@@ -72,7 +84,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SquaredDifference", translate_binary_op<opset8::SquaredDifference>},
         {"Sub", translate_binary_op<opset8::Subtract>},
 
-        // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
+        // note: ReduceOp translator declaration for each op must be added in reduce.cpp file
         {"Any", translate_direct_reduce_op<opset8::ReduceLogicalOr>},
         {"All", translate_direct_reduce_op<opset8::ReduceLogicalAnd>},
         {"EuclideanNorm", translate_direct_reduce_op<opset8::ReduceL2>},

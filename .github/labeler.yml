@@ -119,6 +119,7 @@
 
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
+- 'src/frontends/tensorflow_common/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
 
 'category: PyTorch FE':
