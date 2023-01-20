@@ -89,7 +89,7 @@ jobs:
     inputs:
       versionSpec: '3.10.7'
       addToPath: true
-      disableDownloadFromRegistry: true
+      disableDownloadFromRegistry: false
       allowUnstable: true
       architecture: 'x64'
       githubToken: $(auth_token)
