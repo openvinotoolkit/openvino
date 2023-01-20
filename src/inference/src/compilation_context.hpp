@@ -20,7 +20,7 @@ class CNNNetwork;
 struct NetworkCompilationContext final {
     static std::string calculateFileInfo(const std::string& filePath);
 
-    static std::string computeHash(const CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
+    static std::string computeHash(CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
 
     static std::string computeHash(const std::string& modelName,
                                    const std::map<std::string, std::string>& compileOptions);
