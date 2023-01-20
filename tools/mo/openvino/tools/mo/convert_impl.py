@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -19,7 +19,8 @@ except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
 from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, new_extensions_used
+from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
+    tensorflow_custom_operations_config_update_used, new_extensions_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
@@ -301,6 +302,7 @@ def check_fallback(argv: argparse.Namespace):
 
     fallback_reasons['extensions'] = legacy_extensions_used
     fallback_reasons['transformations_config'] = legacy_transformations_config_used
+    fallback_reasons['tensorflow_custom_operations_config_update'] = tensorflow_custom_operations_config_update_used
 
     reasons = [reason for reason, is_applicable in fallback_reasons.items() if is_applicable(argv)]
     return reasons
@@ -412,6 +414,8 @@ def prepare_ir(argv: argparse.Namespace):
                     raise Error('Legacy extensions are not supported for the new frontend')
                 if legacy_extensions_used(argv):
                     raise Error('Legacy transformations configuration is not supported for the new frontend')
+                if tensorflow_custom_operations_config_update_used(argv) and is_tf:
+                    raise Error('TensorFlow custom operation config is not supported for the new frontend')
                 if new_extensions_used(argv):
                     for extension in argv.extensions:
                         moc_front_end.add_extension(extension)
