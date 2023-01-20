@@ -69,12 +69,6 @@ jobs:
     CCACHE_DIR: $(WORK_DIR)/ccache/mac
 
   steps:
-  - task: UsePythonVersion@0
-    displayName: Get Python 3.10
-    inputs:
-      versionSpec: '3.10'
-    name: setupPython
-
   - script: |
       whoami
       uname -a
