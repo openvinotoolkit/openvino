@@ -11,6 +11,7 @@ trigger:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tools/*'
 
 pr:
   drafts: 'false'
@@ -26,6 +27,7 @@ pr:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tools/*'
 
 resources:
   repositories:
@@ -33,6 +35,9 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+
+variables:
+  - group: github
 
 jobs:
 - job: WinCC
@@ -58,6 +63,15 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10'
+      addToPath: true
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10
+    name: setupPython
+
   - script: |
       powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
       where python
@@ -113,11 +127,10 @@ jobs:
         -DENABLE_AUTO_BATCH=OFF ^
         -DENABLE_HETERO=OFF ^
         -DENABLE_TEMPLATE=OFF ^
-        -DENABLE_INTEL_MYRIAD=OFF ^
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
         -DENABLE_TESTS=OFF ^
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
         $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
@@ -160,11 +173,10 @@ jobs:
         -DENABLE_AUTO_BATCH=OFF ^
         -DENABLE_HETERO=OFF ^
         -DENABLE_TEMPLATE=OFF ^
-        -DENABLE_INTEL_MYRIAD=OFF ^
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF ^
         -DENABLE_TESTS=OFF ^
         -DENABLE_OV_ONNX_FRONTEND=OFF ^
         -DENABLE_OV_PADDLE_FRONTEND=OFF ^
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF ^
         -DENABLE_OV_TF_FRONTEND=OFF ^
         $(REPO_DIR)
     workingDirectory: $(BUILD_DIR_2)

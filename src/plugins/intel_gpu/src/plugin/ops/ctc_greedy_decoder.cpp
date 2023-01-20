@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ static void CreateCommonCTCGreedyDecoderOp(Program& p, const std::shared_ptr<ngr
             tensor_from_dims(op->get_output_shape(1)));
 
         GPU_DEBUG_LOG << "[" << layer_type_name_ID(op) << ": mutable data]" << std::endl;
-        shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayout));
+        shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayout));
 
         cldnn::primitive_id ctc_gd_mutable_id_w = layer_type_name_ID(op) + "_md_write";
         auto ctc_gd_mutable_prim = cldnn::mutable_data(ctc_gd_mutable_id_w,

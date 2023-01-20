@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <ngraph/runtime/host_tensor.hpp>
@@ -10,9 +10,6 @@
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
-
-#include "ov_ops/augru_cell.hpp"
-#include "ov_ops/augru_sequence.hpp"
 
 #include "assign_shape_inference.hpp"
 #include "augru_cell_shape_inference.hpp"
@@ -43,8 +40,8 @@
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
 #include "grid_sample_shape_inference.hpp"
-#include "gru_sequence_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
+#include "gru_sequence_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
@@ -65,6 +62,7 @@
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
+#include "slice_shape_inference.hpp"
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
 #include "split_shape_inference.hpp"
@@ -467,6 +465,8 @@ std::shared_ptr<IShapeInferCommon> make_shape_inference(const std::shared_ptr<ng
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset7::Einsum>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset8::Slice>(op)) {
+        return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset1::StridedSlice>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset3::Assign>(op)) {

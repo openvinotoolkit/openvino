@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,10 @@ namespace pass {
 class InsertMoveBroadcast: public ngraph::pass::MatcherPass {
 public:
     InsertMoveBroadcast();
+
+    static Output<ngraph::Node> BroadcastNodeLastDim(const ngraph::Output<ngraph::Node>& value,
+                                                     const ov::PartialShape& target_shape,
+                                                     const ov::PartialShape& normalized_shape);
 };
 
 } // namespace pass

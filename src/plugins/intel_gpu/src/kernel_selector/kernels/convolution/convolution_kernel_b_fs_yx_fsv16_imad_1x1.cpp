@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,7 +191,7 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, c
         return false;
     }
 
-    if (conv_params.groups != 1 || conv_params.split != 1)
+    if (conv_params.groups != 1)
         return false;
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {

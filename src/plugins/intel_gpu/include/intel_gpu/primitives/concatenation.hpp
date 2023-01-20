@@ -1,19 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @details Concatenation is used to concatenate multiple sources into one destination along specified dimension.
 /// @notes
@@ -66,7 +59,4 @@ struct concatenation : public primitive_base<concatenation> {
     /// @brief Dimension along which concatenation should take place
     int64_t axis;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

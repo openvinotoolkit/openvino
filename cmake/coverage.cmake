@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -106,13 +106,6 @@ if (ENABLE_INTEL_GPU)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-if(ENABLE_INTEL_MYRIAD)
-    ov_coverage_extract(INPUT "openvino" OUTPUT "intel_myriad_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/intel_myriad/*")
-    ov_coverage_genhtml(INFO_FILE "intel_myriad_plugin"
-                        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-endif()
-
 if(ENABLE_TEMPLATE)
     ov_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
                         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/plugins/template/*")
@@ -140,6 +133,13 @@ if(ENABLE_OV_PADDLE_FRONTEND)
     ov_coverage_extract(INPUT "openvino" OUTPUT "paddle_frontend"
         PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/paddle/*")
     ov_coverage_genhtml(INFO_FILE "paddle_frontend"
+        PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
+endif()
+
+if(ENABLE_OV_PYTORCH_FRONTEND)
+    ov_coverage_extract(INPUT "openvino" OUTPUT "pytorch_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/pytorch/*")
+    ov_coverage_genhtml(INFO_FILE "pytorch_frontend"
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 

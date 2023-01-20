@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -291,7 +291,7 @@ TEST(cl_mem_check, check_write_access_type) {
     }
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto stream = engine->create_stream();
+    auto stream = engine->create_stream({});
 
     size_t values_count = 100;
     size_t values_bytes_count = values_count * sizeof(float);
@@ -328,7 +328,7 @@ TEST(cl_mem_check, check_read_access_type) {
     }
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto stream = engine->create_stream();
+    auto stream = engine->create_stream({});
 
     size_t values_count = 100;
     size_t values_bytes_count = values_count * sizeof(float);

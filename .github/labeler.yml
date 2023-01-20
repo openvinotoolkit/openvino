@@ -29,8 +29,8 @@
 - 'src/core/include/**/*'
 - 'src/frontends/common/**/*'
 - 'src/frontends/onnx/frontend/include/**/*'
-- 'src/frontends/tensorflow/**/*'
-- 'src/frontends/paddle/**/*'
+- 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/paddle/include/**/*'
 
 'category: CPU':
 - 'src/plugins/intel_cpu/**/*'
@@ -40,9 +40,10 @@
 'category: dependency_changes':
 - '**/requirement*.txt'
 - 'scripts/**/*'
-- 'thirdparty/**/*'
 - '.gitmodules'
 - '**/setup.py'
+- any: ['thirdparty/**/*',
+        '!thirdparty/**/CMakeLists.txt']
 
 'category: docs':
 - 'docs/**/*'
@@ -66,12 +67,10 @@
 - 'src/plugins/hetero/**/*'
 
 'category: IE Tests':
+- 'thirdparty/gtest/**/*'
+- 'src/frontends/tests/frontend/shared/**/*'
 - any: ['src/tests/**/*',
-        'thirdparty/gtest/**/*',
-        'src/frontends/tests/frontend/shared/**/*']
-  all: ['!src/tests/**/gpu/**/*',
-        '!src/tests/**/cpu/**/*',
-        '!src/tests/**/myriad/**/*',
+        '!src/tests/**/gpu/**/*',
         '!src/tests/**/inference_engine/**/*']
 
 'category: inference':
@@ -120,14 +119,18 @@
 
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
+- 'tests/layer_tests/tensorflow_tests/**/*'
+
+'category: PyTorch FE':
+- 'src/frontends/pytorch/**/*'
+- 'tests/layer_tests/pytorch_tests/**/*'
+- 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 
 'category: tools':
-- 'tools/**'
+- any: ['tools/**',
+        '!tools/pot/**/*',
+        '!tools/mo/**/*']
 
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
-
-'category: VPU':
-- 'src/plugins/intel_myriad/**/*'
-- 'src/tests/**/myriad/**/*'
