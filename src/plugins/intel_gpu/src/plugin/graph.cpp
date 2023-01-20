@@ -67,7 +67,11 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    get_engine().create_onednn_engine(config);
+    bool need_onednn_engine = false;
+    ib >> need_onednn_engine;
+    if (need_onednn_engine) {
+        get_engine().create_onednn_engine(config);
+    }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
     ib >> m_program->inputLayouts;
@@ -474,6 +478,15 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    try {
+        get_engine().get_onednn_engine();
+        ob << true;
+    } catch (ov::AssertFailure &) {
+        ob << false;
+    }
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
     ob << m_program->inputLayouts;
     ob << primitiveIDs;
     ob << outputDims;
