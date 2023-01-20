@@ -14,6 +14,7 @@
 #  * `Paddle`: OpenVINO Paddle frontend
 #  * `PyTorch`: OpenVINO PyTorch frontend
 #  * `TensorFlow`: OpenVINO TensorFlow frontend
+#  * `TensorFlowLite`: OpenVINO TensorFlow Lite frontend
 #
 # If no components are specified, `Runtime` component is provided:
 #
@@ -48,6 +49,9 @@
 #   `openvino::frontend::tensorflow`
 #   TensorFlow FrontEnd target (optional)
 #
+#   `openvino::frontend::tensorflow_lite`
+#   TensorFlow FrontEnd target (optional)
+#
 # Result variables:
 # ------
 #
@@ -70,6 +74,9 @@
 #
 #   `OpenVINO_Frontend_TensorFlow_FOUND`
 #   OpenVINO TensorFlow frontend is available
+#
+#   `OpenVINO_Frontend_TensorFlowLite_FOUND`
+#   OpenVINO TensorFlow Lite frontend is available
 #
 #   `OpenVINO_Frontend_IR_FOUND`
 #   OpenVINO IR frontend is available
@@ -299,12 +306,14 @@ set(${CMAKE_FIND_PACKAGE_NAME}_Runtime_FOUND ON)
 set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @ENABLE_OV_ONNX_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND @ENABLE_OV_PADDLE_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @ENABLE_OV_TF_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND @ENABLE_OV_TF_LITE_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND @ENABLE_OV_IR_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND @ENABLE_OV_PYTORCH_FRONTEND@)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_ONNX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_Paddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlow_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND})
+set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlowLite_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_IR_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_PyTorch_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND})
 

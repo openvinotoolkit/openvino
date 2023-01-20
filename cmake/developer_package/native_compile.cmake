@@ -7,18 +7,15 @@ include(ExternalProject)
 #
 # ov_native_compile_external_project(
 #      TARGET_NAME <name>
-#      NATIVE_SOURCE_DIR <source dir>
-#      NATIVE_BUILD_DIR <source dir>
 #      NATIVE_INSTALL_DIR <source dir>
-#      NATIVE_PREFIX_DIR <source dir>
-#      CMAKE_OPTION <option1 option2 ...>
+#      NATIVE_TARGETS <target1 target2 ..>
+#      [NATIVE_SOURCE_SUBDIR <subdir>]
+#      [CMAKE_ARGS <option1 option2 ...>]
 #   )
 #
 function(ov_native_compile_external_project)
-    set(oneValueRequiredArgs NATIVE_SOURCE_DIR NATIVE_BUILD_DIR
-                             NATIVE_INSTALL_DIR NATIVE_PREFIX_DIR
-                             TARGET_NAME)
-    set(multiValueArgs CMAKE_OPTION)
+    set(oneValueRequiredArgs NATIVE_INSTALL_DIR TARGET_NAME NATIVE_SOURCE_SUBDIR)
+    set(multiValueArgs CMAKE_ARGS NATIVE_TARGETS)
     cmake_parse_arguments(ARG "" "${oneValueRequiredArgs};${oneValueOptionalArgs}" "${multiValueArgs}" ${ARGN})
 
     if(YOCTO_AARCH64)
@@ -59,33 +56,44 @@ function(ov_native_compile_external_project)
 
     # compile flags
     if(CMAKE_COMPILER_IS_GNUCXX)
-        set(compile_flags "-Wno-undef -Wno-error")
+        set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
+    endif()
+
+    if(ARG_NATIVE_SOURCE_SUBDIR)
+        set(ARG_NATIVE_SOURCE_SUBDIR SOURCE_SUBDIR ${ARG_NATIVE_SOURCE_SUBDIR})
     endif()
 
     ExternalProject_Add(${ARG_TARGET_NAME}
-        SOURCE_DIR "${ARG_NATIVE_SOURCE_DIR}"
-        CONFIGURE_COMMAND
-            "${CMAKE_COMMAND}" -E env ${cmake_env}
-                "${NATIVE_CMAKE_COMMAND}"
-                # explicitly skip compiler and generator
-                # "-DCMAKE_GENERATOR=${CMAKE_GENERATOR}"
-                "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-                "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
-                "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
-                "-DCMAKE_CXX_FLAGS=${compile_flags}"
-                "-DCMAKE_C_FLAGS=${compile_flags}"
-                "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
-                "-DCMAKE_INSTALL_PREFIX=${ARG_NATIVE_INSTALL_DIR}"
-                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-                "-DTHREADS_PREFER_PTHREAD_FLAG=${THREADS_PREFER_PTHREAD_FLAG}"
-                # project specific
-                ${ARG_CMAKE_OPTIONS}
-                # source and build directories
-                "-S${ARG_NATIVE_SOURCE_DIR}"
-                "-B${ARG_NATIVE_BUILD_DIR}"
-        BINARY_DIR "${ARG_NATIVE_BUILD_DIR}"
+        # Directory Options
+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+        PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
+        BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/build"
         INSTALL_DIR "${ARG_NATIVE_INSTALL_DIR}"
-        PREFIX "${ARG_NATIVE_PREFIX_DIR}"
-        EXCLUDE_FROM_ALL ON)
+        # Configure Step Options:
+        CMAKE_COMMAND
+            ${NATIVE_CMAKE_COMMAND}
+        CMAKE_ARGS
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
+            "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
+            "-DCMAKE_CXX_LINKER_LAUNCHER=${CMAKE_CXX_LINKER_LAUNCHER}"
+            "-DCMAKE_C_LINKER_LAUNCHER=${CMAKE_C_LINKER_LAUNCHER}"
+            "-DCMAKE_CXX_FLAGS=${compile_flags}"
+            "-DCMAKE_C_FLAGS=${compile_flags}"
+            "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+            "-DCMAKE_INSTALL_PREFIX=${ARG_NATIVE_INSTALL_DIR}"
+            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+            ${ARG_CMAKE_ARGS}
+        CMAKE_GENERATOR "${CMAKE_GENERATOR}"
+        ${ARG_NATIVE_SOURCE_SUBDIR}
+        # Build Step Options:
+        BUILD_COMMAND
+            ${NATIVE_CMAKE_COMMAND}
+                --build "${CMAKE_CURRENT_BINARY_DIR}/build"
+                --config Release
+                -- ${ARG_NATIVE_TARGETS}
+        # Test Step Options:
+        TEST_EXCLUDE_FROM_MAIN ON
+        # Target Options:
+        EXCLUDE_FROM_ALL ON
+    )
 endfunction()
