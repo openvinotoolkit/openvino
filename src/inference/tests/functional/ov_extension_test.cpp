@@ -191,8 +191,9 @@ std::string getIncorrectExtensionPath() {
 }
 
 std::string getRelativeOVExtensionPath() {
-    std::string absolutePath = ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                              std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
+    std::string absolutePath =
+        ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
+                                           std::string("openvino_template_extension") + IE_BUILD_POSTFIX);
     return CommonTestUtils::getRelativePath(CommonTestUtils::getCurrentWorkingDir(), absolutePath);
 }
 
