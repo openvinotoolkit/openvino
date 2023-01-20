@@ -5,7 +5,8 @@
 #include "dnnl_executor.h"
 
 #include "utils/debug_capabilities.h"
-
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 using namespace dnnl;
 
 namespace ov {
@@ -94,6 +95,22 @@ impl_desc_type DnnlExecutor2::getImplementationType() const {
     return parse_impl_name(pd.impl_info_str());
 }
 
+void DnnlExecutor2::reset(dnnl::primitive p, dnnl::primitive_desc_base prim_desc) {
+    prim = p;
+    pd = prim_desc;
+    DEBUG_LOG("CPU node      : ", name);
+    DEBUG_LOG("  primitive   : ", p.get_primitive_desc()->info());
+    DEBUG_LOG("  src_desc    : ", pd.src_desc(0));
+    DEBUG_LOG("  weights_desc: ", pd.weights_desc(0));
+    DEBUG_LOG("  dst_desc    : ", pd.dst_desc(0));
+    inputReorders.clear();
+    outputReorders.clear();
+    constFoldings.clear();
+    updateHandles.clear();
+    constFolded = false;
+    // privateWeightCache was kept to always reference weights of different format
+    setScratchPad();
+}
 // scenario
 //    infer[i-1](shape1) ===>  infer[i](shape2) ==> infer[i+1](shape2)
 //
@@ -110,56 +127,104 @@ impl_desc_type DnnlExecutor2::getImplementationType() const {
 // thus any changes to the actual addresses still can be sensed by all
 // primitives in the DnnlExecutor.
 //
-// things becomes different when we're trying to build a different memory object to wrap
-// a memory with different pointer, at infer[i+1], this object needs to be updated
-// again at each inference. we remember such operation in updateHandles.
+// things becomes different when primitive requires canonicalized memory,
+// at infer[i+1], the canonicalized memory object's handle needs to be updated
+// explicitly, we maintain such record in updateHandles.
 //
-void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, arg_mem_type atype) {
+void DnnlExecutor2::setArg(int arg_id, dnnl::memory external_mem, bool is_const, const dnnl::memory::desc * p_canonical_desc) {
     memory::desc internal_desc;
     bool is_output = false;
 
+    auto canonical2str = [&](){
+        std::stringstream ss;
+#ifdef CPU_DEBUG_CAPS
+        if (p_canonical_desc) {
+            ss << " (canonicalized as " << (*p_canonical_desc) << ")";
+        }
+#endif
+        return ss.str();
+    };
+
     if (arg_id >= DNNL_ARG_SRC && arg_id <= DNNL_ARG_SRC_3) {
         internal_desc = pd.src_desc(arg_id - DNNL_ARG_SRC);
+        DEBUG_LOG(" DNNL_ARG_SRC_", arg_id - DNNL_ARG_SRC, " is set to ", external_mem.get_desc(), canonical2str());
     } else if (arg_id >= DNNL_ARG_WEIGHTS && arg_id <= DNNL_ARG_WEIGHTS_3) {
         internal_desc = pd.weights_desc(arg_id - DNNL_ARG_WEIGHTS);
+        DEBUG_LOG(" DNNL_ARG_WEIGHTS_", arg_id - DNNL_ARG_WEIGHTS, " is set to ", external_mem.get_desc(), canonical2str());
     } else if (arg_id >= DNNL_ARG_DST && arg_id <= DNNL_ARG_DST_2) {
         internal_desc = pd.dst_desc(arg_id - DNNL_ARG_DST);
         is_output = true;
+        DEBUG_LOG(" DNNL_ARG_DST_", arg_id - DNNL_ARG_DST, " is set to ", external_mem.get_desc(), canonical2str());
+    } else if (arg_id >= DNNL_ARG_DIFF_DST && arg_id <= DNNL_ARG_DIFF_DST_2) {
+        // for convolution_backward_data, diff_dst is input
+        internal_desc = pd.diff_dst_desc(arg_id - DNNL_ARG_DIFF_DST);
+        DEBUG_LOG(" DNNL_ARG_DIFF_DST_", arg_id - DNNL_ARG_DIFF_DST, " is set to ", external_mem.get_desc(), canonical2str());
+    } else if (arg_id >= DNNL_ARG_DIFF_SRC && arg_id <= DNNL_ARG_DIFF_SRC_3) {
+        // for convolution_backward_data, diff_src is output
+        internal_desc = pd.diff_src_desc(arg_id - DNNL_ARG_DIFF_SRC);
+        is_output = true;
+        DEBUG_LOG(" DNNL_ARG_DIFF_SRC_", arg_id - DNNL_ARG_DIFF_SRC, " is set to ", external_mem.get_desc(), canonical2str());
     } else {
         // normal ARGS w/o reorder
         args[arg_id] = external_mem;
         return;
     }
 
-    // handl reorders for SRC/WEIGHTS/DST
+    if (is_const) {
+        // runtime reordering is done in const-folding stage
+        // and :
+        //  - handle is retrieved from external_mem when folding
+        //  - canonical desc will be used before reordering
+        args[arg_id] = addConstFolding(external_mem,
+                                       p_canonical_desc,
+                                       std::to_string(arg_id),
+                                       DnnlExtensionUtils::makeDescriptor(internal_desc));
+        return;
+    }
+
     auto external_desc = external_mem.get_desc();
-    if (external_desc == internal_desc) {
-        // atype is ignored when descriptor is the same
-        args[arg_id] = external_mem;
-    } else {
-        dnnl::memory internal_mem;
-        if (atype == arg_mem_type::constant) {
-            // runtime const-folding style reordering is required
-            internal_mem = addConstFolding(external_mem,
-                                           std::to_string(arg_id),
-                                           DnnlExtensionUtils::makeDescriptor(internal_desc));
-        } else if (atype == arg_mem_type::normal) {
-            // runtime reorder is required
-            internal_mem = dnnl::memory(internal_desc, context->getEngine());
+    bool external_already_canonical = ((!p_canonical_desc) || (*p_canonical_desc == external_desc));
+    if (external_already_canonical) {
+        if (external_desc == internal_desc) {
+            // external_desc is assumed to be already canonicalized
+            // also it matches internal desc, we can directly use it
+            args[arg_id] = external_mem;
+        } else {
+            // directly reorder from/to external_mem w/o canonicalize
+            dnnl::memory internal_mem = dnnl::memory(internal_desc, context->getEngine());
             if (is_output) {
                 outputReorders.emplace_back(context->getReorderPrim(internal_desc, external_desc),
                                             PrimArgs{{DNNL_ARG_SRC, internal_mem}, {DNNL_ARG_DST, external_mem}});
             } else {
                 inputReorders.emplace_back(context->getReorderPrim(external_desc, internal_desc),
-                                           PrimArgs{{DNNL_ARG_SRC, external_mem}, {DNNL_ARG_DST, internal_mem}});
+                                        PrimArgs{{DNNL_ARG_SRC, external_mem}, {DNNL_ARG_DST, internal_mem}});
             }
-        } else if (atype == arg_mem_type::reinterpret) {
-            // runtime handle update is required
-            internal_mem = dnnl::memory(internal_desc, context->getEngine(), nullptr);
-            updateHandles.emplace_back(external_mem, internal_mem);
+            args[arg_id] = internal_mem;
         }
-        args[arg_id] = internal_mem;
+        return;
     }
+
+    // need to use canonicalized memory
+    // step1 : canonicalized memory need to track handle changes at each execution
+    dnnl::memory canonical_mem = dnnl::memory(*p_canonical_desc, context->getEngine(), nullptr);
+    updateHandles.emplace_back(external_mem, canonical_mem);
+
+    // canonical_mem matches primitive's needs, no further reorder
+    if (*p_canonical_desc == internal_desc) {
+        args[arg_id] = canonical_mem;
+        return;
+    }
+
+    // step2 : further runtime reorder to/from canonicalized memory is still required
+    dnnl::memory internal_mem(internal_desc, context->getEngine());
+    if (is_output) {
+        outputReorders.emplace_back(context->getReorderPrim(internal_desc, *p_canonical_desc),
+                                    PrimArgs{{DNNL_ARG_SRC, internal_mem}, {DNNL_ARG_DST, canonical_mem}});
+    } else {
+        inputReorders.emplace_back(context->getReorderPrim(*p_canonical_desc, internal_desc),
+                                PrimArgs{{DNNL_ARG_SRC, canonical_mem}, {DNNL_ARG_DST, internal_mem}});
+    }
+    args[arg_id] = internal_mem;
 }
 
 void DnnlExecutor2::setScratchPad() {
@@ -173,10 +238,14 @@ void DnnlExecutor2::setScratchPad() {
 }
 
 dnnl::memory DnnlExecutor2::addConstFolding(dnnl::memory src,
+                                            const dnnl::memory::desc * p_canonical_desc,
                                             std::string privateSrcKey,
                                             DnnlMemoryDescPtr expectedWeightDesc) {
     ConstFolding cf;
     cf.src_mem = src;
+    if (p_canonical_desc) {
+        cf.src_desc = *p_canonical_desc;
+    }
     cf.dst_mem = dnnl::memory(expectedWeightDesc->getDnnlDesc(), context->getEngine(), nullptr);
     cf.key = privateSrcKey + "_" + expectedWeightDesc->serializeFormat();
     constFoldings.push_back(cf);
@@ -193,20 +262,19 @@ void DnnlExecutor2::doConstFolding(ConstFolding& cf) {
 
     // create or get from weight cache
     const auto& expectedDesc = cf.dst_mem.get_desc();
-    auto srcWeightDesc = cf.src_mem.get_desc();
-    if (srcWeightDesc.data.format_kind == dnnl::impl::format_kind::blocked) {
-        // in fullyconnect layer, src weight's shape may be different but compatible with expected weight layout
-        srcWeightDesc = srcWeightDesc.reshape(expectedDesc.dims());
+    auto canonical_src_desc = cf.src_mem.get_desc();
+    // use canonical desc if user specified one
+    if (cf.src_desc) {
+        canonical_src_desc = cf.src_desc;
     }
-
     auto create = [&]() {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(srcWeightDesc);
+        auto cSrcDesc = DnnlExtensionUtils::makeDescriptor(canonical_src_desc);
         Memory srcMemory{context->getEngine()};
-        srcMemory.Create(newSrcDesc, cf.src_mem.get_data_handle());
+        srcMemory.Create(cSrcDesc, cf.src_mem.get_data_handle());
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine());
         _ptr->Create(DnnlExtensionUtils::makeDescriptor(expectedDesc));
         context->reorderData(srcMemory, *_ptr);
-        DEBUG_LOG("ConstFolding ", srcWeightDesc, " -> ", expectedDesc);
+        DEBUG_LOG("ConstFolding ", cSrcDesc, " -> ", expectedDesc);
         return _ptr;
     };
 

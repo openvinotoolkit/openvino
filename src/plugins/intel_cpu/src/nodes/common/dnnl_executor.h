@@ -64,17 +64,7 @@ class DnnlExecutor2 {
             : context(context),
               name(name) {}
 
-        void reset(dnnl::primitive p, dnnl::primitive_desc_base prim_desc) {
-            prim = p;
-            pd = prim_desc;
-            inputReorders.clear();
-            outputReorders.clear();
-            constFoldings.clear();
-            updateHandles.clear();
-            constFolded = false;
-            // privateWeightCache was kept to always reference weights of different format
-            setScratchPad();
-        }
+        void reset(dnnl::primitive p, dnnl::primitive_desc_base prim_desc);
 
         operator bool() {
             return static_cast<bool>(prim);
@@ -92,14 +82,16 @@ class DnnlExecutor2 {
         dnnl::memory::desc queryMD(const dnnl::query& what, int idx);
         impl_desc_type getImplementationType() const;
 
-        // Arg type specification.
-        enum class arg_mem_type {
-            normal,
-            constant,
-            reinterpret
-        };
+        // when reinterpret_as is not a nullptr, it means `arg_mem` must be wrapped again with new desc `canonical_desc`
+        // before actually passing into primitives, this is useful when arg_mem has non-canonical dimensions due to
+        // non-consistent definitions in ngraph:
+        // for example:
+        //    - {d0,d1,d2} is reinterpreted as {d0*d1, d2} before passin into inner_product
+        //    - {IC,OC,H,W}_abcd is reinterpreted as {OC,IC,H,W}_bacd before passing into deconvolution_forward
+        // this reinterpretation step requires to run at each execution(unless const folding), whenever underlying
+        // handle of arg_mem is changed.
+        void setArg(int arg_id, dnnl::memory arg_mem, bool is_const = false, const dnnl::memory::desc * canonical_desc = nullptr);
 
-        void setArg(int arg_id, dnnl::memory arg_mem, arg_mem_type atype = arg_mem_type::normal);
         void setDynamicBatch(int newBatch);
         void setArgDynamicBatch(int arg_id, int newBatch);
 
@@ -128,6 +120,7 @@ class DnnlExecutor2 {
 
         struct ConstFolding {
             dnnl::memory src_mem;
+            dnnl::memory::desc src_desc;
             // before const folding dst_mem is referencing a memory with expected desc but no handle(pointer)
             // and all primitives need this memory as argument have been setup with reference exactly to this memory.
             // after const folding, it's handle will be set to valid pointer with data filled.
@@ -140,7 +133,10 @@ class DnnlExecutor2 {
         std::vector<UpdateHandle> updateHandles;
         std::vector<IntermReorder> inputReorders;
         std::vector<IntermReorder> outputReorders;
-        dnnl::memory addConstFolding(dnnl::memory src, std::string privateSrcKey, DnnlMemoryDescPtr expectedWeightDesc);
+        dnnl::memory addConstFolding(dnnl::memory src,
+                                     const dnnl::memory::desc* p_canonical_desc,
+                                     std::string privateSrcKey,
+                                     DnnlMemoryDescPtr expectedWeightDesc);
         void doConstFolding(ConstFolding& cf);
         void setScratchPad();
 

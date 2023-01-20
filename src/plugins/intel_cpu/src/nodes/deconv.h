@@ -60,6 +60,7 @@ protected:
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
 
 private:
+/*
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
 
@@ -80,7 +81,8 @@ private:
                                const dnnl::memory::desc& outMemDesc,
                                const dnnl::engine& engine);
     };
-
+*/
+    DnnlExecutor2 executor;
     bool withGroups = false;
     bool isDW = false;
     bool isInt8 = false;

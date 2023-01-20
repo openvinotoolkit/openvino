@@ -1431,10 +1431,7 @@ void Convolution::prepareParams() {
     // by insertting reorders dynamically
     executor.reset(conv_prim_pd.first, conv_prim_pd.second);
     executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive());
-    executor.setArg(DNNL_ARG_WEIGHTS,
-                    wghMemPtr->GetPrimitive(),
-                    getParentEdgeAt(1)->getParent()->isConstant() ? DnnlExecutor2::arg_mem_type::constant
-                                                                  : DnnlExecutor2::arg_mem_type::normal);
+    executor.setArg(DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive(), getParentEdgeAt(1)->getParent()->isConstant());
     executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive());
 
     if (withBiases)

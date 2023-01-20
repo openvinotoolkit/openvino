@@ -340,15 +340,6 @@ void FullyConnected::prepareParams() {
     auto wghMemPtr = getParentEdgeAt(1)->getMemoryPtr();
 
     executor.reset(prim_pd.first, prim_pd.second);
-    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive(), DnnlExecutor2::arg_mem_type::reinterpret);
-    executor.setArg(DNNL_ARG_WEIGHTS,
-                    wghMemPtr->GetPrimitive(),
-                    getParentEdgeAt(1)->getParent()->isConstant() ? DnnlExecutor2::arg_mem_type::constant
-                                                                  : DnnlExecutor2::arg_mem_type::normal);
-    executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive(), DnnlExecutor2::arg_mem_type::reinterpret);
-
-    if (withBiases)
-        executor.setArg(DNNL_ARG_BIAS, biasMemPtr->GetPrimitive());
 
     // changed shapes may also cause the kernel type changed
     auto impl_type = executor.getImplementationType();
@@ -359,6 +350,28 @@ void FullyConnected::prepareParams() {
     }
     // maybe expected 1x1 conv is not created, update the flag depends on the real type
     useConv1x1 = (impl_type == brgconv_avx512_1x1);
+
+    auto canonical_src_desc = executor.getPrimitiveDesc().src_desc(0);
+    auto canonical_dst_desc = executor.getPrimitiveDesc().dst_desc(0);
+
+    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive(), false, &canonical_src_desc);
+    if (useConv1x1) {
+        // FC node weight dims (OC,IC), but brgconv_1x1 requires (OC,IC, 1)
+        auto weight_mem = wghMemPtr->GetPrimitive();
+        auto prim_w_desc = executor.getPrimitiveDesc().weights_desc(0);
+        auto node_w_desc = weight_mem.get_desc();
+        auto canonical_desc = node_w_desc.reshape(prim_w_desc.dims());
+        executor.setArg(DNNL_ARG_WEIGHTS,
+                        weight_mem,
+                        getParentEdgeAt(1)->getParent()->isConstant(),
+                        &canonical_desc);
+    } else {
+        executor.setArg(DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive(), getParentEdgeAt(1)->getParent()->isConstant());
+    }
+    executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive(), false, &canonical_dst_desc);
+
+    if (withBiases)
+        executor.setArg(DNNL_ARG_BIAS, biasMemPtr->GetPrimitive());
 
     for (auto & entry : postOpsArgs) {
         executor.setArg(entry.first, entry.second->GetPrimitive());
