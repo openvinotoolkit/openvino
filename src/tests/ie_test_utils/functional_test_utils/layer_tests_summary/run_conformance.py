@@ -3,7 +3,6 @@ from queue import Empty
 from git import Repo
 from argparse import ArgumentParser
 from utils import utils
-from glob import glob
 from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
@@ -116,6 +115,8 @@ class Conformance:
         self._ov_path = ov_path
         self._ov_bin_path = get_ov_path(self._ov_path, True)
         self._working_dir = working_dir
+        if not os.path.exists(self._working_dir):
+            os.mkdir(self._working_dir)
         if not (type == "OP" or type == "API"):
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
