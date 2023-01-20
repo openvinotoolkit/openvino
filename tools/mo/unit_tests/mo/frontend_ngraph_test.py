@@ -76,6 +76,15 @@ def test_main_error_log():
     assert test_log == ref_log
 
 
+def test_rt_info():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'convert/meta_data_test_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    assert not status.returncode
+
+
 def test_mo_extensions_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
