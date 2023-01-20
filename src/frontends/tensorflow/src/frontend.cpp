@@ -91,6 +91,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
                     m_telemetry);
             }
+            else {
+                return std::make_shared<InputModel>(
+                        std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path, true),
+                        m_telemetry);
+            }
+
         }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (variants[0].is<std::wstring>()) {

@@ -65,13 +65,18 @@ public:
     }
 
     template <typename T>
-    GraphIteratorProto(const std::basic_string<T>& path)
+    GraphIteratorProto(const std::basic_string<T>& path, bool model_is_string = false)
         : m_graph_def(std::make_shared<::tensorflow::GraphDef>()),
           m_func_def(nullptr) {
-        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+        if (model_is_string) {
+            m_graph_def->ParseFromString(path);
+        }
+        else {
+            std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
-        FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
-        FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
+            FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
+            FRONT_END_GENERAL_CHECK(m_graph_def->ParseFromIstream(&pb_stream), "Model cannot be parsed");
+        }
 
         auto nodes_size = m_graph_def->node_size();
         m_decoders.resize(static_cast<size_t>(nodes_size));

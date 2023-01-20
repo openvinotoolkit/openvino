@@ -27,6 +27,7 @@ tf_v1.get_logger().setLevel("ERROR")
 from google.protobuf import text_format
 from openvino.tools.mo.graph.graph import fill_graph_with_nodes, Graph
 from openvino.tools.mo.utils.summarize_graph import summarize_graph
+from openvino.tools.mo.convert_impl import input_model_is_object
 
 
 def freeze_checkpoints(graph_def: tf_v1.GraphDef, checkpoint_dir: str, output_node_names: list):
@@ -329,6 +330,9 @@ def convert_to_pb(argv: argparse.Namespace):
     # the main thing is to differentiate this format from text frozen format and checkpoint
     # that can utilize input_model option
     if argv.input_model and not argv.input_model_is_text and not argv.input_checkpoint:
+        import pathlib
+        if not isinstance(argv.input_model, (str, pathlib.Path)):
+            argv.input_model = prepare_graph_def(argv.input_model)[0].SerializeToString()
         return None
 
     user_output_node_names_list = argv.output.split(',') if argv.output else None
