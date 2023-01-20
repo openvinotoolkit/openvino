@@ -202,8 +202,9 @@ def fetchAppOutput(cfg):
 
 
 def handleCommit(commit, cfgData):
-    skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
-    cfgData["trySkipClean"] = skipCleanInterval
+    if "skipCleanInterval" in cfgData["serviceConfig"]:
+        skipCleanInterval = cfgData["serviceConfig"]["skipCleanInterval"]
+        cfgData["trySkipClean"] = skipCleanInterval
     try:
         runCommandList(commit, cfgData)
     except (NoCleanFailedError):

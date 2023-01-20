@@ -101,7 +101,7 @@ class BenchmarkAppPerformanceMode(Mode):
         rightCommit = list[i2]
         rightThroughput = self.getThroughputByCommit(rightCommit, cfg)
         curRel = rightThroughput / leftThroughput
-        isBad = not (abs(1 - curRel) < self.apprDev)
+        isBad = not ((1 - curRel) < self.apprDev)
         if isBad:
             self.perfRel = curRel
         rightCommit = rightCommit.replace('"', "")
