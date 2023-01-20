@@ -37,6 +37,9 @@ resources:
     name: openvinotoolkit/openvino_contrib
     ref: master
 
+variables:
+  - group: github
+
 jobs:
 - job: linux_arm64
   # About 150% of total time
@@ -75,8 +78,22 @@ jobs:
     OPENVINO_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64
     OPENCV_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_opencv
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.10.7'
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python 3.10.7
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
+      
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
