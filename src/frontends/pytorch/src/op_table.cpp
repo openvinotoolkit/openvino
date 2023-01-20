@@ -1,3 +1,57 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "op_table.hpp"
+
+#include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
+
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
+
+#define OP_CONVERTER(op) OutputVector op(NodeContext& node)
+
+OP_CONVERTER(translate_adaptive_avg_pool3d);
+OP_CONVERTER(translate_adaptive_max_pool2d);
+OP_CONVERTER(translate_add);
+OP_CONVERTER(translate_addcmul);
+OP_CONVERTER(translate_addmm);
+OP_CONVERTER(translate_arange);
+OP_CONVERTER(translate_as_tensor);
+OP_CONVERTER(translate_avg_poolnd);
+OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_clamp);
+OP_CONVERTER(translate_constant);
+OP_CONVERTER(translate_convnd);
+OP_CONVERTER(translate_convolution);
+OP_CONVERTER(translate_convolution_mode);
+OP_CONVERTER(translate_dim);
+OP_CONVERTER(translate_div);
+OP_CONVERTER(translate_elu);
+OP_CONVERTER(translate_expand);
+OP_CONVERTER(translate_expand_as);
+OP_CONVERTER(translate_embedding);
+OP_CONVERTER(translate_flatten);
+OP_CONVERTER(translate_floordiv);
+OP_CONVERTER(translate_floor_divide);
+OP_CONVERTER(translate_full);
+OP_CONVERTER(translate_full_like);
+OP_CONVERTER(translate_gelu);
+OP_CONVERTER(translate_get_attr);
+OP_CONVERTER(translate_glu);
+OP_CONVERTER(translate_group_norm);
+OP_CONVERTER(translate_hardtanh);
+OP_CONVERTER(translate_if);
+OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_int);
+OP_CONVERTER(translate_layer_norm);
+OP_CONVERTER(translate_len);
+OP_CONVERTER(translate_linear);
+OP_CONVERTER(translate_list_construct);
+OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
