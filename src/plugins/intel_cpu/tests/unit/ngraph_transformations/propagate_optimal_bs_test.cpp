@@ -49,9 +49,10 @@ TEST_F(PropagateOptimalBSTest, ConvWithTranspose) {
     ov::PartialShape input_shape{4, 3, 16, 16};
     ConvWithTransposeFunction builder({input_shape});
 
-    BSMarkup markup{{"convolution", 1}};
-    model = builder.getOriginal(markup);
-    model_ref = builder.getOriginal(markup);
+    BSMarkup actual_markup{{"convolution", 1}};
+    model = builder.getOriginal(actual_markup);
+    BSMarkup reference_markup{{"convolution", 1}, {"transpose", 1}};
+    model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
 
