@@ -18,6 +18,7 @@ ov_add_test_target(
         funcTestUtils
         sharedTestClasses
         lptNgraphFunctions
+        inference_engine_legacy
     ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src

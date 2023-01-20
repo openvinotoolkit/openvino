@@ -28,6 +28,7 @@ addIeTargetTest(
                 commonTestUtils_s
                 openvino_intel_gna_plugin_test_static
                 engines_test_util
+                inference_engine_legacy
         ADD_CPPLINT
         LABELS
             GNA
