@@ -6,6 +6,7 @@
 #include "gna_plugin.hpp"
 #include "gna/gna_config.hpp"
 #include "openvino/runtime/intel_gna/properties.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 #include <string>
 #include <map>
@@ -61,6 +62,10 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
         return decltype(ov::execution_devices)::value_type {GetName()};
     } else if (ov::model_name == name) {
         return _network_name;
+    } else if (name == ov::caching_properties) {
+        std::vector<ov::PropertyName> cachingProperties = Config::GetImpactingModelCompilationProperties(true);
+        cachingProperties.push_back(ov::PropertyName(ov::log::level.name(), ov::PropertyMutability::RO));
+        return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else {
         const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
             {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},
