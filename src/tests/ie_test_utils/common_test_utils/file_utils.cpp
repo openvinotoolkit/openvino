@@ -79,9 +79,16 @@ std::string getModelFromTestModelZoo(const std::string& relModelPath) {
 std::string getRelativePath(const std::string& from, const std::string& to) {
     auto split_path = [](const std::string& path) -> std::vector<std::string> {
         std::string sep{ov::util::FileTraits<char>::file_separator};
-        std::regex regex(sep.c_str());
-        std::vector<std::string> retvalue(std::sregex_token_iterator(path.begin(), path.end(), regex, -1),
-                                          std::sregex_token_iterator());
+        std::vector<std::string> retvalue;
+        size_t start = 0;
+        size_t end = 0;
+        std::string token;
+        while ((end = path.find(sep, start)) != std::string::npos) {
+            token = path.substr(start, end - start);
+            start = end + 1;
+            retvalue.push_back(token);
+        }
+        retvalue.push_back(path.substr(start));
         return retvalue;
     };
 
