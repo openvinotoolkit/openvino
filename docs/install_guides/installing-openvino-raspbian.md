@@ -112,7 +112,7 @@ If you have more than one OpenVINO version on your machine, you can easily switc
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-### <a name="model-optimizer">Step 4 (Optional): Install Additional Components
+## <a name="model-optimizer">Step 4 (Optional): Install Additional Components
 
 If you want to use your model for inference, the model must be converted to the .bin and .xml Intermediate Representation (IR) files that are used as input by OpenVINO Runtime. To get the optimized models, you can use one of the following options:
 
