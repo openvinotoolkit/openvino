@@ -198,6 +198,7 @@ class TestMeshgridListUnpack(PytorchLayerTest):
     @pytest.mark.parametrize("idx", ["ij", "xy"])
     @pytest.mark.parametrize("inp", [1, 2, 3, 4])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version):
         func = getattr(self, f"create_model_meshgrid_listunpack_{inp}_in")
         self._test(*func(idx), ie_device, precision, ir_version)
