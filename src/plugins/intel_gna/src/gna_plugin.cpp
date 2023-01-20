@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -647,6 +647,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
+    _network_name = _network.getName();
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
     const auto effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
@@ -1120,7 +1121,8 @@ std::string GNAPlugin::effectiveGnaCompileTarget() const {
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorkerForLoadNetwork(bool trivial, bool fp32Mode) {
-    return createWorker(createModelWrapperForLoadNetwork(trivial), trivial, fp32Mode);
+    // Do not initialize gna model for fp32 mode (create trivial model wraper)
+    return createWorker(createModelWrapperForLoadNetwork(trivial || fp32Mode), trivial, fp32Mode);
 }
 
 std::shared_ptr<request::Worker> GNAPlugin::createWorker(std::shared_ptr<request::ModelWrapper> modelWrapper,

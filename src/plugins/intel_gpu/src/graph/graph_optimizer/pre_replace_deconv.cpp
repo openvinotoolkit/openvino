@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -306,14 +306,20 @@ void pre_replace_deconv::run(program& p) {
                 auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_node_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);
 
                 program_node& pixel_shuffle_node = p.get_or_create(pixel_shuffle_prim);
-                pixel_shuffle_node.add_fused_activation(activation_func::linear, { 1, bias });
+                auto bias_id = deconv_node_id + "_bias";
+                auto bias_prim = std::make_shared<activation>(bias_id,
+                                                              input_info(deconv_node_id),
+                                                              activation_func::linear,
+                                                              activation_additional_params{ 1, bias });
+                program_node& bias_node = p.get_or_create(bias_prim);
 
-                // add connections input->convolution, weights->convolution
+                // add connections input->depth_to_space, depth_to_space->bias
                 p.add_connection(conv_node, pixel_shuffle_node);
+                p.add_connection(pixel_shuffle_node, bias_node);
 
                 auto deconv_node_ptr = p.nodes_map.find(rename_id);
                 if (deconv_node_ptr != p.nodes_map.end()) {
-                    p.replace_all_usages(*deconv_node_ptr->second, pixel_shuffle_node);
+                    p.replace_all_usages(*deconv_node_ptr->second, bias_node);
                     p.optimized_out.push_back(rename_id);
                     p.nodes_map.erase(rename_id);
                 }

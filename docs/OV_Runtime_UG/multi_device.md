@@ -82,12 +82,12 @@ Notice that MULTI allows you to **change device priorities on the fly**. You can
 
 
 
-One more thing you can define is the **number of requests to allocate for each device**. You can do it simply by adding the number to each device in parentheses, like this: `"MULTI:CPU(2),GPU(2)"`. However, this method is not recommended as it is not performance-portable. The suggested approach is to configure individual devices and query the resulting number of requests to be used at the application level, as described in [Configuring Individual Devices and Creating MULTI On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top).
+One more thing you can define is the **number of requests to allocate for each device**. You can do it simply by adding the number to each device in parentheses, like this: `"MULTI:CPU(2),GPU(2)"`. However, this method is not recommended as it is not performance-portable. The suggested approach is to configure individual devices and query the resulting number of requests to be used at the application level, as described in [Configuring Individual Devices and Creating MULTI On Top](#config-multi-on-top).
 
 To check what devices are present in the system, you can use the Device API. For information on how to do it, check [Query device properties and configuration](supported_plugins/config_properties.md).
 
 
-### Configuring Individual Devices and Creating the Multi-Device On Top
+### <a name="config-multi-on-top"></a> Configuring Individual Devices and Creating the Multi-Device On Top
 As mentioned previously, executing inference with MULTI may be set up by configuring individual devices before creating the "MULTI" device on top. It may be considered for performance reasons.
 
 @sphinxdirective
@@ -129,10 +129,10 @@ using the [configure devices](supported_plugins/config_properties.md) property:
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking Performance
 
 To see how the Multi-Device execution is used in practice and test its performance, take a look at OpenVINO's Benchmark Application which presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads.
-Here is an example command to evaluate performance of HDDL+GPU:
+Here is an example command to evaluate performance of CPU + GPU:
 
 ```sh
-./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
+./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
 ```
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,10 +46,12 @@ static int32_t as_int32_t(T v) {
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
     uint64_t seed = 0;
     auto absPath = filePath;
-    try {
-        absPath = FileUtils::absoluteFilePath(filePath);
-    } catch (...) {
-        // can't get absolute path, will use filePath for hash
+    if (filePath.size() > 0) {
+        try {
+            absPath = FileUtils::absoluteFilePath(filePath);
+        } catch (std::runtime_error&) {
+            // can't get absolute path, will use filePath for hash
+        }
     }
 
     seed = hash_combine(seed, absPath);
@@ -63,7 +65,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
+std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
                                                    const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
 
@@ -71,11 +73,10 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     uint64_t seed = 0;
     // 1. Calculate hash on function
-    CNNNetwork net(network);
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(net.getFunction());
+    m.run_passes(network.getFunction());
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {

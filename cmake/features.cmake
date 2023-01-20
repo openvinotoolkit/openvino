@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -98,23 +98,9 @@ ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
-ie_dependent_option (ENABLE_INTEL_MYRIAD_COMMON "common part of myriad plugin" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
-
-if(UNIVERSAL2 OR EMSCRIPTEN)
-    set(ENABLE_INTEL_MYRIAD_DEFAULT OFF)
-else()
-    set(ENABLE_INTEL_MYRIAD_DEFAULT ON)
-endif()
-
-ie_dependent_option (ENABLE_INTEL_MYRIAD "myriad targeted plugin for OpenVINO Runtime" ${ENABLE_INTEL_MYRIAD_DEFAULT} "NOT RISCV64;ENABLE_INTEL_MYRIAD_COMMON" OFF)
-
-ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_INTEL_MYRIAD" OFF)
-
 ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
-
-ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_INTEL_MYRIAD" OFF)
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
@@ -166,6 +152,7 @@ find_host_package(PythonInterp 3 QUIET)
 ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
+ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF

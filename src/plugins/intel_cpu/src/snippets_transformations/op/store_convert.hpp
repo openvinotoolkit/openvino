@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ class StoreConvertSaturation : public ngraph::snippets::op::Store {
 public:
     OPENVINO_OP("StoreConvertSaturation", "SnippetsOpset", ngraph::snippets::op::Store);
 
-    StoreConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu);
+    StoreConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu, const size_t offset = 0lu);
     StoreConvertSaturation() = default;
 
     ov::element::Type get_destination_type() const { return m_destination_type; }
@@ -47,7 +47,7 @@ class StoreConvertTruncation : public ngraph::snippets::op::Store {
 public:
     OPENVINO_OP("StoreConvertTruncation", "SnippetsOpset", ngraph::snippets::op::Store);
 
-    StoreConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu);
+    StoreConvertTruncation(const Output<Node>& x, const ov::element::Type& destination_type, const size_t count = 1lu, const size_t offset = 0lu);
     StoreConvertTruncation() = default;
 
     ov::element::Type get_destination_type() const { return m_destination_type; }
