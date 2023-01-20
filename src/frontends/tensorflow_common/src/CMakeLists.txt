@@ -7,15 +7,14 @@ get_filename_component(root_dir "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
 
 file(GLOB_RECURSE LIBRARY_SRC ${root_dir}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${root_dir}/include/*.hpp)
-#file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${root_dir}/include/*.hpp)
-#
+
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS})
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::util)
 add_library(openvino::frontend::tensorflow_common ALIAS ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-        ${root_dir}/include
+        $<BUILD_INTERFACE:${root_dir}/include>
         PRIVATE
         ${root_dir}/src
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)

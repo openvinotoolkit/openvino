@@ -18,10 +18,6 @@
                            ("While validating node '" + node_context.get_op_type() + "'"), \
                            __VA_ARGS__)
 
-using namespace std;
-using namespace ov;
-using namespace ov::frontend::tensorflow;
-
 namespace ov {
 namespace frontend {
 namespace tensorflow {
