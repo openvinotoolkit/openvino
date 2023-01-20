@@ -198,7 +198,6 @@ private:
     void fuse_sigmoid_mul_to_swish(program &p);
     void fuse_bias(program &p);
     void fuse_reorders(program& p);
-    void fuse_activations(program& p);
     void fuse_simple_primitives(program &p);
     void optimize_fused_ops(program &p);
     void remove_redundant_reshape(program &p);
