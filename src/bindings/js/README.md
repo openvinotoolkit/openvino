@@ -1,1 +1,1 @@
-# OpenVINO Java Script API
+# OpenVINO JavaScript API

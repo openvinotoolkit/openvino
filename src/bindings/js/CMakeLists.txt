@@ -2,6 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(EMSCRIPTEN)
+# if(EMSCRIPTEN)
     add_subdirectory(wasm)
-endif()
+# endif()
