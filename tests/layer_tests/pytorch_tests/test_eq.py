@@ -39,6 +39,7 @@ class TestEq(PytorchLayerTest):
         (np.int32, np.int32),
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_eq_pt_spec(self, input_array, other_array, types, ie_device, precision, ir_version):
         self.input_array = input_array 
         self.input_type = types[0]
