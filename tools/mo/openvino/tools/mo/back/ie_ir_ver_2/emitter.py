@@ -427,6 +427,8 @@ def add_net_rt_info(net: Element, meta_info: dict):
     else:
         meta = SubElement(net, 'rt_info')
         for key, value in meta_info.items():
+            if isinstance(value, dict) and value == {}:
+                continue
             add_meta_data_elem(meta, key, value)
 
 
