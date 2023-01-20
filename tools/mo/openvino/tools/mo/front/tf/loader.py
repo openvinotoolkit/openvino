@@ -27,7 +27,6 @@ tf_v1.get_logger().setLevel("ERROR")
 from google.protobuf import text_format
 from openvino.tools.mo.graph.graph import fill_graph_with_nodes, Graph
 from openvino.tools.mo.utils.summarize_graph import summarize_graph
-from openvino.tools.mo.convert_impl import input_model_is_object
 
 
 def freeze_checkpoints(graph_def: tf_v1.GraphDef, checkpoint_dir: str, output_node_names: list):
