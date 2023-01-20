@@ -41,6 +41,7 @@ OP_CONVERTER(translate_full);
 OP_CONVERTER(translate_full_like);
 OP_CONVERTER(translate_gelu);
 OP_CONVERTER(translate_get_attr);
+OP_CONVERTER(translate_grid_sampler);
 OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
@@ -169,6 +170,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::group_norm", op::translate_group_norm},
         {"aten::ge", op::translate_1to1_match_2_inputs<opset10::GreaterEqual>},
         {"aten::gt", op::translate_1to1_match_2_inputs<opset10::Greater>},
+        {"aten::grid_sampler", op::translate_grid_sampler},
         {"aten::hardsigmoid", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
         {"aten::hardswish", op::translate_1to1_match_1_inputs<opset10::HSwish>},
         {"aten::hardswish_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
