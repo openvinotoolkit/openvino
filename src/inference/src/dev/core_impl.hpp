@@ -212,6 +212,11 @@ private:
                                       const ov::Plugin& plugin,
                                       const ov::AnyMap& config) const;
 
+    std::string calculate_model_hash(const std::shared_ptr<ov::Model>& model,
+                                     const std::string& deviceFamily,
+                                     const ov::Plugin& plugin,
+                                     const ov::AnyMap& config) const;
+
     // Legacy API
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
     template <typename C, typename = FileUtils::enableIfSupportedChar<C>>

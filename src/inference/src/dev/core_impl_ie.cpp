@@ -41,9 +41,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::Export");
             cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
-                networkStream << InferenceEngine::CompiledBlobHeader(
+                networkStream << ov::CompiledBlobHeader(
                     InferenceEngine::GetInferenceEngineVersion()->buildNumber,
-                    InferenceEngine::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
+                    ov::NetworkCompilationContext::calculate_file_info(cacheContent.modelPath));
                 execNetwork->Export(networkStream);
             });
         } catch (...) {

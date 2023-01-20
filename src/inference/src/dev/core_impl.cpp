@@ -315,10 +315,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = CalculateNetworkHash(ov::legacy_convert::convert_model(model, is_new_api()),
-                                                   parsed._deviceName,
-                                                   plugin,
-                                                   parsed._config);
+        cacheContent.blobId = calculate_model_hash(model->clone(), parsed._deviceName, plugin, parsed._config);
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
@@ -358,10 +355,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = CalculateNetworkHash(ov::legacy_convert::convert_model(model, is_new_api()),
-                                                   parsed._deviceName,
-                                                   plugin,
-                                                   parsed._config);
+        cacheContent.blobId = calculate_model_hash(model->clone(), parsed._deviceName, plugin, parsed._config);
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
@@ -414,23 +408,15 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = ReadNetwork(model_path, std::string());
-            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
-                                     plugin,
-                                     parsed._config,
-                                     {},
-                                     cacheContent);
+            res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
         }
     } else if (cacheManager) {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
         // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
-        res = compile_model(plugin, ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()), {}, parsed._config);
+        res = compile_model(plugin, cnnNetwork.getFunction(), {}, parsed._config);
     } else {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
-        res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
-                                 plugin,
-                                 parsed._config,
-                                 {},
-                                 cacheContent);
+        res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
     }
     return {res._ptr, res._so};
 }
@@ -919,9 +905,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::compile_model::Export");
             cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
-                networkStream << InferenceEngine::CompiledBlobHeader(
+                networkStream << ov::CompiledBlobHeader(
                     InferenceEngine::GetInferenceEngineVersion()->buildNumber,
-                    InferenceEngine::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
+                    ov::NetworkCompilationContext::calculate_file_info(cacheContent.modelPath));
                 execNetwork->Export(networkStream);
             });
         } catch (...) {
@@ -948,14 +934,14 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_
                          InferenceEngine::itt::domains::IE_LT,
                          "Core::LoadNetworkFromCache::ReadStreamAndImport");
             try {
-                InferenceEngine::CompiledBlobHeader header;
+                ov::CompiledBlobHeader header;
                 networkStream >> header;
                 if (header.getIeVersion() != InferenceEngine::GetInferenceEngineVersion()->buildNumber) {
                     // Build number mismatch, don't use this cache
                     throw InferenceEngine::NetworkNotRead("Version does not match");
                 }
                 if (header.getFileInfo() !=
-                    InferenceEngine::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath)) {
+                    ov::NetworkCompilationContext::calculate_file_info(cacheContent.modelPath)) {
                     // Original file is changed, don't use cache
                     throw InferenceEngine::NetworkNotRead("Original model file is changed");
                 }
@@ -1036,7 +1022,15 @@ std::string ov::CoreImpl::CalculateNetworkHash(InferenceEngine::CNNNetwork& netw
                                                const ov::Plugin& plugin,
                                                const ov::AnyMap& config) const {
     auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return InferenceEngine::NetworkCompilationContext::computeHash(network, compileConfig);
+    return ov::NetworkCompilationContext::compute_hash(network, compileConfig);
+}
+
+std::string ov::CoreImpl::calculate_model_hash(const std::shared_ptr<ov::Model>& model,
+                                               const std::string& deviceFamily,
+                                               const ov::Plugin& plugin,
+                                               const ov::AnyMap& config) const {
+    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
+    return ov::NetworkCompilationContext::compute_hash(model, compileConfig);
 }
 
 std::string ov::CoreImpl::calculate_file_hash(const std::string& modelName,
@@ -1044,7 +1038,7 @@ std::string ov::CoreImpl::calculate_file_hash(const std::string& modelName,
                                               const ov::Plugin& plugin,
                                               const ov::AnyMap& config) const {
     auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return InferenceEngine::NetworkCompilationContext::computeHash(modelName, compileConfig);
+    return ov::NetworkCompilationContext::compute_hash(modelName, compileConfig);
 }
 
 std::string ov::CoreImpl::calculate_memory_hash(const std::string& modelStr,
@@ -1053,7 +1047,7 @@ std::string ov::CoreImpl::calculate_memory_hash(const std::string& modelStr,
                                                 const ov::Plugin& plugin,
                                                 const ov::AnyMap& config) const {
     auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return InferenceEngine::NetworkCompilationContext::computeHash(modelStr, weights, compileConfig);
+    return ov::NetworkCompilationContext::compute_hash(modelStr, weights, compileConfig);
 }
 
 void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {

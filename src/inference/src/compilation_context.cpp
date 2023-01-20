@@ -28,7 +28,7 @@
 #    define stat _stat
 #endif
 
-namespace InferenceEngine {
+namespace ov {
 
 template <typename T>
 static uint64_t hash_combine(uint64_t seed, const T& a) {
@@ -43,7 +43,7 @@ static int32_t as_int32_t(T v) {
 
 //////////////////////////////////////////////////
 
-std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
+std::string NetworkCompilationContext::calculate_file_info(const std::string& filePath) {
     uint64_t seed = 0;
     auto absPath = filePath;
     if (filePath.size() > 0) {
@@ -65,11 +65,43 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
-                                                   const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
+std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<ov::Model>& model,
+                                                    const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model");
 
-    IE_ASSERT(network.getFunction());
+    OPENVINO_ASSERT(model);
+
+    uint64_t seed = 0;
+    // 1. Calculate hash on function
+    ov::pass::Manager m;
+    m.register_pass<ngraph::pass::FixRtInfo>();
+    m.register_pass<ov::pass::Hash>(seed);
+    m.run_passes(model);
+
+    // 2. Compute hash on serialized data and options
+    for (const auto& kvp : compileOptions) {
+        seed = hash_combine(seed, kvp.first + kvp.second);
+    }
+
+    // 3. Add runtime information which may not be serialized
+    for (const auto& op : model->get_ordered_ops()) {
+        const auto& rt = op->get_rt_info();
+        for (const auto& rtMapData : rt) {
+            seed = hash_combine(seed, rtMapData.first);
+            std::stringstream strm;
+            rtMapData.second.print(strm);
+            seed = hash_combine(seed, strm.str());
+        }
+    }
+
+    return std::to_string(seed);
+}
+
+std::string NetworkCompilationContext::compute_hash(InferenceEngine::CNNNetwork& network,
+                                                    const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - CNN");
+
+    OPENVINO_ASSERT(network.getFunction());
 
     uint64_t seed = 0;
     // 1. Calculate hash on function
@@ -96,28 +128,28 @@ std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
 
     // 4. Add inputs info
     for (const auto& input : network.getInputsInfo()) {
-        InputInfo::Ptr info = input.second;
+        InferenceEngine::InputInfo::Ptr info = input.second;
         seed = hash_combine(seed, as_int32_t(info->getPrecision()));
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
 
         const InferenceEngine::PreProcessInfo& preproc = info->getPreProcess();
         seed = hash_combine(seed, as_int32_t(preproc.getMeanVariant()));
 
-        if (preproc.getMeanVariant() == MeanVariant::MEAN_VALUE) {
+        if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
             seed = hash_combine(seed, preproc.getNumberOfChannels());
             for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                const PreProcessChannel::Ptr& channelInfo = preproc[c];
+                const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
                 seed = hash_combine(seed, channelInfo->stdScale);
                 seed = hash_combine(seed, channelInfo->meanValue);
             }
-        } else if (preproc.getMeanVariant() == MeanVariant::MEAN_IMAGE) {
+        } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
             // TODO: think if we need to compute hash for mean image if it exists
         }
     }
 
     // 5. Add outputs info
     for (const auto& output : network.getOutputsInfo()) {
-        DataPtr info = output.second;
+        InferenceEngine::DataPtr info = output.second;
         seed = hash_combine(seed, as_int32_t(info->getPrecision()));
         seed = hash_combine(seed, as_int32_t(info->getLayout()));
     }
@@ -125,9 +157,9 @@ std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const std::string& modelName,
-                                                   const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
+std::string NetworkCompilationContext::compute_hash(const std::string& modelName,
+                                                    const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
@@ -141,10 +173,10 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
-                                                   const ov::Tensor& tensor,
-                                                   const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
+std::string NetworkCompilationContext::compute_hash(const std::string& modelStr,
+                                                    const ov::Tensor& tensor,
+                                                    const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model Memory");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);
@@ -208,4 +240,4 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     return stream;
 }
 
-}  // namespace InferenceEngine
+}  // namespace ov
