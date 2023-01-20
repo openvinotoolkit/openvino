@@ -290,6 +290,9 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     if (!_internal) {
         net_id = get_unique_net_id();
     }
+    if (get_engine().get_device_info().supports_immad && config.get_property(ov::intel_gpu::queue_type) != QueueTypes::in_order) {
+        IE_THROW() << "DG2 should use in_order queue";
+    }
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->after_proc.size() != 0) {
