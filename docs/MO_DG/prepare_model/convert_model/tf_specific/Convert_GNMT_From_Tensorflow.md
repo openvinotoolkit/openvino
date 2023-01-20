@@ -217,7 +217,7 @@ Output cutting:
 
 For more information about model cutting, refer to the [Cutting Off Parts of a Model](@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model) guide.
 
-## Using a GNMT Model <a name="run_GNMT"></a>
+## Using a GNMT Model <a name="run_GNMT_model"></a>
 
 > **NOTE**: This step assumes you have converted a model to the Intermediate Representation.
 
