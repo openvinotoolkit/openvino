@@ -130,7 +130,6 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       cmake -GNinja \
         -DENABLE_CPPLINT=OFF \
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \

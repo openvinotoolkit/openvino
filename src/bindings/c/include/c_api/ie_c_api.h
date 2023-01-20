@@ -581,7 +581,7 @@ ie_core_get_config(const ie_core_t* core, const char* device_name, const char* c
  * @brief Gets available devices for neural network inference.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+ * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1 }
  * If there more than one device of specific type, they are enumerated with .# suffix
  * @return Status code of the operation: OK(0) for success.
  */
