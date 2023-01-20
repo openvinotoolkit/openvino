@@ -83,11 +83,14 @@ jobs:
   steps:
   - script: |
       ls -la /agent/_work/_tool
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
 
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
       disableDownloadFromRegistry: true
+      allowUnstable: true
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
