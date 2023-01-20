@@ -81,15 +81,11 @@ jobs:
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
 
   steps:
-  - script: |
-      echo $LD_LIBRARY_PATH
-
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10.7'
       addToPath: true
       disableDownloadFromRegistry: false
-      allowUnstable: true
       architecture: 'x64'
       githubToken: $(auth_token)
     displayName: Setup Python 3.10.7
@@ -97,9 +93,6 @@ jobs:
   - bash: |
       #!/bin/bash
       python -V
-
-  - script: |
-      ls -la /agent/_work/_tool
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"

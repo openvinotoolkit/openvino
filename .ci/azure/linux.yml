@@ -75,7 +75,6 @@ jobs:
 
   pool:
     name: LIN_VMSS_VENV_F16S_U20_WU2
-    vmImage: 'ubuntu-20.04'
 
   variables:
     system.debug: true
@@ -100,16 +99,17 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
+    
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10'
-      disableDownloadFromRegistry: true
+      versionSpec: '3.10.7'
       addToPath: true
+      disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10
+    displayName: Setup Python 3.10.7
     name: setupPython
   - bash: |
       #!/bin/bash
