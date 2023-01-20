@@ -38,8 +38,6 @@ where IR is a pair of files describing the model:
 The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
 > that applies post-training quantization methods.
 
-> **TIP**: You can also work with Model Optimizer in OpenVINO™ [Deep Learning Workbench (DL Workbench)](https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html), which is a web-based tool with GUI for optimizing, fine-tuning, analyzing, visualizing, and comparing performance of deep learning models.
-
 ## How to Run Model Optimizer
 
 To convert a model to IR, you can run Model Optimizer by using the following command:
