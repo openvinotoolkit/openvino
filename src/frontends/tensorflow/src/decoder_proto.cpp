@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,10 +263,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                                 name,
                                 "' attribute is not supported.");
     case ::tensorflow::AttrValue::ValueCase::kFunc:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Function type for '",
-                                name,
-                                "' attribute is not supported.");
+        // attrs[0].func() returns NameAttrList object from which
+        // we retrieve the function name
+        // Further, InputModel object is created for FunctionDef with this name
+        // and is converted to ov::Model object.
+        return attrs[0].func().name();
     default:
         FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
     }

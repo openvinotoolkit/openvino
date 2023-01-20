@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,22 +25,10 @@
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#ifndef __GNUC_PREREQ
-#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
-#endif
-# ifdef _WIN32
-#  include <intrin.h>
-#  include <windows.h>
-# elif !(__GNUC_PREREQ(4, 3) && !defined(__APPLE__))
-#  include <cpuid.h>
-# endif
-#endif
-
 #if defined(__linux__)
-#include <sys/auxv.h>
-#include <signal.h>
-#include <sys/mman.h>
+# include <sys/auxv.h>
+# include <signal.h>
+# include <sys/mman.h>
 #endif
 
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -55,7 +43,15 @@ namespace intel_cpu {
 
 static std::string getDeviceFullName() {
     std::string brand_string;
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+#if defined(__EMSCRIPTEN___)
+    brand_string = "WebAssembly CPU";
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // TODO: extract actual device name
+    brand_string = "RISCV-64 CPU";
+#elif defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // TODO: extract actual device name
+    brand_string = "ARM CPU";
+#elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     const unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
     unsigned int regs[4];
     for (auto addr : addr_list) {
@@ -63,14 +59,14 @@ static std::string getDeviceFullName() {
 #ifdef _WIN32
         __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
-        __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
+        __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
 #endif
         char *ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
             brand_string += ch[j];
     }
 #else
-    brand_string = "Non Intel Architecture";
+# error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
 #endif
     return brand_string;
 }
@@ -78,7 +74,7 @@ static std::string getDeviceFullName() {
 #if defined(__linux__)
 
 #ifndef AT_MINSIGSTKSZ
-#define AT_MINSIGSTKSZ 51
+# define AT_MINSIGSTKSZ 51
 #endif
 
 class SigAltStackSetup {
@@ -130,12 +126,12 @@ class CPUSpecialSetup {
 public:
     CPUSpecialSetup() = default;
 };
-#else
+#else // __linux__
 class CPUSpecialSetup {
 public:
     CPUSpecialSetup() = default;
 };
-#endif
+#endif // __linux__
 
 Engine::Engine() :
     deviceFullName(getDeviceFullName()),
@@ -400,12 +396,24 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
     const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
             || engConfig.enableDynamicBatch;
-    const bool enableSnippets = !enableDynamicBatch;
+
+    auto snippetsMode = enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
+    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
+        const auto& val = snippetsModeProp->second;
+        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
+        else if (val == PluginConfigInternalParams::DISABLE)
+            snippetsMode =  Config::SnippetsMode::Disable;
+        else
+            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+    }
+
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, enableSnippets, enableBF16, isLegacyAPI(), engConfig);
+    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes
@@ -497,10 +505,10 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::enable_profiling.name()) {
         const bool perfCount = engConfig.collectPerfCounters;
         return decltype(ov::enable_profiling)::value_type(perfCount);
-    } else if (name == ov::hint::inference_precision) {
+    } else if (name == ov::inference_precision) {
         const auto enforceBF16 = engConfig.enforceBF16;
         const auto inference_precision = enforceBF16 ? ov::element::bf16 : ov::element::f32;
-        return decltype(ov::hint::inference_precision)::value_type(inference_precision);
+        return decltype(ov::inference_precision)::value_type(inference_precision);
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
@@ -586,7 +594,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
                                                     RW_property(ov::enable_profiling.name()),
-                                                    RW_property(ov::hint::inference_precision.name()),
+                                                    RW_property(ov::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
         };
@@ -649,23 +657,37 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-    const bool enableSnippets = !conf.enableDynamicBatch;
+
+    auto snippetsMode = conf.enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
+    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
+    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
+        const auto& val = snippetsModeProp->second;
+        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
+            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
+        else if (val == PluginConfigInternalParams::DISABLE)
+            snippetsMode =  Config::SnippetsMode::Disable;
+        else
+            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+    }
 
     auto model = network.getFunction();
     if (model == nullptr) {
         IE_THROW() << "Only ngraph-based models are supported!";
     }
 
+    auto context =
+        std::make_shared<GraphContext>(conf, extensionManager, fake_w_cache, std::make_shared<std::mutex>(), false);
+
     auto supported = GetSupportedNodes(model,
                                        [&](std::shared_ptr<ov::Model>& model) {
-                                           Transformations transformation(model, enableLPT, enableSnippets, conf.enforceBF16, isLegacyAPI(), engConfig);
+                                           Transformations transformation(model, enableLPT, conf.enforceBF16, isLegacyAPI(), snippetsMode, engConfig);
                                            transformation.UpToCpuSpecificOpSet();
                                            transformation.CpuSpecificOpSet();
                                        },
                                        [&](const std::shared_ptr<ngraph::Node>& op) {
                                            std::unique_ptr<Node> ptr;
                                            try {
-                                               ptr.reset(Node::factory().create(op, {dnnl::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                                               ptr.reset(Node::factory().create(op, context));
                                            } catch (const InferenceEngine::Exception&) {
                                                return false;
                                            }

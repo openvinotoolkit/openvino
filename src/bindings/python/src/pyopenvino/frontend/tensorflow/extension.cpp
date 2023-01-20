@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ void regclass_frontend_tensorflow_OpExtension(py::module m) {
                         const std::map<std::string, py::object>& attr_values_map) {
                 std::map<std::string, ov::Any> any_map;
                 for (const auto& it : attr_values_map) {
-                    any_map[it.first] = py_object_to_any(it.second);
+                    any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
                 return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
             }), py::arg("fw_type_name"),
@@ -67,7 +67,7 @@ void regclass_frontend_tensorflow_OpExtension(py::module m) {
                         const std::map<std::string, py::object>& attr_values_map) {
                 std::map<std::string, ov::Any> any_map;
                 for (const auto& it : attr_values_map) {
-                    any_map[it.first] = py_object_to_any(it.second);
+                    any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
                 return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
             }),

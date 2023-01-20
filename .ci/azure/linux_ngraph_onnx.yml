@@ -11,6 +11,7 @@ trigger:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tools/*'
 
 pr:
   drafts: 'false'
@@ -26,6 +27,7 @@ pr:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tools/*'
 
 jobs:
 - job: OpenVINO_ONNX_CI
@@ -63,7 +65,6 @@ jobs:
       uname -a
       echo Python3 info ; which python3 ; python3 --version
       echo Python info ; which python ; python --version
-      echo Java info ; which java ; java -version
       echo gcc info ; which gcc ; gcc --version
       echo cmake info ; which cmake ; cmake --version
       lsb_release
@@ -97,7 +98,6 @@ jobs:
       apt-get update && apt-get install -y lsb-release && apt-get clean all
       curl -fsSL https://get.docker.com -o get-docker.sh
       sudo sh get-docker.sh
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - script:

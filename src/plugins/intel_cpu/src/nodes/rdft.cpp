@@ -75,8 +75,8 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-               Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1, 2))) {
+RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+               Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -927,7 +927,7 @@ void RDFT::prepareParams() {
         return executor;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     executor = result.first;
     if (axes.size() > 0 && signalSizes.size() > 0 && outputShapes[0].isStatic()) {

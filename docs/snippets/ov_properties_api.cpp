@@ -19,7 +19,7 @@ auto model = core.read_model("sample.xml");
 //! [compile_model_with_property]
 auto compiled_model = core.compile_model(model, "CPU",
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-    ov::hint::inference_precision(ov::element::f32));
+    ov::inference_precision(ov::element::f32));
 //! [compile_model_with_property]
 }
 

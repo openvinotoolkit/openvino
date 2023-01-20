@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "fully_connected_inst.h"
 #include "primitive_base.hpp"
@@ -35,8 +33,8 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<fully_connected>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;

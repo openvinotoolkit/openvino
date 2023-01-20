@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -920,8 +920,8 @@ public:
 
         set_values(input, params.input);
 
-        build_options bo;
-        bo.set_option(build_option::optimize_data(false));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(false));
         network network(engine, topology);
 
         network.set_input_data("input", input);
@@ -1022,9 +1022,9 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
         0.977054322f //b=1, y=1, x=1
     };
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto inst = network.get_primitive("softmax");

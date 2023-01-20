@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <common/blocked_desc_creator.h>
@@ -108,20 +108,24 @@ class ReorderCPUTestGraph {
 public:
     void buildReorderGraph(const ov::intel_cpu::CpuBlockedMemoryDesc& inputDesc,
                     const ov::intel_cpu::CpuBlockedMemoryDesc& outputDesc) {
-        const dnnl::engine cpuEngine = {dnnl::engine::kind::cpu, 0};
-        ov::intel_cpu::WeightsSharing::Ptr weightsCache;
+        Config conf;
+        conf.rtCacheCapacity = 100;
+        auto context = std::make_shared<GraphContext>(conf,
+                                                      nullptr,
+                                                      std::make_shared<WeightsSharing>(),
+                                                      std::make_shared<std::mutex>(),
+                                                      false);
+        const dnnl::engine cpuEngine = context->getEngine();
 
         inputNode = std::make_shared<ov::intel_cpu::node::Input>(inputDesc.clone(),
                                                                       "Reorder_Input",
                                                                       "Parameter",
-                                                                      cpuEngine,
-                                                                      weightsCache);
-        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", cpuEngine, weightsCache);
+                                                                      context);
+        reorderNode = std::make_shared<ov::intel_cpu::node::Reorder>("Reorder", context);
         outputNode = std::make_shared<ov::intel_cpu::node::Input>(outputDesc.clone(),
                                                                        "Reorder_Output",
                                                                        "Result",
-                                                                       cpuEngine,
-                                                                       weightsCache);
+                                                                       context);
 
         parentEdge = std::make_shared<ov::intel_cpu::Edge>(inputNode, reorderNode, 0, 0);
         childEdge = std::make_shared<ov::intel_cpu::Edge>(reorderNode, outputNode, 0, 0);
@@ -129,8 +133,6 @@ public:
         childEdge->changeStatus(ov::intel_cpu::Edge::Status::NeedAllocation);
         reorderNode->addEdge(parentEdge);
         reorderNode->addEdge(childEdge);
-
-        auto rtParamsCache = std::make_shared<ov::intel_cpu::MultiCache>(100);
 
         auto parentMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
         auto childMemory = std::make_shared<ov::intel_cpu::Memory>(cpuEngine);
@@ -141,7 +143,6 @@ public:
         childEdge->reuse(childMemory);
 
         reorderNode->setDescs(inputDesc, outputDesc);
-        reorderNode->setRuntimeCache(rtParamsCache);
         std::array<std::shared_ptr<ov::intel_cpu::Node>, 3> nodes{inputNode, reorderNode, outputNode};
         for (auto& n : nodes) {
             n->init();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_f16)(
     const __global half *src0,
     __global half *dst,
-    const __global half *src1,
+    const __global half *src1
 #if BIAS_TERM
-    const __global half *bias,
+    , const __global half *bias
 #endif
-    uint split_idx)
+)
 {
 #include "include/batch_headers/vec_typedefs.cl"
 

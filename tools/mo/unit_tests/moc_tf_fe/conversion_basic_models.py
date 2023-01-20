@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -43,14 +43,8 @@ def base_args_config():
     args.scale_values = None
     args.output_dir = os.getcwd()
     args.freeze_placeholder_with_value = None
-    args.tensorflow_use_custom_operations_config = None
     args.transformations_config = None
-    args.disable_fusing = None
-    args.finegrain_fusing = None
-    args.disable_resnet_optimization = None
-    args.enable_concat_optimization = None
     args.static_shape = None
-    args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
     args.layout = None
