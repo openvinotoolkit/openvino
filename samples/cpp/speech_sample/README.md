@@ -216,7 +216,7 @@ Kaldi's nnet-forward command. Since the `speech_sample` does not yet use pipes, 
    ./speech_sample -d GNA_AUTO -bs 8 -i feat.ark -m wsj_dnn5b.xml -o scores.ark
    ```
 
-   OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation) section.
+   OpenVINO™ toolkit Intermediate Representation `wsj_dnn5b.xml` file was generated in the previous [Model Preparation](#model-preparation-speech) section.
 
 3. Run the Kaldi decoder to produce n-best text hypotheses and select most likely text given the WFST (`HCLG.fst`), vocabulary (`words.txt`), and TID/PID mapping (`final.mdl`):
    ```sh
