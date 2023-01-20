@@ -783,7 +783,7 @@ private:
     }
 
     inline bool is_valid_isa(cpu_isa_t cpu_isa) {
-        return cpu::x64::is_subset(cpu_isa, isa_all) && mayiuse(cpu_isa);
+        return mayiuse(cpu_isa);
     }
 
     inline void uni_vpcmpgtd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,

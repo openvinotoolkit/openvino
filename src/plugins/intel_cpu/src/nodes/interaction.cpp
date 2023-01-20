@@ -293,9 +293,8 @@ void Interaction::prepareParams() {
     auto src_md = memory::desc(lhsShape, dataType, lhsStride);
     auto weights_md = memory::desc(rhsShape, dataType, rhsStride);
     auto dst_md = memory::desc(resShape, dataType, resStride);
-    auto matmul_d = matmul::desc(src_md, weights_md, dst_md);
     primitive_attr matmul_attr;
-    auto matmul_pd = matmul::primitive_desc(matmul_d, matmul_attr, getEngine());
+    auto matmul_pd = matmul::primitive_desc(getEngine(), src_md, weights_md, dst_md, matmul_attr);
     prim = matmul(matmul_pd);
     featureSizes.assign(inputSizes, featureSize);
     auto initMemoryPtr = [&](const InferenceEngine::Precision &prc, const intel_cpu::Shape& shape,

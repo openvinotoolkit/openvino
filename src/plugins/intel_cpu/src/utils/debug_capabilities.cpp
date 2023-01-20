@@ -2,6 +2,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <memory>
+#include "memory_desc/blocked_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 #ifdef CPU_DEBUG_CAPS
 
 #include "debug_capabilities.h"
@@ -88,25 +91,32 @@ void DebugLogEnabled::break_at(const std::string & log) {
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
     char sep = '(';
     os << "dims:";
-    for (int i = 0; i < desc.data.ndims; i++) {
-        os << sep << desc.data.dims[i];
+    const auto& ndims = desc.get()->ndims;
+    const auto& dims = desc.get()->dims;
+    for (int i = 0; i < ndims; i++) {
+        os << sep << dims[i];
         sep = ',';
     }
     os << ")";
 
+    const auto& strides = desc.get()->format_desc.blocking.strides;
     sep = '(';
     os << "strides:";
-    for (int i = 0; i < desc.data.ndims; i++) {
-        os << sep << desc.data.format_desc.blocking.strides[i];
+    for (int i = 0; i < ndims; i++) {
+        os << sep << strides[i];
         sep = ',';
     }
     os << ")";
 
-    for (int i = 0; i < desc.data.format_desc.blocking.inner_nblks; i++) {
-        os << desc.data.format_desc.blocking.inner_blks[i] << static_cast<char>('a' + desc.data.format_desc.blocking.inner_idxs[i]);
+    const auto& inner_blks  = desc.get()->format_desc.blocking.inner_blks;
+    const auto& inner_nblks = desc.get()->format_desc.blocking.inner_nblks;
+    const auto& inner_idxs  = desc.get()->format_desc.blocking.inner_idxs;
+
+    for (int i = 0; i < inner_nblks; i++) {
+        os << inner_blks[i] << static_cast<char>('a' + inner_idxs[i]);
     }
 
-    os << " " << dnnl_dt2str(desc.data.data_type);
+    os << " " << dnnl_dt2str(desc.get()->data_type);
     return os;
 }
 
@@ -531,6 +541,20 @@ std::ostream& operator<<(std::ostream& os, const PrintableDelta& d) {
     double us_all = d.us_all;
     os << "[+ " << std::setw(8) << std::setfill(' ') << std::fixed << std::setprecision(3) << us_last / 1000 << "/"
        << us_all / 1000 << " ms]";
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const impl_desc_type impl_type) {
+    os <<  impl_type_to_string(impl_type);
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderStatus) {
+    switch (reorderStatus) {
+    case Edge::ReorderStatus::Regular: os << "Regular"; break;
+    case Edge::ReorderStatus::Optimized: os << "Optimizer"; break;
+    case Edge::ReorderStatus::No: os << "No"; break;
+    }
     return os;
 }
 

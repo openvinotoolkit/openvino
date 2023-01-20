@@ -25,6 +25,7 @@ struct SoftmaxKey {
     DnnlMemoryDescCPtr inp0;
     impl_desc_type implType;
     size_t axis;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const SoftmaxKey& rhs) const;
@@ -36,7 +37,7 @@ size_t SoftmaxKey::hash() const {
 
     size_t seed = 0;
 
-    seed = hash_combine(seed, get_md_hash(inp0->getDnnlDesc().data));
+    seed = hash_combine(seed, get_md_hash(*inp0->getDnnlDesc().get()));
     seed = hash_combine(seed, implType);
     seed = hash_combine(seed, axis);
     return seed;
@@ -135,8 +136,14 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
+    auto desc = std::make_shared<softmax_forward::primitive_desc>(
+        getEngine(),
+        prop_kind::forward_inference,
+        algorithm::softmax_accurate,
+        in_candidate,
+        in_candidate,
+        axis);
+
     descs.push_back(desc);
 }
 
@@ -147,15 +154,24 @@ void SoftMax::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
+    dnnl::primitive_attr attr;
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
     SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
     auto engine = getEngine();
     auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {
         softmax_forward::primitive_desc prim_desc;
-        DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
-        dnnl::primitive_attr attr;
-        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
+        auto desc = std::make_shared<softmax_forward::primitive_desc>(
+            engine,
+            prop_kind::forward_inference,
+            algorithm::softmax_accurate,
+            key.inp0->getDnnlDesc(),
+            key.inp0->getDnnlDesc(),
+            key.axis,
+            key.attr);
+
+        // primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
+        primitive_desc_iterator itpd = *desc;
 
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
