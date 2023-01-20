@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-bool-compare)
+endif()
+
 set(TARGET_NAME ov_legacy_transformations_tests)
 
 ov_add_test_target(
@@ -16,18 +21,12 @@ ov_add_test_target(
     ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+        $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     LABELS
         TRANSFORMATIONS
 )
 
-set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES
-    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
-
 if(WIN32)
     string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
     string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
-endif()
-
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
 endif()
