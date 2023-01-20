@@ -26,7 +26,9 @@ class TestMul(PytorchLayerTest):
         return aten_mul(), ref_net, "aten::mul"
 
     @pytest.mark.parametrize(("input_array", "other_array"), [
-        [np.random.rand(1, 2), np.random.rand(2, 1)]
+        [np.random.rand(1, 2), np.random.rand(2, 1)],
+        [np.random.rand(3, 1, 2), np.random.rand(3, 1, 2)],
+        [np.random.rand(4, 1, 1), np.random.rand(1, 1, 4)],
     ])
     @pytest.mark.parametrize(("types"), [
         (np.float32, np.float32),
@@ -48,14 +50,11 @@ class TestMul(PytorchLayerTest):
         [np.array([ 0.2015, -0.4255,  2.6087]), np.array(100)],
         [np.array([[ 1.1207], [-0.3137], [0.0700], [0.8378]]), np.array([[0.5146, 0.1216, -0.5244, 2.2382]])],
     ])
-    @pytest.mark.parametrize(("types"), [
-        (np.float32, np.float32),
-    ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_mul_pt_spec(self, input_array, other_array, types, ie_device, precision, ir_version):
+    def test_mul_pt_spec(self, input_array, other_array, ie_device, precision, ir_version):
         self.input_array = input_array 
-        self.input_type = types[0]
+        self.input_type = np.float32
         self.other_array = other_array
-        self.other_type = types[1]
+        self.other_type = np.float32 
         self._test(*self.create_model(), ie_device, precision, ir_version)
