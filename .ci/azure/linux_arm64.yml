@@ -80,14 +80,11 @@ jobs:
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
 
   steps:
-  - script: |
-      ls -la /opt/hostedtoolcache
-      echo $AGENT_TOOLSDIRECTORY 
-
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10.7'
       addToPath: true
+      allowUnstable: true
       architecture: 'x64'
       githubToken: $(auth_token)
     displayName: Setup Python 3.10.7
@@ -95,6 +92,10 @@ jobs:
   - bash: |
       #!/bin/bash
       python -V
+
+  - script: |
+      echo $AGENT_TOOLSDIRECTORY 
+      ls -la /agent/_work/_tool
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
