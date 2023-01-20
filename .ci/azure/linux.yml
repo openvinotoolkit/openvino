@@ -104,11 +104,12 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.9'
+      versionSpec: '3.10'
+      disableDownloadFromRegistry: true
       addToPath: true
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.9
+    displayName: Setup Python 3.10
     name: setupPython
   - bash: |
       #!/bin/bash
