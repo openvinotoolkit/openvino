@@ -46,7 +46,6 @@ jobs:
   timeoutInMinutes: '120'
 
   pool:
-    name: LIN_VMSS_VENV_F16S_U20_WU2
     vmImage: 'ubuntu-latest'
 
   variables:
@@ -81,10 +80,6 @@ jobs:
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
 
   steps:
-  - script: |
-      ls -la /agent/_work/_tool
-      echo Python3 info ; which python3 ; python3 --version
-
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
@@ -98,6 +93,10 @@ jobs:
   - bash: |
       #!/bin/bash
       python -V
+      
+  - script: |
+      ls -la /agent/_work/_tool
+      echo Python3 info ; which python3 ; python3 --version
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
