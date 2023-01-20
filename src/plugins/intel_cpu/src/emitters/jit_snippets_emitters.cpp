@@ -770,7 +770,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         }
     }
     // todo: leave AMX and VNNI related code for now, it'll help to enable int8 and bf16 support
-    bool isAMXSupported = mayiuse(avx512_core_bf16_amx_int8) || mayiuse(avx512_core_bf16_amx_bf16);
+    bool isAMXSupported = mayiuse(avx512_core_amx);
 
     const auto& A_shape = io_values[0].get_shape();
     const auto& A_layout = io_layouts[0];

@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -1064,6 +1065,9 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
         node.alpha = swishOp->get_alpha();
     }},
     {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
+        // since v3.0 oneDNN has flexible version of hardswish, ov still uses the one with hardcoded alpha and beta
+        node.alpha = 1.f / 6.f;
+        node.beta = 0.5f;
         node.algorithm = Algorithm::EltwiseHswish;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_hardswish;
     }},
@@ -1098,6 +1102,7 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
     }},
     {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
         node.algorithm = Algorithm::EltwiseSoftRelu;
+        node.alpha = 1.f;
         node.onednnAlgorithm = dnnl::algorithm::eltwise_soft_relu;
     }},
     {ngraph::op::v9::SoftSign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
@@ -2181,7 +2186,6 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
         case dnnl::algorithm::eltwise_linear:
-        case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:
@@ -2194,7 +2198,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2202,10 +2206,10 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims &postOpDim
         // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
         if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
             // d = s*beta + gamma
-            ops.append_eltwise(1.0, dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+            ops.append_eltwise(dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
             if (getAlpha() != 1.0f) {
                 // d = 1 * s^alpha
-                ops.append_eltwise(1.0, dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
+                ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0f, getAlpha());
             }
             return;
         }
@@ -2297,7 +2301,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_square:
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
-        case dnnl::algorithm::eltwise_bounded_relu:
+        // case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:
@@ -2310,7 +2314,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            dnnlpoc.appendEltwise(1.0, getOneDnnAlgorithm(), getAlpha(), getBeta());
+            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence

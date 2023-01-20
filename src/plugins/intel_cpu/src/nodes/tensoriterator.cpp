@@ -103,16 +103,17 @@ public:
 
         // make chunk view
         auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        chunk_desc.data.dims[axis] = abs_stride;
-        chunk_desc.data.padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
+        // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
+        chunk_desc.get()->dims[axis] = abs_stride;
+        chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
         full_mem = full_blob->GetPrimitive();
         const auto full_mem_handler = full_mem.get_data_handle();
         dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
-        auto elem_size = DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type(chunk_desc.data.data_type));
+        auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
 
-        chunk_stride_in_byte = chunk_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+        chunk_stride_in_byte = chunk_desc.get()->format_desc.blocking.strides[axis] * elem_size * abs_stride;
         chunk_offset_in_byte = sign_of_stride < 0 ? (iter_count - 1) * chunk_stride_in_byte : 0;
         chunk_stride_in_byte *= sign_of_stride;
 
@@ -251,7 +252,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
 
     auto src_mem = from->GetPrimitive();
     auto src_desc = src_mem.get_desc();
-    auto dims = src_desc.dims();
+    auto dims = src_desc.get_dims();
 
     if (dims[axis] != abs_stride)
         IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
@@ -269,19 +270,19 @@ dnnl::memory DynamicBuffer::create_buffer(const dnnl::engine& eng) {
     const auto abs_stride = std::abs(stride);
 
     const auto old_desc = mem_holder_buffer.get_desc();
-    auto dims = old_desc.dims();
+    auto dims = old_desc.get_dims();
 
     if (from->getStaticDims()[axis] != abs_stride)
         IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
         " is expected, but actual: " << from->getStaticDims()[axis];
 
     dims[axis] += abs_stride;
-    dnnl::memory::desc new_buffer_desc(dims, old_desc.data_type(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
+    dnnl::memory::desc new_buffer_desc(dims, old_desc.get_data_type(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
 
     if (stride > 0.0f) {
-        chunk_offset_in_byte += new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+        chunk_offset_in_byte += new_buffer_desc.get()->format_desc.blocking.strides[axis] * elem_size * abs_stride;
     } else {
-        buffer_offset_in_byte = from->GetPrimitive().get_desc().data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+        buffer_offset_in_byte = from->GetPrimitive().get_desc().get()->format_desc.blocking.strides[axis] * elem_size * abs_stride;
     }
 
     return dnnl::memory(new_buffer_desc, eng);
@@ -289,8 +290,8 @@ dnnl::memory DynamicBuffer::create_buffer(const dnnl::engine& eng) {
 
 void DynamicBuffer::move_buffer(dnnl::memory new_buffer) {
     const auto axis = map_rule.axis;
-    const auto src_stride = mem_holder_buffer.get_desc().dims()[axis] * len;
-    const auto dst_stride = new_buffer.get_desc().dims()[axis] * len;
+    const auto src_stride = mem_holder_buffer.get_desc().get()->dims[axis] * len;
+    const auto dst_stride = new_buffer.get_desc().get()->dims[axis] * len;
 
     copy(get_ptr(mem_holder_buffer), get_ptr(new_buffer) + buffer_offset_in_byte,
          src_stride, dst_stride, count, src_stride);
@@ -300,7 +301,7 @@ void DynamicBuffer::move_buffer(dnnl::memory new_buffer) {
 void DynamicBuffer::move_data() {
     const auto axis = map_rule.axis;
     const auto src_stride = abs(map_rule.stride) * len;
-    const auto dst_stride = mem_holder_buffer.get_desc().dims()[axis] * len;
+    const auto dst_stride = mem_holder_buffer.get_desc().get()->dims[axis] * len;
 
     copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(mem_holder_buffer) + chunk_offset_in_byte,
          src_stride, dst_stride, count, src_stride);
@@ -309,7 +310,7 @@ void DynamicBuffer::move_data() {
 void DynamicBuffer::transfer(const Node* node) {
     if (mem_holder_buffer) {
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
-                DnnlExtensionUtils::convertToVectorDims(mem_holder_buffer.get_desc().dims()));
+            DnnlExtensionUtils::convertToVectorDims(mem_holder_buffer.get_desc().get_dims()));
         redefineToMemories(to, desc);
 
         copy(get_ptr(mem_holder_buffer), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
@@ -332,7 +333,7 @@ void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stri
 
 uint8_t* DynamicBuffer::get_ptr(dnnl::memory& prim) {
     auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
-    auto md = prim.get_desc().data;
+    auto md = prim.get_desc().get();
     dnnl::impl::memory_desc_wrapper wrapper(md);
     return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
