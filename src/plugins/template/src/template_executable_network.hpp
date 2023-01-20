@@ -52,7 +52,7 @@ private:
     std::atomic<std::size_t> _requestId = {0};
     Configuration _cfg;
     std::shared_ptr<const Plugin> _plugin;
-    std::shared_ptr<ngraph::Function> _function;
+    std::shared_ptr<ov::Model> m_model;
     std::map<std::string, std::size_t> _inputIndex;
     std::map<std::string, std::size_t> _outputIndex;
 };
