@@ -21,7 +21,7 @@ using namespace ov::frontend::tensorflow_lite;
 
 namespace {
 void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::FrameworkNode>& node,
-                              const ov::frontend::tensorflow::TranslatorDictionaryType& op_translators) {
+                              const ov::frontend::tensorflow_lite::TranslatorDictionaryType& op_translators) {
     auto type = node->get_op_type();
 
     const auto& TRANSLATE_OP_MAP = op_translators;
@@ -29,7 +29,7 @@ void translate_framework_node(const std::shared_ptr<ov::frontend::tensorflow::Fr
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
     ov::OutputVector ov_inputs = node->input_values();
-    ov::frontend::tensorflow::NodeContext node_ctx(node->get_decoder(), ov_inputs);
+    ov::frontend::tensorflow_lite::NodeContext node_ctx(node->get_decoder(), ov_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
     ov::frontend::tensorflow_lite::op::set_output_names(node_ctx, new_node_outputs);
 
@@ -167,7 +167,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
     const auto& model_lite = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::InputModel>(model);
     FRONT_END_GENERAL_CHECK(model_lite, "nullptr for InputModel is given for translation into OV Model");
 
-    const auto& translate_map = no_conversion ? ov::frontend::tensorflow::TranslatorDictionaryType{} : m_op_translators;
+    const auto& translate_map =
+        no_conversion ? ov::frontend::tensorflow_lite::TranslatorDictionaryType{} : m_op_translators;
 
     auto all_tensor_values = model_lite->get_tensor_values();
     auto all_tensor_places = model_lite->get_tensor_places();
@@ -241,7 +242,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
             FRONT_END_OP_CONVERSION_CHECK(translate_map.count(decoder->get_op_type()),
                                           "No translator found for " + decoder->get_op_type() + " node.");
             auto op_fun = &(translate_map.at(decoder->get_op_type()));
-            ov::frontend::tensorflow::NodeContext node_context(decoder, inputs);
+            ov::frontend::tensorflow_lite::NodeContext node_context(decoder, inputs);
             ov_outputs = (*op_fun)(node_context);
         } catch (...) {
             if (fail_fast) {

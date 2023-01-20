@@ -4,28 +4,22 @@
 
 #pragma once
 
-#include "decoder.hpp"
-#include "exception.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {
-namespace tensorflow {
-class TranslateSession;
+namespace tensorflow_lite {
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class TENSORFLOW_API NodeContext : public ov::frontend::NodeContext {
+class TENSORFLOW_LITE_API NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
-    NodeContext(const std::shared_ptr<DecoderBase>& decoder,
-                const OutputVector& inputs,
-                TranslateSession* translate_session = nullptr)
+    NodeContext(const std::shared_ptr<DecoderBase>& decoder, const OutputVector& inputs)
         : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
-          m_translate_session(translate_session),
           m_inputs(inputs) {}
 
     /// Detects if there is at least one input attached with a given name
@@ -56,22 +50,14 @@ public:
         return res;
     }
 
-    /// \brief Get a pointer to TranslateSession object
-    TranslateSession* get_translate_session() const {
-        return m_translate_session;
-    }
-
 private:
-    ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
-
     std::shared_ptr<DecoderBase> m_decoder;
-    TranslateSession* m_translate_session;
     const OutputVector& m_inputs;
 };
 
-using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
-}  // namespace tensorflow
+}  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov

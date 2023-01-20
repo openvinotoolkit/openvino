@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
 
@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
-OutputVector pack(const ov::frontend::tensorflow::NodeContext& node) {
+OutputVector pack(const ov::frontend::tensorflow_lite::NodeContext& node) {
     // convert native attributes to tf appropriate attribute
     const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(decoder != nullptr,
@@ -27,7 +27,7 @@ OutputVector pack(const ov::frontend::tensorflow::NodeContext& node) {
     for (auto i = 0; i < node.get_input_size(); ++i) {
         inputs[i] = node.get_input(i);
     }
-    auto context = ov::frontend::tensorflow::NodeContext(decoder_for_tf_translator, inputs);
+    auto context = ov::frontend::tensorflow_lite::NodeContext(decoder_for_tf_translator, inputs);
     auto output = ov::frontend::tensorflow::op::translate_pack_op(context);
     del_output_names(output);
     return output;
@@ -37,4 +37,3 @@ OutputVector pack(const ov::frontend::tensorflow::NodeContext& node) {
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov
-

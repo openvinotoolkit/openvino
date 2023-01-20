@@ -47,11 +47,6 @@ OutputVector translate_concat_op(const NodeContext& node) {
         for (int input_idx = 0; input_idx < input_size - 1; ++input_idx) {
             inputs.push_back(node.get_input(input_idx));
         }
-    } else if (node.get_op_type() == "tflite::CONCATENATION") {
-        axis = node.get_decoder()->get_attribute("axis").as<int64_t>();
-        for (int input_idx = 0; input_idx < input_size; ++input_idx) {
-            inputs.push_back(node.get_input(input_idx));
-        }
     } else {
         TENSORFLOW_OP_VALIDATION(node,
                                  false,

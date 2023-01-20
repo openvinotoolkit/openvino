@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
 
@@ -13,16 +13,17 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
-OutputVector strided_slice(const ov::frontend::tensorflow::NodeContext& node) {
+OutputVector strided_slice(const ov::frontend::tensorflow_lite::NodeContext& node) {
     const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    std::map<std::string, ov::Any> attrs {
-            {"begin_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::begin_mask))},
-            {"end_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::end_mask))},
-            {"new_axis_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::new_axis_mask))},
-            {"ellipsis_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::ellipsis_mask))},
-            {"shrink_axis_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::shrink_axis_mask))},
+    std::map<std::string, ov::Any> attrs{
+        {"begin_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::begin_mask))},
+        {"end_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::end_mask))},
+        {"new_axis_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::new_axis_mask))},
+        {"ellipsis_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::ellipsis_mask))},
+        {"shrink_axis_mask",
+         static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::shrink_axis_mask))},
     };
     return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_strided_slice_op);
 }

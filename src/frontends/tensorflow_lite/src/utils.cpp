@@ -69,10 +69,13 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
     return ov::Shape{tf_shape->begin(), tf_shape->end()};
 }
 
-ov::Shape get_quant_shape(const Output<Node>& output, const std::shared_ptr<ov::frontend::tensorflow_lite::Quantization>& quantization, const size_t& size) {
+ov::Shape get_quant_shape(const Output<Node>& output,
+                          const std::shared_ptr<ov::frontend::tensorflow_lite::Quantization>& quantization,
+                          const size_t& size) {
     auto shape = ov::Shape{};
     if (size > 1) {
-        FRONT_END_GENERAL_CHECK(output.get_partial_shape().rank().is_static(), "Per-Channel Quantization of tensor with dynamic rank");
+        FRONT_END_GENERAL_CHECK(output.get_partial_shape().rank().is_static(),
+                                "Per-Channel Quantization of tensor with dynamic rank");
         auto rank = output.get_partial_shape().size();
         shape = ov::Shape(rank, 1);
         shape[quantization->axis] = size;
@@ -104,10 +107,8 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     auto input_rank = output.get_partial_shape().rank();
     FRONT_END_GENERAL_CHECK(input_rank.is_static(), "Quantization is no");
 
-    auto zp_node =
-        ov::opset10::Constant::create(element::f32, zp_shape, zp);
-    auto scale_node =
-        ov::opset10::Constant::create(element::f32, scale_shape, scale);
+    auto zp_node = ov::opset10::Constant::create(element::f32, zp_shape, zp);
+    auto scale_node = ov::opset10::Constant::create(element::f32, scale_shape, scale);
 
     if (is_constant) {
         output = std::make_shared<ov::opset10::Convert>(output, element::f32);

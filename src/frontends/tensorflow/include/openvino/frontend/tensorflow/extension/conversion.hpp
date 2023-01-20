@@ -6,7 +6,6 @@
 
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {

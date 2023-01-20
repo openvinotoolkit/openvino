@@ -6,6 +6,10 @@
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
+TENSORFLOW_LITE_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+    return OV_FRONTEND_API_VERSION;
+}
+
 TENSORFLOW_LITE_C_API void* GetFrontEndData() {
     auto res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "tflite";

@@ -8,16 +8,18 @@
 #include <map>
 
 #include "openvino/core/any.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/tensorflow/frontend.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow::NodeContext&)>;
+using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::tensorflow_lite::NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
 
 class TENSORFLOW_LITE_API FrontEnd : public ov::frontend::FrontEnd {
