@@ -83,8 +83,8 @@ jobs:
   steps:
   - script: |
       echo $AGENT_TOOLSDIRECTORY
-      ls $AGENT_TOOLSDIRECTORY
-      
+      ls /agent/_work/_tool
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
