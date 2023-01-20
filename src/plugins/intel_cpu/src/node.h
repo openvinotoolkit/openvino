@@ -6,6 +6,7 @@
 
 #include <ie_api.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -382,12 +383,12 @@ public:
         this->typeStr = typeStr;
     }
 
-    virtual size_t descInputNumbers(DnnlDesriptor desc) {
-        return desc.inputNumbers();
+    virtual size_t descInputNumbers() {
+        return 1;
     }
 
-    virtual size_t descOutputNumbers(DnnlDesriptor desc) {
-        return desc.outputNumbers();
+    virtual size_t descOutputNumbers() {
+        return 1;
     }
 
     const PerfCounters & perfCounters() const {
@@ -579,7 +580,7 @@ protected:
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
     dnnl::primitive prim;
-    std::vector<DnnlDesriptor> descs;
+    std::vector<std::shared_ptr<dnnl::primitive_desc>> descs;
 
     const GraphContext::CPtr context;
 

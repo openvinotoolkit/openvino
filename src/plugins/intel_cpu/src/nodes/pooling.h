@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <memory>
 #include <vector>
@@ -42,9 +43,9 @@ private:
 
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     dnnl::algorithm getPoolingAlgorithm() const;
-    std::shared_ptr<dnnl::pooling_v2_forward::desc> createDescriptorInternal(const dnnl::memory::desc& in_candidate,
-                                                                               const dnnl::memory::desc& out_candidate,
-                                                                               const dnnl::algorithm alg) const;
+    std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorInternal(const dnnl::memory::desc& in_candidate,
+                                                                                    const dnnl::memory::desc& out_candidate,
+                                                                                    const dnnl::algorithm alg);
 
     AttrPtr pAttr;
 

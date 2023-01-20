@@ -122,7 +122,7 @@ memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
 }
 
 DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
-    if (desc.data.format_kind == dnnl_blocked) {
+    if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
         return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
@@ -131,17 +131,23 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &d
 
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
     auto tmpDesc = desc;
-    const auto offset0 = tmpDesc.data.offset0;
-    tmpDesc.data.offset0 = 0;
+    // const auto offset0 = tmpDesc.data.offset0;
+    // tmpDesc.data.offset0 = 0;
+
+    // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
+    const auto offset0 = tmpDesc.get()->offset0;
+    tmpDesc.get()->offset0 = 0;
+
     size_t size = tmpDesc.get_size();
     if (size == DNNL_RUNTIME_SIZE_VAL)
         return MemoryDesc::UNDEFINED_SIZE;
-    size += offset0 * sizeOfDataType(tmpDesc.data_type());
+
+    size += offset0 * sizeOfDataType(tmpDesc.get_data_type());
     return size;
 }
 
 std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const memory::desc &desc, const Shape &shape) {
-    if (desc.data.format_kind == dnnl_blocked) {
+    if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
     } else {
         IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
@@ -150,10 +156,17 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
 
 DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
     auto query = dnnl::convert_to_c(what);
-    const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+    const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+
     if (!cdesc)
         IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
-    return DnnlExtensionUtils::makeDescriptor(*cdesc);
+
+    dnnl_memory_desc_t cloned_md = nullptr;
+    dnnl_memory_desc_clone(&cloned_md, cdesc);
+
+    auto desc = dnnl::memory::desc(cloned_md);
+
+    return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
