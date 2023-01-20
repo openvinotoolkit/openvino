@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@ class Blob;
 namespace ov {
 
 class Core;
+class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
@@ -47,6 +48,7 @@ protected:
     Tensor(const std::shared_ptr<InferenceEngine::Blob>& impl, const std::vector<std::shared_ptr<void>>& so);
 
     friend class ov::Core;
+    friend class ov::CoreImpl;
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;

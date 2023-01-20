@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,8 +22,8 @@
 namespace cldnn {
 namespace onednn {
 
-struct convolution_onednn : typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc> {
-    using parent = typed_primitive_onednn_impl<convolution, dnnl::convolution_forward::desc>;
+struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
+    using parent = typed_primitive_onednn_impl<convolution>;
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
@@ -46,7 +46,7 @@ protected:
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
-        if (has_zero_points(DNNL_ARG_SRC, _attrs)) {
+        if (instance.activations_zero_points_term()) {
             auto a_zp = instance.activations_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
@@ -63,7 +63,7 @@ protected:
             }
         }
 
-        if (has_zero_points(DNNL_ARG_WEIGHTS, _attrs)) {
+        if (instance.weights_zero_points_term()) {
             auto w_zp = instance.weights_zero_points_memory();
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
@@ -87,13 +87,9 @@ protected:
     static void set_activation_zero_points_attr(const std::shared_ptr<dnnl::primitive_attr>& attrs, cldnn::data_node& node) {
         int32_t zp_val = DNNL_RUNTIME_S32_VAL;
         bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
-        if (is_per_tensor) {
-            attrs->set_zero_points(DNNL_ARG_SRC, 0, {zp_val});
-        } else {
-            memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
-            node.attach_memory(s32_mem, false);
-            attrs->set_zero_points(DNNL_ARG_SRC, 2, {DNNL_RUNTIME_S32_VAL});
-        }
+        memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
+        node.attach_memory(s32_mem, false);
+        attrs->set_zero_points_mask(DNNL_ARG_SRC, is_per_tensor ? 0 : 2);
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
@@ -163,6 +159,7 @@ protected:
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_convolution_desc_t));
@@ -170,9 +167,11 @@ public:
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
         const char dummy_mem[sizeof(dnnl::convolution_forward::desc)] = {};
@@ -186,16 +185,17 @@ public:
 
         _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
+#endif
     }
 
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto desc = get_convolution_descriptor(impl_params);
         auto attr = get_primitive_attributes(arg);
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
-        return cldnn::make_unique<convolution_onednn>(engine, config, desc, attr, prim_desc, get_weights_reorder(impl_params, prim_desc, arg.get_transposed()));
+        auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
+
+        return cldnn::make_unique<convolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc, arg.get_transposed()));
     }
 };
 

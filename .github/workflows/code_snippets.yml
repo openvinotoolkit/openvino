@@ -31,7 +31,7 @@ jobs:
           lfs: true
 
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -B build
+        run: cmake -DCMAKE_BUILD_TYPE=Release -B build
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1

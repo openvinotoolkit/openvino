@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <istream>
 #include <map>
 #include <memory>
+#include <openvino/runtime/remote_context.hpp>
 #include <string>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
 #include <unordered_set>
@@ -21,6 +22,7 @@
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
+#include "dev/converter_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_algorithm.hpp"
 #include "ie_api.h"
@@ -527,6 +529,10 @@ void SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNet
 
     exeNetwork->setInputs(const_params);
     exeNetwork->setOutputs(const_results);
+}
+
+std::shared_ptr<::ov::IPlugin> convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from) {
+    return ov::legacy_convert::convert_plugin(from);
 }
 
 }  //  namespace InferenceEngine

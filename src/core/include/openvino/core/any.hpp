@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ class ExecutableNetwork;
 }  // namespace InferenceEngine
 
 namespace ov {
+class Plugin;
 /** @cond INTERNAL */
 class Any;
 namespace util {
@@ -339,7 +340,6 @@ class RuntimeAttribute;
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
-class InferencePlugin;
 
 /**
  * @brief This class represents an object to work with different types
@@ -632,7 +632,7 @@ class OPENVINO_API Any {
     friend class ::ov::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
-    friend class ::ov::InferencePlugin;
+    friend class ::ov::Plugin;
 
     Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
 

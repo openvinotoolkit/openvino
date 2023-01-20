@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -401,6 +401,28 @@ def test_graph_preprocess_steps(algorithm, color_format1, color_format2, is_fail
             assert op in model_operators
 
 
+@pytest.mark.parametrize(
+    ("color_format1", "color_format2", "tensor_in_shape", "model_in_shape"),
+    [(ColorFormat.RGB, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
+     (ColorFormat.BGR, ColorFormat.GRAY, [1, 3, 3, 3], [1, 3, 3, 1]),
+     ])
+def test_graph_preprocess_convert_color(color_format1, color_format2, tensor_in_shape, model_in_shape):
+    parameter_a = ops.parameter(model_in_shape, dtype=np.float32, name="A")
+    model = parameter_a
+    function = Model(model, [parameter_a], "TestFunction")
+
+    custom_processor = PrePostProcessor(function)
+    inp = custom_processor.input()
+    inp.tensor().set_color_format(color_format1)
+    inp.preprocess().convert_color(color_format2)
+    function = custom_processor.build()
+
+    assert function.get_output_size() == 1
+    assert list(function.inputs[0].shape) == tensor_in_shape
+    assert list(function.get_output_shape(0)) == model_in_shape
+    assert function.get_output_element_type(0) == Type.f32
+
+
 def test_graph_preprocess_postprocess_layout():
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -483,7 +505,7 @@ def test_graph_preprocess_crop():
         "Relu",
         "Slice",
     ]
-    assert len(model_operators) == 7
+    assert len(model_operators) == 8
     assert function.get_output_size() == 1
     assert list(function.get_output_shape(0)) == [1, 2, 1, 1]
     assert function.get_output_element_type(0) == Type.f32

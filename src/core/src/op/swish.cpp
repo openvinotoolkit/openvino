@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,10 +36,11 @@ void op::v4::Swish::validate_and_infer_types() {
                           "Swish must have 1 or 2 inputs, but it has: ",
                           inputs_count);
 
+    auto in_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_real(),
+                          in_type.is_dynamic() || in_type.is_real(),
                           "Swish input tensor must be floating point type(",
-                          get_input_element_type(0),
+                          in_type,
                           ").");
 
     if (inputs_count == 2) {
