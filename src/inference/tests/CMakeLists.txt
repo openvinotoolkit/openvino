@@ -4,3 +4,7 @@
 
 add_subdirectory(unit)
 add_subdirectory(functional)
+
+if(ENABLE_GAPI_TESTS)
+    add_subdirectory(fluid_preproc)
+endif()

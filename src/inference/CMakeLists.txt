@@ -19,7 +19,7 @@ file (GLOB LIBRARY_SRC
       )
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/legacy/src")
+set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
@@ -231,5 +231,5 @@ install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
 if(ENABLE_TESTS)
-add_subdirectory(tests)
+    add_subdirectory(tests)
 endif()
