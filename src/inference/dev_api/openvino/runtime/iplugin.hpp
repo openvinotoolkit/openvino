@@ -81,7 +81,7 @@ public:
      */
     virtual std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> compile_model(
         const std::string& model_path,
-        const ov::AnyMap& properties) const = 0;
+        const ov::AnyMap& properties) const;
 
     /**
      * @brief Compiles model from ov::Model object, on specified remote context
@@ -118,7 +118,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -126,7 +126,7 @@ public:
      *
      * @return The default context.
      */
-    virtual RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation

@@ -22,19 +22,19 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
         const auto& value = c.second;
 
         if (TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) == key) {
-            _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value);
+            _streamsExecutorConfig.SetConfig(CONFIG_KEY(CPU_THROUGHPUT_STREAMS), value.as<std::string>());
         } else if (streamExecutorConfigKeys.end() !=
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
-            _streamsExecutorConfig.SetConfig(key, value);
+            _streamsExecutorConfig.SetConfig(key, value.as<std::string>());
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
-            deviceId = std::stoi(value);
+            deviceId = std::stoi(value.as<std::string>());
             if (deviceId > 0) {
                 IE_THROW(NotImplemented) << "Device ID " << deviceId << " is not supported";
             }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
-            perfCount = (CONFIG_VALUE(YES) == value);
+            perfCount = (CONFIG_VALUE(YES) == value.as<std::string>());
         } else if (ov::hint::performance_mode == key) {
-            std::stringstream strm{value};
+            std::stringstream strm{value.as<std::string>()};
             strm >> performance_mode;
         } else if (throwOnUnsupported) {
             IE_THROW(NotFound) << ": " << key;

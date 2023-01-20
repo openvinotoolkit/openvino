@@ -45,3 +45,10 @@ bool ov::IPlugin::is_new_api() const {
 const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
     return m_executor_manager;
 }
+
+std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::IPlugin::compile_model(
+    const std::string& model_path,
+    const ov::AnyMap& properties) const {
+    auto model = get_core()->read_model(model_path, std::string());
+    return compile_model(model, properties);
+}

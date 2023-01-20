@@ -4,17 +4,11 @@
 
 #pragma once
 
-#include <ngraph/pass/pass.hpp>
-
 #include "ie_input_info.hpp"
+#include "openvino/pass/pass.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace pass {
-
-class AddPreprocessing;
-
-}  // namespace pass
-}  // namespace ngraph
 
 /**
  * @brief Converts the following preprocessing information to ngraph operations:
@@ -25,12 +19,15 @@ class AddPreprocessing;
  * The order of operations is the following:
  *      (x - mean) / stdScale
  */
-class ngraph::pass::AddPreprocessing : public ngraph::pass::FunctionPass {
+class AddPreprocessing : public ov::pass::ModelPass {
     const InferenceEngine::InputsDataMap& m_inputInfoMap;
 
 public:
-    OPENVINO_RTTI("AddPreprocessing", "0");
+    OPENVINO_RTTI("AddLegacyPreprocessing");
     explicit AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap);
 
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
+
+}  // namespace pass
+}  // namespace ov

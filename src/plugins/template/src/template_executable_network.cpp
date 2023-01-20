@@ -22,11 +22,9 @@
 using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
-                                                     const InferenceEngine::InputsDataMap& inputInfoMap,
-                                                     const InferenceEngine::OutputsDataMap& outputsInfoMap,
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ov::Model>& model,
                                                      const Configuration& cfg,
-                                                     const Plugin::Ptr& plugin)
+                                                     const std::shared_ptr<const Plugin>& plugin)
     : InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr),  // Disable default threads creation
       _cfg(cfg),
       _plugin(plugin) {
@@ -34,7 +32,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileNetwork(function, inputInfoMap, outputsInfoMap);
+        CompileNetwork(model->clone());
         InitExecutor();  // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
         throw;
@@ -49,7 +47,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
 // ! [executable_network:ctor_import_stream]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
                                                      const Configuration& cfg,
-                                                     const Plugin::Ptr& plugin)
+                                                     const std::shared_ptr<const Plugin>& plugin)
     : _cfg(cfg),
       _plugin(plugin) {
     // read XML content
@@ -60,31 +58,20 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
     model.read(const_cast<char*>(xmlString.c_str()), dataSize);
 
     // read blob content
-    InferenceEngine::Blob::Ptr dataBlob;
+    ov::Tensor weights;
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
-        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                        {static_cast<std::size_t>(dataSize)},
-                                        InferenceEngine::Layout::C));
-        dataBlob->allocate();
-        model.read(dataBlob->buffer(), dataSize);
+        weights = ov::Tensor(ov::element::u8, ov::Shape{dataSize});
+        model.read(weights.data<char>(), dataSize);
     }
 
-    auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+    auto ov_model = _plugin->get_core()->read_model(xmlString, weights);
 
-    // TODO: implement Import / Export of configuration options and merge with `cfg`
-    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
-    InferenceEngine::InputsDataMap inputInfoMap = cnnnetwork.getInputsInfo();
-    InferenceEngine::OutputsDataMap outputInfoMap = cnnnetwork.getOutputsInfo();
-
-    setNetworkInputs(inputInfoMap);
-    setNetworkOutputs(outputInfoMap);
-    SetPointerToPlugin(_plugin->shared_from_this());
+    // SetPointerToPlugin(_plugin->shared_from_this());
 
     try {
         // TODO: remove compilation, network is already compiled and serialized in compiled form
-        CompileNetwork(cnnnetwork.getFunction(), inputInfoMap, outputInfoMap);
+        CompileNetwork(ov_model);
         InitExecutor();  // creates thread-based executor using for async requests
     } catch (const InferenceEngine::Exception&) {
         throw;
@@ -98,20 +85,11 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream& model,
 
 // ! [executable_network:map_graph]
 // forward declaration
-void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
-                      const InferenceEngine::InputsDataMap& inputInfoMap,
-                      const InferenceEngine::OutputsDataMap& outputsInfoMap);
+void TransformNetwork(const std::shared_ptr<ov::Model>& model);
 
-void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
-                                                       const InferenceEngine::InputsDataMap& inputInfoMap,
-                                                       const InferenceEngine::OutputsDataMap& outputsInfoMap) {
-    // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
-
-    // clone network
-    _function = ngraph::clone_function(*function);
-
+void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
-    TransformNetwork(_function, inputInfoMap, outputsInfoMap);
+    TransformNetwork(model);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
@@ -141,7 +119,7 @@ void TemplatePlugin::ExecutableNetwork::InitExecutor() {
     // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
-    _taskExecutor = _plugin->executorManager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    _taskExecutor = _plugin->get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of
     // inference request pipeline _callbackExecutor =
     // _plugin->executorManager()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
@@ -169,7 +147,7 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
     InferenceEngine::IInferRequestInternal::Ptr internalRequest;
-    if (this->_plugin && _plugin->IsNewAPI()) {
+    if (this->_plugin && _plugin->is_new_api()) {
         internalRequest = CreateInferRequestImpl(_parameters, _results);
     }
     if (!internalRequest)
