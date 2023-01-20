@@ -89,7 +89,8 @@ TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
     std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
-    ASSERT_EQ(NetworkCompilationContext::calculate_file_info(file1), NetworkCompilationContext::calculate_file_info(file2))
+    ASSERT_EQ(NetworkCompilationContext::calculate_file_info(file1),
+              NetworkCompilationContext::calculate_file_info(file2))
         << "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
 

@@ -24,15 +24,17 @@ class Model;
 struct NetworkCompilationContext final {
     static std::string calculate_file_info(const std::string& filePath);
 
-    static std::string compute_hash(InferenceEngine::CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
+    static std::string compute_hash(InferenceEngine::CNNNetwork& network,
+                                    const std::map<std::string, std::string>& compileOptions);
 
-    static std::string compute_hash(const std::shared_ptr<ov::Model>& model, const std::map<std::string, std::string>& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<ov::Model>& model,
+                                    const std::map<std::string, std::string>& compileOptions);
 
     static std::string compute_hash(const std::string& modelName,
-                                   const std::map<std::string, std::string>& compileOptions);
+                                    const std::map<std::string, std::string>& compileOptions);
     static std::string compute_hash(const std::string& modeStr,
-                                   const ov::Tensor& data,
-                                   const std::map<std::string, std::string>& compileOptions);
+                                    const ov::Tensor& data,
+                                    const std::map<std::string, std::string>& compileOptions);
 };
 
 class CompiledBlobHeader final {
@@ -56,4 +58,4 @@ public:
     friend std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header);
 };
 
-}  // namespace InferenceEngine
+}  // namespace ov
