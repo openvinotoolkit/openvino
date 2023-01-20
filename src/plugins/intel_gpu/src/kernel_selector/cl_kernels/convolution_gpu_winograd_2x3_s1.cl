@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,7 @@ KERNEL(convolution_gpu_winograd_2x3_s1)
 (
     const __global UNIT_TYPE *signalw,
           __global UNIT_TYPE *outputw,
-    const __global UNIT_TYPE *filterw,
-    uint split_idx)
+    const __global UNIT_TYPE *filterw)
 {
     const int INPUT0_SIZE_Y_PITCH_UNIT_4 = INPUT0_PITCH_SIZE_Y / VEC_SIZE; //for bxyf -> INPUT0_PITCH_SIZE_Y is equal to input features count, since ifm % 32 == 0, division by VEC_SIZE is ok
     const int OUTPUT_SIZE_Y_PITCH_UNIT_4 = OUTPUT_Y_PITCH / VEC_SIZE; //for bxyf -> OUTPUT_Y_PITCH is equal to output features count, since ofm % 32 == 0, division by VEC_SIZE is ok

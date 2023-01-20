@@ -1,16 +1,24 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#if defined(__unix__) && !defined(__ANDROID__)
+#include <malloc.h>
+#endif
 
 #include "intel_gpu/plugin/program.hpp"
 #include "ngraph/ops.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "intel_gpu/plugin/itt.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/data.hpp"
+
+#ifdef __linux__
+# include <dlfcn.h>
+#endif
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -117,7 +125,7 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
     return dyn_shape_batch_found;
 }
 
-Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
     bool createTopologyOnly, bool partialBuild)
     : m_curBatch(-1)
     , m_config(config)
@@ -132,30 +140,60 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
         IE_THROW() << "Function pointer inside CNNNetwork is nullptr";
     }
 
+    // locate global custom kernel config
+    // and auto-load kernels from it
+#ifdef _WIN32
+    CHAR mpath[MAX_PATH + 1];
+    HMODULE nModule;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)CustomLayer::LoadFromFile,
+        &nModule);
+    GetModuleFileName(nModule, mpath, sizeof(mpath));
+#elif __linux__
+    Dl_info dl_info;
+    dladdr(reinterpret_cast<void *>(CustomLayer::LoadFromFile), &dl_info);
+    const char* mpath = dl_info.dli_fname;
+#endif
+    std::string configFile(mpath);
+    std::size_t dir_split_pos = configFile.find_last_of("/\\");
+    std::string config_path;
+
+    if (dir_split_pos != std::string::npos) {
+        // path contains directory
+        config_path = configFile.substr(0, dir_split_pos);
+    }
+    config_path += "/cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml";
+
+    CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
+    auto custom_layers_config = m_config.get_property(ov::intel_gpu::config_file);
+    CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
     auto ops = func->get_ordered_ops();
 
     bool dyn_shape_batch_found = false;
     std::map<std::string, ngraph::PartialShape> shapes;
     std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-    if (m_config.enableDynamicBatch) {
+    auto enable_dynamic_batch = m_config.get_property(ov::intel_gpu::enable_dynamic_batch);
+    if (enable_dynamic_batch) {
+        m_config.set_property(ov::intel_gpu::max_dynamic_batch(network.getBatchSize()));
         // in case of legacy dynamic batch,
         // we assume 4D input with 0 batch dim
         auto param = func->get_parameters().front();
         auto pname = getParamName(param);
         shapes[pname] = param->get_output_partial_shape(0);
         batch_dim[pname].first = 0;
-        batch_dim[pname].second = m_config.max_dynamic_batch;
+        batch_dim[pname].second = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     } else {
         dyn_shape_batch_found = IsDynBatchModel(func, shapes, batch_dim);
         if (dyn_shape_batch_found) {
-            m_config.max_dynamic_batch = batch_dim.begin()->second.second;
+            m_config.set_property(ov::intel_gpu::max_dynamic_batch(batch_dim.begin()->second.second));
         }
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
-    m_max_batch = m_config.max_dynamic_batch;
+    m_max_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
 
-    if (dyn_shape_batch_found || config.max_dynamic_batch > 1) {
+    if (dyn_shape_batch_found || m_max_batch > 1) {
         // compile log2 networks to serve dynamic batch requests
         for (int b = m_bv_sz - 1; b >= 0; b--) {
             inputLayouts.clear();
@@ -184,8 +222,8 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
             }
             new_func->reshape(new_shapes);
             {
-                auto deviceInfo = engine->get_device_info();
-                TransformationsPipeline transformations(config, deviceInfo);
+                auto deviceInfo = engine.get_device_info();
+                TransformationsPipeline transformations(m_config, deviceInfo);
                 transformations.apply(new_func);
             }
 
@@ -271,9 +309,10 @@ Program::Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::en
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
-    if (m_config.max_dynamic_batch > 1) {
+    auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
+    if (max_dynamic_batch > 1) {
         // calculate number of networks necessary based on binary log
-        unsigned int tmp = m_config.max_dynamic_batch;
+        unsigned int tmp = max_dynamic_batch;
         unsigned int mask = 1U << 31;
         unsigned int ldigit = 31;
 
@@ -305,6 +344,14 @@ void Program::CleanupBuild() {
     m_topology.reset();
     m_networkInputs.clear();
     m_networkOutputs.clear();
+    #if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+    malloc_trim(0);
+    #endif
 }
 
 std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
@@ -312,7 +359,6 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
                                                       InferenceEngine::OutputsDataMap networkOutputs,
                                                       bool createTopologyOnly, bool partialBuild) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::BuildProgram");
-    cldnn::build_options options;
 
     for (const auto& op : ops) {
         if (op->is_dynamic()) {
@@ -321,14 +367,16 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         }
     }
 
-    options.set_option(cldnn::build_option::allow_new_shape_infer(allow_new_shape_infer));
-    options.set_option(cldnn::build_option::optimize_data(true));
-    if (partialBuild) {
-        options.set_option(cldnn::build_option::partial_build_program(true));
-    }
+    m_config.set_property(ov::intel_gpu::partial_build_program(partialBuild));
+    m_config.set_property(ov::intel_gpu::optimize_data(true));
+    m_config.set_property(ov::intel_gpu::allow_new_shape_infer(allow_new_shape_infer));
+
     PrepareBuild(networkInputs, networkOutputs);
-    for (const auto& op : ops) {
-        CreateSingleLayerPrimitive(*m_topology, op);
+    {
+        GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        for (const auto& op : ops) {
+            CreateSingleLayerPrimitive(*m_topology, op);
+        }
     }
     if (createTopologyOnly) {
         return {};
@@ -336,7 +384,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Program::CreateProgram");
         cldnn::program::ptr program;
         try {
-            program = cldnn::program::build_program(*m_engine, *m_topology, options);
+            program = cldnn::program::build_program(m_engine, *m_topology, m_config);
         } catch (std::exception& e) {
             IE_THROW() << "cldnn program build failed! " << e.what();
         }
@@ -381,8 +429,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
-        auto customLayer = m_config.customLayers.find(op->get_type_name());
-        if (customLayer != m_config.customLayers.end()) {
+        auto customLayer = m_custom_layers.find(op->get_type_name());
+        if (customLayer != m_custom_layers.end()) {
             CreateCustomOp(*this, op, customLayer->second);
             return;
         }
@@ -473,7 +521,7 @@ void Program::add_primitive(const ngraph::Node& op, std::shared_ptr<cldnn::primi
             prim->origin_op_type_name = prim->type_string();
     }
 
-    if (this->m_config.useProfiling && should_profile) {
+    if (this->m_config.get_property(ov::enable_profiling) && should_profile) {
         profiling_ids.push_back(prim_id);
         init_profile_info(*prim);
     }

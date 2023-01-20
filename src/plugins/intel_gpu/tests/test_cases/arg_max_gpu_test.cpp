@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -539,11 +539,11 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     set_values(input, input_vec);
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
     auto outputs = network.execute();

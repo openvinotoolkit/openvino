@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,9 @@
 #include "arg_max_min_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
-#include "strided_slice_inst.h"
 #include "crop_inst.h"
 #include "deconvolution_inst.h"
 #include "shape_of_inst.h"
-#include "strided_slice_inst.h"
 #include "gemm_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "compilation_context.hpp"
@@ -98,9 +96,13 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     // check shared image/buffer compatibility, if applicable
     auto params = mem.get_internal_params();
     if (params.mem_type != shared_mem_type::shared_mem_empty) {
-        if (!mem.is_allocated_by(get_network().get_engine())) {
-            CLDNN_ERROR_MESSAGE(_node->id(), "Memory object is not suitable");
-        }
+        auto& net_engine = get_network().get_engine();
+        auto& mem_engine = *mem.get_engine();
+        OPENVINO_ASSERT(mem.is_allocated_by(net_engine), "[GPU] Can't set memory due to engines mismatch. ",
+                        "Network was created for ", &net_engine, " (",
+                        net_engine.get_device_info().dev_name, ") engine",
+                        " while memory object was allocated for ", &mem_engine, "(",
+                        mem_engine.get_device_info().dev_name, ")");
 
         switch (params.mem_type) {
         case shared_mem_type::shared_mem_vasurface:
@@ -170,19 +172,7 @@ void primitive_inst::update_shape() {
     if (_node->is_type<shape_of>() && !input_shape_changed)
         return;
 
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    bool strided_slice_wa = false;
-    if (_node->is_type<strided_slice>()) {
-        for (size_t i = 1; i < _node->get_dependencies().size(); i++) {
-            if (!_node->get_dependency(i).is_type<data>())
-                strided_slice_wa = true;
-        }
-    }
-
-    if (!strided_slice_wa && !input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
+    if (!input_shape_changed && !_node->generates_dynamic_output() && _impl_params->get_output_layout().is_static())
         return;
 
     std::vector<event::ptr> dependencies_events;
@@ -196,7 +186,7 @@ void primitive_inst::update_shape() {
         auto& dep = _node->get_dependency(i);
         auto dep_id = dep.id();
         // Events may be not created for in-order queue, so take them for OOO queue only
-        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
+        if (_network.has_event(dep.id()) && queue_type == QueueTypes::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
         }
@@ -206,9 +196,9 @@ void primitive_inst::update_shape() {
     }
 
     if (has_runtime_deps) {
-        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
-        } else if (queue_type == queue_types::in_order) {
+        } else if (queue_type == QueueTypes::in_order) {
             _network.get_stream().finish();
         }
     }
@@ -460,7 +450,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == queue_types::out_of_order) {
+        if (queue_type == QueueTypes::out_of_order) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -769,8 +759,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                             uint32_t net_id, bool is_internal, size_t idx) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
-        if (_engine.configuration().use_memory_pool)
-                return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
+        if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
+            return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
         return pool.get_memory(layout, type);
     };
 
@@ -802,11 +792,14 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto use_lockable_memory = is_output_buffer(_node) || is_cpu || is_any_user_cpu(_node.get_users()) ||
                                !_engine.supports_allocation(allocation_type::usm_device);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
-    const auto& alloc_type = use_lockable_memory ? lockable_mem_type
-        : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
+    auto alloc_type = use_lockable_memory ? lockable_mem_type
+                    : usm_device_allocatable ? allocation_type::usm_device : lockable_mem_type;
 
     if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
+        // Use usm_device memory for weights reordering
+        if (is_internal && _node.is_type<generic_layer>() && _engine.supports_allocation(allocation_type::usm_device))
+            alloc_type = allocation_type::usm_device;
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
@@ -944,10 +937,11 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 in = _node->get_dependency(i).id();
             }
         }
-        build_options bo;
-        bo.set_option(build_option::allow_static_input_reorder(true));
-        bo.set_option(build_option::allow_new_shape_infer(true));
-        auto prog = program::build_program(get_network().get_engine(), t, bo, true, false);
+        ExecutionConfig subgraph_config{
+            ov::intel_gpu::allow_static_input_reorder(true),
+            ov::intel_gpu::allow_new_shape_infer(true)
+        };
+        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, true, false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }
@@ -1151,8 +1145,6 @@ void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_argu
             args_idx.fused_op_inputs[idx] = get_index_in_deps(args.fused_op_inputs[idx]);
         }
     }
-
-    args_idx.split = args.split;
 }
 
 int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {

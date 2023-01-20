@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,7 +106,7 @@ void SubgraphBaseTest::run() {
 void SubgraphBaseTest::serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = CommonTestUtils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -210,11 +210,23 @@ void SubgraphBaseTest::compile_model() {
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
                 configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
         }
     #endif
+
+    // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision may vary
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        ov::element::Type hint = ov::element::f32;
+        for (auto& param : function->get_parameters()) {
+            if (param->get_output_element_type(0) == ov::element::f16) {
+                hint = ov::element::f16;
+                break;
+            }
+        }
+        configuration.insert({ov::inference_precision.name(), hint});
+    }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
     if (is_report_stages) {
