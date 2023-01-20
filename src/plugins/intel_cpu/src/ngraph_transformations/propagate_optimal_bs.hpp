@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pass.hpp>
 
 namespace ov {
 namespace intel_cpu {
 
-class PropagateOptimalBS : public ov::pass::MatcherPass {
+class PropagateOptimalBS : public ov::pass::ModelPass {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    PropagateOptimalBS();
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace intel_cpu
