@@ -18,15 +18,19 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (node->get_input_size() == 0 || node->get_output_size() == 0 || ov::is_type<ov::opset1::Result>(node))
             continue;
 
+        // Set batch_label for nodes that were marked with opt bs using heuristics
+        // and propagate the label to the output shape
+        if (has_optimal_bs(node)) {
+            const auto& in_shape = node->get_input_partial_shape(0);
+            assert(in_shape.rank().is_static());
+            ov::DimensionTracker::set_label(const_cast<ov::Dimension&>(in_shape[0]), batch_label);
+            node->validate_and_infer_types();
+            continue;
+        }
+
         const auto& out_shape = node->get_output_partial_shape(0);
         if (out_shape.rank().is_dynamic())
             continue;
-
-        // Set batch_label for nodes that were marked with opt bs using heuristics (e.g. Convolution)
-        if (has_optimal_bs(node)) {
-            ov::DimensionTracker::set_label(const_cast<ov::Dimension&>(out_shape[0]), batch_label);
-            continue;
-        }
 
         // batch_label propagation
         node->validate_and_infer_types();

@@ -5,6 +5,7 @@
 #include "switch_affinity.hpp"
 
 #include <transformations/serialize.hpp>
+#include <openvino/pass/visualize_tree.hpp>
 
 #include <memory>
 #include <vector>
@@ -17,11 +18,15 @@
 #include "transformations/utils/utils.hpp"
 #include "ngraph_transformations/op/fully_connected.hpp"
 
+#include <dimension_tracker.hpp>
+#include "propagate_optimal_bs.hpp"
+
 namespace {
 using namespace ngraph;
 
 void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
     std::string path = "/home/vgolubev/models/" + name;
+    ov::pass::VisualizeTree(path + ".svg").run_on_model(model);
     ngraph::pass::Serialize(path + ".xml", path + ".bin").run_on_model(model);
 }
 
@@ -50,10 +55,20 @@ void force_replace_output(Output<Node> target, const Output<Node>& replacement) 
                       replacement.get_node_shared_ptr());
 }
 
-void setBatch(const std::shared_ptr<ov::Model> model, size_t batch) {
+size_t get_batch_idx(const ov::PartialShape& shape) {
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (ov::DimensionTracker::get_label(shape[i]) == ov::intel_cpu::batch_label)
+            return i;
+    }
+    return 0ul;
+}
+
+void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) {
     for (auto&& param : model->get_parameters()) {
         auto param_shape = param->get_partial_shape();
-        param_shape[0] = batch;
+        const size_t batch_idx = get_batch_idx(param_shape);
+
+        param_shape[batch_idx] = batch_value;
         param->set_partial_shape(param_shape);
     }
     model->validate_nodes_and_infer_types();
@@ -68,40 +83,42 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     start_splits.reserve(starts.size());
     main_params.reserve(starts.size());
 
-    size_t num_splits = 1;
+    size_t n_splits = 1;
     // create split by batch in the original ov::Model if necessary and
     // create parameters to extract graph component from original ov::Model
     for (const auto& start : starts) {
         // weights will be shared between clones and mustn't be splitted
-        const bool is_weights = start.get_index() == 1 && (ov::is_type<ngraph::opset1::Convolution>(start.get_node()) ||
-                                                           ov::is_type<ngraph::opset1::GroupConvolution>(start.get_node()) ||
-                                                           ov::is_type<ngraph::opset1::ConvolutionBackpropData>(start.get_node()) ||
-                                                           ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
-        const size_t cur_batch_size = start.get_partial_shape()[0].get_length();
-        if (is_weights || cur_batch_size == 1) {
+        const bool is_shared_weights = start.get_index() == 1 && (ov::is_type<opset1::Convolution>(start.get_node()) ||
+                                                                  ov::is_type<opset1::GroupConvolution>(start.get_node()) ||
+                                                                  ov::is_type<opset1::ConvolutionBackpropData>(start.get_node()) ||
+                                                                  ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
+
+        const auto& start_shape = start.get_partial_shape();
+        const size_t batch_idx = get_batch_idx(start_shape);
+        const size_t cur_bs = start_shape[batch_idx].get_length();
+
+        if (is_shared_weights || cur_bs == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
         } else {
-            // TODO: in general, batch could be nonzero dimension
-            const size_t axis_value = 0;
-            const size_t cur_num_splits = cur_batch_size / optimal_bs;
-            num_splits = std::max(num_splits, cur_num_splits);
-            assert(cur_batch_size % optimal_bs == 0);
-            if (cur_num_splits == 1)
+            const size_t cur_n_splits = cur_bs / optimal_bs;
+            n_splits = std::max(n_splits, cur_n_splits);
+            assert(cur_bs % optimal_bs == 0);
+            if (cur_n_splits == 1)
                 return false;
 
-            const auto split_axis = opset1::Constant::create(element::i32, {}, {axis_value});
-            const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, cur_num_splits);
+            const auto split_axis = opset1::Constant::create(element::i32, {}, {batch_idx});
+            const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, cur_n_splits);
             start_splits.push_back(split);
         }
 
-        const auto main_param = std::make_shared<ngraph::opset1::Parameter>(start.get_element_type(), start.get_partial_shape());
+        const auto main_param = std::make_shared<opset1::Parameter>(start.get_element_type(), start_shape);
         main_params.push_back(main_param);
     }
 
-    if (num_splits == 1)
+    if (n_splits == 1)
         return false;
 
-    // Temporary insert params instead of start to extract subgraph
+    // Temporary insert params instead of start to extract a subgraph
     size_t k = 0;
     for (const auto& start : starts) {
         start.replace_source_output(main_params[k]);
@@ -114,7 +131,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         result_vec.push_back(end);
     }
 
-    // create a ov::Model from a graph component
+    // create an ov::Model from a graph component
     const auto subgraph = std::make_shared<ov::Model>(result_vec, main_params);
     NodeMap constants;
     if (share_constants) {
@@ -125,10 +142,10 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         }
     }
 
-    // map to match the old output and new outputs with optimal batch from the subgraph
+    // map to match an old output and new outputs with optimal batch from subgraphs
     std::map<Output<Node>, OutputVector> concatenate_map;
     for (const auto& original_out : result_vec) {
-        concatenate_map[original_out] = OutputVector(num_splits);
+        concatenate_map[original_out] = OutputVector(n_splits);
     }
 
     auto change_names = [&](const std::shared_ptr<ov::Model>& m, const size_t batch_idx) {
@@ -137,10 +154,10 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         }
     };
 
-    for (size_t batch_idx = 0; batch_idx < num_splits; ++batch_idx) {
+    for (size_t branch_idx = 0; branch_idx < n_splits; ++branch_idx) {
         auto cloned_nodes = constants;
         const auto subgraph_with_opt_batch = ngraph::clone_function(*subgraph, cloned_nodes);
-        change_names(subgraph_with_opt_batch, batch_idx);
+        change_names(subgraph_with_opt_batch, branch_idx);
         setBatch(subgraph_with_opt_batch, optimal_bs);
 
         // starts processing
@@ -148,7 +165,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
             const auto& cur_param = subgraph_with_opt_batch->get_parameters()[start_idx];
             const auto out_to_replace = start_splits[start_idx]->get_output_size() == 1
                                             ? start_splits[start_idx]->output(0)
-                                            : start_splits[start_idx]->output(batch_idx);
+                                            : start_splits[start_idx]->output(branch_idx);
             replace_output_update_name(cur_param, out_to_replace);
         }
 
@@ -159,15 +176,14 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
             if (clone_with_opt_batch == cloned_nodes.end())
                 OPENVINO_UNREACHABLE("Mixed Affinity: clone with optimal batch wasn't found");
 
-            elem.second[batch_idx] = clone_with_opt_batch->second->output(orig_out.get_index());
+            elem.second[branch_idx] = clone_with_opt_batch->second->output(orig_out.get_index());
         }
     }
 
     // concatenate per-batch graphs
     for (const auto& elem : concatenate_map) {
-        // TODO: batch dimension could be non-zero
-        const size_t concat_axis = 0;
-        const auto concat = std::make_shared<ngraph::opset1::Concat>(elem.second, concat_axis);
+        const size_t batch_idx = get_batch_idx(elem.first.get_partial_shape());
+        const auto concat = std::make_shared<opset1::Concat>(elem.second, batch_idx);
         force_replace_output(elem.first, concat->output(0));
         ov::intel_cpu::cleanMemoryFormats(concat);
     }
