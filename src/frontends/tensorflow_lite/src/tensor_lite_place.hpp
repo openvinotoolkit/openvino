@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "openvino/frontend/frontend.hpp"
-#include "openvino/frontend/tensorflow/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "place.hpp"
 #include "utils.hpp"

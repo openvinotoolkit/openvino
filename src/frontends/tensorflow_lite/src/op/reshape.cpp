@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
 
@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
-OutputVector reshape(const ov::frontend::tensorflow::NodeContext& node) {
+OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
     // convert native attributes to tf appropriate attribute
     const auto& decoder = node.get_decoder();
     size_t input_size = node.get_input_size();

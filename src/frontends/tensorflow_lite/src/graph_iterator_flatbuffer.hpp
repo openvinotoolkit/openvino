@@ -9,8 +9,6 @@
 #include "decoder_flatbuffer.h"
 #include "flatbuffers/flatbuffers.h"
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/tensorflow/decoder.hpp"
-#include "openvino/frontend/tensorflow/graph_iterator.hpp"
 #include "schema_generated.h"
 
 using namespace tflite;

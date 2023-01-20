@@ -10,7 +10,7 @@
 #include "tensor_lite_place.hpp"
 #include "graph_iterator_flatbuffer.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
-#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/decoder.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,7 +19,7 @@ namespace tensorflow_lite {
 class TensorLitePlace;
 class TensorInfo;
 
-class TENSORFLOW_LITE_API DecoderFlatBuffer : public ov::frontend::tensorflow::DecoderBase {
+class TENSORFLOW_LITE_API DecoderFlatBuffer : public ov::frontend::DecoderBase {
 public:
     explicit DecoderFlatBuffer(const tflite::Operator* node_def,
                                const std::string& type,

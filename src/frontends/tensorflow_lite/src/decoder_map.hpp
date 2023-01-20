@@ -7,28 +7,28 @@
 #include <utility>
 
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class TENSORFLOW_LITE_API DecoderMap : public ov::frontend::tensorflow::DecoderBase {
+class TENSORFLOW_LITE_API DecoderMap : public ov::frontend::DecoderBase {
 public:
-    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder,
+    DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
                const std::map<std::string, ov::Any>& attrs,
                bool empty_name = false)
-        : ov::frontend::tensorflow::DecoderBase(),
+        : ov::frontend::DecoderBase(),
           m_decoder(std::move(decoder)),
           m_attrs(attrs),
           m_empty_name(empty_name) {}
 
-    DecoderMap(std::shared_ptr<ov::frontend::tensorflow::DecoderBase> decoder,
+    DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
                const std::map<std::string, ov::Any>& attrs,
                std::string type,
                bool empty_name = false)
-        : ov::frontend::tensorflow::DecoderBase(),
+        : ov::frontend::DecoderBase(),
           m_decoder(std::move(decoder)),
           m_attrs(attrs),
           m_type(type),
@@ -76,7 +76,7 @@ public:
 
 private:
     std::map<std::string, ov::Any> m_attrs;
-    std::shared_ptr<ov::frontend::tensorflow::DecoderBase> m_decoder;
+    std::shared_ptr<ov::frontend::DecoderBase> m_decoder;
     std::string m_type;
     const std::string empty_name;
     bool m_empty_name;

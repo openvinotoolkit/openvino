@@ -4,8 +4,6 @@
 
 #include "decoder_flatbuffer.h"
 
-#include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/frontend/tensorflow/special_types.hpp"
 #include "schema_generated.h"
 
 namespace ov {

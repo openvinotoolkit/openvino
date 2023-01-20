@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
 
@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
-OutputVector depthwise_conv2d(const ov::frontend::tensorflow::NodeContext& node) {
+OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
     // convert native attributes to tf appropriate attribute
     auto decoder_for_tf_translator =
         get_conv_decoder_map<tflite::DepthwiseConv2DOptions>("DepthwiseConv2dNative", node);
@@ -30,7 +30,7 @@ OutputVector depthwise_conv2d(const ov::frontend::tensorflow::NodeContext& node)
     del_output_names(output);
     get_bias(output, node, decoder_for_tf_translator);
     del_output_names(output);
-    get_activation(output, node, decoder_for_tf_translator);
+    get_activation(output, decoder_for_tf_translator);
     del_output_names(output);
     return output;
 }

@@ -14,8 +14,6 @@ ov_add_test_target(
             gtest_main_manifest 
             frontend_shared_test_classes 
             openvino_tensorflow_lite_frontend
-            openvino_tensorflow_frontend
-#            openvino_tensorflow_frontend_static_tests
         ADD_CLANG_FORMAT
         LABELS
             OV

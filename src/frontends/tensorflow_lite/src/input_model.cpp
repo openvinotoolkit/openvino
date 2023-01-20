@@ -8,7 +8,6 @@
 #include <queue>
 
 #include "openvino/frontend/exception.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "tensor_lite_place.hpp"
