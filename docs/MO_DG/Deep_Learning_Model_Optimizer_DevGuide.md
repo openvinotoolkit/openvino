@@ -35,8 +35,7 @@ where IR is a pair of files describing the model:
 
 *  <code>.bin</code> - Contains the weights and biases binary data.
 
-The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md)
-> that applies post-training quantization methods.
+The OpenVINO IR can be additionally optimized for inference by [Post-training optimization](../../tools/pot/docs/Introduction.md) that applies post-training quantization methods.
 
 ## How to Run Model Optimizer
 
