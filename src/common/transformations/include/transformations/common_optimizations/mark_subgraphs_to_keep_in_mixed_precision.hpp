@@ -21,8 +21,9 @@ class TRANSFORMATIONS_API MarkDivWithEps;
 
 /*
  * @ingroup ie_transformation_common_api
- * @brief: MarkSugraphsToKeepInMixedPrecision container for marking pass including:
- * L2Normalize, MVN, Exp in ReduceOp paths and Division with small eps values
+ * @brief: MarkSugraphsToKeepInMixedPrecision container for marking passes which marks subgraphs
+ * to be kept in f32 for mixed precision inference. Includes passes for the following patterns:
+ * L2Normalize, MVN, ShapeOf subgraphs, Exp in ReduceOp paths and Division with small eps values.
  */
 class ov::pass::MarkSugraphsToKeepInMixedPrecision : public ov::pass::ModelPass {
 public:
