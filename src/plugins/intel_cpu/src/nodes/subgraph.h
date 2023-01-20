@@ -37,7 +37,8 @@ public:
     void setSharedMutex(const std::shared_ptr<std::mutex>& mutex);
 
     // Here we convert to canonical for & jit everything
-    void createPrimitive() override;
+    // void createPrimitive() override;
+    void prepareParams() override;
 
     bool canBeInPlace() const override;
     bool created() const override;
@@ -45,62 +46,93 @@ public:
     // if generator is set, it would execute generated code otherwise it would fallback to nGraph reference
     void execute(dnnl::stream strm) override;
 
+    struct SnippetAttrs {
+        // Local copy of subgraph node for canonization & code generation
+        std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
+        std::vector<std::shared_ptr<BlockedMemoryDesc>> inputMemDesc;
+        std::vector<InferenceEngine::Precision> inputPrec;
+        std::vector<std::shared_ptr<BlockedMemoryDesc>> outputMemDesc;
+        std::vector<InferenceEngine::Precision> outputPrec;
+        // outputPrec from config for size offset
+    };
+
 private:
-    static const size_t rank6D {6};
-
-    typedef void (*kernel)(const void *, const void *);
-
     // Create a deep local copy of the input snippet to perform canonicalization & code generation
     // TODO: Probably better to implement a proper copy constructor
     // NOTE: Before call mutex should be initialized
     void copy_snippet();
-
-    void define_schedule();
-
-    void generate();
-
-    // Evaluates generated snippet using parallel backend
-    void schedule_6d(const jit_snippets_call_args& const_args) const;
-    void schedule_nt(const jit_snippets_call_args& const_args) const;
 
     // Original subgraph node
     std::shared_ptr<ngraph::snippets::op::Subgraph> original_snippet;
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
 
-    // Holds generated snippet with information about how to schedule it
-    ngraph::snippets::Schedule schedule;
-
     // Holds ISA version used is codeGeneration target
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-
-    // Holds index of output used as in execution domain
-    // it should be compatible with a schedule's work size
-    std::vector<size_t> exec_domain = {};
-
-    /// scheduling info
-    size_t batchDimIdx = 0;
-    size_t tensorRank = 0;
-    size_t tileRank = 1;
-    size_t fullWorkAmount = 0;
-    size_t schedulerWorkAmount = 0;
-    const size_t maxTileRank = 2;
 
     std::vector<MemoryPtr> srcMemPtrs = {};
     std::vector<MemoryPtr> dstMemPtrs = {};
 
-    std::vector<std::vector<size_t>> dims_in = {};
-    std::vector<std::vector<size_t>> offsets_in = {};
-    std::vector<ptrdiff_t> start_offset_in = {};
-    std::vector<ptrdiff_t> start_offset_out = {};
+    SnippetAttrs snippetAttrs;
 
-    std::vector<std::vector<size_t>> dims_out = {};
-    std::vector<std::vector<size_t>> offsets_out = {};
+    class SnippetExecutor {
+        public:
+            SnippetExecutor(const SnippetAttrs& attrs);
+            virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
+            virtual ~SnippetExecutor() = default;
 
-    std::vector<int64_t> sch_dims = {};
-    std::vector<int64_t> sch_offsets_in = {};
-    std::vector<int64_t> sch_offsets_out = {};
-    bool canUseOptimizedImpl = true;
+        protected:
+            SnippetAttrs snippetAttrs;
+    };
+
+    std::shared_ptr<SnippetExecutor> execPtr = nullptr;
+
+    class SnippetJitExecutor : public SnippetExecutor {
+        public:
+            SnippetJitExecutor(const SnippetAttrs& attrs);
+            void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
+
+        private:
+            static const size_t rank6D {6};
+            // Evaluates generated snippet using parallel backend
+            void schedule_6d(const jit_snippets_call_args& const_args) const;
+            void schedule_nt(const jit_snippets_call_args& const_args) const;
+
+            void define_schedule();
+            void generate();
+
+            typedef void (*kernel)(const void *, const void *);
+
+            // Holds generated snippet with information about how to schedule it
+            ngraph::snippets::Schedule schedule;
+
+            // Holds index of output used as in execution domain
+            // it should be compatible with a schedule's work size
+            std::vector<size_t> exec_domain = {};
+
+            std::vector<std::vector<size_t>> dims_in = {};
+            std::vector<std::vector<size_t>> offsets_in = {};
+
+            std::vector<ptrdiff_t> start_offset_in = {};
+            std::vector<ptrdiff_t> start_offset_out = {};
+
+            std::vector<std::vector<size_t>> dims_out = {};
+            std::vector<std::vector<size_t>> offsets_out = {};
+
+            /// scheduling info
+            size_t batchDimIdx = 0;
+            size_t tensorRank = 0;
+            size_t tileRank = 1;
+            size_t fullWorkAmount = 0;
+            size_t schedulerWorkAmount = 0;
+            const size_t maxTileRank = 2;
+
+            bool canUseOptimizedImpl = true;
+
+            std::vector<int64_t> sch_dims = {};
+            std::vector<int64_t> sch_offsets_in = {};
+            std::vector<int64_t> sch_offsets_out = {};
+    };
 };
 
 }   // namespace node

@@ -24,6 +24,7 @@
 #include "emitters/cpu_generator.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
 #include "ngraph_transformations/convert_to_swish_cpu.hpp"
+#include <common/primitive_hashing_utils.hpp>
 
 using namespace InferenceEngine;
 using namespace dnnl::impl::utils;
@@ -34,7 +35,83 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+namespace {
 
+struct SnippetKey {
+    Snippet::SnippetAttrs attrs;
+
+    size_t hash() const;
+    bool operator==(const SnippetKey& rhs) const;
+};
+
+size_t SnippetKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+    for (const auto& ptr : attrs.inputMemDesc) {
+        if (ptr) {
+            seed = get_vector_hash(seed, ptr->getBlockDims());
+            seed = get_vector_hash(seed, ptr->getStrides());
+            seed = get_vector_hash(seed, ptr->getOrder());
+            seed = get_vector_hash(seed, ptr->getOffsetPaddingToData());
+            seed = hash_combine(seed, ptr->getOffsetPadding());
+        }
+    }
+    for (int i = 0; i < attrs.inputPrec.size(); i++) {
+        seed = hash_combine(seed, attrs.inputPrec[i].getPrecVal());
+    }
+    for (const auto& ptr : attrs.outputMemDesc) {
+        if (ptr) {
+            seed = get_vector_hash(seed, ptr->getBlockDims());
+            seed = get_vector_hash(seed, ptr->getStrides());
+            seed = get_vector_hash(seed, ptr->getOrder());
+            seed = get_vector_hash(seed, ptr->getOffsetPaddingToData());
+            seed = hash_combine(seed, ptr->getOffsetPadding());
+        }
+    }
+    for (int i = 0; i < attrs.outputPrec.size(); i++) {
+        seed = hash_combine(seed, attrs.outputPrec[i].getPrecVal());
+    }
+
+    seed = hash_combine(seed, attrs.snippet->body_ptr());
+
+    return seed;
+}
+
+bool SnippetKey::operator==(const SnippetKey& rhs) const {
+    bool retVal = true;
+    if (attrs.inputMemDesc.size() != rhs.attrs.inputMemDesc.size())
+        return false;
+    if (attrs.outputMemDesc.size() != rhs.attrs.outputMemDesc.size())
+        return false;
+
+    for (size_t i = 0; i < attrs.inputMemDesc.size(); i++) {
+        if (attrs.inputMemDesc[i] != rhs.attrs.inputMemDesc[i]) {
+            retVal = retVal && attrs.inputMemDesc[i] && rhs.attrs.inputMemDesc[i] &&
+            attrs.inputMemDesc[i]->getBlockDims() == rhs.attrs.inputMemDesc[i]->getBlockDims() &&
+            attrs.inputMemDesc[i]->getStrides() == rhs.attrs.inputMemDesc[i]->getStrides() &&
+            attrs.inputMemDesc[i]->getOrder() == rhs.attrs.inputMemDesc[i]->getOrder() &&
+            attrs.inputMemDesc[i]->getOffsetPaddingToData() == rhs.attrs.inputMemDesc[i]->getOffsetPaddingToData() &&
+            attrs.inputMemDesc[i]->getOffsetPadding() == rhs.attrs.inputMemDesc[i]->getOffsetPadding();
+        }
+    }
+
+    for (size_t i = 0; i < attrs.outputMemDesc.size(); i++) {
+        if (attrs.outputMemDesc[i] != rhs.attrs.outputMemDesc[i]) {
+            retVal = retVal && attrs.outputMemDesc[i] && rhs.attrs.outputMemDesc[i] &&
+            attrs.outputMemDesc[i]->getBlockDims() == rhs.attrs.outputMemDesc[i]->getBlockDims() &&
+            attrs.outputMemDesc[i]->getStrides() == rhs.attrs.outputMemDesc[i]->getStrides() &&
+            attrs.outputMemDesc[i]->getOrder() == rhs.attrs.outputMemDesc[i]->getOrder() &&
+            attrs.outputMemDesc[i]->getOffsetPaddingToData() == rhs.attrs.outputMemDesc[i]->getOffsetPaddingToData() &&
+            attrs.outputMemDesc[i]->getOffsetPadding() == rhs.attrs.outputMemDesc[i]->getOffsetPadding();
+        }
+    }
+
+    retVal = retVal && attrs.snippet->body_ptr() == rhs.attrs.snippet->body_ptr();
+    return retVal;
+}
+} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
@@ -60,10 +137,10 @@ void Snippet::copy_snippet() {
     } else {
         new_body = ov::clone_model(*original_snippet->body_ptr());
     }
-    snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
-    ngraph::copy_runtime_info(original_snippet, snippet);
-    snippet->set_friendly_name(original_snippet->get_friendly_name());
-    snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
+    snippetAttrs.snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
+    ngraph::copy_runtime_info(original_snippet, snippetAttrs.snippet);
+    snippetAttrs.snippet->set_friendly_name(original_snippet->get_friendly_name());
+    snippetAttrs.snippet->set_generator(std::make_shared<CPUGenerator>(host_isa));
 }
 
 void Snippet::initSupportedPrimitiveDescriptors() {
@@ -190,35 +267,53 @@ void Snippet::selectOptimalPrimitiveDescriptor() {
     selectPreferPrimitiveDescriptor(getPrimitivesPriority(), true);
 }
 
-void Snippet::createPrimitive() {
-    // schedule definition part
-    // it defines offsets, strides and sizes for snippet kernel scheduling
-    define_schedule();
+void Snippet::prepareParams() {
+    auto inputSize = inputShapes.size();
+    snippetAttrs.inputMemDesc.resize(inputSize);
+    for (size_t i = 0; i < inputSize; i++) {
+        snippetAttrs.inputMemDesc[i] = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    }
+    auto outputSize = outputShapes.size();
+    snippetAttrs.outputMemDesc.resize(outputSize);
+    for (size_t i = 0; i < outputSize; i++) {
+        snippetAttrs.outputMemDesc[i] = getChildEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    }
 
-    // code generation part
-    // it might be worth to generate explicitly for scheduler work amount for now,
-    // but in future some interface should be defined in order to communicate schedule for a kernel
-    // or generate schedule for a kernel.
-    // Here kernel is generated for most warying dimension by default.
-    generate();
+    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
+    const size_t inputNum = config.inConfs.size();
+    for (size_t i = 0; i < inputNum; i++) {
+        snippetAttrs.inputPrec.push_back(config.inConfs[i].getMemDesc()->getPrecision());
+    }
+    const size_t outputNum = config.outConfs.size();
+    for (size_t i = 0; i < outputNum; i++) {
+        snippetAttrs.outputPrec.push_back(config.outConfs[i].getMemDesc()->getPrecision());
+    }
+
+    SnippetKey key = {snippetAttrs};
+
+    auto builder = [&](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
+        return std::make_shared<SnippetJitExecutor>(key.attrs);
+    };
+
+    auto cache = context->getParamsCache();
+    auto result = cache->getOrCreate(key, builder);
+    execPtr = result.first;
 }
 
 void Snippet::execute(dnnl::stream strm) {
-    if (schedule.ptr == nullptr || !canUseOptimizedImpl) {
-        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
+    if (!execPtr) {
+        IE_THROW() << "Can't execute MVN node. Primitive didn't created";
     }
-    jit_snippets_call_args call_args;
-    for (size_t i = 0; i < srcMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(srcMemPtrs[i]->GetData()) + start_offset_in[i];
+    auto inputSize = inputShapes.size();
+    srcMemPtrs.resize(inputSize);
+    for (size_t i = 0; i < inputSize; i++)
+        srcMemPtrs[i] = getParentEdgeAt(i)->getMemoryPtr();
+    auto outputSize = outputShapes.size();
+    dstMemPtrs.resize(outputSize);
+    for (size_t i = 0; i < outputSize; i++)
+        dstMemPtrs[i] = getChildEdgeAt(i)->getMemoryPtr();
 
-    for (size_t i = 0; i < dstMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(dstMemPtrs[i]->GetData()) + start_offset_out[i];
-
-    if (tensorRank == rank6D) {
-        schedule_6d(call_args);
-    } else {
-        schedule_nt(call_args);
-    }
+    execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
 
 bool Snippet::created() const {
@@ -287,15 +382,30 @@ static auto collapseLastDims(std::vector<size_t>& dims, size_t dimsToCollapse) -
     }
 }
 
-void Snippet::define_schedule() {
-    auto edgeToBlockedShape = [](const EdgePtr& edge) {
-        const auto blockedDesc = edge->getMemory().GetDescWithType<BlockedMemoryDesc>();
+Snippet::SnippetExecutor::SnippetExecutor(const SnippetAttrs& attrs)
+    : snippetAttrs(attrs) {}
+
+Snippet::SnippetJitExecutor::SnippetJitExecutor(const SnippetAttrs& attrs) : SnippetExecutor(attrs) {
+    // schedule definition part
+    // it defines offsets, strides and sizes for snippet kernel scheduling
+    define_schedule();
+
+    // code generation part
+    // it might be worth to generate explicitly for scheduler work amount for now,
+    // but in future some interface should be defined in order to communicate schedule for a kernel
+    // or generate schedule for a kernel.
+    // Here kernel is generated for most warying dimension by default.
+    generate();
+}
+
+void Snippet::SnippetJitExecutor::define_schedule() {
+    auto edgeToBlockedShape = [](const std::shared_ptr<BlockedMemoryDesc>& blockedDesc) {
         ngraph::Shape shape(blockedDesc->getBlockDims());
         ngraph::AxisVector blocking(blockedDesc->getOrder());
         ngraph::element::Type precision = InferenceEngine::details::convertPrecision(blockedDesc->getPrecision());
         return ngraph::snippets::op::Subgraph::BlockedShape{shape, blocking, precision};
     };
-    auto prependWithOnes = [this](const std::vector<size_t>& dims) {
+    auto prependWithOnes = [](const std::vector<size_t>& dims) {
         if (tensorRank <= dims.size())
             return dims;
         VectorDims result(tensorRank, 1);
@@ -303,21 +413,21 @@ void Snippet::define_schedule() {
         return result;
     };
     ngraph::snippets::op::Subgraph::BlockedShapeVector input_blocked_shapes;
-    for (size_t i = 0; i < inputShapes.size(); i++)
-        input_blocked_shapes.push_back(edgeToBlockedShape(getParentEdgesAtPort(i)[0]));
+    for (size_t i = 0; i < snippetAttrs.inputMemDesc.size(); i++)
+        input_blocked_shapes.push_back(edgeToBlockedShape(snippetAttrs.inputMemDesc[i]));
 
     ngraph::snippets::op::Subgraph::BlockedShapeVector output_blocked_shapes;
-    for (size_t i = 0; i < outputShapes.size(); i++)
-        output_blocked_shapes.push_back(edgeToBlockedShape(getChildEdgesAtPort(i)[0]));
+    for (size_t i = 0; i < snippetAttrs.outputMemDesc.size(); i++)
+        output_blocked_shapes.push_back(edgeToBlockedShape(snippetAttrs.outputMemDesc[i]));
 
-    exec_domain = snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
+    exec_domain = snippetAttrs.snippet->canonicalize(output_blocked_shapes, input_blocked_shapes);
 
     // initialize by maximum output dimension. Dimensions of outputs should be broadcastable
     tensorRank = std::max(static_cast<size_t>(rank6D), exec_domain.size());
     // Canonicalization broadcasts inputs and outputs to max input rank, which can be smaller than tensorRank
     // prepend to enable 6D scheduler
     exec_domain = prependWithOnes(exec_domain);
-    const auto &body = snippet->body();
+    const auto &body = snippetAttrs.snippet->body();
     for (const auto& p : body.get_parameters()) {
         dims_in.emplace_back(prependWithOnes(p->get_shape()));
     }
@@ -326,49 +436,42 @@ void Snippet::define_schedule() {
         dims_out.push_back(prependWithOnes(body.get_output_shape(i)));
     }
 
-    const auto config = getSelectedPrimitiveDescriptor()->getConfig();
-    auto initOffsets = [this, config]() {
+    auto initOffsets = []() {
         // find max rank input among all outputs
-        const size_t inputNum = getParentEdges().size();
+        const size_t inputNum = snippetAttrs.inputPrec.size();
         offsets_in.resize(inputNum);
         for (size_t i = 0; i < inputNum; i++) {
             offsets_in[i].resize(tensorRank, 1);
             offset_calculation(offsets_in[i], dims_in[i], exec_domain);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_in[i][j] *= config.inConfs[i].getMemDesc()->getPrecision().size();
+                offsets_in[i][j] *= snippetAttrs.inputPrec[i].size();
             }
         }
 
         start_offset_in.resize(inputNum);
-        srcMemPtrs.resize(inputNum);
         for (size_t i = 0; i < inputNum; i++) {
-            const auto memPtr = getParentEdgeAt(i)->getMemoryPtr();
-            srcMemPtrs[i] = memPtr;
-            start_offset_in[i] =  memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() *
-                    config.inConfs[i].getMemDesc()->getPrecision().size();
+            start_offset_in[i] = snippetAttrs.inputMemDesc[i]->getOffsetPadding() *
+                    snippetAttrs.inputPrec[i].size();
         }
 
-        const size_t outputNum = config.outConfs.size();
+        const size_t outputNum = snippetAttrs.outputPrec.size();
         offsets_out.resize(outputNum);
         for (size_t i = 0; i < outputNum; i++) {
             offsets_out[i].resize(tensorRank, 1);
             offset_calculation(offsets_out[i], dims_out[i], exec_domain);
             for (size_t j = 0; j < tensorRank; j++) {
-                offsets_out[i][j] *= config.outConfs[i].getMemDesc()->getPrecision().size();
+                offsets_out[i][j] *= snippetAttrs.outputPrec[i].size();
             }
         }
 
         start_offset_out.resize(outputNum);
-        dstMemPtrs.resize(outputNum);
         for (size_t i = 0; i < outputNum; i++) {
-            const auto memPtr = getChildEdgeAt(i)->getMemoryPtr();
-            dstMemPtrs[i] = memPtr;
-            start_offset_out[i] = memPtr->GetDescWithType<BlockedMemoryDesc>()->getOffsetPadding() *
-                    config.outConfs[i].getMemDesc()->getPrecision().size();
+            start_offset_out[i] = snippetAttrs.outputMemDesc[i]->getOffsetPadding() *
+                    snippetAttrs.outputPrec[i].size();
         }
     };
 
-    auto find_dims_to_collapse = [this, config]() -> int {
+    auto find_dims_to_collapse = []() -> int {
         int collapsedDims = 0;
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
@@ -414,7 +517,7 @@ void Snippet::define_schedule() {
         return collapsedDims;
     };
 
-    auto initSchedulingInfo = [this, config]() -> void {
+    auto initSchedulingInfo = []() -> void {
         // initialize scheduling information
         sch_offsets_in.resize(offsets_in.size(), 0);
         sch_offsets_out.resize(offsets_out.size(), 0);
@@ -427,10 +530,10 @@ void Snippet::define_schedule() {
             exec_domain[tensorRank - 2] = 1;
 
             // update offsets for tile 2D because loaders and stores have ptr shifts in some cases
-            const int64_t vector_size = snippet->get_generator()->get_target_machine()->get_lanes();
+            const int64_t vector_size = snippetAttrs.snippet->get_generator()->get_target_machine()->get_lanes();
             for (size_t i = 0; i < offsets_in.size(); i++) {
                 const int64_t offset = offsets_in[i][tensorRank - 2];
-                const int64_t data_size = config.inConfs[i].getMemDesc()->getPrecision().size();
+                const int64_t data_size = snippetAttrs.inputPrec[i].size(); // config.inConfs[i].getMemDesc()->getPrecision().size();
                 if (offset == data_size || offset == vector_size * data_size) {
                     sch_offsets_in[i] = offset;
                 } else if ((offset > data_size) || (offset == 0 && dims_in[i].back() != 1 && dims_in[i].back() != vector_size)) {
@@ -446,7 +549,7 @@ void Snippet::define_schedule() {
 
             for (size_t i = 0; i < offsets_out.size(); i++) {
                 const int64_t offset = offsets_out[i][tensorRank - 2];
-                const size_t data_size = config.outConfs[i].getMemDesc()->getPrecision().size();
+                const size_t data_size = snippetAttrs.outputPrec[i].size(); // config.outConfs[i].getMemDesc()->getPrecision().size();
                 if (offset == data_size || offset == vector_size * data_size) {
                     sch_offsets_out[i] = offset;
                 } else if ((offset > data_size) || (offset == 0 && dims_out[i].back() != 1 && dims_out[i].back() != vector_size)) {
@@ -475,7 +578,7 @@ void Snippet::define_schedule() {
     initSchedulingInfo();
 }
 
-void Snippet::generate() {
+void Snippet::SnippetJitExecutor::generate() {
     jit_snippets_compile_args jcp;
     jcp.output_dims = exec_domain;
     std::copy(sch_dims.begin(), sch_dims.end(), jcp.scheduler_dims);
@@ -486,13 +589,16 @@ void Snippet::generate() {
         canUseOptimizedImpl = false;
         harness_num_dims = SNIPPETS_MAX_HARNESS_DIMS;
     }
-    for (size_t i = 0; i < inputShapes.size(); i++) {
+    size_t inputSize = snippetAttrs.inputMemDesc.size();
+    size_t outputSize = snippetAttrs.outputMemDesc.size();
+
+    for (size_t i = 0; i < inputSize; i++) {
         auto b = offsets_in[i].begin();
         std::copy(b, b + harness_num_dims, &jcp.data_offsets[i * harness_num_dims]);
     }
-    for (size_t i = 0; i < outputShapes.size(); i++) {
+    for (size_t i = 0; i < outputSize; i++) {
         auto b = offsets_out[i].begin();
-        std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
+        std::copy(b, b + harness_num_dims, &jcp.data_offsets[(inputSize + i) * harness_num_dims]);
     }
 
     ov::pass::Manager optManager;
@@ -516,10 +622,29 @@ void Snippet::generate() {
                 return true;
             });
 
-    schedule = snippet->generate(optManager, reinterpret_cast<void*>(&jcp));
+    schedule = snippetAttrs.snippet->generate(optManager, reinterpret_cast<void*>(&jcp));
 }
 
-void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
+void Snippet::SnippetJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
+    if (schedule.ptr == nullptr || !canUseOptimizedImpl) {
+        IE_THROW() << "Snippet can't use Optimized implementation and can't fallback to reference";
+    }
+
+    jit_snippets_call_args call_args;
+    for (size_t i = 0; i < inMemPtrs.size(); i++)
+        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(inMemPtrs[i]->GetData()) + start_offset_in[i];
+
+    for (size_t i = 0; i < outMemPtrs.size(); i++)
+        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(outMemPtrs[i]->GetData()) + start_offset_out[i];
+
+    if (tensorRank == rank6D) {
+        schedule_6d(call_args);
+    } else {
+        schedule_nt(call_args);
+    }
+}
+
+void Snippet::SnippetJitExecutor::schedule_6d(const jit_snippets_call_args& call_args) const {
     const auto& dom = exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
@@ -529,7 +654,7 @@ void Snippet::schedule_6d(const jit_snippets_call_args& call_args) const {
         });
 }
 
-void Snippet::schedule_nt(const jit_snippets_call_args& call_args) const {
+void Snippet::SnippetJitExecutor::schedule_nt(const jit_snippets_call_args& call_args) const {
     const auto& work_size = exec_domain;
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
