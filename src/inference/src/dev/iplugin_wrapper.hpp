@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "openvino/runtime/iplugin.hpp"
 

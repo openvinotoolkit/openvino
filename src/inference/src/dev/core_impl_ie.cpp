@@ -235,8 +235,12 @@ InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEn
                                                                const std::string& deviceName,
                                                                const std::map<std::string, std::string>& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::QueryNetwork");
-    auto res = query_model(network.getFunction(), deviceName, any_copy(config));
     ie::QueryNetworkResult ret;
+    if (!network.getFunction()) {
+        ret.rc = InferenceEngine::GENERAL_ERROR;
+        return ret;
+    }
+    auto res = query_model(network.getFunction(), deviceName, any_copy(config));
     if (!network.getFunction() || res.empty()) {
         ret.rc = InferenceEngine::GENERAL_ERROR;
         return ret;
@@ -329,38 +333,7 @@ ov::Any ov::CoreImpl::GetConfig(const std::string& deviceName, const std::string
 }
 
 std::vector<std::string> ov::CoreImpl::GetAvailableDevices() const {
-    std::vector<std::string> devices;
-    const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
-
-    for (auto&& deviceName : get_registered_devices()) {
-        std::vector<std::string> devicesIDs;
-        try {
-            const InferenceEngine::Parameter p = GetMetric(deviceName, propertyName);
-            devicesIDs = p.as<std::vector<std::string>>();
-        } catch (const InferenceEngine::Exception&) {
-            // plugin is not created by e.g. invalid env
-        } catch (const ov::Exception&) {
-            // plugin is not created by e.g. invalid env
-        } catch (const std::runtime_error&) {
-            // plugin is not created by e.g. invalid env
-        } catch (const std::exception& ex) {
-            IE_THROW() << "An exception is thrown while trying to create the " << deviceName
-                       << " device and call GetMetric: " << ex.what();
-        } catch (...) {
-            IE_THROW() << "Unknown exception is thrown while trying to create the " << deviceName
-                       << " device and call GetMetric";
-        }
-
-        if (devicesIDs.size() > 1) {
-            for (auto&& deviceID : devicesIDs) {
-                devices.push_back(deviceName + '.' + deviceID);
-            }
-        } else if (!devicesIDs.empty()) {
-            devices.push_back(deviceName);
-        }
-    }
-
-    return devices;
+    return get_available_devices();
 }
 
 InferenceEngine::RemoteContext::Ptr ov::CoreImpl::CreateContext(const std::string& deviceName,
