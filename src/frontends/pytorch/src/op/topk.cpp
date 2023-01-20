@@ -14,8 +14,6 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_topk(NodeContext& context) {
-    // const auto k = context.const_input<int>(1);
-    // auto k = context.mark_node(std::make_shared<opset10::Constant>(element::i64, Shape{}, 3));
     const auto input_tensor = context.get_input(0);
     const auto largest = context.const_input<bool>(3);
     const auto sorted = context.const_input<bool>(4);
