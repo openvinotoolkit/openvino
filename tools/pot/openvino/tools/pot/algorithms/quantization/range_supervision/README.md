@@ -12,7 +12,8 @@ The process flow follows the diagram [Fig 1](#schematic-supervision). Starting f
 
 <a name="schematic-supervision"></a>
 
-![Schematic](../../../../../../docs/range_supervision/images/scheme3.png)
+@anchor schematic
+![Schematic](../../../../../../docs/range_supervision/images/scheme3.svg)
 
 *Fig 1: Schematic of RangeSupervision process flow.*
 
