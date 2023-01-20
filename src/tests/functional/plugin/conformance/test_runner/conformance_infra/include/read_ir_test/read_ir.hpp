@@ -17,6 +17,7 @@ enum ShapeMode {
 };
 
 extern ShapeMode shapeMode;
+extern std::list<std::string> dirList;
 
 using ReadIRParams = std::tuple<
         std::string,                         // IR path

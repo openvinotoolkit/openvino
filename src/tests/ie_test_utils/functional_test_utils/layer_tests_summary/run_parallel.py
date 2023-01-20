@@ -34,6 +34,7 @@ TEST_STATUS = {
     'skipped': ["[  SKIPPED ]"],
     'interapted': ["interapted", "Killed"]}
 RUN = "[ RUN      ]"
+GTEST_FILTER = "Google Test filter = "
 
 logger = utils.get_logger('test_parallel_runner')
 
@@ -399,17 +400,22 @@ class TestParallelRunner:
         hash_map = [["Dir", "Hash", "Test Name"]]
         test_times = list()
         for log in Path(self._working_dir).rglob("log_*.log"):
-            test_cnt_log = 0
             log_filename = os.path.join(self._working_dir, log)
             with open(log_filename, "r") as log_file:
                 test_name = None
                 test_log = list()
                 dir = None
                 log_str = ""
+                test_cnt_expected = 0
+                test_cnt_real = 0
                 for line in log_file.readlines():
-                    log_str += line
+                    if GTEST_FILTER in line:
+                        line = line[line.find(GTEST_FILTER):]
+                        test_cnt_expected = line.count(':')
                     if RUN in line:
                         test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
+                    if test_name != None:
+                        log_str += line
                     if dir is None:
                         for test_st, mes_list in TEST_STATUS.items():
                             for mes in mes_list:
@@ -427,18 +433,20 @@ class TestParallelRunner:
                         if dir:
                             test_times.append((int(time), test_name))
                             if __save_log(logs_dir, dir, test_name):
-                                test_cnt_log += 1
                                 if dir in test_results.keys():
                                     test_results[dir] += 1
                                 else:
                                     test_results[dir] = 1
+                                test_cnt_real += 1
                                 test_name = None
                                 test_log = list()
                                 dir = None
-            # logging for debug
-            if test_cnt_log == 0:
-                logger.info(f"Number of tests in {log}: {test_cnt_log}\n{log_str}")
-            os.remove(log)
+                if test_cnt_real != test_cnt_expected:
+                    logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
+                    logger.error(f"Last test log is:\n{test_log}")
+                else:
+                    log_file.close()
+                    os.remove(log_filename)
         # update test_cache with tests. If tests is crashed use -1 as unknown time
         for disabled_test in self._disabled_tests:
             test_times.append((-1, disabled_test))
@@ -483,7 +491,6 @@ if __name__ == "__main__":
     exec_file_args = get_test_command_line_args()
     args = parse_arguments()
     logger.info(f"[ARGUMENTS] --exec_file={args.exec_file}")
-    logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --working_dir={args.working_dir}")
     logger.info(f"[ARGUMENTS] --process_timeout={args.process_timeout}")
     logger.info(f"[ARGUMENTS] --cache_path={args.cache_path}")
