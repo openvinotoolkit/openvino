@@ -9,9 +9,12 @@ file(GLOB_RECURSE LIBRARY_SRC ${root_dir}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${root_dir}/include/*.hpp)
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS})
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::util)
 add_library(openvino::frontend::tensorflow_common ALIAS ${TARGET_NAME})
-
 target_include_directories(${TARGET_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${root_dir}/include>
