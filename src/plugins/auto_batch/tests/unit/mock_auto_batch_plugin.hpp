@@ -10,8 +10,7 @@
 #include "auto_batch.hpp"
 #include "ie_icore.hpp"
 
-// using namespace MockAutoBatchPlugin;
-using namespace AutoBatchPlugin;
+using namespace MockAutoBatchPlugin;
 namespace MockAutoBatchDevice {
 
 class MockAutoBatchInferencePlugin : public AutoBatchInferencePlugin {

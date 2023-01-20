@@ -20,6 +20,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
+using namespace MockAutoBatchPlugin;
 using namespace MockAutoBatchDevice;
 using BatchDeviceConfigParams = std::tuple<std::string,  // Batch devices
                                            std::string,  // Expected device name

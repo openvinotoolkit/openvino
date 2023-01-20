@@ -28,6 +28,7 @@ using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::StrNe;
 using ::testing::Throw;
+using namespace MockAutoBatchPlugin;
 using namespace MockAutoBatchDevice;
 using namespace InferenceEngine;
 

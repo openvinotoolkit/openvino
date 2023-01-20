@@ -19,6 +19,10 @@
 #include "ie_metric_helpers.hpp"
 #include "threading/ie_thread_safe_containers.hpp"
 
+#ifdef  AUTOBATCH_UNITTEST
+#define AutoBatchPlugin MockAutoBatchPlugin
+#endif
+
 namespace AutoBatchPlugin {
 
 using DeviceName = std::string;
