@@ -15,6 +15,20 @@
 #include <utility>
 #include <tuple>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <SetupAPI.h>
+#include <devguid.h>
+#include <cstring>
+#else
+#include <unistd.h>
+#include <limits.h>
+#include <link.h>
+#include <dlfcn.h>
+#endif
+
 namespace kernel_selector {
 
 TuningCache::TuningCache(const std::string& cacheFilePath, bool createMode)
@@ -273,52 +287,10 @@ void TuningCache::Save(const std::string& cacheFilePath) {
     needsSave = false;
 }
 
-std::tuple<std::string, int> AutoTuner::LoadKernelOnline(const TuningMode tuningMode,
-                                                         const std::string& cacheFilePath,
-                                                         const Params& params) {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!onlineCache || lastCachePath != cacheFilePath) {
-        onlineCache = std::make_shared<TuningCache>(cacheFilePath, PerformTuning(tuningMode));
-        lastCachePath = cacheFilePath;
-    }
-    auto result = onlineCache->LoadKernel(params, PerformUpdates(tuningMode));
-
-    if (onlineCache->NeedsSave() && PerformUpdates(tuningMode)) {
-        onlineCache->Save(cacheFilePath);
-    }
-    return result;
-}
-
-void AutoTuner::StoreKernel(const std::string& cacheFilePath,
-                            const Params& params,
-                            std::string implementationName,
-                            const int tuneIndex) {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!onlineCache || lastCachePath != cacheFilePath) {
-        onlineCache = std::make_shared<TuningCache>(cacheFilePath, true);
-        lastCachePath = cacheFilePath;
-    }
-    onlineCache->StoreKernel(params, implementationName, tuneIndex);
-    onlineCache->Save(cacheFilePath);
-}
-
-void AutoTuner::RemoveKernel(const std::string& cacheFilePath,
-                             const Params& params) {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (!onlineCache || lastCachePath != cacheFilePath) {
-        onlineCache = std::make_shared<TuningCache>(cacheFilePath, false);
-        lastCachePath = cacheFilePath;
-    }
-    onlineCache->RemoveKernel(params);
-    if (onlineCache->NeedsSave()) {
-        onlineCache->Save(cacheFilePath);
-    }
-}
-
-std::tuple<std::string, int> AutoTuner::LoadKernelOffline(TuningCache* deviceCache,
-                                                          const Params& params) {
+std::tuple<std::string, int> AutoTuner::LoadKernelOffline(const Params& params) {
     std::lock_guard<std::mutex> lock(mutex);
     static const uint32_t defaultComputeUnits = 24;
+    TuningCache* deviceCache = TuningCache::get();
     if (!deviceCache)
         return {};
     auto result = deviceCache->LoadKernel(params, false);
@@ -326,6 +298,39 @@ std::tuple<std::string, int> AutoTuner::LoadKernelOffline(TuningCache* deviceCac
         result = deviceCache->LoadKernel(params, defaultComputeUnits);
     }
     return result;
+}
+
+TuningCache* TuningCache::get() {
+    static std::mutex m;
+    static std::shared_ptr<TuningCache> cache_instance = nullptr;
+    std::lock_guard<std::mutex> lock(m);
+    std::string path = "cache.json";
+#ifdef _WIN32
+    char module_path[MAX_PATH];
+    HMODULE hm = NULL;
+    GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        (LPCSTR)&TuningCache::get,
+        &hm);
+    GetModuleFileName(hm, module_path, sizeof(module_path));
+    std::string bin_path(module_path);
+    path = bin_path.substr(0, bin_path.find_last_of("\\")) + "\\cache.json";
+#else
+    const char* device_info_failed_msg = "Device lookup failed";
+    Dl_info dl_info;
+    dladdr((void*)(device_info_failed_msg), &dl_info);  // NOLINT
+    std::string bin_path(dl_info.dli_fname);
+    path = bin_path.substr(0, bin_path.find_last_of("/")) + "/cache.json";
+#endif
+
+    if (!cache_instance) {
+        try {
+            cache_instance = std::make_shared<kernel_selector::TuningCache>(path, false);
+        } catch (...) {
+            cache_instance = std::make_shared<kernel_selector::TuningCache>();
+        }
+    }
+
+    return cache_instance.get();
 }
 
 }  // namespace kernel_selector

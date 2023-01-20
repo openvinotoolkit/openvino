@@ -9,7 +9,6 @@
 #include "kernel_selector_helper.h"
 #include "arg_max_min/arg_max_min_kernel_selector.h"
 #include "arg_max_min/arg_max_min_kernel_base.h"
-#include "kernel_runner.h"
 
 namespace cldnn {
 namespace ocl {

@@ -87,7 +87,6 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
-    k.DisableTuning();
     return k;
 }
 

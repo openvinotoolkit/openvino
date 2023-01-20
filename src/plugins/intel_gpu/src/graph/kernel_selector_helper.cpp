@@ -837,23 +837,6 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-kernel_selector::tuning_mode to_tuning_mode(ov::intel_gpu::TuningMode mode) {
-    switch (mode) {
-        case ov::intel_gpu::TuningMode::tuning_disabled:
-            return kernel_selector::tuning_mode::TUNING_DISABLED;
-        case ov::intel_gpu::TuningMode::tuning_use_cache:
-            return kernel_selector::tuning_mode::TUNING_USE_CACHE;
-        case ov::intel_gpu::TuningMode::tuning_tune_and_cache:
-            return kernel_selector::tuning_mode::TUNING_TUNE_AND_CACHE;
-        case ov::intel_gpu::TuningMode::tuning_use_and_update:
-            return kernel_selector::tuning_mode::TUNING_USE_AND_UPDATE;
-        case ov::intel_gpu::TuningMode::tuning_retune_and_cache:
-            return kernel_selector::tuning_mode::TUNING_RETUNE_AND_CACHE;
-        default:
-            return kernel_selector::tuning_mode::TUNING_DISABLED;
-    }
-}
-
 kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals_original = l.get_partial_shape();
@@ -1103,7 +1086,6 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.computeUnitsCount = device_info.execution_units_count;
     params.engineInfo.maxThreadsPerExecutionUnit = device_info.num_threads_per_eu > 0 ? device_info.num_threads_per_eu : 7;
     params.engineInfo.maxThreadsPerDevice = params.engineInfo.maxThreadsPerExecutionUnit * device_info.execution_units_count;
-    params.engineInfo.deviceCache = program->get_tuning_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
@@ -1121,10 +1103,6 @@ void set_optional_params(const program& program, kernel_selector::optional_param
                                         program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
     params.allowInputReordering = false;
     params.allowOutputReordering = false;
-
-    const auto& tuning_config = program.get_config().get_property(ov::intel_gpu::tuning_config);
-    params.tuningParams.mode = to_tuning_mode(tuning_config.mode);
-    params.tuningParams.cacheFilePath = tuning_config.cache_file_path;
 }
 
 void kernel_impl_params::save(BinaryOutputBuffer& ob) const {
