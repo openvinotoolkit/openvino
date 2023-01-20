@@ -207,6 +207,8 @@ enum colorformat_e {
 
 ​    BGR,         ///< BGR color format, default in OpenVINO
 
+​    GRAY,        ///< GRAY color format
+
 ​    RGBX,        ///< RGBX color format with X ignored during inference
 
 ​    BGRX,        ///< BGRX color format with X ignored during inference

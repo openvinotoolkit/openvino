@@ -65,7 +65,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
+    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
 #else
     RegisterPlugins(ov::findPluginXML(xmlConfigFile));
 #endif
@@ -176,7 +176,10 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(parsed._deviceName).import_model(modelFileName, parsed._config);
+    std::ifstream modelStream(modelFileName, std::ios::binary);
+    if (!modelStream.is_open())
+        IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
+    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, ov::any_copy(parsed._config));
     return {exec._ptr, exec._so};
 }
 
@@ -206,7 +209,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel) {
     }
     networkModel.seekg(currentPos, networkModel.beg);
 
-    auto exec = _impl->GetCPPPluginByName(deviceName).import_model(networkModel, {});
+    auto exec = _impl->get_plugin(deviceName).import_model(networkModel, {});
     return {exec._ptr, exec._so};
 }
 
@@ -224,8 +227,10 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     std::string deviceName = device.getDeviceName();
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
-    auto exec = _impl->GetCPPPluginByName(deviceName)
-                    .import_model(networkModel, std::dynamic_pointer_cast<RemoteContext>(context), parsed._config);
+    auto exec = _impl->get_plugin(deviceName)
+                    .import_model(networkModel,
+                                  ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}},
+                                  ov::any_copy(parsed._config));
     return {exec._ptr, exec._so};
 }
 
@@ -262,9 +267,9 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
 
     ov::AnyMap conf = ov::any_copy(config);
     if (deviceName.empty()) {
-        _impl->SetConfigForPlugins(conf, std::string());
+        _impl->set_property_for_devivce(conf, std::string());
     } else {
-        _impl->SetConfigForPlugins(conf, deviceName);
+        _impl->set_property_for_devivce(conf, deviceName);
     }
 }
 
@@ -297,7 +302,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
-    return _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config);
+    return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
@@ -309,18 +314,18 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 }
 
 void Core::RegisterPlugin(const std::string& pluginName, const std::string& deviceName) {
-    _impl->RegisterPluginByName(pluginName, deviceName);
+    _impl->register_plugin(pluginName, deviceName);
 }
 
 void Core::RegisterPlugins(const std::string& xmlConfigFile) {
-    _impl->RegisterPluginsInRegistry(xmlConfigFile);
+    _impl->register_plugins_in_registry(xmlConfigFile);
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
     DeviceIDParser parser(deviceName_);
     std::string deviceName = parser.getDeviceName();
 
-    _impl->UnloadPluginByName(deviceName);
+    _impl->unload_plugin(deviceName);
 }
 
 }  // namespace InferenceEngine
