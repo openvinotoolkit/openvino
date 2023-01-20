@@ -52,6 +52,7 @@ class TestMul(PytorchLayerTest):
         (np.float32, np.float32),
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_mul_pt_spec(self, input_array, other_array, types, ie_device, precision, ir_version):
         self.input_array = input_array 
         self.input_type = types[0]
