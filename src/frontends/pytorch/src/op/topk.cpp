@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <climits>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "utils.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/convert.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,21 +17,21 @@ OutputVector translate_topk(NodeContext& context) {
     const auto sorted = context.const_input<bool>(4);
     auto k = context.get_input(1);
     int64_t axis{-1};
-    auto mode = opset10::TopK::Mode::MAX;
-    auto sort = opset10::TopK::SortType::SORT_VALUES;
+    auto mode = ov::op::TopKMode::MIN;
+    auto sort = ov::op::TopKSortType::NONE;
 
     if (!context.input_is_none(2)) {
         axis = context.const_input<int64_t>(2);
     }
-    if (!largest) {
-        mode = opset10::TopK::Mode::MIN;
+    if (largest) {
+        mode = ov::op::TopKMode::MAX;
     }
-    if (!sorted) {
-        sort = opset10::TopK::SortType::NONE;
+    if (sorted) {
+        sort = ov::op::TopKSortType::SORT_VALUES;
     }
 
-    auto topk = context.mark_node(std::make_shared<opset10::TopK>(input_tensor, k, axis, mode, sort));
-    auto indices = context.mark_node(std::make_shared<opset10::Convert>(topk->output(1), element::i64));
+    auto topk = context.mark_node(std::make_shared<ov::op::v3::TopK>(input_tensor, k, axis, mode, sort));
+    auto indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(topk->output(1), element::i64));
 
     return {topk->output(0), indices};
 };
