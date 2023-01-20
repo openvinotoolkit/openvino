@@ -104,6 +104,7 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
         auto signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode)
             return;
+        isSignalSizesConstant = true;
         signalSizes = signalSizesNode->cast_vector<int>();
     }
 
@@ -112,6 +113,7 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, Wei
         return;
 
     axes = axesNode->cast_vector<int>();
+    isAxesConstant = true;
     auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
     normalizeAxes(axes, rank);
 
@@ -163,20 +165,26 @@ void RDFT::execute(dnnl::stream strm) {
 
     auto rank = inputShape.size() - inverse;
 
-    if (axes.size() == 0) {
+    if (!isAxesConstant) {
         const auto& axesMem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
         auto axesPtr = reinterpret_cast<const int32_t*>(axesMem->GetPtr());
         axes = std::vector<int>(axesPtr, axesPtr + axesMem->getStaticDims()[0]);
         normalizeAxes(axes, rank);
+        if (twiddles.size() > 0) {
+            twiddles.clear();
+        }
     }
 
-    if (signalSizes.size() == 0) {
+    if (!isSignalSizesConstant) {
         if (SIGNAL_SIZE_INDEX < getOriginalInputsNumber()) {
             const auto& signalSizeMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
             auto signalPtr = reinterpret_cast<const int32_t*>(signalSizeMem->GetPtr());
             signalSizes = std::vector<int>(signalPtr, signalPtr + signalSizeMem->getStaticDims()[0]);
         } else {
             signalSizes = getDefaultSignalSizes(inputShape, axes, inverse);
+        }
+        if (twiddles.size() > 0) {
+            twiddles.clear();
         }
         IE_ASSERT(signalSizes.size() > 0);
     }

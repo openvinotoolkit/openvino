@@ -93,6 +93,8 @@ private:
     std::vector<int> signalSizes;
     std::vector<std::vector<float>> twiddles;
     std::shared_ptr<RDFTExecutor> executor;
+    bool isAxesConstant = false;
+    bool isSignalSizesConstant = false;
 };
 
 }   // namespace node
