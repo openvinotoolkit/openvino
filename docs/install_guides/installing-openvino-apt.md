@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the APT repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components>` for more information. 
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the APT repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components apt>` for more information. 
 
 See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
@@ -37,7 +37,7 @@ Installing OpenVINO Runtime from APT is recommended for C++ developers. If you a
   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
 
 
-.. _installing-openvino-runtime:
+.. _install runtime apt:
 
 @endsphinxdirective
 
@@ -152,7 +152,7 @@ Run the following command:
 
    apt list --installed | grep openvino
 
-.. _intall additional components:
+.. _intall additional components apt:
 
 @endsphinxdirective
 
@@ -160,7 +160,7 @@ Run the following command:
 
 @sphinxdirective
 
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using APT, OpenVINO Development Tools must be installed separately.
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using APT, OpenVINO Development Tools must be installed separately.
 
 See the **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
 
@@ -200,18 +200,15 @@ For more information, refer to :ref:`Build the Sample Applications on Linux <bui
 
 @sphinxdirective
 
-.. tab:: The Latest Version
+To uninstall OpenVINO Runtime via APT, run the following command based on your needs:
 
-   Run the following command:
+.. tab:: The Latest Version
 
    .. code-block:: sh
 
       sudo apt autoremove openvino
 
-
 .. tab::  A Specific Version
-
-   Run the following command:
 
    .. code-block:: sh
 

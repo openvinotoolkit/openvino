@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via `Homebrew <https://brew.sh/>`_. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components>` for more information.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via `Homebrew <https://brew.sh/>`_. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components brew>` for more information.
 
 See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
@@ -63,17 +63,21 @@ Full requirement listing is available on the `System Requirements Page <https://
 
 Congratulations, you've finished the installation!
 
-.. _intall additional components:
+.. _intall additional components brew:
 
 @endsphinxdirective
 
 ## (Optional) Installing Additional Components
 
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
+@sphinxdirective
 
-See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using Homebrew, OpenVINO Development Tools must be installed separately.
 
-OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
+See **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
+
+OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the `instructions on GitHub <https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO>`_.
+
+@endsphinxdirective
 
 ## Uninstalling OpenVINO
 

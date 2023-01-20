@@ -2,7 +2,7 @@
 
 @sphinxdirective
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the YUM repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components>` for more information.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the YUM repository. OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Installing Additional Components <intall additional components yum>` for more information.
 
 See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
@@ -114,14 +114,19 @@ Run the following command:
 
       yum list installed 'openvino*'
 
-.. _intall additional components:
+.. _intall additional components yum:
 
 @endsphinxdirective
 
 ### Step 3 (Optional): Install Additional Components
-OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
 
-See the **For C++ Developers** section on the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for instructions.
+@sphinxdirective
+
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you installed OpenVINO Runtime using YUM, OpenVINO Development Tools must be installed separately.
+
+See **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
+
+@endsphinxdirective
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
@@ -153,7 +158,7 @@ For more information, refer to <a href="openvino_docs_OV_UG_Samples_Overview.htm
 
 @sphinxdirective
 
-To uninstall OpenVINO Runtime via YUM, run the following commands based on your needs:
+To uninstall OpenVINO Runtime via YUM, run the following command based on your needs:
 
 .. tab:: The Latest Version
 
