@@ -34,7 +34,7 @@ OutputVector translate_topk(NodeContext& context) {
 
     auto topk = context.mark_node(std::make_shared<opset10::TopK>(input_tensor, k, axis, mode, sort));
     auto indices = context.mark_node(std::make_shared<opset10::Convert>(topk->output(1), element::i64));
-    
+
     return {topk->output(0), indices};
 };
 
