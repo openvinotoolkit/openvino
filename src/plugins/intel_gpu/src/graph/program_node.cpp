@@ -131,20 +131,6 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     }
     node_info->add("fused primitives", fused_nodes_info);
 
-    json_composite fused_activations;
-    auto fused_activations_funcs = get_fused_activations_funcs();
-    if (!fused_activations_funcs.empty()) {
-        for (size_t i = 0; i < fused_activations_funcs.size(); i++) {
-            json_composite fused_activation_info;
-            auto activation_type = activation_type_to_str(fused_activations_funcs[i]);
-            auto params = get_fused_activations_params()[i];
-            fused_activation_info.add("params", "a=" + std::to_string(params.a) + ", b=" + std::to_string(params.b));
-            fused_activation_info.add("activation", activation_type);
-            fused_activations.add("fused activation idx " + std::to_string(i), fused_activation_info);
-        }
-        node_info->add("fused activations (legacy)", fused_activations);
-    }
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
     if (onednn_post_ops.size()) {
@@ -1171,27 +1157,6 @@ void program_node::init_onednn_primitive_attributes() {
             continue;
         } else {
             throw std::runtime_error("Unsupported fused op of " + desc.desc->type_string() + " type for oneDNN primitive");
-        }
-    }
-
-    if (cldnn_post_ops.size() && get_fused_activations_funcs().size())
-        throw std::runtime_error("Unsupported mix of fused ops and activations");
-
-    for (size_t i = 0; i < get_fused_activations_funcs().size(); i++) {
-        auto activation_type = get_fused_activations_funcs()[i];
-        if (activation_type == cldnn::activation_func::hsigmoid) {
-            // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
-            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.f, 3.f);
-            post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.f, 6.f);
-            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1/6.f, 0.f);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-        } else {
-            auto params = get_fused_activations_params()[i];
-            dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
-            post_ops.append_eltwise(alg, params.a, params.b);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
         }
     }
 

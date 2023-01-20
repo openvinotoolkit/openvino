@@ -91,8 +91,7 @@ public:
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
         auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives(),
-                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+                                                                                 get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();
@@ -244,33 +243,6 @@ public:
     }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
-
-    void add_fused_activation(activation_func activation_func,
-                              activation_additional_params additional_params) {
-        fused_activations.emplace_back(activation_func, additional_params);
-    }
-
-    std::vector<activation_func> get_fused_activations_funcs() const {
-        std::vector<activation_func> funcs;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(funcs),
-                       [](fused_activation_params const& p) { return p.func; });
-        return funcs;
-    }
-
-    std::vector<activation_additional_params> get_fused_activations_params() const {
-        std::vector<activation_additional_params> params;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(params),
-                       [](fused_activation_params const& p) { return p.params; });
-        return params;
-    }
-
-    void copy_fused_activation(const program_node& rhs) {
-        fused_activations = rhs.fused_activations;
-    }
 
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
@@ -435,18 +407,6 @@ protected:
 
     const primitive_id org_id;
 
-    struct fused_activation_params {
-        activation_func func = activation_func::none;
-        activation_additional_params params = {0.0f, 0.0f};
-
-        fused_activation_params() {}
-
-        fused_activation_params(activation_func _func, activation_additional_params _params) :
-                func(_func),
-                params(_params) {}
-    };
-
-    std::vector<fused_activation_params> fused_activations;
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;

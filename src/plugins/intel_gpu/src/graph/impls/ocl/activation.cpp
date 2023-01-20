@@ -10,6 +10,14 @@
 #include "kernel_selector_helper.h"
 #include "primitive_base.hpp"
 
+namespace {
+inline void convert_new_activation_func(const activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
+                                   prim.additional_params.a,
+                                   prim.additional_params.b});
+}
+}  // namespace
+
 namespace cldnn {
 namespace ocl {
 
@@ -40,7 +48,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         auto params = get_default_params<kernel_selector::activation_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::activation_optional_params>(impl_param.get_program());
 
-        convert_new_activation_func(primitive, params.activations);
+        convert_new_activation_func(*primitive, params.activations);
 
         bool is_parameterized = !primitive->additional_params_input.empty();
         if (is_parameterized) {

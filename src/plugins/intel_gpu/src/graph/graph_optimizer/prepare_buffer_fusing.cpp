@@ -67,9 +67,7 @@ bool concat_noop_optimization::match(concatenation_node& node) {
         return false;
     if (node.is_dynamic())
         return false;
-    return node.get_dependencies().size() == 1 &&
-        !node.has_fused_primitives() &&
-        node.get_fused_activations_funcs().empty();
+    return node.get_dependencies().size() == 1 && !node.has_fused_primitives();
 }
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
@@ -84,7 +82,7 @@ bool concat_noop_optimization::optimize(concatenation_node& node) {
 bool concat_in_place_optimization::match(concatenation_node& node) {
     if (node.is_output())
         return false;
-    if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
+    if (node.has_fused_primitives())
         return false;
     if (node.is_dynamic())
         return false;
@@ -300,7 +298,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
-    return node.is_in_place() && node.get_fused_activations_funcs().empty();
+    return node.is_in_place() && !node.has_fused_primitives();
 }
 
 // ToDo remove friendship relation from  program_node
@@ -322,11 +320,11 @@ void prepare_buffer_fusing::run(program& p) {
         // The condition below check only output layout as cases like
         // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
         // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty()) {
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
-        if (node->is_dynamic() || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if (node->is_dynamic() || node->is_output() || node->has_fused_primitives()) {
             return false;
         }
         return true;
