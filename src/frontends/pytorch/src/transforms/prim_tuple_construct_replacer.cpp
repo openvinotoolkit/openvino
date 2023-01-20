@@ -4,9 +4,9 @@
 
 #include "prim_tuple_construct_replacer.hpp"
 
-#include <openvino/frontend/pytorch/decoder.hpp>
-#include <openvino/op/util/framework_node.hpp>
-#include <openvino/opsets/opset10.hpp>
+#include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/result.hpp"
 
 #include "utils.hpp"
 
@@ -38,7 +38,7 @@ bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
                     continue;
                 }
             }
-            model->add_results({std::make_shared<opset10::Result>(out)});
+            model->add_results({std::make_shared<ov::op::v0::Result>(out)});
         }
 
         model->remove_result(result);

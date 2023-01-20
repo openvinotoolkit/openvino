@@ -9,6 +9,7 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
+#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 namespace frontend {
