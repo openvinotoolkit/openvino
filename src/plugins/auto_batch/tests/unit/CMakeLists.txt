@@ -44,8 +44,10 @@ addIeTargetTest(
             unitTestUtils
             openvino::runtime
             openvino::runtime::dev
+            ngraphFunctions
         DEPENDENCIES
             mock_engine
+            ngraphFunctions
         ADD_CPPLINT
         LABELS
             Auto_Batch
