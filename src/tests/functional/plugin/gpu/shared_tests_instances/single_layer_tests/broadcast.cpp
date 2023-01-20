@@ -26,6 +26,22 @@ const std::vector<InferenceEngine::Precision> inputTPrecisions = {
 };
 
 // NUMPY MODE //////////////////////////////////////////
+// 0D
+std::vector<std::vector<size_t>> targetShapesNumpy0D = {
+        {},
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast0D,
+                        BroadcastLayerTest,
+                        ::testing::Combine(::testing::ValuesIn(targetShapesNumpy0D),
+                                           ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
+                                           ::testing::Values(ngraph::op::BroadcastType::NUMPY),
+                                           ::testing::Values(std::vector<size_t>{}),
+                                           ::testing::ValuesIn(inputPrecisions),
+                                           ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+                        BroadcastLayerTest::getTestCaseName);
+
+// NUMPY MODE //////////////////////////////////////////
 // 1D
 std::vector<std::vector<size_t>> targetShapesNumpy1D = {
         {1},

@@ -5,13 +5,13 @@
 .. _notebook tutorials:
 
 .. meta::
-   :description: A collection of Python tutorials run on Jupyter notebooks. The 
-                 tutorials explain how to use OpenVINO™ toolkit for optimized 
+   :description: A collection of Python tutorials run on Jupyter notebooks. The
+                 tutorials explain how to use OpenVINO™ toolkit for optimized
                  deep learning inference.
-   :keywords: OpenVINO™ toolkit, Jupyter, Jupyter notebooks, tutorials, Python 
-              API, Python, deep learning, inference, model inference, infer a 
-              model, Binder, object detection, quantization, image 
-              classification, speech recognition, OCR, OpenVINO IR, deep 
+   :keywords: OpenVINO™ toolkit, Jupyter, Jupyter notebooks, tutorials, Python
+              API, Python, deep learning, inference, model inference, infer a
+              model, Binder, object detection, quantization, image
+              classification, speech recognition, OCR, OpenVINO IR, deep
               learning model, AI, neural networks
 
 .. toctree::
@@ -22,21 +22,21 @@
    notebooks-installation
    notebooks/notebooks
 
-This collection of Python tutorials are written for running on Jupyter notebooks. 
-The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to 
-use the Python API and tools for optimized deep learning inference. You can run the 
-code one section at a time to see how to integrate your application with OpenVINO 
+This collection of Python tutorials are written for running on Jupyter notebooks.
+The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to
+use the Python API and tools for optimized deep learning inference. You can run the
+code one section at a time to see how to integrate your application with OpenVINO
 libraries.
 
-Notebooks with a |binder logo| button can be run without installing anything. 
-Once you have found the tutorial of your interest, just click the button next to 
+Notebooks with a |binder logo| button can be run without installing anything.
+Once you have found the tutorial of your interest, just click the button next to
 the name of it and `Binder <https://mybinder.org/>`__ will start it in a new tab of a browser.
 Binder is a free online service with limited resources (for more information about it,  
 see the `Additional Resources <#-additional-resources>`__ section).
 
 .. note::
-   For the best performance, more control and resources, you should run the notebooks locally. 
-   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information 
+   For the best performance, more control and resources, you should run the notebooks locally.
+   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information
    on how to run and manage the notebooks on your machine.
 
 
@@ -118,7 +118,7 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    | `105-language-quantize-bert <notebooks/105-language-quantize-bert-with-output.html>`__                                       | Optimize and quantize a pre-trained BERT model                                                                                   |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `106-auto-device <notebooks/106-auto-device-with-output.html>`__                                                             | Demonstrates how to use AUTO Device                                                                                              |
-   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+ 
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `107-speech-recognition-quantization <notebooks/107-speech-recognition-quantization-with-output.html>`__                     | Optimize and quantize a pre-trained Wav2Vec2 speech model                                                                        |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `110-ct-segmentation-quantize <notebooks/110-ct-segmentation-quantize-with-output.html>`__                                   | Quantize a kidney segmentation model and show live inference                                                                     |
@@ -209,7 +209,7 @@ Demos that demonstrate inference on a particular model.
 `Model Training`_
 ------------------
 
-Tutorials that include code to train neural networks. 
+Tutorials that include code to train neural networks.
 
 
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -339,12 +339,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/36741649/132660640-da2211ec-c389-450e-8980-32a75ed14abb.png
 .. |n201-img1| image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :target: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
-.. |n202i-img1| image:: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
+.. |n202i-img1| image:: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
    :width: 70
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
-.. |n202i-img2| image:: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
+   :target: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
+.. |n202i-img2| image:: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
    :width: 130
-   :target: https://github.com/openvinotoolkit/openvino_notebooks/raw/main/notebooks/202-vision-superresolution/data/tower.jpg
+   :target: https://user-images.githubusercontent.com/36741649/170005347-e4409f9e-ec34-416b-afdf-a9d8185929ca.jpg
 .. |n202v-img1| image:: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
    :target: https://user-images.githubusercontent.com/15709723/127269258-a8e2c03e-731e-4317-b5b2-ed2ee767ff5e.gif
    :width: 80
@@ -465,4 +465,3 @@ Made with `contributors-img <https://contrib.rocks>`__.
 
 
 @endsphinxdirective
-
