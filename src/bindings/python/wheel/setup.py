@@ -140,6 +140,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,
     },
+    "tensorflow_lite_libs": {
+        "name": "tensorflow_lite",
+        "prefix": "libs.tensorflow_lite",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
 }
 
 PY_INSTALL_CFG = {
