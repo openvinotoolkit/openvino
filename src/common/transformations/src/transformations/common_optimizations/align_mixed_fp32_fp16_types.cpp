@@ -38,7 +38,6 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 copy_runtime_info(incoming_node, convert);
                 input.replace_source_output(convert);
                 ov::disable_fp16_compression(convert);
-                ov::mark_as_decompression(convert);
             }
             is_changed = true;
         }

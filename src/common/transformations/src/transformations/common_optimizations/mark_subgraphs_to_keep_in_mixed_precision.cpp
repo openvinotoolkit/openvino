@@ -39,6 +39,7 @@ MarkNormalizationOps::MarkNormalizationOps() {
     register_matcher(m, callback);
 }
 
+// Marking continues to propagate through these ops.
 std::shared_ptr<Node> propagate_through_ops =
     pattern::wrap_type<opset10::Squeeze,
                        opset10::Unsqueeze,
@@ -62,6 +63,11 @@ std::shared_ptr<Node> propagate_through_ops =
                        opset10::Constant,
                        opset10::Tile>();
 
+/* After PropagateDownMark we need to go also once up to include side branches of ops with several args:
+ * Elementwise, Concat and so. E.g. if one of the argument of Concat was marked
+ * during PropagateDownMark we need also mark its other inputs and this is done in this PropagateUpMark pass.
+ * Propagation stops when we face ops not listed in propagate_through_ops: e.g. if we face Conv or MatMul.
+ */
 class PropagateUpMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("PropagateUpMarkToKeepInMixedPrecision", "0");
@@ -101,6 +107,10 @@ public:
     }
 };
 
+/* Starting from the marked precision sensitive nodes we need to propagate down to include neighboring
+ * ops like Slice, ReduceSum, Reshape, Elementwise, et al. to be kept in f32 as well.
+ * Propagation stops when ops not listed in propagate_through_ops are faced: e.g. if we face Conv or MatMul.
+ */
 class PropagateDownMarkToKeepInMixedPrecision : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("PropagateDownMarkToKeepInMixedPrecision", "0");
@@ -144,6 +154,9 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
 
     REGISTER_PASS(manager, MarkExpInReduceOpPath)
     REGISTER_PASS(manager, MarkNormalizationOps)
+
+    // both Up and Down propagations are needed.
+    // Why both of them are needed is explained in comments in passes declarations.
     REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
@@ -205,7 +218,7 @@ public:
 
 class MarkExp : public pass::MatcherPass {
 public:
-    // only exponent that go into ReduceOp should be marked as precision sensitive
+    // only exponent that go into ReduceOp should be marked as precision sensitive and kept in f32
     OPENVINO_RTTI("MarkExp", "0");
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
