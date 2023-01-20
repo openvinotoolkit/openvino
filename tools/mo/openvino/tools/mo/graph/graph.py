@@ -990,11 +990,8 @@ class Graph(nx.MultiDiGraph):
 
     def pseudo_topological_sort_with_start_node(self, start_node: Node, reverse: bool = False):
         nodes_without_inputs = [start_node.soft_get('name')]
-        order = list()
         visited = set()
-        for node_name in nodes_without_inputs:
-            if node_name not in visited:
-                order.extend(self.dfs(node_name, visited))
+        order = self.dfs(nodes_without_inputs[0], visited)
 
         order = [Node(self, node) for node in order]
 
