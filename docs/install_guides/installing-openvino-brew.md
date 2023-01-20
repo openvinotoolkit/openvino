@@ -1,12 +1,20 @@
 # Install OpenVINO™ Runtime via Homebrew {#openvino_docs_install_guides_installing_openvino_brew}
 
-With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via [Homebrew](https://brew.sh/). See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html) for more information on updates in the latest release.
+@sphinxdirective
 
-Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the [Install OpenVINO from PyPI](installing-openvino-pip.md) page for instructions on how to install OpenVINO Runtime for Python using PyPI.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on macOS and Linux via `Homebrew <https://brew.sh/>`_. See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
-> **NOTE**: Only CPU is supported for inference if you install OpenVINO via HomeBrew.
+Installing OpenVINO Runtime from Homebrew is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
 
-> **NOTE**: Since the OpenVINO™ 2022.1 release, the following development tools: Model Optimizer, Post-Training Optimization Tool, Model Downloader and other Open Model Zoo tools, Accuracy Checker, and Annotation Converter can be installed via [pypi.org](https://pypi.org/project/openvino-dev/) only.
+.. note:: 
+
+   Only CPU is supported for inference if you install OpenVINO via HomeBrew.
+
+.. warning:: 
+
+   By downloading and using this container and the included software, you agree to the terms and conditions of the `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
+
+@endsphinxdirective
 
 ## Prerequisites
 

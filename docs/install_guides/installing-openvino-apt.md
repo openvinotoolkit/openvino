@@ -2,13 +2,9 @@
 
 @sphinxdirective
 
-This guide provides detailed steps for installing OpenVINO™ Runtime through the APT repository and guidelines for installing OpenVINO Development Tools.
+With the OpenVINO™ 2022.3 release, you can install OpenVINO Runtime on Linux using the APT repository. See the `Release Notes <https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-2022-3-lts-relnotes.html>`_ for more information on updates in the latest release.
 
 Installing OpenVINO Runtime from APT is recommended for C++ developers. If you are working with Python, the PyPI package has everything needed for Python development and deployment on CPU and GPUs. Visit the :doc:`Install OpenVINO from PyPI <openvino_docs_install_guides_installing_openvino_pip>` page for instructions on how to install OpenVINO Runtime for Python using PyPI.
-
-.. note:: 
-
-   From the 2022.1 release, OpenVINO™ Development Tools can be installed via PyPI only. See :ref:`Install OpenVINO Development Tools <installing-openvino-development-tools>` for more information.
 
 .. warning:: 
 
