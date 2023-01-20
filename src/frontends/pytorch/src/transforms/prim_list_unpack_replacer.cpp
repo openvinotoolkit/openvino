@@ -159,8 +159,6 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 indexing = "ij";
             } else if (meshgrid->inputs().size() == 2) {
                 // Get indexing value from second input to node.
-                // TODO - if meshgrid would be placed inside loop body, cast into prim::Constant would fail due to being
-                // Parameter instead of Constant and return false.
                 auto meshgrid_indexing_node =
                     cast_fw_node(meshgrid->input_value(1).get_node_shared_ptr(), "prim::Constant");
                 if (!meshgrid_indexing_node) {
