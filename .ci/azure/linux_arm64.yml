@@ -81,6 +81,10 @@ jobs:
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
 
   steps:
+  - script: |
+      echo $AGENT_TOOLSDIRECTORY
+      ls $AGENT_TOOLSDIRECTORY
+      
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
