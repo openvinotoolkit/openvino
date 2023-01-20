@@ -29,7 +29,7 @@ OutputVector translate_instance_norm(NodeContext& context) {
     auto input_shape = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input));
     auto rank_1d = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input_shape));
     auto zero = context.mark_node(ov::op::v0::Constant::create(element::i64, {}, {0}));
-    auto rank = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(rank_1d, zero));
+    auto rank = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(rank_1d));
     auto one = context.mark_node(ov::op::v0::Constant::create(element::i64, {}, {1}));
     auto two = context.mark_node(ov::op::v0::Constant::create(element::i64, {}, {2}));
     auto reduction_axes = context.mark_node(std::make_shared<ov::op::v4::Range>(two, rank, one, element::i64));
@@ -51,8 +51,7 @@ OutputVector translate_instance_norm(NodeContext& context) {
     auto batch_dim = context.mark_node(std::make_shared<ov::op::v1::Gather>(input_shape, zero, zero));
     auto channel_dim = context.mark_node(std::make_shared<ov::op::v1::Gather>(input_shape, one, zero));
     auto batch_dim_1d = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(batch_dim, zero));
-    auto batch_norm_channels = context.mark_node(std::make_shared<ov::op::v1::Multiply>(batch_dim, channel_dim));
-    auto batch_norm_channels_1d = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(batch_norm_channels, zero));
+    auto batch_norm_channels_1d = context.mark_node(std::make_shared<ov::op::v1::Multiply>(batch_dim_1d, channel_dim));
     auto one_1d = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{1}, {1}));
     auto tail_shape = context.mark_node(std::make_shared<ov::op::v1::Gather>(input_shape, reduction_axes, zero));
     auto reshape_shape = context.mark_node(
