@@ -81,8 +81,11 @@ jobs:
   - task: UsePythonVersion@0
     displayName: Get Python 3.10
     inputs:
-      versionSpec: '3.10'
+      versionSpec: '3.1' # -> converted to 3.10
     name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
