@@ -3,7 +3,10 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/split.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -13,13 +16,13 @@ namespace op {
 
 OutputVector translate_glu(NodeContext& context) {
     auto x = context.get_input(0);
-    auto dim = context.input_is_none(1) ? context.mark_node(opset10::Constant::create(element::i64, Shape{}, {-1}))
+    auto dim = context.input_is_none(1) ? context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {-1}))
                                         : context.get_input(1);
-    auto split = context.mark_node(std::make_shared<opset10::Split>(x, dim, 2));
+    auto split = context.mark_node(std::make_shared<ov::op::v1::Split>(x, dim, 2));
     auto first = split->output(0);
     auto second = split->output(1);
-    auto sigmoid = context.mark_node(std::make_shared<opset10::Sigmoid>(second));
-    return {context.mark_node(std::make_shared<opset10::Multiply>(first, sigmoid))};
+    auto sigmoid = context.mark_node(std::make_shared<ov::op::v0::Sigmoid>(second));
+    return {context.mark_node(std::make_shared<ov::op::v1::Multiply>(first, sigmoid))};
 };
 
 }  // namespace op
