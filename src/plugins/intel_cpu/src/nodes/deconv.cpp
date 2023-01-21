@@ -753,6 +753,19 @@ void Deconvolution::prepareParams() {
 
     auto engine = getEngine();
     auto builder = [&engine](const DeconvKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
+        auto makeResult = [&key](dnnl_primitive_desc * pd) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
+            if (pd == nullptr) {
+                return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
+            }
+            if (key.isInt8) {
+                auto prim_desc = deconvolution_forward::primitive_desc(pd);
+                return std::make_pair(dnnl::deconvolution_forward(prim_desc), prim_desc);
+            } else {
+                auto prim_desc = convolution_backward_data::primitive_desc(pd);
+                return std::make_pair(dnnl::convolution_backward_data(prim_desc), prim_desc);
+            }
+        };
+
         std::shared_ptr<DnnlDesriptor> desc;
         bool withBias = static_cast<bool>(key.bias);
         auto biasDesc = key.bias;
@@ -783,24 +796,23 @@ void Deconvolution::prepareParams() {
         }
 
         auto itpd = desc->createPrimitiveDescriptorIterator(engine, key.attr);
-
+        dnnl::primitive_desc first_pd;
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
+            if (!first_pd) {
+                first_pd = itpd;
+            }
             if (impl_type == key.implType) {
-                if (key.isInt8) {
-                    auto prim_desc = deconvolution_forward::primitive_desc(itpd.get());
-                    return std::make_pair(dnnl::deconvolution_forward(prim_desc), prim_desc);
-                } else {
-                    auto prim_desc = convolution_backward_data::primitive_desc(itpd.get());
-                    return std::make_pair(dnnl::convolution_backward_data(prim_desc), prim_desc);
-                }
-                break;
+                return makeResult(itpd.get());
             }
 
             if (!itpd.next_impl()) {
                 break;
             }
+        }
+        // no impl_type is found, fallback to first_pd if there is one
+        if (first_pd) {
+            return makeResult(first_pd.get());
         }
 
         auto inDescAny = dnnl::memory::desc(key.src.dims(), key.src.data_type(), memory::format_tag::any);
@@ -829,17 +841,10 @@ void Deconvolution::prepareParams() {
         }
         auto anyDeconvItpd = anyDeconvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
         if (static_cast<bool>(anyDeconvItpd)) {
-            if (key.isInt8) {
-                auto prim_desc = deconvolution_forward::primitive_desc(anyDeconvItpd.get());
-                return std::make_pair(deconvolution_forward(prim_desc), prim_desc);
-            } else {
-                auto prim_desc = convolution_backward_data::primitive_desc(anyDeconvItpd.get());
-                return std::make_pair(convolution_backward_data(prim_desc), prim_desc);
-            }
+            return makeResult(anyDeconvItpd.get());
         }
 
-        // empty object indicating failure.
-        return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
+        return makeResult(nullptr);
     };
 
     auto cache = context->getParamsCache();
