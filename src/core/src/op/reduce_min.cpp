@@ -79,14 +79,10 @@ bool op::v1::ReduceMin::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v1::ReduceMin::evaluate_lower(TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!input_value(1).get_tensor().has_and_set_bound())
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v1::ReduceMin::evaluate_upper(TensorVector& output_values) const {
+    return input_value(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }

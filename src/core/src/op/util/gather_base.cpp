@@ -243,16 +243,16 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis, batch_dims);
 }
 
-bool ov::op::util::GatherBase::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_lower(TensorVector& output_values) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::op::util::GatherBase::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::util::GatherBase::evaluate_upper(TensorVector& output_values) const {
     if (!get_input_tensor(1).has_and_set_bound() || !get_input_tensor(2).has_and_set_bound())
         return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool ov::op::util::GatherBase::evaluate_label(TensorLabelVector& output_labels) const {

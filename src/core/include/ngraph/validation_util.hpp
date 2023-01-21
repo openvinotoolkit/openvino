@@ -15,12 +15,16 @@
 
 namespace ngraph {
 using ov::could_propagate;
+using ov::default_lower_bound_evaluator;
+using ov::default_upper_bound_evaluator;
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
 using ov::infer_auto_padding;
 using ov::infer_convolution_forward;
+using ov::interval_bound_evaluator;
 using ov::normalize_axes;
 using ov::normalize_axis;
+using ov::tensor_is_positive;
 
 NGRAPH_API
 Strides conv_default_strides(const Node* node, const PartialShape& data_batch_shape, const PartialShape& filters_shape);
@@ -159,52 +163,6 @@ NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map
                                std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
                                const OutputVector& outputs,
                                const EvaluationContext& evaluation_context = EvaluationContext());
-
-/// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
-/// estimation through it.
-/// \param Node output pointing to the tensor for estimation.
-/// \return HostTensorPtr to estimated value if can be determined, or nullptr.
-NGRAPH_API HostTensorPtr evaluate_lower_bound(const Output<Node>& output);
-
-/// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
-/// estimation through it.
-/// \param output Tensor to be estimated.
-/// \return HostTensorPtr to estimated value if can be determined, or nullptr.
-NGRAPH_API HostTensorPtr evaluate_upper_bound(const Output<Node>& output);
-
-/// \brief Evaluates lower and upper value estimations of the output tensor. Traverses graph up
-/// to deduce estimation through it.
-/// \param output Node output pointing to the tensor for estimation.
-/// \return pair with HostTensorPtrs for lower and upper value estimation. Each object in pair
-/// could be HostTensorPtr to estimated value if particular bound can be determined, or nullptr.
-NGRAPH_API std::pair<HostTensorPtr, HostTensorPtr> evaluate_both_bounds(const Output<Node>& output);
-
-/// \brief Estimates upper bound for node output tensors using only upper bounds of the nodes
-/// inputs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting upper value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool default_upper_bound_evaluator(const Node* node, const HostTensorVector& output_values);
-/// \brief Estimates lower bound for node output tensors using only lower bounds of the nodes
-/// inputs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool default_lower_bound_evaluator(const Node* node, const HostTensorVector& output_values);
-/// \brief Estimates both bounds for node output tensors using both bounds of inputs. Works for
-/// operations with two inputs (in_1 and in_2). Brute forces all the pairs of bounds for inputs
-/// and evaluates all of them: {in_1_lower, in_2 lower}, {in_1_lower, in_2 upper}, {in_1_upper,
-/// in_2_lower}, {in_1_upper, in_2_upper}. Lower and upper values are selected from all the
-/// outputs calculated using input pairs.
-/// \param node Operation to be performed
-/// \param output_values Vector of HostTensorPtrs representing resulting lower value estimations
-/// \return boolean status if value evaluation was successful.
-NGRAPH_API bool interval_bound_evaluator(const Node* node,
-                                         const HostTensorVector& lower_output_values,
-                                         const HostTensorVector& upper_output_values);
-
-/// \brief Checks if all the elements of the bound HostTensor are positive
-NGRAPH_API bool host_tensor_is_positive(const HostTensorPtr& bound);
 
 /// \brief Checks if lower and upper bounds of the corresponding tensor are set (not nullptr)
 /// and pointers are the same. It doesn't check if lower and upper values are the same relying

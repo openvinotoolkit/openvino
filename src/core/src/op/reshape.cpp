@@ -81,11 +81,13 @@ void op::v1::Reshape::validate_and_infer_types() {
     bool shape_can_be_calculated = false;
     int64_t minus_one_idx = -1;
 
-    HostTensorPtr lb, ub;
+    ov::Tensor lb, ub;
     std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
     if (lb && ub) {
-        const auto lower_bound = std::make_shared<op::v0::Constant>(lb)->cast_vector<int64_t>();
-        auto upper_bound = std::make_shared<op::v0::Constant>(ub)->cast_vector<int64_t>();
+        const auto lower_bound = std::make_shared<op::v0::Constant>(lb.get_element_type(), lb.get_shape(), lb.data())
+                                     ->cast_vector<int64_t>();
+        auto upper_bound = std::make_shared<op::v0::Constant>(ub.get_element_type(), ub.get_shape(), ub.data())
+                               ->cast_vector<int64_t>();
         shape_can_be_calculated = true;
         NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
         const TensorLabel& labels = get_input_source_output(1).get_tensor().get_value_label();
@@ -205,16 +207,12 @@ bool op::v1::Reshape::has_evaluate() const {
     return false;
 }
 
-bool op::v1::Reshape::evaluate_lower(const HostTensorVector& output_values) const {
-    if (!get_input_tensor(1).has_and_set_bound())
-        return false;
-    return default_lower_bound_evaluator(this, output_values);
+bool op::v1::Reshape::evaluate_lower(TensorVector& output_values) const {
+    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Reshape::evaluate_upper(const HostTensorVector& output_values) const {
-    if (!get_input_tensor(1).has_and_set_bound())
-        return false;
-    return default_upper_bound_evaluator(this, output_values);
+bool op::v1::Reshape::evaluate_upper(TensorVector& output_values) const {
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Reshape::evaluate_label(TensorLabelVector& output_labels) const {

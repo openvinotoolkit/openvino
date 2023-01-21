@@ -46,24 +46,24 @@ bool ov::op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisito
     return true;
 }
 
-bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(const HostTensorVector& output_values) const {
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(output_values, 1));
-    HostTensorVector lower_output_tensors;
+bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(TensorVector& output_values) const {
+    OPENVINO_ASSERT(output_values.size() == 1);
+    TensorVector lower_output_tensors;
     for (const auto& output : output_values)
-        lower_output_tensors.push_back(
-            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
-    if (!ngraph::interval_bound_evaluator(this, lower_output_tensors, output_values))
+        lower_output_tensors.emplace_back(output.get_element_type(), output.get_shape());
+
+    if (!interval_bound_evaluator(this, lower_output_tensors, output_values))
         return false;
     return true;
 }
 
-bool ov::op::util::BinaryElementwiseArithmetic::evaluate_lower(const HostTensorVector& output_values) const {
-    NGRAPH_CHECK(ngraph::validate_host_tensor_vector(output_values, 1));
-    HostTensorVector upper_output_tensors;
+bool ov::op::util::BinaryElementwiseArithmetic::evaluate_lower(TensorVector& output_values) const {
+    OPENVINO_ASSERT(output_values.size() == 1);
+    TensorVector upper_output_tensors;
     for (const auto& output : output_values)
-        upper_output_tensors.push_back(
-            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
-    if (!ngraph::interval_bound_evaluator(this, output_values, upper_output_tensors))
+        upper_output_tensors.emplace_back(output.get_element_type(), output.get_shape());
+
+    if (!interval_bound_evaluator(this, output_values, upper_output_tensors))
         return false;
     return true;
 }

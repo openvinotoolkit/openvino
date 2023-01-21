@@ -139,10 +139,10 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-bool op::Clamp::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::Clamp::evaluate_lower(TensorVector& output_values) const {
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Clamp::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::Clamp::evaluate_upper(TensorVector& output_values) const {
     return default_upper_bound_evaluator(this, output_values);
 }

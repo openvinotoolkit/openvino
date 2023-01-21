@@ -92,13 +92,13 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
     return evaluate_scatter_update(outputs, inputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_lower(const HostTensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_lower(TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_lower_bound_evaluator(this, outputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_upper(const HostTensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_upper(TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_upper_bound_evaluator(this, outputs);
@@ -136,12 +136,11 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
         return false;
     }
 
-    constexpr auto element_type = (sizeof(ov::label_t) == 8) ? element::u64 : element::u32;
-    std::vector<ov::runtime::Tensor> input_tensors;
+    ov::TensorVector input_tensors;
     input_tensors.reserve(input_values.size());
 
     auto make_input_label = [&](const Output<Node>& input, TensorLabel& labels) {
-        input_tensors.emplace_back(element_type, input.get_shape());
+        input_tensors.emplace_back(ov::element::from<ov::label_t>(), input.get_shape());
         labels.resize(shape_size(input.get_shape()));
         memcpy(input_tensors.back().data(), labels.data(), input_tensors.back().get_byte_size());
     };
@@ -153,17 +152,14 @@ bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels)
         } else if (i == updates_in_idx) {
             make_input_label(input, updates_labels);
         } else {
-            const auto host_tensor_ptr = input.get_tensor().get_lower_value();
-            input_tensors.emplace_back(host_tensor_ptr->get_element_type(),
-                                       host_tensor_ptr->get_shape(),
-                                       host_tensor_ptr->get_data_ptr());
+            input_tensors.push_back(input.get_tensor().get_lower_value());
         }
     }
 
-    ov::TensorVector output_tensors{ov::Tensor(element_type, node->get_output_shape(0))};
+    ov::TensorVector output_tensors{ov::Tensor(ov::element::from<ov::label_t>(), node->get_output_shape(0))};
     if (node->evaluate(output_tensors, input_tensors)) {
-        auto ptr = static_cast<ov::label_t*>(output_tensors[0].data(element_type));
-        output_labels[0] = ov::TensorLabel(ptr, ptr + output_tensors[0].get_size());
+        output_labels[0] = ov::TensorLabel(output_tensors[0].data<ov::label_t>(),
+                                           output_tensors[0].data<ov::label_t>() + output_tensors[0].get_size());
         return true;
     }
     return false;
