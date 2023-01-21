@@ -18,7 +18,7 @@ class TestLoop(OnnxRuntimeLayerTest):
         elif tensor_type == TensorProto.FLOAT:
             np_type = np.float
         elif tensor_type == TensorProto.BOOL:
-            np_type = np.bool
+            np_type = bool
         else:
             return None
         return helper.make_node('Constant', inputs=[], outputs=[name],
