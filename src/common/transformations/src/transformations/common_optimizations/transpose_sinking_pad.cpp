@@ -17,23 +17,29 @@ using namespace transpose_sinking;
 
 ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
     MATCHER_SCOPE(TransposeSinkingPadForward);
-
-    auto main_node_label = wrap_type<Pad>(IfFirstNodeInputHasTranspose);
+    auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
+    auto main_node_label = wrap_type<Pad>({transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto& pattern_to_node = m.get_pattern_map();
 
-        auto& main_node_output = pattern_to_output.at(main_node_label);
-        auto main_node = main_node_output.get_node_shared_ptr();
+        auto& main_node = pattern_to_node.at(main_node_label);
+        auto transpose = std::dynamic_pointer_cast<Transpose>(pattern_to_node.at(transpose_label));
+        if (!transpose) {
+            return false;
+        }
 
-        TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
+        auto transpose_const = as_type_ptr<Constant>(transpose->input_value(1).get_node_shared_ptr());
+        if (!transpose_const) {
+            return false;
+        }
 
         // remove Transpose on 1st input:
         auto transpose_parent = main_node->input_value(0).get_node()->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
 
         // change the order of values for PadBegin and PadEng inputs
-        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 
         main_node->input(1).replace_source_output(
@@ -42,6 +48,7 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
             ChangeValuesOrder(main_node->input_value(2), transpose_axis_order, axis));
 
         // insert Transpose for Pad output
+        TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
@@ -73,7 +80,9 @@ ov::pass::TransposeSinkingPadBackward::TransposeSinkingPadBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
 
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const, {0})) {
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
+                                                                       transpose_const,
+                                                                       /* input_indexes= */ {0})) {
             register_new_node(new_node);
         }
 

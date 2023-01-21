@@ -61,11 +61,6 @@ bool IfNodeHasTransposeInputs(const Output<Node>& output) {
     return !inputs_info.isEmpty();
 }
 
-bool IfFirstNodeInputHasTranspose(const Output<Node>& output) {
-    TransposeInputsInfo inputs_info = GetFirstTransposeInput(output.get_node_shared_ptr());
-    return !inputs_info.isEmpty() && inputs_info.input_idx == 0;
-}
-
 AxisVector ReverseTransposeOrder(const AxisVector& axis_order) {
     AxisVector out(axis_order.size());
     for (size_t i = 0; i < axis_order.size(); i++) {

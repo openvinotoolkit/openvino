@@ -39,11 +39,6 @@ TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&);
 bool IfNodeHasTransposeInputs(const ov::Output<ov::Node>&);
 
 /**
- * @brief Checks if @arg has first input node that is a transpose operation
- */
-bool IfFirstNodeInputHasTranspose(const ov::Output<ov::Node>&);
-
-/**
  * @brief Reverses order of transpose operation. Do it in a such way that if we had couple following one after
  * another transposes (one would be reversed version of another) we will have no transpose as a result of that
  * couple of transposes.
