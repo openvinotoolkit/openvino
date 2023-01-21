@@ -6,7 +6,6 @@
 
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"

@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
 
 using ::testing::Return;

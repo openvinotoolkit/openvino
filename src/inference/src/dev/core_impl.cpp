@@ -9,7 +9,6 @@
 #include "any_copy.hpp"
 #include "check_network_batchable.hpp"
 #include "compilation_context.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"

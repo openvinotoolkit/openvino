@@ -139,7 +139,7 @@ public:
     /**
      * @brief Returns the instance of the legacy plugin
      *
-     * @return Legacy InferenceEngine::InferencePlugin object
+     * @return Legacy InferenceEngine::IInferencePlugin object
      */
     const std::shared_ptr<InferenceEngine::IInferencePlugin>& get_plugin() const;
 

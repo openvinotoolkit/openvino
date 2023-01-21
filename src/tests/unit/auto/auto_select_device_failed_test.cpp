@@ -4,6 +4,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <common_test_utils/test_constants.hpp>
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -16,7 +17,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
 
 using ::testing::MatcherCast;
@@ -63,7 +63,7 @@ public:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
-    InferenceEngine::InferencePlugin                mockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> mockPlugin;
     // config for Auto device
     std::map<std::string, std::string>              config;
     std::vector<DeviceInformation>                  metaDevices;
@@ -130,10 +130,10 @@ public:
        mockIExeNet = std::make_shared<MockIExecutableNetworkInternal>();
        auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
        ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-       mockPlugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
+       mockPlugin = mockIPluginPtr;
        // remove annoying ON CALL message
        EXPECT_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-       mockExeNetwork = mockPlugin.LoadNetwork(CNNNetwork{}, {});
+       mockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
        // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
