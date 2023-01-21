@@ -17,7 +17,8 @@ using namespace transpose_sinking;
 
 ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
     MATCHER_SCOPE(TransposeSinkingPadForward);
-    auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
+    auto const_label = wrap_type<Constant>();
+    auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
     auto main_node_label = wrap_type<Pad>({transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
@@ -29,7 +30,7 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
             return false;
         }
 
-        auto transpose_const = as_type_ptr<Constant>(transpose->input_value(1).get_node_shared_ptr());
+        auto transpose_const = as_type_ptr<Constant>(pattern_to_node.at(const_label));
         if (!transpose_const) {
             return false;
         }
