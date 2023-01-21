@@ -24,7 +24,7 @@ else:
 
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
-DEFAUALT_PROCESS_TIMEOUT = 3600
+DEFAULT_PROCESS_TIMEOUT = 3600
 MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
 TEST_STATUS = {
     'passed': ["[       OK ]"],
@@ -35,6 +35,7 @@ TEST_STATUS = {
     'interapted': ["interapted", "Killed"]}
 RUN = "[ RUN      ]"
 GTEST_FILTER = "Google Test filter = "
+DISABLED_PREFIX = "DISABLED_"
 
 logger = utils.get_logger('test_parallel_runner')
 
@@ -50,7 +51,7 @@ def parse_arguments():
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
     parser.add_argument("-j", "--workers", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
-    parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAUALT_PROCESS_TIMEOUT)
+    parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
     return parser.parse_args()
 
 def get_test_command_line_args():
@@ -87,7 +88,7 @@ class TaskManager:
         thread.daemon = True
         thread.start()
         return thread
-    
+
     def init_worker(self):
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
@@ -100,6 +101,7 @@ class TaskManager:
             worker.join()
             self._timers.append(datetime.datetime.now())
             log_file.close()
+        # logger.info(f"{self._idx}/{len(self._command_list)} is started")
         self._idx += 1
     
     def __find_free_process(self):
@@ -110,6 +112,7 @@ class TaskManager:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
                     self._process_list[pid].wait(timeout=0)
+                    # logger.info(f"{self._idx}/{len(self._command_list)} is started")
                     return pid
                 except TimeoutExpired:
                     continue
@@ -139,6 +142,7 @@ class TaskManager:
                     self._process_list[pid].wait(timeout=0)
                     # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
+                    logger.info(f"Compeleting processes: Active process counter: {len(self._process_list)}...")
                     break
                 except TimeoutExpired:
                     continue
@@ -226,14 +230,15 @@ class TestParallelRunner:
                 pos = test_name.find('#')
                 if pos > 0:
                     real_test_name = test_suite + test_name[2:pos-2]
-                    if "DISABLED_" in real_test_name:
+                    if DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
-                    test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
+                    else:
+                        test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
                 else:
                     test_suite = test_name
             test_list_file.close()
         os.remove(test_list_file_name)
-        logger.info(f"Len test_list_runtime: {len(test_list)}")
+        logger.info(f"Len test_list_runtime (without disabled tests): {len(test_list)}")
         return test_list
 
 
@@ -246,7 +251,8 @@ class TestParallelRunner:
                     pos = line.find(":")
                     time = line[:pos]
                     test_name = line[pos+1:]
-                    test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
+                    if not DISABLED_PREFIX in test_name:
+                        test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
         logger.info(f"Len test_list_cache: {len(test_list_cache)}")
         return test_list_cache
 
@@ -350,20 +356,35 @@ class TestParallelRunner:
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return final_test_list
 
+    @staticmethod
+    def progressbar(it_num, message="", progress_bar_size=60, out=sys.stdout):
+        max_len = len(it_num)
+        def show(sym_pos):
+            x = int(progress_bar_size * sym_pos / max_len)
+            print("{}[{}{}] {}/{}".format(message, "#"*x, "."*(progress_bar_size-x), sym_pos, max_len), 
+                    end='\r', file=out, flush=True)
+        show(0)
+        for i, item in enumerate(it_num):
+            yield item
+            show(i+1)
+        print("", flush=True, file=out)
 
     def run(self):
         if TaskManager.process_timeout == -1:
-            TaskManager.process_timeout = DEFAUALT_PROCESS_TIMEOUT
+            TaskManager.process_timeout = DEFAULT_PROCESS_TIMEOUT
         logger.info(f"Run test parallel is started. Worker num is {self._worker_num}")
         t_start = datetime.datetime.now()
         
         commands = [f'{self._command} --gtest_filter={filter}' for filter in self.__get_filters()]
-        task_manger = TaskManager(commands, self._working_dir)
-        for _ in range(self._worker_num):
-            task_manger.init_worker()
-        while task_manger.update_worker():
-            pass
-        task_manger.compelete_all_processes()
+        task_manager = TaskManager(commands, self._working_dir)
+        # from tqdm import tqdm
+        # for _ in tqdm(range(self._worker_num)):
+        for _ in self.progressbar(range(self._worker_num), "Worker initialization: ", 40):
+            task_manager.init_worker()
+        for _ in self.progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
+            if not task_manager.update_worker():
+                break
+        task_manager.compelete_all_processes()
 
         t_end = datetime.datetime.now()
         logger.info(f"Run test parallel is finished successfully. Total time is {(t_end - t_start).total_seconds()}s")
@@ -374,16 +395,16 @@ class TestParallelRunner:
         logger.info(f"Log analize is started")
         def __save_log(logs_dir, dir, test_name):
             test_log_filename = os.path.join(logs_dir, dir, f"{test_name}.txt".replace('/', '_'))
-            if os.path.isfile(test_log_filename):
-                logger.warning(f"Log file {test_log_filename} is exist!")
+            hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
+            if hash_str in hash_map.keys():
+                # logger.warning(f"Test {test_name} was executed before!")
                 return False
-            if len(test_log_filename) > FILENAME_LENGTH:
-                hash_str = str(sha256(test_name.encode('utf-8')).hexdigest())
-                test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.txt')
-                if os.path.isfile(test_log_filename):
-                    logger.warning(f"Log file {test_log_filename} is exist!")
-                    return False
-                hash_map.append([dir, hash_str, test_name])
+            else:
+                hash_map.update({hash_str: (dir, test_name)})
+            test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.txt')
+            if os.path.isfile(test_log_filename):
+                # logger.warning(f"Log file {test_log_filename} is exist!")
+                return False
             with open(test_log_filename, "w") as log:
                 log.writelines(test_log)
                 log.close()
@@ -397,7 +418,7 @@ class TestParallelRunner:
         for test_st, _ in TEST_STATUS.items():
             if not os.path.exists(os.path.join(logs_dir, test_st)):
                 os.mkdir(os.path.join(logs_dir, test_st))
-        hash_map = [["Dir", "Hash", "Test Name"]]
+        hash_map = dict()
         test_times = list()
         for log in Path(self._working_dir).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
@@ -405,17 +426,13 @@ class TestParallelRunner:
                 test_name = None
                 test_log = list()
                 dir = None
-                log_str = ""
-                test_cnt_expected = 0
-                test_cnt_real = 0
+                test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
                 for line in log_file.readlines():
                     if GTEST_FILTER in line:
                         line = line[line.find(GTEST_FILTER):]
                         test_cnt_expected = line.count(':')
                     if RUN in line:
                         test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
-                    if test_name != None:
-                        log_str += line
                     if dir is None:
                         for test_st, mes_list in TEST_STATUS.items():
                             for mes in mes_list:
@@ -426,26 +443,28 @@ class TestParallelRunner:
                                 break
                     if test_name is not None:
                         test_log.append(line)
-                        # update test_cache with tests. If tests is crashed use -2 as unknown time
-                        time = -2
-                        if "ms)" in line:
-                            time = line[line.rfind("(") + 1:line.rfind("ms)") - 1]
                         if dir:
-                            test_times.append((int(time), test_name))
                             if __save_log(logs_dir, dir, test_name):
+                                # update test_cache with tests. If tests is crashed use -2 as unknown time
+                                time = -2
+                                if "ms)" in line:
+                                    time = line[line.rfind("(") + 1:line.rfind("ms)") - 1]
+                                test_times.append((int(time), test_name))
                                 if dir in test_results.keys():
                                     test_results[dir] += 1
                                 else:
                                     test_results[dir] = 1
-                                test_cnt_real += 1
+                                test_cnt_real_saved_now += 1
                                 test_name = None
                                 test_log = list()
                                 dir = None
-                if test_cnt_real != test_cnt_expected:
+                            else:
+                                test_cnt_real_saved_before += 1
+                log_file.close()
+                test_cnt_real = test_cnt_real_saved_before + test_cnt_real_saved_now
+                if test_cnt_real < test_cnt_expected:
                     logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
-                    logger.error(f"Last test log is:\n{test_log}")
                 else:
-                    log_file.close()
                     os.remove(log_filename)
         # update test_cache with tests. If tests is crashed use -1 as unknown time
         for disabled_test in self._disabled_tests:
@@ -459,8 +478,10 @@ class TestParallelRunner:
         hash_table_path = os.path.join(logs_dir, "hash_table.csv")
         with open(hash_table_path, "w") as csv_file:
             csv_writer = csv.writer(csv_file, dialect='excel')
-            for row in hash_map:
-                csv_writer.writerow(row)
+            csv_writer.writerow(["Dir", "Hash", "Test Name"])
+            for hash, st in hash_map.items():
+                dir, name = st
+                csv_writer.writerow([dir, hash, name])
             logger.info(f"Hashed test list is saved to: {hash_table_path}")
 
 
@@ -481,10 +502,10 @@ class TestParallelRunner:
                 is_successfull_run = False
         if len(self._disabled_tests):
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
-        logger.info(f"Total test count is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
-        if self._total_test_cnt != (test_cnt + len(self._disabled_tests)):
-            logger.error(f"Total test count is {test_cnt + len(self._disabled_tests)} is different with expected {self._total_test_cnt} tests")
+        if self._total_test_cnt != test_cnt:
+            logger.error(f"Total test count is {test_cnt} is different with expected {self._total_test_cnt} tests")
             is_successfull_run = False
+        logger.info(f"Total test count with disabled tests is {test_cnt + len(self._disabled_tests)}. All logs is saved to {logs_dir}")
         return is_successfull_run
 
 if __name__ == "__main__":
