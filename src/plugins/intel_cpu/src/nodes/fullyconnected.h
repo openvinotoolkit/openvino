@@ -79,7 +79,7 @@ private:
     static const size_t BIAS_ID = 2;
     dnnl::memory::data_type outputDataType;
 
-    DnnlExecutor2 executor;
+    DnnlExecutor executor;
     bool useConv1x1 = false;
     impl_desc_type implementationTypeIP;
     MemoryDescPtr weightDescIP;

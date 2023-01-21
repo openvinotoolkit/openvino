@@ -85,7 +85,7 @@ private:
     };
     class FusedSubgraph;
     using FusedSubgraphPtr = std::shared_ptr<FusedSubgraph>;
-    DnnlExecutor2 executor;
+    DnnlExecutor executor;
     MemoryCPtr constWeightMemPtr;
 
     void prepareParams() override;

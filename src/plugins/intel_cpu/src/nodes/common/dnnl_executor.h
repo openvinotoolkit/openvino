@@ -14,40 +14,6 @@ namespace intel_cpu {
 
 class DnnlExecutor {
     protected:
-        class IntermReorder {
-            public:
-                IntermReorder(const dnnl::memory::desc& descSrc, const dnnl::memory::desc& descDst, const dnnl::engine& engine);
-                void exec(dnnl::memory& memSrc, dnnl::memory& memDst, dnnl::stream strm);
-                const dnnl::memory::desc& getSrcDesc() const { return m_descSrc; }
-                const dnnl::memory::desc& getDstDesc() const { return m_descDst; }
-
-            private:
-                dnnl::reorder m_reorder;
-                dnnl::memory::desc m_descSrc;
-                dnnl::memory::desc m_descDst;
-        };
-
-    public:
-        void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
-        bool needReordering() const;
-        virtual ~DnnlExecutor() = default;
-        Primitive getExecPrim() const;
-        const_dnnl_primitive_desc_t getPrimitiveDesc() const;
-        dnnl::memory::desc getSrcDesc() const;
-        dnnl::memory::desc getWeightDesc() const;
-        dnnl::memory::desc getDstDesc() const;
-        impl_desc_type getImplementationType() const;
-
-    protected:
-        DnnlExecutor() = default;
-        Primitive execPrim;
-        // key is the port number for the primitive that needs memory reordering
-        std::unordered_map<int, IntermReorder> inputReorders;
-        std::unordered_map<int, IntermReorder> outputReorders;
-};
-
-class DnnlExecutor2 {
-    protected:
         using PrimArgs = std::unordered_map<int, dnnl::memory>;
         struct IntermReorder {
             dnnl::reorder prim;
@@ -60,7 +26,7 @@ class DnnlExecutor2 {
         };
 
     public:
-        DnnlExecutor2(const GraphContext::CPtr context, const std::string& name)
+        DnnlExecutor(const GraphContext::CPtr context, const std::string& name)
             : context(context),
               name(name) {}
 
@@ -72,7 +38,7 @@ class DnnlExecutor2 {
 
         void exec(dnnl::stream strm);
         bool needReordering() const;
-        virtual ~DnnlExecutor2() = default;
+        virtual ~DnnlExecutor() = default;
         const dnnl::primitive & getPrimitive() const {
             return prim;
         }
@@ -107,30 +73,32 @@ class DnnlExecutor2 {
         // when underlying scratch pad memory is resized.
         MemoryPtr scratchpadMem;
 
-        // will set handle of src_mem into dst_mem before each execution
-        struct UpdateHandle {
-            dnnl::memory src_mem;
+        // descriptor of external mem needs to be canonicalized to be understandable by primitive
+        // and this has to be done whenever handle is changed before each execution
+        struct Canonicalization {
+            dnnl::memory external_mem;
             void* handle;
-            dnnl::memory dst_mem;
-            UpdateHandle(dnnl::memory src_mem, dnnl::memory dst_mem)
-                : src_mem(src_mem),
-                  dst_mem(dst_mem),
+            // canonical_mem is created with canonical desc
+            dnnl::memory canonical_mem;
+            Canonicalization(dnnl::memory external_mem, dnnl::memory canonical_mem)
+                : external_mem(external_mem),
+                  canonical_mem(canonical_mem),
                   handle(nullptr) {}
         };
 
         struct ConstFolding {
-            dnnl::memory src_mem;
-            dnnl::memory::desc src_desc;
-            // before const folding dst_mem is referencing a memory with expected desc but no handle(pointer)
+            dnnl::memory external_mem;
+            dnnl::memory::desc canonical_desc;
+            // before const folding internal_mem is referencing a memory with expected desc but no handle(pointer)
             // and all primitives need this memory as argument have been setup with reference exactly to this memory.
             // after const folding, it's handle will be set to valid pointer with data filled.
-            dnnl::memory dst_mem;
+            dnnl::memory internal_mem;
             std::string key;
         };
 
         bool constFolded;
         std::vector<ConstFolding> constFoldings;
-        std::vector<UpdateHandle> updateHandles;
+        std::vector<Canonicalization> canonicalizations;
         std::vector<IntermReorder> inputReorders;
         std::vector<IntermReorder> outputReorders;
         dnnl::memory addConstFolding(dnnl::memory src,

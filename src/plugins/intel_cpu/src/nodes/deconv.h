@@ -60,29 +60,7 @@ protected:
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
 
 private:
-/*
-    using executorPtr = std::shared_ptr<DnnlExecutor>;
-    executorPtr execPtr = nullptr;
-
-    class DeconvExecutorDefault : public DnnlExecutor {
-        public:
-            DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
-                                  const dnnl::memory::desc& inMemDesc,
-                                  const dnnl::memory::desc& weightMemDesc,
-                                  const dnnl::memory::desc& outMemDesc,
-                                  const dnnl::engine& engine);
-    };
-
-    class DeconvExecutorInt8 : public DnnlExecutor {
-        public:
-            DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
-                               const dnnl::memory::desc& inMemDesc,
-                               const dnnl::memory::desc& weightMemDesc,
-                               const dnnl::memory::desc& outMemDesc,
-                               const dnnl::engine& engine);
-    };
-*/
-    DnnlExecutor2 executor;
+    DnnlExecutor executor;
     bool withGroups = false;
     bool isDW = false;
     bool isInt8 = false;
