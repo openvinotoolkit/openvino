@@ -5,7 +5,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "cpp/ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "mock_auto_batch_plugin.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -41,7 +41,7 @@ public:
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> mockIExecNet;
     ov::SoPtr<IExecutableNetworkInternal> mockExecNetwork;
     std::shared_ptr<NiceMock<MockIInferencePlugin>> mockIPlugin;
-    InferenceEngine::InferencePlugin mockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> mockPlugin;
     ov::SoPtr<IExecutableNetworkInternal> batchedExecNetwork;
 
     std::shared_ptr<AutoBatchExecutableNetwork> actualExecNet;
@@ -74,8 +74,8 @@ public:
         mockIExecNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         mockIPlugin = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*mockIPlugin, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExecNet));
-        mockPlugin = InferenceEngine::InferencePlugin{mockIPlugin, {}};
-        mockExecNetwork = mockPlugin.LoadNetwork(CNNNetwork{}, {});
+        mockPlugin = mockIPlugin;
+        mockExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
         batchedExecNetwork = {};
 
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
@@ -97,7 +97,7 @@ public:
         std::set<std::string> batched_outputs = {"Convolution_20"};
 
         if (batch_size > 1)
-            batchedExecNetwork = mockPlugin.LoadNetwork(CNNNetwork{}, {});
+            batchedExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
         return std::make_shared<AutoBatchExecutableNetwork>(batchedExecNetwork,
                                                             mockExecNetwork,
                                                             metaDevice,

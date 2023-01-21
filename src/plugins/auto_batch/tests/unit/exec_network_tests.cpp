@@ -5,7 +5,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "cpp/ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "mock_auto_batch_plugin.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -42,7 +42,7 @@ public:
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> mockIExecNet;
     ov::SoPtr<IExecutableNetworkInternal> mockExecNetwork;
     std::shared_ptr<NiceMock<MockIInferencePlugin>> mockIPlugin;
-    InferenceEngine::InferencePlugin mockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> mockPlugin;
 
     InferenceEngine::IExecutableNetworkInternal::Ptr actualExecNet;
 
@@ -87,9 +87,9 @@ public:
         mockIExecNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         auto mockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExecNet));
-        mockPlugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
+        mockPlugin = mockIPluginPtr;
         EXPECT_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        mockExecNetwork = mockPlugin.LoadNetwork(CNNNetwork{}, {});
+        mockExecNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(mockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
         plugin = std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());

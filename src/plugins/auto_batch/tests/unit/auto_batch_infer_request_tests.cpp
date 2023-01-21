@@ -5,11 +5,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "cpp/ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_ngraph_utils.hpp"
-#include "transformations/utils/utils.hpp"
 #include "mock_auto_batch_plugin.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
