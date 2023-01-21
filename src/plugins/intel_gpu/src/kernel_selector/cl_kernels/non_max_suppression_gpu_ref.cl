@@ -478,14 +478,16 @@ KERNEL (non_max_suppression_ref_stage_2)(
             if (convert_float(next_candidate.score) > SCORE_THRESHOLD_VAL) {
                 --i;
                 sortedBoxList[i] = next_candidate;
-                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum);
+                FUNC_CALL(quickSortIterative)(sortedBoxList, i, kSortedBoxNum - 1);
             }
         }
     }
 
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
-        selectedBoxList[selectedBoxNum].batchId = -1;
+        for (int b = selectedBoxNum; b < NUM_BOXES; ++b) {
+            selectedBoxList[b].batchId = -1;
+        }
     }
 }
 #endif /* NMS_STAGE_2 */
