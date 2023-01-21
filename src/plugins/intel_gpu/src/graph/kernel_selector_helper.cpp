@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,24 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/convolution.hpp"
+#include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/normalize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/reverse_sequence.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/extract_image_patches.hpp"
 
 #include <string>
 #include <vector>
@@ -1006,6 +1024,54 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             throw std::runtime_error("Unknown activation function");
             break;
     }
+}
+
+void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations) {
+    auto op_desc = param_info.fused_desc[0].typed_desc<activation>();
+    auto func = op_desc->activation_function;
+    auto params = op_desc->additional_params;
+
+    activations.push_back({get_kernel_selector_activation_param(func), params.a, params.b});
+}
+
+bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
+    const auto& fused_ops = param_info.fused_desc;
+    if (fused_ops.size() != 1)
+        return false;
+
+    const auto& fused_op = fused_ops[0];
+    if (!fused_op.is_type<activation>())
+        return false;
+
+    if (!fused_op.deps.empty())
+        return false;
+
+
+    std::vector<primitive_type_id> legacy_fusion_list = {
+        concatenation::type_id(),
+        convolution::type_id(),
+        crop::type_id(),
+        eltwise::type_id(),
+        fully_connected::type_id(),
+        normalize::type_id(),
+        reorder::type_id(),
+        reshape::type_id(),
+        roi_pooling::type_id(),
+        softmax::type_id(),
+        depth_to_space::type_id(),
+        shuffle_channels::type_id(),
+        strided_slice::type_id(),
+        cum_sum::type_id(),
+        reverse_sequence::type_id(),
+        embedding_bag::type_id(),
+        extract_image_patches::type_id()
+    };
+
+    if (std::find(legacy_fusion_list.begin(), legacy_fusion_list.end(), param_info.desc->type) == legacy_fusion_list.end()) {
+        return false;
+    }
+
+    return true;
 }
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {

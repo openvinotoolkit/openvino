@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporationconvert_reduce_to_pooling
+// Copyright (C) 2018-2023 Intel Corporationconvert_reduce_to_pooling
 // SPDX-License-Identifier: Apache-2.0
 //
 

@@ -129,10 +129,10 @@ using the [configure devices](supported_plugins/config_properties.md) property:
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking Performance
 
 To see how the Multi-Device execution is used in practice and test its performance, take a look at OpenVINO's Benchmark Application which presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads.
-Here is an example command to evaluate performance of HDDL+GPU:
+Here is an example command to evaluate performance of CPU + GPU:
 
 ```sh
-./benchmark_app –d MULTI:HDDL,GPU –m <model> -i <input> -niter 1000
+./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
 ```
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.

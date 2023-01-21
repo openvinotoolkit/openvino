@@ -28,8 +28,6 @@ For each inference device, OpenVINO Runtime has its own plugin library:
 - `openvino_intel_cpu_plugin` for [Intel® CPU devices](../supported_plugins/CPU.md).
 - `openvino_intel_gpu_plugin` for [Intel® GPU devices](../supported_plugins/GPU.md).
 - `openvino_intel_gna_plugin` for [Intel® GNA devices](../supported_plugins/GNA.md).
-- `openvino_intel_myriad_plugin` for [Intel® MYRIAD devices](../supported_plugins/MYRIAD.md).
-- `openvino_intel_hddl_plugin` for [Intel® HDDL device](../supported_plugins/HDDL.md).
 - `openvino_arm_cpu_plugin` for [ARM CPU devices](../supported_plugins/ARM_CPU.md).
 
 Depending on what devices are used in the app, the appropriate libraries need to be put to the distribution package.
@@ -48,8 +46,6 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 |-------------|------------|
 | CPU         |  `-`       |
 | GPU         | `OpenCL.dll`, `cache.json` |
-| MYRIAD      | `usb.dll`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.elf` |
-| HDDL        | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |
 | GNA         | `gna.dll` |
 | Arm® CPU    |  `-`      |
 
@@ -72,8 +68,6 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 |-------------|-------------|
 | CPU         |  `-`        |
 | GPU         | `libOpenCL.so`, `cache.json` |
-| MYRIAD      | `libusb.so`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.mvcmd` |
-| HDDL        | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so` |
 | GNA         | `gna.dll`   |
 | Arm® CPU    |  `-`        |
 
@@ -95,7 +89,6 @@ As it is shown on the picture above, some plugin libraries may have OS-specific 
 | Device      | Dependency  |
 |-------------|-------------|
 | CPU         |     `-`     |
-| MYRIAD      | `libusb.dylib`, `usb-ma2x8x.mvcmd`, `pcie-ma2x8x.mvcmd` |
 | Arm® CPU    |  `-`        |
 
 @sphinxdirective
@@ -144,19 +137,19 @@ In this example, the application is written in C language, performs inference on
 - `openvino_intel_cpu_plugin` is used for inference.
 - `openvino_ir_frontend` is used to read source models.
 
-**MULTI execution on GPU and MYRIAD in `tput` mode**
+**MULTI execution on GPU and CPU in `tput` mode**
 
-In this example, the application is written in C++, performs inference [simultaneously on GPU and MYRIAD devices](../multi_device.md) with the `ov::hint::PerformanceMode::THROUGHPUT` property set, and reads models stored in the ONNX format. The following libraries are used:
+In this example, the application is written in C++, performs inference [simultaneously on GPU and CPU devices](../multi_device.md) with the `ov::hint::PerformanceMode::THROUGHPUT` property set, and reads models stored in the ONNX format. The following libraries are used:
 - The `openvino` library is a main dependency of the application. It links against this library.
-- `openvino_intel_gpu_plugin` and `openvino_intel_myriad_plugin` are used for inference.
+- `openvino_intel_gpu_plugin` and `openvino_intel_cpu_plugin` are used for inference.
 - `openvino_auto_plugin` is used for Multi-Device Execution.
 - `openvino_auto_batch_plugin` can be also put to the distribution to improve the saturation of [Intel® GPU](../supported_plugins/GPU.md) device. If there is no such plugin, [Automatic Batching](../automatic_batching.md) is turned off.
 - `openvino_onnx_frontend` is used to read source models.
 
-**Auto-Device Selection between HDDL and CPU**
+**Auto-Device Selection between GPU and CPU**
 
-In this example, the application is written in C++, performs inference with the [Automatic Device Selection](../auto_device_selection.md) mode, limiting device list to HDDL and CPU, and reads models [created using C++ code](../model_representation.md). The following libraries are used:
+In this example, the application is written in C++, performs inference with the [Automatic Device Selection](../auto_device_selection.md) mode, limiting device list to GPU and CPU, and reads models [created using C++ code](../model_representation.md). The following libraries are used:
 - The `openvino` library is a main dependency of the application. It links against this library.
 - `openvino_auto_plugin` is used to enable Automatic Device Selection.
-- `openvino_intel_hddl_plugin` and `openvino_intel_cpu_plugin` are used for inference. AUTO selects between CPU and HDDL devices according to their physical existence on the deployed machine.
+- `openvino_intel_gpu_plugin` and `openvino_intel_cpu_plugin` are used for inference. AUTO selects between CPU and GPU devices according to their physical existence on the deployed machine.
 - No frontend library is needed because `ov::Model` is created in code.

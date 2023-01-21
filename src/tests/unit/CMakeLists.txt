@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,10 +9,6 @@ set(CMAKE_SKIP_RPATH OFF)
 if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
-
-if (ENABLE_INTEL_MYRIAD)
-    add_subdirectory(vpu)
-endif ()
 
 if (ENABLE_AUTO OR ENABLE_MULTI)
     add_subdirectory(auto)
