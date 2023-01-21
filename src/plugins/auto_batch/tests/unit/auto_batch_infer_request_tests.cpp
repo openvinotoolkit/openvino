@@ -15,6 +15,7 @@
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -39,9 +40,12 @@ public:
     // Mock inferRequest
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> mockInferRequestBatched;
 
-protected:
     std::vector<std::shared_ptr<AutoBatchInferRequest>> autoBatchInferRequests;
     std::map<std::string, InferenceEngine::Blob::Ptr> blobMap;
+
+    std::vector<std::shared_ptr<const ov::Node>> inputs, outputs;
+    std::set<std::string> batchedInputs, batchedOutputs;
+    std::shared_ptr<AutoBatchExecutableNetwork::WorkerInferRequest> workerRequestPtr;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
@@ -59,108 +63,111 @@ public:
         mockInferRequestBatched = {};
         autoBatchInferRequests.clear();
         blobMap.clear();
+
+        inputs.clear();
+        outputs.clear();
+        batchedInputs.clear();
+        batchedOutputs.clear();
+        clear_worker();
     }
 
     void SetUp() override {
         mockInferRequestBatched = std::make_shared<NiceMock<MockIInferRequestInternal>>();
     }
 
-    std::shared_ptr<AutoBatchExecutableNetwork::WorkerInferRequest> create_worker(int batch_size) {
-        auto workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
+    void create_worker(int batch_size) {
+        workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
 
         workerRequestPtr->_inferRequestBatched = {mockInferRequestBatched, {}};
         workerRequestPtr->_batchSize = batch_size;
         workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
-        workerRequestPtr->_inferRequestBatched->SetCallback(
-            [workerRequestPtr, this](std::exception_ptr exceptionPtr) mutable {
-                if (exceptionPtr)
-                    workerRequestPtr->_exceptionPtr = exceptionPtr;
-            });
-        workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
+        workerRequestPtr->_inferRequestBatched->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
+            if (exceptionPtr)
+                workerRequestPtr->_exceptionPtr = exceptionPtr;
+        });
+        workerRequestPtr->_thread = std::thread([this] {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         });
-        return workerRequestPtr;
+        return;
     }
 
-    void clear_worker(std::shared_ptr<AutoBatchExecutableNetwork::WorkerInferRequest> workerRequestPtr) {
+    void clear_worker() {
         workerRequestPtr->_inferRequestBatched = {};
         workerRequestPtr->_completionTasks.clear();
         workerRequestPtr->_thread.join();
     }
+
+    void prepare_input(std::shared_ptr<ov::Model>& function, int batch_size) {
+        for (auto& input : function->inputs()) {
+            std::shared_ptr<const ov::Node> n = input.get_node_shared_ptr();
+            inputs.emplace_back(n);
+        }
+
+        for (auto& output : function->outputs()) {
+            std::shared_ptr<const ov::Node> n = output.get_node_shared_ptr();
+            outputs.emplace_back(n);
+        }
+
+        const auto& params = function->get_parameters();
+        for (size_t i = 0; i < params.size(); i++) {
+            batchedInputs.insert(ngraph::op::util::get_ie_output_name(params[i]->output(0)));
+        }
+        const auto& results = function->get_results();
+        for (size_t i = 0; i < results.size(); i++) {
+            const auto& output = results[i];
+            const auto& node = output->input_value(0);
+            batchedOutputs.insert(
+                ngraph::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+        }
+
+        ON_CALL(*mockInferRequestBatched, GetBlob(StrEq(*batchedInputs.begin())))
+            .WillByDefault([this, batch_size](const std::string& name) {
+                auto item = blobMap.find(name);
+                if (item != blobMap.end()) {
+                    return item->second;
+                }
+                auto shape = inputs[0]->get_shape();
+                shape[0] = batch_size;
+                auto element_type = inputs[0]->get_element_type();
+                InferenceEngine::TensorDesc tensorDesc = {InferenceEngine::details::convertPrecision(element_type),
+                                                          shape,
+                                                          InferenceEngine::TensorDesc::getLayoutByRank(shape.size())};
+                auto blob = make_blob_with_precision(tensorDesc);
+                blob->allocate();
+                blobMap[name] = blob;
+                return blob;
+            });
+
+        ON_CALL(*mockInferRequestBatched, GetBlob(StrEq(*batchedOutputs.begin())))
+            .WillByDefault([this, batch_size](const std::string& name) {
+                auto item = blobMap.find(name);
+                if (item != blobMap.end()) {
+                    return item->second;
+                }
+                auto shape = outputs[0]->get_shape();
+                shape[0] = batch_size;
+                auto element_type = outputs[0]->get_element_type();
+                InferenceEngine::TensorDesc tensorDesc = {InferenceEngine::details::convertPrecision(element_type),
+                                                          shape,
+                                                          InferenceEngine::TensorDesc::getLayoutByRank(shape.size())};
+                auto blob = make_blob_with_precision(tensorDesc);
+                blob->allocate();
+                blobMap[name] = blob;
+                return blob;
+            });
+    }
 };
 
-TEST_P(AutoBatchRequestTest, AutoBatchRequestTestCase) {
+TEST_P(AutoBatchRequestTest, AutoBatchRequestCreateTestCase) {
     int batch_size;
     ngraph::element::Type_t element_type;
     std::tie(batch_size, element_type) = this->GetParam();
 
-    //std::vector<size_t> inputShape = {batch_size, 3, 24, 24};
     std::vector<size_t> inputShape = {1, 3, 24, 24};
     auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
+    prepare_input(function, batch_size);
+    create_worker(batch_size);
 
-    std::vector<std::shared_ptr<const ov::Node>> inputs, outputs;
-    std::shared_ptr<AutoBatchExecutableNetwork::WorkerInferRequest> workerRequestPtr;
-    std::set<std::string> batchedInputs, batchedOutputs;
-
-    for (auto& input : function->inputs()) {
-        std::shared_ptr<const ov::Node> n = input.get_node_shared_ptr();
-        inputs.emplace_back(n);
-    }
-
-    for (auto& output : function->outputs()) {
-        std::shared_ptr<const ov::Node> n = output.get_node_shared_ptr();
-        outputs.emplace_back(n);
-    }
-
-    const auto& params = function->get_parameters();
-    for (size_t i = 0; i < params.size(); i++) {
-        batchedInputs.insert(ngraph::op::util::get_ie_output_name(params[i]->output(0)));
-    }
-    const auto& results = function->get_results();
-    for (size_t i = 0; i < results.size(); i++) {
-        const auto& output = results[i];
-        const auto& node = output->input_value(0);
-        batchedOutputs.insert(
-            ngraph::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
-    }
-
-    ON_CALL(*mockInferRequestBatched, GetBlob(StrEq(*batchedInputs.begin())))
-        .WillByDefault([this, &inputs, batch_size](const std::string& name) {
-            auto item = blobMap.find(name);
-            if (item != blobMap.end()) {
-                return item->second;
-            }
-            auto shape = inputs[0]->get_shape();
-            shape[0] = batch_size;
-            auto element_type = inputs[0]->get_element_type();
-            InferenceEngine::TensorDesc tensorDesc = {InferenceEngine::details::convertPrecision(element_type),
-                                                      shape,
-                                                      InferenceEngine::TensorDesc::getLayoutByRank(shape.size())};
-            auto blob = make_blob_with_precision(tensorDesc);
-            blob->allocate();
-            blobMap[name] = blob;
-            return blob;
-        });
-
-    ON_CALL(*mockInferRequestBatched, GetBlob(StrEq(*batchedOutputs.begin())))
-        .WillByDefault([this, &outputs, batch_size](const std::string& name) {
-            auto item = blobMap.find(name);
-            if (item != blobMap.end()) {
-                return item->second;
-            }
-            auto shape = outputs[0]->get_shape();
-            shape[0] = batch_size;
-            auto element_type = outputs[0]->get_element_type();
-            InferenceEngine::TensorDesc tensorDesc = {InferenceEngine::details::convertPrecision(element_type),
-                                                      shape,
-                                                      InferenceEngine::TensorDesc::getLayoutByRank(shape.size())};
-            auto blob = make_blob_with_precision(tensorDesc);
-            blob->allocate();
-            blobMap[name] = blob;
-            return blob;
-        });
-
-    workerRequestPtr = create_worker(batch_size);
     for (int batch_id = 0; batch_id < batch_size; batch_id++) {
         auto req = std::make_shared<AutoBatchInferRequest>(inputs,
                                                            outputs,
@@ -182,7 +189,143 @@ TEST_P(AutoBatchRequestTest, AutoBatchRequestTestCase) {
             EXPECT_EQ(ptr, batch_ptr + size * batch_id);
         }
     }
-    clear_worker(workerRequestPtr);
+}
+
+TEST_P(AutoBatchRequestTest, AutoBatchRequestCopyBlobTestCase) {
+    int batch_size;
+    ngraph::element::Type_t element_type;
+    std::tie(batch_size, element_type) = this->GetParam();
+
+    std::vector<size_t> inputShape = {1, 3, 24, 24};
+    auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
+    prepare_input(function, batch_size);
+    create_worker(batch_size);
+
+    for (int batch_id = 0; batch_id < batch_size; batch_id++) {
+        auto req = std::make_shared<AutoBatchInferRequest>(inputs,
+                                                           outputs,
+                                                           *workerRequestPtr,
+                                                           batch_id,
+                                                           batch_size,
+                                                           batchedInputs,
+                                                           batchedOutputs);
+        EXPECT_NE(req, nullptr);
+        autoBatchInferRequests.emplace_back(req);
+
+        EXPECT_NO_THROW(req->CopyInputsIfNeeded());
+        EXPECT_NO_THROW(req->CopyOutputsIfNeeded());
+    }
+}
+
+class AutoBatchAsyncInferRequestTest : public AutoBatchRequestTest {
+public:
+    std::shared_ptr<NiceMock<MockIInferRequestInternal>> mockInferRequestWithoutBatched;
+    MockTaskExecutor::Ptr mockTaskExecutor;
+    std::vector<AutoBatchAsyncInferRequest::Ptr> autoBatchAsyncInferRequestVec;
+    bool terminate;
+
+public:
+    void TearDown() override {
+        terminate = true;
+        autoBatchAsyncInferRequestVec.clear();
+        AutoBatchRequestTest::TearDown();
+        mockInferRequestWithoutBatched = {};
+    }
+
+    void SetUp() override {
+        AutoBatchRequestTest::SetUp();
+        mockInferRequestWithoutBatched = std::make_shared<NiceMock<MockIInferRequestInternal>>();
+        terminate = false;
+
+        mockTaskExecutor = std::make_shared<MockTaskExecutor>();
+    }
+
+    void create_worker(int batch_size) {
+        workerRequestPtr = std::make_shared<AutoBatchExecutableNetwork::WorkerInferRequest>();
+
+        workerRequestPtr->_inferRequestBatched = {mockInferRequestBatched, {}};
+        workerRequestPtr->_batchSize = batch_size;
+        workerRequestPtr->_completionTasks.resize(workerRequestPtr->_batchSize);
+        workerRequestPtr->_inferRequestBatched->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
+            if (exceptionPtr)
+                workerRequestPtr->_exceptionPtr = exceptionPtr;
+            IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
+            // notify the individual requests on the completion
+            for (int c = 0; c < workerRequestPtr->_batchSize; c++) {
+                workerRequestPtr->_completionTasks[c]();
+            }
+            // reset the timeout
+            workerRequestPtr->_cond.notify_one();
+        });
+        workerRequestPtr->_thread = std::thread([this] {
+            while (1) {
+                std::cv_status status;
+                {
+                    std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
+                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(20));
+                }
+                if (terminate) {
+                    break;
+                } else {
+                    const int sz = static_cast<int>(workerRequestPtr->_tasks.size());
+                    if (sz == workerRequestPtr->_batchSize) {
+                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        for (int n = 0; n < sz; n++) {
+                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            workerRequestPtr->_completionTasks[n] = std::move(t.second);
+                            t.first->_inferRequest->_wasBatchedRequestUsed =
+                                AutoBatchInferRequest::eExecutionFlavor::BATCH_EXECUTED;
+                        }
+                        workerRequestPtr->_inferRequestBatched->StartAsync();
+                    } else if ((status == std::cv_status::timeout) && sz) {
+                        std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
+                        for (int n = 0; n < sz; n++) {
+                            IE_ASSERT(workerRequestPtr->_tasks.try_pop(t));
+                            t.first->_inferRequest->_wasBatchedRequestUsed =
+                                AutoBatchInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
+                            t.first->_inferRequestWithoutBatch->StartAsync();
+                        }
+                    }
+                }
+            }
+        });
+        return;
+    }
+};
+
+TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
+    int batch_size;
+    ngraph::element::Type_t element_type;
+    std::tie(batch_size, element_type) = this->GetParam();
+
+    std::vector<size_t> inputShape = {1, 3, 24, 24};
+    auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
+    prepare_input(function, batch_size);
+    create_worker(batch_size);
+
+    for (int batch_id = 0; batch_id < batch_size; batch_id++) {
+        auto autoRequestImpl = std::make_shared<AutoBatchInferRequest>(inputs,
+                                                                       outputs,
+                                                                       *workerRequestPtr,
+                                                                       batch_id,
+                                                                       batch_size,
+                                                                       batchedInputs,
+                                                                       batchedOutputs);
+        EXPECT_NE(autoRequestImpl, nullptr);
+        autoBatchInferRequests.emplace_back(autoRequestImpl);
+
+        InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
+        auto asyncInferRequest = std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl,
+                                                                              inferRequestWithoutBatched,
+                                                                              mockTaskExecutor);
+        autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
+    }
+
+    // for (auto& req : autoBatchAsyncInferRequestVec)
+    //    req->StartAsync();
+
+    // for (auto& req : autoBatchAsyncInferRequestVec)
+    //    req->Wait(InferRequest::WaitMode::RESULT_READY);
 }
 
 const std::vector<ngraph::element::Type_t> element_type{ngraph::element::Type_t::f16,
@@ -202,3 +345,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          AutoBatchRequestTest,
                          ::testing::Combine(::testing::ValuesIn(batch_size), ::testing::ValuesIn(element_type)),
                          AutoBatchRequestTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
+                         AutoBatchAsyncInferRequestTest,
+                         ::testing::Combine(::testing::ValuesIn(batch_size), ::testing::ValuesIn(element_type)),
+                         AutoBatchAsyncInferRequestTest::getTestCaseName);
