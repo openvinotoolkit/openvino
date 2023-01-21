@@ -108,12 +108,6 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     // calc data access pattern. we'll need it for offsets calculation
     const auto&  model = kernel->model;
-    const auto get_static_shape = [](const std::shared_ptr<ov::Node>& node) {
-        const auto& pshape = node->get_output_partial_shape(0);
-        if (pshape.is_dynamic())
-            IE_THROW() << "KernelEmitter can't calc offsets for dynamic shapes";
-        return pshape.get_shape();
-    };
     const auto get_data_layout = [](const Output<ov::Node>& out, std::vector<size_t>& shape) {
         const auto& layout = ngraph::snippets::utils::get_node_output_layout(out.get_node_shared_ptr());
         // default access pattern
@@ -1061,7 +1055,6 @@ void HorizonMaxEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
     Xmm aux_xmm = Xmm(aux_vec_idxs[0]);
 
     Reg64 aux_reg = Reg64(aux_gpr_idxs[0]);
-    Reg32 aux_reg_32 = Reg32(aux_reg.getIdx());
 
     const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
     const size_t vec_size = vlen / sizeof(float);
@@ -1107,7 +1100,6 @@ void HorizonSumEmitter::emit_isa(const std::vector<size_t> &in, const std::vecto
     Xmm aux_xmm = Xmm(aux_vec_idxs[0]);
 
     Reg64 aux_reg = Reg64(aux_gpr_idxs[0]);
-    Reg32 aux_reg_32 = Reg32(aux_reg.getIdx());
 
     const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
     const size_t vec_size = vlen / sizeof(float);
