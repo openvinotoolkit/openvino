@@ -285,6 +285,10 @@ void primitive_inst::realloc_if_needed() {
                     max_intermediates_memory_sizes[i] = std::max(max_intermediates_memory_sizes[i], _intermediates_memory[i]->size());
                }
             }
+        } else {
+            for (size_t i = 0; i < _intermediates_memory.size(); ++i) {
+                _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+            }
         }
     }
 }
