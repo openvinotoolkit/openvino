@@ -235,7 +235,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if ret_code:
         raise Error('check_requirements exited with return code {}'.format(ret_code))
 
-    if argv.tensorflow_use_custom_operations_config is not None:
+    if hasattr(argv, 'tensorflow_use_custom_operations_config') and \
+            argv.tensorflow_use_custom_operations_config is not None:
         # update command-line arguments even for new TensorFlow Frontend
         # because it should fallback to the Legacy Frontend in this case
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
