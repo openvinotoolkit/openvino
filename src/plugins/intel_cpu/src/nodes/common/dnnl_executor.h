@@ -12,6 +12,10 @@
 namespace ov {
 namespace intel_cpu {
 
+struct Canonicalization {
+    static dnnl::memory::desc swapAxes(const dnnl::memory::desc& md, int axes0, int axes1);
+};
+
 class DnnlExecutor {
     protected:
         using PrimArgs = std::unordered_map<int, dnnl::memory>;

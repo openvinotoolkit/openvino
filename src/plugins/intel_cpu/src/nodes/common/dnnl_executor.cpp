@@ -13,6 +13,13 @@ using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 
+dnnl::memory::desc Canonicalization::swapAxes(const dnnl::memory::desc& md, int axes0, int axes1) {
+    std::vector<int> permutation(md.dims().size());
+    std::iota(permutation.begin(), permutation.end(), 0);
+    std::swap(permutation[axes0], permutation[axes1]);
+    return md.permute_axes(permutation);
+}
+
 bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
@@ -214,7 +221,7 @@ void DnnlExecutor::doConstFolding(ConstFolding& cf) {
         MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine());
         _ptr->Create(DnnlExtensionUtils::makeDescriptor(expectedDesc));
         context->reorderData(srcMemory, *_ptr);
-        DEBUG_LOG("ConstFolding ", cSrcDesc, " -> ", expectedDesc);
+        DEBUG_LOG(" ConstFolding ", canonical_src_desc, " -> ", expectedDesc);
         return _ptr;
     };
 

@@ -34,10 +34,10 @@ namespace node {
 namespace {
 
 struct FCKey {
-    DnnlMemoryDescCPtr inp0;
-    DnnlMemoryDescCPtr inp1;
-    DnnlMemoryDescCPtr bias;
-    DnnlMemoryDescCPtr out;
+    dnnl::memory::desc src;
+    dnnl::memory::desc weight;
+    dnnl::memory::desc bias;
+    dnnl::memory::desc dst;
     dnnl::primitive_attr attr;
     impl_desc_type implType;
     bool useConv1x1;
@@ -52,9 +52,9 @@ size_t FCKey::hash() const {
 
     size_t seed = 0;
 
-    for (const auto& ptr : {inp0, inp1, bias, out}) {
+    for (const auto& ptr : {src, weight, bias, dst}) {
         if (ptr) {
-            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
+            seed = hash_combine(seed, get_md_hash(ptr.data));
         }
     }
 
@@ -66,17 +66,17 @@ size_t FCKey::hash() const {
 
 bool FCKey::operator==(const FCKey &rhs) const {
     bool retVal = true;
-    if (inp0 != rhs.inp0) {
-        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
+    if (src != rhs.src) {
+        retVal = retVal && src && rhs.src && src == rhs.src;
     }
-    if (inp1 != rhs.inp1) {
-        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
+    if (weight != rhs.weight) {
+        retVal = retVal && weight && rhs.weight && weight == rhs.weight;
     }
     if (bias != rhs.bias) {
-        retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
+        retVal = retVal && bias && rhs.bias && bias == rhs.bias;
     }
-    if (out != rhs.out) {
-        retVal = retVal && out && rhs.out && out->getDnnlDesc() == rhs.out->getDnnlDesc();
+    if (dst != rhs.dst) {
+        retVal = retVal && dst && rhs.dst && dst == rhs.dst;
     }
     retVal = retVal && *attr.get() == *rhs.attr.get() &&
              implType == rhs.implType && useConv1x1 == rhs.useConv1x1;
@@ -219,50 +219,57 @@ void FullyConnected::getSupportedDescriptors() {
 }
 
 void FullyConnected::prepareParams() {
+    NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
+
     auto srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    auto wghMemPtr = getParentEdgeAt(1)->getMemoryPtr();
     auto dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->isAllocated())
         IE_THROW() << "Destination memory hasn't been allocated.";
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
+
+    memory src_mem = srcMemPtr->GetPrimitive();
+    memory weight_mem = wghMemPtr->GetPrimitive();
+    memory dst_mem = dstMemPtr->GetPrimitive();
+    memory bias_mem;
+
+    memory::desc src_desc = src_mem.get_desc();
+    memory::desc weight_desc = weight_mem.get_desc();
+    memory::desc dst_desc = dst_mem.get_desc();
+    memory::desc bias_desc;
+
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
-        biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
+        auto biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
         if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory hasn't been allocated.";
+        bias_mem = biasMemPtr->GetPrimitive();
+        bias_desc = bias_mem.get_desc();
     }
-
-    NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
     AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
     setPostOps(*attr, dstMemPtr->getStaticDims());
     (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    DnnlMemoryDescPtr weightDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightDescIP);
-    DnnlMemoryDescCPtr biasDesc = nullptr;
-    if (biasMemPtr) {
-        biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    }
-
-    DnnlMemoryDescCPtr inDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr outDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
-
-    useConv1x1 = canBeExecutedInConv1x1();
-    FCKey key = {inDesc,
-                 weightDesc,
-                 biasDesc,
-                 outDesc,
+    // create primitive using weight with format tag any
+    auto useConv1x1 = canBeExecutedInConv1x1();
+    dnnl::memory::desc weight_desc_any(weight_desc.dims(),
+                                       getWeightDataType(src_desc.data_type()),
+                                       dnnl::memory::format_tag::any);
+    FCKey key = {src_desc,
+                 weight_desc_any,
+                 bias_desc,
+                 dst_desc,
                  *attr,
                  implementationTypeIP,
                  useConv1x1};
-
     auto engine = getEngine();
-
     auto builder = [&engine](const FCKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
         if (key.useConv1x1) {
-            auto desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out);
+            auto desc = createDescriptorInternalForConv(key.src, key.weight, key.bias, key.dst);
             primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
             convolution_forward::primitive_desc prim_desc;
 
@@ -282,42 +289,38 @@ void FullyConnected::prepareParams() {
                 return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
             }
         }
-
         // fallback
-        auto inDesc = key.inp0->getDnnlDesc();
+        auto inDesc = key.src;
         if (inDesc.dims().size() == 3) {
             auto inDims = inDesc.dims();
             auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
             inDesc = inDesc.reshape(normalizedInDims);
         }
 
-        auto outDesc = key.out->getDnnlDesc();
+        auto outDesc = key.dst;
         if (outDesc.dims().size() == 3) {
             auto outDims = outDesc.dims();
             auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
             outDesc = outDesc.reshape(normalizedOutDims);
         }
-
         std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
         if (key.bias) {
             fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
                                                                         inDesc,
-                                                                        key.inp1->getDnnlDesc(),
-                                                                        key.bias->getDnnlDesc(),
+                                                                        key.weight,
+                                                                        key.bias,
                                                                         outDesc);
         } else {
             fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
                                                                         inDesc,
-                                                                        key.inp1->getDnnlDesc(),
+                                                                        key.weight,
                                                                         outDesc);
         }
         DnnlDesriptor desc(fcDsc);
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         inner_product_forward::primitive_desc prim_desc;
-
         while (static_cast<bool>(itpd))  {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
             if (impl_type == key.implType) {
                 prim_desc = itpd.get();
                 break;
@@ -337,8 +340,6 @@ void FullyConnected::prepareParams() {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    auto wghMemPtr = getParentEdgeAt(1)->getMemoryPtr();
-
     executor.reset(prim_pd.first, prim_pd.second);
 
     // changed shapes may also cause the kernel type changed
@@ -348,30 +349,30 @@ void FullyConnected::prepareParams() {
     if (selected_pd->getImplementationType() == ov::intel_cpu::brgemm_avx512_amx && useSparseWeights) {
         selected_pd->setImplementationType(ov::intel_cpu::brgemm_sparse_avx512_amx);
     }
-    // maybe expected 1x1 conv is not created, update the flag depends on the real type
-    useConv1x1 = (impl_type == brgconv_avx512_1x1);
 
+    // both ip & brgconv1x1 (may) requires canonical shape different than defined in FullyConnect Node
+    // but data_type is ensured to be the same as input/output, canonical desc can be directly get
+    // from primitive's query.
     auto canonical_src_desc = executor.getPrimitiveDesc().src_desc(0);
     auto canonical_dst_desc = executor.getPrimitiveDesc().dst_desc(0);
 
-    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive(), false, &canonical_src_desc);
-    if (useConv1x1) {
-        // FC node weight dims (OC,IC), but brgconv_1x1 requires (OC,IC, 1)
-        auto weight_mem = wghMemPtr->GetPrimitive();
+    executor.setArg(DNNL_ARG_SRC, src_mem, false, &canonical_src_desc);
+    if (impl_type == brgconv_avx512_1x1) {
+        // FC node weight dims (OC,IC), but brgconv_1x1 requires (OC,IC,1)
         auto prim_w_desc = executor.getPrimitiveDesc().weights_desc(0);
-        auto node_w_desc = weight_mem.get_desc();
-        auto canonical_desc = node_w_desc.reshape(prim_w_desc.dims());
+        auto canonical_desc = weight_desc.reshape(prim_w_desc.dims());
+
         executor.setArg(DNNL_ARG_WEIGHTS,
                         weight_mem,
                         getParentEdgeAt(1)->getParent()->isConstant(),
                         &canonical_desc);
     } else {
-        executor.setArg(DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive(), getParentEdgeAt(1)->getParent()->isConstant());
+        executor.setArg(DNNL_ARG_WEIGHTS, weight_mem, getParentEdgeAt(1)->getParent()->isConstant());
     }
-    executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive(), false, &canonical_dst_desc);
+    executor.setArg(DNNL_ARG_DST, dst_mem, false, &canonical_dst_desc);
 
-    if (withBiases)
-        executor.setArg(DNNL_ARG_BIAS, biasMemPtr->GetPrimitive());
+    if (bias_mem)
+        executor.setArg(DNNL_ARG_BIAS, bias_mem);
 
     for (auto & entry : postOpsArgs) {
         executor.setArg(entry.first, entry.second->GetPrimitive());
@@ -406,7 +407,7 @@ void FullyConnected::setDynamicBatchLim(int lim) {
         }
     };
 
-    if (useConv1x1) {
+    if (executor.getImplementationType() == brgconv_avx512_1x1) {
         dynBatchLim = lim;
         executor.setDynamicBatch(batchToProcess());
     } else {
@@ -532,6 +533,14 @@ Node::AttrPtr FullyConnected::initPrimitiveAttr() {
     return attr;
 }
 
+dnnl::memory::data_type FullyConnected::getWeightDataType(dnnl::memory::data_type src) {
+    dnnl::memory::data_type wdt = src;
+    if (src == dnnl::memory::data_type::u8 || src == dnnl::memory::data_type::s8) {
+        wdt = memory::data_type::s8;
+    }
+    return wdt;
+}
+
 // WA: creation DnnlMemoryDesc with format == any is prohibited
 // so we create dnnl::memory::desc directly
 // we need specific method and can't remove createDescriptor from base class because its used into initDescriptor
@@ -540,12 +549,11 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     auto in_candidate = inputDesc;
     auto out_candidate = outputDesc;
 
-    dnnl::memory::data_type wdt = in_candidate.data_type();
+    dnnl::memory::data_type wdt = getWeightDataType(in_candidate.data_type());
     dnnl::memory::data_type bdt = out_candidate.data_type();
     if (in_candidate.data_type() == dnnl::memory::data_type::bf16) {
         bdt = dnnl::memory::data_type::f32;
     } else if (in_candidate.data_type() == dnnl::memory::data_type::u8 || in_candidate.data_type() == dnnl::memory::data_type::s8) {
-        wdt = memory::data_type::s8;
         if (withBiases)
             bdt = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(BIAS_ID));
     }
@@ -657,6 +665,12 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 }
 
 std::shared_ptr<MemoryDesc> FullyConnected::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    if (idx == 1) {
+        // prefer original format for weight/bias since we will reorder them in executor at (first) execution
+        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx),
+                                                      Shape(getInputShapeAtPort(idx).getStaticDims()));
+    }
+
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
 
     if (getInputShapeAtPort(idx).getRank() == 3) {
@@ -704,23 +718,13 @@ void FullyConnected::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
     auto selectedPD = getSelectedPrimitiveDescriptor();
     implementationTypeIP = selectedPD->getImplementationType();
-    // if convolution selected the reorder for ip is useless. Will do the reoder for ip in prepareParams
-    auto constParent = getParentEdgeAt(1)->getParent();
-    auto selectedParentPD = constParent->getSelectedPrimitiveDescriptor();
-    auto config = selectedPD->getConfig();
-    weightDescIP = config.inConfs[1].getMemDesc();
-    config.inConfs[1].setMemDesc(selectedParentPD->getConfig().outConfs[0].getMemDesc());
-    selectedPD->setConfig(config);
 }
 
-DnnlDesriptor FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
-                                                              DnnlMemoryDescCPtr weightDescPtr,
-                                                              DnnlMemoryDescCPtr biasDescPtr,
-                                                              DnnlMemoryDescCPtr outputDescPtr) {
-    const dnnl::memory::desc &inputDesc = inputDescPtr->getDnnlDesc();
-    const dnnl::memory::desc &outputDesc = outputDescPtr->getDnnlDesc();
-    const dnnl::memory::desc &weightDesc = weightDescPtr->getDnnlDesc();
 
+DnnlDesriptor FullyConnected::createDescriptorInternalForConv(const dnnl::memory::desc & inputDesc,
+                                                              const dnnl::memory::desc & weightDesc,
+                                                              const dnnl::memory::desc & biasDesc,
+                                                              const dnnl::memory::desc & outputDesc) {
     // make a fake shape: N, IC, W
     auto inDims = inputDesc.dims();
     dnnl::memory::dims normalizedInDims;
@@ -750,9 +754,9 @@ DnnlDesriptor FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr
     auto convWeightDescAny = dnnl::memory::desc(normalizedWeightDims, weightDesc.data_type(), dnnl::memory::format_tag::any);
 
     std::shared_ptr<dnnl::convolution_forward::desc> desc;
-    if (biasDescPtr) {
+    if (biasDesc) {
         desc = std::make_shared<dnnl::convolution_forward::desc>(prop_kind::forward_scoring, dnnl::algorithm::convolution_direct,
-                                convInDesc, convWeightDescAny, biasDescPtr->getDnnlDesc(), convOutDesc,
+                                convInDesc, convWeightDescAny, biasDesc, convOutDesc,
                                 dnnl::memory::dims{1},   // stride
                                 dnnl::memory::dims{0},   // dilation
                                 dnnl::memory::dims{0},   // paddingL

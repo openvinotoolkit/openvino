@@ -22,7 +22,6 @@ public:
     void getSupportedDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    void createPrimitive() override;
     void filterSupportedPrimitiveDescriptors() override;
     void filterSupportedDescriptors();
     bool created() const override;
@@ -96,8 +95,6 @@ private:
     size_t biasPort;
 
     std::string errorPrefix;
-
-    InferenceEngine::Blob::Ptr createWeiBlobAsIO(InferenceEngine::SizeVector dims);
 };
 
 }   // namespace node

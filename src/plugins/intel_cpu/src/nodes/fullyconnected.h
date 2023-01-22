@@ -80,19 +80,19 @@ private:
     dnnl::memory::data_type outputDataType;
 
     DnnlExecutor executor;
-    bool useConv1x1 = false;
     impl_desc_type implementationTypeIP;
-    MemoryDescPtr weightDescIP;
+    dnnl::memory::data_type getWeightDataType(dnnl::memory::data_type src);
+    //MemoryDescPtr weightDescIP;
     // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
     // different shapes. Weights will be cached in privateWeightCache.
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
 
-    static DnnlDesriptor createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
-                                                         DnnlMemoryDescCPtr weightDescPtr,
-                                                         DnnlMemoryDescCPtr biasDescPtr,
-                                                         DnnlMemoryDescCPtr outputDescPtr);
+    static DnnlDesriptor createDescriptorInternalForConv(const dnnl::memory::desc& inputDesc,
+                                                         const dnnl::memory::desc& weightDesc,
+                                                         const dnnl::memory::desc& biasDesc,
+                                                         const dnnl::memory::desc& outputDesc);
 
     bool canBeExecutedInConv1x1() const;
 
