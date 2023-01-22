@@ -310,7 +310,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                         "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                             producer_name + "node specified as custom output does not exist");
                 auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
-                result_node->set_friendly_name(model_output_name);
+                // to be aligned with Legacy Frontend we set a name of the output tensor name
+                // of the producer to the Result node
+                // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                result_node->set_friendly_name(producer_name + ":" + std::to_string(producer_port_idx));
                 results.push_back(result_node);
             }
         }
