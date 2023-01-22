@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,13 +63,11 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
 };
 
 bool concat_noop_optimization::match(concatenation_node& node) {
-    if (node.is_output() && !get_program().is_debug_build())
+    if (node.is_output())
         return false;
     if (node.is_dynamic())
         return false;
-    return node.get_dependencies().size() == 1 &&
-        !node.has_fused_primitives() &&
-        node.get_fused_activations_funcs().empty();
+    return node.get_dependencies().size() == 1 && !node.has_fused_primitives();
 }
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
@@ -82,9 +80,9 @@ bool concat_noop_optimization::optimize(concatenation_node& node) {
 }
 
 bool concat_in_place_optimization::match(concatenation_node& node) {
-    if (node.is_output() && !get_program().is_debug_build())
+    if (node.is_output())
         return false;
-    if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
+    if (node.has_fused_primitives())
         return false;
     if (node.is_dynamic())
         return false;
@@ -191,8 +189,7 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         // if an input is marked as network output, prevent optimizations
         // which would affect a form of its output (unless debug flag is set),
         // we also need to restrict input types to those which support padding on all axis
-        if ((input.first->is_output() && !get_program().is_debug_build()) ||
-            !input.first->is_padding_supported(concat_axis, lower_padd_in_axis))
+        if (input.first->is_output() || !input.first->is_padding_supported(concat_axis, lower_padd_in_axis))
             return false;
 
         // TODO: Investigate if this condition is needed
@@ -301,12 +298,11 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
-    return node.is_in_place() && node.get_fused_activations_funcs().empty();
+    return node.is_in_place() && !node.has_fused_primitives();
 }
 
 // ToDo remove friendship relation from  program_node
 void prepare_buffer_fusing::run(program& p) {
-    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
     We need to take care of proper ordering by types.
     1. Concats
@@ -324,11 +320,11 @@ void prepare_buffer_fusing::run(program& p) {
         // The condition below check only output layout as cases like
         // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
         // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty()) {
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
-        if (node->is_dynamic() || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if (node->is_dynamic() || node->is_output() || node->has_fused_primitives()) {
             return false;
         }
         return true;
@@ -348,10 +344,10 @@ void prepare_buffer_fusing::run(program& p) {
         if (!can_optimize(node))
             continue;
         // zero copy
-        program_helpers::do_for_types<crop>(*node, [&p, is_debug](crop_node& node) {
+        program_helpers::do_for_types<crop>(*node, [&p](crop_node& node) {
             // if the node is marked as network output, prevent optimizations which would affect a form of its output,
             // unless debug flag is set
-            if (node.is_output() && !is_debug)
+            if (node.is_output())
                 return;
 
             // do not optimize when next node is concatenation which is not output
