@@ -378,6 +378,7 @@ void FullyConnected::prepareParams() {
         executor.setArg(entry.first, entry.second->GetPrimitive());
     }
 
+    DEBUG_LOG("executor:", executor);
 #ifdef CPU_DEBUG_CAPS
     if (result.second == CacheEntryBase::LookUpStatus::Miss) {
         DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");

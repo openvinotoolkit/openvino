@@ -17,18 +17,6 @@ struct Canonicalization {
 };
 
 class DnnlExecutor {
-    protected:
-        using PrimArgs = std::unordered_map<int, dnnl::memory>;
-        struct IntermReorder {
-            dnnl::reorder prim;
-            PrimArgs args;
-            IntermReorder() = default;
-            IntermReorder(IntermReorder&& s) : prim(std::move(s.prim)), args(std::move(s.args)) {}
-            IntermReorder(dnnl::reorder prim, PrimArgs args)
-                : prim(std::move(prim)),
-                args(std::move(args)) {}
-        };
-
     public:
         DnnlExecutor(const GraphContext::CPtr context, const std::string& name)
             : context(context),
@@ -66,6 +54,8 @@ class DnnlExecutor {
         void setArgDynamicBatch(int arg_id, int newBatch);
 
     protected:
+        using PrimArgs = std::unordered_map<int, dnnl::memory>;
+
         const GraphContext::CPtr context;
         std::string name;
 
@@ -100,6 +90,16 @@ class DnnlExecutor {
             std::string key;
         };
 
+        struct IntermReorder {
+            dnnl::reorder prim;
+            PrimArgs args;
+            IntermReorder() = default;
+            IntermReorder(IntermReorder&& s) : prim(std::move(s.prim)), args(std::move(s.args)) {}
+            IntermReorder(dnnl::reorder prim, PrimArgs args)
+                : prim(std::move(prim)),
+                args(std::move(args)) {}
+        };
+
         bool constFolded;
         std::vector<ConstFolding> constFoldings;
         std::vector<Canonicalization> canonicalizations;
@@ -117,6 +117,8 @@ class DnnlExecutor {
         // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
         // reference
         std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+
+        friend std::ostream & operator<<(std::ostream & os, const DnnlExecutor& d);
 };
 
 }   // namespace intel_cpu

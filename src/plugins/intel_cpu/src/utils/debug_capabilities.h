@@ -18,6 +18,7 @@
 
 #include "openvino/core/model.hpp"
 #include "cpu_memory.h"
+#include "nodes/common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -98,6 +99,7 @@ std::ostream & operator<<(std::ostream & os, const Edge& edge);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);
+std::ostream & operator<<(std::ostream & os, const DnnlExecutor& d);
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {

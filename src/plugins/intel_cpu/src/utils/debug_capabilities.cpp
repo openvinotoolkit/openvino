@@ -14,6 +14,8 @@
 #include <ie_ngraph_utils.hpp>
 #include "../src/common/verbose.hpp"
 #include "blob_dump.h"
+#include <common/primitive_desc.hpp>
+#include <common/primitive_desc_iface.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -136,6 +138,81 @@ std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
 
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype) {
     os << " " << dnnl_dt2str(static_cast<dnnl_data_type_t>(dtype));
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const DnnlExecutor& cd) {
+    DnnlExecutor& d = const_cast<DnnlExecutor&>(cd);
+    std::unordered_map<dnnl_memory_t, std::string> memInfo;
+    int memid = 0;
+
+    auto collect_mem_id = [&](const dnnl::memory& mem) {
+        dnnl_memory_t key = mem.get();
+        if (memInfo.count(key) == 0) {
+            int id = memid++;
+            std::stringstream ss;
+            ss << "mem" << id << "_" << mem.get_desc();
+            memInfo[key] = ss.str();
+        }
+    };
+
+    for (auto& c : d.canonicalizations)
+        collect_mem_id(c.external_mem);
+    for (auto& c : d.constFoldings)
+        collect_mem_id(c.external_mem);
+
+    for (auto& c : d.canonicalizations)
+        collect_mem_id(c.canonical_mem);
+    for (auto& c : d.constFoldings)
+        collect_mem_id(c.internal_mem);
+
+    for (auto& c : d.inputReorders) {
+        collect_mem_id(c.args[DNNL_ARG_SRC]);
+        collect_mem_id(c.args[DNNL_ARG_DST]);
+    }
+    for (auto& c : d.outputReorders) {
+        collect_mem_id(c.args[DNNL_ARG_SRC]);
+        collect_mem_id(c.args[DNNL_ARG_DST]);
+    }
+    for (auto& c : d.args)
+        collect_mem_id(c.second);
+
+    os << " " << d.name << " " << d.pd.get()->info() << std::endl;
+
+    for (auto& c : d.canonicalizations) {
+        os << "  " << memInfo[c.canonical_mem.get()] << " = Canonicalize(" << memInfo[c.external_mem.get()] << ")"
+           << std::endl;
+    }
+
+    for (auto& c : d.constFoldings) {
+        if (c.canonical_desc) {
+            os << "  " << memInfo[c.internal_mem.get()] << " = ConstFolding( Canonicalize("
+               << memInfo[c.external_mem.get()] << ", " << c.canonical_desc << "))";
+        } else {
+            os << "  " << memInfo[c.internal_mem.get()] << " = ConstFolding(" << memInfo[c.external_mem.get()] << ")";
+        }
+        os << "    key=" << c.key << std::endl;
+    }
+
+    for (auto& r : d.inputReorders) {
+        os << memInfo[r.args[DNNL_ARG_DST].get()] << " = reorder(" << memInfo[r.args[DNNL_ARG_SRC].get()] << ")"
+           << std::endl;
+    }
+
+    auto argInfo = [&](int arg_id) {
+        if (d.args[arg_id])
+            return memInfo[d.args[arg_id].get()];
+        return std::string();
+    };
+
+    os << "  " << argInfo(DNNL_ARG_DST) << argInfo(DNNL_ARG_DIFF_SRC) << " = Primitive(" << argInfo(DNNL_ARG_SRC)
+       << argInfo(DNNL_ARG_DIFF_DST) << "," << argInfo(DNNL_ARG_WEIGHTS) << "," << argInfo(DNNL_ARG_BIAS) << ")"
+       << std::endl;
+
+    for (auto& r : d.outputReorders) {
+        os << memInfo[r.args[DNNL_ARG_DST].get()] << " = reorder(" << memInfo[r.args[DNNL_ARG_SRC].get()] << ")"
+           << std::endl;
+    }
     return os;
 }
 
