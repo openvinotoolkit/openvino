@@ -13,6 +13,16 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
+void num_inputs_check(NodeContext& context, int min_inputs, int max_inputs) {
+    auto inputs = context.inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() < min_inputs, "Got less inputs than expected");
+    if (inputs.size() > max_inputs) {
+        for (int i = max_inputs; i < inputs.size(); i++) {
+            FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(i), "Got more inputs than expected.");
+        }
+    }
+}
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 size_t bias_input_idx,

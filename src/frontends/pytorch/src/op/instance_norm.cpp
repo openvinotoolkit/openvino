@@ -24,6 +24,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_instance_norm(NodeContext& context) {
+    num_inputs_check(context, 8, 9);
     auto input = context.get_input(0);
     auto eps = static_cast<float>(context.const_input<double>(7));
     auto input_shape = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input));
