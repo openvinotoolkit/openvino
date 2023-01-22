@@ -21,7 +21,6 @@
 
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
