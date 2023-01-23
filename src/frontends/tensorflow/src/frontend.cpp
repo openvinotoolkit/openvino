@@ -91,8 +91,10 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                     std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path),
                     m_telemetry);
             } else {
+                auto graph_def = std::make_shared<::tensorflow::GraphDef>();
+                graph_def->ParseFromString(model_path);
                 return std::make_shared<InputModel>(
-                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(model_path, true),
+                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorProto>(graph_def),
                     m_telemetry);
             }
 
