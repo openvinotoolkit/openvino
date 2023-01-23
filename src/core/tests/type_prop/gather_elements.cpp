@@ -284,8 +284,7 @@ TEST(type_prop, gather_elements_shape_inconsistency) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Shape inconsistency check failed";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("data and indices must have equal or intersecting sizes, except for axis"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("are not consistent"));
     } catch (...) {
         FAIL() << "Shape inconsistency check failed for unexpected reason";
     }
@@ -303,8 +302,7 @@ TEST(type_prop, gather_elements_dynamic_inconsistent_shapes) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("data and indices must have equal or intersecting sizes, except for axis"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("are not consistent"));
     } catch (...) {
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
     }
@@ -322,8 +320,7 @@ TEST(type_prop, gather_elements_incosistent_interval_shapes) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("data and indices must have equal or intersecting sizes, except for axis"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("are not consistent"));
     } catch (...) {
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
     }

@@ -35,7 +35,6 @@ TEST_F(GatherElementsStaticShapeInferenceTest, GatherElements_incompatible_rank)
     op = make_op(data, indices, axis);
     input_shapes = {StaticShape{1, 2, 3, 4, 5}, StaticShape{1, 2, 3, 4}};
     output_shapes = {StaticShape{}};
-    shape_inference(op.get(), input_shapes, output_shapes);
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     ov::NodeValidationFailure,
                     HasSubstr("rank must be equal"));
