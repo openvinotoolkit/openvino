@@ -21,6 +21,66 @@
 
 using namespace TemplatePlugin;
 
+namespace {
+
+InferenceEngine::SizeVector get_dims(const ov::Output<ov::Node>& port) {
+    InferenceEngine::SizeVector dims = {};
+    const auto& p_shape = port.get_partial_shape();
+    if (p_shape.is_static())
+        dims = p_shape.get_shape();
+    return dims;
+}
+
+}  // namespace
+
+namespace ov {
+namespace legacy_convert {
+
+void fill_input_info(const ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Ptr& input_info) {
+    if (!input_info) {
+        // Create input info
+        auto param_name = input.get_node()->get_friendly_name();
+        auto dims = get_dims(input);
+        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(input.get_element_type()),
+                                         dims,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
+        auto data = std::make_shared<InferenceEngine::Data>(param_name, desc);
+        input_info = std::make_shared<InferenceEngine::InputInfo>();
+        input_info->setInputData(data);
+    }
+    auto& rt_info = input.get_rt_info();
+    auto it = rt_info.find("ie_legacy_preproc");
+    if (it != rt_info.end()) {
+        input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
+    }
+    it = rt_info.find("ie_legacy_td");
+    if (it != rt_info.end()) {
+        auto td = it->second.as<InferenceEngine::TensorDesc>();
+        input_info->getInputData()->reshape(td.getDims(), td.getLayout());
+        input_info->setPrecision(td.getPrecision());
+    }
+}
+void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataPtr& output_info) {
+    if (!output_info) {
+        // Create input info
+        const auto& res_name = ov::op::util::create_ie_output_name(output);
+        auto dims = get_dims(output);
+        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(output.get_element_type()),
+                                         dims,
+                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
+        output_info = std::make_shared<InferenceEngine::Data>(res_name, desc);
+    }
+    auto& rt_info = output.get_rt_info();
+    auto it = rt_info.find("ie_legacy_td");
+    if (it != rt_info.end()) {
+        auto td = it->second.as<InferenceEngine::TensorDesc>();
+        output_info->reshape(td.getDims(), td.getLayout());
+        output_info->setPrecision(td.getPrecision());
+    }
+}
+}  // namespace legacy_convert
+}  // namespace ov
+
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ov::Model>& model,
                                                      const Configuration& cfg,
@@ -41,6 +101,18 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
         IE_THROW(Unexpected) << "Standard exception from compilation library: " << e.what();
     } catch (...) {
         IE_THROW(Unexpected) << "Generic exception is thrown";
+    }
+    for (const auto& input : m_model->inputs()) {
+        InferenceEngine::InputInfo::Ptr input_info;
+        ov::legacy_convert::fill_input_info(input, input_info);
+        _networkInputs[input_info->name()] = input_info;
+        _parameters.emplace_back(input.get_node_shared_ptr());
+    }
+    for (const auto& output : m_model->outputs()) {
+        InferenceEngine::DataPtr output_info;
+        ov::legacy_convert::fill_output_info(output, output_info);
+        _networkOutputs[output_info->getName()] = output_info;
+        _results.emplace_back(output.get_node_shared_ptr());
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
