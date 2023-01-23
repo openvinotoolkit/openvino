@@ -99,17 +99,18 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
+    OV_PYTHON_VERSION: 3.10.7
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10.7'
+      versionSpec: '$(OV_PYTHON_VERSION)'
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10.7
+    displayName: Setup Python $(OV_PYTHON_VERSION)
     name: setupPython
   - bash: |
       #!/bin/bash

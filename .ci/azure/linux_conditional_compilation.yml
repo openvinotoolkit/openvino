@@ -58,17 +58,18 @@ jobs:
     BUILD_DIR: $(WORK_DIR)/build
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/3.10.7/x64/lib:$LD_LIBRARY_PATH
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
+    OV_PYTHON_VERSION: 3.10.7
 
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: '3.10.7'
+      versionSpec: '$(OV_PYTHON_VERSION)'
       addToPath: true
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python 3.10.7
+    displayName: Setup Python $(OV_PYTHON_VERSION)
     name: setupPython
   - bash: |
       #!/bin/bash
