@@ -40,11 +40,6 @@ const std::string& DecoderFlatBuffer::get_op_name() const {
     return m_name;
 }
 
-std::vector<size_t> DecoderFlatBuffer::get_output_tensor_indices() const {
-    const auto outputs = m_node_def->outputs();
-    return {outputs->begin(), outputs->end()};
-}
-
 size_t DecoderFlatBuffer::get_output_size() const {
     return m_node_def->outputs()->size();
 }

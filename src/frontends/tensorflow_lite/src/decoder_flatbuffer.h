@@ -46,7 +46,6 @@ public:
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
-    std::vector<size_t> get_output_tensor_indices() const;
     std::string get_output_tensor_name(size_t idx) const;
 
     const std::string& get_op_type() const override;
