@@ -448,6 +448,13 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
                                                                "labels",
                                                                "label_groups",
                                                                "ids"));
+        str_vec = {"sa", "fd"};
+        EXPECT_EQ(str_vec,
+                  model->get_rt_info<std::vector<std::string>>("config",
+                                                               "model_parameters",
+                                                               "labels",
+                                                               "label_groups",
+                                                               "10ids"));
         std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
         EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
     };
@@ -474,6 +481,12 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
                            "labels",
                            "label_groups",
                            "ids");
+        model->set_rt_info(std::vector<std::string>{"sa", "fd"},
+                           "config",
+                           "model_parameters",
+                           "labels",
+                           "label_groups",
+                           "10ids");
         model->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
 
         check_rt_info(model);

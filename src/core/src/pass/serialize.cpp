@@ -795,7 +795,8 @@ void auto_pad_resolving(ov::Node* node) {
 }
 
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
-    auto child = root.append_child(name.c_str());
+    std::string meta_name = isdigit(name[0]) ? "_ov_prefix_" + name : name;
+    auto child = root.append_child(meta_name.c_str());
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;
