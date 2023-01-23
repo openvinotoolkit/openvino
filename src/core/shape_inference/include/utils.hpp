@@ -219,7 +219,7 @@ namespace op {
 template <class TShape,
           class TData,
           class TRes = std::vector<TData>,
-          class UnaryOperation,
+          class UnaryOperation = sh_infer::tr::Cast<TData>,
           typename std::enable_if<!std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
@@ -261,7 +261,7 @@ std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
 template <class TShape,
           class TData,
           class TRes = std::vector<TData>,
-          class UnaryOperation,
+          class UnaryOperation = sh_infer::tr::Cast<TData>,
           typename std::enable_if<std::is_same<TShape, ov::PartialShape>::value>::type* = nullptr>
 std::unique_ptr<TRes> get_input_const_data_as(const ov::Node* op,
                                               size_t idx,
