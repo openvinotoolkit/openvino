@@ -22,7 +22,8 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
         std::unordered_map<size_t, std::shared_ptr<op::v0::Constant>> constants;
         int remove_inputs_mask = 0;
 
-        for (size_t body_idx = 0; body_idx < multi_sub_graph_op->get_internal_subgraphs_size(); body_idx++) {
+        for (int body_idx = 0; body_idx < static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
+             body_idx++) {
             const auto& body = multi_sub_graph_op->get_function(body_idx);
             auto& body_params = body->get_parameters();
             auto& descriptions = multi_sub_graph_op->get_input_descriptions(body_idx);
@@ -68,7 +69,8 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
                 if ((remove_inputs_mask & (1 << input_index)) != 0) {
                     inputs.erase(inputs.begin() + input_index);
 
-                    for (size_t body_idx = 0; body_idx < multi_sub_graph_op->get_internal_subgraphs_size();
+                    for (int body_idx = 0;
+                         body_idx < static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
                          body_idx++) {
                         auto& descriptions = multi_sub_graph_op->get_input_descriptions(body_idx);
                         for (auto& desc : descriptions) {
@@ -82,7 +84,8 @@ bool ov::pass::PushConstantToSubgraph::run_on_model(const std::shared_ptr<Model>
             multi_sub_graph_op->set_arguments(inputs);
         }
 
-        for (size_t body_idx = 0; body_idx < multi_sub_graph_op->get_internal_subgraphs_size(); body_idx++) {
+        for (int body_idx = 0; body_idx < static_cast<int>(multi_sub_graph_op->get_internal_subgraphs_size());
+             body_idx++) {
             bool model_changed = run_on_model(multi_sub_graph_op->get_function(body_idx));
             result = result || model_changed;
         }
