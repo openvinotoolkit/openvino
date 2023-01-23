@@ -37,6 +37,7 @@ OP_CONVERTER(translate_broadcast_args_op);
 OP_CONVERTER(translate_broadcast_to_op);
 OP_CONVERTER(translate_bucketize_op);
 OP_CONVERTER(translate_cast_op);
+OP_CONVERTER(translate_clip_by_value_op);
 OP_CONVERTER(translate_concat_op);
 OP_CONVERTER(translate_const_op);
 OP_CONVERTER(translate_conv_2d_op);
@@ -221,6 +222,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Bucketize", translate_bucketize_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
+        {"ClipByValue", translate_clip_by_value_op},
         {"Concat", translate_concat_op},
         {"ConcatV2", translate_concat_op},
         {"Const", translate_const_op},
