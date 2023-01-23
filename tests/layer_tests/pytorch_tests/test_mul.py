@@ -33,9 +33,9 @@ class TestMul(PytorchLayerTest):
     @pytest.mark.parametrize(("types"), [
         (np.float32, np.float32),
         # Type promotion
-        pytest.param((np.int32, np.float32), marks=pytest.mark.xfail),
-        pytest.param((np.float32, np.int32), marks=pytest.mark.xfail),
-        pytest.param((np.int32, np.int32), marks=pytest.mark.xfail)
+        pytest.param((np.int32, np.float32), marks=pytest.mark.xfail(reason="101869")),
+        pytest.param((np.float32, np.int32), marks=pytest.mark.xfail(reason="101869")),
+        pytest.param((np.int32, np.int32), marks=pytest.mark.xfail(reason="101869"))
     ])
     @pytest.mark.nightly
     def test_mul_random(self, input_array, other_array, types, ie_device, precision, ir_version):
