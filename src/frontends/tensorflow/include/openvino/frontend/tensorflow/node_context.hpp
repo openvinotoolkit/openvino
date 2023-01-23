@@ -41,7 +41,7 @@ public:
     }
 
     /// \brief Get a node name
-    std::string get_name() const {
+    const std::string& get_name() const override {
         return m_decoder->get_op_name();
     }
 

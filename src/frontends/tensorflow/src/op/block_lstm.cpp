@@ -4,9 +4,10 @@
 
 #include "helper_ops/block_lstm.hpp"
 
+#include "common_op_table.hpp"
 #include "ngraph/validation_util.hpp"
-#include "op_table.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 
 using namespace std;
 
@@ -14,7 +15,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-OutputVector translate_block_lstm_op(const NodeContext& node) {
+OutputVector translate_block_lstm_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 9, {"BlockLSTM"});
     auto seq_len_max = node.get_input(0);
     auto x = node.get_input(1);
