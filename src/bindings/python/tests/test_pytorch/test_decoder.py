@@ -3,6 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import torch
+import pytest
+
+is_pytorch_fe_disabled = False
+
+try:
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+except Exception:
+    is_pytorch_fe_disabled = True
 
 
 class AtenDiv(torch.nn.Module):
@@ -23,6 +32,7 @@ def get_scripted_model(model):
         return model
 
 
+@pytest.mark.skipif(is_pytorch_fe_disabled, reason="PyTorch Frontend is disabled")
 def test_pytorch_decoder_get_output_type_str():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -37,6 +47,7 @@ def test_pytorch_decoder_get_output_type_str():
     assert isinstance(nc_decoder.get_output_type(0).value, DecoderType.Str)
 
 
+@pytest.mark.skipif(is_pytorch_fe_disabled, reason="PyTorch Frontend is disabled")
 def test_pytorch_decoder_get_output_type_none():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -51,6 +62,7 @@ def test_pytorch_decoder_get_output_type_none():
     assert isinstance(nc_decoder.get_output_type(0).value, DecoderType.PyNone)
 
 
+@pytest.mark.skipif(is_pytorch_fe_disabled, reason="PyTorch Frontend is disabled")
 def test_pytorch_decoder_get_input_type_str():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
@@ -64,6 +76,7 @@ def test_pytorch_decoder_get_input_type_str():
     assert isinstance(nc_decoder.get_input_type(2).value, DecoderType.Str)
 
 
+@pytest.mark.skipif(is_pytorch_fe_disabled, reason="PyTorch Frontend is disabled")
 def test_pytorch_decoder_get_input_type_none():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
