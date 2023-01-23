@@ -79,10 +79,9 @@ INSTALL_REQUIRES = [
 ALGO_EXTRAS = []
 
 DEV_EXTRAS = [
-    "pytest>=5.0,<=7.0.1;python_version<'3.10'",
-    "pytest==7.2.0;python_version>='3.10'",
+    "pytest~=7.2.0",
     "py>=1.9.0",
-    "pytest-mock==3.1.1"
+    "pytest-mock==3.10.0"
 ]
 
 DEPENDENCY_LINKS = []
