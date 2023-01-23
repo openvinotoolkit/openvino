@@ -197,25 +197,9 @@ private:
                                                                          const ov::RemoteContext& context,
                                                                          const ov::AnyMap& config) const;
 
-    std::map<std::string, std::string> create_compile_config(const ov::Plugin& plugin,
-                                                             const std::string& deviceFamily,
-                                                             const ov::AnyMap& origConfig) const;
-
-    std::string calculate_file_hash(const std::string& modelName,
-                                    const std::string& deviceFamily,
-                                    const ov::Plugin& plugin,
-                                    const ov::AnyMap& config) const;
-
-    std::string calculate_memory_hash(const std::string& modelStr,
-                                      const ov::Tensor& weights,
-                                      const std::string& deviceFamily,
-                                      const ov::Plugin& plugin,
-                                      const ov::AnyMap& config) const;
-
-    std::string calculate_model_hash(const std::shared_ptr<const ov::Model>& model,
+    ov::AnyMap create_compile_config(const ov::Plugin& plugin,
                                      const std::string& deviceFamily,
-                                     const ov::Plugin& plugin,
-                                     const ov::AnyMap& config) const;
+                                     const ov::AnyMap& origConfig) const;
 
     // Legacy API
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
@@ -235,11 +219,6 @@ private:
         const InferenceEngine::RemoteContext::Ptr& context,
         const CacheContent& cacheContent,
         bool forceDisableCache = false);
-
-    std::string CalculateNetworkHash(const InferenceEngine::CNNNetwork& network,
-                                     const std::string& deviceFamily,
-                                     const ov::Plugin& plugin,
-                                     const ov::AnyMap& config) const;
 
 public:
     CoreImpl(bool _newAPI);

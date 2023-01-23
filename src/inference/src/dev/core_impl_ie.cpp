@@ -96,7 +96,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, ov::any_copy(parsed._config));
+        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
+            network,
+            create_compile_config(plugin, parsed._deviceName, ov::any_copy(parsed._config)));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, conf, {context, {}}, loadedFromCache);
@@ -138,7 +140,9 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, ov::any_copy(parsed._config));
+        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
+            network,
+            create_compile_config(plugin, parsed._deviceName, ov::any_copy(parsed._config)));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
@@ -170,7 +174,9 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     auto cacheContent = CacheContent{cacheManager, modelPath};
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = calculate_file_hash(modelPath, parsed._deviceName, plugin, conf);
+        cacheContent.blobId =
+            ov::NetworkCompilationContext::compute_hash(modelPath,
+                                                        create_compile_config(plugin, parsed._deviceName, conf));
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
         if (!loadedFromCache) {

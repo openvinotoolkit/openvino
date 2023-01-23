@@ -10,6 +10,8 @@
 #include <ostream>
 #include <string>
 
+#include "openvino/core/any.hpp"
+
 namespace InferenceEngine {
 
 class CNNNetwork;
@@ -24,17 +26,14 @@ class Model;
 struct NetworkCompilationContext final {
     static std::string calculate_file_info(const std::string& filePath);
 
-    static std::string compute_hash(const InferenceEngine::CNNNetwork& network,
-                                    const std::map<std::string, std::string>& compileOptions);
+    static std::string compute_hash(const InferenceEngine::CNNNetwork& network, const ov::AnyMap& compileOptions);
 
-    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
-                                    const std::map<std::string, std::string>& compileOptions);
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);
 
-    static std::string compute_hash(const std::string& modelName,
-                                    const std::map<std::string, std::string>& compileOptions);
+    static std::string compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions);
     static std::string compute_hash(const std::string& modeStr,
                                     const ov::Tensor& data,
-                                    const std::map<std::string, std::string>& compileOptions);
+                                    const ov::AnyMap& compileOptions);
 };
 
 class CompiledBlobHeader final {

@@ -66,7 +66,7 @@ std::string NetworkCompilationContext::calculate_file_info(const std::string& fi
 }
 
 std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const ov::Model>& model,
-                                                    const std::map<std::string, std::string>& compileOptions) {
+                                                    const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model");
 
     OPENVINO_ASSERT(model);
@@ -80,7 +80,7 @@ std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const 
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
 
     // 3. Add runtime information which may not be serialized
@@ -137,7 +137,7 @@ std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const 
 }
 
 std::string NetworkCompilationContext::compute_hash(const InferenceEngine::CNNNetwork& network,
-                                                    const std::map<std::string, std::string>& compileOptions) {
+                                                    const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - CNN");
 
     OPENVINO_ASSERT(network.getFunction());
@@ -179,8 +179,7 @@ std::string NetworkCompilationContext::compute_hash(const InferenceEngine::CNNNe
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::compute_hash(const std::string& modelName,
-                                                    const std::map<std::string, std::string>& compileOptions) {
+std::string NetworkCompilationContext::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
@@ -190,14 +189,14 @@ std::string NetworkCompilationContext::compute_hash(const std::string& modelName
         seed = hash_combine(seed, modelName);
     }
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }
 
 std::string NetworkCompilationContext::compute_hash(const std::string& modelStr,
                                                     const ov::Tensor& tensor,
-                                                    const std::map<std::string, std::string>& compileOptions) {
+                                                    const ov::AnyMap& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model Memory");
     uint64_t seed = 0;
     // model string
@@ -218,7 +217,7 @@ std::string NetworkCompilationContext::compute_hash(const std::string& modelStr,
 
     // compile options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }

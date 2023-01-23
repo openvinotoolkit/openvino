@@ -315,7 +315,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = calculate_model_hash(model, parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
+            model,
+            create_compile_config(plugin, parsed._deviceName, parsed._config));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
@@ -355,7 +357,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = calculate_model_hash(model, parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
+            model,
+            create_compile_config(plugin, parsed._deviceName, parsed._config));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
@@ -402,7 +406,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     auto cacheContent = CacheContent{cacheManager, model_path};
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = calculate_file_hash(model_path, parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
+            model_path,
+            create_compile_config(plugin, parsed._deviceName, parsed._config));
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
@@ -434,7 +440,10 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     auto cacheContent = CacheContent{cacheManager};
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
-        cacheContent.blobId = calculate_memory_hash(model_str, weights, parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
+            model_str,
+            weights,
+            create_compile_config(plugin, parsed._deviceName, parsed._config));
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
@@ -966,11 +975,11 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_
     return execNetwork;
 }
 
-std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov::Plugin& plugin,
-                                                                       const std::string& deviceFamily,
-                                                                       const ov::AnyMap& origConfig) const {
-    std::map<std::string, Any> getMetricConfig;
-    std::map<std::string, std::string> compileConfig;
+ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin,
+                                               const std::string& deviceFamily,
+                                               const ov::AnyMap& origConfig) const {
+    ov::AnyMap getMetricConfig;
+    ov::AnyMap compileConfig;
 
     // 0. Move TARGET_FALLBACK key to getMetricConfig
     auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
@@ -1001,44 +1010,10 @@ std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov:
         for (const auto& prop : cachingProps) {
             // origConfig values have higher priority than plugin parameters
             auto it = origConfig.find(prop);
-            compileConfig[prop] =
-                it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second.as<std::string>();
+            compileConfig[prop] = it == origConfig.end() ? plugin.get_property(prop, {}) : it->second;
         }
     }
     return compileConfig;
-}
-
-std::string ov::CoreImpl::CalculateNetworkHash(const InferenceEngine::CNNNetwork& network,
-                                               const std::string& deviceFamily,
-                                               const ov::Plugin& plugin,
-                                               const ov::AnyMap& config) const {
-    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return ov::NetworkCompilationContext::compute_hash(network, compileConfig);
-}
-
-std::string ov::CoreImpl::calculate_model_hash(const std::shared_ptr<const ov::Model>& model,
-                                               const std::string& deviceFamily,
-                                               const ov::Plugin& plugin,
-                                               const ov::AnyMap& config) const {
-    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return ov::NetworkCompilationContext::compute_hash(model, compileConfig);
-}
-
-std::string ov::CoreImpl::calculate_file_hash(const std::string& modelName,
-                                              const std::string& deviceFamily,
-                                              const ov::Plugin& plugin,
-                                              const ov::AnyMap& config) const {
-    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return ov::NetworkCompilationContext::compute_hash(modelName, compileConfig);
-}
-
-std::string ov::CoreImpl::calculate_memory_hash(const std::string& modelStr,
-                                                const ov::Tensor& weights,
-                                                const std::string& deviceFamily,
-                                                const ov::Plugin& plugin,
-                                                const ov::AnyMap& config) const {
-    auto compileConfig = create_compile_config(plugin, deviceFamily, config);
-    return ov::NetworkCompilationContext::compute_hash(modelStr, weights, compileConfig);
 }
 
 void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {
