@@ -372,68 +372,6 @@ bool op::v1::TopK::has_evaluate() const {
     return true;
 }
 
-bool op::v1::TopK::evaluate_lower(const HostTensorVector& output_values) const {
-    OV_OP_SCOPE(v1_TopK_evaluate_lower);
-    // if there is no bounds overlap on input 0 then default evaluator give correct results.
-    return get_input_tensor(1).has_and_set_bound() && no_bounds_overlap(input_value(0)) &&
-           default_lower_bound_evaluator(this, output_values);
-}
-
-bool op::v1::TopK::evaluate_upper(const HostTensorVector& output_values) const {
-    OV_OP_SCOPE(v1_TopK_evaluate_upper);
-    // if there is no bounds overlap on input 0 then default evaluator give correct results.
-    return get_input_tensor(1).has_and_set_bound() && no_bounds_overlap(input_value(0)) &&
-           default_upper_bound_evaluator(this, output_values);
-}
-
-bool op::v1::TopK::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_ASSERT(output_labels.size() == get_output_size());
-
-    auto uppers = ov::TensorVector(get_output_size());
-    const auto& input_labels = get_input_tensor(0).get_value_label();
-    const auto set_labels = !has_no_labels(input_labels) && evaluate_upper(uppers);
-
-    if (set_labels) {
-        auto idxs = get_tensor_data_as<int64_t>(uppers.back(), ov::sh_infer::tr::Cast<int64_t>());
-        // set labels by top k indexes for lower and upper bound
-        for (const auto& i : idxs) {
-            output_labels.front().emplace_back(input_labels[i]);
-        }
-        output_labels.back() = output_labels.front();
-    }
-
-    return set_labels;
-}
-
-bool op::v1::TopK::no_bounds_overlap(const Output<Node>& output) const {
-    const auto bounds = evaluate_both_bounds(input_value(0));
-
-    if (bounds.first && bounds.second) {
-        const auto axis = ov::normalize_axis(this, m_axis, bounds.second->get_shape().size());
-        const auto k = get_k();
-        const auto is_max_mode = get_mode() == TopKMode::MAX;
-
-        switch (output.get_element_type()) {
-        case element::i32:
-            return topk::no_bounds_overlap<element::i32>(bounds, axis, k, is_max_mode);
-        case element::i64:
-            return topk::no_bounds_overlap<element::i64>(bounds, axis, k, is_max_mode);
-        case element::u32:
-            return topk::no_bounds_overlap<element::u32>(bounds, axis, k, is_max_mode);
-        case element::u64:
-            return topk::no_bounds_overlap<element::u64>(bounds, axis, k, is_max_mode);
-        case element::f16:
-            return topk::no_bounds_overlap<element::f16>(bounds, axis, k, is_max_mode);
-        case element::f32:
-            return topk::no_bounds_overlap<element::f32>(bounds, axis, k, is_max_mode);
-        default:
-            return false;
-        }
-    } else {
-        return false;
-    }
-}
-
 // v3 version starts
 op::v3::TopK::TopK(const Output<Node>& data,
                    const Output<Node>& k,

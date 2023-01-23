@@ -94,11 +94,8 @@ public:
     }
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 protected:
     int64_t m_axis;
@@ -116,7 +113,6 @@ protected:
                                const PartialShape input_partial_shape,
                                const int64_t k) const;
     virtual void k_type_check(const element::Type& k_element_type) const;
-    bool no_bounds_overlap(const Output<Node>& output) const;
 };
 }  // namespace v1
 
