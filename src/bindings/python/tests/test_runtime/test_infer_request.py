@@ -864,6 +864,9 @@ def test_invalid_inputs(device):
 
 def test_infer_dynamic_model(device):
     core = Core()
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
+
     param = ops.parameter(PartialShape([-1, -1]))
     model = Model(ops.relu(param), [param])
     compiled_model = core.compile_model(model, device)
