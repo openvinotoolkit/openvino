@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import torch
 
 
-class aten_div(torch.nn.Module):
+class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
     def __init__(self, rounding_mode):
-        super(aten_div, self).__init__()
+        super(AtenDiv, self).__init__()
         self.rounding_mode = rounding_mode
 
     def forward(self, input_tensor, other_tensor):
@@ -23,7 +27,7 @@ def test_pytorch_decoder_get_output_type_str():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
-    model = get_scripted_model(aten_div("trunc"))
+    model = get_scripted_model(AtenDiv("trunc"))
     consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     # div model has exactly 1 constant
     assert len(consts) > 0
@@ -37,7 +41,7 @@ def test_pytorch_decoder_get_output_type_none():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
-    model = get_scripted_model(aten_div(None))
+    model = get_scripted_model(AtenDiv(None))
     consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
     # div model has exactly 1 constant
     assert len(consts) > 0
@@ -51,7 +55,7 @@ def test_pytorch_decoder_get_input_type_str():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
-    model = get_scripted_model(aten_div("trunc"))
+    model = get_scripted_model(AtenDiv("trunc"))
     divs = [n for n in model.inlined_graph.nodes() if n.kind() == "aten::div"]
     assert len(divs) > 0
     div_node = divs[0]
@@ -64,7 +68,7 @@ def test_pytorch_decoder_get_input_type_none():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
-    model = get_scripted_model(aten_div(None))
+    model = get_scripted_model(AtenDiv(None))
     divs = [n for n in model.inlined_graph.nodes() if n.kind() == "aten::div"]
     assert len(divs) > 0
     div_node = divs[0]
