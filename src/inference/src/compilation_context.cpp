@@ -45,6 +45,32 @@ static int32_t as_int32_t(T v) {
 
 namespace {
 
+uint64_t calculate_td(const InferenceEngine::TensorDesc& td, uint64_t _seed) {
+    uint64_t seed = _seed;
+
+    seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
+    seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
+    return seed;
+}
+
+uint64_t calculate_preproc_legacy(const InferenceEngine::PreProcessInfo& preproc, uint64_t _seed) {
+    uint64_t seed = _seed;
+
+    seed = ov::hash_combine(seed, ov::as_int32_t(preproc.getMeanVariant()));
+
+    if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
+        seed = ov::hash_combine(seed, preproc.getNumberOfChannels());
+        for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
+            const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
+            seed = ov::hash_combine(seed, channelInfo->stdScale);
+            seed = ov::hash_combine(seed, channelInfo->meanValue);
+        }
+    } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
+        // TODO: think if we need to compute hash for mean image if it exists
+    }
+    return seed;
+}
+
 uint64_t compute_model_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions) {
     OPENVINO_ASSERT(model);
 
@@ -77,36 +103,19 @@ uint64_t compute_model_hash(const std::shared_ptr<const ov::Model>& model, const
 
         auto it = rt_info.find("ie_legacy_td");
         if (it != rt_info.end()) {
-            auto td = it->second.as<InferenceEngine::TensorDesc>();
-            seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
-            seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
+            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
         }
 
         it = rt_info.find("ie_legacy_preproc");
         if (it != rt_info.end()) {
-            auto preproc = it->second.as<InferenceEngine::PreProcessInfo>();
-
-            seed = ov::hash_combine(seed, ov::as_int32_t(preproc.getMeanVariant()));
-
-            if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
-                seed = ov::hash_combine(seed, preproc.getNumberOfChannels());
-                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                    const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
-                    seed = ov::hash_combine(seed, channelInfo->stdScale);
-                    seed = ov::hash_combine(seed, channelInfo->meanValue);
-                }
-            } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
-                // TODO: think if we need to compute hash for mean image if it exists
-            }
+            seed = calculate_preproc_legacy(it->second.as<InferenceEngine::PreProcessInfo>(), seed);
         }
     }
     for (auto&& output : model->outputs()) {
         auto& rt_info = output.get_rt_info();
         auto it = rt_info.find("ie_legacy_td");
         if (it != rt_info.end()) {
-            auto td = it->second.as<InferenceEngine::TensorDesc>();
-            seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
-            seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
+            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
         }
     }
 
@@ -161,29 +170,16 @@ std::string NetworkCompilationContext::compute_hash(const InferenceEngine::CNNNe
     // 4. Add inputs info
     for (const auto& input : network.getInputsInfo()) {
         InferenceEngine::InputInfo::Ptr info = input.second;
-        seed = hash_combine(seed, as_int32_t(info->getPrecision()));
-        seed = hash_combine(seed, as_int32_t(info->getLayout()));
+        seed = calculate_td(info->getTensorDesc(), seed);
 
         const InferenceEngine::PreProcessInfo& preproc = info->getPreProcess();
-        seed = hash_combine(seed, as_int32_t(preproc.getMeanVariant()));
-
-        if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
-            seed = hash_combine(seed, preproc.getNumberOfChannels());
-            for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
-                seed = hash_combine(seed, channelInfo->stdScale);
-                seed = hash_combine(seed, channelInfo->meanValue);
-            }
-        } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
-            // TODO: think if we need to compute hash for mean image if it exists
-        }
+        seed = calculate_preproc_legacy(preproc, seed);
     }
 
     // 5. Add outputs info
     for (const auto& output : network.getOutputsInfo()) {
         InferenceEngine::DataPtr info = output.second;
-        seed = hash_combine(seed, as_int32_t(info->getPrecision()));
-        seed = hash_combine(seed, as_int32_t(info->getLayout()));
+        seed = calculate_td(info->getTensorDesc(), seed);
     }
 
     return std::to_string(seed);
