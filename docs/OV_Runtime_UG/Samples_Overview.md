@@ -110,9 +110,9 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/openvino_c_samples_build/<hardware_name>/Release`
-* C++ samples: `~/openvino_cpp_samples_build/<hardware_name>/Release`
-where the `hardware_name` is the output of `uname -m`, for example, `intel64`, `armhf`, or `aarch64`.
+* C samples: `~/openvino_c_samples_build/<architecture>/Release`
+* C++ samples: `~/openvino_cpp_samples_build/<architecture>/Release`
+where the <architecture> is the output of `uname -m`, for example, `intel64`, `armhf`, or `aarch64`.
 
 You can also build the sample applications manually:
 
