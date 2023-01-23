@@ -74,8 +74,9 @@ OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_
     const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    get_activation(output, node, EnumNameActivationFunctionType(
-            decoder->get_attribute(&TF_TYPE::fused_activation_function)));
+    get_activation(output,
+                   node,
+                   EnumNameActivationFunctionType(decoder->get_attribute(&TF_TYPE::fused_activation_function)));
     return output;
 }
 
