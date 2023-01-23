@@ -109,7 +109,18 @@ elseif(LINUX)
         set(PLATFORM_TAG "linux_${_arch}")
     else()
         string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
-        set(PLATFORM_TAG "manylinux_${_ov_glibc_version}_${_arch}")
+        set(manylinux "manylinux_${_ov_glibc_version}")
+
+        # convert to well-known formats according to PEP 600
+        if(manylinux STREQUAL "manylinux_2_5")
+            set(manylinux "manylinux1")
+        elseif(manylinux STREQUAL "manylinux_2_12")
+            set(manylinux "manylinux2010")
+        elseif(manylinux STREQUAL "manylinux_2_17")
+            set(manylinux "manylinux2014")
+        endif()
+
+        set(PLATFORM_TAG "${manylinux}_${_arch}")
     endif()
 endif()
 
