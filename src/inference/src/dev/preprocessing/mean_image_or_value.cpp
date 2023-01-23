@@ -46,4 +46,3 @@ ov::pass::AddMeanSubtract::AddMeanSubtract(const MeanMap& inputInfoMap) {
     // Register Matcher
     register_matcher(m, callback);
 }
-

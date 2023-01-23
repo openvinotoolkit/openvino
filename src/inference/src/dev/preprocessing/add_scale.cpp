@@ -46,4 +46,3 @@ ov::pass::AddScale::AddScale(const ScaleMap& inputInfoMap) {
     // Register Matcher
     register_matcher(m, callback);
 }
-
