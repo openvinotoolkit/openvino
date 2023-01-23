@@ -14,6 +14,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+#include "transformations/common_optimizations/transpose_sinking_pad.hpp"
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
 #include "transformations/utils/utils.hpp"
@@ -24,6 +25,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     add_matcher<ov::pass::TransposeSinkingBinaryForward>();
     add_matcher<ov::pass::TransposeSinkingConcatForward>();
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
+    add_matcher<ov::pass::TransposeSinkingPadForward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
@@ -33,6 +35,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ov::pass::TransposeSinkingBinaryBackward>();
     add_matcher<ov::pass::TransposeSinkingConcatBackward>();
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
+    add_matcher<ov::pass::TransposeSinkingPadBackward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
