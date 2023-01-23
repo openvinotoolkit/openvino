@@ -44,7 +44,7 @@ if(ENABLE_INTEL_GPU)
         endif()
     else()
         # try to find system OpenCL:
-        # - 'sudo -E apt-get install opencl-c-headers opencl-clhpp-headers ocl-icd-opencl-dev'
+        # - 'sudo -E apt-get install opencl-headers ocl-icd-opencl-dev'
         # - 'sudo -E yum install ocl-icd-devel opencl-headers'
         # - 'conda install khronos-opencl-icd-loader -c conda-forge'
         find_package(OpenCL QUIET)
@@ -58,10 +58,13 @@ if(ENABLE_INTEL_GPU)
             set_target_properties(OpenCL::OpenCL PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
         endif()
 
-        set(opencl_clhpp_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include")
-        if(EXISTS "${opencl_clhpp_dir}")
-            set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${opencl_clhpp_dir}")
-        endif()
+        # override standard directories, since they contain obsolete header files
+        foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers"
+                           "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include")
+            if(EXISTS "${opencl_dir}")
+                set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${opencl_dir}")
+            endif()
+        endforeach()
 
         # set variables for onednn_gpu
         set(OPENCL_VERSION_2_2 ON PARENT_SCOPE)

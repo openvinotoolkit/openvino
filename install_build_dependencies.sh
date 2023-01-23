@@ -50,8 +50,7 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         libpugixml-dev \
         `# OpenCL for GPU` \
         ocl-icd-opencl-dev \
-        opencl-c-headers \
-        opencl-clhpp-headers \
+        opencl-headers \
         `# GPU plugin extensions` \
         libva-dev \
         `# python API` \
