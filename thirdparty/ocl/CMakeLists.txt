@@ -53,14 +53,6 @@ endif()
 add_subdirectory(icd_loader EXCLUDE_FROM_ALL)
 add_library(OpenCL::OpenCL ALIAS OpenCL)
 
-# override INTERFACE_INCLUDE_DIRECTORIES with BUILD_INTERFACE
-set_property(TARGET OpenCL PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-    $<BUILD_INTERFACE:${OPENCL_ICD_LOADER_HEADERS_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/clhpp_headers/include>)
-
-# use newer OpenCL.hpp instead of cl2.hpp
-target_compile_definitions(OpenCL INTERFACE OV_GPU_USE_OPENCL_HPP)
-
 # The following variables are needed to make find_package(OpenCL) work
 
 get_lib_path("${OUTPUT_ROOT}/${BIN_FOLDER}" OPENCL_LIB_DIR)

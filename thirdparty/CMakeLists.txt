@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Android toolchain does not provide pkg-config file. So, cmake mistakenly uses
+# build system pkg-config executable, which finds packages on build system. Such
+# libraries cannot be linked into Android binaries.
 if(NOT ANDROID)
     find_package(PkgConfig QUIET)
 endif()
@@ -32,43 +35,35 @@ ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
 #
 
 if(ENABLE_INTEL_GPU)
-    # try to find system OpenCL (installed via 'brew install opencl-icd-loader')
-    find_package(OpenCLICDLoader QUIET)
+    if(ENABLE_SYSTEM_OPENCL)
+        # try to find system OpenCL (installed via 'brew install opencl-icd-loader')
+        find_package(OpenCLICDLoader QUIET)
 
-    if(OpenCLICDLoader_FOUND)
-        find_package(OpenCLHeaders QUIET)
-        if(NOT OpenCLHeaders_FOUND)
-            message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+        if(OpenCLICDLoader_FOUND)
+            # 'brew install opencl-headers'
+            find_package(OpenCLHeaders QUIET)
+            if(NOT OpenCLHeaders_FOUND)
+                message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+            else()
+                set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+            endif()
         else()
-            set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+            # try to find system OpenCL:
+            # - 'sudo -E apt-get install opencl-headers ocl-icd-opencl-dev'
+            # - 'sudo -E yum install ocl-icd-devel opencl-headers'
+            # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+            find_package(OpenCL QUIET)
         endif()
-    else()
-        # try to find system OpenCL:
-        # - 'sudo -E apt-get install opencl-headers ocl-icd-opencl-dev'
-        # - 'sudo -E yum install ocl-icd-devel opencl-headers'
-        # - 'conda install khronos-opencl-icd-loader -c conda-forge'
-        find_package(OpenCL QUIET)
     endif()
 
     if(TARGET OpenCL::OpenCL)
         set_target_properties(OpenCL::OpenCL PROPERTIES
             INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP
             IMPORTED_GLOBAL ON)
-        if(SUGGEST_OVERRIDE_SUPPORTED)
-            set_target_properties(OpenCL::OpenCL PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
-        endif()
-
-        # override standard directories, since they contain obsolete header files
-        foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers"
-                           "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include")
-            if(EXISTS "${opencl_dir}")
-                set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${opencl_dir}")
-            endif()
-        endforeach()
 
         # set variables for onednn_gpu
         set(OPENCL_VERSION_2_2 ON PARENT_SCOPE)
-        if(TARGET OpenCL::Headers)
+        if(OpenCLHeaders_FOUND)
             set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
             set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
         else()
@@ -78,6 +73,27 @@ if(ENABLE_INTEL_GPU)
     else()
         add_subdirectory(ocl)
     endif()
+
+    # cmake cannot set properties for imported targets
+    get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
+    if(NOT TARGET ${opencl_target})
+        set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
+    endif()
+
+    # override INTERFACE_INCLUDE_DIRECTORIES with BUILD_INTERFACE
+    foreach(opencl_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include" "${CMAKE_CURRENT_SOURCE_DIR}/ocl/cl_headers")
+        if(EXISTS "${opencl_dir}")
+            set_property(TARGET ${opencl_target} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                $<BUILD_INTERFACE:${opencl_dir}>)
+        endif()
+    endforeach()
+
+    # use newer OpenCL.hpp instead of cl2.hpp
+    target_compile_definitions(${opencl_target} INTERFACE OV_GPU_USE_OPENCL_HPP)
 endif()
 
 #
