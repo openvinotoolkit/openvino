@@ -108,11 +108,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
         _networkInputs[input_info->name()] = input_info;
         _parameters.emplace_back(input.get_node_shared_ptr());
     }
-    for (const auto& output : m_model->outputs()) {
+    for (const auto& result : m_model->get_results()) {
+        const auto output = result->input_value(0);
         InferenceEngine::DataPtr output_info;
         ov::legacy_convert::fill_output_info(output, output_info);
         _networkOutputs[output_info->getName()] = output_info;
-        _results.emplace_back(output.get_node_shared_ptr());
+        _results.emplace_back(result);
     }
 }
 // ! [executable_network:ctor_cnnnetwork]

@@ -25,9 +25,11 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "preprocessing/preprocessing.hpp"
 #include "xml_parse_utils.h"
 
 ov::ICore::~ICore() = default;
@@ -380,17 +382,32 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     const std::shared_ptr<const ov::Model>& model,
     const ov::RemoteContext& context,
     const ov::AnyMap& config) const {
-    std::shared_ptr<ov::Model> cloned_model = model->clone();
+    std::shared_ptr<const ov::Model> prepared_model = model;
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
-        OPENVINO_NOT_IMPLEMENTED;
+        InferenceEngine::InputsDataMap inputs;
+        for (const auto& input : model->inputs()) {
+            InferenceEngine::InputInfo::Ptr input_info;
+            // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
+            // ExecutableNetwork
+            ov::legacy_convert::fill_input_info(input, input_info);
+            OPENVINO_ASSERT(input_info);
+            inputs[input_info->name()] = input_info;
+        }
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::AddPreprocessing>(inputs);
+
+        auto cloned_model = model->clone();
+        manager.run_passes(cloned_model);
+        prepared_model = cloned_model;
     }
 
     if (!context._impl) {
-        compiled_model = plugin.compile_model(cloned_model, config);
+        compiled_model = plugin.compile_model(prepared_model, config);
     } else {
-        compiled_model = plugin.compile_model(cloned_model, context, config);
+        compiled_model = plugin.compile_model(prepared_model, context, config);
     }
     return compiled_model;
 }
@@ -911,8 +928,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
-    execNetwork =
-        context._impl ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
+    execNetwork = compile_model(plugin, model, context, parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
         try {
             // need to export network for further import from "cache"
