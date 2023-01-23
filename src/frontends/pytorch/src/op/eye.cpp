@@ -37,7 +37,7 @@ OutputVector translate_eye(NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported number of inputs: ", num_inputs, " for aten::eye");
     }
     if (!context.input_is_none(dtype_id)) {
-        dtype = convert_dtype(dtype_id);
+        dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
     }
     auto eye = context.mark_node(std::make_shared<ov::op::v9::Eye>(x, y, diagonal, element::i64));
     return {context.mark_node(std::make_shared<ov::op::v0::Convert>(eye, dtype))};
