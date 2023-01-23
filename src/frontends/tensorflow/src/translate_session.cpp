@@ -269,7 +269,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : ng_op_map[operation_name]) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    result_node->set_friendly_name(model_output_name);
+                    // to be aligned with Legacy Frontend we set a name along with output port index
+                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                    result_node->set_friendly_name(model_output_name + ":0");
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
