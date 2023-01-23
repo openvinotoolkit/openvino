@@ -224,7 +224,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/<architecture>/Release/`;
-for the debug configuration — in `<path_to_build_directory>/<hardware_name>/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/<architecture>/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 
