@@ -104,43 +104,6 @@ bool evaluate_topk(const HostTensorPtr& arg,
     }
     return rc;
 }
-
-template <element::Type_t INPUT_ET>
-bool no_bounds_overlap(const pair<HostTensorPtr, HostTensorPtr>& bounds,
-                       const size_t axis,
-                       const size_t k,
-                       const bool is_max_mode) {
-    using T = typename element_type_traits<INPUT_ET>::value_type;
-
-    const auto k_max = shape_size(bounds.second->get_shape());
-    auto lowers = bounds.first->get_data_ptr<T>();
-    auto uppers = std::vector<T>(k_max);
-    auto indices = std::vector<int64_t>(k_max);
-
-    ngraph::runtime::reference::topk<T, int64_t>(bounds.second->get_data_ptr<T>(),
-                                                 indices.data(),
-                                                 uppers.data(),
-                                                 bounds.second->get_shape(),
-                                                 Shape({k_max}),
-                                                 axis,
-                                                 k_max,
-                                                 is_max_mode,
-                                                 ov::op::TopKSortType::SORT_VALUES);
-    auto prev_bound = is_max_mode ? std::numeric_limits<T>::max() : std::numeric_limits<T>::lowest();
-    size_t iteration = 0;
-
-    return std::find_if_not(uppers.cbegin(), uppers.cend(), [&](const T ub) {
-               const auto idx = indices[iteration];
-               auto no_overlap = (is_max_mode && ov::cmp::lt(ub, prev_bound)) ||
-                                 (!is_max_mode && ov::cmp::lt(prev_bound, lowers[idx]));
-
-               if (iteration < k) {
-                   prev_bound = is_max_mode ? lowers[idx] : ub;
-               }
-               ++iteration;
-               return no_overlap;
-           }) == uppers.cend();
-}
 }  // namespace
 }  // namespace topk
 
