@@ -55,6 +55,25 @@ target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
+# Compile with USE_STATIC_IE
+
+add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+            ${LIBRARY_SRC}
+            ${PUBLIC_HEADERS})
+
+target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
+target_include_directories(${TARGET_NAME}_s
+    PUBLIC
+        $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+    PRIVATE
+        $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
+        $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
+
+set_target_properties(${TARGET_NAME}_s PROPERTIES
+    EXCLUDE_FROM_ALL ON
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj

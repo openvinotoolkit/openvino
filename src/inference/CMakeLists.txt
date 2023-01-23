@@ -181,7 +181,6 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)

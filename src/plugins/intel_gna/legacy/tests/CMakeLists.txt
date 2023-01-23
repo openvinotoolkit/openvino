@@ -22,7 +22,6 @@ ov_add_test_target(
     ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
-        $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
     LABELS
         TRANSFORMATIONS
 )
