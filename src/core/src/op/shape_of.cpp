@@ -182,7 +182,7 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
-bool op::v3::ShapeOf::evaluate(TensorVector& output_values, const TensorVector& input_values) const {
+bool op::v3::ShapeOf::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
     OPENVINO_ASSERT(input_values.size() == 1);
     OPENVINO_ASSERT(output_values.size() == 1);
@@ -204,11 +204,11 @@ bool op::v3::ShapeOf::has_evaluate() const {
     return false;
 }
 
-bool op::v3::ShapeOf::evaluate_lower(TensorVector& output_values) const {
+bool op::v3::ShapeOf::evaluate_lower(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
-bool op::v3::ShapeOf::evaluate_upper(TensorVector& output_values) const {
+bool op::v3::ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
 }
 
@@ -260,7 +260,7 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values, const Host
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
-bool op::v0::ShapeOf::evaluate(TensorVector& output_values, const TensorVector& input_values) const {
+bool op::v0::ShapeOf::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     OV_OP_SCOPE(v0_ShapeOf_evaluate);
     OPENVINO_ASSERT(input_values.size() == 1);
     OPENVINO_ASSERT(output_values.size() == 1);
@@ -290,11 +290,11 @@ bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0]);
 }
 
-bool op::v0::ShapeOf::evaluate_lower(TensorVector& output_values) const {
+bool op::v0::ShapeOf::evaluate_lower(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, false);
 }
 
-bool op::v0::ShapeOf::evaluate_upper(TensorVector& output_values) const {
+bool op::v0::ShapeOf::evaluate_upper(ov::TensorVector& output_values) const {
     return shape_of::evaluate_bound_shape(this, output_values, true);
 }
 

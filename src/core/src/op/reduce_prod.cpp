@@ -87,7 +87,7 @@ bool op::v1::ReduceProd::has_evaluate() const {
     return false;
 }
 
-bool op::v1::ReduceProd::evaluate_lower(TensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_lower(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
 
@@ -97,7 +97,7 @@ bool op::v1::ReduceProd::evaluate_lower(TensorVector& output_values) const {
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::ReduceProd::evaluate_upper(TensorVector& output_values) const {
+bool op::v1::ReduceProd::evaluate_upper(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
 

@@ -127,13 +127,13 @@ bool op::v1::VariadicSplit::has_axis_and_splits_bound_set() const {
     return true;
 }
 
-bool op::v1::VariadicSplit::evaluate_lower(TensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
 
     return has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::VariadicSplit::evaluate_upper(TensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
 
     return has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);

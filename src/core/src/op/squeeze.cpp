@@ -109,14 +109,14 @@ bool op::v0::Squeeze::has_evaluate() const {
     }
 }
 
-bool op::v0::Squeeze::evaluate_lower(TensorVector& output_values) const {
+bool op::v0::Squeeze::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate_lower);
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Squeeze::evaluate_upper(TensorVector& output_values) const {
+bool op::v0::Squeeze::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Squeeze_evaluate_upper);
     if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;

@@ -126,11 +126,11 @@ bool op::v0::Unsqueeze::has_evaluate() const {
     return false;
 }
 
-bool op::v0::Unsqueeze::evaluate_lower(TensorVector& output_values) const {
+bool op::v0::Unsqueeze::evaluate_lower(ov::TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v0::Unsqueeze::evaluate_upper(TensorVector& output_values) const {
+bool op::v0::Unsqueeze::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 

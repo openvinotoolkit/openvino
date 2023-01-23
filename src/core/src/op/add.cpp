@@ -78,7 +78,7 @@ bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
     return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
-bool op::v1::Add::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+bool op::v1::Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v1_Add_evaluate);
     if (std::none_of(inputs.cbegin(), inputs.cend(), [](const ov::Tensor& t) {
             return is_vector(t.get_shape()) && t.get_shape().front() == 0;

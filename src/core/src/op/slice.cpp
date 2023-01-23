@@ -205,11 +205,11 @@ bool slice_input_check(const ov::Node* node) {
 }
 }  // namespace
 
-bool op::v8::Slice::evaluate_lower(TensorVector& output_values) const {
+bool op::v8::Slice::evaluate_lower(ov::TensorVector& output_values) const {
     return slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v8::Slice::evaluate_upper(TensorVector& output_values) const {
+bool op::v8::Slice::evaluate_upper(ov::TensorVector& output_values) const {
     return slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 

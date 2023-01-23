@@ -102,13 +102,13 @@ bool op::v1::Split::has_evaluate() const {
     return get_input_element_type(1).is_integral_number();
 }
 
-bool op::v1::Split::evaluate_lower(TensorVector& output_values) const {
+bool op::v1::Split::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
 
     return input(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Split::evaluate_upper(TensorVector& output_values) const {
+bool op::v1::Split::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
 
     return input(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);

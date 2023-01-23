@@ -110,7 +110,7 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     // return false;
 }
 
-bool op::Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
+bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     OPENVINO_ASSERT(!inputs.empty());
     OPENVINO_ASSERT(outputs.size() == 1);
@@ -143,11 +143,11 @@ bool op::Concat::has_evaluate() const {
     return true;
 }
 
-bool op::Concat::evaluate_lower(TensorVector& output_values) const {
+bool op::Concat::evaluate_lower(ov::TensorVector& output_values) const {
     return default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::Concat::evaluate_upper(TensorVector& output_values) const {
+bool op::Concat::evaluate_upper(ov::TensorVector& output_values) const {
     return default_upper_bound_evaluator(this, output_values);
 }
 

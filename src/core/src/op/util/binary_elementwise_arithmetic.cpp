@@ -46,7 +46,7 @@ bool ov::op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisito
     return true;
 }
 
-bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(TensorVector& output_values) const {
+bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(ov::TensorVector& output_values) const {
     OPENVINO_ASSERT(output_values.size() == 1);
     TensorVector lower_output_tensors;
     for (const auto& output : output_values)
@@ -57,7 +57,7 @@ bool ov::op::util::BinaryElementwiseArithmetic::evaluate_upper(TensorVector& out
     return true;
 }
 
-bool ov::op::util::BinaryElementwiseArithmetic::evaluate_lower(TensorVector& output_values) const {
+bool ov::op::util::BinaryElementwiseArithmetic::evaluate_lower(ov::TensorVector& output_values) const {
     OPENVINO_ASSERT(output_values.size() == 1);
     TensorVector upper_output_tensors;
     for (const auto& output : output_values)

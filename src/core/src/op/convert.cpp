@@ -224,11 +224,11 @@ bool op::v0::Convert::has_evaluate() const {
     return true;
 }
 
-bool op::v0::Convert::evaluate_lower(TensorVector& output_values) const {
+bool op::v0::Convert::evaluate_lower(ov::TensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, false);
 }
 
-bool op::v0::Convert::evaluate_upper(TensorVector& output_values) const {
+bool op::v0::Convert::evaluate_upper(ov::TensorVector& output_values) const {
     return convert::evaluate_bound(this, output_values, true);
 }
 

@@ -242,11 +242,11 @@ bool strided_slice_input_check(const ov::Node* node) {
 }
 }  // namespace
 
-bool op::v1::StridedSlice::evaluate_lower(TensorVector& output_values) const {
+bool op::v1::StridedSlice::evaluate_lower(ov::TensorVector& output_values) const {
     return strided_slice_input_check(this) && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::StridedSlice::evaluate_upper(TensorVector& output_values) const {
+bool op::v1::StridedSlice::evaluate_upper(ov::TensorVector& output_values) const {
     return strided_slice_input_check(this) && default_upper_bound_evaluator(this, output_values);
 }
 
