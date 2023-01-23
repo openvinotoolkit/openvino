@@ -109,6 +109,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Bucketize", translate_bucketize_op},
         {"BiasAdd", translate_bias_add_op},
         {"Cast", translate_cast_op},
+        {"ClipByValue", translate_clip_by_value_op},
         {"Concat", translate_concat_op},
         {"ConcatV2", translate_concat_op},
         {"Const", translate_const_op},
