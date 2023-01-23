@@ -354,7 +354,7 @@ std::string ov::util::get_absolute_file_path(const std::string& path) {
     absolutePath.resize(MAX_ABS_PATH);
     std::ignore = get_absolute_path(&absolutePath[0], path);
     if (!absolutePath.empty()) {
-        // on Linux if file not exist or no access, function will return NULL, but
+        // on Linux if file does not exist or no access, function will return NULL, but
         // `absolutePath` will contain resolved path
         absolutePath.resize(absolutePath.find('\0'));
         return std::string(absolutePath);
