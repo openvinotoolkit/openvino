@@ -56,21 +56,11 @@ void fill_output_info(ov::Output<ov::Node>& input, InferenceEngine::DataPtr& out
     }
 }
 
-InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port,
-                                     const std::function<bool(InferenceEngine::SizeVector& dims)>& callback = {}) {
+InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port) {
     InferenceEngine::SizeVector dims = {};
     const auto& p_shape = port.get_partial_shape();
     if (p_shape.is_static())
         dims = p_shape.get_shape();
-    else {
-        if (!callback || !callback(dims)) {
-            if (p_shape.rank().is_static()) {
-                for (size_t i = 0; i < static_cast<size_t>(p_shape.rank().get_length()); i++) {
-                    dims.emplace_back(0);
-                }
-            }
-        }
-    }
     return dims;
 }
 
@@ -81,14 +71,7 @@ void ov::legacy_convert::fill_input_info(const ov::Output<const ov::Node>& input
     if (!input_info) {
         // Create input info
         auto param_name = input.get_node()->get_friendly_name();
-        auto dims = get_dims(input, [&](InferenceEngine::SizeVector& dims) -> bool {
-            auto param = std::dynamic_pointer_cast<const ov::op::v0::Parameter>(input.get_node_shared_ptr());
-            if (param && param->get_partial_shape().is_static()) {
-                dims = param->get_partial_shape().get_shape();
-                return true;
-            }
-            return false;
-        });
+        auto dims = get_dims(input);
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(input.get_element_type()),
                                          dims,
                                          InferenceEngine::TensorDesc::getLayoutByDims(dims));

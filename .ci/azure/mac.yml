@@ -11,6 +11,7 @@ trigger:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tests/layer_tests/*'
 
 pr:
   drafts: 'false'
@@ -26,6 +27,7 @@ pr:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tests/layer_tests/*'
 
 resources:
   repositories:
