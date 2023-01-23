@@ -2,23 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset7.hpp"
+#include "gmock/gmock.h"
+#include "openvino/opsets/opset7.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
+using namespace ov::opset7;
+using namespace testing;
+
+class TypePropRollV7Test : public TypePropOpTest<op::v7::Roll> {};
 
 TEST(type_prop, roll_output_shape_type_test) {
-    auto arg = make_shared<opset7::Parameter>(element::f32, Shape{3, 3, 4, 1, 5});
+    auto arg_shape = PartialShape{3, 3, 4, 1, 5};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<opset7::Parameter>(element::f32, arg_shape);
     auto shift = make_shared<opset7::Parameter>(element::i32, Shape{2});
     auto axes = make_shared<opset7::Parameter>(element::i64, Shape{2});
 
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 4, 1, 5}));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({3, 3, 4, 1, 5}));
+    EXPECT_THAT(get_shape_labels(r->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13, 14));
 }
 
 TEST(type_prop, roll_axis_const_test) {
@@ -29,7 +35,7 @@ TEST(type_prop, roll_axis_const_test) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 3}));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({3, 3, 3}));
 }
 
 TEST(type_prop, roll_incorrect_axis_test) {
@@ -72,7 +78,7 @@ TEST(type_prop, roll_axis_scalar_test) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape{3, 3, 4}));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({3, 3, 4}));
 }
 
 TEST(type_prop, roll_invalid_axes_check) {
@@ -100,7 +106,7 @@ TEST(type_prop, roll_dynamic_shape) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(2)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(2));
 }
 
 TEST(type_prop, roll_dynamic_ranks) {
@@ -111,7 +117,7 @@ TEST(type_prop, roll_dynamic_ranks) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
 TEST(type_prop, roll_dynamic_axes_static_shift) {
@@ -122,10 +128,10 @@ TEST(type_prop, roll_dynamic_axes_static_shift) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(Shape{3, 3, 4, 2}));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape({3, 3, 4, 2}));
 }
 
-TEST(type_prop, roll_scatic_axes_dynamic_shift) {
+TEST(type_prop, roll_static_axes_dynamic_shift) {
     auto arg = make_shared<opset7::Parameter>(element::i32, Shape{1, 2, 4});
     auto shift = make_shared<opset7::Parameter>(element::i64, PartialShape{Dimension::dynamic()});
     auto axes = make_shared<opset7::Parameter>(element::i32, Shape{3});
@@ -133,16 +139,33 @@ TEST(type_prop, roll_scatic_axes_dynamic_shift) {
     auto r = make_shared<opset7::Roll>(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::i32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(Shape{1, 2, 4}));
+    EXPECT_EQ(r->get_output_shape(0), Shape({1, 2, 4}));
 }
 
-TEST(type_prop, roll_scatic_axes_dynamic_data) {
-    auto arg = make_shared<opset7::Parameter>(element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
-    auto shift = opset7::Constant::create(element::i64, Shape{}, {5});
-    auto axes = make_shared<opset7::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+TEST_F(TypePropRollV7Test, static_axes_dynamic_data) {
+    auto arg_shape = PartialShape{-1, -1};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<Parameter>(element::f32, arg_shape);
+    auto shift = Constant::create(element::i64, Shape{}, {5});
+    auto axes = make_shared<Parameter>(element::i32, PartialShape{Dimension::dynamic()});
 
-    auto r = make_shared<opset7::Roll>(arg, shift, axes);
+    auto r = make_op(arg, shift, axes);
 
     EXPECT_EQ(r->get_output_element_type(0), element::f32);
-    EXPECT_TRUE(r->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(2)));
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(2));
+    EXPECT_THAT(get_shape_labels(r->get_output_partial_shape(0)), ElementsAre(10, 11));
+}
+
+TEST_F(TypePropRollV7Test, const_shift_axes_and_interval_dim_on_arg_shape) {
+    auto arg_shape = PartialShape{{2, 5}, {-1, 10}, {4, -1}, -1};
+    set_shape_labels(arg_shape, 10);
+    auto arg = make_shared<Parameter>(element::f32, arg_shape);
+    auto shift = Constant::create(element::i64, Shape{}, {5});
+    auto axes = Constant::create(element::i64, Shape{2}, {0, 1});
+
+    auto r = make_op(arg, shift, axes);
+
+    EXPECT_EQ(r->get_output_element_type(0), element::f32);
+    EXPECT_EQ(r->get_output_partial_shape(0), PartialShape::dynamic(2));
+    EXPECT_THAT(get_shape_labels(r->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
 }
