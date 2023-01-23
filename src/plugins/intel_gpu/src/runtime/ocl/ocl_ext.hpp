@@ -9,8 +9,8 @@
 #pragma once
 #include <CL/opencl.hpp>
 #include <CL/cl_ext.h>
-#define NOMINMAX
 #ifdef _WIN32
+#define NOMINMAX
 #include <CL/cl_d3d11.h>
 typedef cl_d3d11_device_source_khr cl_device_source_intel;
 typedef cl_d3d11_device_set_khr    cl_device_set_intel;

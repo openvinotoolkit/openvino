@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT ANDROID)
+    find_package(PkgConfig QUIET)
+endif()
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
@@ -19,29 +23,72 @@ if(ENABLE_SAMPLES OR ENABLE_TESTS)
     add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 endif()
 
-if(ENABLE_INTEL_GPU)
-    add_subdirectory(ocl)
-endif()
-
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
 ov_install_static_lib(xbyak ${OV_CPACK_COMP_CORE})
+
+#
+# OpenCL
+#
+
+if(ENABLE_INTEL_GPU)
+    # try to find system OpenCL (installed via 'brew install opencl-icd-loader')
+    find_package(OpenCLICDLoader QUIET)
+
+    if(OpenCLICDLoader_FOUND)
+        find_package(OpenCLHeaders QUIET)
+        if(NOT OpenCLHeaders_FOUND)
+            message(FATAL_ERROR "OpenCLHeaders not found, but OpenCLICDLoader is installed. Please, install OpenCL headers")
+        else()
+            set_target_properties(OpenCL::Headers PROPERTIES IMPORTED_GLOBAL ON)
+        endif()
+    else()
+        # try to find system OpenCL:
+        # - 'sudo -E apt-get install opencl-c-headers opencl-clhpp-headers ocl-icd-opencl-dev'
+        # - 'sudo -E yum install ocl-icd-devel opencl-headers'
+        # - 'conda install khronos-opencl-icd-loader -c conda-forge'
+        find_package(OpenCL QUIET)
+    endif()
+
+    if(TARGET OpenCL::OpenCL)
+        set_target_properties(OpenCL::OpenCL PROPERTIES
+            INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP
+            IMPORTED_GLOBAL ON)
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            set_target_properties(OpenCL::OpenCL PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
+        endif()
+
+        set(opencl_clhpp_dir "${CMAKE_CURRENT_SOURCE_DIR}/ocl/clhpp_headers/include")
+        if(EXISTS "${opencl_clhpp_dir}")
+            set_property(TARGET OpenCL::OpenCL APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${opencl_clhpp_dir}")
+        endif()
+
+        # set variables for onednn_gpu
+        set(OPENCL_VERSION_2_2 ON PARENT_SCOPE)
+        if(TARGET OpenCL::Headers)
+            set(OpenCL_INCLUDE_DIR "$<TARGET_PROPERTY:OpenCL::Headers,INTERFACE_INCLUDE_DIRECTORIES>" PARENT_SCOPE)
+            set(OpenCL_LIBRARY "$<TARGET_PROPERTY:OpenCL::OpenCL,IMPORTED_LOCATION_RELEASE>" PARENT_SCOPE)
+        else()
+            set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
+            set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+        endif()
+    else()
+        add_subdirectory(ocl)
+    endif()
+endif()
 
 #
 # zlib
 #
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
-    if(NOT ANDROID)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND)
-            pkg_search_module(zlib QUIET
-                              IMPORTED_TARGET GLOBAL
-                              zlib)
-            if(zlib_FOUND)
-                add_library(zlib::zlib ALIAS PkgConfig::zlib)
-                message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-            endif()
+    if(PkgConfig_FOUND)
+        pkg_search_module(zlib QUIET
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
+        if(zlib_FOUND)
+            add_library(zlib::zlib ALIAS PkgConfig::zlib)
+            message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
         endif()
     endif()
 
@@ -55,7 +102,6 @@ endif()
 #
 
 if(ENABLE_SYSTEM_PUGIXML)
-    find_package(PkgConfig QUIET)
     # try system pugixml first
     find_package(PugiXML QUIET)
     if(PugiXML_FOUND)
@@ -79,7 +125,7 @@ if(ENABLE_SYSTEM_PUGIXML)
         endif()
         # to property generate OpenVINO Developer packages files
         set(PugiXML_FOUND ${PugiXML_FOUND} CACHE BOOL "" FORCE)
-    elseif(PkgConfig_FOUND AND NOT ANDROID)
+    elseif(PkgConfig_FOUND)
         # U18 case when cmake interface is not available
         pkg_search_module(pugixml QUIET
                           IMPORTED_TARGET GLOBAL
