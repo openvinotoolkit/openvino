@@ -242,6 +242,10 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
     } else if (py::isinstance<ov::frontend::type::List>(py_obj)) {
         return py::cast<ov::frontend::type::List>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::Str>(py_obj)) {
+        return py::cast<ov::frontend::type::Str>(py_obj);
+    } else if (py::isinstance<ov::frontend::type::PyNone>(py_obj)) {
+        return py::cast<ov::frontend::type::PyNone>(py_obj);
         // If there is no match fallback to py::object
     } else if (py::isinstance<py::object>(py_obj)) {
         return py_obj;
