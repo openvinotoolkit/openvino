@@ -84,6 +84,7 @@ def get_fq_result_pattern():
     return pattern.set_name('fq_result').pattern
 
 
+# Self-attention block in vision transformers (Swin, Twins, ViTPose)
 def get_softmax_reshape_transpose_gather_matmul_pattern():
     pattern = PatternBuilder()
     pattern_2 = PatternBuilder()

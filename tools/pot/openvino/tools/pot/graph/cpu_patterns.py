@@ -16,6 +16,9 @@ def get_cpu_ignored_patterns():
     }
 
 
+# For CPU_SPR we should quantize self-attention block with
+# FQ propagated before to Reshape to remove quantization overhead
+# For details look at ticket: 97884
 def get_cpu_spr_ignored_patterns():
     return {
         'blocks': [(pattern, check_fused_scale_shift_patterns) for pattern in get_fused_scale_shift_patterns()] +
