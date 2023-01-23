@@ -1,14 +1,13 @@
 from asyncio import subprocess
-from cmath import log
 from queue import Empty
 from git import Repo
 from argparse import ArgumentParser
 from utils import utils
-from glob import glob
 from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
 from merge_xmls import merge_xml
+from run_parallel import TestParallelRunner
 from pathlib import Path, PurePath
 from sys import version, platform
 
@@ -97,7 +96,7 @@ def parse_arguments():
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
-    parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default=None)
+    parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
 
     return parser.parse_args()
@@ -116,13 +115,13 @@ class Conformance:
         self._ov_path = ov_path
         self._ov_bin_path = get_ov_path(self._ov_path, True)
         self._working_dir = working_dir
+        if not os.path.exists(self._working_dir):
+            os.mkdir(self._working_dir)
         if not (type == "OP" or type == "API"):
             logger.error(f"Incorrect conformance type: {type}. Please use 'OP' or 'API'")
             exit(-1)
         self._type = type
         self._workers = workers
-        if not gtest_filter:
-            gtest_filter = "*"
         self._gtest_filter = gtest_filter
 
     def __download_repo(self, https_url: str, version: str):
@@ -180,15 +179,19 @@ class Conformance:
             f'omz_downloader --all --output_dir="{original_model_path}"; '\
             f'omz_converter --all --download_dir="{original_model_path}" --output_dir="{converted_model_path}"; '\
             f'deactivate'
-        process = Popen(command, shell=True, env=convert_model_env)
-        out, err = process.communicate()
-        if err is None:
-            for line in str(out).split('\n'):
-                logger.info(line)
-        else:
-            logger.error(err)
+        try:
+            process = Popen(command, shell=True, env=convert_model_env)
+            out, err = process.communicate()
+            if err is None:
+                for line in str(out).split('\n'):
+                    logger.info(line)
+            else:
+                logger.error(err)
+                exit(-1)
+            logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
+        except:
+            logger.error(f"Something is wrong with the model conversion! Abort the process")
             exit(-1)
-        logger.info(f"Model conversion is successful. Converted models are saved to {converted_model_path}")
         return converted_model_path
 
     def download_and_convert_models(self):
@@ -199,6 +202,9 @@ class Conformance:
 
     def dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, SUBGRAPH_DUMPER_BIN_NAME)
+        if not os.path.isfile(subgraph_dumper_path):
+            logger.error(f"{subgraph_dumper_path} is not exist!")
+            exit(-1)
         conformance_ir_path = os.path.join(self._working_dir, "conformance_ir")
         if os.path.isdir(conformance_ir_path):
             logger.info(f"Remove directory {conformance_ir_path}")
@@ -218,29 +224,16 @@ class Conformance:
             exit(-1)
         self._model_path = conformance_ir_path
 
-    def _prepare_filelist(self):
-        if os.path.isfile(self._model_path):
-            logger.info(f"{self._model_path} is exists! Skip the step to prepare fileslist")
-            return self._model_path
-        filelist_path = os.path.join(self._model_path, "conformance_ir_files.lst")
-        if os.path.isfile(filelist_path):
-            logger.info(f"{filelist_path} is exists! Skip the step to prepare fileslist")
-            return filelist_path
-        xmls = Path(self._model_path).rglob("*.xml")
-        with open(filelist_path, 'w') as file:
-            for xml in xmls:
-                file.write(str(xml) + '\n')
-            file.close()
-        return filelist_path
-
     def run_conformance(self):
-        gtest_parallel_path = os.path.join(self.__download_repo(GTEST_PARALLEL_URL, GTEST_PARALLEL_BRANCH), "thirdparty", "gtest-parallel", "gtest_parallel.py")
-
         conformance_path = None
         if self._type == "OP":
             conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
         else:
             conformance_path = os.path.join(self._ov_bin_path, API_CONFORMANCE_BIN_NAME)
+
+        if not os.path.isfile(conformance_path):
+            logger.error(f"{conformance_path} is not exist!")
+            exit(-1)
 
         logs_dir = os.path.join(self._working_dir, f'{self._device}_logs')
         report_dir = os.path.join(self._working_dir, 'report')
@@ -248,25 +241,18 @@ class Conformance:
             logger.info(f"Report dir {report_dir} is cleaned up")
             rmtree(report_dir)
         parallel_report_dir = os.path.join(report_dir, 'parallel')
-        conformance_filelist_path = self._prepare_filelist()
         if not os.path.isdir(report_dir):
             os.mkdir(report_dir)
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
-
-        cmd = f'{PYTHON_NAME} {gtest_parallel_path}  {conformance_path}{OS_BIN_FILE_EXT} -w {self._workers} -d "{logs_dir}" -- ' \
-              f'--device {self._device} --input_folders "{conformance_filelist_path}" --gtest_filter={self._gtest_filter} --report_unique_name ' \
-              f'--output_folder "{parallel_report_dir}"'
-        logger.info(f"Stating conformance: {cmd}")
-        process = Popen(cmd, shell=True)
-        out, err = process.communicate()
-        if err is None:
-            pass
-            for line in str(out).split('\n'):
-                logger.info(line)
-        else:
-            logger.error(err)
-            logger.error("Process failed on step: 'Run conformance'")
+        
+        try:
+            command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"', f'--gtest_filter={self._gtest_filter}']
+            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, self._workers, logs_dir, "")
+            conformance.run()
+            conformance.postprocess_logs()
+        except:
+            logger.error(f"Please check the output from `parallel_runner`. Something is wrong")
             exit(-1)
         final_report_name = f'report_{self._type}'
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
