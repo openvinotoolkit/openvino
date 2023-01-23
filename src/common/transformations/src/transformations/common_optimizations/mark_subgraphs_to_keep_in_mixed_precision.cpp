@@ -23,21 +23,29 @@ using namespace std;
 namespace ov {
 namespace pass {
 
-MarkNormalizationOps::MarkNormalizationOps() {
-    MATCHER_SCOPE(MarkNormalizationOps);
-    auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, opset10::MVN, opset10::NormalizeL2>();
+/*
+ * MarkNormalizationOps marks MVN and NormalizeL2 to be kept in f32 precision.
+ */
+class MarkNormalizationOps : public MatcherPass {
+public:
+    OPENVINO_RTTI("MarkNormalizationOps", "0");
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& node = m.get_match_root();
-        if (!node)
-            return false;
+    MarkNormalizationOps() {
+        MATCHER_SCOPE(MarkNormalizationOps);
+        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, opset10::MVN, opset10::NormalizeL2>();
 
-        disable_fp16_compression(node);
-        return true;
-    };
-    auto m = make_shared<pattern::Matcher>(ops_to_be_kept_fp32, matcher_name);
-    register_matcher(m, callback);
-}
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& node = m.get_match_root();
+            if (!node)
+                return false;
+
+            disable_fp16_compression(node);
+            return true;
+        };
+        auto m = make_shared<pattern::Matcher>(ops_to_be_kept_fp32, matcher_name);
+        register_matcher(m, callback);
+    }
+};
 
 // Marking continues to propagate through these ops.
 std::shared_ptr<Node> propagate_through_ops =
@@ -144,31 +152,6 @@ public:
     }
 };
 
-bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model>& m) {
-    RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
-
-    Manager manager(get_pass_config());
-
-    // Mark root of Division with eps pattern to keep in FP32
-    REGISTER_PASS(manager, MarkDivWithEps)
-
-    REGISTER_PASS(manager, MarkExpInReduceOpPath)
-    REGISTER_PASS(manager, MarkNormalizationOps)
-
-    // both Up and Down propagations are needed.
-    // Why both of them are needed is explained in comments in passes declarations.
-    REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
-    auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
-    ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
-
-    // Mark nodes in ShapeOf subgraphs to keep in FP32
-    REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
-
-    manager.run_passes(m);
-
-    return false;  // no need to revalidate
-}
-
 class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
     OPENVINO_RTTI("InitMarkReduceOpPath", "0");
@@ -239,87 +222,128 @@ public:
         register_matcher(m, callback);
     }
 };
+/* MarkExpInReduceOpPath marks path that goes into ReduceSum and ReduceMean.
+ * Values that go from Exp to ReduceSum/ReduceMean are precision
+ * sensitive and should be kept in f32 precision for mixed inference.
+ */
+class MarkExpInReduceOpPath : public BackwardGraphRewrite {
+public:
+    OPENVINO_RTTI("MarkExpInReduceOpPath", "0");
+    MarkExpInReduceOpPath() {
+        // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
+        ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);
+        ADD_MATCHER_FOR_THIS(PropagateMarkUpReduceOpPath);
+        ADD_MATCHER_FOR_THIS(MarkExp);
+    }
+};
 
-MarkExpInReduceOpPath::MarkExpInReduceOpPath() {
-    // marking of ReduceOp path is needed to mark only Exponents that go into ReduceSum/ReduceMean
-    ADD_MATCHER_FOR_THIS(InitMarkReduceOpPath);
-    ADD_MATCHER_FOR_THIS(PropagateMarkUpReduceOpPath);
-    ADD_MATCHER_FOR_THIS(MarkExp);
-}
+/* MarkDivWithEps martk pattern that matches the patterns input_1/Maximum(input_2, eps); input_1/Add(input_2, eps);
+ * and input_1*Pow(Maximum[Add](input_2, eps), -z) and marks subgraph root to be kept in fp32.
+ *
+ * If both input_1 and input_2 simultaneously happen to be zero to prevent from NaNs and not to loose accuracy,
+ * we should calculate such patterns always in fp32 precision even if ov::Model is compressed to fp16.
+ */
+class MarkDivWithEps : public MatcherPass {
+public:
+    OPENVINO_RTTI("MarkDivWithEps", "0");
+    MarkDivWithEps() {
+        MATCHER_SCOPE(MarkDivWithEps);
 
-MarkDivWithEps::MarkDivWithEps() {
-    MATCHER_SCOPE(MarkDivWithEps);
+        // to detect the following patterns where eps is used to prevent division by zero:
+        // input_1/Maximum(input_2, eps)
+        // input_1/Add(input_2, eps)
+        // input_1/Sqrt(Maximum(input_2, eps))
+        // input_1/Sqrt(Add(input_2, eps))
+        // input_1*Pow(Maximum(input_2, eps), -z)
+        // input_1*Pow(Add(input_2, eps), -z)
+        auto input_1 = pattern::any_input();
+        auto input_2 = pattern::any_input();
 
-    // to detect the following patterns where eps is used to prevent division by zero:
-    // input_1/Maximum(input_2, eps)
-    // input_1/Add(input_2, eps)
-    // input_1/Sqrt(Maximum(input_2, eps))
-    // input_1/Sqrt(Add(input_2, eps))
-    // input_1*Pow(Maximum(input_2, eps), -z)
-    // input_1*Pow(Add(input_2, eps), -z)
-    auto input_1 = pattern::any_input();
-    auto input_2 = pattern::any_input();
+        auto eps_const_pattern = pattern::wrap_type<opset10::Constant>();
+        auto max = std::make_shared<opset10::Maximum>(input_2, eps_const_pattern);
+        auto add = std::make_shared<opset10::Add>(input_2, eps_const_pattern);
+        auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
 
-    auto eps_const_pattern = pattern::wrap_type<opset10::Constant>();
-    auto max = std::make_shared<opset10::Maximum>(input_2, eps_const_pattern);
-    auto add = std::make_shared<opset10::Add>(input_2, eps_const_pattern);
-    auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
+        auto sqrt = std::make_shared<opset10::Sqrt>(max_or_add);
+        auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
+        // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
+        auto divide = std::make_shared<opset10::Divide>(input_1, sqrt_or_max_add);
 
-    auto sqrt = std::make_shared<opset10::Sqrt>(max_or_add);
-    auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
-    // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
-    auto divide = std::make_shared<opset10::Divide>(input_1, sqrt_or_max_add);
+        auto pow_exp = pattern::wrap_type<opset10::Constant>();
+        auto convert_pattern = pattern::wrap_type<opset10::Convert>({pow_exp});
+        auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{pow_exp, convert_pattern});
 
-    auto pow_exp = pattern::wrap_type<opset10::Constant>();
-    auto convert_pattern = pattern::wrap_type<opset10::Convert>({pow_exp});
-    auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{pow_exp, convert_pattern});
+        auto pow_pattern = std::make_shared<opset10::Power>(max_or_add, pow_exp_or_convert);
+        auto mul_pattern = std::make_shared<opset10::Multiply>(input_1, pow_pattern);
+        auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
-    auto pow_pattern = std::make_shared<opset10::Power>(max_or_add, pow_exp_or_convert);
-    auto mul_pattern = std::make_shared<opset10::Multiply>(input_1, pow_pattern);
-    auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& pattern_to_output = m.get_pattern_map();
+            if (!m.get_match_root())
+                return false;
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        const auto& pattern_to_output = m.get_pattern_map();
-        if (!m.get_match_root())
-            return false;
-
-        const auto mul = std::dynamic_pointer_cast<opset10::Multiply>(m.get_match_root());
-        // if pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
-        // need to check that power is negative
-        if (mul) {
-            const auto pow_const = std::dynamic_pointer_cast<opset10::Constant>(pattern_to_output.at(pow_exp));
-            if (pow_const) {
-                // continue only if exponent is negative (z < 0)
-                if (pow_const->get_element_type() == element::f16) {
-                    for (auto val : pow_const->get_vector<float16>())
-                        if (val >= 0.0f)
-                            return false;
-                } else if (pow_const->get_element_type() == element::f32) {
-                    for (auto val : pow_const->get_vector<float>())
-                        if (val >= 0.0f)
-                            return false;
+            const auto mul = std::dynamic_pointer_cast<opset10::Multiply>(m.get_match_root());
+            // if pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
+            // need to check that power is negative
+            if (mul) {
+                const auto pow_const = std::dynamic_pointer_cast<opset10::Constant>(pattern_to_output.at(pow_exp));
+                if (pow_const) {
+                    // continue only if exponent is negative (z < 0)
+                    if (pow_const->get_element_type() == element::f16) {
+                        for (auto val : pow_const->get_vector<float16>())
+                            if (val >= 0.0f)
+                                return false;
+                    } else if (pow_const->get_element_type() == element::f32) {
+                        for (auto val : pow_const->get_vector<float>())
+                            if (val >= 0.0f)
+                                return false;
+                    }
                 }
             }
-        }
 
-        const auto eps_const = std::dynamic_pointer_cast<opset10::Constant>(pattern_to_output.at(eps_const_pattern));
-        if (!eps_const)
-            return false;
-        if (eps_const->get_element_type() == element::f32) {
-            for (const auto& val : eps_const->get_vector<float>())
-                if (val > static_cast<float>(float16::from_bits(0x0400)))
-                    return false;
-        } else if (eps_const->get_element_type() == element::f16) {
-            for (const auto& val : eps_const->get_vector<float16>())
-                if (val > float16::from_bits(0x0400))
-                    return false;
-        }
-        disable_fp16_compression(m.get_match_root());
-        return true;
-    };
+            const auto eps_const =
+                std::dynamic_pointer_cast<opset10::Constant>(pattern_to_output.at(eps_const_pattern));
+            if (!eps_const)
+                return false;
+            if (eps_const->get_element_type() == element::f32) {
+                for (const auto& val : eps_const->get_vector<float>())
+                    if (val > static_cast<float>(float16::from_bits(0x0400)))
+                        return false;
+            } else if (eps_const->get_element_type() == element::f16) {
+                for (const auto& val : eps_const->get_vector<float16>())
+                    if (val > float16::from_bits(0x0400))
+                        return false;
+            }
+            disable_fp16_compression(m.get_match_root());
+            return true;
+        };
 
-    auto m = make_shared<pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
-    register_matcher(m, callback);
+        auto m = make_shared<pattern::Matcher>(div_or_mul_to_negative_pow, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
+bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model>& m) {
+    RUN_ON_MODEL_SCOPE(MarkSugraphsToKeepInMixedPrecision);
+
+    Manager manager(get_pass_config());
+    // Mark root of Division with eps pattern to keep in FP32
+    REGISTER_PASS(manager, MarkDivWithEps)
+
+    REGISTER_PASS(manager, MarkExpInReduceOpPath)
+    REGISTER_PASS(manager, MarkNormalizationOps)
+
+    // both Up and Down propagations are needed.
+    // Why both of them are needed is explained in comments in passes declarations.
+    REGISTER_PASS(manager, PropagateDownMarkToKeepInMixedPrecision)
+    auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
+    ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
+
+    // Mark nodes in ShapeOf subgraphs to keep in FP32
+    REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
+    manager.run_passes(m);
+
+    return false;  // no need to revalidate
 }
 
 }  // namespace pass
