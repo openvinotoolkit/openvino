@@ -94,7 +94,7 @@ bool op::v0::Tile::evaluate_lower(ov::TensorVector& output_values) const {
 bool op::v0::Tile::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate_upper);
 
-    return get_input_tensor(1).has_and_set_bound() && ngraph::default_upper_bound_evaluator(this, output_values);
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {

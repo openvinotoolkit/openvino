@@ -92,13 +92,13 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs, const Host
     return evaluate_scatter_update(outputs, inputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_lower(TensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_lower(ov::TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_lower);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_lower_bound_evaluator(this, outputs);
 }
 
-bool op::v3::ScatterUpdate::evaluate_upper(TensorVector& outputs) const {
+bool op::v3::ScatterUpdate::evaluate_upper(ov::TensorVector& outputs) const {
     OV_OP_SCOPE(v3_ScatterUpdate_evaluate_upper);
     return get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound() &&
            default_upper_bound_evaluator(this, outputs);
