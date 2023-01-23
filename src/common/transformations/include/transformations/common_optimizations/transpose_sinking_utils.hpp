@@ -8,7 +8,6 @@
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
-#include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -32,7 +31,7 @@ struct TransposeInputsInfo {
  * @brief Finds node first input that is a transpose operation and returns filled TransposeInputsInfo
  * for it
  */
-TransposeInputsInfo GetFirstTransposeInput(std::shared_ptr<ov::Node>);
+TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&);
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
@@ -54,41 +53,44 @@ void SwapOutputNames(ov::Output<ov::Node>, ov::Output<ov::Node>);
 /**
  * @brief Swaps @args friendly names
  */
-void SwapFriendlyNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+void SwapFriendlyNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
 
 /**
  * @brief Swaps @args output tensor names and friendly names
  */
-void SwapNames(std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>);
+void SwapNames(const std::shared_ptr<ov::Node>&, const std::shared_ptr<ov::Node>&);
 
 namespace sink_forward {
 /**
  * @brief Inserts reversed transposed on @args main_node inputs. Removes input transpose specified in @arg
  * transpose_input_info
  */
-void UpdateInputTransposes(std::shared_ptr<ov::Node> main_node, const TransposeInputsInfo& transpose_input_info);
+void UpdateInputTransposes(const std::shared_ptr<ov::Node>& main_node, const TransposeInputsInfo& transpose_input_info);
 
 /**
  * @brief Removes @arg input node
  */
-void RemoveInputNode(std::shared_ptr<ov::Node>, size_t input_idx);
+void RemoveInputNode(const std::shared_ptr<ov::Node>&, size_t input_idx);
 
 /**
  * @brief Inserts transposes on each main_node output with the order specified in @arg transpose_input_info
  */
-ov::NodeVector InsertOutputTransposes(std::shared_ptr<ov::Node> main_node,
+ov::NodeVector InsertOutputTransposes(const std::shared_ptr<ov::Node>& main_node,
                                       const TransposeInputsInfo& transpose_input_info);
 }  // namespace sink_forward
 
 namespace sink_backward {
 /**
- * @brief Inserts transposes on each input of @arg main_node with the order specified in @arg transpose_const
+ * @brief Inserts transposes on inputs of @arg main_node specified by @arg input_indexes
+ * with the order specified in @arg transpose_const. If @arg input_indexes is empty, then it inserts
+ * transposes for all inputs.
  */
-ov::NodeVector InsertTransposeBeforeNode(std::shared_ptr<ov::Node> main_node,
-                                         std::shared_ptr<ov::opset9::Constant> transpose_const);
+ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_node,
+                                         const std::shared_ptr<ov::opset9::Constant>& transpose_const,
+                                         std::vector<int> input_indexes = {});
 }  // namespace sink_backward
 
-void UpdateForwardSinkingAbility(std::shared_ptr<ov::Node>);
+void UpdateForwardSinkingAbility(const std::shared_ptr<ov::Node>&);
 
 /**
  *  @brief Checks if @arg has consumers that all are the same transpose operation. If no consumers at all
@@ -99,6 +101,12 @@ bool HasSameOutputTransposeNodes(const ov::Output<ov::Node>&);
 /**
  * Removes all direct node consumers that have one output
  */
-void RemoveSingleOutputConsumers(std::shared_ptr<ov::Node>);
+void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
 
+/**
+ * Changes the order of values in @arg input according to @arg transpose_axis_order along @arg axis
+ */
+ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
+                                       const ov::AxisVector& transpose_axis_order,
+                                       const std::shared_ptr<ov::opset9::Constant>& axis);
 }  // namespace transpose_sinking
