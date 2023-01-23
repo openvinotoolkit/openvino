@@ -8,7 +8,7 @@
 using namespace ov::test::behavior;
 namespace {
 
-// GNA_SW_EXACT mode exluded from the tests because without quantization we got the bad accuracy for this test
+// GNA_SW_EXACT mode excluded from the tests because without quantization we got the bad accuracy for this test
 const std::vector<ov::AnyMap> device_modes {
     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}
 };
