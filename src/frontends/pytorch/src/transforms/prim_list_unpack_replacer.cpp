@@ -152,7 +152,15 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
             }
 
             auto meshgrid_attrs = meshgrid->get_attrs();
-            std::string indexing = meshgrid_attrs["indexing"];
+            if (meshgrid_attrs.find("indexing") == meshgrid_attrs.end()) {
+                // Check if "indexing" key is available in meshgrid attributes set in translation.
+                return false;
+            }
+            std::string indexing = meshgrid_attrs.at("indexing");
+            if (indexing != "ij" && indexing != "xy") {
+                // Check if indexing attribute has correct values.
+                return false;
+            }
 
             if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
                 std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);
