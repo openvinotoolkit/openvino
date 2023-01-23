@@ -315,7 +315,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = calculate_model_hash(model->clone(), parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = calculate_model_hash(model, parsed._deviceName, plugin, parsed._config);
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
@@ -355,7 +355,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             ._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
     if (cacheManager && device_supports_import_export(plugin)) {
-        cacheContent.blobId = calculate_model_hash(model->clone(), parsed._deviceName, plugin, parsed._config);
+        cacheContent.blobId = calculate_model_hash(model, parsed._deviceName, plugin, parsed._config);
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
@@ -375,7 +375,6 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     const std::shared_ptr<const ov::Model>& model,
     const ov::RemoteContext& context,
     const ov::AnyMap& config) const {
-    std::shared_ptr<ov::Model> cloned_model = model->clone();
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
@@ -383,9 +382,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     }
 
     if (!context._impl) {
-        compiled_model = plugin.compile_model(cloned_model, config);
+        compiled_model = plugin.compile_model(model, config);
     } else {
-        compiled_model = plugin.compile_model(cloned_model, context, config);
+        compiled_model = plugin.compile_model(model, context, config);
     }
     return compiled_model;
 }
@@ -1013,19 +1012,11 @@ std::string ov::CoreImpl::CalculateNetworkHash(const InferenceEngine::CNNNetwork
                                                const std::string& deviceFamily,
                                                const ov::Plugin& plugin,
                                                const ov::AnyMap& config) const {
-    InferenceEngine::CNNNetwork net(network);
-    return CalculateNetworkHash(net, deviceFamily, plugin, config);
-}
-
-std::string ov::CoreImpl::CalculateNetworkHash(InferenceEngine::CNNNetwork& network,
-                                               const std::string& deviceFamily,
-                                               const ov::Plugin& plugin,
-                                               const ov::AnyMap& config) const {
     auto compileConfig = create_compile_config(plugin, deviceFamily, config);
     return ov::NetworkCompilationContext::compute_hash(network, compileConfig);
 }
 
-std::string ov::CoreImpl::calculate_model_hash(const std::shared_ptr<ov::Model>& model,
+std::string ov::CoreImpl::calculate_model_hash(const std::shared_ptr<const ov::Model>& model,
                                                const std::string& deviceFamily,
                                                const ov::Plugin& plugin,
                                                const ov::AnyMap& config) const {

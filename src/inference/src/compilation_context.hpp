@@ -24,10 +24,10 @@ class Model;
 struct NetworkCompilationContext final {
     static std::string calculate_file_info(const std::string& filePath);
 
-    static std::string compute_hash(InferenceEngine::CNNNetwork& network,
+    static std::string compute_hash(const InferenceEngine::CNNNetwork& network,
                                     const std::map<std::string, std::string>& compileOptions);
 
-    static std::string compute_hash(const std::shared_ptr<ov::Model>& model,
+    static std::string compute_hash(const std::shared_ptr<const ov::Model>& model,
                                     const std::map<std::string, std::string>& compileOptions);
 
     static std::string compute_hash(const std::string& modelName,

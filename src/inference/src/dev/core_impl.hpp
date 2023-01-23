@@ -212,7 +212,7 @@ private:
                                       const ov::Plugin& plugin,
                                       const ov::AnyMap& config) const;
 
-    std::string calculate_model_hash(const std::shared_ptr<ov::Model>& model,
+    std::string calculate_model_hash(const std::shared_ptr<const ov::Model>& model,
                                      const std::string& deviceFamily,
                                      const ov::Plugin& plugin,
                                      const ov::AnyMap& config) const;
@@ -237,11 +237,6 @@ private:
         bool forceDisableCache = false);
 
     std::string CalculateNetworkHash(const InferenceEngine::CNNNetwork& network,
-                                     const std::string& deviceFamily,
-                                     const ov::Plugin& plugin,
-                                     const ov::AnyMap& config) const;
-
-    std::string CalculateNetworkHash(InferenceEngine::CNNNetwork& network,
                                      const std::string& deviceFamily,
                                      const ov::Plugin& plugin,
                                      const ov::AnyMap& config) const;

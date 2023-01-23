@@ -65,7 +65,7 @@ std::string NetworkCompilationContext::calculate_file_info(const std::string& fi
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<ov::Model>& model,
+std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const ov::Model>& model,
                                                     const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model");
 
@@ -76,7 +76,7 @@ std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<ov::Mo
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(model);
+    m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
@@ -94,10 +94,49 @@ std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<ov::Mo
         }
     }
 
+    // 4. Legacy part if CNNNetwork is used with new Plugin API
+    for (auto&& input : model->inputs()) {
+        auto& rt_info = input.get_rt_info();
+
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            auto td = it->second.as<InferenceEngine::TensorDesc>();
+            seed = hash_combine(seed, as_int32_t(td.getPrecision()));
+            seed = hash_combine(seed, as_int32_t(td.getLayout()));
+        }
+
+        it = rt_info.find("ie_legacy_preproc");
+        if (it != rt_info.end()) {
+            auto preproc = it->second.as<InferenceEngine::PreProcessInfo>();
+
+            seed = hash_combine(seed, as_int32_t(preproc.getMeanVariant()));
+
+            if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
+                seed = hash_combine(seed, preproc.getNumberOfChannels());
+                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
+                    const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
+                    seed = hash_combine(seed, channelInfo->stdScale);
+                    seed = hash_combine(seed, channelInfo->meanValue);
+                }
+            } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
+                // TODO: think if we need to compute hash for mean image if it exists
+            }
+        }
+    }
+    for (auto&& output : model->outputs()) {
+        auto& rt_info = output.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            auto td = it->second.as<InferenceEngine::TensorDesc>();
+            seed = hash_combine(seed, as_int32_t(td.getPrecision()));
+            seed = hash_combine(seed, as_int32_t(td.getLayout()));
+        }
+    }
+
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::compute_hash(InferenceEngine::CNNNetwork& network,
+std::string NetworkCompilationContext::compute_hash(const InferenceEngine::CNNNetwork& network,
                                                     const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - CNN");
 
@@ -105,26 +144,9 @@ std::string NetworkCompilationContext::compute_hash(InferenceEngine::CNNNetwork&
 
     uint64_t seed = 0;
     // 1. Calculate hash on function
-    ov::pass::Manager m;
-    m.register_pass<ngraph::pass::FixRtInfo>();
-    m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(network.getFunction());
-
     // 2. Compute hash on serialized data and options
-    for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
-    }
-
     // 3. Add runtime information which may not be serialized
-    for (const auto& op : network.getFunction()->get_ordered_ops()) {
-        const auto& rt = op->get_rt_info();
-        for (const auto& rtMapData : rt) {
-            seed = hash_combine(seed, rtMapData.first);
-            std::stringstream strm;
-            rtMapData.second.print(strm);
-            seed = hash_combine(seed, strm.str());
-        }
-    }
+    compute_hash(network.getFunction(), compileOptions);
 
     // 4. Add inputs info
     for (const auto& input : network.getInputsInfo()) {
