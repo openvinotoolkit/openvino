@@ -92,9 +92,11 @@ private:
 }   // namespace intel_cpu
 }   // namespace ov
 
+// 'EXPAND' wrapper is necessary to ensure __VA_ARGS__ behaves the same on all the platforms
+#  define CPU_DEBUG_CAP_EXPAND(x) x
 #  define CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(_config, _type)                      \
     _config.disable.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type]
-#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) !CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__)
+#  define CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(...) CPU_DEBUG_CAP_EXPAND(!CPU_DEBUG_CAP_IS_TRANSFORMATION_DISABLED(__VA_ARGS__))
 #  define CPU_DEBUG_CAP_TRANSFORMATION_DUMP(_this, _type)                                                      \
     IE_ASSERT(CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(_this->config.debugCaps, _type));                                  \
     auto dumperPtr = _this->config.debugCaps.dumpIR.transformations.filter[DebugCapsConfig::TransformationFilter::Type::_type] ?  \
