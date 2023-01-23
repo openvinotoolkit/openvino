@@ -646,8 +646,7 @@ public:
      * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
      *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
-     * Notes:
-     * - For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      */

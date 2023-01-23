@@ -293,7 +293,7 @@ public:
     /**
      * @brief Register new device and plugin which implement this device inside Inference Engine.
      *
-     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform `plugin` is wrapped with
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
      * shared library suffix and prefix to identify library full name
      *
      * @param deviceName A device name to register plugin for
