@@ -106,6 +106,7 @@
 /docs/  @openvinotoolkit/openvino-docs-maintainers
 /docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 /**/*.md  @openvinotoolkit/openvino-docs-maintainers
+/**/*.svg  @openvinotoolkit/openvino-docs-maintainers
 /docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-mo-maintainers
 /docs/OV_Runtime_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/IE_PLUGIN_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
