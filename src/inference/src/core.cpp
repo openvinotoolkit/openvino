@@ -179,24 +179,11 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    using ExportMagic = std::array<char, 4>;
-    constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
-
-    std::string deviceName;
-    ExportMagic magic = {};
-    auto currentPos = modelStream.tellg();
-    modelStream.read(magic.data(), magic.size());
-    if (exportMagic == magic) {
-        std::getline(modelStream, deviceName);
-    } else {
-        OPENVINO_ASSERT(false,
-                        "Passed compiled stream does not contain device name. "
-                        "Please, provide device name manually");
-    }
-    modelStream.seekg(currentPos, modelStream.beg);
-
+    std::string deviceName_ = context.get_device_name();
+    InferenceEngine::DeviceIDParser device(deviceName_);
+    std::string deviceName = device.getDeviceName();
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->get_plugin(deviceName).import_model(modelStream, {});
+        auto exec = _impl->get_plugin(deviceName).import_model(modelStream, context, {});
         return {exec._ptr, exec._so};
     });
 }

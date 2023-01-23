@@ -62,15 +62,6 @@ InferenceEngine::SizeVector get_dims(const ov::Output<const ov::Node>& port,
     const auto& p_shape = port.get_partial_shape();
     if (p_shape.is_static())
         dims = p_shape.get_shape();
-    else {
-        if (!callback || !callback(dims)) {
-            if (p_shape.rank().is_static()) {
-                for (size_t i = 0; i < static_cast<size_t>(p_shape.rank().get_length()); i++) {
-                    dims.emplace_back(0);
-                }
-            }
-        }
-    }
     return dims;
 }
 
