@@ -70,8 +70,7 @@ public:
           m_func_def(nullptr) {
         if (model_is_string) {
             m_graph_def->ParseFromString(path);
-        }
-        else {
+        } else {
             std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
 
             FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file does not exist");
