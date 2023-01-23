@@ -278,19 +278,13 @@ class TestParallelRunner:
         def_length = len(self._command) + len(" --gtest_filter=")
         idx = len(proved_test_list)
         for i in range(len(proved_test_list)):
-            if proved_test_list[i]._time == -1 or proved_test_list[i]._time == -2:
+            if proved_test_list[i]._time == -1:
                 idx = i
                 break
         
-        # Remove all disabled tests from run
+        # Run crashed tests in a separed thread
         if idx < len(proved_test_list):
             while proved_test_list[idx]._time == -1:
-                proved_test_list.pop(idx)
-
-        # Run crashed tests in separated thread
-        if idx < len(proved_test_list):
-            while idx < len(proved_test_list):
-                res_test_filters.append(f'"{self.__replace_restricted_symbols(proved_test_list[idx]._name)}":')
                 proved_test_list.pop(idx)
 
         # prepare gtest filters per worker according command line length limitation
@@ -446,7 +440,7 @@ class TestParallelRunner:
                         if dir:
                             if __save_log(logs_dir, dir, test_name):
                                 # update test_cache with tests. If tests is crashed use -2 as unknown time
-                                time = -2
+                                time = -1
                                 if "ms)" in line:
                                     time = line[line.rfind("(") + 1:line.rfind("ms)") - 1]
                                 test_times.append((int(time), test_name))
@@ -466,9 +460,6 @@ class TestParallelRunner:
                     logger.error(f"Number of tests in {log}: {test_cnt_real}. Expected is {test_cnt_expected} tests")
                 else:
                     os.remove(log_filename)
-        # update test_cache with tests. If tests is crashed use -1 as unknown time
-        for disabled_test in self._disabled_tests:
-            test_times.append((-1, disabled_test))
         if self._is_save_cache:
             test_times.sort(reverse=True)
             with open(self._cache_path, "w") as cache_file:
