@@ -69,7 +69,10 @@ Default Quantization algorithm has mandatory and optional parameters which are d
 }
 ```  
 
-- `"target_device"` - currently, only two options are available: `"ANY"` (or `"CPU"`) -  to quantize model for CPU, GPU, or VPU, and `"GNA"` - for inference on GNA.
+- `"target_device"` - the following options are available: 
+   * `"ANY"` (or `"CPU"`) -  default option to quantize models for CPU, GPU, or VPU
+   * `"CPU_SPR"` -  to quantize models for CPU SPR (4th Generation Intel® Xeon® Scalable processor family)
+   * `"GNA"`, `"GNA3"`, `"GNA3.5"` - to quantize models for GNA devices respectively.
 - `"stat_subset_size"` - size of data subset to calculate activations statistics used for quantization. The whole dataset is used if no parameter is specified. It is recommended to use not less than 300 samples.
 - `"stat_batch_size"` - size of batch to calculate activations statistics used for quantization. 1 if no parameter specified.
 
