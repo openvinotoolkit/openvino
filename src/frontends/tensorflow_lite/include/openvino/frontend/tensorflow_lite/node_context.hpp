@@ -31,6 +31,10 @@ public:
         return m_inputs.at(port_index);
     }
 
+    OutputVector get_inputs() const {
+        return m_inputs;
+    }
+
     size_t get_input_size() const override {
         return m_inputs.size();
     }

@@ -10,6 +10,13 @@
 using namespace std;
 using namespace ov;
 
+#define OP_CONVERT_TYPE_RENAME(func, name)                                                                         \
+    [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {                                   \
+        auto decoder = make_shared<DecoderMap>(node.get_decoder(), std::map<std::string, ov::Any>{}, name, false); \
+        auto context = frontend::tensorflow_lite::NodeContext(decoder, node.get_inputs());                         \
+        return func(context);                                                                                      \
+    }
+
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
@@ -30,13 +37,16 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AVERAGE_POOL_2D", avg_pool_2d},
         // BATCH_MATMUL
         // BATCH_TO_SPACE_ND
-        {"BATCH_TO_SPACE_ND", ov::frontend::tensorflow::op::translate_batch_to_space_nd_op},
+        {"BATCH_TO_SPACE_ND",
+         OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_batch_to_space_nd_op, "BatchToSpaceND")},
         // BIDIRECTIONAL_SEQUENCE_LSTM
         // BIDIRECTIONAL_SEQUENCE_RNN
         // BROADCAST_ARGS
-        {"BROADCAST_ARGS", ov::frontend::tensorflow::op::translate_broadcast_args_op},
+        {"BROADCAST_ARGS",
+         OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_broadcast_args_op, "BroadcastArgs")},
         // BROADCAST_TO
-        {"BROADCAST_TO", ov::frontend::tensorflow::op::translate_broadcast_to_op},
+        {"BROADCAST_TO",
+         OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_broadcast_to_op, "BroadcastTo")},
         // BUCKETIZE
         // CALL
         // CALL_ONCE
@@ -149,9 +159,9 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // PACK
         {"PACK", pack},
         // PAD
-        {"PAD", ov::frontend::tensorflow::op::translate_pad_op},
+        {"PAD", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_pad_op, "Pad")},
         // PADV2
-        {"PADV2", ov::frontend::tensorflow::op::translate_padv2_op},
+        {"PADV2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_padv2_op, "PadV2")},
         // PLACEHOLDER_FOR_GREATER_OP_CODES
         // POW
         {"POW", ov::frontend::tensorflow::op::translate_binary_op<opset8::Power>},
@@ -162,7 +172,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // RANGE
         {"RANGE", range},
         // RANK
-        {"RANK", ov::frontend::tensorflow::op::translate_rank_op},
+        {"RANK", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_rank_op, "Rank")},
         // READ_VARIABLE
         // REAL
         // REDUCE_ALL
@@ -188,7 +198,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RESIZE_NEAREST_NEIGHBOR", resize_nearest_neightbor},
         // REVERSE_SEQUENCE
         // REVERSE_V2
-        {"REVERSE_V2", ov::frontend::tensorflow::op::translate_reverse_v2_op},
+        {"REVERSE_V2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_reverse_v2_op, "ReverseV2")},
         // RFFT2D
         // RNN
         // ROUND
@@ -199,9 +209,9 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // SEGMENT_SUM
         {"SEGMENT_SUM", ov::frontend::tensorflow::op::translate_segment_sum_op},
         // SELECT
-        {"SELECT", ov::frontend::tensorflow::op::translate_select_op},
+        {"SELECT", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_select_op, "Select")},
         // SELECT_V2
-        {"SELECT_V2", ov::frontend::tensorflow::op::translate_select_v2_op},
+        {"SELECT_V2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_select_v2_op, "SelectV2")},
         // SHAPE
         {"SHAPE", shape},
         // SIGN
@@ -214,7 +224,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // SOFTMAX
         {"SOFTMAX", softmax},
         // SPACE_TO_BATCH_ND
-        {"SPACE_TO_BATCH_ND", ov::frontend::tensorflow::op::translate_space_to_batch_nd_op},
+        {"SPACE_TO_BATCH_ND",
+         OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_space_to_batch_nd_op, "SpaceToBatchND")},
         // SPACE_TO_DEPTH
         // SPARSE_TO_DENSE
         // SPLIT
@@ -241,7 +252,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // TILE
         {"TILE", ov::frontend::tensorflow::op::translate_tile_op},
         // TOPK_V2
-        {"TOPK_V2", ov::frontend::tensorflow::op::translate_top_k_v2_op},
+        {"TOPK_V2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_top_k_v2_op, "TopKV2")},
         // TRANSPOSE
         {"TRANSPOSE", ov::frontend::tensorflow::op::translate_transpose_op},
         // TRANSPOSE_CONV
@@ -255,7 +266,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // UNSORTED_SEGMENT_SUM
         // VAR_HANDLE
         // WHERE
-        {"WHERE", ov::frontend::tensorflow::op::translate_where_op},
+        {"WHERE", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_where_op, "Where")},
         // WHILE
         // ZEROS_LIKE
         {"ZEROS_LIKE", ov::frontend::tensorflow::op::translate_zeros_like_op},

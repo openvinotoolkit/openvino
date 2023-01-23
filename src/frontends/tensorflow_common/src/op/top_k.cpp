@@ -13,7 +13,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_top_k_base_op(const NodeContext& node, const ov::Output<ov::Node>& k_input, int min_input_size) {
-    default_op_checks(node, min_input_size, {"TopK", "TopKV2", "TOPK_V2"});
+    default_op_checks(node, min_input_size, {"TopK", "TopKV2"});
     auto input = node.get_input(0);
 
     // retrieve k attribute
@@ -35,7 +35,7 @@ OutputVector translate_top_k_op(const NodeContext& node) {
 }
 
 OutputVector translate_top_k_v2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"TopKV2", "TOPK_V2"});
+    default_op_checks(node, 2, {"TopKV2"});
     auto k_input = node.get_input(1);
     return translate_top_k_base_op(node, k_input, 1);
 }

@@ -19,7 +19,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
     // The difference between Concat and ConcatV2 is that
     // axis is the first input for Concat
     // and is the last input to ConcatV2
-    default_op_checks(node, 2, {"Concat", "ConcatV2", "tflite::CONCATENATION"});
+    default_op_checks(node, 2, {"Concat", "ConcatV2"});
     auto input_size = static_cast<int>(node.get_input_size());
 
     int64_t axis;
