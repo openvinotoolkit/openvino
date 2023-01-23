@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "decoder.hpp"
-#include "exception.hpp"
+#include "openvino/frontend/tensorflow/decoder.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
