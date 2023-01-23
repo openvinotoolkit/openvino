@@ -143,7 +143,7 @@ make
 ```
 
 For the release configuration, the sample application binaries are in `<path_to_build_directory>/<hardware_name>/Release/`;
-for the debug configuration — in `<path_to_build_directory>/<hardware_name>/Debug/`.
+for the debug configuration — in `<path_to_build_directory>/<architecture>/Debug/`.
 
 ### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
