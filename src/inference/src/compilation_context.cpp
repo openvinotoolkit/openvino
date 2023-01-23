@@ -67,7 +67,7 @@ std::string NetworkCompilationContext::calculate_file_info(const std::string& fi
 
 std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const ov::Model>& model,
                                                     const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - Model");
 
     OPENVINO_ASSERT(model);
 
@@ -138,7 +138,7 @@ std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const 
 
 std::string NetworkCompilationContext::compute_hash(const InferenceEngine::CNNNetwork& network,
                                                     const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - CNN");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - CNN");
 
     OPENVINO_ASSERT(network.getFunction());
 
@@ -180,7 +180,7 @@ std::string NetworkCompilationContext::compute_hash(const InferenceEngine::CNNNe
 }
 
 std::string NetworkCompilationContext::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - ModelName");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
@@ -197,7 +197,7 @@ std::string NetworkCompilationContext::compute_hash(const std::string& modelName
 std::string NetworkCompilationContext::compute_hash(const std::string& modelStr,
                                                     const ov::Tensor& tensor,
                                                     const ov::AnyMap& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::compute_hash - Model Memory");
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - Model Memory");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);
