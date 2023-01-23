@@ -161,9 +161,9 @@ mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --re
 
 The following pre-trained models are available:
 
-- wsj_dnn5b_smbr
-- rm_lstm4f
 - rm_cnn4a_smbr
+- rm_lstm4f
+- wsj_dnn5b_smbr
 
 All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 

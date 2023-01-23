@@ -106,18 +106,19 @@ Options:
     -pc                        Optional. Enables per-layer performance report.
     -q "<mode>"                Optional. Input quantization mode: static (default), dynamic, or user (use with -sf).
     -qb "<integer>"            Optional. Weight bits for quantization: 8 or 16 (default)
-    -sf "<double>"             Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas.
-    -bs "<integer>"            Optional. Batch size 1-8
-    -layout "<string>"         Optional. Prompts how network layouts should be treated by application.For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.
+    -sf "<double>"             Optional. User-specified input scale factor for quantization (use with -q user). If the network contains multiple inputs, provide scale factors by separating them with commas. For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs
+    -bs "<integer>"            Optional. Batch size 1-8 (default 1)
     -r "<path>"                Optional. Read reference score file or named layers with corresponding score files and compare scores. Example of usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: Example of usage for named layers: <layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.
     -rg "<path>"               Read GNA model from file using path/filename provided (required if -m is missing).
     -wg "<path>"               Optional. Write GNA model to file using path/filename provided.
     -we "<path>"               Optional. Write GNA embedded model to file using path/filename provided.
     -cw_l "<integer>"          Optional. Number of frames for left context windows (default is 0). Works only with context window networks. If you use the cw_l or cw_r flag, then batch size argument is ignored.
     -cw_r "<integer>"          Optional. Number of frames for right context windows (default is 0). Works only with context window networks. If you use the cw_r or cw_l flag, then batch size argument is ignored.
+    -layout "<string>"         Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
     -pwl_me "<double>"         Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
     -exec_target "<string>"    Optional. Specify GNA execution target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_EXEC_TARGET config option description.
     -compile_target "<string>" Optional. Specify GNA compile target generation. May be one of GNA_TARGET_2_0, GNA_TARGET_3_0. By default, generation corresponds to the GNA HW available in the system or the latest fully supported generation by the software. See the GNA Plugin's GNA_COMPILE_TARGET config option description.
+    -memory_reuse_off          Optional. Disables memory optimizations for compiled model.
 
 Available target devices:  CPU  GNA  GPU VPUX
 ```
@@ -132,9 +133,9 @@ mo --framework kaldi --input_model wsj_dnn5b.nnet --counts wsj_dnn5b.counts --re
 
 The following pre-trained models are available:
 
-- wsj_dnn5b_smbr
-- rm_lstm4f
 - rm_cnn4a_smbr
+- rm_lstm4f
+- wsj_dnn5b_smbr
 
 All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2).
 

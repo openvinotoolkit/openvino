@@ -343,14 +343,22 @@ int main(int argc, char* argv[]) {
             if (output_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
-            count_file = output_name_files.empty() ? 1 : output_name_files.size();
+            count_file = output_name_files.size();
+            if (executableNet.outputs().size() > 1 && output_data.second.empty() && count_file == 1) {
+                throw std::logic_error("-o is ambiguous: the model has multiple outputs but only one file provided "
+                                       "without output name specification");
+            }
         }
         if (!reference_data.first.empty()) {
             reference_name_files = convert_str_to_vector(reference_data.first);
             if (reference_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
-            count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
+            count_file = reference_name_files.size();
+            if (executableNet.outputs().size() > 1 && reference_data.second.empty() && count_file == 1) {
+                throw std::logic_error("-r is ambiguous: the model has multiple outputs but only one file provided "
+                                       "without output name specification");
+            }
         }
         if (count_file > executableNet.outputs().size()) {
             throw std::logic_error(
