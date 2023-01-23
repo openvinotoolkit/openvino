@@ -35,19 +35,22 @@ To create a virtual environment, use the following command:
 
 @sphinxdirective
 
-.. tab:: On Linux and macOS
+.. tab:: Linux and macOS
 
    .. code-block:: sh
    
       source openvino_env/bin/activate
    
-.. tab:: On Windows
+.. tab:: Windows
 
    .. code-block:: sh
    
       openvino_env\Scripts\activate
-     
-     
+
+.. important::
+
+   The above command must be re-run every time a new command terminal window is opened.
+
 @endsphinxdirective
 
 ### Step 3. Set Up and Update PIP to the Highest Version
