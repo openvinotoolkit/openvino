@@ -11,7 +11,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_meshgrid(NodeContext& context) {
-    OutputVector inputs{context.get_input_from_visible_context(0)};
+    OutputVector inputs{context.get_input(0)};
     std::string indexing = "ij";
     if (!context.input_is_none(1)) {
         indexing = context.const_input<std::string>(1);
