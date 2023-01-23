@@ -30,55 +30,74 @@ Proceed to the [Get Started Guide](@ref get_started) section to learn the basic 
 
 @endsphinxdirective
 
+
 ## Raspbian OS
 
-1. Add the current Linux user to the `users` group:
-   ```sh
-   sudo usermod -a -G users "$(whoami)"
-   ```
-   Log out and log in for it to take effect.
-2. If you didn't modify `.bashrc` to permanently set the environment variables, run `setupvars.sh` again after logging in:
-   ```sh
-   source /opt/intel/openvino_2022/setupvars.sh
-   ```
-3. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the `install_NCS_udev_rules.sh` script:
-   ```sh
-   sh /opt/intel/openvino_2022/install_dependencies/install_NCS_udev_rules.sh
-   ```
-4. Plug in your Intel® Neural Compute Stick 2.
-
-5. (Optional) If you want to compile and run the Image Classification sample to verify the installation of OpenVINO, follow the steps below.
-
-   a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named `build`:
-   ```sh
-   mkdir build && cd build
-   ```
-   b. Build the Hello Classification Sample:
-   ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
-   ```
-   ```sh
-   make -j2 hello_classification
-   ```
-   c. Download the pre-trained squeezenet1.1 image classification model with the Model Downloader or copy it from the host machine:
-   ```sh
-   git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
-   cd open_model_zoo/tools/model_tools
-   python3 -m pip install --upgrade pip
-   python3 -m pip install -r requirements.in
-   python3 downloader.py --name squeezenet1.1 
-   ```
-   d. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian OS:
-   ```sh
-   ./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
-   ```
-   The application outputs to console window top 10 classification results.
-
 @sphinxdirective
+
+#. Add the current Linux user to the ``users`` group:
+
+   .. code-block:: sh
+
+      sudo usermod -a -G users "$(whoami)"
+
+   Log out and log in for it to take effect.
+
+#. If you didn't modify ``.bashrc`` to permanently set the environment variables, run ``setupvars.sh`` again after logging in:
+
+   .. code-block:: sh
+
+      source /opt/intel/openvino_2022/setupvars.sh
+
+#. To perform inference on the Intel® Neural Compute Stick 2, install the USB rules running the ``install_NCS_udev_rules.sh`` script:
+
+   .. code-block:: sh
+
+      sh /opt/intel/openvino_2022/install_dependencies/install_NCS_udev_rules.sh
+
+#. Plug in your Intel® Neural Compute Stick 2.
+
+#. (Optional) If you want to compile and run the Image Classification sample to verify the installation of OpenVINO, follow the steps below.
+
+   a. Navigate to a directory that you have write access to and create a samples build directory. This example uses a directory named ``build``:
+
+      .. code-block:: sh
+
+         mkdir build && cd build
+
+   b. Build the Hello Classification Sample:
+
+      .. code-block:: sh
+
+         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino_2022/samples/cpp
+
+      .. code-block:: sh
+
+         make -j2 hello_classification
+
+   c. Download the pre-trained squeezenet1.1 image classification model with the Model Downloader or copy it from the host machine:
+
+      .. code-block:: sh
+
+         git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
+         cd open_model_zoo/tools/model_tools
+         python3 -m pip install --upgrade pip
+         python3 -m pip install -r requirements.in
+         python3 downloader.py --name squeezenet1.1
+
+   d. Run the sample specifying the model, a path to the input image, and the VPU required to run with the Raspbian OS:
+
+      .. code-block:: sh
+
+         ./armv7l/Release/hello_classification <path_to_model>/squeezenet1.1.xml <path_to_image> MYRIAD
+
+      The application outputs to console window top 10 classification results.
+
 
 .. _ncs guide macos:
 
 @endsphinxdirective
+
 
 ## macOS
 
@@ -98,9 +117,9 @@ You've completed all required configuration steps to perform inference on your I
 Now you are ready to try out OpenVINO™. You can use the following tutorials to write your applications using Python and C++.
 
 Developing in Python:
-   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/101-tensorflow-to-openvino-with-output.html)
-   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
-   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/latest/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
+   * [Start with tensorflow models with OpenVINO™](https://docs.openvino.ai/2022.2/notebooks/101-tensorflow-to-openvino-with-output.html)
+   * [Start with ONNX and PyTorch models with OpenVINO™](https://docs.openvino.ai/2022.2/notebooks/102-pytorch-onnx-to-openvino-with-output.html)
+   * [Start with PaddlePaddle models with OpenVINO™](https://docs.openvino.ai/2022.2/notebooks/103-paddle-onnx-to-openvino-classification-with-output.html)
 
 Developing in C++:
    * [Image Classification Async C++ Sample](@ref openvino_inference_engine_samples_classification_sample_async_README)
