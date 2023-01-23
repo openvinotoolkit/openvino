@@ -12,7 +12,7 @@
 
 This article introduces how Automatic Device Selection works and how to use it for inference.
 
-## How AUTO Works
+## <a name="how-auto-works"></a> How AUTO Works
 
 The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
 which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
@@ -38,10 +38,7 @@ The logic behind the choice is as follows:
 | 2        || iGPU                                                | FP32, FP16, BIN                     |
 |          || (e.g. Intel® UHD Graphics 620 (iGPU))               |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
-| 3        || Intel® Movidius™ Myriad™ X VPU                      | FP16                                |
-|          || (e.g. Intel® Neural Compute Stick 2 (Intel® NCS2))  |                                     |
-+----------+------------------------------------------------------+-------------------------------------+
-| 4        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
+| 3        || Intel® CPU                                          | FP32, FP16, INT8, BIN               |
 |          || (e.g. Intel® Core™ i7-1165G7)                       |                                     |
 +----------+------------------------------------------------------+-------------------------------------+
 @endsphinxdirective
@@ -271,7 +268,7 @@ The `ov::hint::model_priority` property enables you to control the priorities of
 
 ## Configuring Individual Devices and Creating the Auto-Device plugin on Top
 
-Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if the device candidate list includes Myriad devices, uncapable of utilizing the Performance Hints option. 
+Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if AUTO is uncapable of utilizing the Performance Hints option. 
 
 
 @sphinxdirective
@@ -290,7 +287,7 @@ Although the methods described above are currently the preferred way to execute 
 
 @endsphinxdirective
 
-## Using AUTO with OpenVINO Samples and Benchmark app
+## <a name="using-auto-with-openvino-samples-and-benchmark-app"></a> Using AUTO with OpenVINO Samples and Benchmark app
 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
@@ -303,7 +300,7 @@ benchmark_app –d AUTO –m <model> -i <input> -niter 1000
 For limited device choice:
 
 ```sh
-benchmark_app –d AUTO:CPU,GPU,MYRIAD –m <model> -i <input> -niter 1000
+benchmark_app –d AUTO:CPU,GPU,GNA –m <model> -i <input> -niter 1000
 ```
 
 For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.	
