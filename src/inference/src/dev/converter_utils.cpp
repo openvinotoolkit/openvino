@@ -119,7 +119,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
     for (auto&& input : cloned_model->inputs()) {
         auto param_name = input.get_node()->get_friendly_name();
 
-        OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
+        OPENVINO_ASSERT(network.getInputsInfo().count(param_name));
 
         auto input_info = network.getInputsInfo()[param_name];
         ::fill_input_info(input, input_info);
@@ -128,7 +128,7 @@ InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_
         auto output = result->input_value(0);
         const auto& res_name = ov::op::util::create_ie_output_name(output);
 
-        OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
+        OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo()[res_name];
 
         ::fill_output_info(output, output_info);
@@ -146,7 +146,7 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
     for (auto&& input : cloned_model->inputs()) {
         auto param_name = input.get_node()->get_friendly_name();
 
-        OPENVINO_ASSERT(network.getInputsInfo().find(param_name) != network.getInputsInfo().end());
+        OPENVINO_ASSERT(network.getInputsInfo().count(param_name));
 
         auto input_info = network.getInputsInfo().at(param_name);
         auto& rt_info = input.get_rt_info();
@@ -157,7 +157,7 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
         auto output = result->input_value(0);
         const auto& res_name = ov::op::util::create_ie_output_name(output);
 
-        OPENVINO_ASSERT(network.getOutputsInfo().find(res_name) != network.getOutputsInfo().end());
+        OPENVINO_ASSERT(network.getOutputsInfo().count(res_name));
         auto output_info = network.getOutputsInfo().at(res_name);
 
         auto& rt_info = output.get_rt_info();
