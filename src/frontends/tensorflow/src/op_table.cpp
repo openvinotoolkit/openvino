@@ -30,7 +30,7 @@ TF_OP_CONVERTER(translate_while_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
-        // note: UnaryOp translator declaration for each op must be added in unary_op.cpp file
+        // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file
         {"Abs", translate_unary_op<opset8::Abs>},
         {"Acos", translate_unary_op<opset8::Acos>},
         {"Acosh", translate_unary_op<opset8::Acosh>},
@@ -62,7 +62,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Tanh", translate_unary_op<opset8::Tanh>},
         {"Swish", translate_unary_op<opset8::Swish>},
 
-        // note: BinaryOp translator declaration for each op must be added in binary_op.cpp file
+        // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
         {"Add", translate_binary_op<opset8::Add>},
         {"AddV2", translate_binary_op<opset8::Add>},
         {"Equal", translate_binary_op<opset8::Equal>},
@@ -84,7 +84,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"SquaredDifference", translate_binary_op<opset8::SquaredDifference>},
         {"Sub", translate_binary_op<opset8::Subtract>},
 
-        // note: ReduceOp translator declaration for each op must be added in reduce.cpp file
+        // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", translate_direct_reduce_op<opset8::ReduceLogicalOr>},
         {"All", translate_direct_reduce_op<opset8::ReduceLogicalAnd>},
         {"EuclideanNorm", translate_direct_reduce_op<opset8::ReduceL2>},

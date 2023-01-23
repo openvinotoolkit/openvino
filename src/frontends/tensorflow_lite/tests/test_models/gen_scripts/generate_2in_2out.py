@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 
-# do not print INFO and WARNING messages from TensorFlow
+# do not print messages from TensorFlow
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 

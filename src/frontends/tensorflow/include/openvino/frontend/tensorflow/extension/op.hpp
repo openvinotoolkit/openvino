@@ -3,7 +3,6 @@
 //
 
 #pragma once
-
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
 

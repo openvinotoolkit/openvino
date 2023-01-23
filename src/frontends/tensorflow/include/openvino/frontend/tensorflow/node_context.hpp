@@ -4,11 +4,10 @@
 
 #pragma once
 
+#include "decoder.hpp"
+#include "exception.hpp"
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino/frontend/tensorflow/decoder.hpp"
-#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -17,7 +16,7 @@ class TranslateSession;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class TENSORFLOW_API NodeContext : public ov::frontend::NodeContext {
+class NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& decoder,
