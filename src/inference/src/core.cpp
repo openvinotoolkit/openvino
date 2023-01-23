@@ -179,11 +179,9 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    std::string deviceName_ = context.get_device_name();
-    InferenceEngine::DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
+    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->get_plugin(deviceName).import_model(modelStream, context, {});
+        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
         return {exec._ptr, exec._so};
     });
 }
