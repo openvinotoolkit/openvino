@@ -10,7 +10,6 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/env_util.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
@@ -28,47 +27,30 @@ std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::
     if (dst_data == nullptr)
         return nullptr;
 
-    bool is_out_of_range = false;
     int num_out_of_range = 0;
     for (size_t i = 0; i < size; ++i) {
         // if it is smaller than the smallest positive normal fp16 but not zero
         if (std::abs(src_data[i]) <= ov::float16::from_bits(0x0400) && src_data[i] != 0.0f) {
             num_out_of_range++;
-            is_out_of_range = true;
         } else if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
             dst_data[i] = std::numeric_limits<ov::float16>::max();
-            is_out_of_range = true;
             num_out_of_range++;
         } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
             dst_data[i] = std::numeric_limits<ov::float16>::lowest();
-            is_out_of_range = true;
             num_out_of_range++;
         } else {
             dst_data[i] = static_cast<ov::float16>(src_data[i]);
         }
     }
 
-    // thresholds in percents
     // if more than 75% of a FP32 constant do not fit into FP16 keep in FP32
-    auto keep_threshold = static_cast<float>(ov::util::getenv_int("KEEP_FP32_THRESHOLD", 75));
-    auto actual_out_of_range_in_percent = 100.0f * static_cast<float>(num_out_of_range) / static_cast<float>(size);
+    float keep_threshold = 0.75f;
+    float out_of_range_proportion = static_cast<float>(num_out_of_range) / static_cast<float>(size);
 
-    if (actual_out_of_range_in_percent >= keep_threshold) {
-        std::cerr << "Warning: while the model was compressed into FP16, Constant '" << constant->get_friendly_name()
-                  << "' "
-                     "is kept in FP32. This means the model originally was not designed to be inferred on FP16. "
-                     "Therefore inference results on FP16 supporting plugins potentially can significantly "
-                     "differ from FP32."
-                  << std::endl;
-
+    if (out_of_range_proportion >= keep_threshold) {
         return nullptr;
     }
 
-    if (is_out_of_range) {
-        std::cerr << "Warning: One or more of the values of the Constant can't fit in the float16 data type."
-                     " Those values were casted to the nearest limit value, the model can produce incorrect results."
-                  << std::endl;
-    }
     return new_constant;
 }
 }  // namespace
