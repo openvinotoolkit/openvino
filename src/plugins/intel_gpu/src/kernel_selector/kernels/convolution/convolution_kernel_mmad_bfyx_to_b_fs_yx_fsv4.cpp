@@ -36,7 +36,6 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
-    k.DisableTuning();
     return k;
 }
 

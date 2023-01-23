@@ -360,25 +360,6 @@ void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a) {
     }
 }
 
-void ParamsKey::EnableIndexSelectAxis(IndexSelectAxis a) {
-    switch (a) {
-        case IndexSelectAxis::X:
-            key.restrict.val.dedicated.idxsel.axisX = 1;
-            break;
-        case IndexSelectAxis::Y:
-            key.restrict.val.dedicated.idxsel.axisY = 1;
-            break;
-        case IndexSelectAxis::FEATURE:
-            key.restrict.val.dedicated.idxsel.axisFeature = 1;
-            break;
-        case IndexSelectAxis::BATCH:
-            key.restrict.val.dedicated.idxsel.axisBatch = 1;
-            break;
-        default:
-            break;
-    }
-}
-
 void ParamsKey::EnableQuantization(QuantizationType q) {
     switch (q) {
         case QuantizationType::NONE:

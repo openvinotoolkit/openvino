@@ -6,7 +6,7 @@
 
 #include "any_copy.hpp"
 #include "cnn_network_ngraph_impl.hpp"
-#include "cpp/ie_plugin.hpp"
+#include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
 #include "so_extension.hpp"
@@ -14,6 +14,20 @@
 #ifdef OPENVINO_STATIC_LIBRARY
 #    include "ie_plugins.hpp"
 #endif
+
+namespace {
+std::string resolve_extension_path(const std::string& path) {
+    std::string retvalue;
+    try {
+        const std::string absolute_path = ov::util::get_absolute_file_path(path);
+        retvalue = FileUtils::fileExist(absolute_path) ? absolute_path : path;
+    } catch (const std::runtime_error&) {
+        retvalue = path;
+    }
+    return retvalue;
+}
+
+}  // namespace
 
 namespace ov {
 
@@ -35,7 +49,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
+    _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
 #else
     register_plugins(findPluginXML(xmlConfigFile));
 #endif
@@ -53,33 +67,17 @@ std::map<std::string, Version> Core::get_versions(const std::string& deviceName)
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::shared_ptr<ov::Model> Core::read_model(const std::wstring& modelPath, const std::wstring& binPath) const {
     OV_CORE_CALL_STATEMENT(
-        return _impl->ReadNetwork(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath))
-            .getFunction(););
+        return _impl->read_model(ov::util::wstring_to_string(modelPath), ov::util::wstring_to_string(binPath)););
 }
 #endif
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& modelPath, const std::string& binPath) const {
-    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(modelPath, binPath).getFunction(););
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(modelPath, binPath););
 }
 
 std::shared_ptr<ov::Model> Core::read_model(const std::string& model, const ov::Tensor& weights) const {
-    InferenceEngine::Blob::Ptr blob;
-    if (weights) {
-        blob = weights._impl;
-    }
-    OV_CORE_CALL_STATEMENT(return _impl->ReadNetwork(model, blob).getFunction(););
+    OV_CORE_CALL_STATEMENT(return _impl->read_model(model, weights););
 }
-
-namespace {
-
-ie::CNNNetwork toCNN(const std::shared_ptr<const ngraph::Function>& model) {
-    return ie::CNNNetwork(
-        std::make_shared<ie::details::CNNNetworkNGraphImpl>(std::const_pointer_cast<ngraph::Function>(model),
-                                                            std::vector<ie::IExtensionPtr>{},
-                                                            true));
-}
-
-}  // namespace
 
 CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model, const AnyMap& config) {
     return compile_model(model, ov::DEFAULT_DEVICE_NAME, config);
@@ -89,7 +87,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(model, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -100,7 +98,7 @@ CompiledModel Core::compile_model(const std::string& modelPath, const AnyMap& co
 
 CompiledModel Core::compile_model(const std::string& modelPath, const std::string& deviceName, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(modelPath, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(modelPath, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -109,12 +107,8 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
                                   const std::string& deviceName,
                                   const AnyMap& config) {
-    InferenceEngine::Blob::Ptr blob;
-    if (weights) {
-        blob = weights._impl;
-    }
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(model, blob, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->compile_model(model, weights, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -123,9 +117,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->LoadNetwork(toCNN(model),
-                                       context._impl,
-                                       any_copy(flatten_sub_properties(context.get_device_name(), config)));
+        auto exec = _impl->compile_model(model, context, flatten_sub_properties(context.get_device_name(), config));
         return {exec._ptr, exec._so};
     });
 }
@@ -136,7 +128,8 @@ void Core::add_extension(const ie::IExtensionPtr& extension) {
 
 void Core::add_extension(const std::string& library_path) {
     try {
-        add_extension(ov::detail::load_extensions(library_path));
+        const std::string path = resolve_extension_path(library_path);
+        add_extension(ov::detail::load_extensions(path));
     } catch (const std::runtime_error&) {
         try {
             // Try to load legacy extension
@@ -152,7 +145,8 @@ void Core::add_extension(const std::string& library_path) {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
     try {
-        add_extension(ov::detail::load_extensions(library_path));
+        const std::string path = resolve_extension_path(ov::util::wstring_to_string(library_path));
+        add_extension(ov::detail::load_extensions(ov::util::string_to_wstring(path)));
     } catch (const std::runtime_error&) {
         try {
             // Try to load legacy extension
@@ -171,13 +165,13 @@ void Core::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     add_extension(std::vector<std::shared_ptr<ov::Extension>>{extension});
 }
 void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
-    OV_CORE_CALL_STATEMENT({ _impl->AddOVExtensions(extensions); });
+    OV_CORE_CALL_STATEMENT({ _impl->add_extension(extensions); });
 }
 
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& deviceName, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->ImportNetwork(modelStream, deviceName, any_copy(flatten_sub_properties(deviceName, config)));
+        auto exec = _impl->import_model(modelStream, deviceName, flatten_sub_properties(deviceName, config));
         return {exec._ptr, exec._so};
     });
 }
@@ -185,24 +179,9 @@ CompiledModel Core::import_model(std::istream& modelStream, const std::string& d
 CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext& context, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
 
-    using ExportMagic = std::array<char, 4>;
-    constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
-
-    std::string deviceName;
-    ExportMagic magic = {};
-    auto currentPos = modelStream.tellg();
-    modelStream.read(magic.data(), magic.size());
-    if (exportMagic == magic) {
-        std::getline(modelStream, deviceName);
-    } else {
-        OPENVINO_ASSERT(false,
-                        "Passed compiled stream does not contain device name. "
-                        "Please, provide device name manually");
-    }
-    modelStream.seekg(currentPos, modelStream.beg);
-
+    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->GetCPPPluginByName(deviceName).import_model(modelStream, {});
+        auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
         return {exec._ptr, exec._so};
     });
 }
@@ -210,11 +189,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
 SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& deviceName,
                                   const AnyMap& config) const {
-    OV_CORE_CALL_STATEMENT({
-        auto qnResult =
-            _impl->QueryNetwork(toCNN(model), deviceName, any_copy(flatten_sub_properties(deviceName, config)));
-        return qnResult.supportedLayersMap;
-    });
+    OV_CORE_CALL_STATEMENT(return _impl->query_model(model, deviceName, flatten_sub_properties(deviceName, config)););
 }
 
 void Core::set_property(const AnyMap& properties) {
@@ -238,7 +213,7 @@ std::vector<std::string> Core::get_available_devices() const {
 }
 
 void Core::register_plugin(const std::string& pluginName, const std::string& deviceName) {
-    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginByName(pluginName, deviceName););
+    OV_CORE_CALL_STATEMENT(_impl->register_plugin(pluginName, deviceName););
 }
 
 void Core::unload_plugin(const std::string& deviceName) {
@@ -246,12 +221,12 @@ void Core::unload_plugin(const std::string& deviceName) {
         ie::DeviceIDParser parser(deviceName);
         std::string devName = parser.getDeviceName();
 
-        _impl->UnloadPluginByName(devName);
+        _impl->unload_plugin(devName);
     });
 }
 
 void Core::register_plugins(const std::string& xmlConfigFile) {
-    OV_CORE_CALL_STATEMENT(_impl->RegisterPluginsInRegistry(xmlConfigFile););
+    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(xmlConfigFile););
 }
 
 RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& params) {
@@ -262,8 +237,8 @@ RemoteContext Core::create_context(const std::string& deviceName, const AnyMap& 
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, flatten_sub_properties(deviceName, params));
-        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).create_context(parsed._config);
-        return {remoteContext._ptr, {remoteContext._so}};
+        auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
+        return {remoteContext._impl, {remoteContext._so}};
     });
 }
 
@@ -275,8 +250,8 @@ RemoteContext Core::get_default_context(const std::string& deviceName) {
 
     OV_CORE_CALL_STATEMENT({
         auto parsed = parseDeviceNameIntoConfig(deviceName, AnyMap{});
-        auto remoteContext = _impl->GetCPPPluginByName(parsed._deviceName).get_default_context(parsed._config);
-        return {remoteContext._ptr, {remoteContext._so}};
+        auto remoteContext = _impl->get_plugin(parsed._deviceName).get_default_context(parsed._config);
+        return {remoteContext._impl, {remoteContext._so}};
     });
 }
 
