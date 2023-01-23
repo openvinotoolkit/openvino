@@ -38,6 +38,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_properties, ov::optimal_batch_size, "optimal_batch_size");
     wrap_property_RO(m_properties, ov::max_batch_size, "max_batch_size");
     wrap_property_RO(m_properties, ov::range_for_async_infer_requests, "range_for_async_infer_requests");
+    wrap_property_RW(m_properties, ov::inference_precision, "inference_precision");
 
     // Submodule hint
     py::module m_hint =
@@ -149,6 +150,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::gops, "gops");
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
+    wrap_property_RO(m_device, ov::device::uuid, "uuid");
 
     // Modules made in pybind cannot easily register attributes, thus workaround is needed.
     // Let's simulate module with attributes by creating empty proxy class called FakeModuleName.

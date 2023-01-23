@@ -285,6 +285,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     , _memory_pool(new memory_pool(program->get_engine()))
     , _internal(is_internal)
     , _is_primary_stream(is_primary_stream)
+    , _enable_profiling(config.get_property(ov::enable_profiling))
     , _reset_arguments(true) {
     if (!_internal) {
         net_id = get_unique_net_id();
@@ -752,14 +753,6 @@ std::string network::get_implementation_info(const primitive_id& id) const {
     return _program->get_implementation_info(id);
 }
 
-memory::ptr network::get_output_memory(const primitive_id& output_id) {
-    return get_primitive(output_id)->output_memory_ptr();
-}
-
-layout network::get_output_layout(const primitive_id& output_id) const {
-    return get_primitive(output_id)->get_output_layout();
-}
-
 layout network::get_node_output_layout(const primitive_id& output_id) const {
     auto res = std::find_if(_outputs.begin(), _outputs.end(), [&](const std::shared_ptr<primitive_inst>& v) {
         return v->id() == output_id;
@@ -767,6 +760,14 @@ layout network::get_node_output_layout(const primitive_id& output_id) const {
     OPENVINO_ASSERT(res != _outputs.end(), "[GPU] Couldn't get output layout for ", output_id, ". Output with such name is not found in the outputs list");
 
     return (*res)->get_node_output_layout();
+}
+
+memory::ptr network::get_output_memory(const primitive_id& output_id) {
+    return get_primitive(output_id)->output_memory_ptr();
+}
+
+layout network::get_output_layout(const primitive_id& output_id) const {
+    return get_primitive(output_id)->get_output_layout();
 }
 
 void network::allocate_primitives() {
@@ -973,7 +974,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 
     // Store events only in case of OOO queue or enabled Profiling
-    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _config.get_property(ov::enable_profiling);
+    auto store_events = get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling;
     if (store_events) {
         if (_program != nullptr) {
         for (auto& inst : _program->get_processing_order()) {
@@ -1122,8 +1123,7 @@ void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive
     event::ptr ev = primitive->execute(events);
 
     // Collect events only for OOO queue and Profiling mode
-    if (get_stream().get_queue_type() == QueueTypes::out_of_order ||
-        get_config().get_property(ov::enable_profiling)) {
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling) {
         auto id = primitive->id();
         _events.insert({id, ev});
     }

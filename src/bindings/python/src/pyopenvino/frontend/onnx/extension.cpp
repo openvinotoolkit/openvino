@@ -62,7 +62,7 @@ void regclass_frontend_onnx_OpExtension(py::module m) {
 
         std::map<std::string, ov::Any> any_map;
         for (const auto& it : attr_values_map) {
-            any_map[it.first] = py_object_to_any(it.second);
+            any_map[it.first] = Common::utils::py_object_to_any(it.second);
         }
         return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
     }), py::arg("fw_type_name"),
@@ -76,7 +76,7 @@ void regclass_frontend_onnx_OpExtension(py::module m) {
 
         std::map<std::string, ov::Any> any_map;
         for (const auto& it : attr_values_map) {
-            any_map[it.first] = py_object_to_any(it.second);
+            any_map[it.first] = Common::utils::py_object_to_any(it.second);
         }
         return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
     }),
@@ -93,7 +93,7 @@ void regclass_frontend_onnx_OpExtension(py::module m) {
 
         std::map<std::string, ov::Any> any_map;
         for (const auto& it : attr_values_map) {
-            any_map[it.first] = py_object_to_any(it.second);
+            any_map[it.first] = Common::utils::py_object_to_any(it.second);
         }
         return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, fw_domain, attr_names_map, any_map);
     }),

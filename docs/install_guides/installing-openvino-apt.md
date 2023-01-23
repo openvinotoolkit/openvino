@@ -8,6 +8,11 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 .. warning:: By downloading and using this container and the included software, you agree to the terms and conditions of the `software license agreements <https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf>`_.
 
+@endsphinxdirective
+
+## Prerequisites
+
+@sphinxdirective
 
 .. tab:: System Requirements
 
@@ -31,7 +36,6 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 .. _installing-openvino-runtime:
 
 @endsphinxdirective
-
 
 ## Installing OpenVINO Runtime
 
@@ -135,7 +139,6 @@ This guide provides detailed steps for installing OpenVINO™ Runtime through th
 
 @endsphinxdirective
 
-
 #### Check for Installed Packages and Versions
 
 @sphinxdirective
@@ -146,10 +149,10 @@ Run the following command:
 
    apt list --installed | grep openvino
 
+
 @endsphinxdirective
 
-
-#### Uninstall OpenVINO Runtime
+#### Uninstalling OpenVINO Runtime
 
 @sphinxdirective
 
@@ -178,17 +181,15 @@ Run the following command:
 
 @endsphinxdirective
 
-
-### Step 3 (Optional): Install Software Dependencies
+### Step 3 (Optional): Install Additional Components
 
 @sphinxdirective
 
-After you have installed OpenVINO Runtime, if you decided to :doc:`install OpenVINO Model Development Tools <openvino_docs_install_guides_install_dev_tools>`, make sure that you install external software dependencies first.
+OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using APT, OpenVINO Development Tools must be installed separately.
 
-Refer to :ref:`Install External Software Dependencies <install-external-dependencies>` for detailed steps.
+See the **For C++ Developers** section on the :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` page for instructions.
 
 @endsphinxdirective
-
 
 ### Step 4 (Optional): Configure Inference on Non-CPU Devices
 
@@ -197,7 +198,6 @@ Refer to :ref:`Install External Software Dependencies <install-external-dependen
 To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :doc:`GPU Setup Guide <openvino_docs_install_guides_configurations_for_intel_gpu>`.
 
 @endsphinxdirective
-
 
 ### Step 5: Build Samples
 
@@ -220,25 +220,7 @@ To build the C++ or C sample applications for Linux, run the ``build_samples.sh`
 
 For more information, refer to :ref:`Build the Sample Applications on Linux <build-samples-linux>`.
 
-.. _installing-openvino-development-tools:
-
 @endsphinxdirective
-
-
-## Installing OpenVINO Development Tools
-
-@sphinxdirective
-
-.. note: From the 2022.1 release, the OpenVINO™ Development Tools can be installed via PyPI only.
-
-To install OpenVINO Development Tools, do the following steps:
-
-#. :ref:`Install OpenVINO Runtime <installing-openvino-runtime>` if you haven't done it yet.
-#. :ref:`Install External Software Dependencies <install-external-dependencies>`.
-#. See the **For C++ Developers** section in :doc:`Install OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>` for detailed steps.
-
-@endsphinxdirective
-
 
 ## What's Next?
 
@@ -254,7 +236,6 @@ Now you may continue with the following tasks:
 
 @endsphinxdirective
 
-
 ## Additional Resources
 
 @sphinxdirective
@@ -263,4 +244,3 @@ Now you may continue with the following tasks:
 - For IoT Libraries & Code Samples see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`_.
 
 @endsphinxdirective
-
