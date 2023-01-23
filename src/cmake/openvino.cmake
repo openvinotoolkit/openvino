@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -195,13 +195,16 @@ install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
 # Generate and install openvino.pc pkg-config file
 
 if(ENABLE_PKGCONFIG_GEN)
+    # fill in PKGCONFIG_OpenVINO_DEFINITIONS
+    get_target_property(openvino_defs openvino INTERFACE_COMPILE_DEFINITIONS)
+    foreach(openvino_def IN LISTS openvino_defs)
+        set(PKGCONFIG_OpenVINO_DEFINITIONS "${PKGCONFIG_OpenVINO_DEFINITIONS} -D${openvino_def}")
+    endforeach()
+
     # fill in PKGCONFIG_OpenVINO_FRONTENDS
     get_target_property(PKGCONFIG_OpenVINO_FRONTENDS_LIST ov_frontends MANUALLY_ADDED_DEPENDENCIES)
     if(ENABLE_OV_IR_FRONTEND)
         list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_ir_frontend)
-    endif()
-    if(ENABLE_OV_TF_FRONTEND)
-        list(REMOVE_ITEM PKGCONFIG_OpenVINO_FRONTENDS_LIST openvino_tensorflow_frontend)
     endif()
 
     foreach(frontend IN LISTS PKGCONFIG_OpenVINO_FRONTENDS_LIST)

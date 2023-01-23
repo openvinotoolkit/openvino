@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(detection_output)
 
 layout detection_output_inst::calc_output_layout(detection_output_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "detection_output_node!");
     auto desc = impl_param.typed_desc<detection_output>();
@@ -183,10 +183,10 @@ void detection_output_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     // argument (struct detection_output)
     ob << argument->id;
-    ob << argument->input[0];
-    ob << argument->input[1];
-    ob << argument->input[2];
-    ob << make_data(&argument->output_padding, sizeof(argument->output_padding));
+    ob << argument->input[0].pid;
+    ob << argument->input[1].pid;
+    ob << argument->input[2].pid;
+    ob << make_data(&argument->output_paddings[0], sizeof(argument->output_paddings[0]));
     ob << argument->num_classes;
     ob << argument->keep_top_k;
     ob << argument->share_location;
@@ -259,7 +259,8 @@ void detection_output_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> clip_before_nms;
     ib >> clip_after_nms;
 
-    argument = std::make_shared<detection_output>(id, input_location, input_confidence, input_prior_box,
+    argument = std::make_shared<detection_output>(
+        id, input_info(input_location), input_info(input_confidence), input_info(input_prior_box),
         num_classes, keep_top_k, share_location, background_label_id, nms_threshold, top_k, eta, code_type,
         variance_encoded_in_target, confidence_threshold, prior_info_size, prior_coordinates_offset,
         prior_is_normalized, input_width, input_height, decrease_label_id, clip_before_nms, clip_after_nms,

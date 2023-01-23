@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -256,8 +256,6 @@ private:
 };
 
 TEST_P(GroupDeconvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     if (!fusedOps.empty()) {
         bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
         if (stride.size() > 1)

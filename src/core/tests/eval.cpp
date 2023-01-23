@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "engines_util/execute_tools.hpp"
 #include "engines_util/test_case.hpp"
 #include "gmock/gmock.h"
@@ -25,8 +26,10 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/cos.hpp"
 #include "ngraph/op/cosh.hpp"
+#include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/erf.hpp"
 #include "ngraph/op/exp.hpp"
+#include "ngraph/op/fake_quantize.hpp"
 #include "ngraph/op/floor.hpp"
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/log.hpp"
@@ -59,6 +62,7 @@
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
+#include "sequnce_generator.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
@@ -68,6 +72,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 #define ASSERT_FLOAT_VECTORS_EQ(expected, result)                       \
     ASSERT_EQ(expected.size(), result.size()) << "Array sizes differ."; \
@@ -631,6 +636,39 @@ TEST(eval, evaluate_reshape_v1_pattern_int16) {
     ASSERT_EQ(computed_val, expected_val);
 }
 
+TEST(eval, evaluate_reshape_v1_data_dynamic_shape) {
+    constexpr auto exp_dtype = element::i32;
+
+    auto data = make_shared<op::Parameter>(exp_dtype, PartialShape::dynamic());
+    auto pattern = make_shared<op::Parameter>(element::i64, Shape{6});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto f = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result_tensor},
+                            {make_host_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
+                             make_host_tensor<element::Type_t::i64>(pattern->get_shape(), {2, 0, 1, -1, 1, 1})}));
+
+    EXPECT_EQ(result_tensor->get_element_type(), exp_dtype);
+    EXPECT_EQ(result_tensor->get_partial_shape(), PartialShape({2, 2, 1, 2, 1, 1}));
+    EXPECT_THAT(read_vector<int32_t>(result_tensor), ElementsAre(0, 1, 2, 3, 4, 5, 6, 7));
+}
+
+TEST(eval, evaluate_reshape_v1_not_backward_compatible_and_in_out_size_not_eq) {
+    constexpr auto exp_dtype = element::i32;
+    auto data = make_shared<op::Parameter>(exp_dtype, PartialShape::dynamic());
+    auto pattern = make_shared<op::Parameter>(element::i16, Shape{5});
+    auto dyn_reshape = make_shared<op::v1::Reshape>(data, pattern, true);
+    auto f = make_shared<Function>(OutputVector{dyn_reshape}, ParameterVector{data, pattern});
+    auto result_tensor = make_shared<HostTensor>();
+
+    OV_EXPECT_THROW(f->evaluate({result_tensor},
+                                {make_host_tensor<element::Type_t::i32>(Shape{2, 2, 2}, {0, 1, 2, 3, 4, 5, 6, 7}),
+                                 make_host_tensor<element::Type_t::i16>(pattern->get_shape(), {2, 1, 1, 1, 1})}),
+                    NodeValidationFailure,
+                    HasSubstr("Requested output shape [2,1,1,1,1] is incompatible with input shape [2,2,2]"));
+}
+
 TEST(eval, evaluate_convert) {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{-1, -1});
     auto convert = make_shared<op::v0::Convert>(p, element::i64);
@@ -1051,6 +1089,18 @@ TEST(eval, evaluate_tanh) {
     });
 
     ASSERT_FLOAT_VECTORS_EQ(input, result_val);
+}
+
+TEST(eval, evaluate_logical_not_dynamic_input_shape) {
+    const auto a = make_shared<op::Parameter>(element::boolean, PartialShape::dynamic());
+    const auto op = make_shared<op::v1::LogicalNot>(a);
+    const auto f = make_shared<Function>(OutputVector{op}, ParameterVector{a});
+    const auto result = make_shared<HostTensor>();
+
+    ASSERT_TRUE(f->evaluate({result}, {make_host_tensor<element::Type_t::boolean>(Shape{2, 1, 2}, {0, 0, 1, 1})}));
+    EXPECT_EQ(result->get_element_type(), element::boolean);
+    EXPECT_EQ(result->get_shape(), Shape({2, 1, 2}));
+    EXPECT_THAT(read_vector<char>(result), ElementsAre(1, 1, 0, 0));
 }
 
 TEST(eval, evaluate_logical_not) {
@@ -1813,4 +1863,62 @@ TEST(eval, evaluate_softsign_9) {
     auto result_data = result_tensor[0].data<float>();
     for (size_t i = 0; i < result_tensor[0].get_size(); ++i)
         EXPECT_NEAR(result_data[i], out[i], 1e-6F);
+}
+
+TEST(eval, evaluate_fake_quantize_dynamic_input) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    auto param = make_shared<op::Parameter>(et, PartialShape::dynamic());
+    auto in_low = op::v0::Constant::create(et, Shape{}, {0.f});
+    auto in_high = op::v0::Constant::create(et, Shape{}, {5.f});
+    auto out_low = op::v0::Constant::create(et, Shape{}, {2.f});
+    auto out_high = op::v0::Constant::create(et, Shape{}, {4.f});
+
+    auto op = make_shared<op::v0::FakeQuantize>(param, in_low, in_high, out_low, out_high, 4);
+    auto f = make_shared<Function>(OutputVector{op}, ParameterVector{param});
+
+    const auto exp_shape = Shape{1, 3, 2};
+    std::vector<float> input_data;
+    std::generate_n(std::back_inserter(input_data), shape_size(exp_shape), ov::SeqGen<float>(0.f));
+
+    auto result = make_shared<HostTensor>();
+    ASSERT_TRUE(f->evaluate({result}, {make_host_tensor<et>(exp_shape, input_data)}));
+
+    EXPECT_EQ(result->get_element_type(), et);
+    EXPECT_EQ(result->get_shape(), exp_shape);
+    EXPECT_THAT(read_vector<float>(result),
+                Pointwise(FloatEq(), std::vector<float>{2.f, 2.6666667f, 2.6666667f, 3.3333333f, 3.3333333f, 4.f}));
+}
+
+TEST(eval, evaluate_cum_sum_v0) {
+    auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3});
+    auto axis = op::Constant::create<int32_t>(element::i32, Shape{1}, {1});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    float out_expected[6] = {1.f, 3.f, 6.f, 4.f, 9.f, 15.f};
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
+    EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+}
+
+TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
+    auto data = make_shared<op::Parameter>(element::f32, Shape{5});
+    auto axis = op::Constant::create<int32_t>(element::i32, Shape{1}, {0});
+    auto cs = make_shared<op::v0::CumSum>(data, axis, true, true);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[5] = {1.f, 2.f, 3.f, 4.f, 5.f};
+    float out_expected[5] = {14.f, 12.f, 9.f, 5.f, 0.f};
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {5}, input_values}}));
+    EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
 }

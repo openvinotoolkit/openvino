@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,7 +47,7 @@ static void run_test(std::function<void()> preprocessing,
         auto stop = Time::now();
         std::chrono::duration<float> fs = stop - start;
         time_interval d = std::chrono::duration_cast<time_interval>(fs);
-        max_time = std::max(max_time, d.count());
+        max_time = std::max(max_time, static_cast<int64_t>(d.count()));
         avg_time += static_cast<double>(d.count());
         postprocessing();
     }

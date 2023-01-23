@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 using namespace std;
 
 // ------------------------------ v0 -------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(ov::op::v0::SquaredDifference);
 
 ov::op::v0::SquaredDifference::SquaredDifference(const Output<Node>& arg0,
                                                  const Output<Node>& arg1,

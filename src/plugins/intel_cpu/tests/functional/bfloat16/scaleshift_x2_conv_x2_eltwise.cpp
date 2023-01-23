@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -128,10 +128,9 @@ protected:
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Add_1"] = "ndef";
-        expectedPrecisions["Add_2"] = "ndef";
+        expectedPrecisions["Add_2"] = netPrecision.name();
         expectedPrecisions["Convolution_1"] = "BF16";
-        expectedPrecisions["ELT_1"] = "ndef";
+        expectedPrecisions["ELT_1"] = netPrecision.name();
     }
 };
 

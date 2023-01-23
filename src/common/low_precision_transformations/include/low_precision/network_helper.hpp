@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -256,6 +256,8 @@ public:
         float& dequantizationSub,
         float& updatedOutputLowValue,
         float& updatedOutputHighValue);
+
+    static ov::Output<ov::Node> getSingleConsumerConstant(const ov::Output<ov::Node>& output);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(

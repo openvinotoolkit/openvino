@@ -4,7 +4,7 @@
 
 #include <common_test_utils/ngraph_test_utils.hpp>
 #include "lowering_utils.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 
 
 namespace ov {
@@ -21,7 +21,12 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[op::v1::Add::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Subtract::get_type_info_static()] = dummy_functor;
     jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
-    jitters[op::v1::Multiply::get_type_info_static()] = dummy_functor;
+    jitters[op::v1::Divide::get_type_info_static()] = dummy_functor;
+    jitters[op::v1::Maximum::get_type_info_static()] = dummy_functor;
+    jitters[op::v0::Exp::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::PowerStatic::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::HorizonMax::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::HorizonSum::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Load::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastLoad::get_type_info_static()] = dummy_functor;
 
@@ -30,8 +35,42 @@ DummyTargetMachine::DummyTargetMachine() {
     jitters[ngraph::snippets::op::Scalar::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::Tile::get_type_info_static()] = dummy_functor;
-    jitters[ngraph::snippets::op::TileScheduler::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::Brgemm::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::Buffer::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
+    jitters[ngraph::snippets::op::Fill::get_type_info_static()] = dummy_functor;
+}
+
+LoweringTests::LoweringTests() : TransformationTestsF() {
+    // external subgraph input shape and internal parameters shapes
+    // might differ due to the blocked layout
+    // so input & output descriptors shouldn't be checked
+    comparator.disable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
+}
+
+void LoweringTests::SetUp() {
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+}
+
+void LoweringTests::TearDown() {
+    auto cloned_function = ngraph::clone_function(*function);
+    if (!function_ref) {
+        function_ref = cloned_function;
+    }
+    manager.run_passes(function);
+        ASSERT_NO_THROW(check_rt_info(function));
+
+    if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
+        auto acc_comparator = FunctionsComparator::no_default();
+        acc_comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+        auto res = acc_comparator.compare(function, cloned_function);
+        ASSERT_TRUE(res.valid) << res.message;
+        comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
+    }
+    auto res = comparator.compare(function, function_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const std::shared_ptr<Model>& f) {
@@ -52,9 +91,30 @@ std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getSubgraph(const
     return subgraph;
 }
 
-std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f) {
+std::shared_ptr<ngraph::snippets::op::Subgraph> LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
+                                                                                  const ov::PartialShape& master_shape) {
     auto subgraph = getTokenizedSubgraph(f);
     subgraph->set_generator(std::make_shared<DummyGenerator>());
+    subgraph->set_master_shape(master_shape);
+    const auto& body = subgraph->body_ptr();
+    auto& body_rt_info = body->get_rt_info();
+    // todo: insertLoops pass requires body_rt_info["PluginShapesOverride"] and subgraph->set_tile_rank to work normally
+    //  consider revising snippets-plugin shape and scheduling communication
+    std::vector<std::vector<size_t>> new_shapes;
+    for (const auto& p : body->get_parameters()) {
+        const auto pshape = p->get_output_partial_shape(0);
+        if (pshape.is_dynamic())
+            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        new_shapes.push_back(pshape.get_shape());
+    }
+    for (const auto& r : body->get_results()) {
+        const auto pshape = r->get_input_partial_shape(0);
+        if (pshape.is_dynamic())
+            IE_THROW() << "getLoweredSubgraph supports only static shapes";
+        new_shapes.push_back(pshape.get_shape());
+    }
+    body_rt_info["PluginShapesOverride"] = new_shapes;
+    subgraph->set_tile_rank(2);
     subgraph->generate();
     return subgraph;
 }

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 /**
  * @file transformations_visibility.hpp
@@ -13,7 +13,7 @@
 
 /**
  * @defgroup ie_transformation_api Inference Engine Transformation API
- * @brief Defines Inference Engine Transformations API which is used to transform ngraph::Function
+ * @brief Defines Inference Engine Transformations API which is used to transform ov::Model
  *
  * @{
  * @defgroup ie_runtime_attr_api Runtime information

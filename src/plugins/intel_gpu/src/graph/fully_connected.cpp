@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "fully_connected_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -97,8 +95,8 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
     auto output_type = input_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)
-        output_type = *desc->output_data_type;
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -139,7 +137,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto weights_layout = *impl_param.weights_layout;
 
     auto default_out_dt = data_type_traits::is_floating_point(input_layout.data_type) ? input_layout.data_type : data_types::f32;
-    auto output_type = desc->output_data_type.value_or(default_out_dt);
+    auto output_type = desc->output_data_types[0].value_or(default_out_dt);
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_fused_output_layout().data_type;

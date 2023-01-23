@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::OneHotIE);
 
 op::OneHotIE::OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type)
         : Op({input}), m_type(type), m_axis(axis), m_depth(depth), m_off_value(off_value), m_on_value(on_value) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace op {
 class HardSigmoid_IE : public Op {
 public:
     OPENVINO_OP("HardSigmoid_IE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     HardSigmoid_IE() = default;
 

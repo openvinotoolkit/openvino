@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@
 namespace cldnn {
 namespace onednn {
 
-struct gemm_onednn : typed_primitive_onednn_impl<gemm, dnnl::matmul::desc> {
-    using parent = typed_primitive_onednn_impl<gemm, dnnl::matmul::desc>;
+struct gemm_onednn : typed_primitive_onednn_impl<gemm> {
+    using parent = typed_primitive_onednn_impl<gemm>;
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
@@ -53,87 +53,10 @@ protected:
         }
     }
 
-    static std::shared_ptr<dnnl::matmul::desc> get_gemm_descriptor(const kernel_impl_params& impl_params) {
+    static std::shared_ptr<dnnl::matmul::primitive_desc> get_gemm_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                       const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+        auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<gemm>();
-
-        auto get_gemm_input_layouts = [prim](const std::vector<layout>& input_layouts) {
-            auto get_updated_input_shape = [&](const ov::Shape& input_shape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
-                ov::Shape updated_input_shape;
-
-                if (input_rank == 1) {
-                    updated_input_shape = { *std::max_element(input_shape.begin(), input_shape.end()) };
-                } else {
-                    updated_input_shape = ov::Shape(input_shape.begin(), input_shape.begin() + input_rank);
-                }
-
-                if (updated_input_shape.size() == 1) {
-                    first_input ? updated_input_shape.insert(updated_input_shape.begin(), 1)
-                                : updated_input_shape.insert(updated_input_shape.end(), 1);
-
-                    if (transpose) {
-                        std::swap(updated_input_shape[0], updated_input_shape[1]);
-                    }
-                }
-                size_t ones_to_add = std::max(output_rank, static_cast<size_t>(4)) - updated_input_shape.size();
-                updated_input_shape.insert(updated_input_shape.begin(), ones_to_add, 1ul);
-
-                return updated_input_shape;
-            };
-
-            auto input0_shape = input_layouts[0].get_shape();
-            auto input1_shape = input_layouts[1].get_shape();
-
-            bool reordered = prim->input_rank > 4 || prim->weight_rank > 4;
-            size_t output_rank = std::max(prim->input_rank, prim->weight_rank);
-            size_t input_rank = reordered ? output_rank : prim->input_rank;
-            size_t weight_rank = reordered ? output_rank : prim->weight_rank;
-
-            auto updated_input0_shape = get_updated_input_shape(input0_shape, input_rank, output_rank, prim->transpose_input0, true);
-            auto updated_input1_shape = get_updated_input_shape(input1_shape, weight_rank, output_rank, prim->transpose_input1, false);
-
-            std::vector<layout> layouts = input_layouts;
-            layouts[0].set_partial_shape(updated_input0_shape);
-            layouts[1].set_partial_shape(updated_input1_shape);
-
-            if (input_layouts.size() == 3) {
-                auto bias_shape = input_layouts[2].get_shape();
-                auto updated_bias_shape = get_updated_input_shape(bias_shape, prim->weight_rank, output_rank, prim->transpose_input1, false);
-                layouts[2].set_partial_shape(updated_bias_shape);
-            }
-
-            return layouts;
-        };
-
-        auto get_gemm_output_layout = [prim](const std::vector<layout>& input_layouts, const layout& output_layout) {
-            auto updated_output_layout = output_layout;
-            auto output_rank = output_layout.get_shape().size();
-            if (output_rank < 4) {
-                const auto& input0_layout = input_layouts[0];
-                const auto& input1_layout = input_layouts[1];
-
-                auto M = !prim->transpose_input0 ? input0_layout.spatial(1) : input0_layout.spatial(0);
-                auto N = !prim->transpose_input1 ? input1_layout.spatial(0) : input1_layout.spatial(1);
-
-                auto output_shape = input0_layout.get_shape();
-                for (const auto& input_layout : input_layouts) {
-                    auto input_shape = input_layout.get_shape();
-                    for (size_t i = 0; i != input_shape.size(); ++i) {
-                        output_shape[i] = std::max(output_shape[i], input_shape[i]);
-                    }
-                }
-
-                auto get_spatial_idx = [](cldnn::format format, size_t spatial_idx) {
-                    const size_t idx = (format::is_grouped(format) ? 3 : 2) + (format.spatial_num() - 1 - spatial_idx);
-                    return idx;
-                };
-
-                output_shape[get_spatial_idx(updated_output_layout.format, 0)] = N;
-                output_shape[get_spatial_idx(updated_output_layout.format, 1)] = M;
-                updated_output_layout.set_partial_shape(output_shape);
-            }
-            return updated_output_layout;
-        };
-
         auto gemm_with_bias = prim->dependencies().size() == 3;
         auto out_l = impl_params.get_output_layout();
 
@@ -142,8 +65,8 @@ protected:
             in_layouts.emplace_back(impl_params.get_input_layout(2));
         }
 
-        in_layouts = get_gemm_input_layouts(in_layouts);
-        out_l = get_gemm_output_layout(in_layouts, out_l);
+        in_layouts = gemm_inst::transform_input_layouts(prim, in_layouts, out_l);
+        out_l = gemm_inst::transform_output_layout(prim, in_layouts, out_l);
 
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
@@ -195,21 +118,26 @@ protected:
             dnnl::memory::format_tag bias_fmt = onednn::convert_gemm_data_format(bias_dims);
             dnnl::memory::desc bias_md(bias_dims, bias_dt, bias_fmt);
 
-            return std::make_shared<dnnl::matmul::desc>(
+            return std::make_shared<dnnl::matmul::primitive_desc>(
+                engine.get_onednn_engine(),
                 in0_md,
                 in1_md,
                 bias_md,
-                out_md);
+                out_md,
+                attr);
         } else {
-            return std::make_shared<dnnl::matmul::desc>(
+            return std::make_shared<dnnl::matmul::primitive_desc>(
+                engine.get_onednn_engine(),
                 in0_md,
                 in1_md,
-                out_md);
+                out_md,
+                attr);
         }
     }
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_matmul_desc_t));
@@ -217,9 +145,11 @@ public:
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
         const char dummy_mem[sizeof(dnnl::matmul::desc)] = {};
@@ -233,15 +163,16 @@ public:
 
         _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
+#endif
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto desc = get_gemm_descriptor(impl_params);
+        auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+        auto prim_desc = get_gemm_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<gemm_onednn>(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<gemm_onednn>(engine, config, attr, *prim_desc);
     }
 };
 

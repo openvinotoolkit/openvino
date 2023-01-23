@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Tile);
-
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
     ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
@@ -29,19 +27,18 @@ bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v0::Tile::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Tile_validate_and_infer_types);
-    auto arg_et = get_input_element_type(0);
 
     // Repeats should have integer data type. For now we only allow i64
-    auto repeats_et = get_input_element_type(1);
+    const auto& repeats_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           repeats_et.is_integral(),
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<PartialShape>(1, ov::PartialShape{});
     shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, arg_et, output_shapes[0]);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
@@ -86,4 +83,23 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
 bool op::v0::Tile::has_evaluate() const {
     OV_OP_SCOPE(v0_Tile_has_evaluate);
     return true;
+}
+
+bool op::v0::Tile::evaluate_lower(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_lower);
+
+    return get_input_tensor(1).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Tile::evaluate_upper(const HostTensorVector& output_values) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_upper);
+
+    return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Tile::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_label);
+    OPENVINO_ASSERT(output_labels.size() == 1);
+
+    return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, output_labels);
 }

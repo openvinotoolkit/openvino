@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@
 
 ov::pass::LeakyReluFusion::LeakyReluFusion() {
     MATCHER_SCOPE(LeakyReluFusion);
-    auto data_pattern = ngraph::pattern::any_input();
-    auto alpha_pattern = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto data_pattern = pass::pattern::any_input();
+    auto alpha_pattern = pass::pattern::any_input(pattern::has_static_shape());
     auto multiply_pattern =
         ngraph::pattern::wrap_type<opset8::Multiply>({data_pattern, alpha_pattern}, pattern::consumers_count(1));
     auto max_pattern = ngraph::pattern::wrap_type<opset8::Maximum>({data_pattern, multiply_pattern});

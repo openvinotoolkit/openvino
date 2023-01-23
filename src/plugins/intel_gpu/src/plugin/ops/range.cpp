@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,8 @@ static void CreateRangeOp(Program &p, const std::shared_ptr<ngraph::op::v4::Rang
     }
 
     cldnn::range prim(layer_type_name_ID(op),
-                        p.GetInputPrimitiveIDs(op),
-                        *outLayout);
+                      p.GetInputInfo(op),
+                      *outLayout);
     p.add_primitive(*op, prim);
 }
 

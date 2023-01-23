@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,8 +180,13 @@ class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
 
 TEST_P(binary_convolution_test, conv) {
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
+
+    // DG2 is not validated for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
+
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     topology topology_bin;
 
     std::string weights_suffix = "_w_";
@@ -222,7 +227,7 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(input_layout(input_name, input->get_layout()));
     topology_bin.add(data(output_name + weights_suffix, weights));
 
-    topology_bin.add(binary_convolution(output_name, input_name, {output_name + weights_suffix},
+    topology_bin.add(binary_convolution(output_name, input_info(input_name), {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
     cldnn::network::ptr network_bin;
@@ -230,7 +235,7 @@ TEST_P(binary_convolution_test, conv) {
     if (p.is_caching_test) {
         membuf mem_buf;
         {
-            cldnn::network _network(engine, topology_bin, options);
+            cldnn::network _network(engine, topology_bin, config);
             std::ostream out_mem(&mem_buf);
             BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
             _network.save(ob);
@@ -241,7 +246,7 @@ TEST_P(binary_convolution_test, conv) {
             network_bin = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
         }
     } else {
-        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, options);
+        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, config);
     }
 
     network_bin->set_input_data(input_name, input);
@@ -337,6 +342,9 @@ static void set_binary_values(cldnn::memory::ptr mem, std::vector<T> args) {
 
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     auto& engine = get_test_engine();
+    // DG2 is not validated for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
@@ -381,7 +389,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            binary_convolution("binary_conv", "input", { "weights" },
+            binary_convolution("binary_conv", input_info("input"), { "weights" },
                                { 1,1 },
                                { 0,0 },
                                { 1,1 },
@@ -391,35 +399,38 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, options);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "binary_conv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.data_type, data_types::f32);
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 4);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.data_type, data_types::f32);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 4);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++)
     {
-        EXPECT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
+        ASSERT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
     }
 }
 
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     auto& engine = get_test_engine();
+    // DG2 is not validated for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
@@ -464,7 +475,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     topology topology(
             input_layout("input", input->get_layout()),
             data("weights", weights),
-            binary_convolution("binary_conv", "input", { "weights" },
+            binary_convolution("binary_conv", input_info("input"), { "weights" },
                                { 1,1 },
                                { 0,0 },
                                { 1,1 },
@@ -474,28 +485,28 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, options);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "binary_conv");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "binary_conv");
 
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<uint16_t> output_ptr(output_memory, get_test_stream());
 
-    EXPECT_EQ(output_layout.format, format::bfyx);
-    EXPECT_EQ(output_layout.data_type, data_types::f16);
-    EXPECT_EQ(output_layout.batch(), 1);
-    EXPECT_EQ(output_layout.feature(), 4);
-    EXPECT_EQ(output_layout.spatial(1), 2);
-    EXPECT_EQ(output_layout.spatial(0), 2);
+    ASSERT_EQ(output_layout.format, format::bfyx);
+    ASSERT_EQ(output_layout.data_type, data_types::f16);
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 4);
+    ASSERT_EQ(output_layout.spatial(1), 2);
+    ASSERT_EQ(output_layout.spatial(0), 2);
 
     for (size_t i = 0; i < output_layout.count(); i++) {
-        EXPECT_EQ(half_to_float(output_ptr[i]), output_vec[i]) << "index="<< i;
+        ASSERT_EQ(half_to_float(output_ptr[i]), output_vec[i]) << "index="<< i;
     }
 }

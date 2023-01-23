@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <string>
 #include <transformations/common_optimizations/mish_fusion.hpp>
 #include <transformations/common_optimizations/softplus_to_mish_fusion.hpp>
 #include <transformations/init_node_info.hpp>
@@ -43,7 +42,6 @@ TEST_F(TransformationTestsF, MishFusing) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});
     }
 }
-
 
 TEST_F(TransformationTestsF, MishWithSoftPlusFusing) {
     {

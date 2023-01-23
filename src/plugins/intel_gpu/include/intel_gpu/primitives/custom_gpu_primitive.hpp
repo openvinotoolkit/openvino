@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -10,12 +9,6 @@
 #include <string>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief This primitive executes a custom kernel provided by the application
 /// @details The application is required to provide all relevant details for executing the custom kernel
@@ -49,7 +42,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @param gws Global work sizes
     /// @param lws Local work sizes
     custom_gpu_primitive(const primitive_id& id,
-                         const std::vector<primitive_id>& input,
+                         const std::vector<input_info>& inputs,
                          const std::vector<std::string>& kernels_code,
                          const std::string& kernel_entry_point,
                          const std::vector<arg_desc>& kernel_arguments,
@@ -57,7 +50,7 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const layout& output_layout,
                          const std::vector<size_t>& gws = {},
                          const std::vector<size_t>& lws = {})
-        : primitive_base(id, {input}, output_layout.data_padding),
+        : primitive_base(id, inputs, {output_layout.data_padding}),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
           build_options(build_options),
@@ -81,7 +74,4 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -191,6 +191,33 @@ void InputModel::set_element_type(const ov::frontend::Place::Ptr& place, const n
     std::map<std::string, ngraph::element::Type_t> m;
     m[place->get_names().at(0)] = type;
     m_editor->set_input_types(m);
+}
+
+ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& place) const {
+    OPENVINO_ASSERT(place, "Cannot return a type for nullptr Place.");
+    std::string tensor_name;
+    const auto input_edge = std::dynamic_pointer_cast<PlaceInputEdge>(place);
+    const auto output_edge = std::dynamic_pointer_cast<PlaceOutputEdge>(place);
+    if (input_edge) {
+        const auto tensor_names = input_edge->get_source_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve source tensor name for this InputEdge and thus its element type.");
+        tensor_name = tensor_names[0];
+    } else if (output_edge) {
+        const auto tensor_names = output_edge->get_target_tensor()->get_names();
+        OPENVINO_ASSERT(!tensor_names.empty(),
+                        "Cannot retrieve target tensor name for this OutputEdge and thus its element type.");
+        tensor_name = tensor_names[0];
+    } else {
+        OPENVINO_ASSERT(place->get_names().size() > 0, "Place must have its name.");
+        tensor_name = place->get_names().at(0);
+    }
+
+    if (place->is_input()) {
+        return m_editor->get_input_type(tensor_name);
+    }
+    // now we can return the concrete element type only for model inputs
+    return element::undefined;
 }
 
 std::shared_ptr<Model> InputModel::decode() {

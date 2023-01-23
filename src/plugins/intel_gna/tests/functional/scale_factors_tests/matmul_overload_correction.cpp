@@ -10,6 +10,8 @@
 
 #include <ie_core.hpp>
 
+#include <gmock/gmock.h>
+
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
@@ -30,7 +32,7 @@ typedef std::tuple<
 
 namespace LayerTestsDefinitions {
 
-class MatMulOverloadCorrectionTest : public testing::WithParamInterface<matmulOverloadCorrectionParams>,
+class MatMulOverloadCorrectionNegTest : public testing::WithParamInterface<matmulOverloadCorrectionParams>,
     public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<matmulOverloadCorrectionParams> obj) {
@@ -111,8 +113,17 @@ protected:
     const size_t levels32 = std::numeric_limits<uint32_t>::max();
 };
 
-TEST_P(MatMulOverloadCorrectionTest, CompareWithRefImpl) {
-    Run();
+TEST_P(MatMulOverloadCorrectionNegTest, CompareWithRefImpl) {
+    std::stringstream what;
+    std::streambuf* sbuf = std::cout.rdbuf();
+    std::streambuf* ebuf = std::cerr.rdbuf();
+    std::cout.rdbuf(what.rdbuf());
+    std::cerr.rdbuf(what.rdbuf());
+    LoadNetwork();
+    const auto expected = "Potential overload correction issue at layer ";
+    EXPECT_THAT(what.str(), ::testing::HasSubstr(expected));
+    std::cout.rdbuf(sbuf);
+    std::cerr.rdbuf(ebuf);
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -122,7 +133,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"}
+        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"LOG_LEVEL", "LOG_WARNING"}
     }
 };
 
@@ -131,13 +143,13 @@ const std::vector<std::vector<size_t>> inputShapes = {
     {1, 256}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_base, MatMulOverloadCorrectionTest,
+INSTANTIATE_TEST_SUITE_P(smoke_base, MatMulOverloadCorrectionNegTest,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GNA),
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn({true, false}),
+        ::testing::ValuesIn({true}),
         ::testing::ValuesIn({true, false})),
-    MatMulOverloadCorrectionTest::getTestCaseName);
+    MatMulOverloadCorrectionNegTest::getTestCaseName);
 } // namespace LayerTestsDefinitions

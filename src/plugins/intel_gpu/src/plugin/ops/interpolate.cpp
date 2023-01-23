@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
     validate_inputs_count(op, {3, 4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     static const size_t SIZES_INDEX = 1;
@@ -83,7 +83,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
     if (p.use_new_shape_infer()) {
         if (sizes_constant && scales_constant) {
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputPrimitives[0],
+                                                             inputs[0],
                                                              sizes,
                                                              scales,
                                                              axes,
@@ -97,9 +97,9 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
                                                              attrs.nearest_mode);
         } else {
             resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                             inputPrimitives[0],
-                                                             inputPrimitives[SIZES_INDEX],
-                                                             inputPrimitives[SCALES_INDEX],
+                                                             inputs[0],
+                                                             inputs[SIZES_INDEX],
+                                                             inputs[SCALES_INDEX],
                                                              axes,
                                                              attrs.pads_begin,
                                                              attrs.pads_end,
@@ -115,7 +115,7 @@ static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4
         auto outputPattern = std::vector<int64_t>(outShape.begin(), outShape.end());
 
         resamplePrim = std::make_shared<cldnn::resample>(layerName,
-                                                         inputPrimitives[0],
+                                                         inputs[0],
                                                          outputPattern,
                                                          scales,
                                                          axes,

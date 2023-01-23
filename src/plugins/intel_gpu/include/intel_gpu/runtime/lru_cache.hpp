@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include <list>
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+
+#include "kernel.hpp"
 
 namespace cldnn {
 

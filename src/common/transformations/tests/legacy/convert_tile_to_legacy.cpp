@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
+#include <legacy/ngraph_ops/tile_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <memory>
-#include <queue>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <queue>
+#include <string>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <legacy/ngraph_ops/tile_ie.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

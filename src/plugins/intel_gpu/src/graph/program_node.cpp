@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 #include "program_helpers.h"
 #include "primitive_inst.h"
 #include "loop_inst.h"
-#include "strided_slice_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -36,7 +35,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_padding;
+            output_layout.data_padding = prim->output_paddings[i];
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
@@ -46,43 +45,35 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
     if (idx >= dependencies.size())
         return;
-    if (dependencies[idx] == &new_dep)
+    if (dependencies[idx].first == &new_dep)
         return;
 
     if (is_type<loop>()) {
         loop_node& loop = *this;
-        loop.update_primitive_map(dependencies[idx]->id(), new_dep.id(), true);
+        loop.update_primitive_map(dependencies[idx].first->id(), new_dep.id(), true);
     }
 
-    auto it = std::find(dependencies[idx]->users.begin(), dependencies[idx]->users.end(), this);
-    if (it != dependencies[idx]->users.end()) {
-        dependencies[idx]->users.erase(it);
-    }
-    if (!dependencies_new.empty()) {
-        it = std::find(dependencies_new[idx].first->users.begin(), dependencies_new[idx].first->users.end(), this);
-        if (it != dependencies_new[idx].first->users.end()) {
-            dependencies_new[idx].first->users.erase(it);
-        }
+    auto it = std::find(dependencies[idx].first->users.begin(), dependencies[idx].first->users.end(), this);
+    if (it != dependencies[idx].first->users.end()) {
+        dependencies[idx].first->users.erase(it);
     }
 
     if (remove_if_dangling)
-        myprog.remove_if_dangling(*dependencies[idx]);
+        myprog.remove_if_dangling(*dependencies[idx].first);
 
-    dependencies[idx] = &new_dep;
-    if (!dependencies_new.empty())
-        dependencies_new[idx].first = &new_dep;
+    dependencies[idx].first = &new_dep;
     new_dep.users.push_back(this);
 }
 
 void program_node::replace_dependency(program_node const& old_dep, program_node& new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &old_dep)
+        if (dependencies[i].first == &old_dep)
             return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies) dep_ids.push_back(dependency->get_primitive()->id);
+    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
 
@@ -90,8 +81,8 @@ void program_node::remove_dependency(size_t idx) {
     if (idx >= dependencies.size())
         return;
 
-    dependencies[idx]->users.remove(this);
-    myprog.remove_if_dangling(*dependencies[idx]);
+    dependencies[idx].first->users.remove(this);
+    myprog.remove_if_dangling(*dependencies[idx].first);
     dependencies.erase(dependencies.begin() + idx);
 }
 
@@ -113,7 +104,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     s << get_preferred_impl_type();
     node_info->add("preferred impl", s.str());
 
-    node_info->add("output layout", output_layouts[0].to_string());
+    node_info->add("output layout", output_layouts[0].to_short_string());
 
     node_info->add("constant", bool_to_str(constant));
     node_info->add("in data flow", bool_to_str(data_flow));
@@ -140,20 +131,6 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     }
     node_info->add("fused primitives", fused_nodes_info);
 
-    json_composite fused_activations;
-    auto fused_activations_funcs = get_fused_activations_funcs();
-    if (!fused_activations_funcs.empty()) {
-        for (size_t i = 0; i < fused_activations_funcs.size(); i++) {
-            json_composite fused_activation_info;
-            auto activation_type = activation_type_to_str(fused_activations_funcs[i]);
-            auto params = get_fused_activations_params()[i];
-            fused_activation_info.add("params", "a=" + std::to_string(params.a) + ", b=" + std::to_string(params.b));
-            fused_activation_info.add("activation", activation_type);
-            fused_activations.add("fused activation idx " + std::to_string(i), fused_activation_info);
-        }
-        node_info->add("fused activations (legacy)", fused_activations);
-    }
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& onednn_post_ops = get_fused_primitives_onednn();
     if (onednn_post_ops.size()) {
@@ -178,7 +155,8 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
             if (empty) {
                 empty = false;
             }
-            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(*itr++)));
+            deps_ptrs.push_back(std::to_string(reinterpret_cast<uintptr_t>(itr->first)));
+            itr++;
         }
         if (deps_ptrs.empty()) {
             deps_ptrs.push_back("null");
@@ -220,7 +198,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
 void program_node::remove_dependency(program_node& node) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             remove_dependency(i);
 }
 
@@ -238,7 +216,7 @@ size_t program_node::get_user_index(program_node& node) const {
 
 size_t program_node::get_dependency_index(program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i] == &node)
+        if (dependencies[i].first == &node)
             return i;
 
     OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
@@ -253,30 +231,23 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    bool allow_new_shape_infer =
-        get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
-            GPU_DEBUG_IF(debug_config->verbose >= 4) {
-                GPU_DEBUG_COUT << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
-            }
+            GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout(new):" << out_layouts[0] << std::endl;
             return out_layouts[0];
         }
     }
 
     auto res = type()->calc_output_layout(*this, *get_kernel_impl_params());
-    GPU_DEBUG_IF(debug_config->verbose >= 4) {
-        GPU_DEBUG_COUT << id() << ": calc_output_layout:" << res << std::endl;
-    }
+    GPU_DEBUG_TRACE_DETAIL << id() << ": calc_output_layout:" << res << std::endl;
 
     return res;
 }
 
 std::vector<layout> program_node::calc_output_layouts() const {
-    bool allow_new_shape_infer =
-        get_program().get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+    bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty())
@@ -360,18 +331,8 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 }
 
 bool program_node::is_dynamic() const {
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    if (is_type<strided_slice>()) {
-        for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
-                return true;
-        }
-    }
-    for (const auto* input : get_dependencies()) {
-        if (input->is_dynamic_output_layout())
+    for (const auto& input : get_dependencies()) {
+        if (input.first->is_dynamic_output_layout())
             return true;
     }
 
@@ -383,19 +344,8 @@ bool program_node::is_dynamic() const {
 }
 
 bool program_node::is_dynamic() {
-    // Strided slice loads data from {1,2,3} dependencies in impl::create method.
-    // It means that this data must be put into impl_params map
-    // Thus we treat it as "dynamic" case
-    // TODO: Remove once strided slice impl support runtime tensors for begin/end/stride
-    if (is_type<strided_slice>()) {
-        for (size_t i = 1; i < get_dependencies().size(); i++) {
-            if (!get_dependency(i).is_type<data>())
-                return true;
-        }
-    }
-
     for (auto& input : get_dependencies()) {
-        if (input->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout())
             return true;
     }
 
@@ -415,14 +365,14 @@ bool program_node::is_dynamic_output_layout(size_t idx) {
 }
 
 bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
 bool program_node::has_padded_dependency() const {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const program_node* node) {
-        return node->is_padded();
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
     });
 }
 
@@ -473,7 +423,8 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     if (fmt == format::fs_b_yx_fsv32 && (axis == 0))
         return false;
 
-    for (const auto& block : fmt.block_sizes()) {
+    auto block_sizes_dims = format::per_axis_block_size(fmt);
+    for (const auto& block : block_sizes_dims) {
         size_t block_axis = block.first;
         int block_size = block.second;
 
@@ -525,18 +476,8 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 
-bool program_node::has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr) {
-    int mask;
-    std::vector<float> scales;
-    attr->get_output_scales(mask, scales);
-    const auto drfv = reinterpret_cast<const int32_t&>(DNNL_RUNTIME_F32_VAL);
-    return !scales.empty() && (reinterpret_cast<const int32_t&>(scales[0]) == drfv);
-}
-
 dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr,
                                                    bool& optimization_is_completed) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-
     // Create new dnnl::post_ops object which will be filled inside the optimization process
     dnnl::post_ops optimized_p_ops;
 
@@ -549,13 +490,14 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             case onednn_post_op_type::eltwise_round:
             {
                 dnnl::algorithm alg;
-                float scale, alpha, beta;
-                cur_p_ops.get_params_eltwise(idx, scale, alg, alpha, beta);
-                new_p_ops.append_eltwise(scale, alg, alpha, beta);
+                float alpha, beta;
+                cur_p_ops.get_params_eltwise(idx, alg, alpha, beta);
+                new_p_ops.append_eltwise(alg, alpha, beta);
                 break;
             }
 
             case onednn_post_op_type::binary_add:
+            case onednn_post_op_type::binary_sub:
             case onednn_post_op_type::binary_mul:
             case onednn_post_op_type::binary_max:
             case onednn_post_op_type::binary_min:
@@ -587,7 +529,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                 cur_p_ops.get_params_sum(idx, scale, data_type);
                 // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                 if (is_type<convolution>()) {
-                    new_p_ops.append_sum(scale, data_type);
+                    new_p_ops.append_sum(scale, 0/*zero_point*/, data_type);
                 } else {
                     new_p_ops.append_sum(scale);
                 }
@@ -640,7 +582,6 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     };
     auto type_is_binary_add        = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::binary_add; };
     auto type_is_binary_mul        = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::binary_mul; };
-    auto type_is_sum               = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::sum; };
     auto type_is_optimized_sum     = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::optimized_sum; };
     auto type_is_scale             = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::scale; };
 
@@ -680,22 +621,18 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
     int64_t prev_post_op_idx = 0;
     bool optimization_done = false;
 
-    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-        GPU_DEBUG_COUT << "================================================" << std::endl;
-        GPU_DEBUG_COUT << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
-        for (size_t i = 0; i < cur_post_ops.size(); i++)
-            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-    }
+    GPU_DEBUG_TRACE << "================================================" << std::endl;
+    GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+    for (size_t i = 0; i < cur_post_ops.size(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
 
     remove_optimized_prefix(cur_post_ops);
 
-    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-        GPU_DEBUG_COUT << "remove optimized prefix ------------------------" << std::endl;
-        GPU_DEBUG_COUT << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
-        for (size_t i = 0; i < cur_post_ops.size(); i++)
-            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-        GPU_DEBUG_COUT << "----------------------------------->>>>>>>>>>>>>" << std::endl;
-    }
+    GPU_DEBUG_TRACE << "remove optimized prefix ------------------------" << std::endl;
+    GPU_DEBUG_TRACE << " " << id() << ", num of post_ops " << p_ops.len() << std::endl;
+    for (size_t i = 0; i < cur_post_ops.size(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    GPU_DEBUG_TRACE << "----------------------------------->>>>>>>>>>>>>" << std::endl;
 
     // Get post-ops size for current node
     int64_t post_ops_size = cur_post_ops.size();
@@ -717,8 +654,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto cur_type = cur_post_ops[cur_post_op_idx].op_type;
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
-        GPU_DEBUG_IF(debug_config->verbose >= 3)
-            GPU_DEBUG_COUT << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+        GPU_DEBUG_TRACE << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         // Ignore optimized operations for "previous" operation in our operation pair
         while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
@@ -735,25 +671,21 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
         }
 
-        GPU_DEBUG_IF(debug_config->verbose >= 3)
-            GPU_DEBUG_COUT << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
+        GPU_DEBUG_TRACE << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
-        auto cur_idx = static_cast<int>(has_out_scales(attr) ? (cur_post_op_idx >= 1 ? cur_post_op_idx - 1 : 0) : cur_post_op_idx);
-        auto prev_idx = static_cast<int>(has_out_scales(attr) ? (prev_post_op_idx >= 1 ? prev_post_op_idx - 1 : 0) : prev_post_op_idx);
-
-        // If prev_idx and cur_idx are same, add the last post-op to dnnl::post_ops
-        if (prev_post_op_idx == post_ops_size - 1 && prev_idx == cur_idx && !type_is_any_optimized(prev_type)) {
-            add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
+        // If prev_post_op_idx and cur_idx are same, add the last post-op to dnnl::post_ops
+        if (prev_post_op_idx == post_ops_size - 1 && prev_post_op_idx == cur_post_op_idx && !type_is_any_optimized(prev_type)) {
+            add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
             break;
         }
 
         // If this is the last pair and it's optimized - add the last post-op and go out from the cycle
         if (cur_post_op_idx == post_ops_size - 1 && (type_is_any_optimized(cur_type) || type_is_any_optimized(prev_type))) {
             if (!type_is_any_optimized(prev_type)) {
-                add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
+                add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
             }
             if (!type_is_any_optimized(cur_type)) {
-                add_post_op(cur_type, p_ops, optimized_p_ops, cur_idx);
+                add_post_op(cur_type, p_ops, optimized_p_ops, cur_post_op_idx);
             }
             break;
         }
@@ -762,52 +694,35 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         auto eltw_and_eltw  = type_is_eltwise(cur_type) && type_is_eltwise(prev_type);
         auto bin_and_eltw   = type_is_binary_add_or_mul(cur_type) && type_is_eltwise_linear(prev_type);
         auto eltw_and_bin   = type_is_eltwise_linear(cur_type) && type_is_binary_add_or_mul(prev_type);
-        auto sum_and_eltw   = type_is_sum(cur_type) && type_is_eltwise(prev_type);
         auto eltw_and_scale = type_is_eltwise_linear(cur_type) && type_is_scale(prev_type);
 
         auto can_try_optimize = eltw_and_eltw ||
                                 bin_and_eltw ||
                                 eltw_and_bin ||
-                                sum_and_eltw ||
                                 eltw_and_scale;
 
         bool cur_ops_pair_is_optimized = false;
 
-        GPU_DEBUG_IF(debug_config->verbose >= 3) {
-            GPU_DEBUG_COUT << "prev_idx: " << prev_idx << " " << prev_type
-                           << ", cur_idx: " << cur_idx << " " << cur_type << std::endl;
-        }
-
         if (can_try_optimize) {
             if (eltw_and_eltw) {
                 dnnl::algorithm cur_alg, prev_alg;
-                float cur_scale, prev_scale, cur_alpha, prev_alpha, cur_beta, prev_beta;
+                float cur_alpha, prev_alpha, cur_beta, prev_beta;
 
-                p_ops.get_params_eltwise(prev_idx, prev_scale, prev_alg, prev_alpha, prev_beta);
-                p_ops.get_params_eltwise(cur_idx, cur_scale, cur_alg, cur_alpha, cur_beta);
+                p_ops.get_params_eltwise(prev_post_op_idx, prev_alg, prev_alpha, prev_beta);
+                p_ops.get_params_eltwise(cur_post_op_idx, cur_alg, cur_alpha, cur_beta);
 
                 auto eltw_linear_and_eltw_linear = type_is_eltwise_linear(cur_type) && type_is_eltwise_linear(prev_type);
-                auto eltw_linear_and_eltw_non_linear = type_is_eltwise_linear(cur_type) && !type_is_eltwise_linear(prev_type) && cur_beta == 0;
 
                 // eltwise_linear + eltwise_linear combination can be optimized always
                 if (eltw_linear_and_eltw_linear) {
                     dnnl::post_ops eltw_p_op;
-                    float optimized_alpha = cur_alpha * prev_alpha * prev_scale;
-                    float optimized_beta = cur_alpha * prev_beta * prev_scale + cur_beta;
-                    float optimized_scale = cur_scale;
-                    eltw_p_op.append_eltwise(optimized_scale, cur_alg, optimized_alpha, optimized_beta);
+                    float optimized_alpha = cur_alpha * prev_alpha;
+                    float optimized_beta = cur_alpha * prev_beta + cur_beta;
+                    eltw_p_op.append_eltwise(cur_alg, optimized_alpha, optimized_beta);
 
                     // Combine 2 eltwises into one
                     add_post_op(cur_type, eltw_p_op, optimized_p_ops, 0);
-                } else if (eltw_linear_and_eltw_non_linear) {
-                    dnnl::post_ops eltw_p_op;
-                    eltw_p_op.append_eltwise(cur_scale * prev_scale * cur_alpha, prev_alg, prev_alpha, prev_beta);
 
-                    // Combine 2 eltwises into one
-                    add_post_op(prev_type, eltw_p_op, optimized_p_ops, 0);
-                }
-
-                if (eltw_linear_and_eltw_linear || eltw_linear_and_eltw_non_linear) {
                     // Marked current and previous eltwise operations as 'optimized' (they will be ignored on the next iteration of cycle)
                     cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized;
                     cur_post_ops[prev_post_op_idx].op_type = get_optimized_eltwise_type(prev_type);
@@ -826,25 +741,25 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             } else if (bin_and_eltw) {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
-                float scale, alpha, beta;
+                float alpha, beta;
 
                 cldnn::program_node& cur_node = get_dependency(cur_post_ops[cur_post_op_idx].mem_dep);
 
-                p_ops.get_params_binary(cur_idx, alg, desc);
-                p_ops.get_params_eltwise(prev_idx, scale, alg, alpha, beta);
+                p_ops.get_params_binary(cur_post_op_idx, alg, desc);
+                p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
-                                                cur_node.get_users().size() == 1 && desc.data_type() == dnnl_f32;
+                                                cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
-                auto bin_add_and_eltw = alpha == 1.0f && scale == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
+                auto bin_add_and_eltw = alpha == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
                 auto bin_mul_and_eltw = beta == 0.f && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
 
                 if (bin_add_and_eltw || bin_mul_and_eltw) {
                     memory::ptr cur_bin_mem_ptr = cur_node.as<data>().get_attached_memory_ptr();
                     if (cur_bin_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for bin + eltw");
-                    auto& stream = cur_bin_mem_ptr->get_engine()->get_program_stream();
+                    auto& stream = cur_bin_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> bin_and_eltw_lock(cur_bin_mem_ptr, stream);
 
                     size_t cur_bin_mem_size = cur_node.get_output_layout().count();
@@ -856,7 +771,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                         }
                     } else {
                         for (size_t data_idx = 0; data_idx < cur_bin_mem_size; data_idx++) {
-                            bin_and_eltw_lock[data_idx] *= alpha * scale;
+                            bin_and_eltw_lock[data_idx] *= alpha;
                         }
                     }
 
@@ -868,25 +783,25 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
             } else if (eltw_and_bin) {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
-                float scale, alpha, beta;
+                float alpha, beta;
 
                 cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
 
-                p_ops.get_params_eltwise(cur_idx, scale, alg, alpha, beta);
-                p_ops.get_params_binary(prev_idx, alg, desc);
+                p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
+                p_ops.get_params_binary(prev_post_op_idx, alg, desc);
 
                 // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
-                                                prev_node.get_users().size() == 1 && desc.data_type() == dnnl_f32;
+                                                prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
-                auto eltw_and_bin_add = alpha == 1.0f && scale == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
+                auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
                 auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
 
                 if (eltw_and_bin_add || eltw_and_bin_mul) {
                     memory::ptr prev_bin_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_bin_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + bin");
-                    auto& stream = prev_bin_mem_ptr->get_engine()->get_program_stream();
+                    auto& stream = prev_bin_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> eltw_and_bin_lock(prev_bin_mem_ptr, stream);
 
                     size_t prev_bin_mem_size = prev_node.get_output_layout().count();
@@ -898,7 +813,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
                         }
                     } else {
                         for (size_t data_idx = 0; data_idx < prev_bin_mem_size; data_idx++) {
-                            eltw_and_bin_lock[data_idx] *= alpha * scale;
+                            eltw_and_bin_lock[data_idx] *= alpha;
                         }
                     }
 
@@ -907,81 +822,27 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 
                     cur_ops_pair_is_optimized = true;
                 }
-            } else if (sum_and_eltw) {
-                dnnl::algorithm alg;
-                float sum_scale, eltw_scale, alpha, beta;
-
-                dnnl::algorithm next_alg;
-                float next_scale, next_alpha, next_beta;
-                int64_t next_idx = cur_idx + 1;
-                int64_t next_post_op_idx = cur_post_op_idx + 1;
-
-                bool can_optimize_eltw_and_sum = false;
-
-                if (cur_post_op_idx < post_ops_size - 1) {
-                    auto next_type = cur_post_ops[next_post_op_idx].op_type;
-                    if (type_is_eltwise_linear(next_type)) {
-                        p_ops.get_params_eltwise(next_idx, next_scale, next_alg, next_alpha, next_beta);
-
-                        if (next_beta == 0)
-                            can_optimize_eltw_and_sum = true;
-                    }
-                }
-
-                // Try to optimize eltwise (any) + sum + eltwise_linear (with beta = 0) chain of operations
-                if (can_optimize_eltw_and_sum) {
-                    dnnl::memory::data_type data_type;
-                    p_ops.get_params_sum(cur_idx, sum_scale, data_type);
-                    p_ops.get_params_eltwise(prev_idx, eltw_scale, alg, alpha, beta);
-
-                    dnnl::post_ops eltw_p_op_prev, sum_p_op;
-
-                    eltw_p_op_prev.append_eltwise(eltw_scale * next_alpha * next_scale, alg, alpha, beta);
-                    // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
-                    if (is_type<convolution>()) {
-                        sum_p_op.append_sum(sum_scale * next_alpha, data_type);
-                    } else {
-                        sum_p_op.append_sum(sum_scale * next_alpha);
-                    }
-                    add_post_op(prev_type, eltw_p_op_prev, optimized_p_ops, 0);
-                    add_post_op(cur_type, sum_p_op, optimized_p_ops, 0);
-
-                    // Marked current, previous and next operations as 'optimized' (they will be ignored on the next iteration of cycle)
-                    cur_post_ops[prev_post_op_idx].op_type = get_optimized_eltwise_type(prev_type);
-                    cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized_sum;
-                    cur_post_ops[next_post_op_idx].op_type = onednn_post_op_type::optimized;
-
-                    // Set the flag if extra optimizations checking is needed
-                    if (next_post_op_idx < post_ops_size - 1) {
-                        if (type_is_eltwise_linear(cur_post_ops[next_post_op_idx + 1].op_type) ||
-                            type_is_optimized_eltwise(cur_post_ops[next_post_op_idx + 1].op_type)) {
-                            optimization_is_completed = true;
-                        }
-                    }
-
-                    cur_ops_pair_is_optimized = true;
-                }
             } else if (eltw_and_scale) {
                 dnnl::algorithm alg;
-                float eltw_scale, alpha, beta;
+                float alpha, beta;
 
                 cldnn::program_node& prev_node = get_dependency(cur_post_ops[prev_post_op_idx].mem_dep);
 
-                p_ops.get_params_eltwise(cur_idx, eltw_scale, alg, alpha, beta);
+                p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
                 if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
-                    auto& stream = prev_scale_mem_ptr->get_engine()->get_program_stream();
+                    auto& stream = prev_scale_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> eltw_and_scale_lock(prev_scale_mem_ptr, stream);
 
                     size_t prev_scale_mem_size = prev_node.get_output_layout().count();
 
                     // Update all scale coefficients
                     for (size_t data_idx = 0; data_idx < prev_scale_mem_size; data_idx++) {
-                        eltw_and_scale_lock[data_idx] *= alpha * eltw_scale;
+                        eltw_and_scale_lock[data_idx] *= alpha;
                     }
 
                     // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
@@ -993,14 +854,14 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         }
 
         // If no optimizations have been applied then copy post-op info into the new optimized_p_ops structure
-        if (!(has_out_scales(attr) && prev_post_op_idx == 0) && !cur_ops_pair_is_optimized) {
-            add_post_op(prev_type, p_ops, optimized_p_ops, prev_idx);
+        if (!cur_ops_pair_is_optimized) {
+            add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
         }
 
         if (cur_post_op_idx == post_ops_size - 1 && !cur_ops_pair_is_optimized) {
-            add_post_op(cur_type, p_ops, optimized_p_ops, cur_idx);
+            add_post_op(cur_type, p_ops, optimized_p_ops, cur_post_op_idx);
             optimization_done = true;
-        } else if (cur_post_ops[cur_post_op_idx].op_type != onednn_post_op_type::optimized) {
+        } else if (cur_post_ops[cur_post_op_idx].op_type != onednn_post_op_type::optimized && cur_post_op_idx < post_ops_size - 1) {
             cur_post_op_idx++;
             prev_post_op_idx++;
         }
@@ -1012,12 +873,10 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
         remove_optimized_prefix(cur_post_ops);
     }
 
-    GPU_DEBUG_IF(debug_config->verbose >= 3) {
-        GPU_DEBUG_COUT << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
-        for (size_t i = 0; i < cur_post_ops.size(); i++)
-            GPU_DEBUG_COUT << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
-        GPU_DEBUG_COUT << "------------------------------------------------" << std::endl;
-    }
+    GPU_DEBUG_TRACE << ">>>>>>>>>>>>>-----------------------------------" << std::endl;
+    for (size_t i = 0; i < cur_post_ops.size(); i++)
+        GPU_DEBUG_TRACE << "    " << i << ": " << cur_post_ops[i].op_type << std::endl;
+    GPU_DEBUG_TRACE << "------------------------------------------------" << std::endl;
 
     add_onednn_fused_primitives(cur_post_ops);
 
@@ -1043,12 +902,14 @@ void program_node::init_onednn_primitive_attributes() {
         fused_ops.push_back(cur_op_desc);
 
         auto has_memory_buffers = type == onednn_post_op_type::binary_add ||
+                                  type == onednn_post_op_type::binary_sub ||
                                   type == onednn_post_op_type::binary_mul ||
                                   type == onednn_post_op_type::binary_max ||
                                   type == onednn_post_op_type::binary_min ||
                                   type == onednn_post_op_type::binary_relu ||
                                   type == onednn_post_op_type::scale ||
                                   type == onednn_post_op_type::sum;
+
         if (has_memory_buffers)
             memory_offset++;
     };
@@ -1057,7 +918,7 @@ void program_node::init_onednn_primitive_attributes() {
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
-            auto fused_desc = desc.typed_desc<activation>();;
+            auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
@@ -1066,18 +927,20 @@ void program_node::init_onednn_primitive_attributes() {
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
                 // Splits hard_sigmoid activation into eltwise_linear, min and max.
-                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear,
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
                     fused_desc->additional_params.a, fused_desc->additional_params.b);
-                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, 0.0f, 1.0f);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
             } else {
                 dnnl::algorithm alg = onednn::convert_activation_func(fused_desc->activation_function);
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
-                    post_ops.append_eltwise(1.0f, alg, 1.0f, fused_desc->additional_params.a);
+                    post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
+                else if (alg == dnnl::algorithm::eltwise_hardswish) // mapping val * min(max(0, val + 3), 6) / 6 to val * max(min(1, alpha * val + beta), 0)
+                    post_ops.append_eltwise(alg, 1/6.f, 0.5f);
                 else
-                    post_ops.append_eltwise(1.0f, alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
+                    post_ops.append_eltwise(alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
 
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
             }
@@ -1089,7 +952,7 @@ void program_node::init_onednn_primitive_attributes() {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
                     if (is_type<convolution>()) {
-                        post_ops.append_sum(1.0f, onednn::convert_data_type(in.data_type));
+                        post_ops.append_sum(1.0f, 0/*zero-point*/, onednn::convert_data_type(in.data_type));
                     } else {
                         post_ops.append_sum(1.0f);
                     }
@@ -1100,25 +963,19 @@ void program_node::init_onednn_primitive_attributes() {
                     post_ops.append_binary(dnnl::algorithm::binary_add, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
+            } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
+                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
+                post_ops.append_binary(dnnl::algorithm::binary_sub, in_desc);
+                update_onednn_post_op_list(onednn_post_op_type::binary_sub, dep_idx);
+            } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
+                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
+                post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
+                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
             } else {
-                auto input_datatype = get_dependency(0).get_output_layout().data_type;
-                // convolution using post-op output scales can only be used when i8/u8 input (which use integer accumulator)
-                bool cant_use_output_scales =
-                    idx != 0 ||
-                    has_out_scales(attrs) ||
-                    is_type<pooling>() ||
-                    is_type<reduce>() ||
-                    (is_type<convolution>() && data_type_traits::is_floating_point(input_datatype)) ||
-                    (is_type<deconvolution>() && data_type_traits::is_floating_point(input_datatype));
-                if (cant_use_output_scales) {
-                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
-                    post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
-                    update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx);
-                } else {
-                    int mask = in.count() > 1 ? 2 : 0;
-                    attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                    update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx);
-                }
+                std::stringstream error_msg;
+                error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";
+                error_msg << desc.desc->id << " is fused node of " + this->id() + ".";
+                OPENVINO_ASSERT(false, error_msg.str());
             }
         } else if (desc.is_type<quantize>()) {
             auto dep_idx = desc.dep_start_idx;
@@ -1129,30 +986,22 @@ void program_node::init_onednn_primitive_attributes() {
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->per_tensor_input_scale) {
-                            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
+                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            if (idx == 0 && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
-                                is_type<convolution>() &&
-                                !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
-                                int mask = in_scale.count() > 1 ? 2 : 0;
-                                attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                                update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                            } else {
-                                dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
-                                post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
-                            }
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                         }
 
                         if (q_param->has_pre_shift) {
                             if (q_param->per_tensor_input_shift) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1169,7 +1018,7 @@ void program_node::init_onednn_primitive_attributes() {
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
                     if (!output_type_is_int8) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round, 0.0f, 0.0f);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_round, 0.0f, 0.0f);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_round, empty_mem);
                     }
                 }
@@ -1178,12 +1027,12 @@ void program_node::init_onednn_primitive_attributes() {
                 {
                     if (q_param->has_post_scale && q_param->has_post_shift &&
                         q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->has_post_scale) {
                             if (q_param->per_tensor_output_scale) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
@@ -1195,7 +1044,7 @@ void program_node::init_onednn_primitive_attributes() {
 
                         if (q_param->has_post_shift) {
                             if (q_param->per_tensor_output_shift) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1209,10 +1058,10 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. clamp
                 {
-                    if (q_param->has_clamp) {
+                    if (q_param->has_clamp || idx < cldnn_post_ops.size() - 1) {
                         float out_lo = q_param->has_min_clamp ? q_param->out_lo : data_type_traits::min<float>(out_dt);
                         float out_hi = q_param->has_max_clamp ? q_param->out_hi : data_type_traits::max<float>(out_dt);
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, out_lo, out_hi);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, out_lo, out_hi);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
                     }
                 }
@@ -1238,30 +1087,22 @@ void program_node::init_onednn_primitive_attributes() {
                 // 2. pre-scale & pre-shift
                 {
                     if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, q_param->in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->per_tensor_input_scale) {
-                            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
+                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->in_scale, 0.0f);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            if (idx == 0 && !q_param->has_clamp && !has_out_scales(attrs) && in_scale.data_type == data_types::f32 &&
-                                is_type<convolution>() &&
-                                !data_type_traits::is_floating_point(get_dependency(0).get_output_layout().data_type)) {
-                                int mask = in_scale.count() > 1 ? 2 : 0;
-                                attrs->set_output_scales(mask, {DNNL_RUNTIME_F32_VAL});
-                                update_onednn_post_op_list(onednn_post_op_type::scale, dep_idx - 1);
-                            } else {
-                                dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
-                                post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
-                            }
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1);
                         }
 
                         if (q_param->has_pre_shift) {
                             if (q_param->per_tensor_input_shift) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1275,7 +1116,7 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 3. round
                 {
-                    post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round, 0.0f, 0.0f);
+                    post_ops.append_eltwise(dnnl::algorithm::eltwise_round, 0.0f, 0.0f);
                     update_onednn_post_op_list(onednn_post_op_type::eltwise_round, empty_mem);
                 }
 
@@ -1283,12 +1124,12 @@ void program_node::init_onednn_primitive_attributes() {
                 {
                     if (q_param->has_post_scale && q_param->has_post_shift &&
                         q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
-                        post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, q_param->out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->has_post_scale) {
                             if (q_param->per_tensor_output_scale) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->out_scale, 0.0f);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
@@ -1300,7 +1141,7 @@ void program_node::init_onednn_primitive_attributes() {
 
                         if (q_param->has_post_shift) {
                             if (q_param->per_tensor_output_shift) {
-                                post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
@@ -1316,27 +1157,6 @@ void program_node::init_onednn_primitive_attributes() {
             continue;
         } else {
             throw std::runtime_error("Unsupported fused op of " + desc.desc->type_string() + " type for oneDNN primitive");
-        }
-    }
-
-    if (cldnn_post_ops.size() && get_fused_activations_funcs().size())
-        throw std::runtime_error("Unsupported mix of fused ops and activations");
-
-    for (size_t i = 0; i < get_fused_activations_funcs().size(); i++) {
-        auto activation_type = get_fused_activations_funcs()[i];
-        if (activation_type == cldnn::activation_func::hsigmoid) {
-            // Unsupported hsigmoid oneDNN gpu, splits hsigmoid activation min(max(val + 3, 0), 6) / 6
-            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.f, 3.f);
-            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, 0.f, 6.f);
-            post_ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1/6.f, 0.f);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
-        } else {
-            auto params = get_fused_activations_params()[i];
-            dnnl::algorithm alg = onednn::convert_activation_func(activation_type);
-            post_ops.append_eltwise(1.0f, alg, params.a, params.b);
-            update_onednn_post_op_list(onednn_post_op_type::eltwise_act, empty_mem);
         }
     }
 

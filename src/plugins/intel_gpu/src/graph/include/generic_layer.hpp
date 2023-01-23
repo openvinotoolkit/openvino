@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
@@ -12,12 +11,7 @@
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.
@@ -36,7 +30,7 @@ struct generic_layer : public primitive_base<generic_layer> {
                   const layout& output_layout,
                   const kernel_selector::generic_kernel_params& generic_params,
                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), output_layout(output_layout), generic_params(generic_params) {}
+        : primitive_base(id, {input}, {output_padding}), output_layout(output_layout), generic_params(generic_params) {}
 
     /// @brief Requested memory layout.
     layout output_layout;

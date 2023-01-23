@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # Target system specific flags
@@ -69,16 +69,69 @@ elseif(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^riscv64$")
   set(HOST_RISCV64 ON)
 endif()
 
-if(UNIX AND NOT APPLE)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(EMSCRIPTEN ON)
+endif()
+
+if(UNIX AND NOT (APPLE OR ANDROID OR EMSCRIPTEN))
     set(LINUX ON)
+endif()
+
+if(NOT DEFINED CMAKE_HOST_LINUX AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_HOST_LINUX ON)
 endif()
 
 if(ENV{OECORE_NATIVE_SYSROOT} AND AARCH64)
     set(YOCTO_AARCH64 ON)
 endif()
 
+if(CMAKE_HOST_LINUX AND LINUX)
+    if(EXISTS "/etc/debian_version")
+        set(OV_OS_DEBIAN ON)
+    elseif(EXISTS "/etc/redhat-release")
+        set(OV_OS_RHEL ON)
+    endif()
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     set(OV_COMPILER_IS_CLANG ON)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        set(OV_COMPILER_IS_APPLECLANG ON)
+    endif()
 endif()
 
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
+function(ov_glibc_version)
+    # cmake needs to look at glibc version only when we build for Linux on Linux
+    if(CMAKE_HOST_LINUX AND LINUX)
+        function(ov_get_definition definition var)
+            execute_process(COMMAND echo "#include <errno.h>"
+                            COMMAND "${CMAKE_CXX_COMPILER}" -xc - -E -dM
+                            COMMAND grep -E "^#define ${definition} "
+                            OUTPUT_VARIABLE glibc_version_component
+                            ERROR_VARIABLE error_message
+                            RESULT_VARIABLE exit_code
+                            OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+            if(NOT exit_code EQUAL 0)
+                message(FATAL_ERROR "Failed to detect glibc version: ${error_message}\n${glibc_version_component}")
+            endif()
+
+            if(glibc_version_component MATCHES "^#define ${definition} ([0-9]+)")
+                set("${var}" "${CMAKE_MATCH_1}" PARENT_SCOPE)
+            else()
+                message(FATAL_ERROR "Internal error: failed to parse ${definition} from '${glibc_version_component}'")
+            endif()
+        endfunction()
+
+        ov_get_definition("__GLIBC__" _ov_glibc_major)
+        ov_get_definition("__GLIBC_MINOR__" _ov_glibc_minor)
+
+        set(OV_GLIBC_VERSION "${_ov_glibc_major}.${_ov_glibc_minor}" PARENT_SCOPE)
+    else()
+        set(OV_GLIBC_VERSION "0.0" PARENT_SCOPE)
+    endif()
+endfunction()
+
+ov_glibc_version()

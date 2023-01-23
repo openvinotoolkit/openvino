@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,7 @@ class OPENVINO_API PartialShape {
     using Dimensions = std::vector<Dimension>;
 
 public:
+    using value_type = Dimensions::value_type;
     using iterator = Dimensions::iterator;
     using const_iterator = Dimensions::const_iterator;
     using reverse_iterator = Dimensions::reverse_iterator;
@@ -342,6 +343,13 @@ public:
         m_rank_is_static = true;
         m_shape_type = ShapeType::SHAPE_IS_UPDATED;
     }
+    /// \brief emplace element to the end of partial shape
+    template <class... Args>
+    void emplace_back(Args&&... args) {
+        m_dimensions.emplace_back(std::forward<Args>(args)...);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
 
     /// \brief String representation of PartialShape
     std::string to_string() const;
@@ -430,6 +438,5 @@ public:
     AttributeAdapter(ov::PartialShape& value) : DirectValueAccessor<ov::PartialShape>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PartialShape>");
-    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

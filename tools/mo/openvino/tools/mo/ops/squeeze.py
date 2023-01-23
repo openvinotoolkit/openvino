@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -61,6 +61,10 @@ class Squeeze(Op):
         assert is_fully_defined(real_squeeze_dims), 'Squeeze dimension(s) is not defined for op "{}"'.format(node_name)
         output_shape = shape_delete(output_shape, real_squeeze_dims)
         node.out_port(0).data.set_shape(output_shape)
+
+        # make dimensions positive to correctly translate from NHWC to NCHW layout
+        if node.in_port(1).get_source().node.op == 'Const':
+            node.in_port(1).data.set_value(real_squeeze_dims)
 
         if node.in_port(0).data.get_value() is not None:
             node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))

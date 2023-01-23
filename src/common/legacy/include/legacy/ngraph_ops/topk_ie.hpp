@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace op {
 class TopKIE : public Op {
 public:
     OPENVINO_OP("TopKIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     TopKIE(const Output<Node>& data,
            const Output<Node>& k,

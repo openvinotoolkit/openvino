@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -35,7 +35,6 @@ class TestIsInf(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.xfail(reason="94753")
     @pytest.mark.precommit_tf_fe
     def test_is_inf_basic(self, params, ie_device, precision, ir_version, temp_dir,
                           use_new_frontend, use_old_api):

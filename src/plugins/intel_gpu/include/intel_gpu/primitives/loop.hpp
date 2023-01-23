@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 #include <functional>
@@ -11,12 +10,7 @@
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 ///
 /// @brief Adds primitive which performs recurrent execution of the topology.
 ///
@@ -76,6 +70,7 @@ struct loop : public primitive_base<loop> {
             end(end),
             stride(stride)
             {}
+        io_primitive_map() {}
         primitive_id external_id;
         primitive_id internal_id;
         int64_t axis;
@@ -91,6 +86,7 @@ struct loop : public primitive_base<loop> {
         /// @param to Input data primitive id of body topology
         backedge_mapping(primitive_id from, primitive_id to)
             : from(from), to(to) {}
+        backedge_mapping() {}
         primitive_id from;
         primitive_id to;
     };
@@ -119,7 +115,7 @@ struct loop : public primitive_base<loop> {
     /// @param back_edges Output data primitive id.
     /// @param output_padding     Optional padding for output from primitive.
     loop(const primitive_id& id,
-         const std::vector<primitive_id>& inputs,
+         const std::vector<input_info>& inputs,
          const topology& body,
          const primitive_id& trip_count_id,
          const primitive_id& initial_condition_id,
@@ -131,7 +127,7 @@ struct loop : public primitive_base<loop> {
          const primitive_id& current_iteration_id = primitive_id(),
          const primitive_id& condition_id = primitive_id(),
          const padding& output_padding = padding())
-            : primitive_base(id, inputs, output_padding),
+            : primitive_base(id, inputs, {output_padding}),
               body(body),
               trip_count_id(trip_count_id),
               initial_execution_id(initial_condition_id),
@@ -178,7 +174,10 @@ protected:
         };
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
-            auto target = std::find(input.begin(), input.end(), mapping.external_id);
+            auto target = std::find_if(input.begin(), input.end(),
+                                       [&](const input_info& info) {
+                                           return info.pid == mapping.external_id;
+                                       });
             if (target == input.end()) {
                 ret.push_back(std::ref(mapping.external_id));
             }
@@ -187,7 +186,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

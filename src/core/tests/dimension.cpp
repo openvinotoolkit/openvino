@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,37 +69,41 @@ TEST(dimension, dimension_mul_operator_1) {
 }
 
 TEST(dimension, dimension_mul_operator_2) {
-    Dimension large_interval(2, 9223372036854775806);
+    // overflow happens and clip_times keeps result within in64 limits
+    // (Interval::s_max - 1) * 2 = 9223372036854775806 * 2 = 18446744073709551612
+    // arithmetical result does not fit into int64, is clipped into int64_max
+    Dimension large_interval(2, Interval::s_max - 1);
     Dimension two(2);
-    Dimension ref_value(4, 9223372036854775807);
+    Dimension ref_value(4, Interval::s_max);
     EXPECT_EQ(ref_value, large_interval * two);
 }
 
 TEST(dimension, dimension_mul_operator_3) {
     // no overflow
-    Dimension large_interval(2, 4611686018427387903);
+    // (int64_max / 2) * 2= 4611686018427387903 * 2 = 9223372036854775806 = int64_max - 1
+    Dimension large_interval(2, ov::Interval::s_max / 2);
     Dimension two(2);
-    Dimension ref_value(4, 9223372036854775806);
+    Dimension ref_value(4, ov::Interval::s_max - 1);
     EXPECT_EQ(ref_value, large_interval * two);
 }
 
 TEST(dimension, dimension_mul_operator_4) {
     // overflow happens and clip_times keeps result within in64 limits
-    // 4611686018427387904 * 2 = 9223372036854775808 = int64_max - 1
-    // 9223372036854775808 does not fin into int64, is clipped into int64_max
-    Dimension large_interval(2, 4611686018427387904);
+    // (int64_max / 2 + 1) * 2 = 4611686018427387904 * 2 = 9223372036854775808 = int64_max + 1
+    // 9223372036854775808 does not fit into int64, is clipped into int64_max
+    Dimension large_interval(2, ov::Interval::s_max / 2 + 1);
     Dimension two(2);
-    Dimension ref_value(4, 9223372036854775807);
+    Dimension ref_value(4, ov::Interval::s_max);
     EXPECT_EQ(ref_value, large_interval * two);
 }
 
 TEST(dimension, dimension_mul_operator_5) {
+    // (int64_max / 3 + 2) = 3074457345618258604 * 3 = 9223372036854775812 = int64_max + 5
     // overflow happens and clip_times keeps result within in64 limits
-    // 3074457345618258604 * 3 = 9223372036854775812
     // 9223372036854775812 does not fit into int64, is clipped into int64_max
-    Dimension large_interval(2, 3074457345618258604);
+    Dimension large_interval(2, ov::Interval::s_max / 3 + 2);
     Dimension three(3);
-    Dimension ref_value(6, 9223372036854775807);
+    Dimension ref_value(6, ov::Interval::s_max);
     EXPECT_EQ(ref_value, large_interval * three);
 }
 

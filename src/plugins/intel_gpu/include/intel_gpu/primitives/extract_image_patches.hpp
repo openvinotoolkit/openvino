@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief The ExtractImagePatches operation collects patches from the input tensor, as if applying a convolution.
 /// All extracted patches are stacked in the depth dimension of the output.
@@ -37,14 +30,14 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
     /// @param auto_pad How the padding is calculated.
     /// @param output_shape Tensor with shape of output layout
     extract_image_patches(const primitive_id& id,
-                          const primitive_id& input,
+                          const input_info& input,
                           const std::vector<unsigned int>& sizes,
                           const std::vector<unsigned int>& strides,
                           const std::vector<unsigned int>& rates,
                           const std::string& auto_pad,
                           const tensor& output_shape,
                           const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           sizes(sizes),
           strides(strides),
           rates(rates),
@@ -62,7 +55,4 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
     /// @brief Shape of output layout
     tensor output_shape;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

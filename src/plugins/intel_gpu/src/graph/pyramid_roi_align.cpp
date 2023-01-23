@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "pyramid_roi_align_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -13,7 +11,7 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(pyramid_roi_align)
 
 layout pyramid_roi_align_inst::calc_output_layout(pyramid_roi_align_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for "
            "pyramid_roi_align node!");
 

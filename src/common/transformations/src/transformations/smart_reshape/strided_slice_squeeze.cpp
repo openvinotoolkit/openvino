@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+
+#include "transformations_visibility.hpp"
 
 ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
     // TODO: enable conditional compile

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -7,7 +7,6 @@ from openvino.tools.mo.middle.LSTMRNNSequenceToTensorIterator import LSTMToTenso
 from openvino.tools.mo.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 from openvino.tools.mo.middle.SwapAxesMiddleReplacer import SwapAxisMiddleReplacer
 from openvino.tools.mo.middle.TensorIteratorMerge import TensorIteratorMerge
-from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.ops.gather import Gather
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -198,14 +197,10 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
 
         isomorphism['input_unsqueezed_i'].shape = isomorphism['input_unsqueezed_i'].shape[[1, 0, 2]]
         isomorphism['input_unsqueezed_i'].infer(isomorphism['input_unsqueezed_i'])
-        squeeze_dim = Const(squeeze.graph, {'value': [ti.input_port_map[data_input_port]['axis']],
-                                            'need_shape_inference': True,
-                                            'override_output_shape': True}).create_node()
-        squeeze.in_port(1).get_connection().set_source(squeeze_dim.out_port(0))
-        squeeze['need_shape_inference'] = True
+        isomorphism['squeeze_dim'].value = ti.input_port_map[data_input_port]['axis']
+        isomorphism['squeeze_dim'].infer(isomorphism['squeeze_dim'])
+        isomorphism['squeeze']['need_shape_inference'] = True
 
-        unsqueeze_dim = Const(unsqueeze.graph, {'value': [ti.output_port_map[data_output_port]['axis']],
-                                                'need_shape_inference': True,
-                                                'override_output_shape': True}).create_node()
-        unsqueeze.in_port(1).get_connection().set_source(unsqueeze_dim.out_port(0))
-        unsqueeze.infer(unsqueeze)
+        isomorphism['unsqueeze_dim'].value = ti.output_port_map[data_output_port]['axis']
+        isomorphism['unsqueeze_dim'].infer(isomorphism['unsqueeze_dim'])
+        isomorphism['unsqueeze'].infer(isomorphism['unsqueeze'])

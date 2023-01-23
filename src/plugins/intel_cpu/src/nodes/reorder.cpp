@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "convert.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -54,13 +55,13 @@ bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
 }
 
-Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node(op, eng, w_cache) {
+Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
-Reorder::Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node("Reorder", name, eng, w_cache) {}
+Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
+        Node("Reorder", name, context) {}
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
@@ -103,6 +104,9 @@ void Reorder::initSupportedPrimitiveDescriptors() {
 
     // must be to initialize here since shapes are unknown at the time of Reorder node creation
     isDynamic = !(config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined());
+    if (isDynamicNode() && !shapeInference) {
+        shapeInference = std::make_shared<ShapeInferPassThrough>();
+    }
 
     if (isDynamic && (config.inConfs[0].getMemDesc()->getShape().getRank() != config.outConfs[0].getMemDesc()->getShape().getRank()))
         IE_THROW() << "Reorder node with name: " << getName() << " doesn't support case when input and output shapes have different rank and dynamic";
@@ -243,7 +247,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         return std::make_shared<dnnl::reorder>(pd);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
         nullptr,
         CacheEntryBase::LookUpStatus::Miss};
@@ -493,10 +497,6 @@ void Reorder::reorderData(const Memory &input, const Memory &output, MultiCacheP
             IE_THROW() << "Could not make onednn reorder.";
         }
     }
-}
-
-std::vector<VectorDims> Reorder::shapeInfer() const {
-    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
 }
 
 }   // namespace node

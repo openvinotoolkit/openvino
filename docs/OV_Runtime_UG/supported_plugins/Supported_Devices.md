@@ -1,9 +1,9 @@
 Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 ==================
 
-The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, VPU (vision processing unit), or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
+The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
-> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
+> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick support has been cancelled.
 
 The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
 
@@ -11,12 +11,13 @@ The OpenVINO Runtime provides unique capabilities to infer deep learning models 
 |------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |[GPU plugin](GPU.md)            |Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics                                                            |
 |[CPU plugin](CPU.md)              |Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg; AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE) |
-|[VPU plugins](VPU.md) (available in the Intel® Distribution of OpenVINO™ toolkit)            |Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X, Intel® Vision Accelerator Design with Intel® Movidius™ VPUs                                                                                           |
 |[GNA plugin](GNA.md) (available in the Intel® Distribution of OpenVINO™ toolkit)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
 |[Arm® CPU plugin](ARM_CPU.md) (unavailable in the Intel® Distribution of OpenVINO™ toolkit) |Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices    |
 |[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |
 |[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
 |[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
+
+> **NOTE**: ARM® CPU plugin is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ ecosystem, technical questions and code contributions on community forums. However, this component has not undergone full release validation or qualification from Intel®, hence no official support is offered. 
 
 Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
 
@@ -57,7 +58,6 @@ For example, the CHW value at index (c,h,w) is physically located at index (c\*H
 |:------------------|:----------------------:|:----------------------:|:----------------------:|
 |CPU plugin         |Supported and preferred |Supported               |Supported               |
 |GPU plugin         |Supported               |Supported and preferred |Supported               |
-|VPU plugins        |Not supported           |Supported               |Not supported           |
 |GNA plugin         |Supported               |Supported               |Not supported           |
 |Arm® CPU plugin    |Supported and preferred |Supported               |Supported (partially)   |
 
@@ -70,7 +70,6 @@ the supported models formats depends on the actual underlying devices. _Generall
 |:------------------|:--------:|:-------------:|:-------------:|:-------------:|:------------:|:-------------:|
 |CPU plugin         |Supported |Supported      |Supported      |Supported      |Supported     |Supported      |
 |GPU plugin         |Supported |Supported\*    |Supported\*    |Supported\*    |Not supported |Supported\*    |
-|VPU plugins        |Supported |Supported      |Supported      |Not supported  |Not supported |Not supported  |
 |GNA plugin         |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
 |Arm® CPU plugin    |Supported |Supported      |Supported      |Supported      |Not supported |Not supported  |
 
@@ -84,7 +83,6 @@ the supported input precision  depends on the actual underlying devices. _Genera
 |:------------------|:--------:|:------------:|
 |CPU plugin         |Supported |Supported     |
 |GPU plugin         |Supported |Supported     |
-|VPU plugins        |Supported |Supported     |
 |GNA plugin         |Supported |Not supported |
 |Arm® CPU plugin    |Supported |Supported     |
 
@@ -97,7 +95,6 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |:------------------|:------------:|:------------:|:------------:|:------------:|
 |CPU plugin         |Supported     |Supported     |Supported     |Supported     |
 |GPU plugin         |Supported     |Supported     |Supported     |Supported     |
-|VPU plugins        |Supported     |Supported     |Supported     |Supported     |
 |GNA plugin         |Not supported |Supported     |Supported     |Supported     |
 |Arm® CPU plugin    |Not supported |Supported     |Supported     |Supported     |
 
@@ -111,10 +108,8 @@ For setting relevant configuration, refer to the
 [Integrate with Customer Application](../integrate_with_your_application.md) topic
 (step 3 "Configure input and output").
 
-### Supported Layers
+### <a name="supported-layers"></a> Supported Layers
 The following layers are supported by the plugins:
-
-@sphinxdirective
 
 .. scrollbox::
    :height: 300px
@@ -415,10 +410,6 @@ The following layers are supported by the plugins:
       +--------------------------------+---------------+---------------+---------------+---------------+-----------------+
 
 @endsphinxdirective
-
-
-
-
 
 \*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section for the device [from the list of supported](Supported_Devices.md).
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ov;
-
-BWDCMP_RTTI_DEFINITION(op::internal::ConditionalBlock);
 
 op::internal::ConditionalBlock::ConditionalBlock(
     const Output<Node>& cond,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
             // Not expected behavior
-            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
+            R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(SCALAR|OIHW).*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
             R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
@@ -116,8 +116,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             // Issue: 90183
             R"(.*VirtualPlugin.*BehaviorTests.*OVHoldersTestWithConfig.*LoadedTensor.*target_device=MULTI.*)",
-            // Issue: 95618
-            R"(.*OVClassLoadNetworkTest.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
 #if defined(_WIN32) || defined(_WIN64)
             R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
@@ -127,5 +125,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_GroupConvolution1D_ExplicitPadding_Disabled.*)",
             R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled.*)",
             R"(.*smoke_ConvolutionLayerGPUTest_dynamic1DSymPad.*)",
+
+            // Looks like the test is targeting CPU plugin and doesn't respect that execution graph may vary from plugin to plugin
+            R"(.*ExecGraphSerializationTest.*)",
     };
 }

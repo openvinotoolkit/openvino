@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::ReLUIE);
 
 op::ReLUIE::ReLUIE(const Output<Node>& data, const float& negative_slope, const element::Type output_type)
     : Op(OutputVector {data}), m_negative_slope(negative_slope), m_output_type(output_type) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,7 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/op/util/op_types.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
+#include <openvino/core/rt_info.hpp>
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
@@ -62,7 +59,7 @@ public:
 
 template <class T>
 ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
-    return [&](ngraph::pattern::Matcher& m) {
+    return [&](ov::pass::pattern::Matcher& m) {
         auto reduce = std::dynamic_pointer_cast<T>(m.get_match_root());
 
         if (!reduce || transformation_callback(reduce)) {
@@ -100,7 +97,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             const auto reshape_shape = reduce->output(0).get_shape();
             auto reshape = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape),
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),
                 true);
 
             reshape->set_friendly_name(reduce->get_friendly_name());
@@ -137,8 +134,8 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
          *      shape_end   - if not empty indicates that we need a Reshape after Pooling
          */
 
-        ngraph::Strides strides;
-        ngraph::Shape pads_begin, pads_end, kernel, shape_begin, shape_end;
+        ov::Strides strides;
+        ov::Shape pads_begin, pads_end, kernel, shape_begin, shape_end;
 
         if (!spatial_dims_reduction || input_shape.size() != 4) {
             // In case if reduction applies not to spatial dimensions
@@ -189,12 +186,12 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
          *
          *  Note: some of reshape nodes can be optimized if they do nothing.
          */
-        ngraph::NodeVector new_ops;
+        ov::NodeVector new_ops;
 
         if (!shape_begin.empty() && shape_begin != input.get_shape()) {
             input = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_begin.size()}, shape_begin),
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_begin.size()}, shape_begin),
                 true);
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
             new_ops.push_back(input.get_node_shared_ptr());
@@ -207,7 +204,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                                                           pads_end,
                                                           kernel,
                                                           true,
-                                                          ngraph::op::RoundingType::FLOOR);
+                                                          ov::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
@@ -217,7 +214,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                                                           pads_begin,
                                                           pads_end,
                                                           kernel,
-                                                          ngraph::op::RoundingType::FLOOR);
+                                                          ov::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
@@ -226,7 +223,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             bool fallback_to_real = input.get_element_type().is_integral();
 
             if (fallback_to_real) {
-                input = std::make_shared<ov::opset1::Convert>(input, ngraph::element::f32);
+                input = std::make_shared<ov::opset1::Convert>(input, ov::element::f32);
                 new_ops.push_back(input.get_node_shared_ptr());
             }
 
@@ -236,14 +233,14 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
                                                           pads_end,
                                                           kernel,
                                                           true,
-                                                          ngraph::op::RoundingType::FLOOR);
+                                                          ov::op::RoundingType::FLOOR);
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
             new_ops.push_back(input.get_node_shared_ptr());
 
             input = std::make_shared<ov::opset1::Multiply>(
                 input,
-                ov::opset1::Constant::create(input.get_element_type(), ngraph::Shape{1}, {reduction_dims_count}));
+                ov::opset1::Constant::create(input.get_element_type(), ov::Shape{1}, {reduction_dims_count}));
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/mul");
             new_ops.push_back(input.get_node_shared_ptr());
 
@@ -258,7 +255,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         if (shape_end != input.get_shape()) {
             input = std::make_shared<ov::opset1::Reshape>(
                 input,
-                ov::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{shape_end.size()}, shape_end),
+                ov::opset1::Constant::create(ov::element::i64, ov::Shape{shape_end.size()}, shape_end),
                 true);
             new_ops.push_back(input.get_node_shared_ptr());
         }

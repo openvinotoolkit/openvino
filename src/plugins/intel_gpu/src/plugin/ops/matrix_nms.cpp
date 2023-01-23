@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/primitives/matrix_nms.hpp"
@@ -25,7 +25,7 @@ namespace intel_gpu {
 namespace {
 void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ngraph::op::internal::NmsStaticShapeIE8>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
 
     std::vector<cldnn::memory::ptr> shared_memory;
 
@@ -34,44 +34,44 @@ void CreateNmsStaticShapeIE8Op(Program& p, const std::shared_ptr<ngraph::op::int
                                                      cldnn::format::bfyx,
                                                      cldnn::tensor(static_cast<int32_t>(outputIndices), 1, 1, 1));
 
-    shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutFirst));
+    shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutFirst));
 
     cldnn::primitive_id matrix_nms_mutable_id_w_first = layer_type_name_ID(op) + "_md_write_first";
     auto matrix_nms_mutable_prim_first = cldnn::mutable_data(matrix_nms_mutable_id_w_first, shared_memory.back());
     p.add_primitive(*op, matrix_nms_mutable_prim_first);
-    inputPrimitives.push_back(matrix_nms_mutable_id_w_first);
+    inputs.push_back(cldnn::input_info(matrix_nms_mutable_id_w_first));
 
     auto batches_num = op->get_output_shape(2)[0];
     cldnn::layout mutableLayoutSecond = cldnn::layout(cldnn::element_type_to_data_type(ngraph::element::i32),
                                                       cldnn::format::bfyx,
                                                       cldnn::tensor(static_cast<int32_t>(batches_num), 1, 1, 1));
 
-    shared_memory.emplace_back(p.GetEngine().allocate_memory(mutableLayoutSecond));
+    shared_memory.emplace_back(p.get_engine().allocate_memory(mutableLayoutSecond));
 
     cldnn::primitive_id matrix_nms_mutable_id_w_second = layer_type_name_ID(op) + "_md_write_second";
     auto matrix_nms_mutable_prim_second = cldnn::mutable_data(matrix_nms_mutable_id_w_second, shared_memory.back());
     p.add_primitive(*op, matrix_nms_mutable_prim_second);
-    inputPrimitives.push_back(matrix_nms_mutable_id_w_second);
+    inputs.push_back(cldnn::input_info(matrix_nms_mutable_id_w_second));
 
     auto matrixNmsLayerName = layer_type_name_ID(op) + ".out0";
 
     auto prim = cldnn::matrix_nms(matrixNmsLayerName,
-                                  inputPrimitives[0],
-                                  inputPrimitives[1],
-                                  inputPrimitives[inputPrimitives.size() - 2],
-                                  inputPrimitives[inputPrimitives.size() - 1],
+                                  inputs[0],
+                                  inputs[1],
+                                  inputs[inputs.size() - 2],
+                                  inputs[inputs.size() - 1],
                                   op->get_attrs());
 
     p.add_primitive(*op, prim);
 
     cldnn::primitive_id matrix_nms_id_r_first = layer_type_name_ID(op) + ".out1";
     auto matrix_nms_mutable_prim_r_first =
-        cldnn::mutable_data(matrix_nms_id_r_first, {matrixNmsLayerName}, shared_memory.front());
+        cldnn::mutable_data(matrix_nms_id_r_first, { cldnn::input_info(matrixNmsLayerName) }, shared_memory.front());
     p.add_primitive(*op, matrix_nms_mutable_prim_r_first);
 
     cldnn::primitive_id matrix_nms_id_r_second = layer_type_name_ID(op) + ".out2";
     auto matrix_nms_mutable_prim_r_second =
-        cldnn::mutable_data(matrix_nms_id_r_second, {matrixNmsLayerName}, shared_memory.back());
+        cldnn::mutable_data(matrix_nms_id_r_second, { cldnn::input_info(matrixNmsLayerName) }, shared_memory.back());
     p.add_primitive(*op, matrix_nms_mutable_prim_r_second);
 }
 

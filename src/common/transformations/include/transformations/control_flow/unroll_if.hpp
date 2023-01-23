@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
 namespace ov {
@@ -24,10 +24,10 @@ class TRANSFORMATIONS_API UnrollIf;
  */
 // clang-format on
 
-class ov::pass::UnrollIf : public ngraph::pass::FunctionPass {
+class ov::pass::UnrollIf : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("UnrollIf", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ngraph {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,8 @@
 #include <string>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transformations/init_node_info.hpp"
-
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace ngraph;
 using namespace testing;
@@ -70,7 +69,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
         opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
         opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
-            attributes_v1.num_classes = num_classes.get_length();
+            attributes_v1.num_classes = (int)num_classes.get_length();
         }
 
         Dimension num_loc_classes = attributes_v8.share_location ? 1 : num_classes;
@@ -132,7 +131,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
         opset8::DetectionOutput::Attributes attributes_v8 = attrs_v8_vector[ind];
         opset1::DetectionOutput::Attributes attributes_v1 = attrs_v1_vector[ind];
         if (num_classes.is_static()) {
-            attributes_v1.num_classes = num_classes.get_length();
+            attributes_v1.num_classes = (int)num_classes.get_length();
         }
 
         Dimension num_loc_classes = attributes_v8.share_location ? 1 : num_classes;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 #include "ngraph/shape.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::GatherNDBase);
 
 ov::op::util::GatherNDBase::GatherNDBase(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : Op({data, indices}),

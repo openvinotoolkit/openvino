@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -194,6 +194,11 @@ public:
     /// \param place Model place
     /// \param type New element type
     virtual void set_element_type(const Place::Ptr& place, const ov::element::Type& type);
+
+    /// \brief Returns current element type used for this place
+    /// \param place Model place
+    /// \return Element type for this place
+    virtual ov::element::Type get_element_type(const Place::Ptr& place) const;
 
     /// \brief Freezes a tensor with statically defined value or replace existing value for
     /// already constant node or tensor

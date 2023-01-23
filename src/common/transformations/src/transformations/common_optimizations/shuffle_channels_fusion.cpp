@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
 
 ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input = ngraph::pattern::any_input(pattern::rank_equals(4));
+    auto input = pass::pattern::any_input(pattern::rank_equals(4));
     auto reshape_before_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
     auto transpose_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
     auto reshape_after_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();

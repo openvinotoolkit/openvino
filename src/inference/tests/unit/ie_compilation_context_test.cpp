@@ -1,48 +1,38 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
 #include <gtest/gtest.h>
-#include <fstream>
-#include <thread>
-#include <chrono>
 
+#include <chrono>
+#include <fstream>
+#include <string>
+#include <thread>
+
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_constants.hpp"
 #include "compilation_context.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "ngraph/function.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/variant.hpp"
 #include "ngraph/opsets/opset6.hpp"
+#include "ngraph/variant.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
-#include "cpp/ie_cnn_network.h"
-
-#include "common_test_utils/test_constants.hpp"
 
 using namespace InferenceEngine;
 using namespace ngraph;
 using namespace ::testing;
 using namespace std::chrono;
 
-static std::string generateTestFilePrefix() {
-    // Generate unique file names based on test name, thread id and timestamp
-    // This allows execution of tests in parallel (stress mode)
-    auto testInfo = UnitTest::GetInstance()->current_test_info();
-    std::string testName = testInfo->test_case_name();
-    testName += testInfo->name();
-    testName = std::to_string(std::hash<std::string>()(testName));
-    std::stringstream ss;
-    auto ts = duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch());
-    ss << testName << "_" << std::this_thread::get_id() << "_" << ts.count();
-    testName = ss.str();
-    return testName;
-}
-
 class FileGuard {
     std::string m_fileName;
+
 public:
-    explicit FileGuard(std::string name): m_fileName(std::move(name)) {}
-    ~FileGuard() { std::remove(m_fileName.c_str()); }
+    explicit FileGuard(std::string name) : m_fileName(std::move(name)) {}
+    ~FileGuard() {
+        std::remove(m_fileName.c_str());
+    }
 };
 
 class NetworkContext_CalcFileInfoTests : public Test {
@@ -60,7 +50,7 @@ public:
 
     // Sets up the test fixture.
     void SetUp() override {
-        auto testName = generateTestFilePrefix();
+        auto testName = CommonTestUtils::generateTestFilePrefix();
         m_fileName = testName + m_fileName;
         createFile(m_fileName);
     }
@@ -98,9 +88,8 @@ TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
     std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
-    ASSERT_EQ(NetworkCompilationContext::calculateFileInfo(file1),
-              NetworkCompilationContext::calculateFileInfo(file2)) <<
-              "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
+    ASSERT_EQ(NetworkCompilationContext::calculateFileInfo(file1), NetworkCompilationContext::calculateFileInfo(file2))
+        << "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, DateModified) {
@@ -172,35 +161,29 @@ static void checkCustomRt(const std::function<void(Node::RTMap&)>& emptyCb,
                           const std::function<void(Node::RTMap&, const std::string& name)>& nameCb) {
     auto net1 = createNetwork();
     auto net2 = createNetwork();
-    auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
-    auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    auto& op1 = net1.getFunction()->get_ops().front()->get_rt_info();
+    auto& op2 = net2.getFunction()->get_ops().front()->get_rt_info();
 
     emptyCb(op2);
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
     emptyCb(op1);
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
     nameCb(op1, "test");
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
     nameCb(op2, "test");
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
     nameCb(op1, "test2");
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashOfSame) {
     auto net1 = createNetwork();
     auto net2 = createNetwork();
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithConfig) {
@@ -216,17 +199,15 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
     auto net1 = createNetwork();
     auto net2 = createNetwork();
     auto net3 = createNetwork();
-    auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    auto& op2 = net2.getFunction()->get_ops().front()->get_rt_info();
     op2[ov::PrimitivesPriority::get_type_info_static()] = ov::PrimitivesPriority("testPriority");
 
-    auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
+    auto& op3 = net3.getFunction()->get_ops().front()->get_rt_info();
     op3["PrimitivesPriority"] = "testPriority";
 
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
@@ -253,17 +234,15 @@ TEST(NetworkContext_CNNNetwork, HashWithAffinity) {
     auto net1 = createNetwork();
     auto net2 = createNetwork();
     auto net3 = createNetwork();
-    auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    auto& op2 = net2.getFunction()->get_ops().front()->get_rt_info();
     op2["affinity"] = "testAffinity";
 
-    auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
+    auto& op3 = net3.getFunction()->get_ops().front()->get_rt_info();
     op3["affinity"] = "testAffinity";
 
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFutureRt_string) {
@@ -271,20 +250,18 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_string) {
     auto net2 = createNetwork();
     auto net3 = createNetwork();
 
-    auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
+    auto& op1 = net1.getFunction()->get_ops().front()->get_rt_info();
     op1["someFutureKey"] = "hello";
 
-    auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    auto& op2 = net2.getFunction()->get_ops().front()->get_rt_info();
     op2["someFutureKey"] = "hello";
 
-    auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
+    auto& op3 = net3.getFunction()->get_ops().front()->get_rt_info();
     op3["someFutureKey"] = "olleh";
 
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
@@ -292,20 +269,18 @@ TEST(NetworkContext_CNNNetwork, HashWithFutureRt_int64) {
     auto net2 = createNetwork();
     auto net3 = createNetwork();
 
-    auto & op1 = net1.getFunction()->get_ops().front()->get_rt_info();
+    auto& op1 = net1.getFunction()->get_ops().front()->get_rt_info();
     op1["someFutureKey"] = int64_t(42);
 
-    auto & op2 = net2.getFunction()->get_ops().front()->get_rt_info();
+    auto& op2 = net2.getFunction()->get_ops().front()->get_rt_info();
     op2["someFutureKey"] = int64_t(42);
 
-    auto & op3 = net3.getFunction()->get_ops().front()->get_rt_info();
+    auto& op3 = net3.getFunction()->get_ops().front()->get_rt_info();
     op3["someFutureKey"] = int64_t(43);
 
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithLayout) {
@@ -321,20 +296,15 @@ TEST(NetworkContext_CNNNetwork, HashWithLayout) {
     fun5->get_results()[0]->set_layout(ov::Layout());
     auto net5 = CNNNetwork(fun5);
 
-    EXPECT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    EXPECT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
-    EXPECT_NE(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    EXPECT_NE(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 
-    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
-              NetworkCompilationContext::computeHash(net3_1, {}));
+    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}), NetworkCompilationContext::computeHash(net3_1, {}));
 
-    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}),
-              NetworkCompilationContext::computeHash(net4, {}));
+    EXPECT_NE(NetworkCompilationContext::computeHash(net3, {}), NetworkCompilationContext::computeHash(net4, {}));
 
-    EXPECT_EQ(NetworkCompilationContext::computeHash(net4, {}),
-              NetworkCompilationContext::computeHash(net5, {}));
+    EXPECT_EQ(NetworkCompilationContext::computeHash(net4, {}), NetworkCompilationContext::computeHash(net5, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithTensorNames) {
@@ -361,11 +331,9 @@ TEST(NetworkContext_CNNNetwork, HashWithTensorNames) {
     auto net2 = CNNNetwork(fun2);
     auto net3 = CNNNetwork(fun3);
 
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithDifferentResults) {
@@ -374,15 +342,13 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentResults) {
     net2.getFunction()->remove_result(net2.getFunction()->get_results().front());
     auto net3 = createNetwork();
     net3.getFunction()->remove_result(net3.getFunction()->get_results().front());
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 TEST(NetworkContext_CNNNetwork, HashWithDifferentMeanValues) {
     auto updatePreprocess = [&](CNNNetwork& cnnNet) {
-        auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+        auto& preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
         preProcess.init(3);
         preProcess[0]->stdScale = 2;
         preProcess[1]->stdScale = 3;
@@ -397,10 +363,8 @@ TEST(NetworkContext_CNNNetwork, HashWithDifferentMeanValues) {
     updatePreprocess(net2);
     auto net3 = createNetwork();
     updatePreprocess(net3);
-    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}),
-              NetworkCompilationContext::computeHash(net2, {}));
-    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}),
-              NetworkCompilationContext::computeHash(net3, {}));
+    ASSERT_NE(NetworkCompilationContext::computeHash(net1, {}), NetworkCompilationContext::computeHash(net2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(net2, {}), NetworkCompilationContext::computeHash(net3, {}));
 }
 
 // Verify all internal hash calculations are thread-safe (like ngraph::function serialization)
@@ -447,7 +411,7 @@ TEST(NetworkContext_ModelName, HashOfSame) {
 }
 
 TEST(NetworkContext_ModelName, HashOfExistingFile) {
-    auto file1 = generateTestFilePrefix() + ".xml";
+    auto file1 = CommonTestUtils::generateTestFilePrefix() + ".xml";
     auto file2 = std::string(".") + CommonTestUtils::FileSeparator + file1;
 
     FileGuard guard(file1);
@@ -455,11 +419,9 @@ TEST(NetworkContext_ModelName, HashOfExistingFile) {
         std::ofstream os(file1);
         os << "test";
     }
-    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {}),
-              NetworkCompilationContext::computeHash(file1, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {}), NetworkCompilationContext::computeHash(file1, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {}),
-              NetworkCompilationContext::computeHash(file2, {}));
+    ASSERT_EQ(NetworkCompilationContext::computeHash(file1, {}), NetworkCompilationContext::computeHash(file2, {}));
 
     ASSERT_NE(NetworkCompilationContext::computeHash(file1, {{"key", "value"}}),
               NetworkCompilationContext::computeHash(file2, {}));

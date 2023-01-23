@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -9,6 +9,7 @@ import platform
 import sys
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 
@@ -236,18 +237,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
-    if is_caffe and argv.mean_file and argv.mean_values:
-        raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
-                    refer_to_faq_msg(17))
-    elif is_caffe and argv.mean_file and argv.mean_file_offsets:
-        values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
-        mean_file_offsets = mo_array([int(x) for x in values[0].split(',')])
-        if not all([offset >= 0 for offset in mean_file_offsets]):
-            raise Error("Negative value specified for --mean_file_offsets option. "
-                        "Please specify positive integer values in format '(x,y)'. " +
-                        refer_to_faq_msg(18))
-        argv.mean_file_offsets = mean_file_offsets
-
     if argv.scale and argv.scale_values:
         raise Error(
             'Both --scale and --scale_values are defined. Specify either scale factor or scale values per input ' +
@@ -412,15 +401,16 @@ def prepare_ir(argv: argparse.Namespace):
     return graph, ngraph_function
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
+def read_model(fem: FrontEndManager, path_to_xml: str):
     # We have to separate fe object lifetime from fem to
     # avoid segfault during object destruction. So fe must
     # be destructed before fem object explicitly.
-    def read_model(path_to_xml):
-        fe = fem.load_by_framework(framework="ir")
-        function = fe.convert(fe.load(path_to_xml))
-        return function
+    fe = fem.load_by_framework(framework="ir")
+    function = fe.convert(fe.load(path_to_xml))
+    return function
 
+
+def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
@@ -431,23 +421,36 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
     mean_data = deepcopy(graph.graph['mf']) if 'mf' in graph.graph else None
     input_names = deepcopy(graph.graph['input_names']) if 'input_names' in graph.graph else []
 
-    prepare_emit_ir(graph=graph,
-                    data_type=graph.graph['cmd_params'].data_type,
-                    output_dir=argv.output_dir,
-                    output_model_name=argv.model_name,
-                    mean_data=mean_data,
-                    input_names=input_names,
-                    meta_info=non_default_params,
-                    use_temporary_path=True)
-
-    # This graph cleanup is required to avoid double memory consumption
-    graph.clear()
-
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-    fem = FrontEndManager()
-    func = read_model(orig_model_name + "_tmp.xml")
+    def clear_tmp_ir_files():
+        for suf in [".xml", ".bin", ".mapping"]:
+            # remove existing files
+            path_to_file = orig_model_name + "_tmp" + suf
+            if os.path.exists(path_to_file):
+                os.remove(path_to_file)
+
+    try:
+        prepare_emit_ir(graph=graph,
+                        data_type=graph.graph['cmd_params'].data_type,
+                        output_dir=argv.output_dir,
+                        output_model_name=argv.model_name,
+                        mean_data=mean_data,
+                        input_names=input_names,
+                        meta_info=non_default_params,
+                        use_temporary_path=True)
+
+        fem = FrontEndManager()
+        func = read_model(fem, orig_model_name + "_tmp.xml")
+    except Exception as err:
+        raise Error('Exception occurred while serialization or reading of the temporary IR: {}'.format(
+            str(err),
+        )) from err
+    finally:
+        # This graph cleanup is required to avoid double memory consumption
+        graph.clear()
+        clear_tmp_ir_files()
 
     return_code = "not executed"
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
@@ -475,11 +478,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
         if return_code != 0:
             raise Error("offline transformations step has failed.")
 
-        for suf in [".xml", ".bin", ".mapping"]:
-            # remove existing files
-            path_to_file = orig_model_name + "_tmp" + suf
-            if os.path.exists(path_to_file):
-                os.remove(path_to_file)
     return func
 
 
@@ -698,10 +696,15 @@ def parse_input_shapes(argv):
                 return [input_shapes]
             else:
                 return input_shapes
-        elif isinstance(shapes, PartialShape) or isinstance(shapes, torch.Size):
+        elif isinstance(shapes, PartialShape):
             return [shapes]
         else:
-            raise Error("Unknown type of input shape {}.".format(type(shapes)))
+            try:
+                import torch
+                if isinstance(shapes, torch.Size):
+                    return [shapes]
+            except ImportError:
+                raise Error("Unknown type of input shape {}.".format(type(shapes)))
 
     return input_shapes
 
@@ -751,28 +754,18 @@ def args_dict_to_list(cli_parser, **kwargs):
     return result
 
 
-def pack_params_to_args_namespace(**kwargs):
-    fe_manager = FrontEndManager()
-    cli_parser = get_all_cli_parser(fe_manager)
-    argv = cli_parser.parse_args(args_dict_to_list(cli_parser, **kwargs))
-
-    all_params = {}
-    for key, value in mo_convert_params.items():
-        all_params.update(value)
-
-    for key, value in kwargs.items():
-        if key not in argv and key not in all_params.keys():
-            raise Error("Unrecognized argument: {}".format(key))
-        if value is not None:
-            setattr(argv, key, value)
-    send_params_info(argv, cli_parser)
-
+def get_non_default_params(argv, cli_parser):
+    import numbers
+    # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
-    for arg in vars(argv):
-        arg_value = getattr(argv, arg)
+    for arg, arg_value in vars(argv).items():
         if arg_value != cli_parser.get_default(arg):
-            non_default_params[arg] = depersonalize(arg_value, arg)
-    return argv, non_default_params
+            value = depersonalize(arg_value, arg)
+            # Skip complex classes in params to prevent
+            # serializing it to rt_info
+            if isinstance(value, (str, bool, numbers.Number)):
+                non_default_params[arg] = value
+    return non_default_params
 
 
 def params_to_string(**kwargs):
@@ -830,11 +823,39 @@ def show_mo_convert_help():
 
 
 def input_model_is_object(argv):
-    if isinstance(argv['input_model'], str):
+    # Input model can be set as object only for --input_model parameter.
+    # --saved_model_dir or meta specific options are only used to store paths to the input model.
+    if 'input_model' not in argv:
+        return False
+    if isinstance(argv['input_model'], (str, Path)):
         return False
     if argv['input_model'] is None:
         return False
     return True
+
+
+def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
+    if len(args) > 0:
+        args_string = params_to_string(**args)
+        argv, _ = cli_parser.parse_known_args(args_dict_to_list(cli_parser, **args_string))
+
+        # get list of all available params for convert_model()
+        all_params = {}
+        for key, value in mo_convert_params.items():
+            all_params.update(value)
+
+        # check that there are no unknown params provided
+        for key, value in args_string.items():
+            if key not in argv and key not in all_params.keys():
+                raise Error("Unrecognized argument: {}".format(key))
+
+            # Non string params like input_model or extensions are ignored by parse_args()
+            # so we need to set them in argv separately
+            if value is not None and getattr(argv, key) != value:
+                setattr(argv, key, value)
+    else:
+        argv = cli_parser.parse_args()
+    return argv
 
 
 def remove_tmp_onnx_model(out_dir):
@@ -845,7 +866,7 @@ def remove_tmp_onnx_model(out_dir):
             os.remove(tmp_onnx_model)
 
 
-def _convert(**args):
+def _convert(cli_parser: argparse.ArgumentParser, framework, args):
     if 'help' in args and args['help']:
         show_mo_convert_help()
         return None
@@ -876,7 +897,6 @@ def _convert(**args):
                                                      example_inputs,
                                                      out_dir)
 
-
                 args['input_model'] = model_onnx
                 if os.environ.get('SAVE_TO_BYTES_IO_ONNX_MODEL'):
                     args['use_legacy_frontend'] = True
@@ -884,19 +904,27 @@ def _convert(**args):
                 args['onnx_opset_version'] = None
 
                 try:
-                    ov_model = _convert(**args)
+                    ov_model = _convert(cli_parser, framework, args)
                 except Exception as e:
                     remove_tmp_onnx_model(out_dir)
                     raise e
 
                 remove_tmp_onnx_model(out_dir)
                 return ov_model
-        args = params_to_string(**args)
-        argv, non_default_params = pack_params_to_args_namespace(**args)
+
+        argv = pack_params_to_args_namespace(args, cli_parser)
+
+        if framework is not None:
+            setattr(argv, 'framework', framework)
+
+        # send telemetry with params info
+        send_params_info(argv, cli_parser)
+
+        non_default_params = get_non_default_params(argv, cli_parser)
 
         if inp_model_is_object:
             argv.model_name = "model"
-        if argv.model_name is None:
+        if not hasattr(argv, "model_name") or argv.model_name is None:
             argv.model_name = get_model_name_from_args(argv)
 
         if model_framework is not None:
@@ -927,7 +955,7 @@ def _convert(**args):
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        return ov_model
+        return ov_model, argv
     except Exception as e:
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')

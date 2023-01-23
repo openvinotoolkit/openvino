@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,13 +91,12 @@ public:
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
         auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives(),
-                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+                                                                                 get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
-            if (!deps[i]->is_constant()) {
+            if (!deps[i].first->is_constant()) {
                 params->primary_input_idx = i;
                 break;
             }
@@ -125,21 +124,14 @@ public:
     void set_preferred_impl_type(impl_types impl) { impl_type = impl; }
     impl_types get_preferred_impl_type() const { return impl_type; }
 
-    std::vector<program_node*> const& get_dependencies() const { return dependencies; }
-    std::vector<std::pair<program_node*, int>> const& get_dependencies_new() const { return dependencies_new; }
-    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx); }
-    std::pair<program_node*, int32_t> get_dependency_new(size_t idx) const { return dependencies_new.at(idx); }
+    std::vector<std::pair<program_node*, int32_t>> const& get_dependencies() const { return dependencies; }
+    program_node& get_dependency(size_t idx) const { return *dependencies.at(idx).first; }
+    std::pair<program_node*, int32_t> get_dependency_with_port(size_t idx) const { return dependencies.at(idx); }
 
     std::vector<layout> const get_input_layouts() const {
         std::vector<layout> layouts;
-        if (!dependencies_new.empty()) {
-            for (const auto& i : dependencies_new) {
-                layouts.push_back(i.first->get_output_layout(true, i.second));
-            }
-            return layouts;
-        }
         for (const auto& i : dependencies) {
-            layouts.push_back(i->get_output_layout());
+            layouts.push_back(i.first->get_output_layout(true, i.second));
         }
         return layouts;
     }
@@ -251,33 +243,6 @@ public:
     }
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
-
-    void add_fused_activation(activation_func activation_func,
-                              activation_additional_params additional_params) {
-        fused_activations.emplace_back(activation_func, additional_params);
-    }
-
-    std::vector<activation_func> get_fused_activations_funcs() const {
-        std::vector<activation_func> funcs;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(funcs),
-                       [](fused_activation_params const& p) { return p.func; });
-        return funcs;
-    }
-
-    std::vector<activation_additional_params> get_fused_activations_params() const {
-        std::vector<activation_additional_params> params;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(params),
-                       [](fused_activation_params const& p) { return p.params; });
-        return params;
-    }
-
-    void copy_fused_activation(const program_node& rhs) {
-        fused_activations = rhs.fused_activations;
-    }
 
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
@@ -421,8 +386,7 @@ protected:
     std::vector<format::type> preferred_input_fmts;
     std::vector<format::type> preferred_output_fmts;
 
-    std::vector<program_node*> dependencies;
-    std::vector<std::pair<program_node*, int>> dependencies_new;
+    std::vector<std::pair<program_node*, int32_t>> dependencies;
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
@@ -443,18 +407,6 @@ protected:
 
     const primitive_id org_id;
 
-    struct fused_activation_params {
-        activation_func func = activation_func::none;
-        activation_additional_params params = {0.0f, 0.0f};
-
-        fused_activation_params() {}
-
-        fused_activation_params(activation_func _func, activation_additional_params _params) :
-                func(_func),
-                params(_params) {}
-    };
-
-    std::vector<fused_activation_params> fused_activations;
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;
@@ -473,8 +425,8 @@ private:
         onednn_attrs = attrs;
     }
 
-    bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
     dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;
 };

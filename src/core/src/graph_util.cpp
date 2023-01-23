@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,7 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/core/descriptor/tensor.hpp"
 
 using namespace std;
 
@@ -775,21 +776,21 @@ bool ov::replace_output_update_name(Output<Node> output, const Output<Node>& rep
     if (preserve_legacy_output_name) {
         replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
         // Update output tensor name
-        const auto& output_tensor_name = output.get_tensor().get_name();
+        const auto& output_tensor_name = ov::descriptor::get_ov_tensor_legacy_name(output.get_tensor());
         if (!output_tensor_name.empty()) {
-            replacement.get_tensor().set_name(output_tensor_name);
+            ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output_tensor_name);
         } else {
-            replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), output.get_node()->get_friendly_name());
         }
     }
 
     // Save replacement tensor name before replacement as they will be overridden by the output tensor name
-    const auto tensor_name = replacement.get_tensor().get_name();
+    const auto tensor_name = ov::descriptor::get_ov_tensor_legacy_name(replacement.get_tensor());
 
     output.replace(replacement);
 
     // Restore back original replacement tensor name
-    replacement.get_tensor().set_name(tensor_name);
+    ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(), tensor_name);
 
     copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},
                       replacement.get_node_shared_ptr());

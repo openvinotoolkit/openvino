@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,7 +172,6 @@ protected:
 };
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
     if (inType == ElementType::bf16) {
         if (cpuNodeType == "FullyConnected") {
@@ -408,8 +407,8 @@ const std::vector<ShapeRelatedParams> IS3D_smoke = {
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, false}},
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 5}}), {false, true}},
     // needed by 'IS3D_Brgconv1x1_smoke'
-    {static_shapes_to_test_representation({{1, 32, 120}, {120, 120}}), {false, false}},
-    {static_shapes_to_test_representation({{3, 29, 120}, {120, 120}}), {false, false}},
+    {static_shapes_to_test_representation({{1, 1, 120}, {120, 120}}), {false, false}},
+    {static_shapes_to_test_representation({{3, 1, 120}, {120, 120}}), {false, false}},
 
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, false}},
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, true}},
@@ -548,8 +547,8 @@ INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF1
 
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_smoke = {
     // needed by 'IS2D_Brgconv1x1_smoke'
-    {static_shapes_to_test_representation({{29, 120}, {120, 120}}), {true, false}},
-    {static_shapes_to_test_representation({{39, 120}, {120, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{1, 120}, {120, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{1, 128}, {128, 166}}), {true, false}},
 
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
@@ -624,9 +623,9 @@ const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
     {
         {
             // ip->brg->ip->brg
-            // {39, 120}, {29, 120} are covered in 'IS2D_Brgemm_smoke' which is ip
+            // {1, 120} are covered in 'IS2D_Brgemm_smoke' which is ip
             // {49, 120}, {79, 120} are covered above which is brg1x1
-            {{-1, -1}, {{39, 120}, {49, 120}, {29, 120}, {79, 120}}},
+            {{-1, -1}, {{1, 120}, {49, 120}, {1, 120}, {79, 120}}},
             {{120, 120}, {{120, 120}, {120, 120}, {120, 120}, {120, 120}}}
         },
         {false, false}
@@ -634,7 +633,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
     {
         {
             // ip->brg->ip(cached)->brg(cached)
-            {{{0, 200}, {0, 200}}, {{18, 128}, {199, 128}, {18, 128}, {199, 128}}},
+            {{{0, 200}, {0, 200}}, {{1, 128}, {199, 128}, {1, 128}, {199, 128}}},
             {{128, 166}, {{128, 166}, {128, 166}}}
         },
         {true, true}
@@ -670,9 +669,9 @@ const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {
     {
         {
             // ip->brg->ip->brg
-            // {1, 32, 120}, {3, 29, 120} are covered in 'IS3D_smoke' which is ip
+            // {1, 1, 120}, {3, 1, 120} are covered in 'IS3D_smoke' which is ip
             // {2, 49, 120}, {4, 79, 120} are covered above which is brg1x1
-            {{-1, -1, -1}, {{1, 32, 120}, {2, 49, 120}, {3, 29, 120}, {4, 79, 120}}},
+            {{-1, -1, -1}, {{1, 1, 120}, {2, 49, 120}, {3, 1, 120}, {4, 79, 120}}},
             {{120, 120}, {{120, 120}, {120, 120}, {120, 120}, {120, 120}}}
         },
         {false, false}
@@ -710,9 +709,30 @@ const auto testParams3D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedPara
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_Brgconv1x1, MatMulLayerCPUTest, testParams3D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
 
+const std::vector<ShapeRelatedParams> IS2D_Brgemm_Amx_smoke = {
+    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
 
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
 
-const auto fullyConnectedParams2D_Brgemm_Amx_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
+    {
+        {
+            {{-1, -1}, {{12, 16}, {25, 16}, {12, 16}, {25, 16}}},
+            {{16, 35}, {{16, 35}, {16, 35}, {16, 35}, {16, 35}}}
+        },
+        {false, false}
+    },
+    {
+        {
+            {{{0, 50}, {0, 50}}, {{17, 48}, {15, 48}}},
+            {{48, 15}, {{48, 15}, {48, 15}}}
+        },
+        {true, true}
+    },
+};
+
+const auto fullyConnectedParams2D_Brgemm_Amx_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_Amx_smoke),
                                                        ::testing::Values(ElementType::f32),
                                                        ::testing::Values(ElementType::undefined),
                                                        ::testing::Values(ElementType::undefined),

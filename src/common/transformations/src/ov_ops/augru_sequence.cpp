@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 #include "ngraph/op/util/recurrent_sequence.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::internal::AUGRUSequence);
 
 ov::op::internal::AUGRUSequence::AUGRUSequence()
     : m_direction(op::RecurrentSequenceDirection::FORWARD),

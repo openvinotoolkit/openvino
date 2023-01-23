@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::Node>& op, const ngraph::AxisSet axis_mapping) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto input_pshape = op->get_input_partial_shape(0);
@@ -25,7 +25,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
     auto input_rank = input_pshape.size();
     auto output_rank = output_pshape.size();
 
-    auto inputPrimitive = inputPrimitives[0];
+    auto input = inputs[0];
 
     if (input_rank != output_rank && input_pshape.is_static() && output_pshape.is_static() && !p.use_new_shape_infer()) {
         auto inputShape = op->get_input_shape(0);
@@ -36,12 +36,12 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
             auto reorderName = layerName + "_cldnn_in_reorder";
             auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
             auto reorderPrim = cldnn::reorder(reorderName,
-                                              inputPrimitive,
+                                              input,
                                               targetFormat,
                                               targetDatatype);
             p.add_primitive(*op, reorderPrim);
 
-            inputPrimitive = reorderName;
+            input.pid = reorderName;
         }
 
         auto reshapeName = layerName + "_cldnn_in_reshape";
@@ -71,10 +71,10 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
         auto targetShape = tensor_from_dims(inputShape);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
+        auto reshapePrim = cldnn::reshape(reshapeName, input, targetShape);
         p.add_primitive(*op, reshapePrim);
 
-        inputPrimitive = reshapeName;
+        input.pid = reshapeName;
     }
 
     ov::op::BroadcastModeSpec mode = ov::op::BroadcastType::NONE;
@@ -95,14 +95,14 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
     std::shared_ptr<cldnn::broadcast> broadcast_prim = nullptr;
     if (output_pshape.is_static()) {
         broadcast_prim = std::make_shared<cldnn::broadcast>(layerName,
-                                                            inputPrimitive,
+                                                            input,
                                                             output_pshape.to_shape(),
                                                             axis_mapping,
                                                             mode);
     } else {
         broadcast_prim = std::make_shared<cldnn::broadcast>(layerName,
-                                                            inputPrimitive,
-                                                            inputPrimitives[1],
+                                                            input,
+                                                            inputs[1],
                                                             axis_mapping,
                                                             mode);
     }

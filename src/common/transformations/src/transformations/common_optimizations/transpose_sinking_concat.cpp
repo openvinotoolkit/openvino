@@ -13,6 +13,7 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
@@ -35,6 +36,7 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         sink_forward::UpdateInputTransposes(main_node, transpose_input_info);
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
+            transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
 
         auto concat_node = as_type_ptr<Concat>(main_node);
@@ -52,10 +54,16 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
 ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
     MATCHER_SCOPE(TransposeSinkingConcatBackward);
 
-    auto main_node_label = wrap_type<Concat>(consumers_count(1));
+    auto main_node_label = wrap_type<Concat>([](const Output<Node>& output) -> bool {
+        return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
+    });
 
-    auto transpose_const_label = wrap_type<Constant>(consumers_count(1));
-    auto transpose_label = wrap_type<Transpose>({main_node_label, transpose_const_label}, consumers_count(1));
+    auto transpose_const_label = wrap_type<Constant>();
+
+    auto transpose_label =
+        wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -67,8 +75,8 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
             register_new_node(new_node);
         }
 
-        // remove transpose after main node
-        transpose->output(0).replace(main_node);
+        // remove output transposes
+        RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
 

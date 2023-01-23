@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace v1 {
 class OPENVINO_API TopK : public Op {
 public:
     OPENVINO_OP("TopK", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -123,7 +122,6 @@ namespace v3 {
 class OPENVINO_API TopK : public v1::TopK {
 public:
     OPENVINO_OP("TopK", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.

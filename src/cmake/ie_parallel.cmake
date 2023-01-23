@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -224,10 +224,12 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
+    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
+            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
@@ -273,6 +275,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
+            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
@@ -300,7 +303,8 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)

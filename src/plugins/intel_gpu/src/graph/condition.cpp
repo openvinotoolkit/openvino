@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(condition)
     !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
 */
 layout condition_inst::calc_output_layout(condition_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for condition_node!");
     node.set_branches();
 

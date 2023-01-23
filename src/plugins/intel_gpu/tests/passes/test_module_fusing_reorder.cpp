@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 #include "program_helpers.h"
@@ -50,13 +48,8 @@ static void setting_onednn_conv(program::ptr prog, layout_optimizer& lo, const p
 // To test removal of reorder for mixed precision of Onednn conv kernel (conv: u8->fp32)
 TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
 {
-    build_options build_opt;
     topology topology;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& engine = get_onednn_test_engine();
-#else
     auto& engine = get_test_engine();
-#endif
 
     layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, {1, 32, 2, 2}, padding({0, }, 0));
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
@@ -66,11 +59,12 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(reorder("reorder_input", "input", format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
 
@@ -83,7 +77,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            EXPECT_EQ(false, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(false, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -91,13 +85,8 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
 // To test mixed precision of Cldnn conv kernel (conv: u8->fp32)
 TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
 {
-    build_options build_opt;
     topology topology;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& engine = get_onednn_test_engine();
-#else
     auto& engine = get_test_engine();
-#endif
 
     layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, {1, 32, 2, 2}, padding({0, }, 0));
     auto input = engine.allocate_memory({ data_types::u8, format::bfyx, {1, 3, 2, 2} });
@@ -107,11 +96,12 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(reorder("reorder_input", "input", format::b_fs_yx_fsv32, data_types::u8));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::u8));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
+    topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
 
@@ -124,7 +114,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            EXPECT_EQ(true, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(true, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -150,11 +140,7 @@ struct reorder_test_param {
 template<typename T>
 class ReorderTest : public ::testing::TestWithParam<T> {
 public:
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    cldnn::engine& engine = get_onednn_test_engine();
-#else
     cldnn::engine& engine = get_test_engine();
-#endif
 
     layout get_input_layout(T& p) {
         auto pad = p.pad;
@@ -171,7 +157,6 @@ public:
 class test_fused_reorder_deep_depth : public ReorderTest<reorder_test_param> {};
 TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
 {
-    build_options build_opt;
     topology topology;
     auto p = GetParam();
 
@@ -183,11 +168,12 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }));
-    topology.add(reorder("reorder_conv", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.output_format, p.input_data_type));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
+    topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
     setting_node(prog, "conv", conv_layout);
@@ -201,7 +187,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -222,7 +208,6 @@ INSTANTIATE_TEST_SUITE_P(testing_deep_depth_conv, test_fused_reorder_deep_depth,
 class test_can_fuse_reorder_cldnn : public ReorderTest<reorder_test_param> {};
 TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
 {
-    build_options build_opt;
     topology topology;
     auto p = GetParam();
 
@@ -234,11 +219,12 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
-    topology.add(reorder("reorder_input", "input", p.output_format, p.input_data_type));
-    topology.add(cldnn::convolution("conv2", { "reorder_input" }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
-    topology.add(reorder("reorder_conv", "conv2", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.output_format, p.input_data_type));
+    topology.add(cldnn::convolution("conv2", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
+    topology.add(reorder("reorder_conv", input_info("conv2"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
 
@@ -251,7 +237,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -268,7 +254,6 @@ INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reor
 class test_can_fuse_reorder_onednn : public ReorderTest<reorder_test_param> {};
 TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
 {
-    build_options build_opt;
     topology topology;
     auto p = GetParam();
 
@@ -279,12 +264,13 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.input_format, p.output_data_type));
-    topology.add(reorder("reorder_conv", "reorder_input", p.output_format, p.output_data_type));
-    topology.add(cldnn::convolution("conv", { "reorder_input" }, { "weights" }));
-    topology.add(reorder("reorder_result", "conv", reorder_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.input_format, p.output_data_type));
+    topology.add(reorder("reorder_conv", input_info("reorder_input"), p.output_format, p.output_data_type));
+    topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
+    topology.add(reorder("reorder_result", input_info("conv"), reorder_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
     setting_node(prog, "conv", conv_layout);
@@ -298,7 +284,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -313,7 +299,6 @@ INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_first_conv, test_can_fuse_reor
 
 class can_fuse_reorder : public ::testing::TestWithParam<std::tuple<data_types, format>> {};
 TEST_P(can_fuse_reorder, surface_input_reorder) {
-    build_options build_opt;
     topology topology;
     auto& engine = get_test_engine();
 
@@ -334,14 +319,15 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
 
     auto input_layout_prim = input_layout("input", input_data->get_layout());
     auto weights_data_prim = data("weights", weights);
-    auto surface_input_reorder_prim = reorder(reorder_prim_id, "input", reorder_layout);
+    auto surface_input_reorder_prim = reorder(reorder_prim_id, input_info("input"), reorder_layout);
     surface_input_reorder_prim.input_mem_type = reorder::memory_type::surface;
-    auto conv_input_reorder_prim = reorder("reorder_conv", reorder_prim_id, req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", { "reorder_conv" }, { "weights" });
+    auto conv_input_reorder_prim = reorder("reorder_conv", input_info(reorder_prim_id), req_format, req_data_type);
+    auto conv_prim = cldnn::convolution("conv", { input_info("reorder_conv") }, { "weights" });
 
     topology.add(input_layout_prim, weights_data_prim, surface_input_reorder_prim, conv_input_reorder_prim, conv_prim);
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
 
@@ -364,7 +350,6 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
 }
 
 TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
-    build_options build_opt;
     topology topology;
     auto& engine = get_test_engine();
 
@@ -387,19 +372,20 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     auto input_layout_prim1 = input_layout("input1", input_data->get_layout());
     auto input_layout_prim2 = input_layout("input2", input_data->get_layout());
     auto weights_data_prim = data("weights", weights);
-    auto surface_input_reorder_prim1 = reorder(reorder_prim_id1, "input1", reorder_layout);
+    auto surface_input_reorder_prim1 = reorder(reorder_prim_id1, input_info("input1"), reorder_layout);
     surface_input_reorder_prim1.input_mem_type = reorder::memory_type::surface;
-    auto surface_input_reorder_prim2 = reorder(reorder_prim_id2, "input2", reorder_layout);
+    auto surface_input_reorder_prim2 = reorder(reorder_prim_id2, input_info("input2"), reorder_layout);
     surface_input_reorder_prim2.input_mem_type = reorder::memory_type::surface;
-    auto concat = concatenation("concat",{reorder_prim_id1, reorder_prim_id2}, 0);
-    auto conv_input_reorder_prim = reorder("reorder_conv", "concat", req_format, req_data_type);
-    auto conv_prim = cldnn::convolution("conv", { "reorder_conv" }, { "weights" });
+    auto concat = concatenation("concat",{ input_info(reorder_prim_id1),input_info(reorder_prim_id2) }, 0);
+    auto conv_input_reorder_prim = reorder("reorder_conv", input_info("concat"), req_format, req_data_type);
+    auto conv_prim = cldnn::convolution("conv", { input_info("reorder_conv") }, { "weights" });
 
     topology.add(input_layout_prim1, input_layout_prim2, weights_data_prim,
                  surface_input_reorder_prim1, surface_input_reorder_prim2,
                  conv_input_reorder_prim, concat, conv_prim);
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
 
@@ -435,9 +421,7 @@ struct onednn_layout_errata_test_param {
 
 // Errata cases for onednn convolution layout: both bfyx and byxf are acceptable
 class test_can_fuse_reorder_onednn_errata : public ReorderTest<onednn_layout_errata_test_param> {};
-TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv)
-{
-    build_options build_opt;
+TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
     topology topology;
     auto p = GetParam();
     if (!engine.get_device_info().supports_immad)
@@ -448,12 +432,13 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv)
 
     topology.add(input_layout("input", input->get_layout()));
     topology.add(data("weights", weights));
-    topology.add(reorder("reorder_input", "input", p.input_layout.format, p.input_layout.data_type));
-    topology.add(reorder("reorder_conv", "reorder_input", p.reorder_layout.format, p.reorder_layout.data_type));
-    topology.add(convolution("conv", { "reorder_conv" }, { "weights" }));
-    topology.add(reorder("reorder_result", "conv", p.conv_layout));
+    topology.add(reorder("reorder_input", input_info("input"), p.input_layout.format, p.input_layout.data_type));
+    topology.add(reorder("reorder_conv", input_info("reorder_input"), p.reorder_layout.format, p.reorder_layout.data_type));
+    topology.add(convolution("conv", { input_info("reorder_conv") }, { "weights" }));
+    topology.add(reorder("reorder_result", input_info("conv"), p.conv_layout));
 
-    program::ptr prog = program::build_program(engine, topology, build_opt, false, true);
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
     setting_onednn_conv(prog, lo, "conv", p.conv_layout);
@@ -467,7 +452,7 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv)
         auto& node = node_ptr->as<reorder>();
         auto& prev = node.input();
         for (auto next : node_ptr->get_users()) {
-            EXPECT_EQ(p.expected_result, lo.can_fuse_reorder(prev, *next, prev.get_output_layout().format, next->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(prev, *next, prev.get_output_layout().format, next->get_output_layout().format));
         }
     }
 }
@@ -488,4 +473,3 @@ INSTANTIATE_TEST_SUITE_P(testing_can_fuse_reorder_errata_case_for_conv, test_can
                                                 true },
                                             }));
 #endif
-

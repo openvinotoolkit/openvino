@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,10 +22,7 @@ namespace op {
 class OPENVINO_API Branch : public Pattern {
 public:
     OPENVINO_RTTI("patternBranch");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Creates a Branch pattern
-    /// \param pattern the destinationing pattern
-    /// \param labels Labels where the destination may occur
     Branch() : Pattern(OutputVector{}) {
         set_output_type(0, element::f32, Shape{});
     }

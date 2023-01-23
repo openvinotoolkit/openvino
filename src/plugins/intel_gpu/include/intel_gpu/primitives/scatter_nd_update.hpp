@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -26,17 +19,14 @@ struct scatter_nd_update : public primitive_base<scatter_nd_update> {
     /// @param idupd Input updates primitive id.
     /// @param indices_rank Rank of indices.
     scatter_nd_update(const primitive_id& id,
-                      const primitive_id& data,
-                      const primitive_id& idx,
-                      const primitive_id& idupd,
+                      const input_info& data,
+                      const input_info& idx,
+                      const input_info& idupd,
                       const size_t indices_rank,
                       const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, output_padding), indices_rank(indices_rank) {}
+        : primitive_base(id, {data, idx, idupd}, {output_padding}), indices_rank(indices_rank) {}
 
     /// @brief ScatterNDUpdate indices_rank
     size_t indices_rank;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

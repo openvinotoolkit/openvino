@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 #include <string>
 #include <vector>
@@ -57,8 +58,8 @@ bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::st
     return true;
 }
 
-If::If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ovOp(op) {
+If::If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, InternalDynShapeInferFactory()), ovOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -70,8 +71,8 @@ void If::getSupportedDescriptors() {
 
     const std::shared_ptr<const ov::Model>& thenBody = ifOp->get_then_body();
     const std::shared_ptr<const ov::Model>& elseBody = ifOp->get_else_body();
-    subGraphThen.CreateGraph(thenBody, ext_mng, weightCache, sharedMutex);
-    subGraphElse.CreateGraph(elseBody, ext_mng, weightCache, sharedMutex);
+    subGraphThen.CreateGraph(thenBody, context);
+    subGraphElse.CreateGraph(elseBody, context);
 
     const auto &inMapThen = subGraphThen.GetInputNodesMap();
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {

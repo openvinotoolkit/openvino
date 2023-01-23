@@ -37,8 +37,8 @@ public:
     void execute(loop_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -63,7 +63,7 @@ TEST_P(permute_eltwise_loop, basic) {
     topology body(
         input_layout("body_input", layout{p.data_type, format::bfyx, p.loop_eltwise_shape}),
         input_layout("body_eltwise_operand", layout({p.data_type, format::bfyx, p.loop_eltwise_shape})),
-        eltwise("body_eltwise", "body_input", "body_eltwise_operand", eltwise_mode::sum)
+        eltwise("body_eltwise", input_info("body_input"), input_info("body_eltwise_operand"), eltwise_mode::sum)
     );
 
     std::vector<loop::io_primitive_map> input_primitive_maps {loop::io_primitive_map("eltwise", "body_input", 2),
@@ -74,16 +74,16 @@ TEST_P(permute_eltwise_loop, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(layout{p.data_type, p.default_format, p.loop_input_shape})),
-        permute("permute", "input", p.permute_order),
-        eltwise("eltwise", {"permute", "eltwise_data"}, eltwise_mode::sum, p.data_type),
+        permute("permute", input_info("input"), p.permute_order),
+        eltwise("eltwise", { input_info("permute"), input_info("eltwise_data") }, eltwise_mode::sum, p.data_type),
         data("loop_eltwise_init_values", get_mem(layout{p.data_type, format::bfyx, p.loop_eltwise_shape}, 0.f)),
         data("trip_count", trip_count_mem),
         data("initial_condition", initial_condition_mem),
         mutable_data("num_iteration", num_iteration_mem),
-        loop("loop", {"eltwise", "loop_eltwise_init_values"}, body,
+        loop("loop", { input_info("eltwise"), input_info("loop_eltwise_init_values") }, body,
              "trip_count", "initial_condition", "num_iteration",
              input_primitive_maps, output_primitive_maps, back_edges, p.loop_trip_count),
-        reorder("output", "loop", format::bfyx, p.default_type)
+        reorder("output", input_info("loop"), format::bfyx, p.default_type)
     );
 
     tolerance = 1e-5f;

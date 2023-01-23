@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,8 @@ class typed_primitive_inst<gather_tree> : public typed_primitive_inst_base<gathe
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(gather_tree_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(gather_tree_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_tree_node const& node);
     typed_primitive_inst(network& network, gather_tree_node const& node);

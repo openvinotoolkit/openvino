@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API MOCTransformations;
 }  // namespace ov
 
 /**
- * @brief This transformation is an entry point for nGraph transformations that will be
+ * @brief This transformation is an entry point for OpenVINO transformations that will be
  * applied inside MOC. And in future this transformations container will be filled
  * with transformations pipeline but now it remains empty.
  */
@@ -39,7 +39,7 @@ public:
         : m_use_shapes(use_shapes),
           m_low_precision_enabled(low_precision_enabled) {}
 
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 namespace ngraph {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ bool check_beta_value(const std::shared_ptr<ov::opset4::Constant>& constant) {
 ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     MATCHER_SCOPE(SwishFusionWithSigmoid);
     // replaces a sub-graphs x * Sigmoid(x) with a Swish op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto sigmoid = std::make_shared<opset4::Sigmoid>(input);
     auto mul = std::make_shared<opset4::Multiply>(input, sigmoid);
 
@@ -60,8 +60,8 @@ ov::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
 ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     MATCHER_SCOPE(SwishFusionWithSigmoidWithBeta);
     // replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
-    auto input = ngraph::pattern::any_input();
-    auto beta = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
+    auto beta = pass::pattern::any_input();
     auto mul_beta = std::make_shared<opset4::Multiply>(input, beta);
     auto sigmoid = std::make_shared<opset4::Sigmoid>(mul_beta);
     auto mul = std::make_shared<opset4::Multiply>(input, sigmoid);
@@ -106,8 +106,8 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
 ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     MATCHER_SCOPE(SwishFusionWithBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
-    auto input = ngraph::pattern::any_input();
-    auto beta = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
+    auto beta = pass::pattern::any_input();
     auto mul = std::make_shared<opset4::Multiply>(input, beta);
     auto neg = std::make_shared<opset4::Negative>(mul);
     auto exp = std::make_shared<opset4::Exp>(neg);
@@ -147,7 +147,7 @@ ov::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
 ov::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     MATCHER_SCOPE(SwishFusionWithoutBeta);
     // replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto neg = std::make_shared<opset4::Negative>(input);
     auto exp = std::make_shared<opset4::Exp>(neg);
     auto add_constant = ngraph::pattern::wrap_type<opset4::Constant>();

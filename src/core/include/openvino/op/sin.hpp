@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,6 @@ namespace v0 {
 class OPENVINO_API Sin : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Sin", "opset1", util::UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a sine operation.
     ///
     /// \param arg Node that produces the input tensor.

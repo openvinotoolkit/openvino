@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,20 +20,20 @@ template<typename T>
 void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::vector<size_t> output_shape,
                           std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes) {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
-    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
     std::vector<tensor::value_type> output_4d(4, 1);
     for (size_t i = 0; i < output_shape.size(); ++i) {
@@ -57,9 +57,9 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", cldnn_format, cldnn_data_type));
-    topology.add(broadcast("broadcast", "reorder", {output_4d.at(0), output_4d.at(1), output_4d.at(3), output_4d.at(2)}, fixed_b_axes));
-    topology.add(reorder("output", "broadcast", format::bfyx, cldnn_data_type));
+    topology.add(reorder("reorder", input_info("input"), cldnn_format, cldnn_data_type));
+    topology.add(broadcast("broadcast", input_info("reorder"), {output_4d.at(0), output_4d.at(1), output_4d.at(3), output_4d.at(2)}, fixed_b_axes));
+    topology.add(reorder("output", input_info("broadcast"), format::bfyx, cldnn_data_type));
 
 
     set_values(input, input_data);
@@ -76,7 +76,7 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
             for (tensor::value_type y = 0; y < output_4d.at(2); ++y) {
                 for (tensor::value_type x = 0; x < output_4d.at(3); ++x) {
                     auto output_off = ((b * output_4d.at(1) + f) * output_4d.at(2) + y) * output_4d.at(3) + x;
-                    EXPECT_EQ(output_ptr[output_off], output_data[output_off]);
+                    ASSERT_EQ(output_ptr[output_off], output_data[output_off]);
                 }
             }
         }
@@ -87,22 +87,23 @@ void start_broadcast_test_dynamic(format input_format,
                                   data_types input_data_type,
                                   ov::Shape output_shape,
                                   ov::Shape input_data_shape,
-                                  ov::AxisSet broadcast_axes) {
+                                  ov::AxisSet broadcast_axes,
+                                  bool is_output_static = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_data_shape.begin(), input_data_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
-    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
     int64_t input_rank = input_data_shape.size();
     ASSERT_EQ(input_rank, broadcast_axes.size());
@@ -111,26 +112,41 @@ void start_broadcast_test_dynamic(format input_format,
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ov::PartialShape(input_data_shape), input_data_type, fmt});
 
-    auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
-    auto target_shape_layout = layout(ov::PartialShape{input_rank}, data_types::i32, fmt);
-    auto target_shape_mem = engine.allocate_memory(target_shape_layout);
     topology topology;
-    topology.add(input_layout("input", in_layout));
-    topology.add(input_layout("target_shape", target_shape_layout));
-    topology.add(reorder("reorder", "input", input_format, input_data_type));
-    topology.add(broadcast("broadcast", "reorder", "target_shape", ov::AxisSet(broadcast_axes)));
-    topology.add(reorder("output", "broadcast", fmt, input_data_type));
+    memory::ptr target_shape_mem = nullptr;
+    if (is_output_static) {
+        auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
+        topology.add(input_layout("input", in_layout));
+        topology.add(reorder("reorder", input_info("input"), input_format, input_data_type));
+        topology.add(broadcast("broadcast",
+                               input_info("reorder"),
+                               output_shape,
+                               ov::AxisSet(broadcast_axes)));
+        topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
+    } else {
+        auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
+        auto target_shape_layout = layout(ov::PartialShape{input_rank}, data_types::i32, fmt);
+        target_shape_mem = engine.allocate_memory(target_shape_layout);
+        topology.add(input_layout("input", in_layout));
+        topology.add(input_layout("target_shape", target_shape_layout));
+        topology.add(reorder("reorder", input_info("input"), input_format, input_data_type));
+        topology.add(
+            broadcast("broadcast", input_info("reorder"), input_info("target_shape"), ov::AxisSet(broadcast_axes)));
+        topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
+        std::vector<int32_t> target_shape_data(output_shape.begin(), output_shape.end());
+        set_values<int32_t>(target_shape_mem, target_shape_data);
+    }
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     set_values(input, input_data);
-    std::vector<int32_t> target_shape_data(output_shape.begin(), output_shape.end());
-    set_values<int32_t>(target_shape_mem, target_shape_data);
 
-    network network(engine, topology, bo);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
-    network.set_input_data("target_shape", target_shape_mem);
+    if (!is_output_static) {
+        network.set_input_data("target_shape", target_shape_mem);
+    }
 
     auto inst = network.get_primitive("broadcast");
     auto impl = inst->get_impl();
@@ -143,7 +159,7 @@ void start_broadcast_test_dynamic(format input_format,
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_data_size; ++i) {
-        EXPECT_EQ(output_ptr[i], output_data[i]);
+        ASSERT_EQ(output_ptr[i], output_data[i]);
     }
 }
 
@@ -152,20 +168,20 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
                              std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes, bool is_caching_test=false)
 {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(input_data_size, (size_t)1);
+    ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
         input_data.push_back((T)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
-    EXPECT_GE(output_data_size, (size_t)1);
+    ASSERT_GE(output_data_size, (size_t)1);
     std::vector<T> output_data(output_data_size);
     ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(input_data.data()), reinterpret_cast<char*>(output_data.data()),
                                           ov::Shape(input_shape.begin(), input_shape.end()), ov::Shape(output_shape.begin(), output_shape.end()),
                                           ov::AxisSet(broadcast_axes), sizeof(T));
 
-    EXPECT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
     std::vector<tensor::value_type> output_5d(5, 1);
     for (size_t i = 0; i < output_shape.size(); ++i) {
@@ -189,9 +205,9 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reorder("reorder", "input", cldnn_format, cldnn_data_type));
-    topology.add(broadcast("broadcast", "reorder", { output_5d.at(0), output_5d.at(1), output_5d.at(4), output_5d.at(3), output_5d.at(2) }, fixed_b_axes));
-    topology.add(reorder("output", "broadcast", format::bfzyx, cldnn_data_type));
+    topology.add(reorder("reorder", input_info("input"), cldnn_format, cldnn_data_type));
+    topology.add(broadcast("broadcast", input_info("reorder"), { output_5d.at(0), output_5d.at(1), output_5d.at(4), output_5d.at(3), output_5d.at(2) }, fixed_b_axes));
+    topology.add(reorder("output", input_info("broadcast"), format::bfzyx, cldnn_data_type));
 
 
     set_values(input, input_data);
@@ -227,7 +243,7 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
                 for (tensor::value_type y = 0; y < output_5d.at(3); ++y) {
                     for (tensor::value_type x = 0; x < output_5d.at(4); ++x) {
                         auto output_off = (((b * output_5d.at(1) + f) * output_5d.at(2) + z) * output_5d.at(3) + y) * output_5d.at(4) + x;
-                        EXPECT_EQ(output_ptr[output_off], output_data[output_off]);
+                        ASSERT_EQ(output_ptr[output_off], output_data[output_off]);
                     }
                 }
             }
@@ -268,12 +284,24 @@ TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1});
 }
 
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true);
+}
+
 TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5}, {1, 1}, {0, 1});
 }
 
+TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1x2_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5, 2}, {1, 1, 1}, {0, 1, 2}, true);
+}
+
 TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1});
+}
+
+TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3});
 }
 
 
@@ -991,7 +1019,7 @@ TEST(broadcast_gpu, basic_error_wrong_b_axes_size) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 1, 2, 3, 4}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 1, 2, 3, 4}));
 
     std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes size should be less or equal 4.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1003,7 +1031,7 @@ TEST(broadcast_gpu, basic_error_wrong_b_axis_value) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 4}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 4}));
 
     std::string msg_to_find = "Incorrect parameters configuration: broadcast_axes index should be within broadcast_sizes range.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1015,7 +1043,7 @@ TEST(broadcast_gpu, basic_error_duplicate_b_axis_values) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 1, 1}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 1, 1}));
 
     std::string msg_to_find = "Incorrect parameters configuration: Duplicate axes numbers was found in broadcast_axes.";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1027,7 +1055,7 @@ TEST(broadcast_gpu, basic_error_wrong_input_dimension_0) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {1}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {1}));
 
     std::string msg_to_find = "Input size on dimension number 0(=2) is not equal to: (=1)";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1039,7 +1067,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_2x3x4x5_to_3x3x4x5) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{3, 3, 4, 5}, {}));
+    topology.add(broadcast("output", input_info("input"), tensor{3, 3, 4, 5}, {}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1051,7 +1079,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_3_to_2x3x4x5_w_b_axes_0x1x3) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {0, 1, 3}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {0, 1, 3}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));
@@ -1063,7 +1091,7 @@ TEST(broadcast_gpu, basic_error_not_dividable_4x5_to_3x4x5_w_b_axes_1) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(broadcast("output", "input", tensor{2, 3, 4, 5}, {1}));
+    topology.add(broadcast("output", input_info("input"), tensor{2, 3, 4, 5}, {1}));
 
     std::string msg_to_find = "Invalid broadcast size: not dividable by input size";
     EXPECT_ANY_THROW(check_exception_massage(engine, topology, msg_to_find));

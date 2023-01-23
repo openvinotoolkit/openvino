@@ -40,7 +40,7 @@ TEST_P(eltwise_si_test, shape_infer) {
 
     auto input1_prim = std::make_shared<input_layout>("input1", p.input1_layout);
     auto input2_prim = std::make_shared<input_layout>("input2", p.input2_layout);
-    auto eltwise_prim = std::make_shared<eltwise>("output", "input1", "input2", p.stride, p.mode, p.auto_broadcast_spec);
+    auto eltwise_prim = std::make_shared<eltwise>("output", input_info("input1"), input_info("input2"), p.stride, p.mode, p.auto_broadcast_spec);
 
     cldnn::program prog(engine);
 
@@ -64,7 +64,7 @@ TEST_P(eltwise_si_test, shape_infer_const_data) {
 
     auto input1_prim = std::make_shared<input_layout>("input1", p.input1_layout);
     auto const_data_prim = std::make_shared<data>("const_data", const_data);
-    auto eltwise_prim = std::make_shared<eltwise>("output", "input1", "const_data", p.stride, p.mode, p.auto_broadcast_spec);
+    auto eltwise_prim = std::make_shared<eltwise>("output", input_info("input1"), input_info("const_data"), p.stride, p.mode, p.auto_broadcast_spec);
 
     cldnn::program prog(engine);
 

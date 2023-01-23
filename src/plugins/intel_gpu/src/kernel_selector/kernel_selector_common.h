@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 #include <string>
 #include <vector>
 
-#define AGE_BASED "-cl-no-subgroup-ifp"
-#define DEFAULT ""
-#define NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
+#define EXE_MODE_DEFAULT ""
+#define EXE_MODE_AGE_BASED "-cl-no-subgroup-ifp"
+#define EXE_MODE_NO_PRERA_SCH "-cl-intel-no-prera-scheduling"
 
 namespace kernel_selector {
 

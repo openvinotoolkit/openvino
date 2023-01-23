@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 #include "../gna_matcher.hpp"
 
 using GNAAlignFilterTestParams  = std::tuple<InferenceEngine::Precision, std::size_t, std::size_t>;
-using namespace GNAPluginNS;
 
 class GNAAlignFilterTest : public GNATest<>,
                              public testing::WithParamInterface<GNAAlignFilterTestParams> {

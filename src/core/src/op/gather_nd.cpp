@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,6 @@ using namespace std;
 using namespace ngraph;
 
 // ------------------------------ V5 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v5::GatherND);
-
 op::v5::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : GatherNDBase(data, indices, batch_dims) {
     constructor_validate_and_infer_types();
@@ -62,8 +59,6 @@ shared_ptr<Node> op::v5::GatherND::clone_with_new_inputs(const OutputVector& new
 }
 
 // ------------------------------ V8 ------------------------------
-BWDCMP_RTTI_DEFINITION(op::v8::GatherND);
-
 op::v8::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims)
     : GatherNDBase(data, indices, batch_dims) {
     constructor_validate_and_infer_types();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ inline void DoTest(engine& engine,
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(
-        gather_elements("gather_elements", "InputData", "InputIndices", input1->get_layout().format, output_tensor, axis)
+        gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), input1->get_layout().format, output_tensor, axis)
     );
 
     cldnn::network::ptr network;
@@ -56,7 +56,7 @@ inline void DoTest(engine& engine,
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 

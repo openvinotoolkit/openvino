@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ public:
            const Output<Node>& axis,
            const bool sorted = true,
            const element::Type& index_element_type = element::i64,
-           const element::Type& ount_element_type = element::i64);
+           const element::Type& count_element_type = element::i64);
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;

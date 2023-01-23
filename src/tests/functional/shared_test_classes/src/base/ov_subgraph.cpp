@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <chrono>
 #include <signal.h>
 #include <setjmp.h>
 
@@ -77,8 +78,8 @@ void SubgraphBaseTest::run() {
                     }
                     generate_inputs(targetStaticShapeVec);
                 } catch (const std::exception& ex) {
-                    throw std::runtime_error("Incorrect target static shape: " +
-                                             CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+                    throw std::runtime_error("[IE TEST INFRA] Impossible to reshape ov::Model using the shape: " +
+                        CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
                 }
                 validate();
             }
@@ -105,7 +106,7 @@ void SubgraphBaseTest::run() {
 void SubgraphBaseTest::serialize() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-    std::string output_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();
+    std::string output_name = CommonTestUtils::generateTestFilePrefix();
 
     std::string out_xml_path = output_name + ".xml";
     std::string out_bin_path = output_name + ".bin";
@@ -198,19 +199,41 @@ void SubgraphBaseTest::configure_model() {
 }
 
 void SubgraphBaseTest::compile_model() {
+    if (is_report_stages) {
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is started" << std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
     configure_model();
     if (functionRefs == nullptr) {
         functionRefs = ov::clone_model(*function);
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
                 configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
         }
     #endif
 
+    // Set inference_precision hint to run fp32 model in fp32 runtime precision as default plugin execution precision may vary
+    if (targetDevice == CommonTestUtils::DEVICE_GPU) {
+        ov::element::Type hint = ov::element::f32;
+        for (auto& param : function->get_parameters()) {
+            if (param->get_output_element_type(0) == ov::element::f16) {
+                hint = ov::element::f16;
+                break;
+            }
+        }
+        configuration.insert({ov::inference_precision.name(), hint});
+    }
+
     compiledModel = core->compile_model(function, targetDevice, configuration);
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::compile_model()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
 }
 
 void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Model> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -255,6 +278,11 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
+    if (is_report_stages) {
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
     auto functionToProcess = ov::clone_model(*functionRefs);
@@ -311,14 +339,30 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
 
     functionToProcess = p.build();
 
-    return ngraph::helpers::interpretFunction(functionToProcess, inputs);
+    auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
+    return results;
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
+    if (is_report_stages) {
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
+
     infer();
     auto outputs = std::vector<ov::Tensor>{};
     for (const auto& output : function->outputs()) {
         outputs.push_back(inferRequest.get_tensor(output));
+    }
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ PLUGIN      ] `SubgraphBaseTest::get_plugin_outputs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
     }
     return outputs;
 }
@@ -342,8 +386,17 @@ void SubgraphBaseTest::validate() {
 
     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+    if (is_report_stages) {
+        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is started"<< std::endl;
+    }
+    auto start_time = std::chrono::system_clock::now();
 
     compare(expectedOutputs, actualOutputs);
+    if (is_report_stages) {
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> duration = end_time - start_time;
+        std::cout << "[ COMPARATION ] `ov_tensor_utils.hpp::compare()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
+    }
 }
 
 void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) {

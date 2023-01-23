@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -185,7 +185,7 @@ bool MemoryMngrWithReuse::resize(size_t size) {
     if (size > _memUpperBound) {
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
-            throw std::bad_alloc();
+            IE_THROW() << "Failed to allocate " << size << " bytes of memory";
         }
         _memUpperBound = size;
         _useExternalStorage = false;

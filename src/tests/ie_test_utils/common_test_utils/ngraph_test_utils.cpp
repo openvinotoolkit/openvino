@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,9 +12,11 @@ TransformationTestsF::TransformationTestsF()
     comparator.enable(FunctionsComparator::CmpValues::NODES);
     comparator.enable(FunctionsComparator::CmpValues::PRECISIONS);
     comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
-    // TODO: enable attributes and constant values comparison by default XXX-68694
+    comparator.enable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
+    // TODO: enable attributes and constant values comparison by default XXX-98039
     // comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     // comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    // comparator.enable(FunctionsComparator::CmpValues::NAMES);
 }
 
 void TransformationTestsF::SetUp() {

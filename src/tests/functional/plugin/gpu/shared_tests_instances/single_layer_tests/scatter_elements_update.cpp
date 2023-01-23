@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,14 +35,13 @@ const std::vector<InferenceEngine::Precision> idxPrecisions = {
         InferenceEngine::Precision::I64,
 };
 
-const auto ScatterEltUpdateCases = ::testing::Combine(
-        ::testing::ValuesIn(ScatterElementsUpdateLayerTest::combineShapes(axesShapeInShape)),
-        ::testing::ValuesIn(idxValue),
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU)
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ScatterEltsUpdate, ScatterElementsUpdateLayerTest,
-    ScatterEltUpdateCases, ScatterElementsUpdateLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterEltsUpdate,
+    ScatterElementsUpdateLayerTest,
+    ::testing::Combine(::testing::ValuesIn(ScatterElementsUpdateLayerTest::combineShapes(axesShapeInShape)),
+                       ::testing::ValuesIn(idxValue),
+                       ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(idxPrecisions),
+                       ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+    ScatterElementsUpdateLayerTest::getTestCaseName);
 }  // namespace

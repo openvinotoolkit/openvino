@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -38,8 +38,6 @@ macro(ov_cpack_settings)
            NOT item STREQUAL OV_CPACK_COMP_PYTHON_WHEELS AND
            # see ticket # 82605
            NOT item STREQUAL "gna" AND
-           # myriad is EOL in 2023.0
-           NOT item STREQUAL "myriad" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
@@ -79,7 +77,7 @@ macro(ov_cpack_settings)
         # - 2022.1.0 is the last public release with rpm packages from Intel install team
         # - 2022.1.1, 2022.2 do not have rpm packages enabled, distributed only as archives
         # - 2022.3 is the first release where RPM updated packages are introduced
-        # 2022.1.0
+        2022.3.0
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -87,12 +85,14 @@ macro(ov_cpack_settings)
         execute_process(COMMAND "${rpmlint_PROGRAM}" --version
                         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
                         RESULT_VARIABLE rpmlint_code
-                        OUTPUT_VARIABLE rpmlint_version)
+                        OUTPUT_VARIABLE rpmlint_version
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        ERROR_STRIP_TRAILING_WHITESPACE)
 
         if(NOT rpmlint_code EQUAL 0)
             message(FATAL_ERROR "Internal error: Failed to determine rpmlint version")
         else()
-            if(rpmlint_version MATCHES ".*version ([0-9]+\.[0-9]+) Copyright.*")
+            if(rpmlint_version MATCHES "([0-9]+\.[0-9]+)")
                 set(rpmlint_version "${CMAKE_MATCH_1}")
             else()
                 message(WARNING "Failed to extract rpmlint version from '${rpmlint_version}'")
@@ -177,15 +177,6 @@ macro(ov_cpack_settings)
         set(gpu_copyright "generic")
     endif()
 
-    # intel-myriad
-    if(ENABLE_INTEL_MYRIAD AND "myriad" IN_LIST CPACK_COMPONENTS_ALL)
-        set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU")
-        set(CPACK_RPM_MYRIAD_PACKAGE_REQUIRES "${core_package}")
-        set(CPACK_RPM_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-plugin-${cpack_name_ver}")
-        _ov_add_package(plugin_packages myriad)
-        set(myriad_copyright "generic")
-    endif()
-
     # intel-gna
     if(ENABLE_INTEL_GNA AND "gna" IN_LIST CPACK_COMPONENTS_ALL)
         set(CPACK_COMPONENT_GNA_DESCRIPTION "Intel® Gaussian Neural Accelerator")
@@ -201,7 +192,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_IR_FRONTEND)
         set(CPACK_COMPONENT_IR_DESCRIPTION "OpenVINO IR Frontend")
-        set(CPACK_RPM_IR_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_IR_PACKAGE_NAME "libopenvino-ir-frontend-${cpack_name_ver}")
         set(CPACK_RPM_IR_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_IR_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -211,7 +201,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_ONNX_FRONTEND)
         set(CPACK_COMPONENT_ONNX_DESCRIPTION "OpenVINO ONNX Frontend")
-        set(CPACK_RPM_ONNX_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_ONNX_PACKAGE_NAME "libopenvino-onnx-frontend-${cpack_name_ver}")
         set(CPACK_RPM_ONNX_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_ONNX_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -221,7 +210,6 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_TF_FRONTEND)
         set(CPACK_COMPONENT_TENSORFLOW_DESCRIPTION "OpenVINO TensorFlow Frontend")
-        set(CPACK_RPM_TENSORFLOW_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_TENSORFLOW_PACKAGE_NAME "libopenvino-tensorflow-frontend-${cpack_name_ver}")
         set(CPACK_RPM_TENSORFLOW_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_TENSORFLOW_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
@@ -231,12 +219,20 @@ macro(ov_cpack_settings)
 
     if(ENABLE_OV_PADDLE_FRONTEND)
         set(CPACK_COMPONENT_PADDLE_DESCRIPTION "OpenVINO Paddle Frontend")
-        set(CPACK_RPM_PADDLE_PACKAGE_REQUIRES "${core_package}")
         set(CPACK_RPM_PADDLE_PACKAGE_NAME "libopenvino-paddle-frontend-${cpack_name_ver}")
         set(CPACK_RPM_PADDLE_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
         set(CPACK_RPM_PADDLE_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
         _ov_add_package(frontend_packages paddle)
         set(paddle_copyright "generic")
+    endif()
+
+    if(ENABLE_OV_PYTORCH_FRONTEND)
+        set(CPACK_COMPONENT_PYTORCH_DESCRIPTION "OpenVINO PyTorch Frontend")
+        set(CPACK_RPM_PYTORCH_PACKAGE_NAME "libopenvino-pytorch-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_PYTORCH_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_PYTORCH_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages pytorch)
+        set(pytorch_copyright "generic")
     endif()
 
     #
@@ -279,7 +275,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make")
+    set(samples_build_deps "cmake3, gcc-c++, gcc, glibc-devel, make, pkgconf-pkg-config")
     set(samples_build_deps_suggest "opencv-devel >= 3.0")
 
     # c_samples / cpp_samples
@@ -297,7 +293,11 @@ macro(ov_cpack_settings)
         "devel-file-in-non-devel-package /usr/${OV_CPACK_SAMPLESDIR}/cpp/*"
         "devel-file-in-non-devel-package /usr/${OV_CPACK_SAMPLESDIR}/c/*"
         # depends on gflags-devel
-        "devel-dependency gflags-devel")
+        "devel-dependency gflags-devel"
+        # duplicated files are OK
+        "files-duplicate /usr/${OV_CPACK_SAMPLESDIR}/cpp/CMakeLists.txt /usr/${OV_CPACK_SAMPLESDIR}/c/CMakeLists.txt"
+        "files-duplicate /usr/${OV_CPACK_SAMPLESDIR}/cpp/build_samples.sh /usr/${OV_CPACK_SAMPLESDIR}/c/build_samples.sh"
+        )
     set(samples_copyright "generic")
 
     # python_samples

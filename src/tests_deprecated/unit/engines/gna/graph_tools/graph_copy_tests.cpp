@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ protected:
     MockCopier mc;
     InferenceEngine::CNNNetwork quantize(const InferenceEngine::CNNNetwork& model,
                                          std::vector<float> scale_factors) const {
-        GNAPluginNS::GnaInputs inputs;
+        GnaInputs inputs;
         InferenceEngine::InputsDataMap inputs_map = model.getInputsInfo();
         size_t sf_id = 0;
         for (auto&& input_data : inputs_map) {
@@ -37,7 +37,7 @@ protected:
             inputs[input_layer->name].scale_factor = scale_factors[sf_id++];
         }
 
-        GNAPluginNS::Config gna_config;
+        Config gna_config;
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
 
@@ -114,8 +114,6 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
     ASSERT_STREQ(idMemInput.c_str(), idMemOutput.c_str());
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
 }
-
-using namespace GNAPluginNS;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
     auto clone = quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));

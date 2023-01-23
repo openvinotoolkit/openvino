@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "kernel_selector_common.h"
@@ -100,6 +99,22 @@ std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded = fa
 // JitConstant
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 template <typename VecT, typename ValT, typename Func>
+inline std::string toVectorInitString(const VecT& vec,
+                                      const std::string& vectorType,
+                                      size_t maxDim,
+                                      ValT padFillingVal,
+                                      Func fetchFunc) {
+    std::stringstream ss;
+    ss << "{ ";
+    for (size_t i = 0; i < vec.size(); i++)
+        ss << toCodeString(fetchFunc(vec[i])) << ",";
+    for (size_t i = vec.size(); i < maxDim; i++)
+        ss << padFillingVal << ",";
+    ss << " } ";
+    return ss.str();
+}
+
+template <typename VecT, typename ValT, typename Func>
 inline std::string toVectorString(const VecT& vec,
                                   const std::string& vectorType,
                                   size_t maxDim,
@@ -107,12 +122,8 @@ inline std::string toVectorString(const VecT& vec,
                                   Func fetchFunc) {
     std::stringstream ss;
     if (vectorType.length())
-        ss << "(" << vectorType << " []){ ";
-    else
-        ss << "{ ";
-    for (size_t i = 0; i < vec.size(); i++) ss << toCodeString(fetchFunc(vec[i])) << ",";
-    for (size_t i = vec.size(); i < maxDim; i++) ss << padFillingVal << ",";
-    ss << " } ";
+        ss << "(" << vectorType << " [])";
+    ss << toVectorInitString(vec, vectorType, maxDim, padFillingVal, fetchFunc);
     return ss.str();
 }
 
@@ -160,6 +171,7 @@ public:
     JitDefinitions GetDefinitions() const override {
         JitDefinitions result{
             {_name + "_SIZE", toCodeString(_data.size())},
+            {_name + "_INIT", toVectorInitString(_data, GetTypeName<T>(), _data.size(), 1, [](const T& v) { return v; })},
             {_name, toVectorString(_data, GetTypeName<T>(), _data.size(), 1, [](const T& v) { return v; })},
         };
         return result;

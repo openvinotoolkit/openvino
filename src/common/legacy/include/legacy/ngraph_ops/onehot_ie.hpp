@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ class OneHotIE;
 class ngraph::op::OneHotIE : public Op {
 public:
     OPENVINO_OP("OneHotIE", "legacy");
-    BWDCMP_RTTI_DECLARATION;
 
     explicit OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type);
 

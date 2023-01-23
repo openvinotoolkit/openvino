@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterUpdate);
 
 op::v3::ScatterUpdate::ScatterUpdate(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -121,6 +119,62 @@ bool op::v3::ScatterUpdate::has_evaluate() const {
         return true;
     default:
         break;
+    }
+    return false;
+}
+
+namespace {
+bool scatter_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
+    const auto& input_values = node->input_values();
+
+    constexpr auto data_in_idx = 0;
+    constexpr auto updates_in_idx = 2;
+    auto data_labels = input_values[data_in_idx].get_tensor().get_value_label();
+    auto updates_labels = input_values[updates_in_idx].get_tensor().get_value_label();
+
+    if (ov::has_no_labels(data_labels) && ov::has_no_labels(updates_labels)) {
+        return false;
+    }
+
+    constexpr auto element_type = (sizeof(ov::label_t) == 8) ? element::u64 : element::u32;
+    std::vector<ov::runtime::Tensor> input_tensors;
+    input_tensors.reserve(input_values.size());
+
+    auto make_input_label = [&](const Output<Node>& input, TensorLabel& labels) {
+        input_tensors.emplace_back(element_type, input.get_shape());
+        labels.resize(shape_size(input.get_shape()));
+        memcpy(input_tensors.back().data(), labels.data(), input_tensors.back().get_byte_size());
+    };
+
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        const auto& input = input_values[i];
+        if (i == data_in_idx) {
+            make_input_label(input, data_labels);
+        } else if (i == updates_in_idx) {
+            make_input_label(input, updates_labels);
+        } else {
+            const auto host_tensor_ptr = input.get_tensor().get_lower_value();
+            input_tensors.emplace_back(host_tensor_ptr->get_element_type(),
+                                       host_tensor_ptr->get_shape(),
+                                       host_tensor_ptr->get_data_ptr());
+        }
+    }
+
+    ov::TensorVector output_tensors{ov::Tensor(element_type, node->get_output_shape(0))};
+    if (node->evaluate(output_tensors, input_tensors)) {
+        auto ptr = static_cast<ov::label_t*>(output_tensors[0].data(element_type));
+        output_labels[0] = ov::TensorLabel(ptr, ptr + output_tensors[0].get_size());
+        return true;
+    }
+    return false;
+}
+}  // namespace
+
+bool op::v3::ScatterUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterUpdate_evaluate_label);
+    if (get_input_partial_shape(0).is_static() && get_input_partial_shape(2).is_static() &&
+        get_input_tensor(1).has_and_set_bound() && get_input_tensor(3).has_and_set_bound()) {
+        return scatter_label_evaluator(this, output_labels);
     }
     return false;
 }

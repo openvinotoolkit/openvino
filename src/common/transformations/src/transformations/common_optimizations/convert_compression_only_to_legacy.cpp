@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "itt.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
@@ -34,14 +34,6 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
     RUN_ON_MODEL_SCOPE(ConvertCompressedOnlyToLegacy);
     if (ngraph::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
-        // Skip precision sensitive nodes with marking and pass_callback:
-        // callback skips (returns true) for nodes marked as precision sensitive/disabled_f16_compression.
-        // Skipping was done by callback in order to impact behavior of ConvertPrecision as little as possible
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
-        get_pass_config()->set_callback<ngraph::pass::ConvertPrecision>(
-            [](const std::shared_ptr<const Node>& node) -> bool {
-                return ov::fp16_compression_is_disabled(node) && node->get_element_type() == element::f32;
-            });
 
         const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);

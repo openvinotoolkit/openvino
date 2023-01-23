@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -349,8 +350,8 @@ bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache), ngraphOp(op) {
+TensorIterator::TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, InternalDynShapeInferFactory()), ngraphOp(op) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -363,7 +364,7 @@ void TensorIterator::getSupportedDescriptors() {
         THROW_ERROR << "cannot be cast to ov::op::util::SubGraphOp";
     }
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
-    sub_graph.CreateGraph(body, ext_mng, weightCache, sharedMutex);
+    sub_graph.CreateGraph(body, context);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {

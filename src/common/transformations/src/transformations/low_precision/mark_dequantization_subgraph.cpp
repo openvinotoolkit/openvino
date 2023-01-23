@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -44,7 +45,8 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
         }
 
         const auto& input = pattern_map.at(input_pattern);
-        if (ov::is_type<opset10::Constant>(input.get_node())) {
+        std::vector<Node*> tmp;
+        if (ngraph::could_propagate(input, tmp)) {
             // disable ConstantFolding if dequantization subgraph is on constant data
             ov::disable_constant_folding(convert);
         }

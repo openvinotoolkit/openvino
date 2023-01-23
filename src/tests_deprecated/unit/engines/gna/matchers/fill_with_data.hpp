@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 
 class OutputFiller : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     mutable std::stringstream reason;

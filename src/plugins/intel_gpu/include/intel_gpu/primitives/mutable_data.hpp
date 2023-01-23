@@ -1,20 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Provides mutable data.
 /// @details This primitive allows to pass data which can be written to during training.
@@ -34,7 +27,7 @@ struct mutable_data : public primitive_base<mutable_data> {
     mutable_data(const primitive_id& id,
                  memory::ptr mem,
                  filler_type fill_type = filler_type::no_fill)
-        : primitive_base(id, {}, padding()), mem(mem), fill_type(fill_type) {}
+        : primitive_base(id, {}, {padding()}), mem(mem), fill_type(fill_type) {}
 
     /// @brief Constructs mutable_data primitive with inputs.
     /// @param id This primitive id.
@@ -43,10 +36,10 @@ struct mutable_data : public primitive_base<mutable_data> {
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
     /// @param filler_type @ref data filling function, default is zero
     mutable_data(const primitive_id& id,
-                 const std::vector<primitive_id>& input,
+                 const std::vector<input_info>& inputs,
                  memory::ptr mem,
                  filler_type fill_type = filler_type::no_fill)
-        : primitive_base(id, {input}, padding()), mem(mem), fill_type(fill_type) {}
+        : primitive_base(id, inputs, {padding()}), mem(mem), fill_type(fill_type) {}
 
     /// @brief @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
@@ -55,7 +48,4 @@ struct mutable_data : public primitive_base<mutable_data> {
     /// @brief Specifies function which will be used to fill weights.
     filler_type fill_type;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
+#include "openvino/op/util/op_types.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -24,7 +25,10 @@ protected:
 public:
     MemoryFormats() = default;
     explicit MemoryFormats(const std::string &_memory_format) : memory_format(_memory_format) {}
-    std::string getMemoryFormats() const { return memory_format; }
+    std::string to_string() const override { return memory_format; };
+    bool is_copyable(const std::shared_ptr<ov::Node>& to) const override {
+        return (!ov::op::util::is_constant(to));
+    }
 
     ov::Any merge(const ngraph::NodeVector & nodes) const override {
         std::set<std::string> unique_mem_format;
@@ -32,7 +36,7 @@ public:
         for (auto &node : nodes) {
             auto it_info = node->get_rt_info().find(MemoryFormat::get_type_info_static());
             if (it_info != node->get_rt_info().end()) {
-                std::string mem_format = it_info->second.template as<MemoryFormat>().getMemoryFormats();
+                std::string mem_format = it_info->second.template as<MemoryFormat>().to_string();
                 if (!mem_format.empty()) {
                     unique_mem_format.insert(mem_format);
                 }

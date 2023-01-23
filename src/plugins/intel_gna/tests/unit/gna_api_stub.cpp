@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,8 +65,10 @@ GNA2_API enum Gna2Status Gna2DeviceSetNumberOfThreads(
     return Gna2StatusSuccess;
 }
 
-GNA2_API Gna2Status Gna2DeviceClose(
-    uint32_t deviceIndex) {
+GNA2_API enum Gna2Status Gna2DeviceClose(uint32_t deviceIndex) {
+    if (current != nullptr) {
+        return current->Gna2DeviceClose(deviceIndex);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -80,6 +82,9 @@ GNA2_API Gna2Status Gna2DeviceGetCount(
 
 GNA2_API enum Gna2Status Gna2MemoryFree(
     void * memory) {
+    if (current != nullptr) {
+        return current->Gna2MemoryFree(memory);
+    }
     return Gna2StatusSuccess;
 }
 
@@ -133,6 +138,9 @@ GNA2_API enum Gna2Status Gna2RequestConfigSetAccelerationMode(
 GNA2_API enum Gna2Status Gna2RequestEnqueue(
     uint32_t requestConfigId,
     uint32_t * requestId) {
+    if (current != nullptr) {
+        return current->Gna2RequestEnqueue(requestConfigId, requestId);
+    }
     return Gna2StatusSuccess;
 }
 
