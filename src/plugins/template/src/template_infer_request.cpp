@@ -420,7 +420,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
             auto& devBlob = _deviceInputs[name];
             if (preProcessingRequired(foundInput, data, devBlob)) {
                 // if no devBlob, performs inplace
-                addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
+                // addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
             }
         }
     } else {
@@ -511,7 +511,7 @@ void TemplateInferRequest::SetBlob(const std::string& name, const InferenceEngin
         }
 
         if (preProcRequired) {
-            addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
+            // addInputPreProcessingFor(name, userBlob, devBlob ? devBlob : _inputs[name]);
         } else {
             size_t inputSize = devBlob->getTensorDesc().getLayout() != InferenceEngine::Layout::SCALAR
                                    ? InferenceEngine::details::product(devBlob->getTensorDesc().getDims())

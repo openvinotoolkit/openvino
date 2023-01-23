@@ -20,12 +20,8 @@ namespace pass {
  *      (x - mean) / stdScale
  */
 class AddPreprocessing : public ov::pass::ModelPass {
-    const InferenceEngine::InputsDataMap& m_inputInfoMap;
-
 public:
     OPENVINO_RTTI("AddLegacyPreprocessing");
-    explicit AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap);
-
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

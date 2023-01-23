@@ -4,99 +4,83 @@
 
 #include "preprocessing.hpp"
 
-#include "add_scale.hpp"
-#include "mean_image_or_value.hpp"
+#include "dev/converter_utils.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 
-ov::pass::AddPreprocessing::AddPreprocessing(const InferenceEngine::InputsDataMap& inputInfoMap)
-    : m_inputInfoMap(inputInfoMap) {}
-
-bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(AddPreprocessing);
-    ov::pass::AddMeanSubtract::MeanMap meanMap;
-    ov::pass::AddScale::ScaleMap scaleMap;
+    ov::preprocess::PrePostProcessor preproc(model);
 
-    for (const auto& it : m_inputInfoMap) {
-        bool has_scales = false, has_mean_values = false, has_mean_image = false;
-        const InferenceEngine::PreProcessInfo& pInfo = it.second->getPreProcess();
-        const auto& inputDims = it.second->getTensorDesc().getDims();
-        const size_t cn = pInfo.getNumberOfChannels();
-        std::vector<float> meanValues(cn), stdScales(cn);
-        InferenceEngine::Blob::Ptr meanImage = nullptr;
+    for (size_t i = 0; i < model->inputs().size(); i++) {
+        ov::Output<const Node> const_input(model->input(i).get_node(), model->input(i).get_index());
+        InferenceEngine::InputInfo::Ptr input_info;
+        // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
+        // ExecutableNetwork
+        ov::legacy_convert::fill_input_info(const_input, input_info);
+        OPENVINO_ASSERT(input_info);
 
-        for (size_t c = 0; c < cn; ++c) {
-            if ((stdScales[c] = pInfo[c]->stdScale) != 1.0f) {
-                has_scales = true;
-            }
+        auto& legacy_preproc = input_info->getPreProcess();
 
-            if ((meanValues[c] = pInfo[c]->meanValue) != 0.0f) {
-                has_mean_values = true;
-            }
+        preproc.input(i).tensor().set_element_type(
+            InferenceEngine::details::convertPrecision(input_info->getPrecision()));
+        std::stringstream stream;
+        stream << input_info->getLayout();
+        preproc.input(i).tensor().set_layout(ov::Layout{stream.str()});
 
-            if (pInfo[c]->meanData != nullptr) {
-                has_mean_image = true;
-                if (c == 0) {
-                    meanImage = pInfo[c]->meanData;
-                    OPENVINO_ASSERT(
-                        meanImage->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32,
-                        "Only InferenceEngine::Precision::FP32 precision is supported for PreProcessChannel::meanData");
-                } else {
-                    OPENVINO_ASSERT(meanImage->getTensorDesc() == pInfo[c]->meanData->getTensorDesc(),
-                                    "TensorDesc for PreProcessChannel::meanData must be equal");
-                }
-            }
+        // Resize
+        switch (legacy_preproc.getResizeAlgorithm()) {
+        case InferenceEngine::ResizeAlgorithm::RESIZE_AREA:
+            preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_NEAREST);
+            preproc.input(i).tensor().set_spatial_dynamic_shape();
+            break;
+        case InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR:
+            preproc.input(i).preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+            preproc.input(i).tensor().set_spatial_dynamic_shape();
+            break;
+        default:
+            // nothing to do
+            break;
         }
+        preproc.input().model().set_layout("NCHW");
 
-        // no preprocessing for current input
-        if (!has_mean_values && !has_scales && !has_mean_image) {
-            continue;
-        }
-
-        OPENVINO_ASSERT(!(has_mean_image && has_scales),
-                        "Only PreProcessChannel::meanData or PreProcessChannel::meanValue can be set.");
-
-        if (has_scales) {
-            ov::Shape shape(inputDims.size(), 1);
-            shape[1] = stdScales.size();  // C
-            scaleMap[it.first] = ov::op::v0::Constant::create(ov::element::f32, shape, stdScales);
-        }
-
-        if (has_mean_values) {
-            ov::Shape shape(inputDims.size(), 1);
-            shape[1] = meanValues.size();  // C
-            meanMap[it.first] = ov::op::v0::Constant::create(ov::element::f32, shape, meanValues);
-        } else if (has_mean_image) {
-            ov::Shape shape = {cn};
-            auto dims = meanImage->getTensorDesc().getDims();
-            std::copy(dims.begin(), dims.end(), std::back_inserter(shape));
-
+        switch (legacy_preproc.getMeanVariant()) {
+        case InferenceEngine::MEAN_IMAGE: {
+            ov::Shape shape(input_info->getTensorDesc().getDims());
+            std::vector<float> scale;
             std::vector<float> meanImageData(ov::shape_size(shape));
-            for (size_t c = 0, i = 0; c < cn; ++c) {
-                auto lm = pInfo[c]->meanData->buffer();
+            for (size_t c = 0, i = 0; c < legacy_preproc.getNumberOfChannels(); ++c) {
+                auto blob = legacy_preproc[i]->meanData;
+
+                auto lm = blob->buffer();
                 const float* data = lm.as<const float*>();
 
-                std::memcpy(&meanImageData[i], data, meanImage->byteSize());
-                i += meanImage->size();
+                std::memcpy(&meanImageData[i], data, blob->byteSize());
+                i += blob->size();
+                scale.emplace_back(legacy_preproc[i]->stdScale);
             }
-
-            meanMap[it.first] = ov::op::v0::Constant::create(ov::element::f32, shape, meanImageData);
+            preproc.input(i).preprocess().mean(meanImageData).scale(scale);
+            break;
+        }
+        case InferenceEngine::MEAN_VALUE: {
+            std::vector<float> mean, scale;
+            for (size_t i = 0; i < legacy_preproc.getNumberOfChannels(); i++) {
+                mean.emplace_back(legacy_preproc[i]->meanValue);
+                scale.emplace_back(legacy_preproc[i]->stdScale);
+            }
+            preproc.input(i).preprocess().mean(mean).scale(scale);
+            break;
+        }
+        default:
+            break;
         }
     }
-
-    ov::pass::Manager manager(get_pass_config());
-    auto preproc = manager.register_pass<ov::pass::GraphRewrite>();
-
-    if (!scaleMap.empty()) {
-        preproc->add_matcher<ov::pass::AddScale>(scaleMap);
-    }
-    if (!meanMap.empty()) {
-        preproc->add_matcher<ov::pass::AddMeanSubtract>(meanMap);
-    }
-
-    manager.run_passes(f);
+    auto& non_const_ptr = const_cast<std::shared_ptr<ov::Model>&>(model);
+    non_const_ptr = preproc.build();
 
     return false;
 }

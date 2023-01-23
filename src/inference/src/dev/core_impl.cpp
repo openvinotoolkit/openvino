@@ -386,18 +386,8 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
-        InferenceEngine::InputsDataMap inputs;
-        for (const auto& input : model->inputs()) {
-            InferenceEngine::InputInfo::Ptr input_info;
-            // I don't remove rt info to have information in InputsInfo about pre-processing in legacy
-            // ExecutableNetwork
-            ov::legacy_convert::fill_input_info(input, input_info);
-            OPENVINO_ASSERT(input_info);
-            inputs[input_info->name()] = input_info;
-        }
-
         ov::pass::Manager manager;
-        manager.register_pass<ov::pass::AddPreprocessing>(inputs);
+        manager.register_pass<ov::pass::AddPreprocessing>();
 
         auto cloned_model = model->clone();
         manager.run_passes(cloned_model);
