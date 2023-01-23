@@ -21,10 +21,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4334)
 endif()
 
-add_subdirectory(deprecated/readers)
-add_subdirectory(deprecated/helpers)
-
 if(ENABLE_TESTS)
+    add_subdirectory(deprecated/readers)
+    add_subdirectory(deprecated/helpers)
+
     add_subdirectory(unit)
     add_subdirectory(deprecated/unit)
 endif()
