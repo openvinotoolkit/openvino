@@ -17,7 +17,12 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/common_optimizations/align_mixed_fp32_fp16_types.hpp"
+#include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
+#include "transformations/enable_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 using namespace ov;
@@ -176,7 +181,7 @@ bool convert_precision(ov::pass::PassBase& pass,
             // If output type mismatch given type we try to fuse type into this operation
             // otherwise we insert Convert operation.
             for (auto& node : ops) {
-                if (skip_precision_sensitive && fp16_compression_is_disabled(node))
+                if (skip_precision_sensitive && fp16_compression_is_disabled(node) && to == element::f16)
                     continue;
 
                 // Recursively apply transformation for sub-graph based operations
@@ -202,7 +207,7 @@ bool convert_precision(ov::pass::PassBase& pass,
 
             for (auto& node : ops) {
                 // skip precision sensitive nodes
-                if (skip_precision_sensitive && fp16_compression_is_disabled(node))
+                if (skip_precision_sensitive && fp16_compression_is_disabled(node) && to == element::f16)
                     continue;
                 is_output_precision_changed |= convert_node_output_precision(node);
             }
@@ -302,6 +307,17 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
         {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
 
+    std::pair<ov::element::Type, ov::element::Type> f16_decompress_pair = {ov::element::f16, ov::element::f32};
+    bool has_f16_decompress = std::count(m_precisions.begin(), m_precisions.end(), f16_decompress_pair) > 0;
+
+    if (m_keep_precision_sensitive_in_fp32 && has_f16_decompress) {
+        pass::Manager manager(get_pass_config());
+        // Mark subgraphs with disable_fp16_compression to keep them in FP32
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.register_pass<pass::AlignMixedFP32FP16Types>();
+        manager.run_passes(f);
+    }
+
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
     }
@@ -326,6 +342,13 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
                                                         p.first,
                                                         p.second,
                                                         m_keep_precision_sensitive_in_fp32);
+    }
+
+    // to remove extra converts
+    if (m_keep_precision_sensitive_in_fp32) {
+        pass::Manager manager(get_pass_config());
+        manager.register_pass<pass::EnableDecompressionConvertConstantFolding>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     (void)is_changed;  // ignored
