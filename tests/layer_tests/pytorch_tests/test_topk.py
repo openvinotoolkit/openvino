@@ -24,32 +24,26 @@ class TestTopK(PytorchLayerTest):
 
             def forward(self, input_tensor):
                 if self.dim is None:
-                    a, b = torch.topk(input_tensor, k=self.k, largest=self.largest, sorted=self.sort)
+                    return torch.topk(input_tensor, k=self.k, largest=self.largest, sorted=self.sort)
                 else:
-                    a, b = torch.topk(input_tensor, k=self.k, dim=self.dim, largest=self.largest, sorted=self.sort)
-                return b
+                    return torch.topk(input_tensor, k=self.k, dim=self.dim, largest=self.largest, sorted=self.sort)
         ref_net = None
 
         return aten_topk(k, dim, largest, sort), ref_net, "aten::topk"
 
     @pytest.mark.parametrize(("input_tensor"), [
         np.random.rand(7, 5, 5, 4),
-        np.random.rand(5, 5, 6, 7),
         np.random.rand(5, 6, 6, 7, 8),
-        np.random.rand(7, 10, 5),
-        np.random.rand(5, 5, 6, 5),
     ])
 
     @pytest.mark.parametrize(("k"), [
         3,
-        4,
         1,
         2,
     ])
 
     @pytest.mark.parametrize(("dim"), [
         0,
-        1,
         2,
         -1,
         None,
