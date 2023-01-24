@@ -84,14 +84,15 @@ public:
  * \tparam T Type of a value.
  * \tparam U Type of b value.
  *
- * \param a  Integer value.
- * \param b  Integer value.
+ * \param a  Value a.
+ * \param b  Value b.
  *
  * \return true if a less b otherwise false.
  */
 template <class T,
           class U,
-          typename std::enable_if<(std::is_signed<T>::value && std::is_signed<U>::value) ||
+          typename std::enable_if<((std::is_signed<T>::value || std::is_same<T, float16>::value) &&
+                                   (std::is_signed<U>::value || std::is_same<U, float16>::value)) ||
                                   (std::is_unsigned<T>::value && std::is_unsigned<U>::value)>::type* = nullptr>
 constexpr bool lt(T a, U b) noexcept {
     return a < b;
@@ -135,8 +136,8 @@ constexpr bool lt(T a, U b) noexcept {
  * \tparam T Type of a value.
  * \tparam U Type of b value.
  *
- * \param a  Integer value.
- * \param b  Integer value.
+ * \param a  Value a.
+ * \param b  Value b.
  *
  * \return true if a > b otherwise false.
  */
@@ -151,8 +152,8 @@ constexpr bool gt(T a, U b) noexcept {
  * \tparam T Type of a value.
  * \tparam U Type of b value.
  *
- * \param a  Integer value.
- * \param b  Integer value.
+ * \param a  Value a.
+ * \param b  Value b.
  *
  * \return true if a <= b otherwise false.
  */
@@ -167,8 +168,8 @@ constexpr bool le(T a, U b) noexcept {
  * \tparam T Type of a value.
  * \tparam U Type of b value.
  *
- * \param a  Integer value.
- * \param b  Integer value.
+ * \param a  Value a.
+ * \param b  Value b.
  *
  * \return true if a >= b otherwise false.
  */

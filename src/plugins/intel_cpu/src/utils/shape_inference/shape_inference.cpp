@@ -58,6 +58,7 @@
 #include "shape_inference.hpp"
 #include "shape_nodes.hpp"
 #include "shuffle_channels_shape_inference.hpp"
+#include "slice_shape_inference.hpp"
 #include "space_to_batch_shape_inference.hpp"
 #include "space_to_depth_shape_inference.hpp"
 #include "split_shape_inference.hpp"
@@ -577,6 +578,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Select, entryIO),
     _OV_OP_SHAPE_INFER_REG(ShapeOf, entryIO),
     _OV_OP_SHAPE_INFER_REG(ShuffleChannels, entryIO),
+    _OV_OP_SHAPE_INFER_REG(Slice, entryIOC),
     _OV_OP_SHAPE_INFER_REG(SpaceToBatch, entryIOC),
     _OV_OP_SHAPE_INFER_REG(SpaceToDepth, entryIO),
     _OV_OP_SHAPE_INFER_REG(Split, entryIOC),
@@ -610,8 +612,8 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     // opset2
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset2::MVN, entryCopy),
     // opset1
-    _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::Softmax, entryCopy),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::BatchNormInference, entryFirstPassthrough),
+    _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(opset1::Softmax, entryCopy),
     _OV_OP_SHAPE_INFER_REG(opset1::Broadcast, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::DeformableConvolution, entryFallbackWithPadding),
     _OV_OP_SHAPE_INFER_REG(opset1::DetectionOutput, entryIO),
@@ -621,6 +623,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(opset1::Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
+    _OV_OP_SHAPE_INFER_REG(opset1::TopK, entryIOC),
     _OV_OP_SHAPE_INFER_VA_REG(opset1::Gather, entryIOC, ov::op::util::GatherBase),
 };
 

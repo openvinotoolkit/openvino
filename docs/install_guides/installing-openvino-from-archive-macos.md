@@ -79,7 +79,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 Congratulations, you finished the installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, you will find the `openvino_2022` folder there. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
-### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
+### <a name="set-the-environment-variables-macos"></a>Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the `setupvars.sh` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not `/opt/intel/openvino_2022`, use the correct one instead.
 
@@ -93,7 +93,7 @@ If you have more than one OpenVINO™ version on your machine, you can easily sw
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-### <a name="model-optimizer"></a>Step 3 (Optional): Install Additional Components
+### <a name="model-optimizer-macos"></a>Step 3 (Optional): Install Additional Components
 
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
@@ -101,15 +101,7 @@ See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
-### <a name="configure-ncs2"></a>Step 4 (Optional): Configure the Intel® Neural Compute Stick 2 
-
-@sphinxdirective
-
-If you want to run inference on Intel® Neural Compute Stick 2 use the following instructions to setup the device: :ref:`NCS2 Setup Guide <ncs guide macos>`.
-
-@endsphinxdirective
-
-## <a name="get-started"></a>What's Next?
+## <a name="get-started-macos"></a>What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
 @sphinxdirective
@@ -140,7 +132,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 @endsphinxdirective
 
-## <a name="uninstall"></a>Uninstalling Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall-from-macos"></a>Uninstalling Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 
