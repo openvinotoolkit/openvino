@@ -9,6 +9,6 @@ To have CPU debug capabilities available at runtime the following CMake option s
 
 The following debug capabilities are available with the latest openvino:
 
-- [Verbose mode](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/docs/verbose.md)
-- [Blob dumping](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/docs/blob_dumping.md)
-- [Graph serialization](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/docs/graph_serialization.md)
+- [Verbose mode](../src/docs/verbose.md)
+- [Blob dumping](../src/docs/blob_dumping.md)
+- [Graph serialization](../src/docs/graph_serialization.md)
