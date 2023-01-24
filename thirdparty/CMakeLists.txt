@@ -92,8 +92,11 @@ if(ENABLE_INTEL_GPU)
         endif()
     endforeach()
 
-    # use newer OpenCL.hpp instead of cl2.hpp
-    target_compile_definitions(${opencl_target} INTERFACE OV_GPU_USE_OPENCL_HPP)
+    get_target_property(opencl_target_type OpenCL::OpenCL TYPE)
+    if(NOT opencl_target_type STREQUAL "UNKNOWN_LIBRARY" OR CMAKE_VERSION VERSION_GREATER_EQUAL 3.16)
+        # use newer OpenCL.hpp instead of cl2.hpp
+        target_compile_definitions(${opencl_target} INTERFACE OV_GPU_USE_OPENCL_HPP)
+    endif()
 endif()
 
 #

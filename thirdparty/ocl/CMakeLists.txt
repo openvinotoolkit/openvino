@@ -19,17 +19,11 @@ function(get_lib_name TARGET_NAME LIBRARY_NAME)
 endfunction()
 
 function(get_lib_path OUTPUT_DIR FINAL_OUTPUT_DIR)
-    if(WIN32)
-        set(LIB_DIR "")
-    else()
-        set(LIB_DIR "lib")
-    endif()
-
     if(OV_GENERATOR_MULTI_CONFIG)
         set(OUTPUT_DIR "${OUTPUT_DIR}/${CMAKE_BUILD_TYPE}")
     endif()
 
-    set("${FINAL_OUTPUT_DIR}" "${OUTPUT_DIR}/${LIB_DIR}" PARENT_SCOPE)
+    set("${FINAL_OUTPUT_DIR}" "${OUTPUT_DIR}" PARENT_SCOPE)
 endfunction()
 
 # for icd_loader project we need to override path to OpenCL C headers
