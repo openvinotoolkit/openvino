@@ -33,7 +33,7 @@ def load_hardware_config(config):
         raise ValueError('Unsupported target_device : {}'.format(config['target_device']))
 
     hardware_config_path = __HARDWARE_CONFIG_DIR / __HARDWARE_CONFIGS_MAP.get(config['target_device'], "cpu.json")
-    return HardwareConfig.from_json(hardware_config_path.as_posix())
+    return HardwareConfig.from_json(hardware_config_path.as_posix(), config['target_device'])
 
 
 def append_estimator_configs(quantization_configs, is_weights, config, opt_conf=None):

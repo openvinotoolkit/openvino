@@ -576,10 +576,10 @@ class RemoveFakeQuantize:
         check_is_inputs_fq = lambda node: all([op.type == 'FakeQuantize' for op in node])
         for op in get_nodes_by_type(graph, ['Add']):
             if not nu.check_const_input(op):
-                inputs_node = np.array(get_node_inputs(op))
+                inputs_node = get_node_inputs(op)
                 count_outputs_node = np.array([len(get_all_node_outputs(node)) for node in inputs_node])
                 indices = count_outputs_node.argsort()[::-1]
-                inputs_node = inputs_node[indices]
+                inputs_node = [inputs_node[idx] for idx in indices]
                 if check_is_inputs_fq(inputs_node):
                     delete_one_fq(inputs_node)
 
@@ -831,7 +831,7 @@ def create_fake_quantize_node(graph: Graph, name, data_type=np.float32, **kwargs
 
 
 def insert_fake_quantize(graph, node, ports=None, names=None, fq_types=None, hw_config=None, input_priority_types=[]):
-    blobs_as_inputs_nodes_type = ['Convolution', 'Deconvolution', 'MatMul']
+    blobs_as_inputs_nodes_type = ['Convolution', 'ConvolutionBackpropData', 'MatMul']
     gru_node_types = ['GRUCell', 'GRUSequence']
 
     port_name = None

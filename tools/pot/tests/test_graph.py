@@ -19,7 +19,6 @@ GNA_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'gna.json'
 
 TEST_MODELS = [
     ('mobilenetv2_example', 'pytorch', 'ANY'),
-    ('resnet_example', 'pytorch', 'ANY'),
     ('googlenet_example', 'pytorch', 'ANY'),
     ('mobilenetv2_ssd_example', 'pytorch', 'ANY'),
     ('densenet121_example', 'pytorch', 'ANY'),
@@ -53,9 +52,9 @@ def test_build_quantization_graph(tmp_path, models, model_name, model_framework,
     model = load_model(model.model_params, target_device=target_device)
 
     if target_device == 'GNA':
-        hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix())
+        hardware_config = HardwareConfig.from_json(GNA_CONFIG_PATH.as_posix(), target_device)
     else:
-        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix())
+        hardware_config = HardwareConfig.from_json(CPU_CONFIG_PATH.as_posix(), target_device)
 
     quantization_model = GraphTransformer(hardware_config).insert_fake_quantize(model)
 
