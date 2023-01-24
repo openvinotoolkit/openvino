@@ -5,6 +5,7 @@
 import torch
 import pytest
 
+
 class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
     def __init__(self, rounding_mode):
@@ -29,7 +30,8 @@ def test_pytorch_decoder_get_output_type_str():
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(AtenDiv("trunc"))
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
     # div model has exactly 1 constant
     assert len(consts) > 0
     str_const = consts[0]
@@ -44,7 +46,8 @@ def test_pytorch_decoder_get_output_type_none():
     from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(AtenDiv(None))
-    consts = [n for n in model.inlined_graph.nodes() if n.kind() == "prim::Constant"]
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
     # div model has exactly 1 constant
     assert len(consts) > 0
     none_const = consts[0]
