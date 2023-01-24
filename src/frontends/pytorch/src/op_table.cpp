@@ -91,6 +91,7 @@ OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tuple_construct);
+OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
@@ -261,6 +262,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
          op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
+        {"aten::unfold", op::translate_unfold},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
