@@ -415,9 +415,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
         }
     } else if (cacheManager) {
-        auto cnnNetwork = ReadNetwork(model_path, std::string());
-        // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
-        res = compile_model(plugin, cnnNetwork.getFunction(), {}, parsed._config);
+        res = plugin.compile_model(model_path, parsed._config);
     } else {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
         res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
