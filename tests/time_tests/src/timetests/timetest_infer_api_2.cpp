@@ -36,62 +36,65 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
 
          // first_inference_latency = time_to_inference + first_inference
         {
-            SCOPED_TIMER(time_to_inference);
+            SCOPED_TIMER(first_inference_latency);
             {
-                SCOPED_TIMER(load_plugin);
-                TimeTest::setPerformanceConfig(ie, device);
-                ie.get_versions(device);
+                SCOPED_TIMER(time_to_inference);
+                {
+                    SCOPED_TIMER(load_plugin);
+                    TimeTest::setPerformanceConfig(ie, device);
+                    ie.get_versions(device);
 
-                if (isCacheEnabled)
-                    ie.set_property({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
-            }
-            {
-                SCOPED_TIMER(create_exenetwork);
-                if (!isCacheEnabled) {
-                    if (TimeTest::fileExt(model) == "blob") {
-                        SCOPED_TIMER(import_network);
-                        std::ifstream streamModel{model};
-                        exeNetwork = ie.import_model(streamModel, device);
-                    }
-                    else {
-                        {
-                            SCOPED_TIMER(read_network);
-                            cnnNetwork = ie.read_model(model);
+                    if (isCacheEnabled)
+                        ie.set_property({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
+                }
+                {
+                    SCOPED_TIMER(create_exenetwork);
+                    if (!isCacheEnabled) {
+                        if (TimeTest::fileExt(model) == "blob") {
+                            SCOPED_TIMER(import_network);
+                            std::ifstream streamModel{model};
+                            exeNetwork = ie.import_model(streamModel, device);
                         }
-                        if (reshape) {
+                        else {
                             {
-                                SCOPED_TIMER(reshape);
-                                defaultInputs = getCopyOfDefaultInputs(cnnNetwork->inputs());
-                                cnnNetwork->reshape(reshapeShapes);
+                                SCOPED_TIMER(read_network);
+                                cnnNetwork = ie.read_model(model);
+                            }
+                            if (reshape) {
+                                {
+                                    SCOPED_TIMER(reshape);
+                                    defaultInputs = getCopyOfDefaultInputs(cnnNetwork->inputs());
+                                    cnnNetwork->reshape(reshapeShapes);
+                                }
+                            }
+                            {
+                                SCOPED_TIMER(load_network);
+                                exeNetwork = ie.compile_model(cnnNetwork, device);
                             }
                         }
-                        {
-                            SCOPED_TIMER(load_network);
-                            exeNetwork = ie.compile_model(cnnNetwork, device);
-                        }
+                    }
+                    else {
+                        SCOPED_TIMER(load_network_cache);
+                        exeNetwork = ie.compile_model(model, device);
                     }
                 }
-                else {
-                    SCOPED_TIMER(load_network_cache);
-                    exeNetwork = ie.compile_model(model, device);
-                }
+                inferRequest = exeNetwork.create_infer_request();
             }
-            inferRequest = exeNetwork.create_infer_request();
-        }
-        {
-            SCOPED_TIMER(first_inference);
             {
-                SCOPED_TIMER(fill_inputs);
-                std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
-                if (reshape && dataShapes.empty()) {
-                    fillTensors(inferRequest, defaultInputs);
-                } else if (reshape && !dataShapes.empty()) {
-                    fillTensorsWithSpecifiedShape(inferRequest, inputs, dataShapes);
-                } else {
-                    fillTensors(inferRequest, inputs);
+                SCOPED_TIMER(first_inference);
+                {
+                    SCOPED_TIMER(fill_inputs);
+                    std::vector<ov::Output<const ov::Node>> inputs = exeNetwork.inputs();
+                    if (reshape && dataShapes.empty()) {
+                        fillTensors(inferRequest, defaultInputs);
+                    } else if (reshape && !dataShapes.empty()) {
+                        fillTensorsWithSpecifiedShape(inferRequest, inputs, dataShapes);
+                    } else {
+                        fillTensors(inferRequest, inputs);
+                    }
                 }
+                inferRequest.infer();
             }
-            inferRequest.infer();
         }
     };
 
