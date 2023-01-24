@@ -3,36 +3,32 @@
 //
 
 #include "switch_affinity.hpp"
-
-#include <transformations/serialize.hpp>
-#include <openvino/pass/visualize_tree.hpp>
+#include "propagate_optimal_bs.hpp"
 
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <dimension_tracker.hpp>
+
 #include "rt_info/optimal_batch_size.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include "transformations/utils/utils.hpp"
 #include "ngraph_transformations/op/fully_connected.hpp"
+#include "transformations/utils/utils.hpp"
 
-#include <dimension_tracker.hpp>
-#include "propagate_optimal_bs.hpp"
+#include <openvino/pass/visualize_tree.hpp>
+#include <openvino/pass/serialize.hpp>
 
 namespace {
-using namespace ngraph;
-
 void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
     std::string path = "/home/vgolubev/models/" + name;
     ov::pass::VisualizeTree(path + ".svg").run_on_model(model);
-    ngraph::pass::Serialize(path + ".xml", path + ".bin").run_on_model(model);
+    ov::pass::Serialize(path + ".xml", path + ".bin").run_on_model(model);
 }
 
-void force_replace_output(Output<Node> target, const Output<Node>& replacement) {
+void force_replace_output(ov::Output<ov::Node> target, const ov::Output<ov::Node>& replacement) {
     // Update output tensor name
-    const std::string new_name = ngraph::op::util::get_ie_output_name(target);
+    const std::string new_name = ov::op::util::get_ie_output_name(target);
     replacement.get_node()->set_friendly_name(new_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
     const auto& output_tensor_name = ov::descriptor::get_ov_tensor_legacy_name(target.get_tensor());
@@ -88,9 +84,9 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     // create parameters to extract graph component from original ov::Model
     for (const auto& start : starts) {
         // weights will be shared between clones and mustn't be splitted
-        const bool is_shared_weights = start.get_index() == 1 && (ov::is_type<opset1::Convolution>(start.get_node()) ||
-                                                                  ov::is_type<opset1::GroupConvolution>(start.get_node()) ||
-                                                                  ov::is_type<opset1::ConvolutionBackpropData>(start.get_node()) ||
+        const bool is_shared_weights = start.get_index() == 1 && (ov::is_type<ov::opset1::Convolution>(start.get_node()) ||
+                                                                  ov::is_type<ov::opset1::GroupConvolution>(start.get_node()) ||
+                                                                  ov::is_type<ov::opset1::ConvolutionBackpropData>(start.get_node()) ||
                                                                   ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
 
         const auto& start_shape = start.get_partial_shape();
@@ -106,12 +102,12 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
             if (cur_n_splits == 1)
                 return false;
 
-            const auto split_axis = opset1::Constant::create(element::i32, {}, {batch_idx});
-            const auto split = std::make_shared<opset1::Split>(start.get_source_output(), split_axis, cur_n_splits);
+            const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {batch_idx});
+            const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, cur_n_splits);
             start_splits.push_back(split);
         }
 
-        const auto main_param = std::make_shared<opset1::Parameter>(start.get_element_type(), start_shape);
+        const auto main_param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
         main_params.push_back(main_param);
     }
 
@@ -133,19 +129,19 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
 
     // create an ov::Model from a graph component
     const auto subgraph = std::make_shared<ov::Model>(result_vec, main_params);
-    NodeMap constants;
+    ngraph::NodeMap constants;
     if (share_constants) {
         for (const auto& op : subgraph->get_ordered_ops()) {
-            if (ov::is_type<opset1::Constant>(op)) {
+            if (ov::is_type<ov::opset1::Constant>(op)) {
                 constants[op.get()] = op;
             }
         }
     }
 
     // map to match an old output and new outputs with optimal batch from subgraphs
-    std::map<Output<Node>, OutputVector> concatenate_map;
+    std::map<ov::Output<ov::Node>, ov::OutputVector> concatenate_map;
     for (const auto& original_out : result_vec) {
-        concatenate_map[original_out] = OutputVector(n_splits);
+        concatenate_map[original_out] = ov::OutputVector(n_splits);
     }
 
     auto change_names = [&](const std::shared_ptr<ov::Model>& m, const size_t batch_idx) {
@@ -156,7 +152,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
 
     for (size_t branch_idx = 0; branch_idx < n_splits; ++branch_idx) {
         auto cloned_nodes = constants;
-        const auto subgraph_with_opt_batch = ngraph::clone_function(*subgraph, cloned_nodes);
+        const auto subgraph_with_opt_batch = ov::clone_model(*subgraph, cloned_nodes);
         change_names(subgraph_with_opt_batch, branch_idx);
         setBatch(subgraph_with_opt_batch, optimal_bs);
 
@@ -183,7 +179,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     // concatenate per-batch graphs
     for (const auto& elem : concatenate_map) {
         const size_t batch_idx = get_batch_idx(elem.first.get_partial_shape());
-        const auto concat = std::make_shared<opset1::Concat>(elem.second, batch_idx);
+        const auto concat = std::make_shared<ov::opset1::Concat>(elem.second, batch_idx);
         force_replace_output(elem.first, concat->output(0));
         ov::intel_cpu::cleanMemoryFormats(concat);
     }
@@ -196,14 +192,14 @@ NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwitchAffinity, "SwitchAffinity", 0);
 bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     bool rewritten = false;
     for (const auto& subgraph : subgraphs) {
-        bool status = switchToImageAffinity(subgraph.second.starts, subgraph.second.ends, subgraph.first, share_constants);
+        bool status = switchToImageAffinity(subgraph.second.starts, subgraph.second.ends, subgraph.first.opt_bs, share_constants);
         rewritten |= status;
     }
     return rewritten;
 }
 
-ov::intel_cpu::SwitchAffinity::SwitchAffinity(const std::unordered_map<size_t, Subgraph>& subgraphs,
+ov::intel_cpu::SwitchAffinity::SwitchAffinity(const std::unordered_map<mixed_affinity::Characteristics, mixed_affinity::Subgraph>& subgraphs,
                                               const bool share_constants)
-    : ngraph::pass::FunctionPass(),
+    : ov::pass::ModelPass(),
       subgraphs(subgraphs),
       share_constants(share_constants) {}
