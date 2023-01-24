@@ -33,6 +33,10 @@ addIeTargetTest(
             GNA
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS -IGNORE:4286)
+endif()
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(gna_model_serial_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
