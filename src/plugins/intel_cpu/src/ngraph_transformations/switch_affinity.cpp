@@ -65,6 +65,7 @@ void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) 
         const size_t batch_idx = get_batch_idx(param_shape);
 
         param_shape[batch_idx] = batch_value;
+        ov::DimensionTracker::set_label(param_shape[batch_idx], ov::intel_cpu::batch_label);
         param->set_partial_shape(param_shape);
     }
     model->validate_nodes_and_infer_types();
@@ -90,7 +91,10 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
                                                                   ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
 
         const auto& start_shape = start.get_partial_shape();
-        const size_t batch_idx = get_batch_idx(start_shape);
+        size_t batch_idx = get_batch_idx(start_shape);
+        // if dimension label isn't set for input shape, than check output one
+        if (batch_idx == 0)
+            batch_idx = get_batch_idx(start.get_node()->get_output_partial_shape(0));
         const size_t cur_bs = start_shape[batch_idx].get_length();
 
         if (is_shared_weights || cur_bs == 1) {
@@ -150,15 +154,15 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         }
     };
 
+    setBatch(subgraph, optimal_bs);
     for (size_t branch_idx = 0; branch_idx < n_splits; ++branch_idx) {
         auto cloned_nodes = constants;
-        const auto subgraph_with_opt_batch = ov::clone_model(*subgraph, cloned_nodes);
-        change_names(subgraph_with_opt_batch, branch_idx);
-        setBatch(subgraph_with_opt_batch, optimal_bs);
+        const auto branch = ov::clone_model(*subgraph, cloned_nodes);
+        change_names(branch, branch_idx);
 
         // starts processing
         for (size_t start_idx = 0; start_idx < start_splits.size(); ++start_idx) {
-            const auto& cur_param = subgraph_with_opt_batch->get_parameters()[start_idx];
+            const auto& cur_param = branch->get_parameters()[start_idx];
             const auto out_to_replace = start_splits[start_idx]->get_output_size() == 1
                                             ? start_splits[start_idx]->output(0)
                                             : start_splits[start_idx]->output(branch_idx);

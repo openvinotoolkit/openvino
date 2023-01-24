@@ -5,9 +5,7 @@
 #include <string>
 #include <map>
 
-#include "ngraph/ngraph.hpp"
-#include "openvino/core/model.hpp"
-#include "common_test_utils/ngraph_test_utils.hpp"
+#include <openvino/core/model.hpp>
 
 
 /* This file contains definitions of relatively simple functions (models) that will be used
@@ -15,12 +13,15 @@
  * MixedAffinityFunctionBase, so their constructors take only one (input_shapes) argument.
  */
 
-using BSMarkup = std::unordered_map<std::string, size_t>;
+using MixedAffinityMarkup = std::unordered_map<std::string, std::pair<size_t, size_t>>;
+
+MixedAffinityMarkup transformBSMarkup(const std::unordered_map<std::string, size_t>& markup);
+
 class MixedAffinityFunctionBase {
 public:
     explicit MixedAffinityFunctionBase(const std::vector<ov::PartialShape>& input_shapes) : input_shapes(input_shapes) {}
-    std::shared_ptr<ov::Model> getOriginal(const BSMarkup& markup = {});
-    std::shared_ptr<ov::Model> getReference(const BSMarkup& markup = {});
+    std::shared_ptr<ov::Model> getOriginal(const MixedAffinityMarkup& markup = {});
+    std::shared_ptr<ov::Model> getReference(const MixedAffinityMarkup& markup = {});
 
 protected:
     virtual std::shared_ptr<ov::Model> initOriginal();
@@ -28,7 +29,7 @@ protected:
 
     const std::vector<ov::PartialShape> input_shapes;
 private:
-    void markup_model(const std::shared_ptr<ov::Model>& m, const BSMarkup& markup);
+    void markup_model(const std::shared_ptr<ov::Model>& m, const MixedAffinityMarkup& markup);
 };
 
 class ConvWithBiasFunction : public MixedAffinityFunctionBase {
@@ -59,6 +60,13 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() override;
 };
 
+class ConvolutionsAndSplitFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvolutionsAndSplitFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
 class TwoConvAndAddFunction : public MixedAffinityFunctionBase {
 public:
     explicit TwoConvAndAddFunction(const std::vector<ov::PartialShape>& input_shapes);
@@ -69,6 +77,27 @@ protected:
 class TwoConvWithS2BFunction : public MixedAffinityFunctionBase {
 public:
     explicit TwoConvWithS2BFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
+class ConvAndAddWithParameterFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvAndAddWithParameterFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
+class ConvWithTransposeAndAddFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvWithTransposeAndAddFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
+class ConvWithConcatFunction : public MixedAffinityFunctionBase {
+public:
+    explicit ConvWithConcatFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
 };

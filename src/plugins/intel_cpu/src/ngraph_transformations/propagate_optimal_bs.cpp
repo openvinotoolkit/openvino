@@ -51,12 +51,12 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
             continue;
         }
 
-        auto get_batch_dim = [](const ov::PartialShape& shape) {
+        auto get_batch_dim = [](const ov::PartialShape& shape) -> size_t {
             for (size_t i = 0; i < shape.size(); ++i) {
                 if (ov::DimensionTracker::get_label(shape[i]) == batch_label)
                     return i;
             }
-            return 0ul;
+            return 0;
         };
 
         const size_t out_batch_dim = get_batch_dim(out_shape);

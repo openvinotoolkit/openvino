@@ -96,6 +96,7 @@ std::unordered_map<Characteristics, Subgraph> formSubgraphs(const std::shared_pt
 
 bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ov::pass::Manager markup_manager(get_pass_config());
+    markup_manager.set_per_pass_validation(false);
     // markup_manager.register_pass<ngraph::pass::Serialize>("/home/vgolubev/models/test.xml", "/home/vgolubev/models/test.bin");
     markup_manager.register_pass<ov::intel_cpu::MarkupOptimalBS>();
     markup_manager.register_pass<ov::intel_cpu::PropagateOptimalBS>();
@@ -120,7 +121,7 @@ bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>
 
     ov::pass::Manager switch_affinity_manager(get_pass_config());
     // TODO: remove 'share_constants' parameter
-    switch_affinity_manager.register_pass<ov::intel_cpu::SwitchAffinity>(subgraphs, false);
+    switch_affinity_manager.register_pass<ov::intel_cpu::SwitchAffinity>(subgraphs, true);
     // switch_affinity_manager.register_pass<ngraph::pass::VisualizeTree>("/home/vgolubev/models/test.before.svg");
     // switch_affinity_manager.register_pass<ngraph::pass::Serialize>("/home/vgolubev/models/affinity.xml", "/home/vgolubev/models/affinity.bin");
     switch_affinity_manager.run_passes(m);
