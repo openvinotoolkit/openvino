@@ -211,11 +211,12 @@ def test_infer_tensor_wrong_input_data(device):
     assert "Incompatible key type for input: 0.0" in str(e.value)
 
 
-def test_direct_infer(device):
+@pytest.mark.parametrize("shared_flag", [True, False])
+def test_direct_infer(device, shared_flag):
     compiled_model, img = generate_model_and_image(device)
 
     tensor = Tensor(img)
-    res = compiled_model({"data": tensor})
+    res = compiled_model({"data": tensor}, shared_memory=shared_flag)
     assert np.argmax(res[compiled_model.outputs[0]]) == 531
     ref = compiled_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])
