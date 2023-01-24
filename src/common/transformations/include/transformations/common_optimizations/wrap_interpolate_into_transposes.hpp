@@ -37,9 +37,3 @@ public:
     OPENVINO_RTTI("WrapInterpolateIntoTransposes", "0");
     WrapInterpolateIntoTransposes();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::WrapInterpolateIntoTransposes;
-}  // namespace pass
-}  // namespace ngraph

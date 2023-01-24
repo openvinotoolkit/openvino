@@ -63,7 +63,7 @@ void LSTMCellTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "lstm_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        m.register_pass<ov::pass::LSTMCellDecomposition>();
         m.run_passes(function);
     }
 }

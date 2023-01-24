@@ -175,23 +175,23 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         auto conv = ov::as_type_ptr<opset1::Convolution>(copyNode);
         std::shared_ptr<Node> relaxedNewConvolution;
         if (conv) {
-            relaxedNewConvolution = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
+            relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
                     *conv,
                     std::vector<element::Type>{deqPrecision, deqPrecision},
                     std::vector<element::Type>{deqPrecision});
         } else {
-            relaxedNewConvolution = std::make_shared<op::TypeRelaxed<opset1::GroupConvolution>>(
+            relaxedNewConvolution = std::make_shared<ov::op::TypeRelaxed<opset1::GroupConvolution>>(
                     *ov::as_type_ptr<opset1::GroupConvolution>(copyNode),
                     std::vector<element::Type>{deqPrecision, deqPrecision},
                     std::vector<element::Type>{deqPrecision});
         }
         NetworkHelper::copyInfo(convolution, relaxedNewConvolution);
 
-        newMultiplyAfter = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        newMultiplyAfter = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
             std::vector<element::Type>{ deqPrecision, deqPrecision },
             std::vector<element::Type>{ dequantization.multiply->get_output_element_type(0) },
-            ngraph::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
-            ngraph::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
+            ov::op::TemporaryReplaceOutputType(relaxedNewConvolution, deqPrecision).get(),
+            ov::op::TemporaryReplaceOutputType(newMultiplyAfterConst, deqPrecision).get());
 
         NetworkHelper::insertDequantizationAfter(convolution, newMultiplyAfter, relaxedNewConvolution);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();

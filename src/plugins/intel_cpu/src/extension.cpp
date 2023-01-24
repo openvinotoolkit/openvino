@@ -62,7 +62,7 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     auto type_relaxed_opset = []() {
         ngraph::OpSet opset;
 
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ngraph::op::TypeRelaxed<NAMESPACE::NAME>>();
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<ov::op::TypeRelaxed<NAMESPACE::NAME>>();
         NGRAPH_OP(Add, ngraph::op::v1)
         NGRAPH_OP(AvgPool, ngraph::op::v1)
         NGRAPH_OP(Clamp, ngraph::op::v0)
@@ -117,11 +117,11 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
-        NGRAPH_OP(MulticlassNmsIEInternal, ngraph::op::internal)
+        NGRAPH_OP(NonMaxSuppressionIEInternal, ov::op::internal)
+        NGRAPH_OP(MulticlassNmsIEInternal, ov::op::internal)
         NGRAPH_OP(AUGRUCell, ov::op::internal)
         NGRAPH_OP(AUGRUSequence, ov::op::internal)
-        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ov::op::internal)
 #undef NGRAPH_OP
 
         return opset;

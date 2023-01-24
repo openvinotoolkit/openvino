@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4) {
 
         function = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node});
 
-        manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
+        manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
     }
 
     {
@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, ConvertInterpolate1ToInterpolate4_1) {
 
         function = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node});
 
-        manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
+        manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
     }
 
     {
@@ -131,9 +131,9 @@ TEST(TransformationTests, DynamiShapeInterpolate1To4) {
     auto f = std::make_shared<Function>(NodeVector{interpolate1}, ParameterVector{data_node, out_shape_node});
 
     auto manager = ov::pass::Manager();
-    manager.register_pass<pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertInterpolate1ToInterpolate4>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::ConvertInterpolate1ToInterpolate4>();
     manager.run_passes(f);
 
-    ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset4::Interpolate>(f));
+    ASSERT_TRUE(ov::op::util::has_op_with_type<opset4::Interpolate>(f));
 }

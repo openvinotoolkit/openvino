@@ -75,13 +75,3 @@ public:
         add_matcher<ov::pass::SwishFusionWithoutBeta>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SwishFusion;
-using ov::pass::SwishFusionWithBeta;
-using ov::pass::SwishFusionWithoutBeta;
-using ov::pass::SwishFusionWithSigmoid;
-using ov::pass::SwishFusionWithSigmoidWithBeta;
-}  // namespace pass
-}  // namespace ngraph

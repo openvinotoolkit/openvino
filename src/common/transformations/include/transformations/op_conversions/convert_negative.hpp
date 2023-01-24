@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertNegative", "0");
     ConvertNegative();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertNegative;
-}  // namespace pass
-}  // namespace ngraph

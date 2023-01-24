@@ -200,7 +200,7 @@ template <typename T>
 inline void GnaPWlTestsFixture<T>::run() {
     {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::PWLApproximation>(_max_error_percent);
         m.run_passes(_function_under_test);
         ASSERT_NO_THROW(check_rt_info(_function_under_test));

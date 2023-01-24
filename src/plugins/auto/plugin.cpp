@@ -34,7 +34,7 @@ namespace {
 
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
-        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        bool isINTModel = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
         if (isINTModel) {
             return METRIC_VALUE(INT8);
         }

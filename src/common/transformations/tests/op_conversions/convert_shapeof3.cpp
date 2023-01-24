@@ -25,7 +25,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI64) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::ConvertShapeOf3>();
+        manager.register_pass<ov::pass::ConvertShapeOf3>();
     }
 
     {
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, ConvertShapeOf3WithI32) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{shapeof}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::ConvertShapeOf3>();
+        manager.register_pass<ov::pass::ConvertShapeOf3>();
     }
 
     {

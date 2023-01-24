@@ -44,9 +44,3 @@ private:
     void convert_space_to_batch();
     void convert_space_to_batch_by_elements();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertSpaceToBatch;
-}  // namespace pass
-}  // namespace ngraph

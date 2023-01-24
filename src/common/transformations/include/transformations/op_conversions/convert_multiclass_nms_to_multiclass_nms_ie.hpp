@@ -20,9 +20,3 @@ public:
     OPENVINO_RTTI("public", "0");
     ConvertMulticlassNmsToMulticlassNmsIE(bool force_i32_output_type = true);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMulticlassNmsToMulticlassNmsIE;
-}  // namespace pass
-}  // namespace ngraph

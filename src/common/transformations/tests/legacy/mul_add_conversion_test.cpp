@@ -149,7 +149,7 @@ TEST_P(MulAddConversionTests, CompareFunctions) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
@@ -170,7 +170,7 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {

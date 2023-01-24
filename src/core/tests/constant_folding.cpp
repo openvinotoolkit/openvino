@@ -57,7 +57,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<std::string>& s) {
 
 void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
     pass_manager.register_pass<pass::ConstantFolding>();
     pass_manager.run_passes(model);
 }
@@ -73,7 +73,7 @@ static void check_names(const std::shared_ptr<ov::Node>& node,
 
     // Check fused name
     ASSERT_TRUE(!expected_fused_names.empty());
-    std::vector<std::string> fused_names = ngraph::getFusedNamesVector(node);
+    std::vector<std::string> fused_names = ov::getFusedNamesVector(node);
     if (exact) {
         std::vector<std::string> expected_sorted = expected_fused_names;
         std::sort(fused_names.begin(), fused_names.end());
@@ -3331,7 +3331,7 @@ TEST(constant_folding, disable_constant_folding) {
     // will request values from this sub-graph and ConstantFolding pass will try to use this pre-calculated values
     // to fold it. But in our case we are disabling CF for this sub-graph first and then enable CF to check that all
     // checks inside ConstantFolding transformation are working and doesn't cache anytihng.
-    auto gather = op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
+    auto gather = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, {2, 3});
     auto convert = std::make_shared<opset5::Convert>(gather, element::f16);
     auto divide_constant = op::Constant::create(element::f16, Shape{1}, {0.5});
     auto divide = std::make_shared<opset5::Divide>(convert, divide_constant);

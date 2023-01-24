@@ -25,9 +25,3 @@ public:
     OPENVINO_RTTI("ConvertDetectionOutput1ToDetectionOutput8", "0");
     ConvertDetectionOutput1ToDetectionOutput8();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertDetectionOutput1ToDetectionOutput8;
-}  // namespace pass
-}  // namespace ngraph

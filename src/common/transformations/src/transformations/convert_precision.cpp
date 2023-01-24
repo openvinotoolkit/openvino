@@ -58,9 +58,8 @@ bool fuse_type_to_binary_comparision(const std::shared_ptr<ngraph::Node>& node, 
         type_relaxed->set_overridden_output_type(to);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                                                                       ov::element::TypeVector{},
-                                                                       ov::element::TypeVector{to});
+        auto relaxed_op =
+            std::make_shared<ov::op::TypeRelaxed<T>>(*casted, ov::element::TypeVector{}, ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -75,7 +74,7 @@ bool fuse_type_to_logical(const std::shared_ptr<ngraph::Node>& node, ngraph::ele
         type_relaxed->set_origin_input_type(ov::element::boolean, 1);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(
             *casted,
             ov::element::TypeVector{ov::element::boolean, ov::element::boolean},
             ov::element::TypeVector{to});
@@ -92,9 +91,9 @@ bool fuse_type_to_reduce_logical(const std::shared_ptr<ngraph::Node>& node, ngra
         type_relaxed->set_origin_input_type(ov::element::boolean, 0);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<T>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<T>>(*casted,
-                                                                       ov::element::TypeVector{ov::element::boolean},
-                                                                       ov::element::TypeVector{to});
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<T>>(*casted,
+                                                                   ov::element::TypeVector{ov::element::boolean},
+                                                                   ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }
@@ -445,9 +444,8 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         output_types.emplace_back(output.get_element_type());
     }
     output_types[idx] = to;
-    auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
@@ -473,9 +471,8 @@ bool fuse_type_to_nms9(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
         output_types.emplace_back(output.get_element_type());
     }
     output_types[idx] = to;
-    auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
-                                                                                           ov::element::TypeVector{},
-                                                                                           output_types);
+    auto relaxed_op =
+        std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms, ov::element::TypeVector{}, output_types);
     replace_node(node, relaxed_op);
     return true;
 }
@@ -588,9 +585,9 @@ bool fuse_type_to_shapeof_v0(const std::shared_ptr<ngraph::Node>& node, ngraph::
         type_relaxed->set_overridden_output_type(to);
         return true;
     } else if (auto casted = std::dynamic_pointer_cast<opset1::ShapeOf>(node)) {
-        auto relaxed_op = std::make_shared<ngraph::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
-                                                                                     ov::element::TypeVector{},
-                                                                                     ov::element::TypeVector{to});
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset1::ShapeOf>>(*casted,
+                                                                                 ov::element::TypeVector{},
+                                                                                 ov::element::TypeVector{to});
         replace_node(node, relaxed_op);
         return true;
     }

@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("SoftPlusFusion", "0");
     SoftPlusFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SoftPlusFusion;
-}  // namespace pass
-}  // namespace ngraph

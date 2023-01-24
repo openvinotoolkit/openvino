@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("MVN6Decomposition", "0");
     MVN6Decomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MVN6Decomposition;
-}  // namespace pass
-}  // namespace ngraph

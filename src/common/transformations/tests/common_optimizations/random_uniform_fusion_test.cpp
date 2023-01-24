@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, RandomUniformMulFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::RandomUniformFusion>();
+        manager.register_pass<ov::pass::RandomUniformFusion>();
     }
 
     {
@@ -69,7 +69,7 @@ TEST_F(TransformationTestsF, RandomUniformAddFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::RandomUniformFusion>();
+        manager.register_pass<ov::pass::RandomUniformFusion>();
     }
 
     {
@@ -105,7 +105,7 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertMulFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::RandomUniformFusion>();
+        manager.register_pass<ov::pass::RandomUniformFusion>();
     }
 
     {
@@ -143,7 +143,7 @@ TEST_F(TransformationTestsF, RandomUniformWithConvertAddFusing) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::RandomUniformFusion>();
+        manager.register_pass<ov::pass::RandomUniformFusion>();
     }
 
     {
@@ -180,7 +180,7 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidRUType) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::RandomUniformFusion>();
+        manager.register_pass<ov::pass::RandomUniformFusion>();
     }
 
     {
@@ -218,7 +218,7 @@ TEST_F(TransformationTestsF, RandomUniformFusingInvalidConstShape) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::RandomUniformFusion>();
+        manager.register_pass<ov::pass::RandomUniformFusion>();
     }
 
     {

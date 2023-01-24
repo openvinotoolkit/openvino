@@ -92,14 +92,3 @@ public:
         add_matcher<ov::pass::GeluFusionWithTanh>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GeluFusion;
-using ov::pass::GeluFusionWithErfFour;
-using ov::pass::GeluFusionWithErfOne;
-using ov::pass::GeluFusionWithErfThree;
-using ov::pass::GeluFusionWithErfTwo;
-using ov::pass::GeluFusionWithTanh;
-}  // namespace pass
-}  // namespace ngraph

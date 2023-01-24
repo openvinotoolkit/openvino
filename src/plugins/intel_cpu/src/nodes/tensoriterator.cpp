@@ -377,7 +377,7 @@ void TensorIterator::getSupportedDescriptors() {
     const auto &outMap = sub_graph.GetOutputNodesMap();
     for (const auto &out : tiOp->get_function()->get_results()) {
         const auto prev = out->input_value(0);
-        const auto inputID = ngraph::op::util::create_ie_output_name(prev);
+        const auto inputID = ov::op::util::create_ie_output_name(prev);
         auto outNode = outMap.find(inputID);
         if (outNode != outMap.end()) {
             auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();

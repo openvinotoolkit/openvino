@@ -229,10 +229,9 @@ ov::pass::GeluFusionWithErfFour::GeluFusionWithErfFour() {
         }
 
         constexpr auto sqrt2 = static_cast<float>(M_SQRT2);
-        bool valid_constant_values =
-            ngraph::op::util::has_constant_value<float>(mul1_const_value, 1.0f / sqrt2, 0.001f) &&
-            ngraph::op::util::has_constant_value<float>(add_const_value, 0.5f) &&
-            ngraph::op::util::has_constant_value<float>(mul2_const_value, 0.5f);
+        bool valid_constant_values = ov::op::util::has_constant_value<float>(mul1_const_value, 1.0f / sqrt2, 0.001f) &&
+                                     ov::op::util::has_constant_value<float>(add_const_value, 0.5f) &&
+                                     ov::op::util::has_constant_value<float>(mul2_const_value, 0.5f);
 
         if (!valid_constant_values) {
             return false;

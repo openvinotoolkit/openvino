@@ -36,7 +36,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(f);
     }
 
@@ -68,7 +68,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param1, param2});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(f);
     }
 
@@ -170,15 +170,15 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.run_passes(f);
     }
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
-    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::CommonOptimizations>();
+    manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
 
     static const precisions_array convert_precision_list{
         {ngraph::element::i64, ngraph::element::i32},
@@ -189,10 +189,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
         {ngraph::element::boolean, ngraph::element::u8},
     };
 
-    manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
+    manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_list);
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(
-        precisions_array{{ngraph::element::i64, ngraph::element::i32}});
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::i64, ngraph::element::i32}});
 
     manager.run_passes(f);
 

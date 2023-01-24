@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("ReduceL1Decomposition", "0");
     ReduceL1Decomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ReduceL1Decomposition;
-}  // namespace pass
-}  // namespace ngraph

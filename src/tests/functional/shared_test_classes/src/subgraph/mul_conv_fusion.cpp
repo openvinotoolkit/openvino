@@ -57,10 +57,10 @@ void MulConvFusion::SetUp() {
     auto cloned_function = ngraph::clone_function(*function);
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::MultiplyConvolutionFusion>();
-    manager.register_pass<ngraph::pass::MultiplyGroupConvolutionFusion>();
-    manager.register_pass<ngraph::pass::MultiplyConvolutionBackpropDataFusion>();
-    manager.register_pass<ngraph::pass::MultiplyGroupConvolutionBackpropDataFusion>();
+    manager.register_pass<ov::pass::MultiplyConvolutionFusion>();
+    manager.register_pass<ov::pass::MultiplyGroupConvolutionFusion>();
+    manager.register_pass<ov::pass::MultiplyConvolutionBackpropDataFusion>();
+    manager.register_pass<ov::pass::MultiplyGroupConvolutionBackpropDataFusion>();
     manager.run_passes(cloned_function);
 
     bool functions_equal = false;

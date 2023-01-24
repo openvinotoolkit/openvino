@@ -115,7 +115,7 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         inter_node->set_output_type(0, fq_node->get_output_element_type(0), inter_node->get_output_partial_shape(0));
 
         auto replacement =
-            std::make_shared<ngraph::op::TypeRelaxed<InteractionNode>>(*inter_node,
+            std::make_shared<ov::op::TypeRelaxed<InteractionNode>>(*inter_node,
                                                                        fq_node->get_output_element_type(0));
         copy_runtime_info(inter_node, replacement);
         replace_node(inter_node, replacement);

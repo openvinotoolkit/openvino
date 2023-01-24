@@ -23,9 +23,3 @@ public:
     OPENVINO_RTTI("ConvertMatrixNmsToMatrixNmsIE", "0");
     ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type = true);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMatrixNmsToMatrixNmsIE;
-}  // namespace pass
-}  // namespace ngraph

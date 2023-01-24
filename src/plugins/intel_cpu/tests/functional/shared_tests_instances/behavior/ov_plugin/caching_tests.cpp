@@ -45,7 +45,7 @@ namespace {
         auto max_output_boxes_per_class = ov::op::v0::Constant::create(element::i32, Shape{1}, {10});
         auto iou_threshold = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.75});
         auto score_threshold = ov::op::v0::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
+        auto nms = std::make_shared<ov::op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
                 iou_threshold, score_threshold, 0, true, element::i32);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
@@ -58,7 +58,7 @@ namespace {
         ov::op::v8::MatrixNms::Attributes attr;
         // convert_precision does not support internal op 'NmsStaticShapeIE'
         attr.output_type = element::i32;
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, attr);
+        auto nms = std::make_shared<ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;
@@ -69,7 +69,7 @@ namespace {
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         ov::op::util::MulticlassNmsBase::Attributes attr;
         attr.output_type = element::i32;
-        auto nms = std::make_shared<ngraph::op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
+        auto nms = std::make_shared<ov::op::internal::MulticlassNmsIEInternal>(boxes, scores, attr);
         auto res = std::make_shared<ov::op::v0::Result>(nms);
         auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         return func;

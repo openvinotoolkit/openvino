@@ -44,9 +44,3 @@ public:
     OPENVINO_RTTI("DepthToSpaceFusion", "0");
     DepthToSpaceFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DepthToSpaceFusion;
-}  // namespace pass
-}  // namespace ngraph

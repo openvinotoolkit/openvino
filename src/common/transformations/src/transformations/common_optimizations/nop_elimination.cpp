@@ -743,7 +743,7 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
+ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
     ADD_MATCHER_FOR_THIS(EliminatePad)
     ADD_MATCHER_FOR_THIS(EliminateConvert)

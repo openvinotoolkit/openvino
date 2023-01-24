@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("MishFusion", "0");
     MishFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MishFusion;
-}  // namespace pass
-}  // namespace ngraph

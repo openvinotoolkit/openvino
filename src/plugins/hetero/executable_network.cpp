@@ -482,7 +482,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
                 for (auto&& result : subgraph._results) {
                     auto source_output = result->input_value(0);
-                    auto output_name = ngraph::op::util::create_ie_output_name(source_output);
+                    auto output_name = ov::op::util::create_ie_output_name(source_output);
                     if (output_name == output.first) {
                         output.second->setPrecision(
                             InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
@@ -675,7 +675,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
         const bool is_result = ov::is_type<ov::op::v0::Result>(node);
         const std::string name =
-            is_result ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
+            is_result ? ov::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
         xml_node.append_attribute("operation_name").set_value(name.c_str());
         xml_node.append_attribute("element_type").set_value(node->get_output_element_type(0).get_type_name().c_str());
 

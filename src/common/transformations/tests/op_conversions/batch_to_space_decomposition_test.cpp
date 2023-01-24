@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
+        manager.register_pass<ov::pass::ConvertBatchToSpace>();
     }
 
     {
@@ -92,7 +92,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
+        manager.register_pass<ov::pass::ConvertSpaceToBatch>();
     }
 
     {
@@ -158,7 +158,7 @@ TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertSpaceToBatch>(false);
+        manager.register_pass<ov::pass::ConvertSpaceToBatch>(false);
     }
 
     {
@@ -194,7 +194,7 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertBatchToSpace>(false);
+        manager.register_pass<ov::pass::ConvertBatchToSpace>(false);
     }
 
     {

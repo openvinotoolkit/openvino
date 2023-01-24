@@ -58,8 +58,8 @@ TEST(TransformationTests, UnrollIfCondIsTrue) {
         f = create_if_model(true);
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -77,8 +77,8 @@ TEST(TransformationTests, UnrollIfCondIsFalse) {
         f = create_if_model(false);
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -116,8 +116,8 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
         f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -160,8 +160,8 @@ TEST(TransformationTests, UnrollNestedIfThenBody) {
 
         f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -201,8 +201,8 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{if_result}, ngraph::ParameterVector{data});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));

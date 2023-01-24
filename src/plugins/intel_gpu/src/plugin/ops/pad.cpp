@@ -22,7 +22,7 @@ static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& 
     if (op->get_input_size() == 4) {
         auto const_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(3));
         OPENVINO_ASSERT(const_node, "Unsupported const node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
-        ngraph::op::util::get_single_value(const_node, pad_value);
+        ov::op::util::get_single_value(const_node, pad_value);
     }
 
     auto tilePrim = cldnn::border(layerName,

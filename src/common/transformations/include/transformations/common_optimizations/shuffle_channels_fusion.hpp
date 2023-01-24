@@ -36,9 +36,3 @@ public:
     OPENVINO_RTTI("ShuffleChannelsFusion", "0");
     ShuffleChannelsFusion(const bool reshape_constants_check);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ShuffleChannelsFusion;
-}  // namespace pass
-}  // namespace ngraph

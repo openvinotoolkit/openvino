@@ -64,9 +64,9 @@ bool ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::run_on_model(const shared
                 // visit_shape_path shouldn't depend on "visited" nodes because we can approach Divide
                 // earlier from some non precision sensitive path. So we use dedicated "precision_sensitive_visited"
                 // set for precision sensitive nodes, so they can be visited twice and finally marked-up.
-                ngraph::op::util::visit_shape_path(input.get_source_output().get_node(),
-                                                   precision_sensitive_visited,
-                                                   m_markup_func);
+                ov::op::util::visit_shape_path(input.get_source_output().get_node(),
+                                               precision_sensitive_visited,
+                                               m_markup_func);
             }
         }
 

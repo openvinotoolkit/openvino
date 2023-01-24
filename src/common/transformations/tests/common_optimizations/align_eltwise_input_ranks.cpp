@@ -38,7 +38,7 @@ TEST_P(AlignEltwiseInputRanksTest, FusionTest) {
         auto fq = std::make_shared<opset8::FakeQuantize>(add, low, high, low, high, 256);
         function = std::make_shared<Function>(NodeVector{less, logical_or, fq}, ParameterVector{data});
 
-        manager.register_pass<pass::AlignEltwiseInputRanks>();
+        manager.register_pass<ov::pass::AlignEltwiseInputRanks>();
     }
 
     if (can_align) {

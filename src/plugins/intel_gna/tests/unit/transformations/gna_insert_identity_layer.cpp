@@ -32,7 +32,7 @@ public:
 
 void InsertIdentityLayerTest::Validate() {
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(m_low_precision);
     m.register_pass<ov::intel_gna::pass::InsertIdentity>();
     m.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
@@ -602,7 +602,7 @@ public:
     }
     void Validate() override {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
         m.run_passes(m_func);
         ASSERT_NO_THROW(check_rt_info(m_func));

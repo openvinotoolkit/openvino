@@ -27,7 +27,7 @@ TEST(TransformationTests, ConvertTileToLegacyDynamic1) {
 
     auto f = std::make_shared<Function>(NodeVector{tile}, ParameterVector{data});
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertTileToLegacyMatcher>();
     ASSERT_NO_THROW(manager.run_passes(f));
     ASSERT_NO_THROW(check_rt_info(f));
@@ -40,7 +40,7 @@ TEST(TransformationTests, ConvertTileToLegacyDynamic2) {
 
     auto f = std::make_shared<Function>(NodeVector{tile}, ParameterVector{data});
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertTileToLegacyMatcher>();
     ASSERT_NO_THROW(manager.run_passes(f));
     ASSERT_NO_THROW(check_rt_info(f));

@@ -28,7 +28,7 @@ op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
         if (!const_node) {
             throw ngraph_error("Pad " + pad->get_friendly_name() + " with not constant pad_value is not allowed");
         }
-        if (!util::get_single_value(const_node, m_pad_value)) {
+        if (!ov::op::util::get_single_value(const_node, m_pad_value)) {
             throw ngraph_error("Unsupported pad value");
         }
     }

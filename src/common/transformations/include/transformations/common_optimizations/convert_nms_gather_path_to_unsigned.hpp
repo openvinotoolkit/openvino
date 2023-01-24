@@ -30,9 +30,3 @@ public:
     OPENVINO_RTTI("ConvertNmsGatherPathToUnsigned", "0");
     ConvertNmsGatherPathToUnsigned();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertNmsGatherPathToUnsigned;
-}  // namespace pass
-}  // namespace ngraph

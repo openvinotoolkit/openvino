@@ -31,7 +31,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeAdd) {
 
         function = std::make_shared<Function>(NodeVector{add}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -54,7 +54,7 @@ TEST_F(TransformationTestsF, PReluFusionNegativeSub) {
 
         function = std::make_shared<Function>(NodeVector{sub}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -78,7 +78,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplyAdd) {
 
         function = std::make_shared<Function>(NodeVector{add}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -102,7 +102,7 @@ TEST_F(TransformationTestsF, PReluFusionMultiplySub) {
 
         function = std::make_shared<Function>(NodeVector{sub}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     {
@@ -126,7 +126,7 @@ TEST_F(TransformationTestsF, PReluFusionFail) {
 
         function = std::make_shared<Function>(NodeVector{sub}, ParameterVector{data});
 
-        manager.register_pass<pass::PReluFusion>();
+        manager.register_pass<ov::pass::PReluFusion>();
     }
 
     function_ref = ngraph::clone_function(*function);

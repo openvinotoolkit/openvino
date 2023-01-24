@@ -164,7 +164,7 @@ public:
         using namespace ngraph;
         auto inputParamsFP32 = builder::makeDynamicParams(element::f32, { inputParams.front()->get_partial_shape() });
 
-        auto convolutionNodeRelaxed = std::make_shared<op::TypeRelaxed<opset1::Convolution>>(
+        auto convolutionNodeRelaxed = std::make_shared<ov::op::TypeRelaxed<opset1::Convolution>>(
                 *as_type_ptr<opset1::Convolution>(builder::makeConvolution(inputParamsFP32.front(), element::f32, _kernel, _stride, _padBegin,
                                                                           _padEnd, _dilation, ngraph::op::PadType::EXPLICIT, _convOutChannels)),
                 element::f32);

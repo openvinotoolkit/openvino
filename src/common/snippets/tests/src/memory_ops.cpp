@@ -27,7 +27,7 @@ TEST(TransformationTests, InsertLoadStore) {
         f = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::InsertLoad>();
         m.register_pass<snippets::pass::InsertStore>();
         m.run_passes(f);
@@ -53,7 +53,7 @@ TEST(TransformationTests, InsertLoadTwise) {
         f = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::InsertLoad>();
         m.register_pass<snippets::pass::InsertLoad>();
         m.run_passes(f);
@@ -78,7 +78,7 @@ TEST(TransformationTests, InsertStoreTwise) {
         f = std::make_shared<Function>(NodeVector{neg}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::InsertStore>();
         m.register_pass<snippets::pass::InsertStore>();
         m.run_passes(f);

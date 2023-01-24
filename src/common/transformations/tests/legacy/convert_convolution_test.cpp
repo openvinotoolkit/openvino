@@ -80,7 +80,7 @@ private:
 TEST_P(ConvertConvolutionTest, CompareFunctions) {
     const auto orig_shape = f->get_output_partial_shape(0);
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertConvolutions>();
     manager.run_passes(f);
 
@@ -155,7 +155,7 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshape) {
     }
 
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertConvolutions>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -220,7 +220,7 @@ TEST(ConvertConvolutionTest, GroupConvolutionWithReshapeNeg) {
     }
 
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertConvolutions>();
     manager.run_passes(f);
     // FIXME: 42956

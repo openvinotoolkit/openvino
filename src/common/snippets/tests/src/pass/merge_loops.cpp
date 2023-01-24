@@ -55,7 +55,7 @@ TEST(TransformationTests, UnaryEltwisesLoops) {
         f = std::make_shared<Function>(OutputVector{outer_loop_end_down->output(0)}, ParameterVector{data});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::LoopFusion>();
         m.run_passes(f);
     }
@@ -130,7 +130,7 @@ TEST(TransformationTests, BinaryEltwisesLoops) {
         f = std::make_shared<Function>(OutputVector{outer_loop_end_down->output(0)}, ParameterVector{data0, data1, data2});
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::LoopFusion>();
         m.run_passes(f);
     }

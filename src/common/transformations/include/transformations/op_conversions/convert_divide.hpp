@@ -29,10 +29,3 @@ public:
     OPENVINO_RTTI("ConvertDivideWithConstant", "0");
     ConvertDivideWithConstant();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertDivide;
-using ov::pass::ConvertDivideWithConstant;
-}  // namespace pass
-}  // namespace ngraph

@@ -212,10 +212,10 @@ TEST(NetworkContext_CNNNetwork, HashWithPrimitivesPriority) {
 
 TEST(NetworkContext_CNNNetwork, HashWithFusedNames) {
     auto setFusedEmpty = [&](Node::RTMap& rtInfo) {
-        rtInfo[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames();
+        rtInfo[ov::FusedNames::get_type_info_static()] = ov::FusedNames();
     };
     auto setFused = [&](Node::RTMap& rtInfo, const std::string& name) {
-        rtInfo[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames(name);
+        rtInfo[ov::FusedNames::get_type_info_static()] = ov::FusedNames(name);
     };
     checkCustomRt(setFusedEmpty, setFused);
 }

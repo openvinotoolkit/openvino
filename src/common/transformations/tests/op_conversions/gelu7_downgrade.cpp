@@ -22,7 +22,7 @@ TEST_F(TransformationTestsF, Gelu7Downgrade) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::Gelu7Downgrade>();
+        manager.register_pass<ov::pass::Gelu7Downgrade>();
     }
 
     {

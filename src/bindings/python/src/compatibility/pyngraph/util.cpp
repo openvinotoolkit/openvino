@@ -47,7 +47,7 @@ void regmodule_pyngraph_util(py::module m) {
     });
 
     mod.def("get_ie_output_name", [](const ngraph::Output<ngraph::Node>& output) {
-        return ngraph::op::util::get_ie_output_name(output);
+        return ov::op::util::get_ie_output_name(output);
     });
 
     mod.def("shutdown",

@@ -131,7 +131,7 @@ namespace LayerTestsDefinitions {
 
         // evaluate method is not implemented for TI op.
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(function);
 
         const auto &outInfo = executableNetwork.GetOutputsInfo();

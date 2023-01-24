@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("ConvertScatterElementsToScatter", "0");
     ConvertScatterElementsToScatter();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertScatterElementsToScatter;
-}  // namespace pass
-}  // namespace ngraph

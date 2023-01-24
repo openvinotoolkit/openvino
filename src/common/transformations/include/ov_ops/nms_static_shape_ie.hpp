@@ -116,11 +116,3 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace internal {
-using ov::op::internal::NmsStaticShapeIE;
-}  // namespace internal
-}  // namespace op
-}  // namespace ngraph

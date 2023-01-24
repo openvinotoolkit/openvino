@@ -105,7 +105,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
     auto outPrecision = precisionAfterOperation;
-    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         opset1::AvgPool(
             deqBefore,
             Strides{ 1, 1 },

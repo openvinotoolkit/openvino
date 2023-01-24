@@ -118,7 +118,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ngraph::
                     })) {
                     NGRAPH_SUPPRESS_DEPRECATED_START
                     ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
-                                                              ngraph::op::util::create_ie_output_name(ti_output));
+                                                              ov::op::util::create_ie_output_name(ti_output));
                     NGRAPH_SUPPRESS_DEPRECATED_END
                 }
             };

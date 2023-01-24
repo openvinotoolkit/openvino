@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("ReverseInputChannelsFusion", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>&) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ReverseInputChannelsFusion;
-}  // namespace pass
-}  // namespace ngraph

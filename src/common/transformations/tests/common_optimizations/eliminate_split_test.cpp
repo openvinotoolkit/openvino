@@ -23,7 +23,7 @@ TEST_F(TransformationTestsF, EliminateSplit) {
         auto res = std::make_shared<ngraph::opset8::Result>(split);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{res}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::EliminateSplit>();
+        manager.register_pass<ov::pass::EliminateSplit>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, EliminateSplitNegative) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::EliminateSplit>();
+        manager.register_pass<ov::pass::EliminateSplit>();
     }
 }
 
@@ -68,7 +68,7 @@ TEST_F(TransformationTestsF, EliminateSequenceOfSplits) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::EliminateSplit>();
+        manager.register_pass<ov::pass::EliminateSplit>();
     }
 
     {

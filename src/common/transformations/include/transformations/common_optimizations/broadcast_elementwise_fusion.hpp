@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("BroadcastElementwiseFusion", "0");
     BroadcastElementwiseFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::BroadcastElementwiseFusion;
-}  // namespace pass
-}  // namespace ngraph

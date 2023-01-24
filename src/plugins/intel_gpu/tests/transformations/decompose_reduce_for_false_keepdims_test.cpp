@@ -86,7 +86,7 @@ public:
 TEST_P(ReduceDecomposeTests, CompareFunctions) {
     ngraph::pass::Manager m;
     m.set_per_pass_validation(false);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gpu::DecomposeReduceForFalseKeepDims>();
     m.run_passes(fc);
 

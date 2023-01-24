@@ -78,7 +78,7 @@ private:
 TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
     const auto orig_shape = f->get_output_partial_shape(0);
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));

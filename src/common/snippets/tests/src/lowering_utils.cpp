@@ -51,7 +51,7 @@ LoweringTests::LoweringTests() : TransformationTestsF() {
 }
 
 void LoweringTests::SetUp() {
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
 }
 
 void LoweringTests::TearDown() {

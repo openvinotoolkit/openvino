@@ -61,12 +61,3 @@ public:
     OPENVINO_RTTI("ConvertSequenceToTensorIterator", "0");
     ConvertSequenceToTensorIterator();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertGRUSequenceToTensorIterator;
-using ov::pass::ConvertLSTMSequenceToTensorIterator;
-using ov::pass::ConvertRNNSequenceToTensorIterator;
-using ov::pass::ConvertSequenceToTensorIterator;
-}  // namespace pass
-}  // namespace ngraph

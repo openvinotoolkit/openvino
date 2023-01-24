@@ -21,7 +21,7 @@ TransformationTestsF::TransformationTestsF()
 
 void TransformationTestsF::SetUp() {
     manager.register_pass<ngraph::pass::InitUniqueNames>(m_unh);
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
 }
 
 void TransformationTestsF::TearDown() {

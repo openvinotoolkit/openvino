@@ -39,9 +39,3 @@ public:
     OPENVINO_RTTI("LSTMCellDecomposition", "0");
     LSTMCellDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::LSTMCellDecomposition;
-}  // namespace pass
-}  // namespace ngraph

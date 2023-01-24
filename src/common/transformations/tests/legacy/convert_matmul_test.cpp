@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, ConvertMatMulTest1) {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
         auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 1});
 
-        auto reshape = ngraph::op::util::reshapeTo(input2, {1, 2, 1});
+        auto reshape = ov::op::util::reshapeTo(input2, {1, 2, 1});
 
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
 
@@ -71,9 +71,9 @@ TEST_F(TransformationTestsF, ConvertMatMulTest2) {
         auto usnqueeze_input2 = std::make_shared<ngraph::opset1::Unsqueeze>(
             input2,
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}));
-        auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input2, {1, 2, 1});
+        auto reshape = ov::op::util::reshapeTo(usnqueeze_input2, {1, 2, 1});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
-        auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
+        auto reshape_output = ov::op::util::reshapeTo(matmul, {3, 1});
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_output},
                                                           ngraph::ParameterVector{input1, input2});
@@ -99,9 +99,9 @@ TEST_F(TransformationTestsF, ConvertMatMulTest3) {
         auto usnqueeze_input1 = std::make_shared<ngraph::opset1::Unsqueeze>(
             input1,
             ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-        auto reshape = ngraph::op::util::reshapeTo(usnqueeze_input1, {1, 1, 2});
+        auto reshape = ov::op::util::reshapeTo(usnqueeze_input1, {1, 1, 2});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, false);
-        auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1});
+        auto reshape_output = ov::op::util::reshapeTo(matmul, {3, 1});
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_output},
                                                           ngraph::ParameterVector{input1, input2});
@@ -167,9 +167,9 @@ TEST_F(TransformationTestsF, ConvertMatMulTest6) {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
         auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 2}, {1});
         auto input3 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1});
-        auto reshape_begin = ngraph::op::util::reshapeTo(input1, ngraph::Shape{6, 2});
+        auto reshape_begin = ov::op::util::reshapeTo(input1, ngraph::Shape{6, 2});
         auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape_begin, input2, input3, ngraph::Shape{6, 2});
-        auto reshape_end = ngraph::op::util::reshapeTo(fc, ngraph::Shape{3, 2, 2});
+        auto reshape_end = ov::op::util::reshapeTo(fc, ngraph::Shape{3, 2, 2});
 
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_end}, ngraph::ParameterVector{input1});
@@ -219,7 +219,7 @@ TEST(TransformationTests, ConvertMatMulDynamic) {
     auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ngraph::pass::ConvertMatMulToFC>();
     m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
     m.register_pass<ngraph::pass::ReshapeFullyConnected>();

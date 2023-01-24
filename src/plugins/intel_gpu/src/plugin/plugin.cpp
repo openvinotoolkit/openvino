@@ -700,7 +700,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
         auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::FindBatch>(true, false);
         m.run_passes(function);
         const auto& params = function->get_parameters();
@@ -717,7 +717,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
                 for (size_t s = 0; s < shape.size(); s++) {
                     if (ov::DimensionTracker::get_label(shape[s])) {
                         // batched dim for the input
-                        auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
+                        auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
                                       << "[" << s << "]" << std::endl;
                         batched_inputs.insert(std::make_pair(batched_input_id, s));

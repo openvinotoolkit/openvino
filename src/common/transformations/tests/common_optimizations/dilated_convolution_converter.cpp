@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, DilatedConvolutionConverter) {
                                                    op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
         function = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
 
-        manager.register_pass<pass::DilatedConvolutionConverter>();
+        manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});
@@ -83,7 +83,7 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterPadsLessThanCrop
                                                    op::Constant::create(element::i64, Shape{4}, {0, 0, 2, 3}));
         function = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
 
-        manager.register_pass<pass::DilatedConvolutionConverter>();
+        manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
 }
 
@@ -109,7 +109,7 @@ TEST_F(TransformationTestsF, NegativeDilatedConvolutionConverterNonZeroPadsForNC
                                                    op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
         function = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
 
-        manager.register_pass<pass::DilatedConvolutionConverter>();
+        manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
 }
 
@@ -135,7 +135,7 @@ TEST_F(TransformationTestsF, DilatedGroupConvolutionConverter) {
                                                    op::Constant::create(element::i64, Shape{4}, {0, 0, 1, 1}));
         function = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data, filters});
 
-        manager.register_pass<pass::DilatedConvolutionConverter>();
+        manager.register_pass<ov::pass::DilatedConvolutionConverter>();
     }
     {
         auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 4, 10, 10});

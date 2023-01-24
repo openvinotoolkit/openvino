@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest1) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -70,7 +70,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest2) {
         auto reshape = std::make_shared<opset7::Reshape>(fq, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -96,7 +96,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest3) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -122,7 +122,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest4) {
         auto reshape = std::make_shared<opset7::Reshape>(fq, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -147,7 +147,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest5) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -171,7 +171,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest6) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -196,7 +196,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest7) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -222,7 +222,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest8) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -246,7 +246,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest9) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     comparator.enable(FunctionsComparator::CONST_VALUES);
 }
@@ -266,7 +266,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest10) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -301,7 +301,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest11) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -327,7 +327,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest12) {
         auto reshape = std::make_shared<opset7::Reshape>(gelu, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -352,7 +352,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest13) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -376,7 +376,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest14) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -401,7 +401,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest15) {
         auto reshape = std::make_shared<opset7::Reshape>(gelu, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -427,7 +427,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest16) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);
@@ -458,7 +458,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest17) {
         auto reshape = std::make_shared<opset7::Reshape>(data_2, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data_1, data_2});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     comparator.enable(FunctionsComparator::CONST_VALUES);
 }
@@ -482,7 +482,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest18) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
 
     {
@@ -519,7 +519,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest19) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
 
     {
@@ -564,7 +564,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest20) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data, data_copy});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
 
     {
@@ -601,7 +601,7 @@ TEST_F(TransformationTestsF, SimplifySecondInputOfReshapeTest21) {
         auto reshape = std::make_shared<opset7::Reshape>(data, concat, true);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::SimplifySecondInputOfReshape>();
+        manager.register_pass<ov::pass::SimplifySecondInputOfReshape>();
     }
     {
         auto data = std::make_shared<opset7::Parameter>(element::f32, data_shape);

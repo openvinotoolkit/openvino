@@ -34,11 +34,11 @@ public:
             constantValues);
 
         const auto reducePrecision = dequantization->get_output_element_type(0);
-        const std::shared_ptr<Node> reduce = std::make_shared<ngraph::op::TypeRelaxed<ReduceType>>(
+        const std::shared_ptr<Node> reduce = std::make_shared<ov::op::TypeRelaxed<ReduceType>>(
             std::vector<element::Type>{ reducePrecision, constant->get_element_type() },
             std::vector<element::Type>{ reducePrecision },
-            ngraph::op::TemporaryReplaceOutputType(dequantization, reducePrecision).get(),
-            ngraph::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
+            ov::op::TemporaryReplaceOutputType(dequantization, reducePrecision).get(),
+            ov::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
             keepDims);
 
         reduce->set_friendly_name("Output");
@@ -114,11 +114,11 @@ public:
             ngraph::Shape{ constantValues.size() },
             constantValues);
 
-        const std::shared_ptr<Node> reduce = std::make_shared<ngraph::op::TypeRelaxed<ReduceType>>(
+        const std::shared_ptr<Node> reduce = std::make_shared<ov::op::TypeRelaxed<ReduceType>>(
             std::vector<element::Type>{ precisionAfterOperation, constant->get_element_type() },
             std::vector<element::Type>{ precisionAfterOperation },
-            ngraph::op::TemporaryReplaceOutputType(dequantization, precisionAfterOperation).get(),
-            ngraph::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
+            ov::op::TemporaryReplaceOutputType(dequantization, precisionAfterOperation).get(),
+            ov::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
             keepDims);
         std::shared_ptr<Node> lastOperation = makeDequantization(reduce, dequantizationAfter);
 

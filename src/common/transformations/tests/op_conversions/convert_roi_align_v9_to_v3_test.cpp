@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3) {
                                                             pooling_mode);
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign9To3>();
+        manager.register_pass<ov::pass::ConvertROIAlign9To3>();
     }
 
     {
@@ -105,6 +105,6 @@ TEST_F(TransformationTestsF, ConvertROIAlign9To3_aligned_mode) {
                                                             aligned_mode);
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign9To3>();
+        manager.register_pass<ov::pass::ConvertROIAlign9To3>();
     }
 }

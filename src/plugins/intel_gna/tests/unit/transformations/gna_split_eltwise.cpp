@@ -133,7 +133,7 @@ void SplitEltwiseTestSuiteFixture::SetUp() {
 void execute_test(std::shared_ptr<ngraph::Function> function,
                   std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
     manager.run_passes(function);
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);

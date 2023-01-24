@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("SkipGatherBeforeTransposeAndReshape", "0");
     SkipGatherBeforeTransposeAndReshape();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SkipGatherBeforeTransposeAndReshape;
-}  // namespace pass
-}  // namespace ngraph

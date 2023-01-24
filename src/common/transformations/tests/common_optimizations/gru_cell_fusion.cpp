@@ -160,7 +160,7 @@ TEST_P(GRUFusionTest, GRUCellPattern) {
                           p.use_bias_add_1,
                           p.use_bias_add_2,
                           false);
-        manager.register_pass<pass::GRUCellFusion>();
+        manager.register_pass<ov::pass::GRUCellFusion>();
     }
 
     {
@@ -192,7 +192,7 @@ TEST_P(GRUFusionTestDyn, GRUCellPatternDynamicShapes) {
                           false,
                           false,
                           true);
-        manager.register_pass<pass::GRUCellFusion>();  // the transformation won't be applied
+        manager.register_pass<ov::pass::GRUCellFusion>();  // the transformation won't be applied
     }
 }
 

@@ -83,8 +83,8 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
             ngraph::ParameterVector{ins.X, ins.H, ins.C});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -152,8 +152,8 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
                                                ngraph::ParameterVector{ins.X, ins.H});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -216,8 +216,8 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
                                                ngraph::ParameterVector{ins.X, ins.H});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -289,8 +289,8 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
         };
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.get_pass_config()->set_callback(transformations_callback);
         m.run_passes(f);
 
@@ -342,8 +342,8 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
         };
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.get_pass_config()->set_callback(transformations_callback);
         m.run_passes(f);
 
@@ -393,8 +393,8 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
         };
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::BidirectionalSequenceDecomposition>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.get_pass_config()->set_callback(transformations_callback);
         m.run_passes(f);
 

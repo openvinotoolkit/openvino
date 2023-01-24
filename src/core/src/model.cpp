@@ -881,7 +881,7 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
 
     try {
         ov::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.register_pass<ov::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
         reshape_only(new_param_shapes);

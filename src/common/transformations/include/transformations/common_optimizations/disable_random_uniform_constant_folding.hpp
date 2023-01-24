@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("DisableRandomUniformConstantFolding", "0");
     DisableRandomUniformConstantFolding();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DisableRandomUniformConstantFolding;
-}  // namespace pass
-}  // namespace ngraph

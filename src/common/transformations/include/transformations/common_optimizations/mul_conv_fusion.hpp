@@ -100,12 +100,3 @@ public:
     OPENVINO_RTTI("MultiplyGroupConvolutionBackpropDataFusion", "0");
     MultiplyGroupConvolutionBackpropDataFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MultiplyConvolutionBackpropDataFusion;
-using ov::pass::MultiplyConvolutionFusion;
-using ov::pass::MultiplyGroupConvolutionBackpropDataFusion;
-using ov::pass::MultiplyGroupConvolutionFusion;
-}  // namespace pass
-}  // namespace ngraph

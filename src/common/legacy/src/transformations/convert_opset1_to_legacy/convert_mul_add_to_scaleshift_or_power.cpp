@@ -109,8 +109,8 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
         }
 
         // Check that eltwise is not useless otherwise we remove it
-        if (ngraph::op::util::constantIsEqualTo(const_weights_node, 1) &&
-            ngraph::op::util::constantIsEqualTo(const_bias_node, 0)) {
+        if (ov::op::util::constantIsEqualTo(const_weights_node, 1) &&
+            ov::op::util::constantIsEqualTo(const_bias_node, 0)) {
             bool has_result_output = false;
             for (const auto & output : add_node->output(0).get_target_inputs()) {
                 if (dynamic_cast<ngraph::opset1::Result*>(output.get_node())) {
@@ -152,17 +152,17 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
         if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
             NodeVector new_ops;
 
-            auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
-            auto biases_in = ngraph::op::util::normalize_constant(const_bias_node, output_shape);
+            auto weights_in = ov::op::util::normalize_constant(const_weights_node, output_shape);
+            auto biases_in = ov::op::util::normalize_constant(const_bias_node, output_shape);
             new_ops.push_back(weights_in);
             new_ops.push_back(biases_in);
 
             if (res1 == CONVERSION_RESULT::POWER) {
-                weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
+                weights_in = ov::op::util::broadcastTo(weights_in, biases_in->get_shape());
                 new_ops.push_back(weights_in);
             }
             if (res2 == CONVERSION_RESULT::POWER) {
-                biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
+                biases_in = ov::op::util::broadcastTo(biases_in, weights_in->get_shape());
                 new_ops.push_back(biases_in);
             }
 
@@ -175,10 +175,10 @@ ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower
             ngraph::replace_node(m.get_match_root(), scaleshift);
         } else {
             float scale = 0.f, shift = 0.f;
-            if (!op::util::get_single_value(const_weights_node, scale)) {
+            if (!ov::op::util::get_single_value(const_weights_node, scale)) {
                 return false;
             }
-            if (!op::util::get_single_value(const_bias_node, shift)) {
+            if (!ov::op::util::get_single_value(const_bias_node, shift)) {
                 return false;
             }
 

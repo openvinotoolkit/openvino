@@ -82,11 +82,11 @@ void op::DeconvolutionIE::validate_and_infer_types() {
     }
     Output<Node> conv;
     if (m_output_shape) {
-        conv = std::make_shared<op::TypeRelaxed<opset1::GroupConvolutionBackpropData>>(
+        conv = std::make_shared<ov::op::TypeRelaxed<opset1::GroupConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             m_output_shape,
             m_strides,
             m_pads_begin,
@@ -95,11 +95,11 @@ void op::DeconvolutionIE::validate_and_infer_types() {
             m_auto_pad,
             m_output_padding);
     } else {
-        conv = std::make_shared<op::TypeRelaxed<opset1::GroupConvolutionBackpropData>>(
+        conv = std::make_shared<ov::op::TypeRelaxed<opset1::GroupConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(input_value(0), element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             m_strides,
             m_pads_begin,
             m_pads_end,
