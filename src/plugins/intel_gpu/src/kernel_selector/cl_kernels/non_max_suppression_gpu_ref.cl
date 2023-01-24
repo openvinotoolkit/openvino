@@ -485,9 +485,14 @@ KERNEL (non_max_suppression_ref_stage_2)(
 
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
-        for (int b = selectedBoxNum; b < NUM_BOXES; ++b) {
+        int b = selectedBoxNum;
+        #ifdef REUSE_INTERNAL_BUFFER
+            for (; b < NUM_BOXES; ++b) {
+                selectedBoxList[b].batchId = -1;
+            }
+        #else
             selectedBoxList[b].batchId = -1;
-        }
+        #endif
     }
 }
 #endif /* NMS_STAGE_2 */
