@@ -14,6 +14,7 @@
 #include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+#include "transformations/common_optimizations/transpose_sinking_pad.hpp"
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
 #include "transformations/utils/utils.hpp"
@@ -21,18 +22,20 @@
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     MATCHER_SCOPE(TransposeSinkingGeneralForward);
     add_matcher<ov::pass::TransposeSinkingUnaryForward>();
-    add_matcher<ov::pass::TransposeSinkingBinaryElementwiseForward>();
+    add_matcher<ov::pass::TransposeSinkingBinaryForward>();
     add_matcher<ov::pass::TransposeSinkingConcatForward>();
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
+    add_matcher<ov::pass::TransposeSinkingPadForward>();
     add_matcher<ngraph::pass::TransposeFuse>();
 }
 
 ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     MATCHER_SCOPE(TransposeSinkingGeneralBackward);
     add_matcher<ov::pass::TransposeSinkingUnaryBackward>();
-    add_matcher<ov::pass::TransposeSinkingBinaryElementwiseBackward>();
+    add_matcher<ov::pass::TransposeSinkingBinaryBackward>();
     add_matcher<ov::pass::TransposeSinkingConcatBackward>();
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
+    add_matcher<ov::pass::TransposeSinkingPadBackward>();
     add_matcher<ngraph::pass::TransposeFuse>();
 }
 

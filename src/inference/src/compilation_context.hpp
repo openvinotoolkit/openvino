@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,10 @@
 #include <ostream>
 #include <string>
 
+namespace ov {
+class Tensor;
+}  // namespace ov
+
 namespace InferenceEngine {
 
 class CNNNetwork;
@@ -16,9 +20,12 @@ class CNNNetwork;
 struct NetworkCompilationContext final {
     static std::string calculateFileInfo(const std::string& filePath);
 
-    static std::string computeHash(const CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
+    static std::string computeHash(CNNNetwork& network, const std::map<std::string, std::string>& compileOptions);
 
     static std::string computeHash(const std::string& modelName,
+                                   const std::map<std::string, std::string>& compileOptions);
+    static std::string computeHash(const std::string& modeStr,
+                                   const ov::Tensor& data,
                                    const std::map<std::string, std::string>& compileOptions);
 };
 

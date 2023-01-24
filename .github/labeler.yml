@@ -71,7 +71,6 @@
 - 'src/frontends/tests/frontend/shared/**/*'
 - any: ['src/tests/**/*',
         '!src/tests/**/gpu/**/*',
-        '!src/tests/**/myriad/**/*',
         '!src/tests/**/inference_engine/**/*']
 
 'category: inference':
@@ -120,6 +119,13 @@
 
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
+- 'src/frontends/tensorflow_common/**/*'
+- 'tests/layer_tests/tensorflow_tests/**/*'
+
+'category: PyTorch FE':
+- 'src/frontends/pytorch/**/*'
+- 'tests/layer_tests/pytorch_tests/**/*'
+- 'src/bindings/python/src/openvino/frontend/pytorch/**/*'
 
 'category: tools':
 - any: ['tools/**',
@@ -129,7 +135,3 @@
 'category: transformations':
 - 'src/common/transformations/**/*'
 - 'src/common/offline_transformations/**/*'
-
-'category: VPU':
-- 'src/plugins/intel_myriad/**/*'
-- 'src/tests/**/myriad/**/*'

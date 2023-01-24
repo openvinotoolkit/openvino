@@ -102,7 +102,7 @@ def get_all_operation_nodes(model: CompressedModel, recursively: bool = True):
 def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=False,
                          remove_fake_quantize=False, target_device='ANY'):
     """ Build Model containing Subgraph of CompressedModel (input - node - output).
-    The Convolution, FullyConnected node types are supported.
+    The Convolution, MatMul node types are supported.
     :param nx_model: CompressedModel model
     :param input_name: name of the input node in the generated graph
     :param input_shape: shape of the input node in the generated graph

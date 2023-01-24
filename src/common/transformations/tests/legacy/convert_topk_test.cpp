@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,7 +143,7 @@ TEST_F(TransformationTestsF, ConvertTopKToTopKIEDynamic3) {
 TEST_F(TransformationTestsF, ConvertTopKToTopKIENegative) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto k = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::PartialShape::dynamic());
         auto topk = std::make_shared<ngraph::opset1::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         // due to the 'compare_functions' limitation we will check only one output
         function = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)},
@@ -154,7 +154,7 @@ TEST_F(TransformationTestsF, ConvertTopKToTopKIENegative) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
-        auto k = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto k = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::PartialShape::dynamic());
         auto topk = std::make_shared<ngraph::opset1::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
         // due to the 'compare_functions' limitation we will check only one output
         function_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)},

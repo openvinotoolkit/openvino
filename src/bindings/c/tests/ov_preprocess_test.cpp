@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ov_test.hpp"
@@ -299,6 +299,23 @@ TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color) {
     OV_EXPECT_OK(
         ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::NV12_SINGLE_PLANE));
     OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::BGR));
+}
+
+TEST_F(ov_preprocess, ov_preprocess_preprocess_steps_convert_color_rgb_to_gray) {
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    EXPECT_NE(nullptr, input_tensor_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format(input_tensor_info, ov_color_format_e::RGB));
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::GRAY));
 }
 
 TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info) {

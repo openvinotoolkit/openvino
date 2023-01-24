@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 
 /// @brief message for assigning calculation to device
 static const char target_device_message[] =
-    "Optional. Specify a target device to infer on. CPU, GPU, MYRIAD, GNA_AUTO, GNA_HW, "
+    "Optional. Specify a target device to infer on. CPU, GPU, VPUX, GNA_AUTO, GNA_HW, "
     "GNA_HW_WITH_SW_FBACK, GNA_SW_FP32, "
     "GNA_SW_EXACT and HETERO with combination of GNA as the primary device and CPU"
     " as a secondary (e.g. HETERO:GNA,CPU) are supported. "
@@ -62,14 +62,14 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
 /// @brief message for score output argument
 static const char output_message[] =
     "Optional. Output file name to save scores or Layer names with corresponding files names to save scores. Example "
-    "of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: Example of usage for "
-    "named layers: <layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.";
+    "of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: "
+    "<layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.";
 
 /// @brief message for reference score file argument
 static const char reference_score_message[] =
     "Optional. Read reference score file or named layers with corresponding score files and compare scores. Example of "
-    "usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: Example of usage "
-    "for named layers: <layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.";
+    "usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: "
+    "<layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] =
@@ -89,7 +89,7 @@ static const char write_embedded_model_generation_message[] =
 
 /// @brief message for quantization argument
 static const char quantization_message[] =
-    "Optional. Input quantization mode:  static (default), dynamic, or user (use with -sf).";
+    "Optional. Input quantization mode: static (default), dynamic, or user (use with -sf).";
 
 /// @brief message for quantization bits argument
 static const char quantization_bits_message[] = "Optional. Weight bits for quantization: 8 or 16 (default)";
@@ -222,7 +222,7 @@ static void show_usage() {
     std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
     std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
     std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
-    std::cout << "    -memory_reuse_off            " << memory_reuse_message << std::endl;
+    std::cout << "    -memory_reuse_off          " << memory_reuse_message << std::endl;
 }
 
 /**
@@ -272,7 +272,7 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
                                                  "HETERO:GNA_HW,CPU",
                                                  "HETERO:GNA_SW_EXACT,CPU",
                                                  "HETERO:GNA_SW_FP32,CPU",
-                                                 "MYRIAD"};
+                                                 "VPUX"};
 
     if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
         throw std::logic_error("Specified device is not supported.");
