@@ -5,5 +5,5 @@
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
-    add_subdirectory(fluid_preproc)
+    add_subdirectory(tests)
 endif()
