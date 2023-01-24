@@ -99,10 +99,13 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
     OV_PYTHON_VERSION: 3.10.7
 
   steps:
+  - script: |
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    displayName: Set LD_LIBRARY_PATH for Python $(OV_PYTHON_VERSION)
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '$(OV_PYTHON_VERSION)'
@@ -303,16 +306,12 @@ jobs:
   
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      echo $LD_LIBRARY_PATH
-      ls $LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
       sudo ldconfig 
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
-    env:
-      # because of static build libgna is needed for python binary
-      LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
