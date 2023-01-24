@@ -102,6 +102,9 @@ Glossary of terms used in OpenVINO™
 | Tensor
 |   A memory container used for storing inputs and outputs of the model, as well as weights and biases of the operations.
 
+@endsphinxdirective
+
+
 ## See Also
 * [Available Operations Sets](ops/opset.md)
 * [Terminology](OV_Runtime_UG/supported_plugins/Supported_Devices.md)
