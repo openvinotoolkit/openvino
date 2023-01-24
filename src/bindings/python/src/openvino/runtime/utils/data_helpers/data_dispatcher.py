@@ -21,8 +21,10 @@ def value_to_tensor(val, is_shared: bool = False):
         raise TypeError(f"Incompatible inputs of type: {type(val)}")
 
 
-def to_c_style(val):
+def to_c_style(val, is_shared: bool = False):
     if not isinstance(val, np.ndarray):
+        if hasattr(val, "__array__"):
+            return to_c_style(np.array(val, copy=False)) if is_shared else np.array(val, copy=True)
         return val
     # Check C-style if not convert data (or raise error?)
     return val if val.flags["C_CONTIGUOUS"] else np.ascontiguousarray(val)
