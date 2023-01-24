@@ -11,10 +11,16 @@ namespace ngraph {
 namespace onnx_import {
 namespace op {
 namespace set_1 {
-OutputVector dft(const Node& node) {
-    const OutputVector ng_inputs{node.get_ng_inputs()};
-    ov::Output<ov::Node> data = ng_inputs.at(0);
 
+namespace {
+// For DFT, IDFT, IRDFT cases, if real data are provided (with shape [D_0, D_1, ..., D_{N-1}, 1])
+// it's needed to fill tensors with zero imaginary part to be aligned with Core ops requirements.
+ov::Output<ov::Node> convert_real_to_complex_if_needed(const ov::Output<ov::Node>& data,
+                                                       bool is_inverse,
+                                                       bool is_onesided) {
+    if (!is_inverse && is_onesided) {  // skip for RDFT case
+        return data;
+    }
     if (data.get_partial_shape().rank().is_static()) {
         const auto length = data.get_partial_shape().rank().get_length();
         const auto last_axis_pos = length - 1;
@@ -24,16 +30,27 @@ OutputVector dft(const Node& node) {
                 ov::Output<ov::Node> imag_part = default_opset::Constant::create(data.get_element_type(), {}, {0});
                 imag_part = std::make_shared<default_opset::Broadcast>(imag_part,
                                                                        std::make_shared<default_opset::ShapeOf>(data));
-                data = std::make_shared<default_opset::Concat>(OutputVector{data, imag_part}, last_axis_pos);
+                return std::make_shared<default_opset::Concat>(OutputVector{data, imag_part}, last_axis_pos);
             }
         }
     }
+    // [D_0, D_1, ..., D_{N-1}, 2] case, so additional transformations not needed or we are not able to check it during
+    // importing.
+    return data;
+}
+}  // namespace
+
+OutputVector dft(const Node& node) {
+    const OutputVector ng_inputs{node.get_ng_inputs()};
+    ov::Output<ov::Node> data = ng_inputs.at(0);
 
     const auto dft_length_provided = ng_inputs.size() > 1;
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
     const auto axis_const = default_opset::Constant::create(element::i64, {1}, {axis});
     const auto inverse = node.get_attribute_value<int64_t>("inverse", 0);
     const auto onesided = node.get_attribute_value<int64_t>("onesided", 0);
+
+    data = convert_real_to_complex_if_needed(data, inverse, onesided);
 
     ov::Output<ov::Node> result;
     if (inverse) {

@@ -49,6 +49,7 @@ from tests import (
     xfail_issue_90649,
     xfail_issue_91151,
     xfail_issue_91490,
+    xfail_issue_101965
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
@@ -374,9 +375,6 @@ tests_expected_to_fail = [
         xfail_issue_90649,
         "OnnxBackendNodeModelTest.test_blackmanwindow_cpu",
         "OnnxBackendNodeModelTest.test_blackmanwindow_symmetric_cpu",
-        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
-        "OnnxBackendNodeModelTest.test_dft_cpu",
-        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
         "OnnxBackendNodeModelTest.test_hammingwindow_cpu",
         "OnnxBackendNodeModelTest.test_hammingwindow_symmetric_cpu",
         "OnnxBackendNodeModelTest.test_hannwindow_cpu",
@@ -395,6 +393,12 @@ tests_expected_to_fail = [
         xfail_issue_91151,
         "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
+    ),
+    (
+        xfail_issue_101965,
+        "OnnxBackendNodeModelTest.test_dft_axis_cpu",
+        "OnnxBackendNodeModelTest.test_dft_cpu",
+        "OnnxBackendNodeModelTest.test_dft_inverse_cpu",
     ),
 ]
 
