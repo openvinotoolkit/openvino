@@ -99,8 +99,8 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
     OV_PYTHON_VERSION: 3.10.7
-    LD_LIBRARY_PATH: /usr/local/lib 
 
   steps:
   - task: UsePythonVersion@0
@@ -111,8 +111,6 @@ jobs:
       architecture: 'x64'
       githubToken: $(auth_token)
     displayName: Setup Python $(OV_PYTHON_VERSION)
-    env:
-      LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
     name: setupPython
   - bash: |
       #!/bin/bash
@@ -305,12 +303,17 @@ jobs:
   
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
+      echo $LD_LIBRARY_PATH
+      ls $LD_LIBRARY_PATH
+      sudo find / -iname *libgna.so.3* 
       sudo ldconfig 
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    env:
+      # because of static build libgna is needed for python binary
+      LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
