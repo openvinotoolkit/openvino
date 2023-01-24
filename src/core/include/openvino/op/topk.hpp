@@ -112,6 +112,7 @@ protected:
     Shape compute_output_shape(const std::string& node_description,
                                const PartialShape input_partial_shape,
                                const int64_t k) const;
+    virtual void k_type_check(const element::Type& k_element_type) const;
 };
 }  // namespace v1
 
@@ -161,6 +162,7 @@ public:
 protected:
     size_t read_k_from_constant_node(const std::shared_ptr<Node>& node,
                                      const element::Type& k_element_type) const override;
+    void k_type_check(const element::Type& k_element_type) const override;
 };
 }  // namespace v3
 }  // namespace op
