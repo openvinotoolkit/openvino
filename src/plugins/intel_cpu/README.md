@@ -15,6 +15,7 @@ CPU Plugin contains the following components:
 * [Performance analysis using ITT counters](./docs/performance_analysis_ITT_counters.md)
 * [Intel Software Development Emulator (CPU emulation)](./docs/cpu_emulation.md)
 * [Runtime parameters cache](./docs/runtime_parameters_cache.md)
+* [Internal CPU Plugin Optimizations](./docs/internal_cpu_plugin_optimization.md)
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
