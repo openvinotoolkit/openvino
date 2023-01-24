@@ -99,8 +99,55 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const std::function<void(const InferenceEngine::CNNNetwork&)>& val) {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::LoadNetwork::Path");
 
-    auto compiled_model = compile_model(modelPath, deviceName, any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    // Need to have complex logic in order to differentiate v7 and v11 behavior
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+    auto plugin = get_plugin(parsed._deviceName);
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    auto conf = any_copy(parsed._config);
+    auto cacheManager =
+        coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), conf)
+            ._cacheManager;
+    auto cacheContent = CacheContent{cacheManager, modelPath};
+    if (cacheManager && device_supports_import_export(plugin)) {
+        bool loadedFromCache = false;
+        cacheContent.blobId =
+            ov::NetworkCompilationContext::compute_hash(modelPath,
+                                                        create_compile_config(plugin, parsed._deviceName, conf));
+        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
+        if (!loadedFromCache) {
+            auto cnnNetwork = ReadNetwork(modelPath, std::string());
+            if (val) {
+                val(cnnNetwork);
+            }
+            if (cnnNetwork.getFunction()) {
+                res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                         plugin,
+                                         conf,
+                                         {},
+                                         cacheContent);
+            } else {
+                res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr);
+            }
+        }
+    } else if (cacheManager) {
+        res = plugin.compile_model(modelPath, conf);
+    } else {
+        auto cnnNetwork = ReadNetwork(modelPath, std::string());
+        if (val) {
+            val(cnnNetwork);
+        }
+        if (cnnNetwork.getFunction()) {
+            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                     plugin,
+                                     conf,
+                                     {},
+                                     cacheContent);
+        } else {
+            res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr);
+        }
+    }
+    return {res._ptr, res._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
