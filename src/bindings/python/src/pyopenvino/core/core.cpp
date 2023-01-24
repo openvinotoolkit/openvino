@@ -457,9 +457,10 @@ void regclass_Core(py::module m) {
             R"(
                 Register a new device and plugin which enable this device inside OpenVINO Runtime.
 
-                :param plugin_name: A name of plugin. Depending on platform `plugin_name` is wrapped with shared library
-                                    suffix and prefix to identify library full name E.g. on Linux platform plugin name
-                                    specified as `plugin_name` will be wrapped as `libplugin_name.so`.
+                :param plugin_name: A path (absolute or relative) or name of a plugin. Depending on platform,
+                                    `plugin_name` is wrapped with shared library suffix and prefix to identify
+                                    library full name E.g. on Linux platform plugin name specified as `plugin_name`
+                                    will be wrapped as `libplugin_name.so`.
                 :type plugin_name: str
                 :param device_name: A device name to register plugin for.
                 :type device_name: str

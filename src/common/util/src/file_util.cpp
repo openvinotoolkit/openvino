@@ -17,6 +17,7 @@
 #    ifndef NOMINMAX
 #        define NOMINMAX
 #    endif
+#    include <Shlwapi.h>
 #    include <direct.h>
 #    include <windows.h>
 /// @brief Max length of absolute file path
@@ -351,14 +352,26 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
 std::string ov::util::get_absolute_file_path(const std::string& path) {
     std::string absolutePath;
     absolutePath.resize(MAX_ABS_PATH);
-    auto absPath = get_absolute_path(&absolutePath[0], path);
-    if (!absPath) {
-        std::stringstream ss;
-        ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
-        throw std::runtime_error(ss.str());
+    std::ignore = get_absolute_path(&absolutePath[0], path);
+    if (!absolutePath.empty()) {
+        // on Linux if file does not exist or no access, function will return NULL, but
+        // `absolutePath` will contain resolved path
+        absolutePath.resize(absolutePath.find('\0'));
+        return std::string(absolutePath);
     }
-    absolutePath.resize(strlen(absPath));
-    return absolutePath;
+    std::stringstream ss;
+    ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);
+    throw std::runtime_error(ss.str());
+}
+
+bool ov::util::is_absolute_file_path(const std::string& path) {
+    if (path.empty())
+        throw std::runtime_error("Provided path is empty");
+#ifdef _WIN32
+    return !PathIsRelativeA(path.c_str());
+#else
+    return path[0] == '/';
+#endif  // _WIN32
 }
 
 void ov::util::create_directory_recursive(const std::string& path) {

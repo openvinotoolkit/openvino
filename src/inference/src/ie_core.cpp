@@ -66,7 +66,9 @@ Core::Core(const std::string& xmlConfigFile) {
 #ifdef OPENVINO_STATIC_LIBRARY
     _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
 #else
-    RegisterPlugins(ov::findPluginXML(xmlConfigFile));
+    // If XML is default, load default plugins by absolute paths
+    auto loadByAbsPath = xmlConfigFile.empty();
+    _impl->register_plugins_in_registry(ov::findPluginXML(xmlConfigFile), loadByAbsPath);
 #endif
 }
 

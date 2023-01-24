@@ -97,9 +97,18 @@ std::string get_file_name(const std::string& path);
  * @brief Interface function to get absolute path of file
  * @param path - path to file, can be relative to current working directory
  * @return Absolute path of file
- * @throw runtime_error if any error occurred
+ * @throw runtime_error if absolute path can't be resolved
  */
 std::string get_absolute_file_path(const std::string& path);
+
+/**
+ * @brief Interface function to check path to file is absolute or not
+ * @param path - path to file, can be relative to current working directory
+ * @return True if path is absolute and False otherwise
+ * @throw runtime_error if any error occurred
+ */
+bool is_absolute_file_path(const std::string& path);
+
 /**
  * @brief Interface function to create directorty recursively by given path
  * @param path - path to file, can be relative to current working directory

@@ -534,16 +534,16 @@ IEStatusCode ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_conf
     return status;
 }
 
-IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name) {
+IEStatusCode ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || plugin_name == nullptr || device_name == nullptr) {
+    if (core == nullptr || plugin == nullptr || device_name == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
-        core->object.RegisterPlugin(plugin_name, device_name);
+        core->object.RegisterPlugin(plugin, device_name);
     }
     CATCH_IE_EXCEPTIONS
 
