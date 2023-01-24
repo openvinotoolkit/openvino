@@ -11,7 +11,7 @@ CPU Plugin contains the following components:
 
 ## Tutorials
 
-
+* [Debug capabilities](./docs/debug_capabilities.md)
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
