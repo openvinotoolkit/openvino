@@ -10,6 +10,8 @@
 #include <fstream>
 #include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
+#include <regex>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -795,7 +797,34 @@ void auto_pad_resolving(ov::Node* node) {
 }
 
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
-    std::string meta_name = isdigit(name[0]) ? "_ov_prefix_" + name : name;
+    const auto& construct_meta_name = [](const std::string& name) -> std::string {
+        std::string meta_name = isdigit(name[0]) || name[0] == '-' ? "_ov_prefix_" + name : name;
+        // Element names can contain letters, digits, hyphens, underscores, and periods
+        std::regex e("[^_A-Za-z0-9\\-]");
+        std::smatch m;
+
+        // First of all replace \\ symbols
+        {
+            std::string slash = "\\";
+            uint8_t char_code = static_cast<uint8_t>(slash[0]);
+            std::string replace_string = "_ov_symbol_" + std::to_string(char_code) + "_";
+            auto it = meta_name.find(slash);
+            while (it != std::string::npos) {
+                meta_name = meta_name.replace(it, 1, replace_string);
+                it = meta_name.find(slash);
+            }
+        }
+
+        while (std::regex_search(meta_name, m, e)) {
+            auto match_str = m.str();
+            uint8_t char_code = static_cast<uint8_t>(match_str[0]);
+            std::string replace_string = "_ov_symbol_" + std::to_string(char_code) + "_";
+            meta_name = std::regex_replace(meta_name, std::regex(match_str), replace_string);
+        }
+
+        return meta_name;
+    };
+    auto meta_name = construct_meta_name(name);
     auto child = root.append_child(meta_name.c_str());
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();

@@ -22,10 +22,21 @@ using namespace ov;
 namespace {
 
 std::string get_meta_data_name(const std::string& name) {
-    static const std::string prefix = "_ov_prefix_";
-    if (name.find(prefix) != 0)
-        return name;
-    return name.substr(prefix.size());
+    auto meta_name = std::regex_replace(name, std::regex("_ov_prefix_"), "");
+    std::regex e("_ov_symbol_(\\d+)_");
+    std::smatch m;
+    while (std::regex_search(meta_name, m, e)) {
+        OPENVINO_ASSERT(m.size() == 2,
+                        "Cannot find encoded symbol! The right form is _ov_symbol_[CODE]_, but find: ",
+                        m.str());
+        int char_code = std::stoi(m[1].str());
+        OPENVINO_ASSERT(char_code >= 0 && char_code < 256,
+                        "Cannot find encoded symbol! The symbol code should be in the range from 0 to 255, but got: ",
+                        char_code);
+        std::array<char, 2> symbol{static_cast<char>(char_code), '\0'};
+        meta_name = std::regex_replace(meta_name, std::regex(m.str()), std::string(symbol.data()));
+    }
+    return meta_name;
 }
 
 }  // namespace
