@@ -32,11 +32,16 @@ bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const
 
 template <element::Type_t ET>
 void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_t>& output_shape) {
-    using T = typename element_type_traits<ET>::value_type;
-    T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
-    size_t output_rank = shape_pattern->get_shape().empty() ? 0 : shape_pattern->get_shape()[0];
+    size_t output_rank;
+    if (shape_pattern->get_partial_shape().is_static()) {
+        output_rank = shape_pattern->get_shape().empty() ? 0 : shape_pattern->get_shape()[0];
+    } else {
+        // Can be dynamic during shape infer as conversion result from empty ov::Tensor
+        output_rank = 0;
+    }
+
     for (size_t i = 0; i < output_rank; i++) {
-        output_shape.push_back(shape_pattern_ptr[i]);
+        output_shape.push_back(shape_pattern->get_data_ptr<ET>()[i]);
     }
 }
 }  // namespace
