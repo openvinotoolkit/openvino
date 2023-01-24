@@ -14,9 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector split(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     std::map<std::string, ov::Any> attrs{
         {"num_split", static_cast<int64_t>(decoder->get_attribute(&tflite::SplitOptions::num_splits))}};
     return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_split_op);

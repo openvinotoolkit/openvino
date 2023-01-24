@@ -14,43 +14,24 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector resize_bilinear(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     const std::map<std::string, ov::Any> attrs{
-        {"align_corners", static_cast<bool>(decoder->get_attribute(&tflite::ResizeBilinearOptions::align_corners))},
-        {"half_pixel_centers",
-         static_cast<bool>(decoder->get_attribute(&tflite::ResizeBilinearOptions::half_pixel_centers))},
+        {"align_corners", decoder->get_attribute(&tflite::ResizeBilinearOptions::align_corners)},
+        {"half_pixel_centers", decoder->get_attribute(&tflite::ResizeBilinearOptions::half_pixel_centers)},
     };
-    auto decoder_for_tf_translator =
-        std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(decoder, attrs, "ResizeBilinear", false);
-    ov::OutputVector inputs(node.get_input_size());
-    for (auto i = 0; i < node.get_input_size(); ++i) {
-        inputs[i] = node.get_input(i);
-    }
-    auto context = ov::frontend::tensorflow_lite::NodeContext(decoder_for_tf_translator, inputs);
-    auto output = ov::frontend::tensorflow::op::translate_interpolate_op(context);
-    return output;
+    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_interpolate_op, "ResizeBilinear");
 }
 
 OutputVector resize_nearest_neightbor(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     const std::map<std::string, ov::Any> attrs{
-        {"align_corners",
-         static_cast<bool>(decoder->get_attribute(&tflite::ResizeNearestNeighborOptions::align_corners))},
+        {"align_corners", decoder->get_attribute(&tflite::ResizeNearestNeighborOptions::align_corners)},
         {"half_pixel_centers", false},
     };
-    auto decoder_for_tf_translator =
-        std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(decoder, attrs, "ResizeNearestNeighbor", false);
-    ov::OutputVector inputs(node.get_input_size());
-    for (auto i = 0; i < node.get_input_size(); ++i) {
-        inputs[i] = node.get_input(i);
-    }
-    auto context = ov::frontend::tensorflow_lite::NodeContext(decoder_for_tf_translator, inputs);
-    auto output = ov::frontend::tensorflow::op::translate_interpolate_op(context);
-    return output;
+    return attribute_helper(node,
+                            attrs,
+                            ov::frontend::tensorflow::op::translate_interpolate_op,
+                            "ResizeNearestNeighbor");
 }
 
 }  // namespace op

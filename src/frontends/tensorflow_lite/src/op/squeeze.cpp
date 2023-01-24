@@ -14,10 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector squeeze(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    auto data = node.get_input(0);
+    const auto& decoder = get_decoder(node);
     auto squeeze_dims = decoder->get_attribute(&tflite::SqueezeOptions::squeeze_dims);
     std::vector<int64_t> axes{squeeze_dims->begin(), squeeze_dims->end()};
     return attribute_helper(node, {{"axis", axes}}, ov::frontend::tensorflow::op::translate_squeeze_op);

@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
 
-class TENSORFLOW_LITE_API DecoderMap : public ov::frontend::DecoderBase {
+class DecoderMap : public ov::frontend::DecoderBase {
 public:
     DecoderMap(std::shared_ptr<ov::frontend::DecoderBase> decoder,
                const std::map<std::string, ov::Any>& attrs,

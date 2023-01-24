@@ -6,7 +6,7 @@
 
 #include "graph_iterator_flatbuffer.hpp"
 #include "input_model.hpp"
-#include "lite_op_table.hpp"
+#include "op_table.hpp"
 #include "op/op_translation_utils.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
@@ -179,12 +179,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
                                 "Unexpected constant data configuration at the beginning of graph translation");
         const auto& input_tensor = all_tensor_places.at(value.first);
         FRONT_END_GENERAL_CHECK(input_tensor != nullptr, "Inputs must be TensorPlaces");
-        output.get_node_shared_ptr()->set_friendly_name(*input_tensor->get_names().begin());
-        output.set_names({*input_tensor->get_names().begin()});
-        input_tensor->translate(output);
-        if (!no_conversion) {
-            apply_quantization(output);
-        }
+        input_tensor->translate(output, !no_conversion);
     }
 
     // inputs
@@ -200,22 +195,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
                                                                  input_tensor->get_partial_shape());
         parameter->set_friendly_name(name);
         parameters.push_back(parameter);
-        parameter->get_output_tensor(0).set_names({name});
-        Output<Node> output = parameter->output(0);
-        input_tensor->translate(output);
-        if (!no_conversion) {
-            apply_quantization(output);
-        }
-        all_tensor_values[name] = output;
-    }
-
-    // outputs
-    std::unordered_map<std::string, std::shared_ptr<tensorflow::TensorPlace>> output_names;
-    for (const auto& output : model_lite->get_outputs()) {
-        const auto& output_tensor = std::dynamic_pointer_cast<tensorflow::TensorPlace>(output);
-        FRONT_END_GENERAL_CHECK(output_tensor != nullptr, "Outputs must be TensorPlaces");
-        const auto name = output_tensor->get_names()[0];
-        output_names[name] = output_tensor;
+        all_tensor_values[name] = parameter->output(0);
+        input_tensor->translate(all_tensor_values[name], !no_conversion);
     }
 
     // operations
@@ -224,19 +205,15 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
         FRONT_END_GENERAL_CHECK(decoder != nullptr, "Decoder must be DecoderFlatBuffer or its child");
         ov::OutputVector inputs(decoder->get_input_size());
         for (size_t i = 0; i < decoder->get_input_size(); ++i) {
-            size_t tensor_idx;
-            std::string tensor_name;
-            decoder->get_input_node(i, tensor_name, tensor_idx);
-            ov::Output<Node> input;
-            FRONT_END_GENERAL_CHECK(all_tensor_values.find(tensor_name) != all_tensor_values.end(),
+            auto name = decoder->get_input_tensor_name(i);
+            FRONT_END_GENERAL_CHECK(all_tensor_values.find(name) != all_tensor_values.end(),
                                     "Unknown tensor name: ",
-                                    tensor_name,
+                                    name,
                                     ".");
-            inputs[i] = all_tensor_values[tensor_name];
+            inputs[i] = all_tensor_values[name];
         }
 
         const auto& out_size = decoder->get_output_size();
-
         ov::OutputVector ov_outputs(out_size);
         try {
             FRONT_END_OP_CONVERSION_CHECK(translate_map.count(decoder->get_op_type()),
@@ -258,13 +235,12 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
         }
         for (size_t i = 0; i < out_size; ++i) {
             const auto& name = decoder->get_output_tensor_name(i);
-            all_tensor_places[name]->translate(ov_outputs[i], !no_conversion);
-            if (!no_conversion) {
-                apply_quantization(ov_outputs[i]);
-            }
             all_tensor_values[name] = ov_outputs[i];
+            all_tensor_places[name]->translate(all_tensor_values[name], !no_conversion);
         }
     }
+
+    // outputs
     ResultVector results;
     results.reserve(model_lite->get_outputs().size());
     for (const auto& output : model_lite->get_outputs()) {
@@ -275,7 +251,8 @@ void FrontEnd::translate_graph(const InputModel::Ptr& model,
         const auto name = tensor->get_names()[0];
         const auto& output_value = all_tensor_values[name];
         const auto& result = std::make_shared<ov::opset1::Result>(output_value);
-        result->get_output_tensor(0).set_names({name});
+        auto input = result->output(0);
+        tensor->translate(input, !no_conversion);
         results.push_back(result);
     }
     auto model_name = "TensorFlow_Lite_Frontend_IR";

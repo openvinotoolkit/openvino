@@ -18,7 +18,7 @@ namespace frontend {
 namespace tensorflow_lite {
 class DecoderFlatBuffer;
 
-struct TENSORFLOW_LITE_API TensorInfo {
+struct TensorInfo {
     int64_t input_idx, output_idx;
     const tflite::Tensor* tensor;
     const tflite::Buffer* buffer;

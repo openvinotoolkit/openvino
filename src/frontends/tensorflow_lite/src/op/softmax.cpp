@@ -14,18 +14,17 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector softmax(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    auto data = node.get_input(0);
-    auto beta = static_cast<float>(decoder->get_attribute(&tflite::SoftmaxOptions::beta));
-    auto beta_const = opset10::Constant::create(element::f32, Shape{}, vector<float>{beta});
-    auto mul_const = make_shared<opset10::ConvertLike>(beta_const, data);
-
-    auto mul = make_shared<opset10::Multiply>(data, mul_const);
-    auto res = make_shared<opset8::Softmax>(mul, -1);
-    res->set_friendly_name(decoder->get_op_name());
-    return {res};
+    const auto& decoder = get_decoder(node);
+    auto beta = decoder->get_attribute(&tflite::SoftmaxOptions::beta);
+    Output<Node> output = node.get_input(0);
+    if (beta != 1.) {
+        auto beta_const = opset10::Constant::create(element::f32, Shape{}, vector<float>{beta});
+        auto mul_data = make_shared<opset10::ConvertLike>(beta_const, output);
+        output = make_shared<opset10::Multiply>(output, mul_data);
+    }
+    output = make_shared<opset8::Softmax>(output, -1);
+    output.get_node()->set_friendly_name(decoder->get_op_name());
+    return {output};
 }
 
 }  // namespace op

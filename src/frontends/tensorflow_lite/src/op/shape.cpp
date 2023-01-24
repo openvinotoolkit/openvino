@@ -14,9 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector shape(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     std::map<std::string, ov::Any> attrs{
         {"out_type", get_ov_type(decoder->get_attribute(&tflite::ShapeOptions::out_type))},
     };

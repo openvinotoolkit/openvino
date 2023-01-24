@@ -22,7 +22,7 @@ struct Quantization {
     bool no_quantization = true;
 };
 
-class TENSORFLOW_LITE_API TensorLitePlace : public ov::frontend::tensorflow::TensorPlace {
+class TensorLitePlace : public ov::frontend::tensorflow::TensorPlace {
 public:
     TensorLitePlace(const ov::frontend::InputModel& input_model,
                     const ov::PartialShape& pshape,

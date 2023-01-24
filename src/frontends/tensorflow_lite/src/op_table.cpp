@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lite_op_table.hpp"
+#include "op_table.hpp"
 
 #include "decoder_map.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -13,7 +13,8 @@ using namespace ov;
 #define OP_CONVERT_TYPE_RENAME(func, name)                                                                         \
     [](const ov::frontend::tensorflow_lite::NodeContext& node) -> OutputVector {                                   \
         auto decoder = make_shared<DecoderMap>(node.get_decoder(), std::map<std::string, ov::Any>{}, name, false); \
-        auto context = frontend::tensorflow_lite::NodeContext(decoder, node.get_inputs());                         \
+        auto inputs = node.get_inputs();                                                                           \
+        auto context = frontend::tensorflow_lite::NodeContext(decoder, inputs);                                    \
         return func(context);                                                                                      \
     }
 

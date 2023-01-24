@@ -14,7 +14,6 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    // convert native attributes to tf appropriate attribute
     auto decoder_for_tf_translator =
         get_conv_decoder_map<tflite::DepthwiseConv2DOptions>("DepthwiseConv2dNative", node);
     FRONT_END_GENERAL_CHECK(node.get_input_size() >= 2,

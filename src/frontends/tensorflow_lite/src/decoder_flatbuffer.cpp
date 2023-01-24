@@ -44,6 +44,10 @@ size_t DecoderFlatBuffer::get_output_size() const {
     return m_node_def->outputs()->size();
 }
 
+std::string DecoderFlatBuffer::get_input_tensor_name(size_t idx) const {
+    FRONT_END_GENERAL_CHECK(idx < get_input_size(), "Requested input is out-of-range");
+    return m_input_info.at(idx).tensor->name()->str();
+}
 std::string DecoderFlatBuffer::get_output_tensor_name(size_t idx) const {
     FRONT_END_GENERAL_CHECK(idx < get_output_size(), "Requested output is out-of-range");
     return m_output_info.at(idx).tensor->name()->str();

@@ -13,40 +13,29 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
-OutputVector max_pool_2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    // convert native attributes to tf appropriate attribute
-    auto decoder_for_tf_translator = get_pool_decoder_map("MaxPool", node);
+OutputVector pooling(const ov::frontend::tensorflow_lite::NodeContext& node,
+                     const std::string& type_name,
+                     ov::OutputVector (*converter)(const ov::frontend::NodeContext&)) {
+    auto decoder_for_tf_translator = get_pool_decoder_map(type_name, node);
     FRONT_END_GENERAL_CHECK(node.get_input_size() == 1,
                             "Unexpected number of input in node of type=",
                             node.get_op_type(),
                             " name=",
                             node.get_name());
     OutputVector output;
-    get_pool(output, node, decoder_for_tf_translator, &ov::frontend::tensorflow::op::translate_max_pool_op);
+    get_pool(output, node, decoder_for_tf_translator, converter);
     del_output_names(output);
     get_activation(output, decoder_for_tf_translator);
     del_output_names(output);
     return output;
 }
-// void get_pool(ov::OutputVector& output,
-//              const ov::frontend::NodeContext& node,
-//              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder,
-//              ov::OutputVector (*converter)(const ov::frontend::tensorflow_lite::NodeContext&));
+
+OutputVector max_pool_2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
+    return pooling(node, "MaxPool", &ov::frontend::tensorflow::op::translate_max_pool_op);
+}
 
 OutputVector avg_pool_2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    // convert native attributes to tf appropriate attribute
-    auto decoder_for_tf_translator = get_pool_decoder_map("AvgPool", node);
-    FRONT_END_GENERAL_CHECK(node.get_input_size() == 1,
-                            "Unexpected number of input in node of type=",
-                            node.get_op_type(),
-                            " name=",
-                            node.get_name());
-    OutputVector output;
-    get_pool(output, node, decoder_for_tf_translator, &ov::frontend::tensorflow::op::translate_avg_pool_op);
-    del_output_names(output);
-    get_activation(output, decoder_for_tf_translator);
-    del_output_names(output);
-    return output;
+    return pooling(node, "AvgPool", &ov::frontend::tensorflow::op::translate_avg_pool_op);
 }
 
 }  // namespace op

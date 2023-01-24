@@ -14,9 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector gather(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     auto batch_dims = static_cast<int64_t>(decoder->get_attribute(&tflite::GatherOptions::batch_dims));
     auto axis = opset10::Constant::create(element::i32, {}, {decoder->get_attribute(&tflite::GatherOptions::axis)});
     auto input = node.get_input(0);

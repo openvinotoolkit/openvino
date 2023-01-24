@@ -21,6 +21,7 @@ namespace frontend {
 namespace tensorflow_lite {
 namespace op {
 
+std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_lite::NodeContext& node);
 void set_output_names(const ov::frontend::tensorflow_lite::NodeContext& node, OutputVector& outputs);
 void del_output_names(OutputVector& outputs);
 
@@ -29,10 +30,7 @@ template <class T>
 std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap> get_conv_decoder_map(
     const std::string& new_type_name,
     const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-
+    const auto& decoder = get_decoder(node);
     const std::map<std::string, ov::Any> attrs{
         {"strides",
          std::vector<int64_t>{1, decoder->get_attribute(&T::stride_h), decoder->get_attribute(&T::stride_w), 1}},
@@ -71,9 +69,7 @@ void get_pool(ov::OutputVector& output,
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto output = ov::frontend::tensorflow::op::translate_binary_op<OV_TYPE>(node);
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     get_activation(output,
                    node,
                    EnumNameActivationFunctionType(decoder->get_attribute(&TF_TYPE::fused_activation_function)));

@@ -14,9 +14,7 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector strided_slice(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder = get_decoder(node);
     std::map<std::string, ov::Any> attrs{
         {"begin_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::begin_mask))},
         {"end_mask", static_cast<int64_t>(decoder->get_attribute(&tflite::StridedSliceOptions::end_mask))},

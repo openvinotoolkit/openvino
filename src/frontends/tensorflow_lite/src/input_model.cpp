@@ -100,6 +100,7 @@ void InputModel::InputModelTFLiteImpl::loadModel() {
                     auto constant = ov::op::v0::Constant::create(place->get_element_type(),
                                                                  place->get_partial_shape().to_shape(),
                                                                  data);
+                    constant->set_friendly_name(name);
                     m_tensor_values[name] = constant;
                 } else {
                     FRONT_END_GENERAL_CHECK(false,

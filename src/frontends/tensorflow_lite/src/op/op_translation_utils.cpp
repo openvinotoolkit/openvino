@@ -60,6 +60,7 @@ void get_bias(ov::OutputVector& output,
     if (node.get_input_size() == 3) {
         const OutputVector inputs_for_bias = {output[0], node.get_input(2)};
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
+        // FIXME: dependence on layout?
         output = ov::frontend::tensorflow::op::translate_binary_op<ov::opset10::Add>(context_for_bias_add);
     }
 }
@@ -130,13 +131,18 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
         (new_op_type.empty() ? original_decoder->get_op_type() : new_op_type),
         empty_name);
 
-    OutputVector inputs(node.get_input_size());
-    for (size_t i = 0; i < node.get_input_size(); ++i) {
-        inputs[i] = node.get_input(static_cast<int>(i));
-    }
+    OutputVector inputs = node.get_inputs();
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     return converter(context);
 }
+
+std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_lite::NodeContext& node) {
+    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
+    FRONT_END_GENERAL_CHECK(decoder != nullptr,
+                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    return decoder;
+}
+
 }  // namespace op
 }  // namespace tensorflow_lite
 }  // namespace frontend
