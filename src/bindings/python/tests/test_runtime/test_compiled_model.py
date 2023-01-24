@@ -232,4 +232,4 @@ def test_compiled_model_after_core_destroyed(device):
     del core
     del model
     # check compiled and infer request can work properly after core object is destroyed
-    compiled([np.random.normal(size=list(input.shape)) for input in compiled.inputs])
+    compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
