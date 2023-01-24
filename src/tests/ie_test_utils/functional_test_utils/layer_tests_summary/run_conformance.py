@@ -248,7 +248,7 @@ class Conformance:
         
         try:
             command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"', f'--gtest_filter={self._gtest_filter}']
-            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, self._workers, logs_dir, "")
+            conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
             conformance.run()
             conformance.postprocess_logs()
         except:
