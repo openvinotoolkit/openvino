@@ -18,7 +18,7 @@ To install the latest available **Intel® Graphics Compute Runtime for OpenCL™
 
 You may consider installing one of the earlier versions of the driver, based on your particular setup needs.
 
-Additionally, it is recommended that you refer to the [Intel® Graphics Compute Runtime Github page](https://github.com/intel/compute-runtime/) for the instructions and recommendations on GPU driver installation specific to particular release, including the list of supported hardware platforms.
+It is recommended that you refer to the [Intel® Graphics Compute Runtime Github page](https://github.com/intel/compute-runtime/) for instructions and recommendations on GPU driver installation specific to particular releases, including the list of supported hardware platforms.
 
 You've completed all required configuration steps to perform inference on processor graphics.
 
