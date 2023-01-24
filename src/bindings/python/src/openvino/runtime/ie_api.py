@@ -11,21 +11,18 @@ import numpy as np
 from openvino._pyopenvino import Model
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
-from openvino._pyopenvino import InferRequest as InferRequestBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
 
 from openvino.runtime.utils.data_helpers import (
-    tensor_from_file,
+    InferRequestInternal,
     _data_dispatch,
+    tensor_from_file,
 )
 
-class InferRequest(InferRequestBase):
+class InferRequest(InferRequestInternal):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
-
-    # Private memeber to store newly created shared memory data
-    __inputs_data = None
 
     def infer(self, inputs: Any = None, shared_memory:bool = False) -> dict:
         """Infers specified input(s) in synchronous mode.
@@ -110,8 +107,10 @@ class CompiledModel(CompiledModelBase):
     multiple optimization transformations, then mapping to compute kernels.
     """
 
-    # Private memeber to store already created InferRequest
-    __infer_request = None
+    def __init__(self, other):
+        # Private memeber to store already created InferRequest
+        self._infer_request = None
+        super().__init__(other)
 
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
@@ -163,10 +162,10 @@ class CompiledModel(CompiledModelBase):
 
         Take a look at `infer_new_request` for reference.
         """
-        if self.__infer_request is None:
-            self.__infer_request = self.create_infer_request()
+        if self._infer_request is None:
+            self._infer_request = self.create_infer_request()
 
-        return self.__infer_request.infer(
+        return self._infer_request.infer(
             inputs,
             shared_memory=shared_memory,
         )

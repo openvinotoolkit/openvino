@@ -7,6 +7,15 @@ from openvino._pyopenvino import ConstOutput, Tensor
 from openvino._pyopenvino import InferRequest as InferRequestBase
 
 
+class InferRequestInternal(InferRequestBase):
+    """InferRequest class with internal memory."""
+
+    def __init__(self, other):
+        # Private memeber to store newly created shared memory data
+        self._inputs_data = None
+        super().__init__(other)
+
+
 def value_to_tensor(val, is_shared: bool = False):
     # Special case for Tensor, return "as-is"
     if isinstance(val, Tensor):
@@ -88,12 +97,12 @@ def _(
 @singledispatch
 def create_shared(
     inputs: Union[np.ndarray, np.number, int, float],
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
-        request.__inputs_data = normalize_arrays(inputs, is_shared=True)
-        return value_to_tensor(request.__inputs_data, is_shared=True)
+        request._inputs_data = normalize_arrays(inputs, is_shared=True)
+        return value_to_tensor(request._inputs_data, is_shared=True)
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -103,19 +112,19 @@ def create_shared(
 @create_shared.register(tuple)
 def _(
     inputs: Union[dict, list, tuple],
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
-    request.__inputs_data = normalize_arrays(inputs, is_shared=True)
-    return {k: value_to_tensor(v, is_shared=True) for k, v in request.__inputs_data.items()}
+    request._inputs_data = normalize_arrays(inputs, is_shared=True)
+    return {k: value_to_tensor(v, is_shared=True) for k, v in request._inputs_data.items()}
 
 
 @create_shared.register(np.ndarray)
 def _(
     inputs: np.ndarray,
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
-    request.__inputs_data = normalize_arrays(inputs, is_shared=True)
-    return value_to_tensor(request.__inputs_data, is_shared=True)
+    request._inputs_data = normalize_arrays(inputs, is_shared=True)
+    return value_to_tensor(request._inputs_data, is_shared=True)
 
 
 @create_shared.register(Tensor)
@@ -124,7 +133,7 @@ def _(
 @create_shared.register(float)
 def _(
     inputs: Union[Tensor, np.number, float, int],
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
     # Special case
     return value_to_tensor(inputs)
@@ -137,7 +146,7 @@ def _(
 ###
 # Start of "copied" dispatcher.
 ###
-def set_request_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
+def set_request_tensor(request: InferRequestInternal, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
     if key is None:
         request.set_input_tensor(tensor)
     elif isinstance(key, int):
@@ -151,7 +160,7 @@ def set_request_tensor(request: InferRequestBase, tensor: Tensor, key: Union[str
 @singledispatch
 def update_tensor(
     inputs: Union[np.ndarray, np.number, int, float],
-    request: InferRequestBase,
+    request: InferRequestInternal,
     key: Union[str, int, ConstOutput] = None,
 ) -> None:
     if hasattr(inputs, "__array__"):
@@ -163,7 +172,7 @@ def update_tensor(
 @update_tensor.register(np.ndarray)
 def _(
     inputs: np.ndarray,
-    request: InferRequestBase,
+    request: InferRequestInternal,
     key: Union[str, int, ConstOutput] = None,
 ) -> None:
     # If shape is "empty", assume this is a scalar value
@@ -190,7 +199,7 @@ def _(
 @update_tensor.register(int)
 def _(
     inputs: Union[np.number, float, int],
-    request: InferRequestBase,
+    request: InferRequestInternal,
     key: Union[str, int, ConstOutput] = None,
 ) -> None:
     set_request_tensor(
@@ -200,7 +209,7 @@ def _(
     )
 
 
-def update_inputs(inputs: dict, request: InferRequestBase) -> dict:
+def update_inputs(inputs: dict, request: InferRequestInternal) -> dict:
     """Helper function to prepare inputs for inference.
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
@@ -229,7 +238,7 @@ def update_inputs(inputs: dict, request: InferRequestBase) -> dict:
 @singledispatch
 def create_copied(
     inputs: Union[dict, list, tuple, np.ndarray, np.number, int, float],
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
@@ -244,7 +253,7 @@ def create_copied(
 @create_copied.register(tuple)
 def _(
     inputs: Union[dict, list, tuple],
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
     return update_inputs(normalize_arrays(inputs, is_shared=False), request)
 
@@ -252,7 +261,7 @@ def _(
 @create_copied.register(np.ndarray)
 def _(
     inputs: np.ndarray,
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
     update_tensor(normalize_arrays(inputs, is_shared=False), request, key=None)
     return {}
@@ -264,7 +273,7 @@ def _(
 @create_copied.register(float)
 def _(
     inputs: Union[Tensor, np.number, float, int],
-    request: InferRequestBase,
+    request: InferRequestInternal,
 ) -> None:
     return value_to_tensor(inputs, is_shared=False)
 
@@ -275,7 +284,7 @@ def _(
 
 
 def _data_dispatch(
-    request: InferRequestBase,
+    request: InferRequestInternal,
     inputs: Union[dict, list, tuple, Tensor, np.ndarray, np.number, int, float] = None,
     is_shared: bool = False,
 ):
