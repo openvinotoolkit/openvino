@@ -14,7 +14,7 @@ In case if you are intended to use OpenVINO GPU plugin and offload network infer
 ## Linux
 
 To install the latest available **Intel® Graphics Compute Runtime for OpenCL™** for your OS, see the [Install Guides](https://github.com/intel/compute-runtime/releases/latest).
-> **NOTE**: For instructions specific for discrete graphics platforms (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series and Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, Intel® Iris Xe MAX (codename DG1)), please refer to [this guide](https://dgpu-docs.intel.com/installation-guides/index.html).
+> **NOTE**: For instructions specific to discrete graphics platforms, refer to [the dgpu guide](https://dgpu-docs.intel.com/installation-guides/index.html) (Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU MAX Series, Intel® processor graphics Gen12, and Intel® Iris Xe MAX codename DG1).
 
 Alternatively, you can install one of the earlier versions of the driver based on your internal considerations.
 
