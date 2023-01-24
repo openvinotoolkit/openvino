@@ -36,6 +36,11 @@ addIeTargetTest(
             CPU
 )
 
+if (ENABLE_INTEL_CPU)
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/core_integration.cpp"
+        PROPERTIES COMPILE_DEFINITIONS ENABLE_INTEL_CPU=1)
+endif()
 
 # remove all non-common files from debug
 set(EXCLUDED_SOURCE_PATHS_FOR_DEBUG
