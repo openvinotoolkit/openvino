@@ -326,18 +326,22 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
     conversion_error_re = r"^(\[TensorFlow\ Frontend\]\ Internal\ error\:\ No\ translator\ found\ for\ )(\w+)(\ node\.)$"
     conversion_error_match = re.findall(conversion_error_re, ex_msg, re.MULTILINE)
     fallback_operations = [
-        "ClipByValue",
+        # corresponds to TF1 While operation
         "TensorArrayScatterV3", "TensorArrayV3", "TensorArraySizeV3", "TensorArrayGatherV3",
-        "LoopCond", "Enter", "NextIteration", "Exit",  # corresponds to TF1 While operation
-        "Switch", "Merge",  # corresponds to TF1 If and TF1 While operations
+        "LoopCond", "Enter", "NextIteration", "Exit",
+        # corresponds to TF1 If and TF1 While operations
+        "Switch", "Merge",
+        # corresponds to TF2 While operations
         "TensorListLength", "TensorListReserve", "TensorListFromTensor",
-        "TensorListSetItem", "TensorListStack",  # corresponds to TF2 While operations
+        "TensorListSetItem", "TensorListStack",
+        # corresponds to operations with complex tensors
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
-        "Complex", "ComplexAbs", "Real", "Imag",  # corresponds to operations with complex tensors
+        "Complex", "ComplexAbs", "Real", "Imag",
+        # corresponds to automatic pruning
         "FIFOQueueV2", "QueueDequeueUpToV2", "QueueDequeueManyV2",
         "QueueDequeue", "QueueDequeueV2", "IteratorGetNext",
-        "LookupTableInsert", "LookupTableInsertV2"  # corresponds to automatic pruning
+        "LookupTableInsert", "LookupTableInsertV2"
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
             conversion_error_match[0][1] not in fallback_operations:
