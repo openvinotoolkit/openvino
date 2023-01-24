@@ -5,9 +5,8 @@
 #include <file_utils.h>
 #include <gtest/gtest.h>
 
-#include <cpp/ie_plugin.hpp>
-
 #include "common_test_utils/file_utils.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "openvino/util/shared_object.hpp"
 
 using namespace ::testing;
