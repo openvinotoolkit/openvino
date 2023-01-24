@@ -373,6 +373,27 @@ void LegacyInferRequest::SetBatch(int new_batch) {
     }
 }
 
+void LegacyInferRequest::changeDefaultPtr() {
+    // renew external pointers before infer
+    const auto &inMap = graph->inputNodesMap;
+    for (auto &it : inMap) {
+        const auto &name = it.first;
+        auto itr = externalPtr.find(name);
+        if (itr != externalPtr.end() && itr->second != _inputs[name]->buffer()) {
+            itr->second = _inputs[name]->buffer();
+        }
+    }
+    const auto &outMap = graph->outputNodesMap;
+    for (auto &it : outMap) {
+        const auto &name = it.first;
+        auto itr = externalPtr.find(name);
+        if (itr != externalPtr.end() && itr->second != _outputs[name]->buffer()) {
+            itr->second = _outputs[name]->buffer();
+        }
+    }
+    InferRequestBase::changeDefaultPtr();
+}
+
 void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlobLegacy");
     if (name.empty()) {
@@ -495,20 +516,23 @@ InferenceEngine::Blob::Ptr LegacyInferRequest::GetBlob(const std::string& name) 
         }
 
         if (_inputs.find(name) == _inputs.end()) {
-            auto pBlobDesc = MemoryDescUtils::interpretAsBlobDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
-            InferenceEngine::TensorDesc desc = pBlobDesc;
+            auto pBlob = MemoryDescUtils::interpretAsBlob(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory());
+            if (!pBlob) {
+                IE_THROW() << "Can not interpret cpu plugin memory object as InferenceEngine::Blob. Input node name: " << name;
+            }
 
-            if (_networkInputs.find(name) != _networkInputs.end()) {
-                InferenceEngine::Layout l = _networkInputs[name]->getLayout();
-                InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
-                InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
-
+            InferenceEngine::TensorDesc desc = pBlob->getTensorDesc();
+            auto itr = _networkInputs.find(name);
+            if (itr != _networkInputs.end()) {
+                const InferenceEngine::Layout &l = itr->second->getLayout();
+                const InferenceEngine::Precision &p = itr->second->getPrecision();
+                const InferenceEngine::SizeVector &dims = itr->second->getTensorDesc().getDims();
                 desc = InferenceEngine::TensorDesc(p, dims, l);
             }
 
             _inputs[name] = make_blob_with_precision(desc);
             _inputs[name]->allocate();
-            if (pBlobDesc == desc &&
+            if (pBlob->getTensorDesc() == desc &&
                 graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getConfig().batchLimit) {
                 externalPtr[name] = _inputs[name]->buffer();
             }
