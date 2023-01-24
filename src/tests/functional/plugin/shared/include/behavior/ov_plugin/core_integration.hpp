@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "base/ov_behavior_test_utils.hpp"
 #include <openvino/runtime/properties.hpp>
 
-#include "base/ov_behavior_test_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -23,12 +23,12 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-#define OV_ASSERT_PROPERTY_SUPPORTED(property_key)                                  \
-    {                                                                               \
-        auto properties = ie.get_property(target_device, ov::supported_properties); \
-        auto it = std::find(properties.begin(), properties.end(), property_key);    \
-        ASSERT_NE(properties.end(), it);                                            \
-    }
+#define OV_ASSERT_PROPERTY_SUPPORTED(property_key)                                                 \
+{                                                                                                  \
+    auto properties = ie.get_property(target_device, ov::supported_properties);                       \
+    auto it = std::find(properties.begin(), properties.end(), property_key);                       \
+    ASSERT_NE(properties.end(), it);                                                               \
+}
 
 inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_device) {
     auto supported_properties = ie.get_property(target_device, ov::supported_properties);
@@ -37,7 +37,8 @@ inline bool supportsAvaliableDevices(ov::Core& ie, const std::string& target_dev
 }
 
 inline bool supportsDeviceID(ov::Core& ie, const std::string& target_device) {
-    auto supported_properties = ie.get_property(target_device, ov::supported_properties);
+    auto supported_properties =
+            ie.get_property(target_device, ov::supported_properties);
     return supported_properties.end() !=
            std::find(std::begin(supported_properties), std::end(supported_properties), ov::device::id);
 }
@@ -74,9 +75,10 @@ public:
     }
 };
 
-using DevicePriorityParams = std::tuple<std::string,  // Device name
-                                        ov::AnyMap    // Configuration key and its default value
-                                        >;
+using DevicePriorityParams = std::tuple<
+        std::string,            // Device name
+        ov::AnyMap              // Configuration key and its default value
+>;
 
 class OVClassSetDevicePriorityConfigTest : public OVPluginTestBase,
                                            public ::testing::WithParamInterface<DevicePriorityParams> {
@@ -180,7 +182,7 @@ inline std::string getPluginFile() {
     std::ostringstream stream;
     stream << "<ie><plugins><plugin name=\"mock\" location=\"";
     stream << ov::util::make_plugin_library_name(CommonTestUtils::getExecutableDirectory(),
-                                                 std::string("mock_engine") + IE_BUILD_POSTFIX);
+        std::string("mock_engine") + IE_BUILD_POSTFIX);
     stream << "\"></plugin></plugins></ie>";
     CommonTestUtils::createFile(filename, stream.str());
     return filename;
@@ -200,7 +202,7 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     CommonTestUtils::removeFile(filename.c_str());
 }
 
-#    ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
 TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     const std::string pluginXML = getPluginFile();
 
@@ -213,8 +215,8 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::ov::util::wstring_to_string(pluginsXmlW)
-                       << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '"
+                       << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
@@ -241,8 +243,8 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     CommonTestUtils::removeFile(pluginXML);
 }
 
-#    endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-#endif      // !OPENVINO_STATIC_LIBRARY
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif // !OPENVINO_STATIC_LIBRARY
 
 //
 // GetVersions()
@@ -347,16 +349,13 @@ TEST(OVClassBasicTest, smoke_SetConfigAutoNoThrows) {
 
     // priority config test
     ov::hint::Priority value;
-    OV_ASSERT_NO_THROW(
-        ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::LOW)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::LOW);
-    OV_ASSERT_NO_THROW(
-        ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::MEDIUM)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::MEDIUM);
-    OV_ASSERT_NO_THROW(
-        ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
+    OV_ASSERT_NO_THROW(ie.set_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority(ov::hint::Priority::HIGH)));
     OV_ASSERT_NO_THROW(value = ie.get_property(CommonTestUtils::DEVICE_AUTO, ov::hint::model_priority));
     EXPECT_EQ(value, ov::hint::Priority::HIGH);
 }
@@ -385,9 +384,12 @@ TEST(OVClassBasicTest, smoke_SetConfigWithNoChangeToHWPluginThroughMetaPluginNoT
     ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
                                  {ov::device::properties(CommonTestUtils::DEVICE_CPU, ov::num_streams(20))}),
                  ov::Exception);
-    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU, {ov::device::properties("GPU.0", ov::num_streams(20))}),
+    ASSERT_THROW(ie.set_property(CommonTestUtils::DEVICE_GPU,
+                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
                  ov::Exception);
-    ASSERT_THROW(ie.set_property("GPU.0", {ov::device::properties("GPU.0", ov::num_streams(20))}), ov::Exception);
+    ASSERT_THROW(ie.set_property("GPU.0",
+                                 {ov::device::properties("GPU.0", ov::num_streams(20))}),
+                 ov::Exception);
 }
 
 TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
@@ -397,7 +399,7 @@ TEST_P(OVClassSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
         cleartarget_device = target_device.substr(0, pos);
-        deviceID = target_device.substr(pos + 1, target_device.size());
+        deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
     if (!supportsDeviceID(ie, cleartarget_device) || !supportsAvaliableDevices(ie, cleartarget_device)) {
         GTEST_FAIL();
@@ -526,8 +528,7 @@ TEST_P(OVClassSetLogLevelConfigTest, SetConfigNoThrow) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualThrows) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(
-        ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
+    OV_ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassNetworkTestP, QueryNetworkActualNoThrow) {
@@ -642,7 +643,7 @@ TEST_P(OVClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 
 TEST_P(OVClassNetworkTestP, QueryNetworkMultiNoThrows) {
     ov::Core ie = createCoreWithTemplate();
-    ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI);
+    ASSERT_NO_THROW(ie.query_model(actualNetwork, CommonTestUtils::DEVICE_MULTI));
 }
 
 TEST(OVClassBasicTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
@@ -726,11 +727,8 @@ TEST_P(OVClassGetMetricTest_FULL_DEVICE_NAME_with_DEVICE_ID, GetMetricAndPrintNo
     if (supportsDeviceID(ie, target_device)) {
         auto device_ids = ie.get_property(target_device, ov::available_devices);
         ASSERT_GT(device_ids.size(), 0);
-        OV_ASSERT_NO_THROW(
-            t = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_ids.front())));
-        std::cout << "Device " << device_ids.front() << " "
-                  << ", Full device name: " << std::endl
-                  << t << std::endl;
+        OV_ASSERT_NO_THROW(t = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_ids.front())));
+        std::cout << "Device " << device_ids.front() << " " <<  ", Full device name: " << std::endl << t << std::endl;
         OV_ASSERT_PROPERTY_SUPPORTED(ov::device::full_name);
     } else {
         GTEST_FAIL() << "Device id is not supported";
@@ -793,10 +791,10 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
     ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(target_device, ov::range_for_async_infer_requests));
 
     std::cout << "Range for async infer requests: " << std::endl
-              << start << std::endl
-              << end << std::endl
-              << step << std::endl
-              << std::endl;
+    << start << std::endl
+    << end << std::endl
+    << step << std::endl
+    << std::endl;
 
     ASSERT_LE(start, end);
     ASSERT_GE(step, 1);
@@ -809,7 +807,10 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
 
     ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(target_device, ov::range_for_streams));
 
-    std::cout << "Range for streams: " << std::endl << start << std::endl << end << std::endl << std::endl;
+    std::cout << "Range for streams: " << std::endl
+    << start << std::endl
+    << end << std::endl
+    << std::endl;
 
     ASSERT_LE(start, end);
     OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);
@@ -852,9 +853,9 @@ TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroThrow) {
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigHeteroWithDeviceThrow) {
     ov::Core ie = createCoreWithTemplate();
 
-    ASSERT_THROW(
-        ie.get_property(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device, ov::device::priorities),
-        ov::Exception);
+    ASSERT_THROW(ie.get_property(CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device,
+                                   ov::device::priorities),
+                 ov::Exception);
 }
 
 TEST_P(OVClassGetConfigTest_ThrowUnsupported, GetConfigThrow) {
@@ -871,7 +872,7 @@ TEST_P(OVClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     auto pos = target_device.find('.');
     if (pos != std::string::npos) {
         clear_target_device = target_device.substr(0, pos);
-        deviceID = target_device.substr(pos + 1, target_device.size());
+        deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
     if (!supportsDeviceID(ie, clear_target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
@@ -887,7 +888,7 @@ TEST_P(OVClassSpecificDeviceTestGetConfig, GetConfigSpecificDeviceNoThrow) {
     std::vector<ov::PropertyName> configValues;
     OV_ASSERT_NO_THROW(configValues = ie.get_property(target_device, ov::supported_properties));
 
-    for (auto&& confKey : configValues) {
+    for (auto &&confKey : configValues) {
         ov::Any defaultValue;
         OV_ASSERT_NO_THROW(defaultValue = ie.get_property(target_device, confKey));
         ASSERT_FALSE(defaultValue.empty());
@@ -1001,22 +1002,21 @@ TEST_P(OVClassNetworkTestP, LoadNetworkMultiWithoutSettingDevicePrioritiesThrows
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceNoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(
-        ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDevice2NoThrow) {
     ov::Core ie = createCoreWithTemplate();
-    OV_ASSERT_NO_THROW(
-        ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
+    OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkActualHeteroDeviceUsingDevicePropertiesNoThrow) {
     ov::Core ie = createCoreWithTemplate();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
-                                        CommonTestUtils::DEVICE_HETERO,
-                                        ov::device::priorities(target_device),
-                                        ov::device::properties(target_device, ov::enable_profiling(true))));
+        CommonTestUtils::DEVICE_HETERO,
+        ov::device::priorities(target_device),
+        ov::device::properties(target_device,
+            ov::enable_profiling(true))));
 }
 
 TEST_P(OVClassNetworkTestP, LoadNetworkCreateDefaultExecGraphResult) {
@@ -1083,8 +1083,8 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithDeviceIDNoThrow) {
         auto deviceIDs = ie.get_property(target_device, ov::available_devices);
         if (deviceIDs.empty())
             GTEST_FAIL();
-        std::string heteroDevice = CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." +
-                                   deviceIDs[0] + "," + target_device;
+        std::string heteroDevice =
+                CommonTestUtils::DEVICE_HETERO + std::string(":") + target_device + "." + deviceIDs[0] + "," + target_device;
         OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, heteroDevice));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
@@ -1178,7 +1178,7 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROWithBigDeviceIDThrows) {
     if (supportsDeviceID(ie, target_device)) {
         ASSERT_THROW(ie.compile_model(actualNetwork,
                                       "HETERO",
-                                      ov::device::priorities(target_device + ".100", CommonTestUtils::DEVICE_CPU)),
+                                       ov::device::priorities(target_device + ".100", CommonTestUtils::DEVICE_CPU)),
                      ov::Exception);
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
@@ -1214,12 +1214,13 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
                 devices += ',';
             }
         }
-        OV_ASSERT_NO_THROW(ie.compile_model(
-            actualNetwork,
-            CommonTestUtils::DEVICE_HETERO,
-            ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
-            ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                   ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device))));
+        OV_ASSERT_NO_THROW(
+            ie.compile_model(actualNetwork,
+                             CommonTestUtils::DEVICE_HETERO,
+                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                               ov::device::priorities(devices)),
+                             ov::device::properties(CommonTestUtils::DEVICE_HETERO,
+                                               ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device))));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
@@ -1237,12 +1238,11 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
                 devices += ',';
             }
         }
-        OV_ASSERT_NO_THROW(
-            ie.compile_model(actualNetwork,
-                             CommonTestUtils::DEVICE_MULTI,
-                             ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
-                             ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                                    ov::device::priorities(target_device, target_device))));
+        OV_ASSERT_NO_THROW(ie.compile_model(
+            actualNetwork,
+            CommonTestUtils::DEVICE_MULTI,
+            ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
+            ov::device::properties(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device, target_device))));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
@@ -1272,13 +1272,14 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         }
         ov::SupportedOpsMap result;
         std::string hetero_device_priorities(CommonTestUtils::DEVICE_MULTI + std::string(",") + target_device);
-        OV_ASSERT_NO_THROW(
-            result = ie.query_model(
-                multinputNetwork,
-                CommonTestUtils::DEVICE_HETERO,
-                ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
-                ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                       ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device))));
+        OV_ASSERT_NO_THROW(result = ie.query_model(
+                            multinputNetwork,
+                            CommonTestUtils::DEVICE_HETERO,
+                            ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                                   ov::device::priorities(devices)),
+                            ov::device::properties(CommonTestUtils::DEVICE_HETERO,
+                                                   ov::device::priorities(CommonTestUtils::DEVICE_MULTI,
+                                                                          target_device))));
 
         std::unordered_set<std::string> actualLayers;
         for (auto&& layer : result) {
@@ -1314,12 +1315,12 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         expectedLayers.emplace(node->get_friendly_name());
     }
     ov::SupportedOpsMap result;
-    OV_ASSERT_NO_THROW(
-        result = ie.query_model(multinputNetwork,
-                                CommonTestUtils::DEVICE_MULTI,
-                                ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
-                                ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                                       ov::device::priorities(target_device, target_device))));
+    OV_ASSERT_NO_THROW(result = ie.query_model(multinputNetwork,
+                                                CommonTestUtils::DEVICE_MULTI,
+                                                ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                                                ov::device::priorities(devices)),
+                                                ov::device::properties(CommonTestUtils::DEVICE_HETERO,
+                                                                ov::device::priorities(target_device, target_device))));
 
     std::unordered_set<std::string> actualLayers;
     for (auto&& layer : result) {
