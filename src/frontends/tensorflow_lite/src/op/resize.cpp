@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 using namespace std;
+using namespace ov::frontend::tensorflow::op;
 
 namespace ov {
 namespace frontend {
@@ -19,7 +20,7 @@ OutputVector resize_bilinear(const ov::frontend::tensorflow_lite::NodeContext& n
         {"align_corners", decoder->get_attribute(&tflite::ResizeBilinearOptions::align_corners)},
         {"half_pixel_centers", decoder->get_attribute(&tflite::ResizeBilinearOptions::half_pixel_centers)},
     };
-    return attribute_helper(node, attrs, ov::frontend::tensorflow::op::translate_interpolate_op, "ResizeBilinear");
+    return attribute_helper(node, attrs, translate_interpolate_op, "ResizeBilinear");
 }
 
 OutputVector resize_nearest_neightbor(const ov::frontend::tensorflow_lite::NodeContext& node) {
@@ -28,10 +29,7 @@ OutputVector resize_nearest_neightbor(const ov::frontend::tensorflow_lite::NodeC
         {"align_corners", decoder->get_attribute(&tflite::ResizeNearestNeighborOptions::align_corners)},
         {"half_pixel_centers", false},
     };
-    return attribute_helper(node,
-                            attrs,
-                            ov::frontend::tensorflow::op::translate_interpolate_op,
-                            "ResizeNearestNeighbor");
+    return attribute_helper(node, attrs, translate_interpolate_op, "ResizeNearestNeighbor");
 }
 
 }  // namespace op

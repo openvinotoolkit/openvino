@@ -30,6 +30,9 @@ ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::get_decoder() const {
         input_info[i++] = TensorInfo{input_idx, output_idx, (*tensors)[input], buffer};
     }
     i = 0;
+    // If we have any m_nodes[node_index]->intermediates() than trigger internal smth? no
+    // put all the info in Decoder as a sub-graph!
+
     for (auto output : *m_nodes[node_index]->outputs()) {
         auto buffer = (*buffers)[(*tensors)[output]->buffer()];
         auto is_output = outputs.find(output) != outputs.end();

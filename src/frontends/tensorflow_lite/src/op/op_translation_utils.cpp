@@ -43,6 +43,7 @@ void get_conv(ov::OutputVector& output,
                                ov::frontend::tensorflow::make_transpose(node.get_input(1), ov::AxisVector{1, 2, 3, 0})};
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     output = converter(context);
+    del_output_names(output);
 }
 
 void get_pool(ov::OutputVector& output,
@@ -52,6 +53,7 @@ void get_pool(ov::OutputVector& output,
     ov::OutputVector inputs = {node.get_input(0)};
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     output = converter(context);
+    del_output_names(output);
 }
 
 void get_bias(ov::OutputVector& output,
@@ -62,6 +64,7 @@ void get_bias(ov::OutputVector& output,
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
         // FIXME: dependence on layout?
         output = ov::frontend::tensorflow::op::translate_binary_op<ov::opset10::Add>(context_for_bias_add);
+        del_output_names(output);
     }
 }
 
@@ -82,6 +85,7 @@ void get_activation(ov::OutputVector& output,
             FRONT_END_THROW("Unknown Activation fused to " + node.get_decoder()->get_op_type() + ": " + activation);
         }
     }
+    del_output_names(output);
 }
 
 void get_activation(ov::OutputVector& output,
@@ -133,7 +137,9 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
 
     OutputVector inputs = node.get_inputs();
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
-    return converter(context);
+    auto outputs = converter(context);
+    del_output_names(outputs);
+    return outputs;
 }
 
 std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_lite::NodeContext& node) {

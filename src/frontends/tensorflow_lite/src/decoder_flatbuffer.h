@@ -36,7 +36,6 @@ public:
     }
 
     ov::Any get_attribute(const std::string& name) const override {
-//        FRONT_END_NOT_IMPLEMENTED(get_attribute);
         return {};
     }
 

@@ -24,6 +24,8 @@ using CreatorFunction = std::function<OutputVector(const ov::frontend::tensorflo
 
 std::map<std::string, CreatorFunction> get_supported_ops();
 
+OutputVector batch_matmul(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector cast(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector conv2d(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector fully_connected(const ov::frontend::tensorflow_lite::NodeContext& node);
@@ -41,6 +43,14 @@ OutputVector shape(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector range(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector strided_slice(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector gather(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector space_to_depth(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector depth_to_space(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector leaky_relu(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector mirror_pad(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector one_hot(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector reverse_sequence(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector unique(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector unpack(const ov::frontend::tensorflow_lite::NodeContext& node);
 
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);

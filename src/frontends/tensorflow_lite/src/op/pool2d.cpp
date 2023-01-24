@@ -24,9 +24,8 @@ OutputVector pooling(const ov::frontend::tensorflow_lite::NodeContext& node,
                             node.get_name());
     OutputVector output;
     get_pool(output, node, decoder_for_tf_translator, converter);
-    del_output_names(output);
     get_activation(output, decoder_for_tf_translator);
-    del_output_names(output);
+    output[0].get_node_shared_ptr()->set_friendly_name(node.get_name());
     return output;
 }
 

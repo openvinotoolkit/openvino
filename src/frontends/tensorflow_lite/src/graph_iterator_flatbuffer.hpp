@@ -75,7 +75,7 @@ public:
         return node_index >= m_nodes.size();
     }
 
-    /// Return NodeContext for the current node that iterator points to
+    /// Return Decoder for the current node that iterator points to
     std::shared_ptr<ov::frontend::tensorflow_lite::DecoderFlatBuffer> get_decoder() const;
 };
 

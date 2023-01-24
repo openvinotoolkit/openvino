@@ -30,8 +30,9 @@ OutputVector reshape(const ov::frontend::tensorflow_lite::NodeContext& node) {
     } else {
         shape = node.get_input(1);
     }
-    Output<Node> output = std::make_shared<opset10::Reshape>(node.get_input(0), shape, false);
-    return {output};
+    auto reshape = std::make_shared<opset10::Reshape>(node.get_input(0), shape, false);
+    reshape->set_friendly_name(node.get_name());
+    return reshape->outputs();
 }
 
 }  // namespace op
