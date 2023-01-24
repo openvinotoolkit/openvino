@@ -201,7 +201,7 @@ class Conformance:
         logger.info("Model downloading and conversion is finished successful")
 
     def dump_subgraph(self):
-        subgraph_dumper_path = os.path.join(self._ov_bin_path, SUBGRAPH_DUMPER_BIN_NAME)
+        subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{OS_BIN_FILE_EXT}')
         if not os.path.isfile(subgraph_dumper_path):
             logger.error(f"{subgraph_dumper_path} is not exist!")
             exit(-1)
@@ -211,7 +211,7 @@ class Conformance:
             rmtree(conformance_ir_path)
         os.mkdir(conformance_ir_path)
         logger.info(f"Stating model dumping from {self._model_path}")
-        cmd = f'{subgraph_dumper_path}{OS_BIN_FILE_EXT} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
+        cmd = f'{subgraph_dumper_path} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
         process = Popen(cmd, shell=True)
         out, err = process.communicate()
         if err is None:
@@ -227,9 +227,9 @@ class Conformance:
     def run_conformance(self):
         conformance_path = None
         if self._type == "OP":
-            conformance_path = os.path.join(self._ov_bin_path, OP_CONFORMANCE_BIN_NAME)
+            conformance_path = os.path.join(self._ov_bin_path, f'{OP_CONFORMANCE_BIN_NAME}{OS_BIN_FILE_EXT}')
         else:
-            conformance_path = os.path.join(self._ov_bin_path, API_CONFORMANCE_BIN_NAME)
+            conformance_path = os.path.join(self._ov_bin_path, f'{API_CONFORMANCE_BIN_NAME}{OS_BIN_FILE_EXT}')
 
         if not os.path.isfile(conformance_path):
             logger.error(f"{conformance_path} is not exist!")
@@ -248,7 +248,7 @@ class Conformance:
         
         try:
             command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"', f'--gtest_filter={self._gtest_filter}']
-            conformance = TestParallelRunner(f"{conformance_path}{OS_BIN_FILE_EXT}", command_line_args, self._workers, logs_dir, "")
+            conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
             conformance.run()
             conformance.postprocess_logs()
         except:
