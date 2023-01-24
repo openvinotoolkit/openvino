@@ -260,9 +260,7 @@ public:
         auto input_2 = pattern::any_input();
 
         auto eps_const_pattern = pattern::wrap_type<opset10::Constant>();
-        auto max = std::make_shared<opset10::Maximum>(input_2, eps_const_pattern);
-        auto add = std::make_shared<opset10::Add>(input_2, eps_const_pattern);
-        auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
+        auto max_or_add = pattern::wrap_type<opset10::Maximum, opset10::Add>(OutputVector{input_2, eps_const_pattern});
 
         auto sqrt = std::make_shared<opset10::Sqrt>(max_or_add);
         auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
