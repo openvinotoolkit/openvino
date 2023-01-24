@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,14 +63,14 @@ __attribute__((reqd_work_group_size(1, 1, SUB_GROUP_SIZE)))
 KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
     __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    __global UNIT_TYPE* weights,
+    __global UNIT_TYPE* weights
 #if BIAS_TERM
-    __global UNIT_TYPE* biases,
+    , __global UNIT_TYPE* biases
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    int split_idx)
+)
 {
     uint oc = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;
     uint or = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT;

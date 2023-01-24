@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -253,6 +253,44 @@ public:
                                                                            const std::string& device_name,
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
+     * @param model String with a model in IR/ONNX/PDPD format.
+     * @param weights Shared pointer to a constant tensor with weights.
+     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @note Created model object shares the weights with the @p weights object.
+     * Thus, do not create @p weights on temporary data that can be freed later, since the model
+     * constant data will point to an invalid memory.
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::string& model,
+                                const ov::Tensor& weights,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.
+     * @param model String with a model in IR/ONNX/PDPD format.
+     * @param weights Shared pointer to a constant tensor with weights.
+     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * @param device_name Name of a device to load a model to.
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @note Created model object shares the weights with the @p weights object.
+     * Thus, do not create @p weights on temporary data that can be freed later, since the model
+     * constant data will point to an invalid memory.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::string& model,
+                                                                           const ov::Tensor& weights,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model, weights, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**
@@ -590,7 +628,7 @@ public:
      * @brief Returns devices available for inference.
      * Core objects go over all registered plugins and ask about available devices.
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }.
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }.
      * If there is more than one device of a specific type, they are enumerated with the .# suffix.
      * Such enumerated device can later be used as a device name in all Core methods like Core::compile_model,
      * Core::query_model, Core::set_property and so on.
@@ -600,17 +638,19 @@ public:
     /**
      * @brief Register a new device and plugin that enables this device inside OpenVINO Runtime.
      *
-     * @param plugin_name Name of a plugin. Depending on platform, `plugin_name` is wrapped with shared library suffix
-     * and prefix to identify library full name.
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name.
      * For example, on Linux platform, plugin name specified as `plugin_name` will be wrapped as `libplugin_name.so`.
      * Plugin search algorithm:
-     * - If plugin is located in the same directory as OpenVINO runtime library, it will be used.
-     * - If no, plugin is tried to be loaded from paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
+     * - If `plugin` points to an exact library path (absolute or relative), it will be used.
+     * - If `plugin` specifies file name (`libplugin_name.so`) or plugin name (`plugin_name`), it will be searched by
+     *   file name (`libplugin_name.so`) in CWD or in paths pointed by PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
      *   environment variables depending on the platform.
+     * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param device_name Device name to register a plugin for.
      */
-    void register_plugin(const std::string& plugin_name, const std::string& device_name);
+    void register_plugin(const std::string& plugin, const std::string& device_name);
 
     /**
      * @brief Unloads the previously loaded plugin identified by @p device_name from OpenVINO Runtime.
@@ -643,10 +683,12 @@ public:
      *
      * - `name` identifies name of a device enabled by a plugin.
      * - `location` specifies absolute path to dynamic library with a plugin.
-     *    The path can also be relative to inference engine shared library. It allows having common config
+     *    The path can also be relative to XML file directory. It allows having common config
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
+     * Notes:
+     * - For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,14 +22,14 @@ DECLARE_LOAD_CONTINOUS_4(load_weights_ui, uint)
 KERNEL(deconvolution_gpu_imad_ref)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* restrict output,
-    const __global FILTER_TYPE* weights,
+    const __global FILTER_TYPE* weights
 #if BIAS_TERM
-    const __global BIAS_TYPE* bias,
+    , const __global BIAS_TYPE* bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
+
 ) {
     const __global uint* input_ui = (const __global uint*)input;
     const __global uint* weights_ui = (const __global uint*)weights;

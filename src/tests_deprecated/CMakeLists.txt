@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -32,10 +32,6 @@ endif()
 
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
-endif()
-
-if (ENABLE_BEH_TESTS)
-    add_subdirectory(behavior)
 endif()
 
 if(ENABLE_TESTS)

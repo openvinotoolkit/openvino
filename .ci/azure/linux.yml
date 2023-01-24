@@ -162,15 +162,17 @@ jobs:
       # For running TensorFlow frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/src/frontends/tensorflow/tests/requirements.txt
       # For MO unit tests
-      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_mxnet.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_caffe.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_kaldi.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_tf2.txt
       python3 -m pip install -r $(REPO_DIR)/tools/mo/requirements_dev.txt
       # Speed up build
+      sudo apt -y --no-install-recommends install unzip
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
-      # Speed up tests
-      git clone https://github.com/google/gtest-parallel.git
-    workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
   - script: |
@@ -227,6 +229,7 @@ jobs:
         -DBUILD_nvidia_plugin=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
+    displayName: 'Cmake OpenVINO'
 
   - script: ls -alR $(REPO_DIR)/temp/
     displayName: 'List temp SDKs'
@@ -234,12 +237,12 @@ jobs:
   - script: ccache --zero-stats --max-size=50G --show-config
     displayName: 'Clean ccache stats'
 
-  - script: |
-      export CCACHE_DIR=$(CCACHE_DIR)
-      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
-      export CCACHE_BASEDIR=$(Pipeline.Workspace)
-      export CCACHE_MAXSIZE=50G
-      ninja -C $(BUILD_DIR)
+  - script: cmake --build $(BUILD_DIR) --parallel --config $(BUILD_TYPE)
+    env:
+      CCACHE_DIR: $(CCACHE_DIR)
+      CCACHE_TEMPDIR: $(TMP_DIR)/ccache
+      CCACHE_BASEDIR: $(Pipeline.Workspace)
+      CCACHE_MAXSIZE: 50G
     displayName: 'Build Lin'
 
   - script: ccache --show-stats
@@ -252,10 +255,11 @@ jobs:
     inputs:
       cmakeArgs: >
         -GNinja
-        $(REPO_DIR)/tests/layer_tests
-      workingDirectory: $(BUILD_LAYER_TESTS_DIR)
+        -S $(REPO_DIR)/tests/layer_tests
+        -B $(BUILD_LAYER_TESTS_DIR)
+    displayName: 'Cmake Layer Tests'
 
-  - script: ninja -C $(BUILD_LAYER_TESTS_DIR)
+  - script: cmake --build $(BUILD_LAYER_TESTS_DIR) --parallel --config $(BUILD_TYPE)
     displayName: 'Build Layer Tests'
 
   - script: sudo apt-get remove libtbb2 -y
@@ -281,49 +285,52 @@ jobs:
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      # because of static build libgna is needed for python binary
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+    env:
+      # because of static build libgna is needed for python binary
+      LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
-      # because of static build libgna is needed for python binary and mock_py frontend library
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For python imports to import pybind_mock_frontend
       export PYTHONPATH=$(INSTALL_TEST_DIR):$(INSTALL_DIR)/python/python3.8:$PYTHONPATH
-      # For frontend manager to load mock_py library
-      export OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)
       python3 -m pytest -sv $(INSTALL_TEST_DIR)/pyopenvino $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_utils/test_utils.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
+    env:
+      # because of static build libgna is needed for python binary and mock_py frontend library
+      LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR)
+      # For frontend manager to load mock_py library
+      OV_FRONTEND_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Python API 2.0 Tests'
 
   - script: |
-      # because of static build libgna is needed for python binary
-      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+    env:
+      # because of static build libgna is needed for python binary
+      LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
     displayName: 'Model Optimizer UT'
 
   - script: |
       sudo apt-get install libtbb-dev libpugixml-dev -y
-      cmake --build $(BUILD_DIR) --target package -j8
+      cmake --build $(BUILD_DIR) --target package --parallel
     condition: eq(variables['CMAKE_CPACK_GENERATOR'], 'DEB')
     displayName: 'Build Debian packages'
 
   - script: |
       # install debian packages from previous release
+      sudo apt-get install --no-install-recommends gnupg wget -y
       wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
       sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-      sudo apt-get install --no-install-recommends gnupg -y
       echo "deb https://apt.repos.intel.com/openvino/2022 focal main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
       sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/intel-openvino-2022.list
-      # sudo apt-get install openvino -y
+      sudo apt-get install openvino -y || exit 1
       # install our local one and make sure the conflicts are resolved
       sudo apt-get install --no-install-recommends dpkg-dev -y
       rm -r _CPack_Packages
@@ -346,15 +353,15 @@ jobs:
   - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
     displayName: 'Build cpp samples'
 
-  - script: |
-      export CC=clang
-      export CXX=clang++
-      $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
+  - script: $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -b $(BUILD_DIR)/cpp_samples_clang
+    env: 
+      CC: clang
+      CXX: clang++
     displayName: 'Build cpp samples - clang'
 
-  - script: |
-      export VERBOSE=1
-      $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
+  - script: $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
+    env:
+      VERBOSE: 1
     displayName: 'Build c samples'
 
   - script: rm -fr $(BUILD_DIR)
@@ -387,18 +394,17 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowCommon.xml
+    displayName: 'TensorFlow Common Unit Tests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
     displayName: 'Transformations Tests'
 
-    # python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
-
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieUnitTests.xml
-    displayName: 'IE UT'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml
     displayName: 'Intel CPU Unit Tests'
@@ -406,20 +412,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
     displayName: 'GNA UT'
 
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
-    displayName: 'VPU UT'
-
-  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
-    displayName: 'XLink Tests'
-
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-
-  - script: |
-      # because of IR reader v7
-      export LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)
-      $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
-    displayName: 'IE FuncTests'
+    enabled: 'false'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
@@ -429,42 +424,52 @@ jobs:
     condition: and(succeeded(), eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF'))
 
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
   - script: |
-      export DATA_PATH=$(MODELS_PATH)
-      export MODELS_PATH=$(MODELS_PATH)
       $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
+    env:
+      DATA_PATH: $(MODELS_PATH)
+      MODELS_PATH: $(MODELS_PATH)
     displayName: 'OV CAPITests'
 
   - task: CMake@1
     inputs:
       cmakeArgs: >
         -GNinja
-        $(REPO_DIR)/tests/samples_tests
-      workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+        -S $(REPO_DIR)/tests/samples_tests
+        -B $(BUILD_SAMPLES_TESTS_DIR)
+    displayName: 'CMake Samples Tests'
 
-  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
-    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
+  - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_SAMPLES_TESTS_DIR)/cmake_install.cmake
     displayName: 'Install Samples Tests'
 
   - script: python3 -m pip install -r $(INSTALL_TEST_DIR)/smoke_tests/requirements.txt
-    workingDirectory: $(INSTALL_TEST_DIR)
-
     displayName: 'Install dependencies for samples smoke tests'
 
   - script: |
       export PATH=$HOME/.local/bin:$PATH
-      export IE_APP_PATH=$(INSTALL_DIR)/samples_bin
       export LD_LIBRARY_PATH=$IE_APP_PATH:$LD_LIBRARY_PATH
-      export IE_APP_PYTHON_PATH=$(PYTHON_SAMPLES_INSTALL_DIR)/
-      export SHARE=$(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
-      export WORKSPACE=$(INSTALL_DIR)
-      $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/  --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+      $(RUN_PREFIX) python3 -m pytest $(INSTALL_TEST_DIR)/smoke_tests/ \
+        --env_conf $(INSTALL_TEST_DIR)/smoke_tests/env_config.yml \
+        -s --junitxml=$(INSTALL_TEST_DIR)/TEST-SamplesSmokeTests.xml
+    env:
+      IE_APP_PATH: $(INSTALL_DIR)/samples_bin
+      IE_APP_PYTHON_PATH: $(PYTHON_SAMPLES_INSTALL_DIR)/
+      SHARE: $(INSTALL_TEST_DIR)/smoke_tests/samples_smoke_tests_data/
+      WORKSPACE: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/pytorch_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-pytorch.xmlTEST
+    displayName: 'PyTorch Layer Tests'
 
   - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt

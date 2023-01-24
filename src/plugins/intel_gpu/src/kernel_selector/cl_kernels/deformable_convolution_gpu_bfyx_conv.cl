@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,11 +15,11 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(deformable_convolution_gpu_bfyx_conv)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
     const uint lid = get_sub_group_local_id();
     const uint x = ((uint)get_global_id(0) * X_BLOCK_SIZE + lid) % OUTPUT_SIZE_X;

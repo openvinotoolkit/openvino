@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class BroadcastMove : public ngraph::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 
-    BroadcastMove(const Output<Node>& x, Shape output_shape);
+    BroadcastMove(const Output<Node>& x, ov::PartialShape output_shape);
     BroadcastMove() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -28,12 +28,9 @@ public:
 
     void validate_and_infer_types() override;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
-    Shape output_shape;
+    ov::PartialShape output_shape;
 };
 
 } // namespace op

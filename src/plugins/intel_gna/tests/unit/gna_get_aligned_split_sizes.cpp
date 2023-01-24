@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,6 @@
 #include "layers/gna_split_layer.hpp"
 
 namespace {
-
-using namespace ov::intel_gna;
 
 using GetAlignedSplitSizesData = std::tuple<
     uint32_t,               // total size
@@ -29,7 +27,8 @@ const std::vector<GetAlignedSplitSizesData> data = {
 
 TEST(GetAlignedSplitSizesTest, testAlignedSplitSizes) {
     for (const auto &dataItem : data) {
-        auto sizes = GetAlignedSplitSizes(std::get<0>(dataItem), std::get<1>(dataItem),
+        auto sizes =
+            ov::intel_gna::GetAlignedSplitSizes(std::get<0>(dataItem), std::get<1>(dataItem),
                                                        std::get<2>(dataItem));
         ASSERT_EQ(sizes, std::get<3>(dataItem));
     }

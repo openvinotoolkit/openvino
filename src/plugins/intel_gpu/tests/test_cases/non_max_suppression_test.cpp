@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
@@ -145,10 +143,10 @@ TYPED_TEST(non_max_suppression_basic, basic) {
     topo.add(non_max_suppression("nms", input_info("reformat_boxes"), input_info("reformat_scores"), 6, false, true));
     topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -206,10 +204,10 @@ TYPED_TEST(non_max_suppression_basic, num_per_class) {
                                  "num_per_class"));
     topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -277,10 +275,10 @@ TYPED_TEST(non_max_suppression_basic, optional_outputs) {
     topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
     topo.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -392,11 +390,11 @@ TYPED_TEST(non_max_suppression_basic, multiple_outputs) {
     topo.add(reorder("plane_scores", input_info("nms", 1), format::bfyx, this->data_type));
     topo.add(reorder("plane_outputs", input_info("nms", 2), format::bfyx, cldnn::data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    bo.set_option(build_option::allow_new_shape_infer(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -502,10 +500,10 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
                                  "iou_threshold"));
     topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -559,10 +557,10 @@ TYPED_TEST(non_max_suppression_basic, score_threshold) {
                                  "score_threshold"));
     topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);
@@ -620,10 +618,10 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
                                  "soft_nms_sigma"));
     topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network net{engine, topo, bo};
+    cldnn::network net{engine, topo, config};
 
     auto boxes_mem = this->get_boxes_memory(engine);
     auto scores_mem = this->get_scores_memory(engine);

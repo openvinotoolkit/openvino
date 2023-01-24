@@ -16,7 +16,7 @@ In both cases, Python 3.7 - 3.10 needs to be installed on your machine before st
 
 ## <a name="python-developers"></a>For Python Developers
 
-If you are a Python developer, follow the steps in the <a href="openvino_docs_install_guides_install_dev_tools.html#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
+If you are a Python developer, follow the steps in the <a href="#install-dev-tools">Installing OpenVINO Development Tools</a> section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
    
 ## <a name="cpp-developers"></a>For C++ Developers
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the [Install OpenVINO Runtime](./installing-openvino-runtime.md) page to install OpenVINO Runtime from an archive file for your operating system.
@@ -30,7 +30,7 @@ for model training or creation; or installation into a new environment.
 
 ### Installation into an Existing Environment with the Source Deep Learning Framework
 
-To install OpenVINO Development Tools (see the [What's in the Package](#whats-in-the-package) section of this article) into an existing environment
+To install OpenVINO Development Tools (see the [Install the Package](#install-the-package) section of this article) into an existing environment
 with the deep learning framework used for the model training or creation, run the following command:
 
 ```sh
@@ -96,7 +96,7 @@ Make sure `pip` is installed in your environment and upgrade it to the latest ve
 python -m pip install --upgrade pip
 ```
 
-#### Step 4. Install the Package
+#### Step 4. <a name="install-the-package"></a> Install the Package
 
 To install and configure the components of the development package together with validated versions of specific frameworks, use the commands below.
 
@@ -117,7 +117,7 @@ pip install openvino-dev[tensorflow2,onnx]
 
 For more details on the openvino-dev PyPI package, see https://pypi.org/project/openvino-dev/.
 
-## Test the Installation
+### Step 5. Test the Installation
 
 To verify the package is properly installed, run the command below (this may take a few seconds):
 

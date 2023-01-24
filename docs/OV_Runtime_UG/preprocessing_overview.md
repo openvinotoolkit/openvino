@@ -30,7 +30,7 @@ Consider the following standard example: deep learning model expects input with 
 
 Even though it is relatively easy to implement all these steps in the application code manually, before actual inference, it is also possible with the use of Preprocessing API. Advantages of using the API are:
  - Preprocessing API is easy to use.
- - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/VPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
+ - Preprocessing steps will be integrated into execution graph and will be performed on selected device (CPU/GPU/etc.) rather than always being executed on CPU. This will improve selected device utilization which is always good.
 
 ## Preprocessing API
 
