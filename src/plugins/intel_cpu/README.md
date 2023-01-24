@@ -12,6 +12,7 @@ CPU Plugin contains the following components:
 ## Tutorials
 
 * [Debug capabilities](./docs/debug_capabilities.md)
+* [Performance analysis using ITT counters](./docs/performance_analysis_ITT_counters.md)
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
