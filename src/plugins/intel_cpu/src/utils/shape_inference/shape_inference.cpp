@@ -439,6 +439,8 @@ std::shared_ptr<IShapeInferCommon> make_shape_inference(const std::shared_ptr<ng
         return make_shared_entryIO(node);
     } else if (auto node = ov::as_type_ptr<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         return make_shared_entryIO(node);
+    } else if (auto node = ov::as_type_ptr<ov::opset1::TopK>(op)) {
+        return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset3::TopK>(op)) {
         return make_shared_entryIOC(node);
     } else if (auto node = ov::as_type_ptr<ov::opset3::Bucketize>(op)) {
