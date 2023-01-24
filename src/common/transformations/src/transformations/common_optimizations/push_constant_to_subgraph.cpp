@@ -15,7 +15,7 @@ static std::shared_ptr<ov::op::v0::Constant> try_constantfold_input(
     const std::shared_ptr<MultiSubGraphOp>& op,
     const MultiSubGraphOp::InputDescription::Ptr& input_desc,
     std::unordered_map<size_t, std::shared_ptr<ov::op::v0::Constant>>& cache) {
-    if (!std::dynamic_pointer_cast<op::util::MultiSubGraphOp::InvariantInputDescription>(input_desc)) {
+    if (!std::dynamic_pointer_cast<MultiSubGraphOp::InvariantInputDescription>(input_desc)) {
         return nullptr;
     }
     const auto input_index = input_desc->m_input_index;
