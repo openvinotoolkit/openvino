@@ -7,7 +7,7 @@ The list of supported plugins:
  * [auto](./auto)
  * [auto_batch](./auto_batch)
  * [hetero](./hetero)
- * [intel_cpu](./intel_cpu)
+ * [intel_cpu](./intel_cpu/README.md)
  * [intel_gna](./intel_gna)
  * [intel_gpu](./intel_gpu)
  * [template](./template)
