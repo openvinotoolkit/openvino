@@ -512,14 +512,14 @@ ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_config, const cha
  * @brief Registers a new device and a plugin which implement this device inside Inference Engine.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param plugin_name A name of a plugin. Depending on a platform, plugin_name is wrapped with
- * a shared library suffix and a prefix to identify a full name of the library.
+ * @param plugin - A path (absolute or relative) or name of a plugin. Depending on platform,
+ * plugin is wrapped with shared library suffix and prefix to identify library full name
  * @param device_name A device name to register plugin for. If not specified, the method registers
  * a plugin with the default name.
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name);
+ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name);
 
 /**
  * @brief Registers plugins specified in an ".xml" configuration file.
