@@ -100,10 +100,12 @@ jobs:
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
     OV_PYTHON_VERSION: 3.10.7
+    LD_LIBRARY_PATH: /usr/local/lib 
 
   steps:
   - script: |
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+      set LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+      export LD_LIBRARY_PATH
     displayName: Set LD_LIBRARY_PATH for Python $(OV_PYTHON_VERSION)
 
   - task: UsePythonVersion@0
