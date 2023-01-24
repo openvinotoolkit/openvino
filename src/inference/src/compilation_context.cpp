@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,10 +46,12 @@ static int32_t as_int32_t(T v) {
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
     uint64_t seed = 0;
     auto absPath = filePath;
-    try {
-        absPath = FileUtils::absoluteFilePath(filePath);
-    } catch (...) {
-        // can't get absolute path, will use filePath for hash
+    if (filePath.size() > 0) {
+        try {
+            absPath = FileUtils::absoluteFilePath(filePath);
+        } catch (std::runtime_error&) {
+            // can't get absolute path, will use filePath for hash
+        }
     }
 
     seed = hash_combine(seed, absPath);
@@ -63,7 +65,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
+std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
                                                    const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
 
@@ -71,11 +73,10 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     uint64_t seed = 0;
     // 1. Calculate hash on function
-    CNNNetwork net(network);
     ov::pass::Manager m;
     m.register_pass<ngraph::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(net.getFunction());
+    m.run_passes(network.getFunction());
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
@@ -134,6 +135,34 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
         // can't get absolute path, use modelName for hash calculation
         seed = hash_combine(seed, modelName);
     }
+    for (const auto& kvp : compileOptions) {
+        seed = hash_combine(seed, kvp.first + kvp.second);
+    }
+    return std::to_string(seed);
+}
+
+std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
+                                                   const ov::Tensor& tensor,
+                                                   const std::map<std::string, std::string>& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
+    uint64_t seed = 0;
+    // model string
+    seed = hash_combine(seed, modelStr);
+
+    // tensor data
+    seed = hash_combine(seed, tensor.get_size());
+
+    auto ptr = static_cast<size_t*>(tensor.data());
+    size_t size = tensor.get_size() / sizeof(size_t);
+    for (size_t i = 0; i < size; i++)
+        seed = hash_combine(seed, ptr[i]);
+    auto size_done = size * sizeof(size_t);
+    auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
+    size_t size_left = tensor.get_size() - size_done;
+    for (size_t i = 0; i < size_left; i++)
+        seed = hash_combine(seed, ptr_left[i]);
+
+    // compile options
     for (const auto& kvp : compileOptions) {
         seed = hash_combine(seed, kvp.first + kvp.second);
     }

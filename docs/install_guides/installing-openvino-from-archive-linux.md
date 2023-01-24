@@ -32,7 +32,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 ## Installing OpenVINO Runtime
 
-### <a name="install-openvino"></a>Step 1: Download and Install the OpenVINO Core Components
+### <a name="install-openvino-archive-linux"></a>Step 1: Download and Install the OpenVINO Core Components
 
 @sphinxdirective
 
@@ -91,6 +91,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
    
    .. code-block:: sh
    
+      cd /opt/intel/openvino_2022.3.0/
       sudo -E ./install_dependencies/install_openvino_dependencies.sh 
 
 6. For simplicity, it is useful to create a symbolic link as below:
@@ -106,7 +107,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
 Congratulations, you finished the installation! The `/opt/intel/openvino_2022` folder now contains the core components for OpenVINO. If you used a different path in Step 2, for example, `/home/<USER>/Intel/`, OpenVINO is then installed in `/home/<USER>/Intel/openvino_2022`. The path to the `openvino_2022` directory is also referred as `<INSTALL_DIR>` throughout the OpenVINO documentation.
 
-### <a name="set-the-environment-variables"></a>Step 2: Configure the Environment
+### <a name="set-the-environment-variables-linux"></a>Step 2: Configure the Environment
 
 You must update several environment variables before you can compile and run OpenVINO applications. Open a terminal window and run the `setupvars.sh` script as shown below to temporarily set your environment variables. If your <INSTALL_DIR> is not `/opt/intel/openvino_2022`, use the correct one instead.
 
@@ -120,33 +121,20 @@ If you have more than one OpenVINO version on your machine, you can easily switc
 
 The environment variables are set. Continue to the next section if you want to download any additional components.
 
-### <a name="model-optimizer">Step 3 (Optional): Install Additional Components
+### <a name="model-optimizer-linux">Step 3 (Optional): Install Additional Components
 OpenVINO Development Tools is a set of utilities for working with OpenVINO and OpenVINO models. It provides tools like Model Optimizer, Benchmark Tool, Post-Training Optimization Tool, and Open Model Zoo Downloader. If you install OpenVINO Runtime using archive files, OpenVINO Development Tools must be installed separately.
 
 See the [Install OpenVINO Development Tools](installing-model-dev-tools.md) page for step-by-step installation instructions.
 
 OpenCV is necessary to run demos from Open Model Zoo (OMZ). Some OpenVINO samples can also extend their capabilities when compiled with OpenCV as a dependency. To install OpenCV for OpenVINO, see the [instructions on GitHub](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO).
 
-### <a name="optional-steps"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
-OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs, NCS2, VPUs, and GNAs. See the instructions below to set up OpenVINO on these devices.
+### <a name="optional-steps-linux"></a>Step 4 (Optional): Configure Inference on Non-CPU Devices
+OpenVINO Runtime has a plugin architecture that enables you to run inference on multiple devices without rewriting your code. Supported devices include integrated GPUs, discrete GPUs and GNAs. See the instructions below to set up OpenVINO on these devices.
  
 @sphinxdirective 
 .. tab:: GPU
 
    To enable the toolkit components to use processor graphics (GPU) on your system, follow the steps in :ref:`GPU Setup Guide <gpu guide>`.
-
-.. tab:: NCS 2
-
-   To perform inference on Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X VPU, follow the steps on :ref:`NCS2 Setup Guide <ncs guide>`.
-   <!--For more details, see the `Get Started page for Intel® Neural Compute Stick 2 <https://software.intel.com/en-us/neural-compute-stick/get-started>`.-->
-
-.. tab:: VPU
-
-   To install and configure your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, see the :ref:`VPU Configuration Guide <vpu guide>`.
-   After configuration is done, you are ready to run the verification scripts with the HDDL Plugin for your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
-
-   .. warning::
-      While working with either HDDL or NCS, choose one of them as they cannot run simultaneously on the same machine.
 
 .. tab:: GNA
 
@@ -154,7 +142,7 @@ OpenVINO Runtime has a plugin architecture that enables you to run inference on 
    
 @endsphinxdirective
 
-## <a name="get-started"></a>What's Next?
+## <a name="get-started-linux"></a>What's Next?
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
 @sphinxdirective
@@ -185,7 +173,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
 
 @endsphinxdirective
 
-## <a name="uninstall"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
+## <a name="uninstall-from-linux"></a>Uninstalling the Intel® Distribution of OpenVINO™ Toolkit
 
 To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalling-openvino.md).
 

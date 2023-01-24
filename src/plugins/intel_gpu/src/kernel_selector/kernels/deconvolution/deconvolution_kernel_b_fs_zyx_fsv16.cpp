@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,28 +58,18 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
     auto b = out.Batch().v;
 
     if (ver_bsv16_fsv16) {
-        if (params.depthwise_separable_opt) {
-            dispatchData.gws[0] = x * y * z;
-            dispatchData.gws[1] = f;
-            dispatchData.gws[2] = b / 16;
-
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = sub_group_size;
-            dispatchData.lws[2] = 1;
-        } else {
-            dispatchData.gws[0] = 64;
-            while (dispatchData.gws[0] > 16) {
-                if (f % dispatchData.gws[0] == 0)
-                    break;
-                dispatchData.gws[0] /= 2;
-            }
-            dispatchData.gws[1] = x * y * z;
-            dispatchData.gws[2] = CeilDiv(b, 16) * (f / dispatchData.gws[0]) * params.groups;
-
-            dispatchData.lws[0] = sub_group_size;
-            dispatchData.lws[1] = 1;
-            dispatchData.lws[2] = 1;
+        dispatchData.gws[0] = 64;
+        while (dispatchData.gws[0] > 16) {
+            if (f % dispatchData.gws[0] == 0)
+                break;
+            dispatchData.gws[0] /= 2;
         }
+        dispatchData.gws[1] = x * y * z;
+        dispatchData.gws[2] = CeilDiv(b, 16) * (f / dispatchData.gws[0]) * params.groups;
+
+        dispatchData.lws[0] = sub_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     } else {
         size_t x_block_size = 16;
         while (x_block_size > 1) {
@@ -88,28 +78,18 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
             x_block_size--;
         }
         x_block_size = std::max(x_block_size, (size_t)8);
-        if (params.depthwise_separable_opt) {
-            dispatchData.gws[0] = CeilDiv(x, x_block_size) * y * z;
-            dispatchData.gws[1] = f;
-            dispatchData.gws[2] = b;
-
-            dispatchData.lws[0] = 1;
-            dispatchData.lws[1] = sub_group_size;
-            dispatchData.lws[2] = 1;
-        } else {
-            dispatchData.gws[0] = 64;
-            while (dispatchData.gws[0] > 16) {
-                if (f % dispatchData.gws[0] == 0)
-                    break;
-                dispatchData.gws[0] /= 2;
-            }
-            dispatchData.gws[1] = CeilDiv(x, x_block_size) * y * z;
-            dispatchData.gws[2] = b * (f / dispatchData.gws[0]);
-
-            dispatchData.lws[0] = sub_group_size;
-            dispatchData.lws[1] = 1;
-            dispatchData.lws[2] = 1;
+        dispatchData.gws[0] = 64;
+        while (dispatchData.gws[0] > 16) {
+            if (f % dispatchData.gws[0] == 0)
+                break;
+            dispatchData.gws[0] /= 2;
         }
+        dispatchData.gws[1] = CeilDiv(x, x_block_size) * y * z;
+        dispatchData.gws[2] = b * (f / dispatchData.gws[0]);
+
+        dispatchData.lws[0] = sub_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
     return dispatchData;
@@ -185,19 +165,14 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
         jit.AddConstant(MakeJitConstant("IC_BLOCK", ic_block));
         jit.AddConstant(MakeJitConstant("IW_BLOCK", iw_block));
     }
-    if (params.depthwise_separable_opt) {
-        jit.AddConstant(MakeJitConstant("ICB", params.split));
-    } else {
-        jit.AddConstant(MakeJitConstant("ICB", icb));
-    }
+    jit.AddConstant(MakeJitConstant("ICB", icb));
     jit.AddConstant(MakeJitConstant("IWB", CeilDiv(output.X().v, iw_block)));
     jit.AddConstant(MakeJitConstant("MB_LAST", (output.Batch().v / 16) * 16));
-    jit.AddConstant(MakeJitConstant("G", params.split));
+    jit.AddConstant(MakeJitConstant("G", 1));
     jit.AddConstant(MakeJitConstant("DD", params.dilation.z - 1));
     jit.AddConstant(MakeJitConstant("DH", params.dilation.y - 1));
     jit.AddConstant(MakeJitConstant("DW", params.dilation.x - 1));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
-    jit.AddConstant(MakeJitConstant("IS_DW", "DEPTHWISE_SEPARABLE_OPT"));
     jit.AddConstant(MakeJitConstant("BWD_DATA", 1));
     jit.AddConstant(MakeJitConstant("WITH_BIAS", "BIAS_TERM"));
 
