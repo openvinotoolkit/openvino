@@ -103,11 +103,6 @@ jobs:
     LD_LIBRARY_PATH: /usr/local/lib 
 
   steps:
-  - script: |
-      set LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-      export LD_LIBRARY_PATH
-    displayName: Set LD_LIBRARY_PATH for Python $(OV_PYTHON_VERSION)
-
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '$(OV_PYTHON_VERSION)'
@@ -116,6 +111,8 @@ jobs:
       architecture: 'x64'
       githubToken: $(auth_token)
     displayName: Setup Python $(OV_PYTHON_VERSION)
+    env:
+      LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
     name: setupPython
   - bash: |
       #!/bin/bash
