@@ -300,9 +300,12 @@ jobs:
 
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install test files'
-
+  
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
   - script: |
+      echo $LD_LIBRARY_PATH
+      ls $LD_LIBRARY_PATH
+      sudo ldconfig 
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
