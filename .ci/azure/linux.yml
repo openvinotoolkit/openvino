@@ -111,7 +111,7 @@ jobs:
       architecture: 'x64'
       githubToken: $(auth_token)
     displayName: Setup Python $(OV_PYTHON_VERSION)
-    variables:
+    env:
       LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
     name: setupPython
   - bash: |
