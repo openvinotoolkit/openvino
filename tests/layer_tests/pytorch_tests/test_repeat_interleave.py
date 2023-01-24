@@ -39,4 +39,4 @@ class TestRepeatInterleave(PytorchLayerTest):
         repeats = input_data['repeats']
         dim = input_data['dim']
         self._test(*self.create_model(repeats, dim),
-                   'CPU', precision, ir_version)
+                   ie_device, precision, ir_version)
