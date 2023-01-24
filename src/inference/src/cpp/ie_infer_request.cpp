@@ -10,6 +10,7 @@
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "dev/converter_utils.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
@@ -506,7 +507,8 @@ std::vector<VariableState> InferRequest::query_state() {
 }
 
 CompiledModel InferRequest::get_compiled_model() {
-    OV_INFER_REQ_CALL_STATEMENT(return {_impl->getPointerToExecutableNetworkInternal(), _so});
+    OV_INFER_REQ_CALL_STATEMENT(
+        return {ov::legacy_convert::convert_compiled_model(_impl->getPointerToExecutableNetworkInternal()), _so});
 }
 
 bool InferRequest::operator!() const noexcept {

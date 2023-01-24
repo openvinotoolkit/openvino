@@ -79,7 +79,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
         ov::RemoteContext ctx{context, {nullptr}};
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
-        return {compiled_model._ptr, compiled_model._so};
+        return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
     if (context == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -120,7 +120,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     if (network.getFunction()) {
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceNameOrig, any_copy(config));
-        return {compiled_model._ptr, compiled_model._so};
+        return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
     std::string deviceName = deviceNameOrig;
     std::map<std::string, std::string> config_with_batch = config;
@@ -220,7 +220,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
                                         ov::Tensor{std::const_pointer_cast<InferenceEngine::Blob>(weights), {}},
                                         deviceName,
                                         ov::any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
 InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
@@ -228,7 +228,7 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
     const std::string& deviceName,
     const std::map<std::string, std::string>& config) {
     auto compiled_model = import_model(networkModel, deviceName, any_copy(config));
-    return {compiled_model._ptr, compiled_model._so};
+    return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
 InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEngine::CNNNetwork& network,

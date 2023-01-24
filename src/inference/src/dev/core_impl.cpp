@@ -290,10 +290,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const std::string& device_name,
-    const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const std::string& device_name,
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
@@ -308,7 +307,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
     }
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
             ._cacheManager;
@@ -323,9 +322,6 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
-        } else {
-            // Temporary workaround until all plugins support caching of original model inputs
-            InferenceEngine::SetExeNetworkInfo(res._ptr, model, is_new_api());
         }
     } else {
         res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
@@ -333,10 +329,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return {res._ptr, res._so};
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::RemoteContext& context,
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (context._impl == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -375,11 +370,10 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     }
     return res;
 }
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
-    ov::Plugin& plugin,
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(ov::Plugin& plugin,
+                                                          const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::RemoteContext& context,
+                                                          const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> cloned_model = model->clone();
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
 
@@ -395,13 +389,13 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return compiled_model;
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(const std::string& model_path,
-                                                                                   const std::string& device_name,
-                                                                                   const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
+                                                          const std::string& device_name,
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
             ._cacheManager;
@@ -434,13 +428,13 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return {res._ptr, res._so};
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(const std::string& model_str,
-                                                                                   const ov::Tensor& weights,
-                                                                                   const std::string& device_name,
-                                                                                   const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_str,
+                                                          const ov::Tensor& weights,
+                                                          const std::string& device_name,
+                                                          const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
 
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
@@ -462,9 +456,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return {res._ptr, res._so};
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::import_model(std::istream& model,
-                                                                                  const std::string& device_name,
-                                                                                  const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
+                                                         const std::string& device_name,
+                                                         const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto exec = get_plugin(parsed._deviceName).import_model(model, config);
 
@@ -902,13 +896,12 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model_impl(
-    const std::shared_ptr<const ov::Model>& model,
-    ov::Plugin& plugin,
-    const ov::AnyMap& parsedConfig,
-    const ov::RemoteContext& context,
-    const CacheContent& cacheContent,
-    bool forceDisableCache) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared_ptr<const ov::Model>& model,
+                                                               ov::Plugin& plugin,
+                                                               const ov::AnyMap& parsedConfig,
+                                                               const ov::RemoteContext& context,
+                                                               const CacheContent& cacheContent,
+                                                               bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
     execNetwork =
