@@ -306,7 +306,10 @@ jobs:
       echo $LD_LIBRARY_PATH
       ls $LD_LIBRARY_PATH
       sudo find / -iname *libgna.so.3* 
+      echo $REPO_DIR
       sudo ldconfig 
+      set LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
+      export LD_LIBRARY_PATH
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
