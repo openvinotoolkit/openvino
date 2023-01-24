@@ -51,7 +51,7 @@ OutputVector translate_var_mean(NodeContext& context) {
             t_mean = context.mark_node(std::make_shared<ov::op::v1::ReduceMean>(data, axes, true));
             auto reduced_dims = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(data));
             auto zero = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
-            reduced_dims = context.mark_node(std::make_shared<ov::op::v1::Gather>(reduced_dims, axes, zero));
+            reduced_dims = context.mark_node(std::make_shared<ov::op::v8::Gather>(reduced_dims, axes, zero));
             num_elements = context.mark_node(std::make_shared<ov::op::v1::ReduceProd>(reduced_dims, zero, false));
         }
         keepdim_mean = context.input_is_none(1) ? false : keepdims;
