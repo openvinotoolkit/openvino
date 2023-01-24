@@ -196,6 +196,9 @@ def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
     inputs_outputs_order = (input_names, output_names)
 
+    with open('/home/slyalin/graph_def.txt', 'w') as file:
+        print(concrete_func.graph.as_graph_def(add_shapes=True), file=file)
+
     return graph_def, {}, 'tf2', inputs_outputs_order
 
 
@@ -235,6 +238,7 @@ def prepare_graph_def(model):
 def saved_model_load(imported, env_setup):
     # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
     concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+    print(imported.signatures)
     # the aggressive inlining parameter needs to freeze a table of embeddings for Keras Embedding operation
     # and a model with Embedding operation cannot properly converted to IR without this function parameter
 

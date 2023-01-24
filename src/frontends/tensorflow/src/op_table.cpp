@@ -336,12 +336,22 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Experimental translator for String/Tokenization/Structural Types
         {"CaseFoldUTF8", translate_case_fold_utf8_op},
         {"NormalizeUTF8", translate_normalize_utf8_op},
+        {"WordpieceTokenizeWithOffsets", [](const NodeContext& node) -> OutputVector {
+            return std::make_shared<WordpieceTokenizeWithOffsets>(
+                OutputVector{node.get_input(0), node.get_input(1)}
+            )->outputs(); }
+        },
 
         {"StaticRegexReplace", [](const NodeContext& node) -> OutputVector {
             return std::make_shared<StaticRegexReplace>(
                 OutputVector{node.get_input(0)},
                 node.get_attribute<std::string>("pattern"),
                 node.get_attribute<std::string>("rewrite")
+            )->outputs(); }},
+
+        {"RegexSplitWithOffsets", [](const NodeContext& node) -> OutputVector {
+            return std::make_shared<RegexSplitWithOffsets>(
+                OutputVector{node.get_input(0), node.get_input(1), node.get_input(2)}
             )->outputs(); }},
     };
 };

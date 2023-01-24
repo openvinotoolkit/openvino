@@ -7,6 +7,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
 
+
 namespace ov {
 namespace frontend {
 namespace tensorflow {
@@ -39,6 +40,16 @@ public:
 
     /// \brief Destructor
     virtual ~DecoderBase() = default;
+};
+
+
+class StructuralTypeWA {
+public:
+    StructuralTypeWA (Any structural_type, Any tensor) :
+        m_structural_type(structural_type), m_tensor(tensor) {}
+
+    Any m_structural_type;
+    Any m_tensor;
 };
 
 }  // namespace tensorflow

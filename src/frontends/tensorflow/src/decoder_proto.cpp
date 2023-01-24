@@ -87,6 +87,7 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 }  // namespace
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
+    std::cerr << "[ INFO ] Trying to decode attribute " << name << "\n";
     auto attrs = decode_attribute_helper(name);
     if (attrs.empty()) {
         return {};
@@ -98,6 +99,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     case ::tensorflow::AttrValue::ValueCase::kF:
         return attrs[0].f();
     case ::tensorflow::AttrValue::ValueCase::kS:
+        std::cerr << "kS\n";
         return attrs[0].s();
     case ::tensorflow::AttrValue::ValueCase::kI:
         return attrs[0].i();
@@ -118,7 +120,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             if (true) {
                 // New behaviour: also recognize some types that cannot
                 // be represented as OV core ov::element::Type
-                // In this case they are returned as Any 
+                // In this case they are returned as Any
 
                 std::cerr << "[ INFO TF FE ] Unsupported type: " << attrs[0].type() << "\n";
                 return ov::element::StructuralType::Str();
@@ -129,6 +131,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
+        std::cerr << "kList\n";
         const auto& list = attrs[0].list();
         if (list.i_size())
             return std::vector<int64_t>(list.i().begin(), list.i().end());
@@ -173,6 +176,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kTensor: {
+        std::cerr << "kTensor\n";
         const auto& tensor_proto = attrs[0].tensor();
         const auto& tf_shape = tensor_proto.tensor_shape();
         ov::PartialShape pshape;
@@ -181,13 +185,37 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         }
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
+        std::cerr << "[ BEFORE ]\n";
+        if(tf_type == ::tensorflow::DT_STRING) {
+            std::cerr << "[ PROCESS STR CONSTANT ]\n";
+            auto tensor_content = tensor_proto.tensor_content();
+            if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
+                std::cerr << "[ FIRST IF ]\n";
+                ov::Tensor res(element::u8, Shape{tensor_content.length()});
+                if(pshape.get_shape().size() == 0) {
+                    extract_tensor_content<uint8_t>(tensor_content, &res);
+                    throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
+                }
+            } else {
+                if(pshape.get_shape().size() == 0) {
+                    std::cerr << "[ COMPRESSED TENSOR ]\n";
+                    auto tensor_content = tensor_proto.string_val()[0];
+                    ov::Tensor res(element::u8, Shape{tensor_content.length()});
+                    extract_tensor_content<uint8_t>(tensor_content, &res);
+                    throw StructuralTypeWA(ov::element::StructuralType::Str(), res);
+                }
+            }
+            std::cerr << "[ FAILED TO PROCESS STR CONSTANT ]\n";
+        }
         FRONT_END_GENERAL_CHECK(
             TYPE_MAP().count(tf_type),
             "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        std::cerr << "[ AFTER ]\n";
         auto ov_type = TYPE_MAP().at(tf_type);
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
+            std::cerr << "[ FIRST IF ]\n";
             switch (ov_type) {
             case ov::element::u8:
                 extract_tensor_content<uint8_t>(tensor_content, &res);

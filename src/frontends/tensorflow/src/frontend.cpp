@@ -49,31 +49,26 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
 
 
 void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
+    Any st = get(src);
+    if(!st.empty()) {
+        dst["structural_type"] = StructuralTypeAttribute(st);
+    }
+}
+
+
+ov::Any StructuralTypeAttribute::get (const Node::RTMap& src) {
     auto pstructural_type = src.find("structural_type");
     if(pstructural_type != src.end()) {
-        //std::cerr << "[ INFO TF FE ] Copying `structural_type` from src to dst RTMap node to output tensor\n";
-        //std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
-        dst["structural_type"] = StructuralTypeAttribute(pstructural_type->second.as<StructuralTypeAttribute>().value);
-    };
+        return pstructural_type->second.as<StructuralTypeAttribute>().value;
+    } else {
+        return Any();
+    }
 }
 
 
 bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::Any& type) {
-    auto pstructural_type = rt_info.find("structural_type");
-    if(pstructural_type != rt_info.end()) {
-        //return true;
-        //auto rt_info_type = pstructural_type->second.as<StructuralTypeAttribute>().value;
-        //if(type.is<element::StructuralType::Str>() && rt_info_type.is<element::StructuralType::Str>())
-        //    return true;
-
-        // FIXME: Leads to crash
-        //std::cerr << "Found structural_type\n";
-        //std::cerr << "Is required type: " << pstructural_type->second.is<StructuralTypeAttribute>() << '\n';
-        //std::cerr.flush();
-        //return false;
-        return type == pstructural_type->second.as<StructuralTypeAttribute>().value;
-    }
-    return false;
+    Any st = get(rt_info);
+    return !st.empty() && type == st;
 }
 
 
@@ -505,6 +500,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughStrOpsProp>());
     propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughReshapeProp>());
     manager.register_pass<pass::DecomposeStructResults>();
+    manager.register_pass<pass::ReplaceParameterByVocab>();
 
     manager.set_per_pass_validation(false);
 

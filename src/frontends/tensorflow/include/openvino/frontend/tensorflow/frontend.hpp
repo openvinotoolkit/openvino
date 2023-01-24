@@ -110,7 +110,12 @@ public:
     static void copy (const Node::RTMap& src, Node::RTMap& dst);
     static bool has_type (const Node::RTMap& src, const ov::Any& type);
     static void move_to_original (Node::RTMap& rt_info);
+    static ov::Any get (const Node::RTMap& src);
 };
+
+
+
+
 
 
 }  // namespace tensorflow

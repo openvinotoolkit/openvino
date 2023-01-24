@@ -28,6 +28,14 @@ struct List {
     Any element_type;
 };
 
+struct Ragged {
+    Ragged() = default;
+
+    // Specifies list of elements of element_type type, all elements have the same given type
+    explicit Ragged(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
+
 struct Str {};
 
 struct Optional;
@@ -45,6 +53,10 @@ inline void print(std::ostream& out, const Any& x) {
     } else if (x.is<List>()) {
         out << "list[";
         print(out, x.as<List>().element_type);
+        out << "]";
+    } else if (x.is<Ragged>()) {
+        out << "ragged[";
+        print(out, x.as<Ragged>().element_type);
         out << "]";
     } else if (x.is<Str>()) {
         out << "str";
