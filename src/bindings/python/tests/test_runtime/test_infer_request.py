@@ -49,6 +49,11 @@ def create_simple_request_and_inputs(device):
 
 
 def concat_model_with_data(device, ov_type, numpy_dtype):
+    core = Core()
+    # todo: remove as 101726 will be fixed.
+    if ov_type == Type.boolean and device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+        pytest.skip("This test runs only on openvino intel cpu plugin")
+
     input_shape = [5]
 
     params = []
@@ -59,7 +64,6 @@ def concat_model_with_data(device, ov_type, numpy_dtype):
         params += [ops.parameter(input_shape, numpy_dtype)]
 
     model = Model(ops.concat(params, 0), params)
-    core = Core()
     compiled_model = core.compile_model(model, device)
     request = compiled_model.create_infer_request()
     tensor1 = Tensor(ov_type, input_shape)
@@ -859,6 +863,9 @@ def test_invalid_inputs(device):
 
 def test_infer_dynamic_model(device):
     core = Core()
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
+
     param = ops.parameter(PartialShape([-1, -1]))
     model = Model(ops.relu(param), [param])
     compiled_model = core.compile_model(model, device)

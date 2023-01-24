@@ -18,6 +18,7 @@ const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map 
     {ov_color_format_e::I420_THREE_PLANES, ov::preprocess::ColorFormat::I420_THREE_PLANES},
     {ov_color_format_e::RGB, ov::preprocess::ColorFormat::RGB},
     {ov_color_format_e::BGR, ov::preprocess::ColorFormat::BGR},
+    {ov_color_format_e::GRAY, ov::preprocess::ColorFormat::GRAY},
     {ov_color_format_e::RGBX, ov::preprocess::ColorFormat::RGBX},
     {ov_color_format_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
 
