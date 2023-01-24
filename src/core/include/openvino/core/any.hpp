@@ -130,11 +130,18 @@ auto from_string(const std::string& str) -> const
 }
 
 template <typename T>
-auto from_string(const std::string& val) ->
-    typename std::enable_if<Readable<T>::value && !std::is_same<T, std::string>::value, T>::type {
+auto from_string(const std::string& val) -> typename std::
+    enable_if<Readable<T>::value && !std::is_same<T, std::string>::value && !std::is_same<T, ov::Any>::value, T>::type {
     std::stringstream ss(val);
     T value;
     Read<T>{}(ss, value);
+    return value;
+}
+
+template <typename T>
+auto from_string(const std::string& val) -> typename std::
+    enable_if<Readable<T>::value && !std::is_same<T, std::string>::value && std::is_same<T, ov::Any>::value, T>::type {
+    T value = val;
     return value;
 }
 

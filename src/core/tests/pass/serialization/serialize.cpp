@@ -448,13 +448,15 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
                                                                "labels",
                                                                "label_groups",
                                                                "ids"));
-        str_vec = {"sa", "fd"};
-        EXPECT_EQ(str_vec,
-                  model->get_rt_info<std::vector<std::string>>("config",
-                                                               "model_parameters",
-                                                               "labels",
-                                                               "label_groups",
-                                                               "10ids"));
+        ov::AnyVector any_vec_ref = {"sa", 12345};
+        auto any_vec =
+            model->get_rt_info<ov::AnyVector>("config", "model_parameters", "labels", "label_groups", "10ids");
+        EXPECT_EQ(any_vec.size(), any_vec.size());
+        for (size_t i = 0; i < any_vec.size(); i++) {
+            EXPECT_EQ(any_vec_ref[i].as<std::string>(), any_vec[i].as<std::string>());
+            if (i == 1)
+                EXPECT_EQ(any_vec_ref[i].as<int>(), any_vec[i].as<int>());
+        }
         std::vector<float> fl_vec{22.3f, 33.11f, 44.f};
         EXPECT_EQ(fl_vec, model->get_rt_info<std::vector<float>>("config", "model_parameters", "mean_values"));
     };
@@ -481,12 +483,7 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
                            "labels",
                            "label_groups",
                            "ids");
-        model->set_rt_info(std::vector<std::string>{"sa", "fd"},
-                           "config",
-                           "model_parameters",
-                           "labels",
-                           "label_groups",
-                           "10ids");
+        model->set_rt_info(ov::AnyVector{"sa", 12345}, "config", "model_parameters", "labels", "label_groups", "10ids");
         model->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
 
         check_rt_info(model);
