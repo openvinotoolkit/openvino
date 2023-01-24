@@ -61,9 +61,3 @@ public:
     OPENVINO_RTTI("MatMulMultiplyFusion", "0");
     MatMulMultiplyFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MatMulMultiplyFusion;
-}  // namespace pass
-}  // namespace ngraph

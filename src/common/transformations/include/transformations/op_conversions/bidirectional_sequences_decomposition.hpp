@@ -73,12 +73,3 @@ public:
         add_matcher<ov::pass::BidirectionalRNNSequenceDecomposition>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::BidirectionalGRUSequenceDecomposition;
-using ov::pass::BidirectionalLSTMSequenceDecomposition;
-using ov::pass::BidirectionalRNNSequenceDecomposition;
-using ov::pass::BidirectionalSequenceDecomposition;
-}  // namespace pass
-}  // namespace ngraph

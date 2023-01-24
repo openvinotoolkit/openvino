@@ -23,9 +23,3 @@ public:
     OPENVINO_RTTI("ConvertNMS9ToNMSIEInternal", "0");
     ConvertNMS9ToNMSIEInternal();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertNMS9ToNMSIEInternal;
-}  // namespace pass
-}  // namespace ngraph

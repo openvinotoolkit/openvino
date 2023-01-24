@@ -130,19 +130,3 @@ public:
     OPENVINO_RTTI("EliminateSplitConcat", "0");
     EliminateSplitConcat();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::EliminateConcat;
-using ov::pass::EliminateConvert;
-using ov::pass::EliminateConvertNonZero;
-using ov::pass::EliminateEltwise;
-using ov::pass::EliminatePad;
-using ov::pass::EliminateScatterUpdate;
-using ov::pass::EliminateSplit;
-using ov::pass::EliminateSplitConcat;
-using ov::pass::EliminateSqueeze;
-using ov::pass::EliminateTranspose;
-using ov::pass::NopElimination;
-}  // namespace pass
-}  // namespace ngraph

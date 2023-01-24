@@ -74,7 +74,7 @@ std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
     uint64_t seed = 0;
     // 1. Calculate hash on function
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::FixRtInfo>();
+    m.register_pass<ov::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
     m.run_passes(network.getFunction());
 
