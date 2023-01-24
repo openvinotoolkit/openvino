@@ -6,8 +6,8 @@
 
 #include "graph_iterator_flatbuffer.hpp"
 #include "input_model.hpp"
-#include "op_table.hpp"
 #include "op/op_translation_utils.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/tensorflow_lite/extension/op.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
