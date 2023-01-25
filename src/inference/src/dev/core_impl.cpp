@@ -264,7 +264,8 @@ ov::InferencePlugin ov::CoreImpl::GetCPPPluginByName(const std::string& pluginNa
                 // the same extension can be registered multiple times - ignore it!
             }
         } else {
-            TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+            // FIXME: Revert registration back
+            // TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
         }
 
         return plugins.emplace(deviceName, plugin).first->second;
@@ -310,7 +311,8 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     std::string& deviceName = parsed._deviceName;
     std::map<std::string, std::string>& config_with_batch = parsed._config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    ApplyAutoBatching(network, deviceName, config_with_batch);
+    // FIXME: Revert ApplyAutoBatching back
+    // ApplyAutoBatching(network, deviceName, config_with_batch);
     CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
     parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
@@ -344,7 +346,8 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     std::string deviceName = deviceNameOrig;
     std::map<std::string, std::string> config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
-    ApplyAutoBatching(network, deviceName, config_with_batch);
+    // FIXME: Revert ApplyAutoBatching back
+    // ApplyAutoBatching(network, deviceName, config_with_batch);
     CleanUpProperties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
     bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
@@ -527,7 +530,8 @@ void ov::CoreImpl::ApplyAutoBatching(const InferenceEngine::CNNNetwork& network,
     } else {
         // check if Auto-Batch plugin registered
         try {
-            GetCPPPluginByName("BATCH");
+            // FIXME: Revert Batching back
+            // GetCPPPluginByName("BATCH");
         } catch (const std::runtime_error&) {
             return;
         }
