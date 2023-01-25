@@ -16,10 +16,11 @@ OutputVector translate_convnd(NodeContext& context) {
     // In torch pads at beginning are same as at end
     auto pads = CoordinateDiff(strides.size(), 0);
     auto pad_type = ov::op::PadType::EXPLICIT;
-    try {
+    auto dtype = context.get_input_type(4);
+    if (dtype.is<type::Str>()) {
         auto pad_mode = context.const_input<std::string>(4);
         pad_type = convert_pad(pad_mode);
-    } catch (ov::frontend::GeneralFailure) {
+    } else {
         pads = context.const_input<CoordinateDiff>(4);
     }
     auto dilations = context.const_input<Strides>(5);

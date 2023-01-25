@@ -109,22 +109,22 @@ class TorchScriptPythonDecoder (Decoder):
     def inputs(self):
         return [x.unique() for x in self.graph_element.inputs()]
 
-    def get_input(self, index):
+    def get_input(self, index: int):
         return self.inputs()[index]
 
-    def get_input_shape(self, index):
+    def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
 
-    def get_input_type(self, index):
+    def get_input_type(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_type_for_value(raw_input)
 
-    def get_output_shape(self, index):
+    def get_output_shape(self, index: int):
         output = self._raw_output(index)
         return self.get_shape_for_value(output)
 
-    def get_output_type(self, index):
+    def get_output_type(self, index: int):
         output = self._raw_output(index)
         return self.get_type_for_value(output)
 
@@ -136,12 +136,16 @@ class TorchScriptPythonDecoder (Decoder):
         # TODO: Don't use str, use native types
         if str(pt_type) in pt_to_ov_type_map:
             return OVAny(pt_to_ov_type_map[str(pt_type)])
-        elif pt_type.__class__ is torch.TensorType:
+        elif isinstance(pt_type, torch.TensorType):
             # Tensor type, parse element type
             return OVAny(DecoderType.Tensor(self._get_known_type_for_value(pt_type.dtype())))
-        elif pt_type.__class__ is torch.ListType:
+        elif isinstance(pt_type, torch.ListType):
             element_type = pt_type.getElementType()
             return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
+        elif isinstance(pt_type, torch.StringType):
+            return OVAny(DecoderType.Str())
+        elif isinstance(pt_type, torch.NoneType):
+            return OVAny(DecoderType.PyNone())
         else:
             # Not yet recognized
             return OVAny(OVType.dynamic)
@@ -161,7 +165,7 @@ class TorchScriptPythonDecoder (Decoder):
         full_type = self._get_known_type_for_value(value.type())
         return full_type
 
-    def get_input_transpose_order(self, index):
+    def get_input_transpose_order(self, index: int) -> list:
         raw_input = self._raw_input(index)
         if raw_input.type() is not None and raw_input.type().kind() == "TensorType":
             strides = raw_input.type().strides()
@@ -169,7 +173,7 @@ class TorchScriptPythonDecoder (Decoder):
                 return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
         return []
 
-    def get_output_transpose_order(self, index):
+    def get_output_transpose_order(self, index: int) -> list:
         output = self._raw_output(index)
         if output.type() is not None and output.type().kind() == "TensorType":
             strides = output.type().strides()
@@ -177,7 +181,7 @@ class TorchScriptPythonDecoder (Decoder):
                 return [s[0] for s in sorted(enumerate(strides), key=lambda x:x[1], reverse=True)]
         return []
 
-    def get_subgraph_size(self):
+    def get_subgraph_size(self) -> int:
         return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
 
     def visit_subgraph(self, node_visitor):
@@ -238,16 +242,16 @@ class TorchScriptPythonDecoder (Decoder):
             return None
         pt_value = self._raw_output(0)
 
-        pt_type_class = pt_value.type().__class__
-        if pt_type_class is torch.TensorType:
+        pt_type = pt_value.type()
+        if isinstance(pt_type, torch.TensorType):
             return self.as_constant_tensor(pt_value)
-        if pt_type_class is torch.ListType:
+        if isinstance(pt_type, torch.ListType):
             return self.as_constant_list(pt_value)
-        if str(pt_value.type()) in ["torch.int32", "int"]:
+        if str(pt_type) in ["torch.int32", "int"]:
             return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_value.type()) in ["torch.float", "torch.FloatType", "float"]:
+        if str(pt_type) in ["torch.float", "torch.FloatType", "float"]:
             return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_value.type()) in ["torch.bool", "bool"]:
+        if str(pt_type) in ["torch.bool", "bool"]:
             return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
 
         return None

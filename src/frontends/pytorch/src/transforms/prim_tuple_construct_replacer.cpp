@@ -27,9 +27,18 @@ bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
         if (!tuple_construct) {
             continue;
         }
-        auto inputs = input_node->inputs();
-        for (auto input : inputs) {
-            model->add_results({std::make_shared<opset10::Result>(input.get_source_output())});
+        for (const auto& input : input_node->inputs()) {
+            const auto& out = input.get_source_output();
+            if (const auto& fw_node = cast_fw_node(out.get_node_shared_ptr(), "prim::Constant")) {
+                const auto& attrs = fw_node->get_attrs();
+                if (attrs.find("none_value") != attrs.end()) {
+                    // This is None constant, we skip None if it goes to output of the model. It can be embedding loss
+                    // function calculation in model, which used only in training stage. When we move model to eval mode
+                    // and does not provide annotation, it is not calculated and return by default None.
+                    continue;
+                }
+            }
+            model->add_results({std::make_shared<opset10::Result>(out)});
         }
 
         model->remove_result(result);
