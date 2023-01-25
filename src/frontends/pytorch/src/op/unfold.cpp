@@ -15,77 +15,60 @@ OutputVector translate_unfold(NodeContext& context) {
     // constants
     auto const_0 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {0}));
     auto const_1 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {1}));
-    auto const_0_list = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {0}));
     auto const_1_list = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {1}));
+    auto const_neg_1 = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {-1}));
     auto const_neg_1_list = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {-1}));
 
     // inputs
     auto input = context.get_input(0);
     int64_t dimension_int = context.const_input<int64_t>(1);
     auto dimension = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {dimension_int}));
-    int tmp_size = context.const_input<int64_t>(2);
-    auto size = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {context.const_input<int64_t>(2)}));
-    auto size_list = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {context.const_input<int64_t>(2)}));
+    int size_int = context.const_input<int64_t>(2);
+    auto size = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {size_int}));
+    auto size_list = context.mark_node(opset8::Constant::create(element::i64, Shape{1}, {size_int}));
     auto step = context.mark_node(opset8::Constant::create(element::i64, Shape{}, {context.const_input<int64_t>(3)}));
 
     auto sizes = context.mark_node(std::make_shared<opset8::ShapeOf>(input));
-    // auto dimension_plus_1 = context.mark_node(std::make_shared<opset8::Add>(dimension, const_1_list));
     auto sizedim_tmp = context.mark_node(std::make_shared<opset8::Gather>(sizes, dimension, const_0));
     auto sizedim = context.mark_node(std::make_shared<opset8::Reshape>(sizedim_tmp, const_1, false));
-    auto low_indices = context.mark_node(std::make_shared<opset8::Range>(const_0, sizedim, step, element::i64));
+    auto sizedim_minus_size = std::make_shared<opset8::Subtract>(sizedim, size_list);
+    auto fraction = std::make_shared<opset8::Divide>(sizedim_minus_size, step);
+    auto slices_count = std::make_shared<opset8::Add>(fraction, const_1);
+    auto slices_count_scalar = context.mark_node(std::make_shared<opset8::Reshape>(slices_count, const_1, false));
 
-    auto neg_size = std::make_shared<opset8::Multiply>(size, const_neg_1_list);
-    // nie trzeba robić tak - mamy operator Substract
-    auto sizedim_minus_size = std::make_shared<opset8::Add>(sizedim, neg_size);
-    auto tmp_fraction = std::make_shared<opset8::Divide>(sizedim_minus_size, step);
-    auto tmp_output_dim = std::make_shared<opset8::Add>(tmp_fraction, const_1);
-    // Może zamiast takiego flatowania lepiej dać po prostu Squeeze?
-    // ta wartość jest dobrze liczona
-    auto tmp_output_dim_scalar = context.mark_node(std::make_shared<opset8::Reshape>(tmp_output_dim, const_1, false));
-    auto tmp_output_dim_scalar_minus_1 = std::make_shared<opset8::Add>(tmp_output_dim_scalar, const_neg_1_list);
-
-    // auto last_low_ind = std::make_shared<opset8::Gather>(low_indices, iterations_count_scalar, const_0);
-    // auto last_low_ind_scalar =
-    //     context.mark_node(std::make_shared<opset8::Reshape>(last_low_ind, const_1, false));
-    // muszę wziąć minus 1, bo tmp_output_dim_scalar to łączna liczba elementów, a ja chcę wziąć ostatni
-    auto last_low_ind = std::make_shared<opset8::Gather>(low_indices, tmp_output_dim_scalar_minus_1, const_0);
-    auto last_low_ind_scalar =
-        context.mark_node(std::make_shared<opset8::Reshape>(last_low_ind, const_1, false));
-
-    // mój nowy pomysł - jeszcze do zastanowienia, czy dać plus jeden, czy nie
-    auto last_low_ind_scalar_plus_1 = std::make_shared<opset8::Add>(last_low_ind_scalar, const_1);
-    auto start_indices = std::make_shared<opset8::Range>(const_0, last_low_ind_scalar_plus_1, step, element::i64);
+    auto start_indices_tmp = std::make_shared<opset8::Range>(const_0, slices_count_scalar, const_1, element::i64);
+    auto start_indices = std::make_shared<opset8::Multiply>(start_indices_tmp, step);
     auto tmp_unsqueeze = std::make_shared<opset8::Unsqueeze>(start_indices, const_0);
-    // return {context.mark_node(tmp_unsqueeze)};
-
-    auto tmp_const = context.mark_node(opset8::Constant::create(element::i64, Shape{2}, {tmp_size, 1}));
+    auto tmp_const = context.mark_node(opset8::Constant::create(element::i64, Shape{2}, {size_int, 1}));
     auto tile = std::make_shared<opset8::Tile>(tmp_unsqueeze, tmp_const);
     auto shape_perm =
                 context.mark_node(context.mark_node(opset8::Constant::create(element::i64, Shape{2}, {1, 0})));
     auto tmp_transpose = context.mark_node(std::make_shared<opset8::Transpose>(tile, shape_perm));
-
     auto tmp_range = std::make_shared<opset8::Range>(const_0, size, const_1, element::i64);
     auto tmp_add = std::make_shared<opset8::Add>(tmp_transpose, tmp_range);
     auto tmp_reshape = std::make_shared<opset8::Reshape>(tmp_add, const_neg_1_list, false);
+    // w tym momencie mam taką listę indeksów np [0,1,2,3,2,3,4,5,4,5,6,7] - n grup długości size
 
-    auto ex_shape = std::make_shared<opset8::Concat>(OutputVector{const_neg_1_list, tmp_output_dim}, 0);
+    auto ex_shape = std::make_shared<opset8::Concat>(OutputVector{const_neg_1_list, slices_count}, 0);
     auto ex_reshape = std::make_shared<opset8::Reshape>(tmp_reshape, ex_shape, false);
     auto ex_perm = context.mark_node(opset8::Constant::create(element::i64, Shape{2}, {1, 0}));
     auto ex_transpose = std::make_shared<opset8::Transpose>(ex_reshape, ex_perm);
     auto ex_res = std::make_shared<opset8::Reshape>(ex_transpose, const_neg_1_list, false);
+    // teraz lista indeksów zamieniona jest na [0,2,4,1,3,5,2,4,6,3,5,7] - size grup długości n
 
     auto tmp_gather = std::make_shared<opset8::Gather>(input, ex_res, dimension); //wcześniej zamiast ex_res było tmp_reshape
 
-    auto output_dim_tile = std::make_shared<opset8::Tile>(tmp_output_dim, size_list);
-    auto split_indices = std::make_shared<opset8::Concat>(OutputVector{output_dim_tile, const_neg_1_list}, 0);
-    auto variadic_split = std::make_shared<opset8::VariadicSplit>(tmp_gather, dimension, output_dim_tile);
+    auto slices_count_tile = std::make_shared<opset8::Tile>(slices_count, size_list);
+    auto split_indices = std::make_shared<opset8::Concat>(OutputVector{slices_count_tile, const_neg_1_list}, 0);
+    auto variadic_split = std::make_shared<opset8::VariadicSplit>(tmp_gather, dimension, slices_count_tile);
     OutputVector tmp_vec;
-    for (int i = 0; i < tmp_size; i++) {
+    for (int i = 0; i < size_int; i++) {
         auto loop_unsqueeze = std::make_shared<opset8::Unsqueeze>(variadic_split->output(i), const_neg_1_list);
         tmp_vec.push_back(loop_unsqueeze);
     }
     auto new_concat = std::make_shared<opset8::Concat>(tmp_vec, -1);
-    return {new_concat};
+    // auto new_concat = std::make_shared<opset8::Concat>(tmp_vec, dimension_int);
+    return {variadic_split->output(0)};
 };
 
 // OutputVector translate_unfold(NodeContext& context) {
