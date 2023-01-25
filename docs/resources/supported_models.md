@@ -6,8 +6,27 @@ Based on our research and user feedback, we prioritize the most common models an
 before every release. These models are considered officially supported.
 
 @sphinxdirective
-:download:`SEE THE COMPLETE LIST OF SUPPORTED MODELS [PDF]<_static/download/OV_2022_models_supported.pdf>`
+
+.. button-link:: _static/download/OV_2022_models_supported.pdf
+   :color: primary
+   :outline:
+
+   All supported models [PDF]
+
+.. button-link:: _static/download/OV_2022_models_supported.pdf
+   :color: primary
+
+   All supported models [PDF]
+
+.. button-link:: _static/download/OV_2022_models_supported.pdf
+   :color: primary
+   :outline:
+
+   :material-regular:`download;1.5em` Click for supported models [PDF]
+
+
 @endsphinxdirective
+
 
 Note that the list provided here does not include all models supported by OpenVINO.
 If your model is not included but is similar to those that are, it is very likely it will work.
