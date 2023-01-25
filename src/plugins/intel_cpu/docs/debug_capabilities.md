@@ -15,6 +15,7 @@ The following debug capabilities are available with the latest openvino:
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
- * [OpenVINO Core Components](../../README.md)
+ * [OpenVINO Core Components](../../../README.md)
+ * [OpenVINO Plugins](../../README.md)
  * [OPENVINO CPU Plugin](../README.md)
  * [Developer documentation](../../../docs/dev/index.md)

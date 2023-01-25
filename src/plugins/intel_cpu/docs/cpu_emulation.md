@@ -31,6 +31,7 @@ OV_CPU_BLOB_DUMP_FORMAT=TEXT OV_CPU_BLOB_DUMP_NODE_TYPE=Convolution \
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
- * [OpenVINO Core Components](../../README.md)
+ * [OpenVINO Core Components](../../../README.md)
+ * [OpenVINO Plugins](../../README.md)
  * [OPENVINO CPU Plugin](../README.md)
  * [Developer documentation](../../../docs/dev/index.md)
