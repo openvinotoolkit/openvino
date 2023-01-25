@@ -866,24 +866,8 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
     bool is_suitable_for_onednn = true;
-    auto out_layout = node.get_output_layout();
-    for (auto& fo : node.get_fused_primitives()) {
-        if (fo.is_type<eltwise>()) {
-            // FC checkings
-            auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
-            auto in_dt = in_layout.data_type;
-            auto out_dt = out_layout.data_type;
-            // if it is not eltwise sum and input is full tensor
-            if ((out_layout.count() == in_layout.count()) && in_dt != out_dt
-                && (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt))
-                && onednn_add_fusing_helpers::is_full_tensor(in_layout)) {
-                return false;
-            }
-        }
-    }
-
     auto fc_prim = node.get_primitive();
-    auto ps = out_layout.get_partial_shape();
+    auto ps = node.get_output_layout().get_partial_shape();
     int rank = ps.size();
     int non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
     // OneDnn doesn't support spatial dimensions for output
@@ -1589,65 +1573,9 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
         } else {
-            for (auto& fo : node.get_fused_primitives()) {
-                if (fo.is_type<eltwise>()) {
-                    // Gemm checkings
-                    // TODO: investigate why currently onednn gemm has some "sum" post-op restrictions
-                    // which don't correlate with fc checkings in the code above
-                    // Temprorary WA: disable onednn gemm with sum post-op inside
-                    if (fo.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
-                        impl_candidate = impl_types::ocl;
-                        break;
-                    }
-                }
-            }
-
             auto gemm_prim = node.as<gemm>().get_primitive();
             if (node.is_dynamic()) {
                 impl_candidate = impl_types::ocl;
-            } else {
-                auto has_input2 = gemm_prim->dependencies().size() == 3;
-                std::vector<layout> in_layouts { node.get_dependency(0).get_output_layout(), node.get_dependency(1).get_output_layout() };
-                if (has_input2) {
-                    in_layouts.emplace_back(node.get_dependency(2).get_output_layout());
-                }
-                auto out_l = node.get_output_layout();
-
-                in_layouts = gemm_inst::transform_input_layouts(gemm_prim, in_layouts, out_l);
-                out_l = gemm_inst::transform_output_layout(gemm_prim, in_layouts, out_l);
-
-                auto in0_l = in_layouts[0];
-                auto in1_l = in_layouts[1];
-
-                size_t in2_batched_size = 0;
-                if (has_input2) {
-                    auto in2_l = in_layouts[2];
-                    in2_batched_size = in2_l.count() / (in2_l.spatial(0) * in2_l.spatial(1));
-                }
-                size_t size_k = gemm_prim->transpose_input0 ? in0_l.spatial(1) : in0_l.spatial(0);
-
-                size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-                size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-                size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
-
-                auto valid_input_batch = in0_batched_size != 1 && (in1_batched_size == in0_batched_size || in1_batched_size == 1);
-                auto valid_output_batch = in0_batched_size > in1_batched_size ? out_batched_size == in0_batched_size :
-                                                                                out_batched_size == in1_batched_size;
-                auto valid_extra_input_batch = has_input2 ? in2_batched_size == 1 || in2_batched_size == out_batched_size : true;
-                auto valid_scale_factor = gemm_prim->alpha == 1.f && (has_input2 ? gemm_prim->beta == 1.f : true);
-                auto unsupported_onednn_gemm = !valid_input_batch ||
-                                               !valid_output_batch ||
-                                               !valid_extra_input_batch ||
-                                               !valid_scale_factor;
-
-                bool is_u8_i8 = data_type_traits::is_i8_u8(in0_l.data_type) && data_type_traits::is_i8_u8(in1_l.data_type);
-                bool use_ops_cldnn_kernel = is_u8_i8 || (in0_l.spatial(0) % 16 == 0 && in0_l.spatial(1) % 16 == 0 &&
-                                                        in1_l.spatial(0) % 16 == 0 && in1_l.spatial(1) % 16 == 0);
-
-                // Gemm with k < 64 may be faster in cldnn unless ref impl is used
-                if ((size_k < 64 && use_ops_cldnn_kernel) || unsupported_onednn_gemm) {
-                    impl_candidate = impl_types::ocl;
-                }
             }
         }
 
