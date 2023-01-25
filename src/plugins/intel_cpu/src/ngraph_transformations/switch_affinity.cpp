@@ -71,19 +71,20 @@ void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) 
     model->validate_nodes_and_infer_types();
 }
 
-bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
-                           const std::set<ov::Output<ov::Node>>& ends,
-                           const size_t optimal_bs,
+bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics& characteristics,
+                           const ov::intel_cpu::mixed_affinity::Subgraph& subgraph_borders,
                            const bool share_constants) {
+    if (characteristics.n_splits == 1)
+        return false;
+
     ov::NodeVector start_splits;
     ov::ParameterVector main_params;
-    start_splits.reserve(starts.size());
-    main_params.reserve(starts.size());
+    start_splits.reserve(subgraph_borders.starts.size());
+    main_params.reserve(subgraph_borders.starts.size());
 
-    size_t n_splits = 1;
     // create split by batch in the original ov::Model if necessary and
     // create parameters to extract graph component from original ov::Model
-    for (const auto& start : starts) {
+    for (const auto& start : subgraph_borders.starts) {
         // weights will be shared between clones and mustn't be splitted
         const bool is_shared_weights = start.get_index() == 1 && (ov::is_type<ov::opset1::Convolution>(start.get_node()) ||
                                                                   ov::is_type<ov::opset1::GroupConvolution>(start.get_node()) ||
@@ -93,21 +94,19 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         const auto& start_shape = start.get_partial_shape();
         size_t batch_idx = get_batch_idx(start_shape);
         // if dimension label isn't set for input shape, than check output one
-        if (batch_idx == 0)
-            batch_idx = get_batch_idx(start.get_node()->get_output_partial_shape(0));
-        const size_t cur_bs = start_shape[batch_idx].get_length();
+        if (ov::DimensionTracker::get_label(start_shape[batch_idx]) != ov::intel_cpu::batch_label) {
+            const auto& out_shape = start.get_node()->get_output_partial_shape(0);
+            batch_idx = get_batch_idx(out_shape);
+            NGRAPH_CHECK(ov::DimensionTracker::get_label(out_shape[batch_idx]) == ov::intel_cpu::batch_label,
+                         "Batch label must be set for each node output in mixed affinity subgraph.");
+        }
 
+        const size_t cur_bs = start_shape[batch_idx].get_length();
         if (is_shared_weights || cur_bs == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
         } else {
-            const size_t cur_n_splits = cur_bs / optimal_bs;
-            n_splits = std::max(n_splits, cur_n_splits);
-            assert(cur_bs % optimal_bs == 0);
-            if (cur_n_splits == 1)
-                return false;
-
             const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {batch_idx});
-            const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, cur_n_splits);
+            const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, characteristics.n_splits);
             start_splits.push_back(split);
         }
 
@@ -115,19 +114,16 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         main_params.push_back(main_param);
     }
 
-    if (n_splits == 1)
-        return false;
-
     // Temporary insert params instead of start to extract a subgraph
     size_t k = 0;
-    for (const auto& start : starts) {
+    for (const auto& start : subgraph_borders.starts) {
         start.replace_source_output(main_params[k]);
         k++;
     }
 
     ov::OutputVector result_vec;
-    result_vec.reserve(ends.size());
-    for (const auto& end : ends) {
+    result_vec.reserve(subgraph_borders.ends.size());
+    for (const auto& end : subgraph_borders.ends) {
         result_vec.push_back(end);
     }
 
@@ -145,7 +141,7 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
     // map to match an old output and new outputs with optimal batch from subgraphs
     std::map<ov::Output<ov::Node>, ov::OutputVector> concatenate_map;
     for (const auto& original_out : result_vec) {
-        concatenate_map[original_out] = ov::OutputVector(n_splits);
+        concatenate_map[original_out] = ov::OutputVector(characteristics.n_splits);
     }
 
     auto change_names = [&](const std::shared_ptr<ov::Model>& m, const size_t batch_idx) {
@@ -154,8 +150,8 @@ bool switchToImageAffinity(const std::set<ov::Input<ov::Node>>& starts,
         }
     };
 
-    setBatch(subgraph, optimal_bs);
-    for (size_t branch_idx = 0; branch_idx < n_splits; ++branch_idx) {
+    setBatch(subgraph, characteristics.opt_bs);
+    for (size_t branch_idx = 0; branch_idx < characteristics.n_splits; ++branch_idx) {
         auto cloned_nodes = constants;
         const auto branch = ov::clone_model(*subgraph, cloned_nodes);
         change_names(branch, branch_idx);
@@ -196,7 +192,7 @@ NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwitchAffinity, "SwitchAffinity", 0);
 bool ov::intel_cpu::SwitchAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     bool rewritten = false;
     for (const auto& subgraph : subgraphs) {
-        bool status = switchToImageAffinity(subgraph.second.starts, subgraph.second.ends, subgraph.first.opt_bs, share_constants);
+        bool status = switchToImageAffinity(subgraph.first, subgraph.second, share_constants);
         rewritten |= status;
     }
     return rewritten;
