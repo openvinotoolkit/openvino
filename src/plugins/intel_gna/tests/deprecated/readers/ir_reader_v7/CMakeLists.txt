@@ -45,9 +45,6 @@ endif()
 
 if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
-else()
-    # for static linkage the dependencies are in opposite order
-    target_link_libraries(openvino PRIVATE ${TARGET_NAME})
 endif()
 
 # code style
