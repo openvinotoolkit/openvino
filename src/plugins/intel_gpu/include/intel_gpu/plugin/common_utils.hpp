@@ -89,8 +89,8 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
     case InferenceEngine::Layout::NC:
     case InferenceEngine::Layout::CHW:
     case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
     case InferenceEngine::Layout::SCALAR:
+        return cldnn::format::bfyx;
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
@@ -114,8 +114,8 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
     case InferenceEngine::Layout::NC:
     case InferenceEngine::Layout::CHW:
     case InferenceEngine::Layout::C:
-        return cldnn::format::bfyx;
     case InferenceEngine::Layout::SCALAR:
+        return cldnn::format::bfyx;
     case InferenceEngine::Layout::NHWC:
         return cldnn::format::byxf;
     default:
