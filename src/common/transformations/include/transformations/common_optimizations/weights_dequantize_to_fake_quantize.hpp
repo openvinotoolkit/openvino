@@ -30,9 +30,3 @@ public:
     OPENVINO_RTTI("WeightsDequantizeToFakeQuantize", "0");
     WeightsDequantizeToFakeQuantize();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::WeightsDequantizeToFakeQuantize;
-}  // namespace pass
-}  // namespace ngraph

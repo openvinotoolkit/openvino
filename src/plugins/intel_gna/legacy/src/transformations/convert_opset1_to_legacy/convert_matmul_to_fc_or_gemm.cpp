@@ -229,13 +229,13 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             // Reshape first input (fc_input_a)
             Shape reshape_shape(shape_b.size() - shape_a.size(), 1);
             reshape_shape.insert(reshape_shape.end(), shape_a.begin(), shape_a.end());
-            fc_input_a = op::util::reshapeTo(fc_input_a, reshape_shape);
+            fc_input_a = ov::op::util::reshapeTo(fc_input_a, reshape_shape);
             new_ops.push_back(fc_input_a.get_node_shared_ptr());
         } else if (shape_b.size() < shape_a.size()) {
             // Reshape second input (fc_input_b)
             Shape reshape_shape(shape_a.size() - shape_b.size(), 1);
             reshape_shape.insert(reshape_shape.end(), shape_b.begin(), shape_b.end());
-            fc_input_b = op::util::reshapeTo(fc_input_b, reshape_shape);
+            fc_input_b = ov::op::util::reshapeTo(fc_input_b, reshape_shape);
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
@@ -252,7 +252,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
                 reshape_output = std::make_shared<ngraph::opset1::Squeeze>(gemm,
                     ngraph::opset1::Constant::create(element::i64, Shape{dim_indices.size()}, dim_indices));
             } else {
-                reshape_output = op::util::reshapeTo(gemm, output_shape);
+                reshape_output = ov::op::util::reshapeTo(gemm, output_shape);
             }
 
             new_ops.push_back(reshape_output);

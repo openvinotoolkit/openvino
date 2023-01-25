@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests1) {
         auto crop = std::make_shared<ngraph::op::CropIE>(input, axes, dim, offset);
         crop->set_friendly_name("strided_slice/Crop");
 
-        auto reshape = ngraph::op::util::reshapeTo(crop, {1, 384, 640});
+        auto reshape = ov::op::util::reshapeTo(crop, {1, 384, 640});
         reshape->set_friendly_name("strided_slice");
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
@@ -109,7 +109,7 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropTests2) {
         auto crop = std::make_shared<ngraph::op::CropIE>(input, axes, dim, offset);
         crop->set_friendly_name("strided_slice/Crop");
 
-        auto reshape = ngraph::op::util::reshapeTo(crop, {1, 384, 640});
+        auto reshape = ov::op::util::reshapeTo(crop, {1, 384, 640});
         reshape->set_friendly_name("strided_slice");
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape}, ngraph::ParameterVector{input});
@@ -209,7 +209,7 @@ TEST_F(TransformationTestsF, ConvertStridedSliceToCropNoneZeroBeginValuesWithMas
         std::vector<int64_t> dim = {1, 1, 2, 2};
         std::vector<int64_t> offset = {0, 0, 0, 0};
 
-        auto reshape = ngraph::op::util::reshapeTo(input, {1, 1, 2, 4});
+        auto reshape = ov::op::util::reshapeTo(input, {1, 1, 2, 4});
         reshape->set_friendly_name("strided_slice/Reshape_for_Crop");
 
         auto crop = std::make_shared<ngraph::op::CropIE>(reshape, axes, dim, offset);

@@ -46,9 +46,9 @@ void transformNetwork(InferenceEngine::CNNNetwork& clonedNetwork, bool keep_cons
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::CommonOptimizations>();
-        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ov::pass::CommonOptimizations>();
+        manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.run_passes(nGraphFunc);
         IE_SUPPRESS_DEPRECATED_START

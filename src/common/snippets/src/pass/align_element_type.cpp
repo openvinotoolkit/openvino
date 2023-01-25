@@ -70,7 +70,7 @@ bool ngraph::snippets::pass::AlignElementType::run_on_model(const std::shared_pt
                     rewritten |= true;
                 }
             }
-            if (auto tr_node = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(op)) {
+            if (auto tr_node = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op)) {
                 tr_node->set_overridden_output_type(exec_type, 0);
                 rewritten |= true;
             }
