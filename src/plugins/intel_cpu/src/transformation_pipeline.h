@@ -59,7 +59,7 @@ private:
 
     void Snippets(void);
 
-    static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_array& precisions);
+    static bool fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions);
 };
 
 }   // namespace intel_cpu

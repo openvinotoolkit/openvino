@@ -64,7 +64,7 @@ TEST(TransformationTests, ConvertPrecision_NMS3) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -94,7 +94,7 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -127,7 +127,7 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
     }
 
     pass::Manager manager;
-    static const precisions_array precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
+    static const precisions_map precisions = {{element::i64, element::i32}, {element::f32, element::f16}};
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -150,7 +150,7 @@ TEST(TransformationTests, ConvertPrecision_MatrixNms) {
     }
 
     pass::Manager manager;
-    static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+    static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -173,7 +173,7 @@ TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
     }
 
     pass::Manager manager;
-    static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+    static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
@@ -190,7 +190,7 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -212,7 +212,7 @@ TEST(TransformationTests, ConvertPrecision_Range) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -233,7 +233,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::f16, element::f32}};
+        static const precisions_map precisions = {{element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -253,7 +253,7 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -273,7 +273,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
         f = std::make_shared<Model>(NodeVector{convert}, ParameterVector{input});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f16, element::f32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
         ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     }
@@ -300,7 +300,7 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -320,7 +320,7 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<ov::pass::ConvertPrecision>(precisions);
         manager.run_passes(model);
@@ -348,7 +348,7 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -369,7 +369,7 @@ TEST(TransformationTests, ConvertPrecision_Bucketize) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -399,7 +399,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -456,7 +456,7 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::i64, element::i32}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -479,7 +479,7 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -501,7 +501,7 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -523,7 +523,7 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -545,7 +545,7 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -567,7 +567,7 @@ TEST(TransformationTests, ConvertPrecision_Less) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -589,7 +589,7 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
 
         pass::Manager manager;
 
-        static const precisions_array precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
+        static const precisions_map precisions = {{element::boolean, element::u8}, {element::f16, element::f32}};
 
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
@@ -610,7 +610,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -628,7 +628,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -646,7 +646,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1, input2});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -663,7 +663,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
         f = std::make_shared<Model>(OutputVector{node}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -681,7 +681,7 @@ TEST(TransformationTests, ConvertPrecision_Select) {
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::u8}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
 
@@ -699,8 +699,8 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
         f = std::make_shared<Model>(OutputVector{select}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::i32}});
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::i32, element::i64}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::i32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
     }
 
@@ -721,8 +721,8 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         f = std::make_shared<Model>(OutputVector{type_relaxed}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::boolean, element::i32}});
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::i32, element::i64}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::i32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
 
         ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
@@ -747,7 +747,7 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
         f = std::make_shared<Model>(NodeVector{mul}, ParameterVector{inp});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f16, element::f32}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
     }
 
@@ -779,7 +779,7 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -814,7 +814,7 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -837,7 +837,7 @@ TEST(TransformationTests, ConvertPrecision_check_marking_does_not_leak_in_trivia
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -877,7 +877,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_1) {
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -931,7 +931,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_2) {
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -1011,7 +1011,7 @@ TEST(TransformationTests, ConvertPrecision_whole_shape_subgraph_is_marked_3) {
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = true;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -1090,7 +1090,7 @@ TEST(TransformationTests, ConvertCompressedToMixedPrecission_do_not_keep_in_fp32
         manager.register_pass<pass::MarkPrecisionSensitiveShapeOfSubgraphs>();
         type_to_fuse_map empty_type_to_fuse_map = {};
         bool keep_precision_sensitive_in_fp32 = false;  // didn't keep in FP32 intentionally
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{element::f32, element::f16}},
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
                                                       empty_type_to_fuse_map,
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
@@ -1115,7 +1115,7 @@ void constant_convert_test(element::Type type_from,
         f = std::make_shared<Model>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{type_from, type_to}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{type_from, type_to}});
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();
@@ -1145,7 +1145,7 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
         f = std::make_shared<Model>(NodeVector{c}, ParameterVector{});
 
         pass::Manager manager;
-        manager.register_pass<pass::ConvertPrecision>(precisions_array{{type_from, type_to}});
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{type_from, type_to}});
         manager.run_passes(f);
     }
     auto ops = f->get_ordered_ops();

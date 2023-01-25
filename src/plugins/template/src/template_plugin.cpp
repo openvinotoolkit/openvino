@@ -79,7 +79,7 @@ void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
     }
     if (needF16toF32) {
         passManager.register_pass<ov::pass::ConvertPrecision>(
-            precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+            precisions_map{{ngraph::element::f16, ngraph::element::f32}});
     }
     // Example: register plugin specific transformation
     passManager.register_pass<ov::pass::DecomposeDivideMatcher>();

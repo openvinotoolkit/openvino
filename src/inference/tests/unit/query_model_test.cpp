@@ -143,7 +143,7 @@ TEST_F(GetSupportedNodesTest, SupportedCompressedConstantNop) {
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
             m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+            m.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ngraph::element::f16, ngraph::element::f32}});
             m.register_pass<ov::pass::NopElimination>();
             m.run_passes(model);
         },

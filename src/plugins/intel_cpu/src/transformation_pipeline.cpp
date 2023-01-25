@@ -112,7 +112,7 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_array& precisions) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
     const auto& from = node->get_output_element_type(0);
     auto type_pair = std::find_if(precisions.begin(), precisions.end(),
                                   [&from] (const std::pair<ov::element::Type, ov::element::Type>& pair) {
@@ -195,7 +195,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
 
     auto get_convert_precisions = []() {
-        precisions_array array = {
+        precisions_map map = {
             {ov::element::i64,     ov::element::i32},
             {ov::element::u64,     ov::element::i32},
             {ov::element::i16,     ov::element::i32},
@@ -209,9 +209,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         };
 
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            array.push_back({ov::element::bf16, ov::element::f32});
+            map.insert({ov::element::bf16, ov::element::f32});
 
-        return array;
+        return map;
     };
     static const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};

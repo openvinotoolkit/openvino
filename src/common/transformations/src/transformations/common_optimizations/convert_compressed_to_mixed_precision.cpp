@@ -23,10 +23,10 @@ bool ov::pass::ConvertCompressedToMixedPrecision::run_on_model(const std::shared
     // Mark nodes in ShapeOf subgraphs with disable_fp16_compression rt_info to keep them in FP32 precision
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
 
-    const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
+    const precisions_map convert_precision_map{{ov::element::f32, ov::element::f16}};
     type_to_fuse_map additional_fuse_map = {};
     //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
-    REGISTER_PASS(manager, ConvertPrecision, convert_precision_list, additional_fuse_map, true);
+    REGISTER_PASS(manager, ConvertPrecision, convert_precision_map, additional_fuse_map, true);
 
     REGISTER_PASS(manager, EnableDecompressionConvertConstantFolding)
     REGISTER_PASS(manager, ConstantFolding)

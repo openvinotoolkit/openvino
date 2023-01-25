@@ -64,10 +64,17 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     LessEqual
  */
 
-using precisions_array = std::vector<std::pair<ov::element::Type, ov::element::Type>>;
+struct EnumClassHash {
+    template <class T>
+    std::size_t operator()(T t) const {
+        return static_cast<size_t>(t);
+    }
+};
+
+using precisions_map = std::unordered_map<ov::element::Type_t, ov::element::Type, EnumClassHash>;
 using type_to_fuse_map =
     std::unordered_map<ov::NodeTypeInfo,
-                       std::function<bool(const std::shared_ptr<ov::Node>&, const precisions_array&)>>;
+                       std::function<bool(const std::shared_ptr<ov::Node>&, const precisions_map&)>>;
 
 class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:
@@ -76,11 +83,11 @@ public:
                      ov::element::Type_t to,
                      type_to_fuse_map additional_type_to_fuse_map = {},
                      bool keep_precision_sensitive_in_fp32 = false)
-        : m_precisions(precisions_array{{from, to}}),
+        : m_precisions(precisions_map{{from, to}}),
           m_additional_type_to_fuse_map(additional_type_to_fuse_map),
           m_keep_precision_sensitive_in_fp32(keep_precision_sensitive_in_fp32) {}
 
-    ConvertPrecision(const precisions_array& precisions,
+    ConvertPrecision(const precisions_map& precisions,
                      const type_to_fuse_map& additional_type_to_fuse_map = {},
                      bool keep_precision_sensitive_in_fp32 = false)
         : m_precisions(precisions),
@@ -90,7 +97,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
-    precisions_array m_precisions;
+    precisions_map m_precisions;
     type_to_fuse_map m_additional_type_to_fuse_map;
     bool m_keep_precision_sensitive_in_fp32;
 };

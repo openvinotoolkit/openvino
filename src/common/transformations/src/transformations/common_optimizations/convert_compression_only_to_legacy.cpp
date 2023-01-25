@@ -35,8 +35,8 @@ bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_model(const std::shared_ptr
     if (ov::op::util::has_decompression_converts(f)) {
         Manager manager(get_pass_config());
 
-        const precisions_array convert_precision_list{{ov::element::f32, ov::element::f16}};
-        manager.register_pass<ConvertPrecision>(convert_precision_list);
+        const precisions_map convert_precision_map{{ov::element::f32, ov::element::f16}};
+        manager.register_pass<ConvertPrecision>(convert_precision_map);
         using namespace ov::pass;
         REGISTER_PASS(manager, EnableDecompressionConvertConstantFolding)
         REGISTER_PASS(manager, ConstantFolding)

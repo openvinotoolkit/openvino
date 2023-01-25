@@ -176,7 +176,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
-        precisions_array convert_precision_list {
+        precisions_map convert_precision_map {
                 {ngraph::element::f64, ngraph::element::f32},
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
@@ -213,7 +213,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             for (auto& et : fp_element_types) {
                 if (et != infer_precision) {
-                    convert_precision_list.push_back({et, infer_precision});
+                    convert_precision_map.insert({et, infer_precision});
                 }
             }
         }
@@ -222,19 +222,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         for (auto& et : fp_element_types) {
             if (!fp_precision_supported(et)) {
                 auto et_pair = std::make_pair(et, fallback_precision);
-                bool has_valid_conversion = std::find_if(convert_precision_list.begin(), convert_precision_list.end(),
+                bool has_valid_conversion = std::find_if(convert_precision_map.begin(), convert_precision_map.end(),
                     [&](std::pair<ov::element::Type, ov::element::Type> v) -> bool {
                         return v.first == et_pair.first && fp_precision_supported(v.second);
-                }) != convert_precision_list.end();
+                }) != convert_precision_map.end();
 
                 if (!has_valid_conversion) {
-                    convert_precision_list.push_back(et_pair);
+                    convert_precision_map.push_back(et_pair);
                 }
             }
         }
 
         manager.register_pass<ngraph::pass::Validate>();
-        manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_list);
+        manager.register_pass<ov::pass::ConvertPrecision>(convert_precision_map);
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
