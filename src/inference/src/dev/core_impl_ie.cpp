@@ -15,6 +15,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/util/common_util.hpp"
 
 bool ov::CoreImpl::isNewAPI() const {
@@ -28,7 +29,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     const InferenceEngine::RemoteContext::Ptr& context,
     const CacheContent& cacheContent,
     bool forceDisableCache) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
+    OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::LoadNetworkImpl");
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
     auto wrapper = std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr);
     OPENVINO_ASSERT(wrapper);
@@ -99,10 +100,11 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
         cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, ov::any_copy(parsed._config));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, conf, {context, {}}, loadedFromCache);
+        auto compiled_model = load_model_from_cache(cacheContent, plugin, conf, {context, {}}, loadedFromCache);
         if (!loadedFromCache) {
             res = LoadNetworkImpl(network, plugin, parsed._config, context, cacheContent);
         } else {
+            res = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
             // Temporary workaround until all plugins support caching of original model inputs
             InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
         }
@@ -141,10 +143,11 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
         cacheContent.blobId = CalculateNetworkHash(network, parsed._deviceName, plugin, ov::any_copy(parsed._config));
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
+        auto compiled_model = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
         if (!loadedFromCache) {
             res = LoadNetworkImpl(network, plugin, parsed._config, nullptr, cacheContent, forceDisableCache);
         } else {
+            res = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
             // Temporary workaround until all plugins support caching of original model inputs
             InferenceEngine::SetExeNetworkInfo(res._ptr, network.getFunction(), isNewAPI());
         }
@@ -172,35 +175,40 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
         bool loadedFromCache = false;
         cacheContent.blobId = calculate_file_hash(modelPath, parsed._deviceName, plugin, conf);
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
+        auto compiled_model = load_model_from_cache(cacheContent, plugin, conf, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = ReadNetwork(modelPath, std::string());
             if (val) {
                 val(cnnNetwork);
             }
             if (cnnNetwork.getFunction()) {
-                res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
-                                         plugin,
-                                         conf,
-                                         {},
-                                         cacheContent);
+                auto compiled_model = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                                         plugin,
+                                                         conf,
+                                                         {},
+                                                         cacheContent);
+                res = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
             } else {
                 res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
             }
+        } else {
+            res = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
         }
     } else if (cacheManager) {
-        res = plugin.compile_model(modelPath, conf);
+        auto compiled_model = plugin.compile_model(modelPath, conf);
+        res = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     } else {
         auto cnnNetwork = ReadNetwork(modelPath, std::string());
         if (val) {
             val(cnnNetwork);
         }
         if (cnnNetwork.getFunction()) {
-            res = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
-                                     plugin,
-                                     conf,
-                                     {},
-                                     cacheContent);
+            auto compiled_model = compile_model_impl(ov::legacy_convert::convert_model(cnnNetwork, isNewAPI()),
+                                                     plugin,
+                                                     conf,
+                                                     {},
+                                                     cacheContent);
+            res = {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
         } else {
             res = LoadNetworkImpl(cnnNetwork, plugin, parsed._config, nullptr, cacheContent);
         }

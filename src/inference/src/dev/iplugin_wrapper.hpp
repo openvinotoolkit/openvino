@@ -157,6 +157,9 @@ public:
 
 private:
     std::shared_ptr<InferenceEngine::IInferencePlugin> m_old_plugin;
+
+    const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& update_exec_network(
+        const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& network) const;
 };
 
 }  // namespace InferenceEngine

@@ -20,6 +20,7 @@
 #include "openvino/core/extension.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "threading/ie_executor_manager.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -181,12 +182,11 @@ private:
                                                      const CacheContent& cacheContent,
                                                      bool forceDisableCache = false) const;
 
-    static ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> load_model_from_cache(
-        const CacheContent& cacheContent,
-        ov::Plugin& plugin,
-        const ov::AnyMap& config,
-        const ov::RemoteContext& context,
-        bool& networkIsImported);
+    static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(const CacheContent& cacheContent,
+                                                               ov::Plugin& plugin,
+                                                               const ov::AnyMap& config,
+                                                               const ov::RemoteContext& context,
+                                                               bool& networkIsImported);
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 

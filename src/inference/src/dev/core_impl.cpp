@@ -25,6 +25,7 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -361,7 +362,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
             ._cacheManager;
@@ -376,9 +377,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
-        } else {
-            // Temporary workaround until all plugins support caching of original model inputs
-            InferenceEngine::SetExeNetworkInfo(res._ptr, model, isNewAPI());
         }
     } else {
         res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
@@ -390,7 +388,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(ov::Plugin& plugin,
                                                           const ov::RemoteContext& context,
                                                           const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> cloned_model = model->clone();
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
+    ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
         OPENVINO_NOT_IMPLEMENTED;
@@ -914,7 +912,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
                                                                const CacheContent& cacheContent,
                                                                bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
+    ov::SoPtr<ov::ICompiledModel> execNetwork;
     execNetwork =
         context._impl ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
@@ -925,7 +923,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
                 networkStream << InferenceEngine::CompiledBlobHeader(
                     InferenceEngine::GetInferenceEngineVersion()->buildNumber,
                     InferenceEngine::NetworkCompilationContext::calculateFileInfo(cacheContent.modelPath));
-                execNetwork->Export(networkStream);
+                execNetwork->export_model(networkStream);
             });
         } catch (...) {
             cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
@@ -935,13 +933,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
     return execNetwork;
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_from_cache(
-    const CacheContent& cacheContent,
-    ov::Plugin& plugin,
-    const ov::AnyMap& config,
-    const ov::RemoteContext& context,
-    bool& networkIsImported) {
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheContent& cacheContent,
+                                                                  ov::Plugin& plugin,
+                                                                  const ov::AnyMap& config,
+                                                                  const ov::RemoteContext& context,
+                                                                  bool& networkIsImported) {
+    ov::SoPtr<ov::ICompiledModel> execNetwork;
     struct HeaderException {};
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
@@ -969,7 +966,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_
             execNetwork = context._impl ? plugin.import_model(networkStream, context, config)
                                         : plugin.import_model(networkStream, config);
             networkIsImported = true;
-            execNetwork->loadedFromCache();
+            // execNetwork->loadedFromCache();
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
