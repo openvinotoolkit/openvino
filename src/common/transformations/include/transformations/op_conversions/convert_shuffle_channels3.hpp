@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertShuffleChannels3", "0");
     ConvertShuffleChannels3();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertShuffleChannels3;
-}  // namespace pass
-}  // namespace ngraph
