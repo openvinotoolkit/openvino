@@ -709,7 +709,7 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "__deepcopy__",
-        [](ov::Model& self, py::dict& memo) {
+        [](ov::Model& self, py::dict) {
             return self.clone();
         },
         R"(
