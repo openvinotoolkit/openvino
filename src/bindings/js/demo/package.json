@@ -1,0 +1,15 @@
+{
+  "name": "openvinojs-demo",
+  "version": "1.0.0",
+  "description": "Demo of using openvinojs from nodejs environment",
+  "main": "nodejs/index.js",
+  "scripts": {
+    "start": "node nodejs/index.js"
+  },
+  "author": "vishniakov-nikolai",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "canvas": "^2.11.0",
+    "http-server": "^14.1.1"
+  }
+}
