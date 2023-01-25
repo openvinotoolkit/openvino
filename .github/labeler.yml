@@ -56,7 +56,6 @@
 
 'category: GNA':
 - 'src/plugins/intel_gna/**/*'
-- 'src/common/legacy/**/*'
 
 'category: GPU':
 - 'src/plugins/intel_gpu/**/*'
@@ -119,6 +118,7 @@
 
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
+- 'src/frontends/tensorflow_common/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
 
 'category: PyTorch FE':
