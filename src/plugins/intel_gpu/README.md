@@ -1,5 +1,32 @@
-﻿
-### Attached licenses
+﻿# GPU Plugin
+
+GPU plugin in [OpenVINO toolkit](../../../../openvino/) supports inference on Intel® GPUs starting from Gen8 architecture.
+
+## Components
+
+GPU Plugin contains the following components:
+
+* [include](./include/)
+* [src](./src/)
+* [tests](./tests/)
+* [thirdpart](./thirdparty/)
+
+## Tutorials
+
+* Source code structure
+  * Basic data structures of gpu graph and overall flow
+  * Memory allocation in GPU plugin
+* Simplified workflow
+  * Graph Optimization Passes
+  * Execution of Inference
+* Memory formats
+* Kernels and kernel selectors
+* GPU plugin operations enabling flow
+* Debug utils
+* OpenCL Runtime issues troubleshooting
+* GPU plugin unit test
+
+## Attached licenses
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
 - *googletest* under [Google\* License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
 - *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
@@ -32,9 +59,9 @@ GPU plugin requires CPU with Intel® SSE/Intel® AVX support.
 ---
 
 The software dependencies are:
-- [CMake\*](https://cmake.org/download/) 3.5 or later
+- [CMake](https://cmake.org/download/) 3.5 or later
 - C++ compiler with C++11 standard support compatible with:
-    * GNU\* Compiler Collection 4.8 or later
+    * GNU Compiler Collection 4.8 or later
     * clang 3.5 or later
     * [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 17.0 or later
     * Visual C++ 2015 (MSVC++ 19.0) or later
@@ -43,7 +70,14 @@ The software dependencies are:
 
 - [python™](https://www.python.org/downloads/) 3.7 or later.
 
-# Trademark Information
+## See also
+
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [OpenVINO Plugins](../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)
+
+## Trademark Information
 
 Intel, the Intel logo, Intel Atom, Intel Core, Intel Xeon Phi, Iris, OpenVINO,
 the OpenVINO logo, Pentium, VTune, and Xeon are trademarks

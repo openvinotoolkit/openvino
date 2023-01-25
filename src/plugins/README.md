@@ -9,7 +9,7 @@ The list of supported plugins:
  * [hetero](./hetero)
  * [intel_cpu](./intel_cpu/README.md)
  * [intel_gna](./intel_gna)
- * [intel_gpu](./intel_gpu)
+ * [intel_gpu](./intel_gpu/README.md)
  * [template](./template)
 
 ## See also
