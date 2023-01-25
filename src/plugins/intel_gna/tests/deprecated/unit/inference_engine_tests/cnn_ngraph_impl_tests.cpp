@@ -40,6 +40,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "ie_precision.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "cnnlayer_utils.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
