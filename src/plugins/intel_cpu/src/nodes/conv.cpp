@@ -33,74 +33,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-struct ConvKey {
-    DnnlMemoryDescCPtr inp0;
-    dnnl::memory::desc weight;
-    DnnlMemoryDescCPtr bias;
-    DnnlMemoryDescCPtr out;
-
-    std::vector<size_t> stride;
-    std::vector<ptrdiff_t> dilation;
-    std::vector<ptrdiff_t> paddingL;
-    std::vector<ptrdiff_t> paddingR;
-
-    dnnl::primitive_attr attr;
-    impl_desc_type implType;
-
-    size_t hash() const;
-    bool operator==(const ConvKey& rhs) const;
-};
-
-size_t ConvKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-
-    for (const auto& ptr : {inp0, bias, out}) {
-        if (ptr) {
-            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
-        }
-    }
-    seed = hash_combine(seed, get_md_hash(weight.data));
-
-    seed = get_vector_hash(seed, stride);
-    seed = get_vector_hash(seed, dilation);
-    seed = get_vector_hash(seed, paddingL);
-    seed = get_vector_hash(seed, paddingR);
-
-    seed = hash_combine(seed, get_attr_hash(*attr.get()));
-    seed = hash_combine(seed, implType);
-    return seed;
-}
-
-bool ConvKey::operator==(const ConvKey &rhs) const {
-    bool retVal = true;
-    if (inp0 != rhs.inp0) {
-        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
-    }
-    if (weight != rhs.weight) {
-        retVal = retVal && rhs.weight && weight == rhs.weight;
-    }
-    if (bias != rhs.bias) {
-        retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
-    }
-    if (out != rhs.out) {
-        retVal = retVal && out && rhs.out && out->getDnnlDesc() == rhs.out->getDnnlDesc();
-    }
-
-    retVal = retVal && stride == rhs.stride;
-    retVal = retVal && dilation == rhs.dilation;
-    retVal = retVal && paddingL == rhs.paddingL;
-    retVal = retVal && paddingR == rhs.paddingR;
-
-    retVal = retVal && *attr.get() == *rhs.attr.get() && implType == rhs.implType;
-    return retVal;
-}
-
-} // namespace
 
 class Convolution::FusedSubgraph {
 public:
@@ -1296,12 +1228,19 @@ void Convolution::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    DnnlMemoryDescCPtr inMemoryDesc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr weightMemoryDesc = wghMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr outMemoryDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
-    DnnlMemoryDescCPtr biasDesc;
+    memory srcMem = srcMemPtr->GetPrimitive();
+    memory weightMem = wghMemPtr->GetPrimitive();
+    memory dstMem = dstMemPtr->GetPrimitive();
+    memory biasMem;
+
+    memory::desc srcDesc = srcMem.get_desc();
+    memory::desc weightDesc = weightMem.get_desc();
+    memory::desc dstDesc = dstMem.get_desc();
+    memory::desc biasDesc;
+
     if (biasMemPtr) {
-        biasDesc = biasMemPtr->GetDescWithType<DnnlMemoryDesc>();
+        biasMem = biasMemPtr->GetPrimitive();
+        biasDesc = biasMem.get_desc();
     }
 
     auto initPrimitiveAttr = [&]() {
@@ -1310,7 +1249,7 @@ void Convolution::prepareParams() {
             addLegacyZeroPoints(attr);
         else
             addZeroPoints(attr);
-        setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), preferLegacyPostOps, true);
+        setPostOps(attr, dstMemPtr->getStaticDims(), preferLegacyPostOps, true);
         attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
         return std::make_shared<dnnl::primitive_attr>(std::move(attr));
@@ -1331,111 +1270,52 @@ void Convolution::prepareParams() {
     // is relaxed:
     //  - dtype: derive from src type
     //  - format: use format_tag::any since reorder will be performed afterward.
-    auto src_dt = inMemoryDesc->getDnnlDesc().data.data_type;
+    auto src_dt = srcDesc.data_type();
     memory::data_type wdt = static_cast<memory::data_type>(src_dt);
     if (src_dt == dnnl_s8 || src_dt == dnnl_u8) {
         wdt = memory::data_type::s8;
     }
-    auto wghDesc =
-        dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(weightMemoryDesc->getShape().getStaticDims()),
-                           wdt,
-                           memory::format_tag::any);
+    dnnl::memory::desc weightDescAny(weightDesc.dims(), wdt, memory::format_tag::any);
 
     updatePadding();
-    ConvKey key = {inMemoryDesc,
-                   wghDesc,
-                   biasDesc,
-                   outMemoryDesc,
-                   stride,
-                   dilation,
-                   paddingL,
-                   paddingR,
-                   *pAttrLocal,
-                   selected_pd->getImplementationType()};
-    // builder is allowed to return a primitive requiring input/weight/output with layout different
-    // from what specified in the key, external logic handles the extra reordering works needed.
-    auto engine = getEngine();
-    auto builder = [&engine](const ConvKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
-        auto inDesc = key.inp0->getDnnlDesc();
-        auto wghDesc = key.weight;
-        auto outDesc = key.out->getDnnlDesc();
-        bool withBiases = (key.bias != nullptr);
-        dnnl::memory::desc dnnlBiasDesc;
-        if (withBiases) {
-            // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
-            dnnlBiasDesc = key.bias->getDnnlDesc().reshape({outDesc.dims()[1]});
-        }
 
-        auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd
-                                                             : dnnl::algorithm::convolution_direct;
-
-        auto desc = std::make_shared<DnnlDesriptor>(createDescriptorInternal(inDesc,
-                                                                             wghDesc,
-                                                                             dnnlBiasDesc,
-                                                                             outDesc,
-                                                                             withBiases,
-                                                                             key.stride,
-                                                                             key.dilation,
-                                                                             key.paddingL,
-                                                                             key.paddingR,
-                                                                             alg));
-        auto itpd = desc->createPrimitiveDescriptorIterator(engine, key.attr);
-        while (static_cast<bool>(itpd)) {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type == key.implType) {
-                auto prim_desc = convolution_forward::primitive_desc(itpd.get());
-                return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
-            }
-            if (!itpd.next_impl()) {
-                break;
-            }
-        }
-
-        // further relax the requirements on input/output format tag
-        inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
-                                    key.inp0->getDataType(),
-                                    memory::format_tag::any);
-        outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
-                                     key.out->getDataType(),
-                                     memory::format_tag::any);
-        alg = dnnl::algorithm::convolution_direct;
-
-        auto reorderConvDesc = std::make_shared<DnnlDesriptor>(createDescriptorInternal(inDesc,
-                                                                                        wghDesc,
-                                                                                        dnnlBiasDesc,
-                                                                                        outDesc,
-                                                                                        withBiases,
-                                                                                        key.stride,
-                                                                                        key.dilation,
-                                                                                        key.paddingL,
-                                                                                        key.paddingR,
-                                                                                        alg));
-        auto relaxedItpd = reorderConvDesc->createPrimitiveDescriptorIterator(engine, key.attr);
-        if (static_cast<bool>(relaxedItpd)) {
-            auto prim_desc = convolution_forward::primitive_desc(relaxedItpd.get());
-            return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
-        }
-        // empty object indicating failure.
-        return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
-    };
-
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-
-    if (!result.first.first) {
+    auto conv_prim_pd = context->getConvPrim(srcDesc,
+                                             weightDescAny,
+                                             biasDesc,
+                                             dstDesc,
+                                             stride,
+                                             dilation,
+                                             paddingL,
+                                             paddingR,
+                                             *pAttrLocal,
+                                             selected_pd->getImplementationType());
+    if (!conv_prim_pd.first) {
+        memory::desc srcDescAny(srcDesc.dims(), srcDesc.data_type(), memory::format_tag::any);
+        memory::desc dstDescAny(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::any);
+        conv_prim_pd = context->getConvPrim(srcDescAny,
+                                            weightDescAny,
+                                            biasDesc,
+                                            dstDescAny,
+                                            stride,
+                                            dilation,
+                                            paddingL,
+                                            paddingR,
+                                            *pAttrLocal,
+                                            impl_desc_type::undef);
+    }
+    if (!conv_prim_pd.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
-    auto conv_prim_pd = result.first;
 
     // executor handles SRC/WEIGHTS/DST format gaps between primitive and Nodes I/O
     // by insertting reorders dynamically
     executor.reset(conv_prim_pd.first, conv_prim_pd.second);
-    executor.setArg(DNNL_ARG_SRC, srcMemPtr->GetPrimitive());
-    executor.setArg(DNNL_ARG_WEIGHTS, wghMemPtr->GetPrimitive(), getParentEdgeAt(1)->getParent()->isConstant());
-    executor.setArg(DNNL_ARG_DST, dstMemPtr->GetPrimitive());
+    executor.setArg(DNNL_ARG_SRC, srcMem);
+    executor.setArg(DNNL_ARG_WEIGHTS, weightMem, getParentEdgeAt(1)->getParent()->isConstant());
+    executor.setArg(DNNL_ARG_DST, dstMem);
 
     if (withBiases)
-        executor.setArg(DNNL_ARG_BIAS, biasMemPtr->GetPrimitive());
+        executor.setArg(DNNL_ARG_BIAS, biasMem);
 
     if (preferLegacyZeroPoint) {
         if (legacyInputZeroPointsMemPtr != nullptr)
@@ -1454,9 +1334,7 @@ void Convolution::prepareParams() {
 
     DEBUG_LOG("executor:", executor);
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");
-    }
+    DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");
 #endif
 }
 

@@ -255,87 +255,62 @@ void FullyConnected::prepareParams() {
     (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     // create primitive using weight with format tag any
-    auto useConv1x1 = canBeExecutedInConv1x1();
     dnnl::memory::desc weight_desc_any(weight_desc.dims(),
                                        getWeightDataType(src_desc.data_type()),
                                        dnnl::memory::format_tag::any);
-    FCKey key = {src_desc,
-                 weight_desc_any,
-                 bias_desc,
-                 dst_desc,
-                 *attr,
-                 implementationTypeIP,
-                 useConv1x1};
-    auto engine = getEngine();
-    auto builder = [&engine](const FCKey& key) -> std::pair<dnnl::primitive, dnnl::primitive_desc_base> {
-        if (key.useConv1x1) {
-            auto desc = createDescriptorInternalForConv(key.src, key.weight, key.bias, key.dst);
-            primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-            convolution_forward::primitive_desc prim_desc;
-
-            while (static_cast<bool>(itpd))  {
-                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-                if (impl_type == brgconv_avx512_1x1) {
-                    prim_desc = itpd.get();
-                    break;
-                }
-                if (!itpd.next_impl()) {
-                    break;
-                }
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> prim_pd;
+    auto useConv1x1 = canBeExecutedInConv1x1();
+    if (useConv1x1) {
+        // src/dst memory  :  (N,W,IC) or (N,IC)
+        // InnerProduct    :  (N,IC,W)
+        auto CanonicalizeSrcDst = [](const dnnl::memory::desc & oldDesc) {
+            dnnl::memory::desc newDesc;
+            auto dims = oldDesc.dims();
+            if (dims.size() == 3) {
+                newDesc = oldDesc.permute_axes({0, 2, 1});
+            } else if (dims.size() == 2) {
+                newDesc = oldDesc.reshape({1, dims[0], dims[1]}).permute_axes({0, 2, 1});
+            } else {
+                IE_THROW();
             }
+            return newDesc;
+        };
 
-            if (prim_desc) {
-                return std::make_pair(dnnl::convolution_forward(prim_desc), prim_desc);
-            }
-        }
-        // fallback
-        auto inDesc = key.src;
-        if (inDesc.dims().size() == 3) {
-            auto inDims = inDesc.dims();
-            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
-            inDesc = inDesc.reshape(normalizedInDims);
+        auto convSrcDesc = CanonicalizeSrcDst(src_desc);
+        auto convDstDesc = CanonicalizeSrcDst(dst_desc);
+
+        // weight memory   :  OC, IC
+        // make a fake shape: OC, IC, 1
+        auto wdims = weight_desc_any.dims();
+        auto convWeightDescAny = weight_desc_any.reshape({wdims[0], wdims[1], dnnl::memory::dim{1}});
+
+        prim_pd = context->getConvPrim(convSrcDesc,
+                                       convWeightDescAny,
+                                       bias_desc,
+                                       convDstDesc,
+                                       {1},   // stride
+                                       {0},   // dilation
+                                       {0},   // paddingL
+                                       {0},   // paddingR
+                                       *attr,
+                                       brgconv_avx512_1x1);
+    }
+
+    if (!prim_pd.first) {
+        auto inDesc = src_desc;
+        auto inDims = inDesc.dims();
+        if (inDims.size() == 3) {
+            inDesc = inDesc.reshape({inDims[0] * inDims[1], inDims[2]});
         }
 
-        auto outDesc = key.dst;
-        if (outDesc.dims().size() == 3) {
-            auto outDims = outDesc.dims();
-            auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
-            outDesc = outDesc.reshape(normalizedOutDims);
+        auto outDesc = dst_desc;
+        auto outDims = outDesc.dims();
+        if (outDims.size() == 3) {
+            outDesc = outDesc.reshape({outDims[0] * outDims[1], outDims[2]});
         }
-        std::shared_ptr<dnnl::inner_product_forward::desc> fcDsc;
-        if (key.bias) {
-            fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
-                                                                        inDesc,
-                                                                        key.weight,
-                                                                        key.bias,
-                                                                        outDesc);
-        } else {
-            fcDsc = std::make_shared<dnnl::inner_product_forward::desc>(dnnl::prop_kind::forward_scoring,
-                                                                        inDesc,
-                                                                        key.weight,
-                                                                        outDesc);
-        }
-        DnnlDesriptor desc(fcDsc);
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-        inner_product_forward::primitive_desc prim_desc;
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl()) {
-                // empty objects to indicate error
-                return std::make_pair(dnnl::primitive(), dnnl::primitive_desc());
-            }
-        }
-        return std::make_pair(dnnl::inner_product_forward(prim_desc), prim_desc);
-    };
+        prim_pd = context->getInnerProductPrim(inDesc, weight_desc_any, bias_desc, outDesc, *attr, implementationTypeIP);
+    }
 
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-    auto prim_pd = result.first;
     if (!prim_pd.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
@@ -380,9 +355,7 @@ void FullyConnected::prepareParams() {
 
     DEBUG_LOG("executor:", executor);
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");
-    }
+    DEBUG_LOG("verbose##", getName(), "##", executor.getPrimitive().get_primitive_desc()->info(), "\n");
 #endif
 }
 

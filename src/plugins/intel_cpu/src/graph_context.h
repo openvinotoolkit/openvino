@@ -9,6 +9,7 @@
 #include "dnnl_scratch_pad.h"
 #include "extension_mngr.h"
 #include "weights_cache.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -66,6 +67,27 @@ public:
 
     dnnl::reorder getReorderPrim(const dnnl::memory::desc& src, const dnnl::memory::desc& dest) const;
     void reorderData(const Memory &input, const Memory &output) const;
+
+    template<typename K>
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> getPrim(const K & key) const;
+
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> getConvPrim(const dnnl::memory::desc& src,
+                                                                      const dnnl::memory::desc& weight,
+                                                                      const dnnl::memory::desc& bias,
+                                                                      const dnnl::memory::desc& dst,
+                                                                      const std::vector<size_t>& stride,
+                                                                      const std::vector<ptrdiff_t>& dilation,
+                                                                      const std::vector<ptrdiff_t>& paddingL,
+                                                                      const std::vector<ptrdiff_t>& paddingR,
+                                                                      const dnnl::primitive_attr& attr,
+                                                                      const impl_desc_type& implType) const;
+
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> getInnerProductPrim(const dnnl::memory::desc& src,
+                                                                              const dnnl::memory::desc& weight,
+                                                                              const dnnl::memory::desc& bias,
+                                                                              const dnnl::memory::desc& dst,
+                                                                              const dnnl::primitive_attr& attr,
+                                                                              const impl_desc_type& implType) const;
 
 private:
     Config config;  // network-level config
