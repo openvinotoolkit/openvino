@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("HSigmoidDecomposition", "0");
     HSigmoidDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::HSigmoidDecomposition;
-}  // namespace pass
-}  // namespace ngraph

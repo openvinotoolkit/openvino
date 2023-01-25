@@ -17,8 +17,8 @@ bool ov::pass::ConvertOpSet2ToOpSet1::run_on_model(const std::shared_ptr<ngraph:
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
-    manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
+    manager.register_pass<ov::pass::ConvertSpaceToBatch>();
+    manager.register_pass<ov::pass::ConvertBatchToSpace>();
 
     manager.run_passes(f);
 

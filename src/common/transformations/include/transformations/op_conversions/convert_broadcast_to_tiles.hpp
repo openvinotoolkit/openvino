@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertBroadcastToTiles", "0");
     ConvertBroadcastToTiles();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertBroadcastToTiles;
-}  // namespace pass
-}  // namespace ngraph
