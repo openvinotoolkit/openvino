@@ -73,8 +73,7 @@ struct EnumClassHash {
 
 using precisions_map = std::unordered_map<ov::element::Type_t, ov::element::Type, EnumClassHash>;
 using type_to_fuse_map =
-    std::unordered_map<ov::NodeTypeInfo,
-                       std::function<bool(const std::shared_ptr<ov::Node>&, const precisions_map&)>>;
+    std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared_ptr<ov::Node>&, const precisions_map&)>>;
 
 class ov::pass::ConvertPrecision : public ov::pass::ModelPass {
 public:

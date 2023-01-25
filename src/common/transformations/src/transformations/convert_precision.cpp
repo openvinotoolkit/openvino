@@ -484,10 +484,9 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, const precisio
     }
 
     if (!type_relaxed) {
-        auto relaxed_op =
-            std::make_shared<ov::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms,
-                                                                                 ov::element::TypeVector{},
-                                                                                 output_types);
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset5::NonMaxSuppression>>(*nms,
+                                                                                           ov::element::TypeVector{},
+                                                                                           output_types);
         replace_node(node, relaxed_op);
         res = true;
     }
@@ -531,10 +530,9 @@ bool fuse_type_to_nms9(const std::shared_ptr<ngraph::Node>& node, const precisio
     }
 
     if (!type_relaxed) {
-        auto relaxed_op =
-            std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
-                                                                                 ov::element::TypeVector{},
-                                                                                 output_types);
+        auto relaxed_op = std::make_shared<ov::op::TypeRelaxed<opset9::NonMaxSuppression>>(*nms,
+                                                                                           ov::element::TypeVector{},
+                                                                                           output_types);
         replace_node(node, relaxed_op);
         res = true;
     }
