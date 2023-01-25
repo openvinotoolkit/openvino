@@ -88,8 +88,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             std::wstring suffix = L".tflite";
             std::wstring model_path = variants[0].as<std::wstring>();
             if (ov::util::ends_with(model_path, suffix)) {
-                return std::make_shared<InputModel>(
-                    std::make_shared<::ov::frontend::tensorflow::GraphIteratorFlatBuffer>(model_path),
+                return std::make_shared<tensorflow_lite::InputModel>(
+                    std::make_shared<GraphIteratorFlatBuffer>(model_path),
                     m_telemetry);
             }
         }
