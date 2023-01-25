@@ -82,8 +82,13 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
 void PullReshapeThroughDequantizationTransformation::Run() {
     LayerTestsCommon::Run();
 
+    const auto shape = std::get<1>(GetParam());
     const auto params = std::get<5>(GetParam());
-    const auto actualType = getRuntimePrecision(params.operationName);
+    auto opName = params.operationName;
+    // MixedAffinity case
+    if (shape[0].is_static() && shape[0].get_length() > 1)
+        opName += "_0";
+    const auto actualType = getRuntimePrecision(opName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
