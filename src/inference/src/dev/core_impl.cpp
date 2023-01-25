@@ -42,49 +42,6 @@ void allowNotImplemented(F&& f) {
     }
 }
 
-ov::util::FilePath getPluginPath(const std::string& pluginName, bool needAddSuffixes = false) {
-    const auto ieLibraryPath = InferenceEngine::getInferenceEngineLibraryPath();
-
-    auto pluginPath = ov::util::to_file_path(pluginName.c_str());
-
-    // 0. user can provide a full path
-
-#ifndef _WIN32
-    try {
-        // dlopen works with absolute paths; otherwise searches from LD_LIBRARY_PATH
-        pluginPath = ov::util::to_file_path(ov::util::get_absolute_file_path(pluginName));
-    } catch (const std::runtime_error&) {
-        // failed to resolve absolute path; not critical
-    }
-#endif  // _WIN32
-
-    if (FileUtils::fileExist(pluginPath))
-        return pluginPath;
-
-    // ov::Core::register_plugin(plugin_name, device_name) case
-    if (needAddSuffixes)
-        pluginPath = FileUtils::makePluginLibraryName({}, pluginPath);
-
-    // plugin can be found either:
-
-    // 1. in openvino-X.Y.Z folder relative to libopenvino.so
-    std::ostringstream str;
-    str << "openvino-" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-    const auto subFolder = ov::util::to_file_path(str.str());
-
-    ov::util::FilePath absFilePath = FileUtils::makePath(FileUtils::makePath(ieLibraryPath, subFolder), pluginPath);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // 2. in the openvino.so location
-    absFilePath = FileUtils::makePath(ieLibraryPath, pluginPath);
-    if (FileUtils::fileExist(absFilePath))
-        return absFilePath;
-
-    // 3. in LD_LIBRARY_PATH on Linux / PATH on Windows
-    return pluginPath;
-}
-
 void stripDeviceName(std::string& device, const std::string& substr) {
     auto pos = device.find(substr);
     if (pos == 0) {
@@ -102,7 +59,65 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
-void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile) {
+ov::util::FilePath ov::getPluginPath(const std::string& plugin) {
+    // Assume `plugin` may contain:
+    // 1. /path/to/libexample.so absolute path
+    // 2. ../path/to/libexample.so path relative to working directory
+    // 3. example library name - to be converted to 4th case
+    // 4. libexample.so - path relative to working directory (if exists) or file to be found in ENV
+
+    // For 1-2 cases
+    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos)
+        return ov::util::to_file_path(ov::util::get_absolute_file_path(plugin));
+
+    auto libName = plugin;
+    // For 3rd case - convert to 4th case
+    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
+        libName = FileUtils::makePluginLibraryName({}, plugin);
+
+    // For 4th case
+    auto libPath = ov::util::to_file_path(ov::util::get_absolute_file_path(libName));
+    if (ov::util::file_exists(libPath))
+        return libPath;
+    return ov::util::to_file_path(libName);
+}
+
+ov::util::FilePath ov::getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly) {
+    // Assume `plugin` (from XML "location" record) contains only:
+    // 1. /path/to/libexample.so absolute path
+    // 2. ../path/to/libexample.so path relative to XML directory
+    // 3. example library name - to be converted to 4th case
+    // 4. libexample.so - path relative to XML directory (if exists) or file to be found in ENV
+    // (if `asAbsOnly` is false)
+
+    // For 1st case
+    if (ov::util::is_absolute_file_path(plugin))
+        return ov::util::to_file_path(plugin);
+
+    auto xmlPath_ = xmlPath;
+    if (xmlPath.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
+        xmlPath_ = FileUtils::makePath(std::string("."), xmlPath);  // treat plugins.xml as CWD/plugins.xml
+
+    // For 2nd case
+    if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
+        auto path_ = FileUtils::makePath(ov::util::get_directory(xmlPath_), plugin);
+        return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
+    }
+
+    auto libFileName = plugin;
+    // For 3rd case - convert to 4th case
+    if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
+        libFileName = FileUtils::makePluginLibraryName({}, plugin);
+
+    // For 4th case
+    auto libPath = FileUtils::makePath(ov::util::get_directory(xmlPath_), libFileName);
+    libPath = ov::util::get_absolute_file_path(libPath);  // canonicalize path
+    if (asAbsOnly || ov::util::file_exists(libPath))
+        return ov::util::to_file_path(libPath);
+    return ov::util::to_file_path(libFileName);
+}
+
+void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile, const bool& ByAbsPath) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto parse_result = ParseXml(xmlConfigFile.c_str());
@@ -125,7 +140,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"));
+        ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"), xmlConfigFile, ByAbsPath);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -733,11 +748,7 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     plugins.erase(deviceName);
 }
 
-/**
- * @brief Registers plugin meta-data in registry for specified device
- * @param deviceName A name of device
- */
-void ov::CoreImpl::register_plugin(const std::string& pluginName, const std::string& deviceName) {
+void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& deviceName) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
     auto it = pluginRegistry.find(deviceName);
@@ -749,7 +760,7 @@ void ov::CoreImpl::register_plugin(const std::string& pluginName, const std::str
         IE_THROW() << "Device name must not contain dot '.' symbol";
     }
 
-    PluginDescriptor desc{getPluginPath(pluginName, true)};
+    PluginDescriptor desc{getPluginPath(plugin)};
     pluginRegistry[deviceName] = desc;
     add_mutex(deviceName);
 }

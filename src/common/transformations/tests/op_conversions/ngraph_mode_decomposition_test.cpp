@@ -34,8 +34,8 @@ TEST(TransformationTests, ModDecompositionTests) {
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMod>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertMod>();
         m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

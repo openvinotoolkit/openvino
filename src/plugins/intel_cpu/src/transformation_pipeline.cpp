@@ -352,8 +352,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return node::NormalizeL2::isSupportedOperation(node, errorMsg);
         });
 
-    pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
-    pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
+    pass_config->enable<ov::pass::SoftmaxDecomposition>();
+    pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
