@@ -39,6 +39,13 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() override;
 };
 
+class GrConvWithParamFunction : public MixedAffinityFunctionBase {
+public:
+    explicit GrConvWithParamFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+};
+
 class ConvWithTransposeFunction : public MixedAffinityFunctionBase {
 public:
     explicit ConvWithTransposeFunction(const std::vector<ov::PartialShape>& input_shapes);

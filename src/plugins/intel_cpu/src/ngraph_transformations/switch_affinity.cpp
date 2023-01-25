@@ -20,6 +20,8 @@
 #include <openvino/pass/serialize.hpp>
 
 namespace {
+static const char skip_reshape[] = "skip_reshape";
+
 void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
     std::string path = "/home/vgolubev/models/" + name;
     ov::pass::VisualizeTree(path + ".svg").run_on_model(model);
@@ -61,6 +63,8 @@ size_t get_batch_idx(const ov::PartialShape& shape) {
 
 void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) {
     for (auto&& param : model->get_parameters()) {
+        if (param->get_rt_info().count(skip_reshape))
+            continue;
         auto param_shape = param->get_partial_shape();
         const size_t batch_idx = get_batch_idx(param_shape);
 
@@ -92,6 +96,8 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
                                                                   ov::is_type<ov::intel_cpu::FullyConnectedNode>(start.get_node()));
 
         const auto& start_shape = start.get_partial_shape();
+        const auto main_param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
+
         size_t batch_idx = get_batch_idx(start_shape);
         // if dimension label isn't set for input shape, than check output one
         if (ov::DimensionTracker::get_label(start_shape[batch_idx]) != ov::intel_cpu::batch_label) {
@@ -104,13 +110,13 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
         const size_t cur_bs = start_shape[batch_idx].get_length();
         if (is_shared_weights || cur_bs == 1) {
             start_splits.push_back(start.get_source_output().get_node_shared_ptr());
+            main_param->get_rt_info()[skip_reshape] = true;
         } else {
             const auto split_axis = ov::opset1::Constant::create(ov::element::i32, {}, {batch_idx});
             const auto split = std::make_shared<ov::opset1::Split>(start.get_source_output(), split_axis, characteristics.n_splits);
             start_splits.push_back(split);
         }
 
-        const auto main_param = std::make_shared<ov::opset1::Parameter>(start.get_element_type(), start_shape);
         main_params.push_back(main_param);
     }
 
@@ -129,11 +135,11 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
 
     // create an ov::Model from a graph component
     const auto subgraph = std::make_shared<ov::Model>(result_vec, main_params);
-    ngraph::NodeMap constants;
+    ngraph::NodeMap common_nodes;
     if (share_constants) {
         for (const auto& op : subgraph->get_ordered_ops()) {
             if (ov::is_type<ov::opset1::Constant>(op)) {
-                constants[op.get()] = op;
+                common_nodes[op.get()] = op;
             }
         }
     }
@@ -152,7 +158,7 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
 
     setBatch(subgraph, characteristics.opt_bs);
     for (size_t branch_idx = 0; branch_idx < characteristics.n_splits; ++branch_idx) {
-        auto cloned_nodes = constants;
+        auto cloned_nodes = common_nodes;
         const auto branch = ov::clone_model(*subgraph, cloned_nodes);
         change_names(branch, branch_idx);
 

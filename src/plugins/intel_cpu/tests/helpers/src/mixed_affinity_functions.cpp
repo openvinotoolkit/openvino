@@ -78,6 +78,21 @@ std::shared_ptr<ov::Model> ConvWithBiasFunction::initOriginal() {
     return std::make_shared<ov::Model>(ov::NodeVector{bias}, parameters);
 }
 
+GrConvWithParamFunction::GrConvWithParamFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
+    NGRAPH_CHECK(input_shapes.size() == 2, "Got invalid number of input shapes");
+}
+
+std::shared_ptr<ov::Model> GrConvWithParamFunction::initOriginal() {
+    const auto parameters = ngraph::builder::makeDynamicParams(ov::element::f32, input_shapes);
+    auto group_conv = std::make_shared<ov::opset1::GroupConvolution>(parameters[0],
+                                                               parameters[1],
+                                                               ov::Strides{1, 1},
+                                                               ov::CoordinateDiff{0, 0},
+                                                               ov::CoordinateDiff{0, 0},
+                                                               ov::Strides{1, 1});
+    return std::make_shared<ov::Model>(ov::NodeVector{group_conv}, parameters);
+}
+
 ConvWithTransposeFunction::ConvWithTransposeFunction(const std::vector<ov::PartialShape>& input_shapes) : MixedAffinityFunctionBase(input_shapes) {
     NGRAPH_CHECK(input_shapes.size() == 1, "Got invalid number of input shapes");
 }
