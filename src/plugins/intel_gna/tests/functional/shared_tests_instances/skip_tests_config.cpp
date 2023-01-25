@@ -86,8 +86,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
         // TODO: Issue: 71068
         R"(.*OVInferRequestCancellationTests.*)",
-        // TODO: Issue: 71070
-        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)",
         // TODO: Issue: 95609
         R"(.*CompileModelCacheTestBase.*(ConvPoolRelu|TIwithLSTMcell1).*batch2.*)",
         R"(.*CompileModelCacheTestBase.*(SplitConvConcat|KSOFunction).*)",
