@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -35,6 +35,7 @@ class TestRepeatInterleave(PytorchLayerTest):
         return aten_repeat_interleave(), ref_net, "aten::repeat_interleave"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_repeat_interleave(self, ie_device, precision, ir_version, input_data):
         repeats = input_data['repeats']
         dim = input_data['dim']

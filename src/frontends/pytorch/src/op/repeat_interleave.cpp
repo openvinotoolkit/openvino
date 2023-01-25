@@ -1,26 +1,27 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
+namespace {
 OutputVector generate_indices_from_repeats_tensor(std::vector<int64_t> repeats, NodeContext& context) {
     OutputVector all_indices;
     for (int i = 0; i < repeats.size(); i++) {
-        Shape indices_shape{(unsigned int)repeats.at(i)};
+        Shape indices_shape{static_cast<size_t>(repeats.at(i))};
         std::vector<int64_t> indices_vec(repeats.at(i), i);
         auto indices = context.mark_node(opset10::Constant::create(element::i64, indices_shape, indices_vec));
         all_indices.push_back(indices);
     }
     return all_indices;
 };
+}  // namespace
 
 OutputVector translate_repeat_interleave(NodeContext& context) {
     // constants
@@ -31,6 +32,7 @@ OutputVector translate_repeat_interleave(NodeContext& context) {
     // inputs
     auto input = context.get_input(0);
     auto repeats = context.const_input<std::vector<int64_t>>(1);
+    FRONT_END_OP_CONVERSION_CHECK(repeats.size() >= 1, "repeats should contain at least 1 element");
 
     auto const_repeats =
         context.mark_node(opset10::Constant::create(element::i64, Shape{2}, {repeats.at(0), (int64_t)1}));
