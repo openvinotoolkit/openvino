@@ -64,14 +64,7 @@ class TRANSFORMATIONS_API ConvertPrecision;
  *     LessEqual
  */
 
-struct EnumClassHash {
-    template <class T>
-    std::size_t operator()(T t) const {
-        return static_cast<size_t>(t);
-    }
-};
-
-using precisions_map = std::unordered_map<ov::element::Type_t, ov::element::Type, EnumClassHash>;
+using precisions_map = std::unordered_map<ov::element::Type_t, ov::element::Type>;
 using type_to_fuse_map =
     std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::shared_ptr<ov::Node>&, const precisions_map&)>>;
 

@@ -242,6 +242,13 @@ bool convert_precision(ov::pass::PassBase& pass,
     return convert_function_precision(f, false);
 }
 
+struct EnumClassHash {
+    template <class T>
+    std::size_t operator()(T t) const {
+        return static_cast<size_t>(t);
+    }
+};
+
 using precisions_set_t = std::unordered_set<ngraph::element::Type_t, EnumClassHash>;
 
 precisions_set_t find_all_used_precisions(const std::shared_ptr<ngraph::Function>& fn) {
