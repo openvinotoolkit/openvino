@@ -36,6 +36,7 @@ AtenViewReplacer::AtenViewReplacer() {
             }
             auto concat = std::make_shared<opset10::Concat>(inputs, 0);
             auto reshape = std::make_shared<opset10::Reshape>(view_op->get_input_source_output(0), concat, false);
+            copy_runtime_info({view_op, shape_node}, reshape);
             replace_node(view_op, reshape);
             return true;
         };
@@ -44,6 +45,7 @@ AtenViewReplacer::AtenViewReplacer() {
             auto reshape = std::make_shared<opset10::Reshape>(view_op->get_input_source_output(0),
                                                               view_op->get_input_source_output(1),
                                                               false);
+            copy_runtime_info(view_op, reshape);
             replace_node(view_op, reshape);
             return true;
         };
@@ -52,6 +54,7 @@ AtenViewReplacer::AtenViewReplacer() {
             auto reshape = std::make_shared<opset10::Reshape>(view_op->get_input_source_output(0),
                                                               view_op->get_input_source_output(1),
                                                               false);
+            copy_runtime_info(view_op, reshape);
             replace_node(view_op, reshape);
             return true;
         };
@@ -60,6 +63,7 @@ AtenViewReplacer::AtenViewReplacer() {
             auto reshape = std::make_shared<opset10::Reshape>(view_op->get_input_source_output(0),
                                                               view_op->get_input_source_output(1),
                                                               false);
+            copy_runtime_info(view_op, reshape);
             replace_node(view_op, reshape);
             return true;
         };
