@@ -65,7 +65,7 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
     auto max_seq_len = make_shared<ReduceMax>(ctc_greedy_decoder->output(1), max_seq_len_axis, true);
     // inputs shape is in the form [batch_size, time_size, num_classes]
     auto inputs_shape = make_shared<ShapeOf>(inputs, element::i64);
-    auto slice_start = make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0);
+    auto slice_start = make_shared<Constant>(ov::element::i64, Shape{1}, 0);
     auto slice_end = make_shared<Constant>(element::i64, Shape{1}, 1);
     auto slice_step = make_shared<Constant>(element::i64, Shape{1}, 1);
     auto batch_size = make_shared<Slice>(inputs_shape, slice_start, slice_end, slice_step);
