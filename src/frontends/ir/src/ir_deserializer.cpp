@@ -4,9 +4,9 @@
 
 #include "ir_deserializer.hpp"
 
+#include <array>
 #include <pugixml.hpp>
 #include <regex>
-#include <array>
 
 #include "ie_ngraph_utils.hpp"
 #include "meta_data.hpp"
