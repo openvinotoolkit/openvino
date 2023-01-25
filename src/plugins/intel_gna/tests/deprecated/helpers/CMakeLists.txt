@@ -25,19 +25,17 @@ function(add_helpers target_name)
                 $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-
-    set_property(TARGET ${target_name} PROPERTY COMPILE_PDB_NAME ${target_name})
-
-    # add_cpplint_target(${target_name}_cpplint FOR_TARGETS ${target_name})
 endfunction()
 
 add_helpers(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PUBLIC commonTestUtils)
+target_link_libraries(${TARGET_NAME} PUBLIC commonTestUtils
+                                     PRIVATE inference_engine_legacy)
 
 add_helpers(${TARGET_NAME}_s USE_STATIC_IE)
 
-target_link_libraries(${TARGET_NAME}_s PUBLIC commonTestUtils_s)
+target_link_libraries(${TARGET_NAME}_s PUBLIC commonTestUtils_s
+                                       PRIVATE inference_engine_legacy_s)
 
 if (ENABLE_DATA)
     add_dependencies(${TARGET_NAME} data)
