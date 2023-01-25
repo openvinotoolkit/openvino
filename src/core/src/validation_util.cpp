@@ -1247,7 +1247,7 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs, size_t element_limi
     return are_eq;
 }
 
-ov::Tensor evaluate_bound_t(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
+ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     if (is_upper && output.get_tensor().get_upper_value()) {
         return output.get_tensor().get_upper_value();
     }
@@ -1320,19 +1320,35 @@ ov::Tensor evaluate_bound_t(const Output<Node>& output, bool is_upper, bool inva
         return output.get_tensor().get_lower_value();
 }
 
+bool default_bound_evaluator(const ov::Node* node,
+                             const ov::Tensor& (ov::descriptor::Tensor::*get_bound)() const,
+                             ov::TensorVector& output_values) {
+    const auto size = node->get_input_size();
+
+    ov::TensorVector inputs;
+    inputs.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+        if (auto bound = (node->get_input_tensor(i).*get_bound)()) {
+            inputs.push_back(bound);
+        } else {
+            return false;
+        }
+    }
+    return node->evaluate(output_values, inputs);
+}
 }  // namespace
 
 ov::Tensor ov::evaluate_lower_bound(const Output<Node>& output) {
-    return evaluate_bound_t(output, false);
+    return evaluate_bound(output, false);
 }
 
 ov::Tensor ov::evaluate_upper_bound(const Output<Node>& output) {
-    return evaluate_bound_t(output, true);
+    return evaluate_bound(output, true);
 }
 
 std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& output) {
-    evaluate_bound_t(output, false, false);
-    evaluate_bound_t(output, true);
+    evaluate_bound(output, false, false);
+    evaluate_bound(output, true);
     return {output.get_tensor_ptr()->get_lower_value(), output.get_tensor_ptr()->get_upper_value()};
 }
 
@@ -1412,33 +1428,11 @@ bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_lab
 }
 
 bool ov::default_lower_bound_evaluator(const Node* node, TensorVector& output_values) {
-    const auto size = node->get_input_size();
-
-    TensorVector inputs;
-    inputs.reserve(size);
-    for (size_t i = 0; i < size; ++i) {
-        if (auto bound = node->get_input_tensor(i).get_lower_value()) {
-            inputs.push_back(bound);
-        } else {
-            return false;
-        }
-    }
-    return node->evaluate(output_values, inputs);
+    return default_bound_evaluator(node, &descriptor::Tensor::get_lower_value, output_values);
 }
 
 bool ov::default_upper_bound_evaluator(const Node* node, TensorVector& output_values) {
-    const auto size = node->get_input_size();
-
-    TensorVector inputs;
-    inputs.reserve(size);
-    for (size_t i = 0; i < size; ++i) {
-        if (auto bound = node->get_input_tensor(i).get_upper_value()) {
-            inputs.push_back(bound);
-        } else {
-            return false;
-        }
-    }
-    return node->evaluate(output_values, inputs);
+    return default_bound_evaluator(node, &descriptor::Tensor::get_upper_value, output_values);
 }
 
 shared_ptr<op::Constant> ngraph::get_constant_max_of_type(element::Type_t t) {

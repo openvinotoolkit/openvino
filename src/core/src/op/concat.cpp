@@ -107,7 +107,6 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1));
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
-    // return false;
 }
 
 bool op::Concat::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
