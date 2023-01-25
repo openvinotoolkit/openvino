@@ -85,7 +85,7 @@ float16::float16(float value) {
         }
     }
     frac &= fmask_16;
-    if (biased_exp_16 > 30 || biased_exp_16 < -30) {
+    if (biased_exp_16 > 30) {
         // Infinity
         m_value = ((iv & smask) | emask_16 | 0) >> 16;
         return;
@@ -97,8 +97,12 @@ float16::float16(float value) {
     // Restore the hidden 1
     frac = 0x04000000 | ((iv & fmask_32) << 3);
     // Will any bits be shifted off?
-    uint32_t sticky = (frac & ((1 << (1 - biased_exp_16)) - 1)) ? 1 : 0;
-    frac >>= 1 + (-biased_exp_16);
+    int32_t shift = biased_exp_16 < -30 ? 0 : (1 << (1 - biased_exp_16));
+    uint32_t sticky = (frac & (shift - 1)) ? 1 : 0;
+    if (1 + (-biased_exp_16) > 31)
+        frac = 0;
+    else
+        frac >>= 1 + (-biased_exp_16);
     frac |= sticky;
     if (((frac & rhalf_16) == rodd_16) || ((frac & rnorm_16) != 0)) {
         frac += reven_16;
