@@ -15,7 +15,6 @@
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/rt_info/reduceop_path.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
@@ -151,6 +150,18 @@ public:
         register_matcher(m, callback);
     }
 };
+
+void mark_reduceop_path(const std::shared_ptr<Node>& node) {
+    node->get_rt_info().emplace("reduceop_path", true);
+}
+bool is_reduceop_path(const std::shared_ptr<const Node>& node) {
+    return node->get_rt_info().count("reduceop_path");
+}
+
+void erase_reduceop_path(const std::shared_ptr<Node>& node) {
+    auto& rt_info = node->get_rt_info();
+    rt_info.erase("reduceop_path");
+}
 
 class InitMarkReduceOpPath : public pass::MatcherPass {
 public:
@@ -340,6 +351,10 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     // Mark nodes in ShapeOf subgraphs to keep in FP32
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
     manager.run_passes(m);
+
+    for (auto& node : m->get_ops()) {
+        erase_reduceop_path(node);
+    }
 
     return false;  // no need to revalidate
 }

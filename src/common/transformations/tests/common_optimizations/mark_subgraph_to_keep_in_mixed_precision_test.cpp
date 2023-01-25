@@ -10,7 +10,6 @@
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/mark_subgraphs_to_keep_in_mixed_precision.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/rt_info/reduceop_path.hpp"
 
 using namespace testing;
 using namespace ov;
@@ -56,10 +55,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_1) {
         disable_fp16_compression(mul_1);
         disable_fp16_compression(factor_const);
         disable_fp16_compression(factor_const_decompressed);
-
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(exp_1);
-        mark_reduceop_path(reduce_sum_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -113,10 +108,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_with_reducemean) {
         disable_fp16_compression(factor_const);
         disable_fp16_compression(factor_const_decompressed);
 
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(exp_1);
-        mark_reduceop_path(reduce_mean_1);
-
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
@@ -162,8 +153,6 @@ TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_reducesum_without_e
         auto factor_const_decompressed = make_shared<Convert>(factor_const, element::f32);
         auto mul_1 = make_shared<Multiply>(reduce_sum_1, factor_const_decompressed);
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
-
-        mark_reduceop_path(reduce_sum_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -351,11 +340,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_2) {
         disable_fp16_compression(factor_const);
         disable_fp16_compression(factor_const_decompressed);
 
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(exp_1);
-        mark_reduceop_path(unsqueeze_1);
-        mark_reduceop_path(reduce_sum_1);
-
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
 
@@ -416,10 +400,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_3) {
         disable_fp16_compression(addition_const);
         disable_fp16_compression(factor_const);
         disable_fp16_compression(factor_const_decompressed);
-
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(exp_1);
-        mark_reduceop_path(reduce_sum_1);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
     }
@@ -691,25 +671,6 @@ TEST(TransformationTests, keep_precission_sensitive_fp32_7) {
         disable_fp16_compression(const_unsqueeze_2);
         disable_fp16_compression(const_unsqueeze_3);
 
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(mul_1);
-        mark_reduceop_path(mul_2);
-        mark_reduceop_path(mul_3);
-        mark_reduceop_path(mul_4);
-        mark_reduceop_path(mul_5);
-        mark_reduceop_path(unsqueeze_1);
-        mark_reduceop_path(unsqueeze_2);
-        mark_reduceop_path(unsqueeze_3);
-        mark_reduceop_path(reduce_sum_1);
-        mark_reduceop_path(reduce_sum_2);
-        mark_reduceop_path(reduce_sum_3);
-        mark_reduceop_path(reduce_sum_4);
-        mark_reduceop_path(exp_1);
-        mark_reduceop_path(exp_2);
-
-        mark_reduceop_path(factor_1);
-        mark_reduceop_path(factor_2);
-
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2, input_3, input_4});
     }
 
@@ -924,11 +885,6 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithMax) {
         disable_fp16_compression(sqrt);
         disable_fp16_compression(divide);
 
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(exp);
-        mark_reduceop_path(pow);
-        mark_reduceop_path(reduce_sum);
-
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const FunctionsComparator func_comparator =
@@ -981,11 +937,6 @@ TEST(TransformationTests, DivisionByZeroInL2NormWithSqrtAndWithAdd) {
         disable_fp16_compression(add);
         disable_fp16_compression(divide);
 
-        // marking for Exp->ReduceSum path
-        mark_reduceop_path(exp);
-        mark_reduceop_path(pow);
-        mark_reduceop_path(reduce_sum);
-
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const FunctionsComparator func_comparator =
@@ -1031,13 +982,11 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducesum) 
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-        mark_reduceop_path(exp_1);
         disable_fp16_compression(exp_1);
         disable_fp16_compression(mul_1);
         disable_fp16_compression(reduce_sum_1);
         disable_fp16_compression(factor_const_decompressed);
         disable_fp16_compression(factor_const);
-        mark_reduceop_path(reduce_sum_1);
     }
 
     const FunctionsComparator func_comparator =
@@ -1083,13 +1032,11 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_with_reducemean)
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-        mark_reduceop_path(exp_1);
         disable_fp16_compression(exp_1);
         disable_fp16_compression(mul_1);
         disable_fp16_compression(reduce_mean_1);
         disable_fp16_compression(factor_const_decompressed);
         disable_fp16_compression(factor_const);
-        mark_reduceop_path(reduce_mean_1);
     }
 
     const FunctionsComparator func_comparator =
@@ -1134,8 +1081,6 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_withou
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-
-        mark_reduceop_path(reduce_sum_1);
     }
 
     const FunctionsComparator func_comparator =
@@ -1187,15 +1132,12 @@ TEST(TransformationTests, MarkReduceOpExpToKeepInMixedPrecision_reducesum_exp_th
         auto matmul_1 = make_shared<MatMul>(mul_1, input_2);
 
         model_ref = make_shared<Model>(NodeVector{matmul_1}, ParameterVector{input_1, input_2});
-        mark_reduceop_path(exp_1);
         disable_fp16_compression(exp_1);
         disable_fp16_compression(mul_1);
         disable_fp16_compression(reduce_sum_1);
         disable_fp16_compression(factor_const_decompressed);
         disable_fp16_compression(factor_const);
         disable_fp16_compression(unsqueeze_1);
-        mark_reduceop_path(unsqueeze_1);
-        mark_reduceop_path(reduce_sum_1);
     }
 
     const FunctionsComparator func_comparator =
@@ -1410,10 +1352,6 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         disable_fp16_compression(max);
         disable_fp16_compression(sqrt);
 
-        mark_reduceop_path(reduce_sum);
-        mark_reduceop_path(pow);
-        mark_reduceop_path(exp);
-
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const auto fc = FunctionsComparator::with_default()
@@ -1466,9 +1404,6 @@ TEST(TransformationTests, MarkDivWithEpsToKeepInMixedPrecision_InL2NormWithSqrtA
         disable_fp16_compression(add);
         disable_fp16_compression(sqrt);
 
-        mark_reduceop_path(reduce_sum);
-        mark_reduceop_path(pow);
-        mark_reduceop_path(exp);
         model_ref = std::make_shared<Model>(NodeVector{divide}, ParameterVector{input});
     }
     const auto fc = FunctionsComparator::with_default()
