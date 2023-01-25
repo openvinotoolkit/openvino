@@ -4057,19 +4057,13 @@ INSTANTIATE_TEST_SUITE_P(implicit_crop_concat_conv_fusings_gpu, implicit_crop_co
 
 class PermuteOptimizingTestOnednn : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p, int min=0, int max=0) {
+    void execute(convolution_test_params& p) {
         if (!engine.get_device_info().supports_immad)
             return;
 
         p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
-        cldnn::memory::ptr input_prim;
-        if (min == max) {
-            input_prim = get_mem(get_input_layout(p));
-        } else {
-            input_prim = get_mem(get_input_layout(p), min, max);
-        }
-
+        cldnn::memory::ptr input_prim = get_mem(get_input_layout(p));
         cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 

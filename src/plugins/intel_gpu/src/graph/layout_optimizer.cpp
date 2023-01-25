@@ -1872,20 +1872,27 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
             if (node.is_type<convolution>() && node.get_input_layouts()[0].feature() == 3) {
-                bool can_permute_optimize = false;
+                bool can_optimize_permute = false;
+                // In permute-conv pattern, check if permute can be optimized
+                // when the input memory of permute has been aligned like byxf format.
+                // ex) pattern: input (bfyx) -> permute (byxf) -> oneDNN convolution
+                //      input layout of permute: bfyx [b:1, f:416, y:416, x:3]
+                //     output layout of permute: byxf [b:1, f:3, y:416, x:416]
+                // In this case, it can be handled by changing only the shape of permute without the kernel execution.
                 if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
                     auto& pnode = node.get_dependency(0).as<permute>();
-                    can_permute_optimize = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
+                    can_optimize_permute = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
                         && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                         && pnode.is_reverse_rotating_except_batch();
                 }
-                if (!can_permute_optimize) {
+                if (!can_optimize_permute) {
                     src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
                 } else {
                     // The size of dependencies and users must each be 1.
                     // In permute-conv pattern, the preferred format of permute should follow previous node.
                     node.get_dependency(0).init_preferred_fmt(1, 1);
                     node.get_dependency(0).set_preferred_input_fmt(0, format::bfyx);
+                    node.get_dependency(0).can_be_optimized(true);
                 }
             }
 
@@ -1901,17 +1908,22 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 }
             }
 
-            // Optimize permute if input is convolution and next is output.
+            // In conv-permute pattern, sets the output format of conv to byxf so that permute can be optimized.
+            // ex) oneDNN convolution -> (byxf) -> permute -> (bfyx) -> output
+            //     output layout of convolution: byxf [b:1, f:128, y:2, x:2]
+            //     output layout of permute:     bfyx [b:1, f:2, y:2, x:128]
+            // In this case, it can be handled by changing only the shape of permute without the kernel execution.
             if (node.get_output_layout().get_rank() == 4 && node.get_users().front()->is_type<permute>()) {
                 auto& pnode = node.get_users().front()->as<permute>();
-                auto can_permute_optimize = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
+                auto can_optimize_permute = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
                     && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                     && pnode.is_rotating_except_batch();
-                if (can_permute_optimize) {
+                if (can_optimize_permute) {
                     dst_fmt = format::byxf;
                     pnode.init_preferred_fmt(1, 1);
                     pnode.set_preferred_input_fmt(0, cldnn::format::byxf);
                     pnode.set_preferred_output_fmt(0, cldnn::format::bfyx);
+                    pnode.can_be_optimized(true);
                 }
             }
 
