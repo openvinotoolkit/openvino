@@ -1,7 +1,7 @@
 numpy>=1.16.6,<1.25.0
 tensorflow>=2.5,<=2.11.0
 networkx~=2.5; python_version <= "3.6"
-networkx<=2.8.8; python_version > "3.6"
+networkx<3.1.0; python_version > "3.6"
 defusedxml>=0.7.1
 requests>=2.25.1
 fastjsonschema~=2.15.1
