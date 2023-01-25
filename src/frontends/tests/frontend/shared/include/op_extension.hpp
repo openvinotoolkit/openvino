@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,12 +16,12 @@ struct OpExtensionFEParam {
     std::vector<std::shared_ptr<ov::Extension>> m_extensions;
 };
 
-class Relu : public ov::op::Op {
+class TestOperation : public ov::op::Op {
 public:
-    OPENVINO_OP("Relu");
+    OPENVINO_OP("TestOperation");
 
-    Relu() = default;
-    Relu(const ov::Output<ov::Node>& arg) : ov::op::Op({arg}) {
+    TestOperation() = default;
+    TestOperation(const ov::Output<ov::Node>& arg) : ov::op::Op({arg}) {
         validate_and_infer_types();
     }
     void validate_and_infer_types() override {
@@ -30,7 +30,7 @@ public:
         set_output_type(0, arg_type, arg_shape);
     }
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
-        return std::make_shared<Relu>(new_args.at(0));
+        return std::make_shared<TestOperation>(new_args.at(0));
     }
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         return true;

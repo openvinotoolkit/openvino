@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,25 +142,44 @@ public:
           m_attr_names_map(attr_names_map),
           m_attr_values_map(attr_values_map) {}
 
-    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+    std::pair<std::string, ov::Any> get_attribute_as_any(const std::string& name, ValueAccessor<void>& adapter) {
         auto p_value = m_attr_values_map.find(name);
-
-        if (p_value != m_attr_values_map.end()) {
-            adapter.set_as_any(p_value->second);
-        } else {
-            auto p_name = m_attr_names_map.find(name);
-            const std::string& target_name = p_name != m_attr_names_map.end() ? p_name->second : name;
-            try {
-                adapter.set_as_any(m_context.get_attribute_as_any(target_name));
-            } catch (::ov::AssertFailure& ex) {
-                OPENVINO_ASSERT(false,
-                                ex.what(),
-                                "\nValue for attribute \"",
-                                target_name,
-                                "\" is not set or mapping between "
-                                "framework and openvino node attributes is incorrect.");
-            }
+        auto p_name = m_attr_names_map.find(name);
+        bool is_value_found = p_value != m_attr_values_map.end();
+        bool is_name_mapping_found = p_name != m_attr_names_map.end();
+        OPENVINO_ASSERT(!(is_value_found && is_name_mapping_found),
+                        "For attribute " + name + " both name mapping and value mapping are provided."
+                        " The behavior for this case is undefined. Please leave only one mapping.");
+        if (is_value_found) {
+            return {name, p_value};
         }
+
+        const std::string& target_name = p_name != m_attr_names_map.end() ? p_name->second : name;
+        return {target_name, m_context.get_attribute_as_any(target_name)};
+    }
+
+    static void set_as_any(const std::string& name, ValueAccessor<void>& adapter, const ov::Any& value) {
+        try {
+            adapter.set_as_any(value);
+        } catch (::ov::AssertFailure &ex) {
+            OPENVINO_ASSERT(false,
+                            ex.what(),
+                            "\nValue for attribute \"",
+                            name,
+                            "\" is not set or mapping between "
+                            "framework and openvino node attributes is incorrect.");
+        }
+    }
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
+        auto attribute = get_attribute_as_any(name, adapter);
+        auto p_value = attribute.second.addressof();
+        set_as_any(attribute.first, adapter, static_cast<bool>(p_value));
+    }
+
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        auto attribute = get_attribute_as_any(name, adapter);
+        set_as_any(attribute.first, adapter, attribute.second);
     }
 
 private:

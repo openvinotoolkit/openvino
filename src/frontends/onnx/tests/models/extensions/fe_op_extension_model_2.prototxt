@@ -1,0 +1,66 @@
+ir_version: 8
+graph {
+  node {
+    input: "X"
+    output: "X1"
+    op_type: "Elu"
+    attribute {
+      name: "alpha"
+      f: 1
+      type: FLOAT
+    }
+  }
+  node {
+    input: "X1"
+    output: "X2"
+    op_type: "Convert"
+    attribute {
+      name: "destination_type"
+      s: "i64"
+      type: STRING
+    }
+  }
+  node {
+    input: "X2"
+    output: "X3"
+    op_type: "IsInf"
+    attribute {
+      name: "detect_negative"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "detect_positive"
+      i: 0
+      type: INT
+    }
+  }
+  name: "1_to_1_mapping"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 18
+}

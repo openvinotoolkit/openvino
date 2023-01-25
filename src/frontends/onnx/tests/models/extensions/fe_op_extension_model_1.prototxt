@@ -1,0 +1,138 @@
+ir_version: 8
+graph {
+  node {
+    input: "X"
+    output: "X1"
+    op_type: "TestOperation1"
+  }
+  node {
+    input: "X1"
+    output: "X2"
+    op_type: "TestOperation2"
+  }
+  node {
+    input: "X2"
+    output: "X3"
+    op_type: "TestOperation3"
+    attribute {
+      name: "fw_attribute_float"
+      f: 1
+      type: FLOAT
+    }
+    attribute {
+      name: "fw_attribute_int"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "fw_attribute_str"
+      s: "attribute_value"
+      type: STRING
+    }
+    attribute {
+      name: "fw_attribute_vec_float"
+      floats: 1
+      floats: 2
+      floats: 3
+      type: FLOATS
+    }
+    attribute {
+      name: "fw_attribute_vec_int"
+      ints: 1
+      ints: 2
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "fw_attribute_vec_str"
+      strings: "value_1"
+      strings: "value_2"
+      strings: "value_3"
+      type: STRINGS
+    }
+  }
+  node {
+    input: "X3"
+    output: "X4"
+    op_type: "TestOperation4"
+    attribute {
+      name: "fw_attribute_bool"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "fw_attribute_enum"
+      s: "Value2"
+      type: STRING
+    }
+    attribute {
+      name: "fw_attribute_float"
+      f: 1
+      type: FLOAT
+    }
+    attribute {
+      name: "fw_attribute_int"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "fw_attribute_str"
+      s: "attribute_value"
+      type: STRING
+    }
+    attribute {
+      name: "fw_attribute_vec_float"
+      floats: 1
+      floats: 2
+      floats: 3
+      type: FLOATS
+    }
+    attribute {
+      name: "fw_attribute_vec_int"
+      ints: 1
+      ints: 2
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "fw_attribute_vec_str"
+      strings: "value_1"
+      strings: "value_2"
+      strings: "value_3"
+      type: STRINGS
+    }
+  }
+  node {
+    input: "X4"
+    output: "out"
+    op_type: "TestOperation5"
+  }
+  name: "fe_op_extension_model_1"
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 18
+}

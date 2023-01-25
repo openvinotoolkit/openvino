@@ -14,28 +14,28 @@ using namespace ov::frontend;
 
 using TFOpExtensionTest = FrontEndOpExtensionTest;
 
-class Relu1 : public Relu {
+class TestOperation1 : public TestOperation {
 public:
-    OPENVINO_OP("CustomRelu_1");
+    OPENVINO_OP("TestOperation1");
     OPENVINO_FRAMEWORK_MAP(tensorflow)
 };
 
-class Relu2 : public Relu {
+class TestOperation2 : public TestOperation {
 public:
-    OPENVINO_FRAMEWORK_MAP(tensorflow, "CustomRelu_2")
+    OPENVINO_FRAMEWORK_MAP(tensorflow, "TestOperation2")
 };
 
-class Relu3 : public Relu {
+class TestOperation3 : public TestOperation {
 public:
     OPENVINO_FRAMEWORK_MAP(tensorflow,
-                           "CustomRelu_3",
+                           "TestOperation3",
                            {{"ov_attribute_1", "fw_attribute_1"}, {"ov_attribute_2", "fw_attribute_2"}})
 };
 
-class Relu4 : public Relu {
+class TestOperation4 : public TestOperation {
 public:
     OPENVINO_FRAMEWORK_MAP(tensorflow,
-                           "CustomRelu_4",
+                           "TestOperation4",
                            {{"ov_attribute_1", "fw_attribute_1"}, {"ov_attribute_2", "fw_attribute_2"}},
                            {
                                {"ov_attribute_str", "string"},
@@ -55,10 +55,10 @@ static OpExtensionFEParam getTestDataOpExtensionViaUserClass() {
     res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pb";
     // use core OpExtension
-    res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{std::make_shared<ov::OpExtension<Relu1>>(),
-                                                                   std::make_shared<ov::OpExtension<Relu2>>(),
-                                                                   std::make_shared<ov::OpExtension<Relu3>>(),
-                                                                   std::make_shared<ov::OpExtension<Relu4>>()};
+    res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{std::make_shared<ov::OpExtension<TestOperation1>>(),
+                                                                   std::make_shared<ov::OpExtension<TestOperation2>>(),
+                                                                   std::make_shared<ov::OpExtension<TestOperation3>>(),
+                                                                   std::make_shared<ov::OpExtension<TestOperation4>>()};
     return res;
 }
 
