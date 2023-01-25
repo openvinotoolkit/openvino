@@ -29,7 +29,7 @@ ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
             if (!beta_const) {
                 return false;
             }
-            if (!ngraph::op::util::get_single_value(beta_const, beta_value)) {
+            if (!ov::op::util::get_single_value(beta_const, beta_value)) {
                 return false;
             }
         }
