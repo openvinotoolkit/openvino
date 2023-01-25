@@ -14,7 +14,7 @@ GPU Plugin contains the following components:
 ## Tutorials
 
 * [Source code structure](./docs/source_code_structure.md)
-  * Basic data structures of gpu graph and overall flow
+  * [Basic data structures of gpu graph and overall flow](./docs/basic_data_structures.md)
   * Memory allocation in GPU plugin
 * Simplified workflow
   * Graph Optimization Passes
