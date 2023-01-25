@@ -370,27 +370,33 @@ public:
 
 /// \brief Access a vector<int32_t>
 template <>
-class OPENVINO_API AttributeAdapter<std::vector<int32_t>> : public IndirectVectorValueAccessor<std::vector<int32_t>, std::vector<int64_t>> {
+class OPENVINO_API AttributeAdapter<std::vector<int32_t>>
+    : public IndirectVectorValueAccessor<std::vector<int32_t>, std::vector<int64_t>> {
 public:
-    AttributeAdapter(std::vector<int32_t>& value) : IndirectVectorValueAccessor<std::vector<int32_t>, std::vector<int64_t>>(value) {}
+    AttributeAdapter(std::vector<int32_t>& value)
+        : IndirectVectorValueAccessor<std::vector<int32_t>, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int32_t>");
 };
 
 /// \brief Access a vector<int16_t>
 template <>
-class OPENVINO_API AttributeAdapter<std::vector<int16_t>> : public IndirectVectorValueAccessor<std::vector<int16_t>, std::vector<int64_t>> {
+class OPENVINO_API AttributeAdapter<std::vector<int16_t>>
+    : public IndirectVectorValueAccessor<std::vector<int16_t>, std::vector<int64_t>> {
 public:
-    AttributeAdapter(std::vector<int16_t>& value) : IndirectVectorValueAccessor<std::vector<int16_t>, std::vector<int64_t>>(value) {}
+    AttributeAdapter(std::vector<int16_t>& value)
+        : IndirectVectorValueAccessor<std::vector<int16_t>, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int16_t>");
 };
 
 /// \brief Access a vector<int8_t>
 template <>
-class OPENVINO_API AttributeAdapter<std::vector<int8_t>> : public IndirectVectorValueAccessor<std::vector<int8_t>, std::vector<int64_t>> {
+class OPENVINO_API AttributeAdapter<std::vector<int8_t>>
+    : public IndirectVectorValueAccessor<std::vector<int8_t>, std::vector<int64_t>> {
 public:
-    AttributeAdapter(std::vector<int8_t>& value) : IndirectVectorValueAccessor<std::vector<int8_t>, std::vector<int64_t>>(value) {}
+    AttributeAdapter(std::vector<int8_t>& value)
+        : IndirectVectorValueAccessor<std::vector<int8_t>, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int8_t>");
 };
@@ -442,9 +448,11 @@ public:
 
 /// \brief Access a vector<float>
 template <>
-class OPENVINO_API AttributeAdapter<std::vector<float>> : public IndirectVectorValueAccessor<std::vector<float>, std::vector<double>> {
+class OPENVINO_API AttributeAdapter<std::vector<float>>
+    : public IndirectVectorValueAccessor<std::vector<float>, std::vector<double>> {
 public:
-    AttributeAdapter(std::vector<float>& value) : IndirectVectorValueAccessor<std::vector<float>, std::vector<double>>(value) {}
+    AttributeAdapter(std::vector<float>& value)
+        : IndirectVectorValueAccessor<std::vector<float>, std::vector<double>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<float>");
 };

@@ -148,8 +148,9 @@ public:
         bool is_value_found = p_value != m_attr_values_map.end();
         bool is_name_mapping_found = p_name != m_attr_names_map.end();
         OPENVINO_ASSERT(!(is_value_found && is_name_mapping_found),
-                        "For attribute " + name + " both name mapping and value mapping are provided."
-                        " The behavior for this case is undefined. Please leave only one mapping.");
+                        "For attribute " + name +
+                            " both name mapping and value mapping are provided."
+                            " The behavior for this case is undefined. Please leave only one mapping.");
         if (is_value_found) {
             return {name, p_value};
         }
@@ -161,7 +162,7 @@ public:
     static void set_as_any(const std::string& name, ValueAccessor<void>& adapter, const ov::Any& value) {
         try {
             adapter.set_as_any(value);
-        } catch (::ov::AssertFailure &ex) {
+        } catch (::ov::AssertFailure& ex) {
             OPENVINO_ASSERT(false,
                             ex.what(),
                             "\nValue for attribute \"",

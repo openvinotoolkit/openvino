@@ -6,11 +6,11 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "onnx_utils.hpp"
+#include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/enum_names.hpp"
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/onnx/extension/op.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
-#include "openvino/core/enum_names.hpp"
-#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/op/relu.hpp"
 #include "so_extension.hpp"
 
@@ -64,18 +64,13 @@ private:
     std::vector<double> ov_attribute_vec_double;
 };
 
-enum class TestEnum {
-    Value1,
-    Value2,
-    Value3
-};
+enum class TestEnum { Value1, Value2, Value3 };
 
 template <>
 NGRAPH_API ov::EnumNames<TestEnum>& ov::EnumNames<TestEnum>::get() {
-    static auto enum_names = EnumNames<TestEnum>("TestEnum",
-                                                 {{"Value1", TestEnum::Value1},
-                                                  {"Value2", TestEnum::Value2},
-                                                  {"Value3", TestEnum::Value3}});
+    static auto enum_names =
+        EnumNames<TestEnum>("TestEnum",
+                            {{"Value1", TestEnum::Value1}, {"Value2", TestEnum::Value2}, {"Value3", TestEnum::Value3}});
     return enum_names;
 }
 
@@ -86,7 +81,6 @@ public:
 
     OPENVINO_RTTI("AttributeAdapter<TestEnum>");
 };
-
 
 std::ostream& operator<<(std::ostream& s, const ngraph::op::PadMode& type) {
     return s << ov::as_string(type);
@@ -100,8 +94,8 @@ class TestOperation4 : public TestOperation {
 public:
     OPENVINO_FRAMEWORK_MAP(onnx,
                            "TestOperation4",
-                            // the values of these attributes will be read
-                            // and set to the original values from framework model
+                           // the values of these attributes will be read
+                           // and set to the original values from framework model
                            {
                                {"ov_attribute_float", "fw_attribute_float"},
                                {"ov_attribute_str", "fw_attribute_str"},
