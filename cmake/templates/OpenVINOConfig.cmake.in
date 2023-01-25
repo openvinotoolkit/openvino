@@ -50,7 +50,7 @@
 #   TensorFlow FrontEnd target (optional)
 #
 #   `openvino::frontend::tensorflow_lite`
-#   TensorFlow FrontEnd target (optional)
+#   TensorFlow Lite FrontEnd target (optional)
 #
 # Result variables:
 # ------
