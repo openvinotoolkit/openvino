@@ -67,3 +67,8 @@ CPU plugin removes a Power layer from a topology if it has the following paramet
   - <b>scale</b> = 1
   - <b>offset</b> = 0
 
+## See also
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [OPENVINO CPU Plugin](../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)

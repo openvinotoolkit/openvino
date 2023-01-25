@@ -8,7 +8,7 @@ In general the tool can be used for all kind of troubleshooting activities excep
 
 See [Documentation](https://www.intel.com/content/www/us/en/developer/articles/tool/software-development-emulator.html) for more information
 
-# Usage examples:
+## Usage examples:
 
 - Emulating Sapphire Rapids CPU for _benchmark_app_ together with blob dumping, for example to debug some accuracy issue:
 
@@ -29,3 +29,8 @@ OV_CPU_BLOB_DUMP_FORMAT=TEXT OV_CPU_BLOB_DUMP_NODE_TYPE=Convolution \
 
 `/path/to/sde -adl -- ./benchmark_app -m path/to/model.xml`
 
+## See also
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [OPENVINO CPU Plugin](../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)
