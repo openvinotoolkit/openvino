@@ -36,7 +36,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusion) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
     }
 
     {
@@ -74,7 +74,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseNotAllSplitOutp
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
     }
 
     {
@@ -117,7 +117,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitOutputsGoI
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
     }
 
     {
@@ -160,7 +160,7 @@ TEST_F(TransformationTestsF, SplitSqueezeConcatFusionNegativeCaseSplitAxisDiffer
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{concat}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::SplitSqueezeConcatFusion>();
+        manager.register_pass<ov::pass::SplitSqueezeConcatFusion>();
     }
 
     {
