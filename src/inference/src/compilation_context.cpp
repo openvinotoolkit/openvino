@@ -170,17 +170,19 @@ std::string NetworkCompilationContext::compute_hash(const std::string& modelStr,
     seed = hash_combine(seed, modelStr);
 
     // tensor data
-    seed = hash_combine(seed, tensor.get_size());
+    if (tensor) {
+        seed = hash_combine(seed, tensor.get_size());
 
-    auto ptr = static_cast<size_t*>(tensor.data());
-    size_t size = tensor.get_size() / sizeof(size_t);
-    for (size_t i = 0; i < size; i++)
-        seed = hash_combine(seed, ptr[i]);
-    auto size_done = size * sizeof(size_t);
-    auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
-    size_t size_left = tensor.get_size() - size_done;
-    for (size_t i = 0; i < size_left; i++)
-        seed = hash_combine(seed, ptr_left[i]);
+        auto ptr = static_cast<size_t*>(tensor.data());
+        size_t size = tensor.get_size() / sizeof(size_t);
+        for (size_t i = 0; i < size; i++)
+            seed = hash_combine(seed, ptr[i]);
+        auto size_done = size * sizeof(size_t);
+        auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
+        size_t size_left = tensor.get_size() - size_done;
+        for (size_t i = 0; i < size_left; i++)
+            seed = hash_combine(seed, ptr_left[i]);
+    }
 
     // compile options
     for (const auto& kvp : compileOptions) {
