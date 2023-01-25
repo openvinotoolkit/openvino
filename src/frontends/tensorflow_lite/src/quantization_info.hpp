@@ -23,18 +23,46 @@ class QuantizationInfo : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("QuantizationInfo");
     QuantizationInfo() = default;
-    explicit QuantizationInfo(std::shared_ptr<Quantization> quantization) {
-        m_quantization = quantization;
-    }
+    explicit QuantizationInfo(const std::vector<float>& scale,
+                              const std::vector<int64_t>& zero_point,
+                              const int64_t& axis)
+        : m_scale(scale),
+          m_zero_point(zero_point),
+          m_axis(axis) {}
+
     bool is_copyable() const override {
         return false;
     }
-    std::shared_ptr<Quantization> get_quantization() const {
-        return m_quantization;
+    const std::vector<float>& get_scale() const {
+        return m_scale;
+    }
+    void set_scale(const std::vector<float>& scale) {
+        m_scale = scale;
+    }
+    const std::vector<int64_t>& get_zero_point() const {
+        return m_zero_point;
+    }
+    void set_zero_point(const std::vector<int64_t>& zero_point) {
+        m_zero_point = zero_point;
+    }
+    const int64_t& get_axis() const {
+        return m_axis;
+    }
+    void set_axis(const int64_t& axis) {
+        m_axis = axis;
+    }
+    bool is_disabled() const {
+        return m_disabled;
+    }
+    void disable() {
+        m_disabled = true;
     }
 
 private:
-    std::shared_ptr<Quantization> m_quantization;
+    std::vector<float> m_scale;
+    std::vector<int64_t> m_zero_point;
+    int64_t m_axis{};
+    bool m_disabled = false;
 };
 }  // namespace tensorflow_lite
 }  // namespace frontend

@@ -6,27 +6,24 @@
 
 #include <openvino/opsets/opset10.hpp>
 
-#include "quantization_info.hpp"
 #include "schema_generated.h"
-#include "tensor_lite_place.hpp"
 
 using namespace ov;
 
-std::shared_ptr<ov::frontend::tensorflow_lite::Quantization> ov::frontend::tensorflow_lite::get_quantization(
+std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> ov::frontend::tensorflow_lite::get_quantization(
     const tflite::QuantizationParameters* tf_quantization) {
     if (tf_quantization == NULL)
         return {};
-    auto quantization = std::make_shared<ov::frontend::tensorflow_lite::Quantization>();
+    auto quantization = std::make_shared<ov::frontend::tensorflow_lite::QuantizationInfo>();
     auto tf_zp = tf_quantization->zero_point();
     auto tf_scale = tf_quantization->scale();
     if (tf_zp != NULL)
-        quantization->zero_point = {(*tf_zp).begin(), (*tf_zp).end()};
+        quantization->set_zero_point({(*tf_zp).begin(), (*tf_zp).end()});
     if (tf_scale != NULL)
-        quantization->scale = {(*tf_scale).begin(), (*tf_scale).end()};
-    if (quantization->zero_point.empty() && quantization->scale.empty())
+        quantization->set_scale({(*tf_scale).begin(), (*tf_scale).end()});
+    if (quantization->get_zero_point().empty() && quantization->get_scale().empty())
         return {};
-    quantization->axis = tf_quantization->quantized_dimension();
-    quantization->no_quantization = false;
+    quantization->set_axis(tf_quantization->quantized_dimension());
     return quantization;
 }
 
@@ -70,7 +67,7 @@ ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::
 }
 
 ov::Shape get_quant_shape(const Output<Node>& output,
-                          const std::shared_ptr<ov::frontend::tensorflow_lite::Quantization>& quantization,
+                          const std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo>& quantization,
                           const size_t& size) {
     auto shape = ov::Shape{};
     if (size > 1) {
@@ -78,7 +75,7 @@ ov::Shape get_quant_shape(const Output<Node>& output,
                                 "Per-Channel Quantization of tensor with dynamic rank");
         auto rank = output.get_partial_shape().size();
         shape = ov::Shape(rank, 1);
-        shape[quantization->axis] = size;
+        shape[quantization->get_axis()] = size;
     }
     return shape;
 }
@@ -88,8 +85,8 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     if (!rt_info.count(QuantizationInfo::get_type_info_static()))  // no quantization
         return;
 
-    auto quantization = rt_info[QuantizationInfo::get_type_info_static()].as<QuantizationInfo>().get_quantization();
-    if (!quantization || quantization->no_quantization)
+    auto quantization = rt_info[QuantizationInfo::get_type_info_static()].as<std::shared_ptr<QuantizationInfo>>();
+    if (!quantization || quantization->is_disabled())
         return;
 
     bool is_constant = ov::is_type<ov::opset10::Constant>(output.get_node_shared_ptr());
@@ -98,8 +95,8 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
     auto input_type = output.get_element_type();
     ov::Output<ov::Node> input_low, input_high, output_low, output_high;
 
-    auto zp = quantization->zero_point;
-    auto scale = quantization->scale;
+    auto zp = quantization->get_zero_point();
+    auto scale = quantization->get_scale();
 
     auto zp_shape = get_quant_shape(output, quantization, zp.size());
     auto scale_shape = get_quant_shape(output, quantization, scale.size());
@@ -149,5 +146,5 @@ void ov::frontend::tensorflow_lite::apply_quantization(ov::Output<ov::Node>& out
         input_high = output_high;
     }
     output = std::make_shared<opset10::FakeQuantize>(output, input_low, input_high, output_low, output_high, levels);
-    quantization->no_quantization = true;  // we applied parameters -- disable them so that they won't apply twice
+    quantization->disable();  // we applied parameters -- disable them so that they won't apply twice
 }

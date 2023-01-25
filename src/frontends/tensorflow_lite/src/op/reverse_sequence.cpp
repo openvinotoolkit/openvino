@@ -7,6 +7,7 @@
 #include "utils.hpp"
 
 using namespace std;
+using namespace ov::frontend::tensorflow::op;
 
 namespace ov {
 namespace frontend {
@@ -19,10 +20,7 @@ OutputVector reverse_sequence(const ov::frontend::tensorflow_lite::NodeContext& 
         {"seq_dim", static_cast<int64_t>(decoder->get_attribute(&tflite::ReverseSequenceOptions::seq_dim))},
         {"batch_dim", static_cast<int64_t>(decoder->get_attribute(&tflite::ReverseSequenceOptions::batch_dim))},
     };
-    return attribute_helper(node,
-                            attrs,
-                            ov::frontend::tensorflow::op::translate_reverse_sequence_op,
-                            "ReverseSequence");
+    return attribute_helper(node, attrs, translate_reverse_sequence_op, "ReverseSequence");
 }
 
 }  // namespace op
