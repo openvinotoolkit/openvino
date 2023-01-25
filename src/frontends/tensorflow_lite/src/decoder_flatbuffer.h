@@ -6,7 +6,6 @@
 
 #include <string>
 #include <vector>
-#include <flatbuffers/vector.h>
 #include "tensor_lite_place.hpp"
 #include "graph_iterator_flatbuffer.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
