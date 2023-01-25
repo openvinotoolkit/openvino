@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "test_common.hpp"
+#include <stdlib.h>
+#include <string>
 
 namespace CommonTestUtils {
 

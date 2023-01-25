@@ -11,7 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <pugixml.hpp>
 #include <sstream>
 
 /// \brief Enables dynamic load of libpq module
@@ -751,52 +750,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             std::cerr << PG_ERR << "Query building is failed with exception: " << e.what() << std::endl;
             return;
         }
-        /*
-            This part might be specific for different tests. In case amount of cases will be greater than, for example,
-           2 the code should be refactored to use a map on test-dependent functions/methods.
-        */
-        if (test_info.value_param() != NULL &&
-            strcmp(::testing::UnitTest::GetInstance()->current_test_suite()->name(), "conformance/ReadIRTest") == 0) {
-            /*
-            This part of code responsible for cleaning source model XML from
-            meaningless information which might be changed run2run by SubgraphDumper
-            or similar tool
-            */
-            std::string testDescription;
-            {
-                std::ostringstream normalizedXml;
-                std::vector<std::string> params =
-                    ParseValueParam(test_info.value_param());  // Extracting value_params from serialized string
 
-                if (params.size() > 0) {
-                    struct modelNormalizer : pugi::xml_tree_walker {
-                        bool for_each(pugi::xml_node& node) override {
-                            if (node.type() == pugi::node_element) {
-                                node.remove_attribute("name");
-                            }
-                            return true;
-                        }
-                    } modelNorm;
-
-                    pugi::xml_document normalizedModel;
-                    normalizedModel.load_file(params[0].c_str());
-                    normalizedModel.traverse(modelNorm);
-                    normalizedModel.save(normalizedXml, "");  // No indent expected, let's reduce size of xml
-                    testDescription = normalizedXml.str();
-                }
-            }
-            if (!testDescription.empty()) {
-                /*
-                    A generated XML may contains characters should be escaped in a query.
-                */
-                try {
-                    sstr << ", '" << EscapeString(testDescription) << "'";
-                } catch (std::exception& e) {
-                    std::cerr << PG_ERR << "Description building is failed with exception: " << e.what() << std::endl;
-                    return;
-                }
-            }
-        } else {
+        {
+            /* If we need a query customization - it could be done here. */
             sstr << ", NULL";
         }
 

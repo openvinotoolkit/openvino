@@ -190,6 +190,7 @@ ie_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
 
 ie_option(ENABLE_CONFORMANCE_PGQL "Enables support of PostgreSQL-based reporting from test tools" OFF)
+mark_as_advanced(FORCE ENABLE_CONFORMANCE_PGQL)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
