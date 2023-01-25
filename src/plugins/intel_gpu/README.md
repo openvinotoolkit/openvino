@@ -1,6 +1,6 @@
 ﻿# GPU Plugin
 
-GPU plugin in [OpenVINO toolkit](../../../../openvino/) supports inference on Intel® GPUs starting from Gen8 architecture.
+GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) supports inference on Intel® GPUs starting from Gen8 architecture.
 
 ## Components
 
@@ -9,7 +9,7 @@ GPU Plugin contains the following components:
 * [include](./include/)
 * [src](./src/)
 * [tests](./tests/)
-* [thirdpart](./thirdparty/)
+* [thirdparty](./thirdparty/)
 
 ## Tutorials
 
@@ -70,13 +70,6 @@ The software dependencies are:
 
 - [python™](https://www.python.org/downloads/) 3.7 or later.
 
-## See also
-
- * [OpenVINO™ README](../../../README.md)
- * [OpenVINO Core Components](../../README.md)
- * [OpenVINO Plugins](../README.md)
- * [Developer documentation](../../../docs/dev/index.md)
-
 ## Trademark Information
 
 Intel, the Intel logo, Intel Atom, Intel Core, Intel Xeon Phi, Iris, OpenVINO,
@@ -93,3 +86,10 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission
 by Khronos.
 
 Copyright © 2021, Intel Corporation
+
+## See also
+
+ * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO Core Components](../../README.md)
+ * [OpenVINO Plugins](../README.md)
+ * [Developer documentation](../../../docs/dev/index.md)
