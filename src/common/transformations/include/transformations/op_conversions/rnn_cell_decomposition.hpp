@@ -33,9 +33,3 @@ public:
     OPENVINO_RTTI("RNNCellDecomposition", "0");
     RNNCellDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::RNNCellDecomposition;
-}  // namespace pass
-}  // namespace ngraph

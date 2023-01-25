@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("ReshapeTo1D", "0");
     ReshapeTo1D();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ReshapeTo1D;
-}  // namespace pass
-}  // namespace ngraph
