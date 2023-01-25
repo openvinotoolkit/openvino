@@ -14,8 +14,8 @@ The following debug capabilities are available with the latest openvino:
 - [Graph serialization](../src/docs/graph_serialization.md)
 
 ## See also
- * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)
- * [OPENVINO CPU Plugin](../README.md)
- * [Developer documentation](../../../docs/dev/index.md)
+ * [OPENVINO GPU Plugin](../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)

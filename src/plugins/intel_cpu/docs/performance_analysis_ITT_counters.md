@@ -49,9 +49,9 @@ Generated file can be opened with Vtune client.
 Use API defined in [openvino/itt](https://docs.openvinotoolkit.org/latest/itt_2include_2openvino_2itt_8hpp.html) module.
 
 ## See also
- * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)
- * [OPENVINO CPU Plugin](../README.md)
- * [Developer documentation](../../../docs/dev/index.md)
+ * [OPENVINO GPU Plugin](../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)
  
