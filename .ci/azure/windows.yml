@@ -281,7 +281,7 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowCommon.xml
     displayName: 'TensorFlow Common Unit Tests'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_lite_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowLite.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-TensorflowLite.xml
     displayName: 'TensorFlow Lite Unit Tests'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\LpTransformations.xml

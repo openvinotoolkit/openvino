@@ -332,7 +332,7 @@ jobs:
     displayName: 'TensorFlow Common Unit Tests'
 
   - script: |
-      $(INSTALL_TEST_DIR)/ov_tensorflow_lite_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
+      $(INSTALL_TEST_DIR)/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Lite Unit Tests'
