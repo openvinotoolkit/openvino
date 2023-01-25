@@ -8,7 +8,6 @@
 #include <common_test_utils/test_constants.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 
-#include "cpp/ie_plugin.hpp"
 #include "plugin/mock_load_network_properties.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
@@ -44,13 +43,13 @@ public:
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> cpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> cpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* cpuMockIPlugin;
-    InferenceEngine::InferencePlugin cpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> cpuMockPlugin;
 
     // mock gpu exeNetwork
     std::shared_ptr<NiceMock<MockIExecutableNetworkInternal>> gpuMockIExeNet;
     ov::SoPtr<IExecutableNetworkInternal> gpuMockExeNetwork;
     NiceMock<MockIInferencePlugin>* gpuMockIPlugin;
-    InferenceEngine::InferencePlugin gpuMockPlugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> gpuMockPlugin;
     std::shared_ptr<NiceMock<MockIInferRequestInternal>> inferReqInternal;
 
 public:
@@ -80,20 +79,20 @@ public:
         auto cpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(cpuMockIExeNet));
-        cpuMockPlugin = InferenceEngine::InferencePlugin{cpuMockIPluginPtr, {}};
+        cpuMockPlugin = cpuMockIPluginPtr;
         // remove annoying ON CALL message
         EXPECT_CALL(*cpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        cpuMockExeNetwork = cpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+        cpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(cpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         // prepare gpuMockExeNetwork
         gpuMockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
         auto gpuMockIPluginPtr = std::make_shared<NiceMock<MockIInferencePlugin>>();
         ON_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _))
             .WillByDefault(Return(gpuMockIExeNet));
-        gpuMockPlugin = InferenceEngine::InferencePlugin{gpuMockIPluginPtr, {}};
+        gpuMockPlugin = gpuMockIPluginPtr;
         // remove annoying ON CALL message
         EXPECT_CALL(*gpuMockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-        gpuMockExeNetwork = gpuMockPlugin.LoadNetwork(CNNNetwork{}, {});
+        gpuMockExeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(gpuMockPlugin->LoadNetwork(CNNNetwork{}, {}), {});
 
         // prepare mockicore and cnnNetwork for loading
         core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());

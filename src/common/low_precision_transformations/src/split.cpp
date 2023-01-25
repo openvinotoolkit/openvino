@@ -95,7 +95,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
             parent = subtract;
         }
 
-        const auto multiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
+        const auto multiply = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(parent, splitedMul[i]);
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(multiply, dequantization.multiply->get_output_element_type(0));
         copy_runtime_info({ newSplit, multiply }, multiply);
 

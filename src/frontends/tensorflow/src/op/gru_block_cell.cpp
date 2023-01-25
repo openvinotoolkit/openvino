@@ -4,7 +4,8 @@
 
 #include "helper_ops/gru_block_cell.hpp"
 
-#include "op_table.hpp"
+#include "common_op_table.hpp"
+#include "openvino/frontend/tensorflow/node_context.hpp"
 
 using namespace std;
 using namespace ov;
@@ -15,7 +16,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_gru_block_cell_op(const NodeContext& node) {
+OutputVector translate_gru_block_cell_op(const ov::frontend::tensorflow::NodeContext& node) {
     // GRUBlockCell computes the GRU cell forward propagation for 1 time step
     // Inputs:
     // 0) x: Input to the GRU cell

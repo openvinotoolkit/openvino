@@ -12,6 +12,7 @@ trigger:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 pr:
   drafts: 'false'
@@ -28,6 +29,7 @@ pr:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 resources:
   repositories:
@@ -133,9 +135,9 @@ jobs:
             -DENABLE_INTEL_CPU=OFF \
             -DENABLE_INTEL_GPU=OFF \
             -DENABLE_INTEL_GNA=OFF \
-            -DENABLE_INTEL_MYRIAD_COMMON=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF \
             -DENABLE_OV_PADDLE_FRONTEND=OFF \
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF \
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DENABLE_PYTHON=OFF \
             -DENABLE_TESTS=ON \

@@ -95,7 +95,7 @@
 #include "ngraph_transformations/swap_convert_transpose.hpp"
 
 // Snippets
-#include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 
 // Misc
@@ -140,7 +140,7 @@ void Transformations::UpToCpuSpecificOpSet() {
         ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(model) &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
-    const bool useSnippets = enableSnippets &&
+    const bool useSnippets = snippetsMode != Config::SnippetsMode::Disable &&
         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Snippets);
 
     auto defaultPrecisions = useLpt ? ngraph::pass::low_precision::precision_set::int8_support : std::vector<ov::element::Type>{};
@@ -344,8 +344,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return node::NormalizeL2::isSupportedOperation(node, errorMsg);
         });
 
-    pass_config->enable<ngraph::pass::SoftmaxDecomposition>();
-    pass_config->set_callback<ngraph::pass::SoftmaxDecomposition>(
+    pass_config->enable<ov::pass::SoftmaxDecomposition>();
+    pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
@@ -543,47 +543,95 @@ void Transformations::PostLpt() {
             return false;
         });
 
+    // Float MHA is supported by snippets now
+    if (!enableBF16) {
+        postLPTPassManager.get_pass_config()->disable<MHAFloatFusion>();
+        postLPTPassManager.get_pass_config()->disable<MHAFloatFusion2>();
+    }
+
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     postLPTPassManager.register_pass<ConvertFqRnnToQuantizedRnn>();
     postLPTPassManager.run_passes(model);
 }
 
 void Transformations::MainSnippets(void) {
-    if (!enableSnippets ||
+    if (snippetsMode == Config::SnippetsMode::Disable ||
         !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemeted only for relevant platforms (avx2+ extentions)
         return;
 
-    ov::pass::Manager snippetsManager;
-    snippetsManager.register_pass<SnippetsMarkSkipped>();
-    snippetsManager.register_pass<ngraph::snippets::pass::EnumerateNodes>();
-    snippetsManager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
-    snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
-        [](const std::shared_ptr<const ov::Node>& n) -> bool {
-            // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
-            if (ov::is_type<const ov::op::v4::Swish>(n)) {
-                if (n->inputs().size() > 1 && !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1)))
-                    return true;
-            }
+    ngraph::pass::Manager snippetsManager;
+    if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
+        snippetsManager.register_pass<SnippetsMarkSkipped>();
+    snippetsManager.register_pass<ngraph::snippets::pass::SnippetsTokenization>();
 
-            const auto& inputs = n->inputs();
-            // todo: clarify whether we can evaluate snippets on const paths
-            const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
-                                                           [](const ov::Input<const ov::Node> &in) {
-                                                               return ov::is_type<ov::op::v0::Constant>(in.get_source_output().get_node_shared_ptr());
-                                                           });
-            // todo: clarify whether we can evaluate snippets on inputs with larger ranks
-            auto rank_is_too_large = [](const ov::descriptor::Tensor& t ) {
-                // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
-                return t.get_partial_shape().rank().get_length() > 6;
-            };
-            const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
-                                                    [&](const ov::Input<const ov::Node>& in) {return  rank_is_too_large(in.get_tensor());});
-            const auto& outputs = n->outputs();
-            const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
-                                                     [&](const ov::Output<const ov::Node>& out) {return  rank_is_too_large(out.get_tensor());});
-            return has_only_const_inputs || bad_input_rank || bad_output_rank;
-        });
-    snippetsManager.register_pass<ngraph::snippets::pass::CommonOptimizations>();
+    const bool isMHASupported =
+            !enableBF16 &&  // TODO: Need to add BF16 support for MHA in Snippets
+            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);  // MHA has BRGEMM that is supported only on AVX512 platforms
+    if (!isMHASupported) {
+        snippetsManager.get_pass_config()->disable<ngraph::snippets::pass::TokenizeMHASnippets>();
+    }
+    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+        snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeMHASnippets>(
+                [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    const auto pshape = n->get_output_partial_shape(0);
+                    const auto shape = pshape.get_shape();
+                    const auto parallel_work_amount =
+                            std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+                    const auto kernel_buffer_size =
+                            std::accumulate(shape.rbegin(), shape.rbegin() + 2, 1, std::multiplies<size_t>()) *
+                            n->get_output_element_type(0).size();
+                    // Heuristic values:
+                    //    parallelism work amount - not enough work amount for parallelism
+                    //    kernel work amount - large shape for kernel execution, not cache-local
+                    // TODO: The heuristics will be removed after
+                    //       - loop blocking support on code generation level
+                    //       - parallelism support on JIT level
+                    const auto needed_num_of_threads = 12lu;
+                    const auto l2_cache_size = dnnl::utils::get_cache_size(2, true);
+                    const auto is_unsupported_parallel_work_amount = parallel_get_num_threads() / 2 > parallel_work_amount &&
+                                                                     parallel_work_amount < needed_num_of_threads;
+                    const auto is_unsupported_kernel_work_amount = kernel_buffer_size > l2_cache_size;
+                    return is_unsupported_parallel_work_amount || is_unsupported_kernel_work_amount;
+                });
+        snippetsManager.get_pass_config()->set_callback<ngraph::snippets::pass::TokenizeSnippets>(
+                [](const std::shared_ptr<const ov::Node>& n) -> bool {
+                    // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
+                    const bool is_unsupported_swish =
+                            ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                            !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+                    // todo: general tokenization flow is not currently supported for these operations.
+                    //  they can be tokenized only as a part of complex patterns
+                    const bool is_disabled_tokenization = (ov::is_type<const ov::op::v1::Softmax>(n) ||
+                                                           ov::is_type<const ov::op::v8::Softmax>(n) ||
+                                                           ov::is_type<const ov::op::v0::MatMul>(n) ||
+                                                           ov::is_type<const ov::op::v1::Transpose>(n) ||
+                                                           ov::is_type<const ov::op::v1::Broadcast>(n) ||
+                                                           ov::is_type<const ov::op::v3::Broadcast>(n));
+                    const auto& inputs = n->inputs();
+                    // todo: clarify whether we can evaluate snippets on const paths
+                    const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
+                                                                   [](const ov::Input<const ov::Node>& in) {
+                                                                       return ov::is_type<ov::op::v0::Constant>(
+                                                                               in.get_source_output().get_node_shared_ptr());
+                                                                   });
+                    // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+                    auto rank_is_too_large = [](const ov::descriptor::Tensor& t) {
+                        // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
+                        return t.get_partial_shape().rank().get_length() > 6;
+                    };
+                    const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
+                                                            [&](const ov::Input<const ov::Node>& in) {
+                                                                return rank_is_too_large(in.get_tensor());
+                                                            });
+                    const auto& outputs = n->outputs();
+                    const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
+                                                             [&](const ov::Output<const ov::Node>& out) {
+                                                                 return rank_is_too_large(out.get_tensor());
+                                                             });
+                    return has_only_const_inputs || bad_input_rank || bad_output_rank || is_unsupported_swish ||
+                           is_disabled_tokenization;
+                });
+    }
     snippetsManager.run_passes(model);
 }
 

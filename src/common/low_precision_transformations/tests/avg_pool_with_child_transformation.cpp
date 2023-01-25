@@ -104,7 +104,7 @@ public:
 };
 
 TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_model(actualFunction);
+    ov::pass::InitNodeInfo().run_on_model(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     auto res = compare_functions(actualFunction, referenceFunction, true, true);
