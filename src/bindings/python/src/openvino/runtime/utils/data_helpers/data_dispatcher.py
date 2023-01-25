@@ -3,21 +3,75 @@ from typing import Dict, Union
 
 import numpy as np
 
-from openvino._pyopenvino import ConstOutput, Tensor
+from openvino._pyopenvino import ConstOutput, Tensor, Type
 from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper
 
-def value_to_tensor(val, is_shared: bool = False):
-    # Special case for Tensor, return "as-is"
-    if isinstance(val, Tensor):
-        return val
-    elif isinstance(val, (np.ndarray, np.number, int, float)):
-        # Edge-case for numpy arrays if shape is "empty",
-        # assume this is a scalar value - always copy
-        if not val.shape or isinstance(val, (np.number, int, float)):
-            return Tensor(np.ndarray([], type(val), np.array(val)))
-        return Tensor(val, shared_memory=is_shared)
+ContainerTypes = Union[dict, list, tuple]
+ScalarTypes = Union[np.number, int, float]
+ValidKeys = Union[str, int, ConstOutput]
+
+def get_request_tensor(request, key=None):
+    if key is None:
+        return request.get_input_tensor()
+    elif isinstance(key, int):
+        return request.get_input_tensor(key)
+    elif isinstance(key, (str, ConstOutput)):
+        return request.get_tensor(key)
     else:
-        raise TypeError(f"Incompatible inputs of type: {type(val)}")
+        raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
+
+
+@singledispatch
+def value_to_tensor(
+    val: Union[Tensor, np.ndarray, ScalarTypes], 
+    is_shared: bool = False,
+    request: _InferRequestWrapper = None,
+    key = None,
+) -> None:
+    raise TypeError(f"Incompatible inputs of type: {type(val)}")
+
+
+@value_to_tensor.register(Tensor)
+def _(
+    val: Tensor, 
+    is_shared: bool = False,
+    request: _InferRequestWrapper = None,
+    key = None,
+) -> Tensor:
+    return val
+
+
+@value_to_tensor.register(np.ndarray)
+def _(
+    val: np.ndarray, 
+    is_shared: bool = False,
+    request: _InferRequestWrapper = None,
+    key = None,
+) -> Tensor:
+    # Edge-case for numpy arrays if shape is "empty",
+    # assume this is a scalar value - always copy
+    if not val.shape:
+        return Tensor(np.ndarray([], type(val), np.array(val)))
+    tensor_type = get_request_tensor(request, key).get_element_type()
+    tensor_dtype = tensor_type.to_dtype()
+    # WA for FP16-->BF16 edge-case - always copy
+    if tensor_type == Type.bf16:
+        tensor = Tensor(tensor_type, val.shape)
+        tensor.data[:] = val.view(tensor_dtype)
+        return tensor
+    return Tensor(val.astype(tensor_dtype) if tensor_dtype != val.dtype else val, shared_memory=is_shared)
+
+
+@value_to_tensor.register(np.number)
+@value_to_tensor.register(int)
+@value_to_tensor.register(float)
+def _(
+    val: ScalarTypes, 
+    is_shared: bool = False,
+    request: _InferRequestWrapper = None,
+    key = None,
+) -> Tensor:
+    return Tensor(np.ndarray([], type(val), np.array(val)))
 
 
 def to_c_style(val, is_shared: bool = False):
@@ -34,12 +88,7 @@ def to_c_style(val, is_shared: bool = False):
 ###
 @singledispatch
 def normalize_arrays(
-    inputs: Union[
-        dict,
-        list,
-        tuple,
-        np.ndarray,
-    ],
+    inputs: Union[ContainerTypes, np.ndarray],
     is_shared: bool = False,
 ) -> None:
     # Check the special case of the array-interface
@@ -86,13 +135,13 @@ def _(
 # Step to keep alive input values that are not C-style by default
 @singledispatch
 def create_shared(
-    inputs: Union[np.ndarray, np.number, int, float],
+    inputs: Union[np.ndarray, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> None:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
         request._inputs_data = normalize_arrays(inputs, is_shared=True)
-        return value_to_tensor(request._inputs_data, is_shared=True)
+        return value_to_tensor(request._inputs_data, is_shared=True, request=request)
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -101,11 +150,11 @@ def create_shared(
 @create_shared.register(list)
 @create_shared.register(tuple)
 def _(
-    inputs: Union[dict, list, tuple],
+    inputs: ContainerTypes,
     request: _InferRequestWrapper,
 ) -> None:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
-    return {k: value_to_tensor(v, is_shared=True) for k, v in request._inputs_data.items()}
+    return {k: value_to_tensor(v, is_shared=True, request=request, key=k) for k, v in request._inputs_data.items()}
 
 
 @create_shared.register(np.ndarray)
@@ -114,7 +163,7 @@ def _(
     request: _InferRequestWrapper,
 ) -> None:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
-    return value_to_tensor(request._inputs_data, is_shared=True)
+    return value_to_tensor(request._inputs_data, is_shared=True, request=request)
 
 
 @create_shared.register(Tensor)
@@ -122,11 +171,11 @@ def _(
 @create_shared.register(int)
 @create_shared.register(float)
 def _(
-    inputs: Union[Tensor, np.number, float, int],
+    inputs: Union[Tensor, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> None:
     # Special case
-    return value_to_tensor(inputs)
+    return value_to_tensor(inputs, is_shared=True, request=request)
 
 
 ###
@@ -136,7 +185,7 @@ def _(
 ###
 # Start of "copied" dispatcher.
 ###
-def set_request_tensor(request: _InferRequestWrapper, tensor: Tensor, key: Union[str, int, ConstOutput] = None) -> None:
+def set_request_tensor(request: _InferRequestWrapper, tensor: Tensor, key: ValidKeys = None) -> None:
     if key is None:
         request.set_input_tensor(tensor)
     elif isinstance(key, int):
@@ -149,9 +198,9 @@ def set_request_tensor(request: _InferRequestWrapper, tensor: Tensor, key: Union
 
 @singledispatch
 def update_tensor(
-    inputs: Union[np.ndarray, np.number, int, float],
+    inputs: Union[np.ndarray, ScalarTypes],
     request: _InferRequestWrapper,
-    key: Union[str, int, ConstOutput] = None,
+    key: ValidKeys = None,
 ) -> None:
     if hasattr(inputs, "__array__"):
         update_tensor(normalize_arrays(inputs, is_shared=False), request, key=None)
@@ -163,20 +212,13 @@ def update_tensor(
 def _(
     inputs: np.ndarray,
     request: _InferRequestWrapper,
-    key: Union[str, int, ConstOutput] = None,
+    key: ValidKeys = None,
 ) -> None:
     # If shape is "empty", assume this is a scalar value
     if not inputs.shape:
-        set_request_tensor(request, Tensor(inputs), key)
+        set_request_tensor(request, value_to_tensor(inputs, is_shared=False), key)
     else:
-        if key is None:
-            tensor = request.get_input_tensor()
-        elif isinstance(key, int):
-            tensor = request.get_input_tensor(key)
-        elif isinstance(key, (str, ConstOutput)):
-            tensor = request.get_tensor(key)
-        else:
-            raise TypeError(f"Unsupported key type: {type(key)} for Tensor under key: {key}")
+        tensor = get_request_tensor(request, key)
         # Update shape if there is a mismatch
         if tensor.shape != inputs.shape:
             tensor.shape = inputs.shape
@@ -190,7 +232,7 @@ def _(
 def _(
     inputs: Union[np.number, float, int],
     request: _InferRequestWrapper,
-    key: Union[str, int, ConstOutput] = None,
+    key: ValidKeys = None,
 ) -> None:
     set_request_tensor(
         request,
@@ -208,7 +250,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
-    new_inputs: Dict[Union[str, int, ConstOutput], Tensor] = {}
+    new_inputs: Dict[ValidKeys, Tensor] = {}
     for key, value in inputs.items():
         if not isinstance(key, (str, int, ConstOutput)):
             raise TypeError(f"Incompatible key type for input: {key}")
@@ -227,7 +269,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
 @singledispatch
 def create_copied(
-    inputs: Union[dict, list, tuple, np.ndarray, np.number, int, float],
+    inputs: Union[ContainerTypes, np.ndarray, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> None:
     # Check the special case of the array-interface
@@ -242,7 +284,7 @@ def create_copied(
 @create_copied.register(list)
 @create_copied.register(tuple)
 def _(
-    inputs: Union[dict, list, tuple],
+    inputs: ContainerTypes,
     request: _InferRequestWrapper,
 ) -> None:
     return update_inputs(normalize_arrays(inputs, is_shared=False), request)
@@ -262,7 +304,7 @@ def _(
 @create_copied.register(int)
 @create_copied.register(float)
 def _(
-    inputs: Union[Tensor, np.number, float, int],
+    inputs: Union[Tensor, ScalarTypes],
     request: _InferRequestWrapper,
 ) -> None:
     return value_to_tensor(inputs, is_shared=False)
@@ -275,7 +317,7 @@ def _(
 
 def _data_dispatch(
     request: _InferRequestWrapper,
-    inputs: Union[dict, list, tuple, Tensor, np.ndarray, np.number, int, float] = None,
+    inputs: Union[ContainerTypes, Tensor, np.ndarray, ScalarTypes] = None,
     is_shared: bool = False,
 ):
     if inputs is None:
