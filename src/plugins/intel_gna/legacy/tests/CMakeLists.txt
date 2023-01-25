@@ -2,7 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ov_transformations_tests)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-missing-declarations)
+    ie_add_compiler_flags(-Wno-bool-compare)
+endif()
+
+set(TARGET_NAME ov_legacy_transformations_tests)
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
@@ -11,9 +16,9 @@ ov_add_test_target(
     LINK_LIBRARIES
         gmock
         funcTestUtils
-        offline_transformations
         sharedTestClasses
         lptNgraphFunctions
+        inference_engine_legacy
     ADD_CLANG_FORMAT
     INCLUDES
         $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
