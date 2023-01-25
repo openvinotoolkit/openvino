@@ -776,9 +776,10 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         p.add_optimized_primitive_info(in0.id(), {new_conv_node.id()});
 
         if (in0.is_type<quantize>()) {
-            for (auto dep : in0.dependencies) {
-                if (dep->users.size() == 1 && dep->users.front()->is_type<quantize>()) {
-                    dep->users.clear();
+            for (auto& dep : in0.get_dependencies()) {
+                auto& users = dep.first->get_users();
+                if (users.size() == 1 && users.front()->is_type<quantize>()) {
+                    dep.first->users.clear();
                 }
             }
         }
