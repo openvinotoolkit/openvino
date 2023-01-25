@@ -7,6 +7,8 @@ import os
 from operator import itemgetter
 
 import networkx as nx
+import numpy as np
+
 from openvino.tools.mo.back.RemoveUselessConvert import RemoveUselessConvert
 from openvino.tools.mo.back.ResultRename import ResultRename
 from openvino.tools.mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, \
@@ -166,7 +168,14 @@ def convert_inputs_of_specific_ops(graph: Graph):
                     in_port = node.in_port(port_id)
                     np_type = data_type_str_to_np(precision)
                     if in_port.get_source().node.type == 'Const':
-                        convert_const_node_value_type(node.in_port(port_id).get_source().node, np_type)
+                        const_node = node.in_port(port_id).get_source().node
+                        const_type = const_node.out_port(0).get_data_type()
+                        if np.issubdtype(const_type, np.integer) and np.issubdtype(np_type, np.integer):
+                            # do not convert Constant value if both source and destination types are of integer types
+                            # otherwise, it affects compatibility of MO IR Engine and TF FE
+                            # TF FE intents to use original model type for layers if it is possible
+                            continue
+                        convert_const_node_value_type(const_node, np_type)
                     else:
                         in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
 
@@ -246,7 +255,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
                    mean_offset=mean_offset,
                    mean_size=mean_size,
                    meta_info=meta_info)
-    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
+    tensor_names.output_tensor_names_map(graph, os.path.join(output_dir,
+                                                             '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
 
 
 def get_ir_version(argv: argparse.Namespace):

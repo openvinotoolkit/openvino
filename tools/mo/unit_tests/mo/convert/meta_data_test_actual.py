@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -8,7 +8,6 @@ from pathlib import Path
 
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import serialize
-
 from openvino.tools.mo import convert_model
 from openvino.tools.mo.utils.ir_reader.restore_graph import restore_graph_from_ir, save_restored_graph
 from openvino.tools.mo.utils.version import get_version
@@ -68,12 +67,11 @@ class MetaDataTestTF(unittest.TestCase):
             }
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
-
             model = create_tf_model()
             out_xml = os.path.join(tmpdir, "model.xml")
             ref_meta = ref_meta_data()
 
-            ov_model = convert_model(model, scale=1.5, batch=1)
+            ov_model = convert_model(model, scale=1.5, batch=1, use_legacy_frontend=True)
             self.check_meta_data(ov_model, ref_meta)
 
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))

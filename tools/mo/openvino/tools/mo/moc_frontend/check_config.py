@@ -1,8 +1,7 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import json
 from pathlib import Path
 
 from openvino.tools.mo.utils import import_extensions
@@ -44,9 +43,9 @@ def legacy_extensions_used(argv: argparse.Namespace):
             if not Path(extension).is_file():
                 legacy_ext_counter += 1
         if legacy_ext_counter == len(extensions):
-            return True # provided only legacy extensions
+            return True  # provided only legacy extensions
         elif legacy_ext_counter == 0:
-            return False # provided only new extensions
+            return False  # provided only new extensions
         else:
             raise Error('Using new and legacy extensions in the same time is forbidden')
     return False
@@ -66,9 +65,9 @@ def new_extensions_used(argv: argparse.Namespace):
             else:
                 new_ext_counter += 1
         if new_ext_counter == len(extensions):
-            return True # provided only new extensions
+            return True  # provided only new extensions
         elif new_ext_counter == 0:
-            return False # provided only legacy extensions
+            return False  # provided only legacy extensions
         else:
             raise Error('Using new and legacy extensions in the same time is forbidden')
     return False
@@ -76,7 +75,7 @@ def new_extensions_used(argv: argparse.Namespace):
 
 def get_transformations_config_path(argv: argparse.Namespace) -> Path:
     if hasattr(argv, 'transformations_config') \
-        and argv.transformations_config is not None and len(argv.transformations_config):
+            and argv.transformations_config is not None and len(argv.transformations_config):
         if isinstance(argv.transformations_config, str):
             path = Path(argv.transformations_config)
             if path.is_file():
@@ -85,9 +84,14 @@ def get_transformations_config_path(argv: argparse.Namespace) -> Path:
 
 
 def legacy_transformations_config_used(argv: argparse.Namespace):
-    return  get_transformations_config_path(argv) != None
+    return get_transformations_config_path(argv) != None
+
+
+def tensorflow_custom_operations_config_update_used(argv: argparse.Namespace):
+    return hasattr(argv, 'tensorflow_custom_operations_config_update') and \
+           argv.tensorflow_custom_operations_config_update is not None
 
 
 def input_freezig_used(argv):
     return hasattr(argv, 'freeze_placeholder_with_value') and argv.freeze_placeholder_with_value is not None \
-        and len(argv.freeze_placeholder_with_value) > 0
+           and len(argv.freeze_placeholder_with_value) > 0
