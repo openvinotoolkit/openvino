@@ -25,14 +25,17 @@ if(NOT FLATBUFFERS_BUILD_FLATC)
         TARGET_NAME host_flatc
         NATIVE_INSTALL_DIR "${HOST_FLATC_INSTALL_DIR}"
         CMAKE_ARGS "-DFLATBUFFERS_BUILD_TESTS=${FLATBUFFERS_BUILD_TESTS}"
-                   "-DFLATBUFFERS_BUILD_FLATHASH=${FLATBUFFERS_BUILD_FLATHASH}")
+                   "-DFLATBUFFERS_BUILD_FLATHASH=${FLATBUFFERS_BUILD_FLATHASH}"
+                   "-DFLATBUFFERS_INSTALL=ON"
+        NATIVE_SOURCE_SUBDIR "flatbuffers"
+        NATIVE_TARGETS flatc)
 
-    set(flatbuffers_COMPILER "${HOST_FLATC_INSTALL_DIR}/bin/protoc")
+    set(flatbuffers_COMPILER "${HOST_FLATC_INSTALL_DIR}/bin/flatc")
     add_executable(flatbuffers::flatc IMPORTED GLOBAL)
     set_property(TARGET flatbuffers::flatc APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
     set_target_properties(flatbuffers::flatc PROPERTIES
         IMPORTED_LOCATION_RELEASE "${flatbuffers_COMPILER}")
-    set_target_properties(protobuf::protoc PROPERTIES
+    set_target_properties(flatbuffers::flatc PROPERTIES
         MAP_IMPORTED_CONFIG_DEBUG Release
         MAP_IMPORTED_CONFIG_MINSIZEREL Release
         MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
