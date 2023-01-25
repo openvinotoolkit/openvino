@@ -211,3 +211,11 @@ def check_ir_version(left, right, ir_version):
     left_bound = _ir_version - 1 if left is None else left
     right_bound = _ir_version + 1 if right is None else right
     return left_bound <= _ir_version < right_bound
+
+
+def parametrize(test_data, test_params):
+    test_args = []
+    for element in itertools.product(test_data, test_params):
+        test_args.append(element)
+    return test_args
+
