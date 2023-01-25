@@ -16,12 +16,12 @@ from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
 
 from openvino.runtime.utils.data_helpers import (
-    InferRequestInternal,
+    _InferRequestWrapper,
     _data_dispatch,
     tensor_from_file,
 )
 
-class InferRequest(InferRequestInternal):
+class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
     def infer(self, inputs: Any = None, shared_memory:bool = False) -> dict:
