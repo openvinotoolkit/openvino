@@ -136,10 +136,6 @@ InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEn
         return ret;
     }
     auto res = query_model(network.getFunction(), deviceName, any_copy(config));
-    if (res.empty()) {
-        ret.rc = InferenceEngine::GENERAL_ERROR;
-        return ret;
-    }
     ret.supportedLayersMap = res;
 
     return ret;
