@@ -55,6 +55,7 @@ static constexpr Property<bool, PropertyMutability::RW> enable_dynamic_batch{"DY
 static constexpr Property<size_t, PropertyMutability::RW> max_dynamic_batch{"DYN_BATCH_LIMIT"};
 static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests{"EXCLUSIVE_ASYNC_REQUESTS"};
 static constexpr Property<bool, PropertyMutability::RW> nv12_two_inputs{"GPU_NV12_TWO_INPUTS"};
+static constexpr Property<bool, PropertyMutability::RW> allow_shape_info_as_kernel_args{"GPU_ALLOW_SHAPE_INFO_AS_KERNEL_ARGS"};
 
 }  // namespace intel_gpu
 }  // namespace ov

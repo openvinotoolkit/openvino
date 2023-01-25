@@ -11,10 +11,6 @@ KERNEL(shape_of_ref)(
 {
     const unsigned int i = (uint)get_global_id(2);
 
-#if IS_DYNAMIC
-    output[i] = TO_OUTPUT_TYPE(shape_info[i]);
-#else
     size_t shapes[] = INPUT_DIMS_INIT;
     output[i] = TO_OUTPUT_TYPE(shapes[i]);
-#endif
 }

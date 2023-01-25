@@ -710,7 +710,9 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
                                    false,
                                    GetFusedPrimitiveInputsCount(params),
                                    1,
-                                   is_dynamic);
+                                   is_dynamic,
+                                   params.use_shape_info_as_kernel_args,
+                                   GetDynamicBuffersCount(params));
 
     return {kd};
 }

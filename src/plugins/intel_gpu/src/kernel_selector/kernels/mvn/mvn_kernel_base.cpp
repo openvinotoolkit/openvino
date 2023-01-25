@@ -86,7 +86,9 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.outputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
 
     return {kd};
 }

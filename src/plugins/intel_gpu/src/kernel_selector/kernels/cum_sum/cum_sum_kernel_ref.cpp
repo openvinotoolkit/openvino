@@ -56,7 +56,9 @@ JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, Disp
                 }
             }
 
-            jits.AddConstant(MakeJitConstant("STOP_IND", toShapeInfoString(0, shape_info_idx, true, num_of_dynamic_inputs)));
+            jits.AddConstant({
+                MakeJitConstant("STOP_IND", toShapeInfoString(0, shape_info_idx, true, num_of_dynamic_inputs, params.use_shape_info_as_kernel_args))
+            });
         }
     }
 

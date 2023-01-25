@@ -416,6 +416,7 @@ public:
     std::string forceImplementation;
     EngineInfo engineInfo;
     std::string uniqueID;
+    bool use_shape_info_as_kernel_args;
 
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;

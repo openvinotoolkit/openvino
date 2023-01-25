@@ -64,7 +64,9 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.outputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
 
     return {kd};
 }

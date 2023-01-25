@@ -10,10 +10,10 @@ REQD_SUB_GROUP_SIZE(16)
 KERNEL(softmax)(
     OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE* input,
-#ifdef IS_DYNAMIC
-    __global ACCUMULATOR_TYPE* tmp_buffer,
-#endif
     __global OUTPUT_TYPE* output
+#ifdef IS_DYNAMIC
+    , __global ACCUMULATOR_TYPE* tmp_buffer
+#endif
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif

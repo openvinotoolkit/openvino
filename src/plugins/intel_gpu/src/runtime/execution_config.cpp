@@ -68,7 +68,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::dump_graphs, ""),
         std::make_tuple(ov::intel_gpu::force_implementations, ImplForcingMap{}),
         std::make_tuple(ov::intel_gpu::partial_build_program, false),
-        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false));
+        std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
+        std::make_tuple(ov::intel_gpu::allow_shape_info_as_kernel_args, true));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {

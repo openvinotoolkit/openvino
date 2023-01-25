@@ -289,28 +289,39 @@ bool primitive_inst::update_impl() {
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
 
     auto update_shape_info = [this, prev_impl_str](const kernel_impl_params& params) {
-        mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
-        size_t offset = 0;
-        for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
-            if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = _node->type()->extend_input_shape_to_6d(params, i);
-                for (size_t j = 0; j < input_shape.size(); j++)
-                    lock[offset++] = static_cast<int32_t>(input_shape[j]);
+        auto fill_shape_info = [&](std::function<void(int32_t)> filler) {
+            for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
+                if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
+                    auto input_shape = _node->type()->extend_input_shape_to_6d(params, i);
+                    for (size_t j = 0; j < input_shape.size(); j++) {
+                        filler(input_shape[j]);
+                    }
+                }
             }
+            for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
+                if (_node->get_output_layout(i).is_dynamic()) {
+                    auto output_shape = _node->type()->extend_output_shape_to_6d(params, i);
+                    for (size_t j = 0; j < output_shape.size(); j++) {
+                        filler(output_shape[j]);
+                    }
+                }
+            }
+        };
+
+        bool use_shape_info_as_kernel_args =
+            _node->get_program().get_config().get_property(ov::intel_gpu::allow_shape_info_as_kernel_args);
+
+        std::stringstream s;
+        size_t offset = 0;
+
+        if (use_shape_info_as_kernel_args) {
+            fill_shape_info([&](int32_t dim) { _shape_info_values[offset++] = dim; s << dim << " "; });
+        } else {
+            mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
+            fill_shape_info([&](int32_t dim) { lock[offset++] = dim; s << dim << " "; });
         }
 
-        for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
-            if (_node->get_output_layout(i).is_dynamic()) {
-                auto output_shape = _node->type()->extend_output_shape_to_6d(params, i);
-                for (size_t j = 0; j < output_shape.size(); j++)
-                    lock[offset++] = static_cast<int32_t>(output_shape[j]);
-            }
-        }
-        std::stringstream s;
-        s << "shapes: ";
-        for (size_t i = 0; i < offset; i++)
-            s << lock[i] << " ";
-        GPU_DEBUG_TRACE_DETAIL << id() << ": update dynamic impl " << prev_impl_str << " to new shape: " << s.str() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": update dynamic impl " << prev_impl_str << " to new shape: shapes: " << s.str() << std::endl;
     };
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
@@ -590,7 +601,12 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             const int64_t buffers_count = _node->get_dependencies().size() + _node->get_outputs_count();
             const size_t tensor_dims_count = 6;
             const int64_t shape_elements = buffers_count * tensor_dims_count;
-            _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
+
+            if (_node->get_program().get_config().get_property(ov::intel_gpu::allow_shape_info_as_kernel_args)) {
+                _shape_info_values.resize(shape_elements);
+            } else {
+                _shape_info_memory = _network.get_engine().allocate_memory(layout{{shape_elements}, data_types::i32, format::bfyx});
+            }
         }
     }
 

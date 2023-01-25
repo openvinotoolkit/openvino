@@ -23,7 +23,17 @@ CommonDispatchData SetDefault(const shape_of_params &params) {
 
 JitConstants ShapeOfKernelRef::GetJitConstants(const shape_of_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("INPUT_DIMS", params.input_dims));
+    if (params.has_dynamic_inputs()) {
+        std::string input_dims_init = "{";
+        for (size_t i = 0; i < params.input_rank; ++i) {
+            input_dims_init += params.use_shape_info_as_kernel_args ? "dim" + toCodeString(i) + ", "
+                                                                    : "shape_info[" + toCodeString(i) + "], ";
+        }
+        input_dims_init += "}";
+        jit.AddConstant(MakeJitConstant("INPUT_DIMS_INIT", input_dims_init));
+    } else {
+        jit.AddConstant(MakeJitConstant("INPUT_DIMS", params.input_dims));
+    }
 
     return jit;
 }
@@ -49,8 +59,11 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params, const optiona
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
     };
 
-    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
-                     false, false, 0, 0, 1, derived_params.inputs[0].is_dynamic());
+    FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point,
+                     EXE_MODE_DEFAULT, false, false, 0, 0, 1,
+                     derived_params.inputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
     return kernels_data;
 }
 

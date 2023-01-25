@@ -86,15 +86,13 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     is_dynamic);
+                     is_dynamic,
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
 
     if (is_dynamic) {
         auto& args = kernel.params.arguments;
-        args.clear();
-        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         kd.internalBufferSizes.clear();
         kd.internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());

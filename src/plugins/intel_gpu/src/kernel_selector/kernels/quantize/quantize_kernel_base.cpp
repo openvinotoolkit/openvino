@@ -79,7 +79,8 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
-    kernel.params.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, 0, 1, newParams.outputs[0].is_dynamic());
+    kernel.params.arguments = GetArgsDesc(static_cast<uint32_t>(newParams.inputs.size()), false, false, 0, 1,
+                                          newParams.outputs[0].is_dynamic(), params.use_shape_info_as_kernel_args, GetDynamicBuffersCount(params));
 
     return {kd};
 }

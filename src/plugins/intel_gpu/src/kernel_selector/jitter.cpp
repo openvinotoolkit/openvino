@@ -186,12 +186,16 @@ std::string toCodeString(size_t val) {
     return buf;
 }
 
-std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded) {
+std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool shape_info_as_args, bool padded) {
+    const char* str_format = shape_info_as_args ? "dim%zu"
+                                                : "shape_info[%zu]";
+    const char* str_format_padded = shape_info_as_args ? "(dim%zu + %zu)"
+                                                       : "(shape_info[%zu] + %zu)";
     if (dim.is_dynamic) {
         if (padded && dim.pad.Total() > 0) {
-            snprintf(buf, sizeof(buf), "(shape_info[%zu] + %zu)", offset, dim.pad.Total());
+            snprintf(buf, sizeof(buf), str_format_padded, offset, dim.pad.Total());
         } else {
-            snprintf(buf, sizeof(buf), "shape_info[%zu]", offset);
+            snprintf(buf, sizeof(buf), str_format, offset);
         }
     } else {
         snprintf(buf, sizeof(buf), "%zu", dim.v + (padded ? dim.pad.Total() : 0));
@@ -215,9 +219,10 @@ std::string toCodeString(double val) {
     return buf;
 }
 
-std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output, size_t num_of_inputs) {
+std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output, size_t num_of_inputs, bool shape_info_as_args) {
     size_t actual_idx = (num_of_inputs * 6 * (is_output ? 1 : 0)) + (6 * arg_idx) + data_idx_at_6d;
-    snprintf(buf, sizeof(buf), "shape_info[%zu]", actual_idx);
+    const char* str_format = shape_info_as_args ? "dim%zu" : "shape_info[%zu]";
+    snprintf(buf, sizeof(buf), str_format, actual_idx);
     return buf;
 }
 
@@ -281,12 +286,14 @@ public:
 class DataTensorJitConstant : public TensorBaseTJitConstant<Datatype, DataLayout> {
     const DataTensor _tensor;
     const size_t _dyn_array_index;
+    const bool _shape_info_as_args;
 
 public:
-    DataTensorJitConstant(const std::string& name, const DataTensor& t, size_t dyn_array_index = 0)
+    DataTensorJitConstant(const std::string& name, const DataTensor& t, size_t dyn_array_index = 0, bool shape_info_as_args = true)
     : TensorBaseTJitConstant(name)
     , _tensor(t)
-    , _dyn_array_index(dyn_array_index) {}
+    , _dyn_array_index(dyn_array_index)
+    , _shape_info_as_args(shape_info_as_args) {}
 
     JitDefinitions GetDefinitions() const override;
 };
@@ -297,29 +304,26 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     const size_t idx_offset = _dyn_array_index * 6; // 6D max
     JitDefinitions definitions{};
     if (_tensor.is_dynamic()) {
-        auto x = toCodeString(_tensor.X(), idx_offset + 5);
-        auto y = toCodeString(_tensor.Y(), idx_offset + 4);
-        auto z = toCodeString(_tensor.Z(), idx_offset + 3);
-        auto w = toCodeString(_tensor.W(), idx_offset + 2);
-        auto f = toCodeString(_tensor.Feature(), idx_offset + 1);
-        auto b = toCodeString(_tensor.Batch(), idx_offset + 0);
+        auto x = toCodeString(_tensor.X(), idx_offset + 5, _shape_info_as_args);
+        auto y = toCodeString(_tensor.Y(), idx_offset + 4, _shape_info_as_args);
+        auto z = toCodeString(_tensor.Z(), idx_offset + 3, _shape_info_as_args);
+        auto w = toCodeString(_tensor.W(), idx_offset + 2, _shape_info_as_args);
+        auto f = toCodeString(_tensor.Feature(), idx_offset + 1, _shape_info_as_args);
+        auto b = toCodeString(_tensor.Batch(), idx_offset + 0, _shape_info_as_args);
 
-        auto x_padded = toCodeString(_tensor.X(), idx_offset + 5, true);
-        auto y_padded = toCodeString(_tensor.Y(), idx_offset + 4, true);
-        auto z_padded = toCodeString(_tensor.Z(), idx_offset + 3, true);
-        auto w_padded = toCodeString(_tensor.W(), idx_offset + 2, true);
-        auto f_padded = toCodeString(_tensor.Feature(), idx_offset + 1, true);
-        auto b_padded = toCodeString(_tensor.Batch(), idx_offset + 0, true);
+        auto x_padded = toCodeString(_tensor.X(), idx_offset + 5, _shape_info_as_args, true);
+        auto y_padded = toCodeString(_tensor.Y(), idx_offset + 4, _shape_info_as_args, true);
+        auto z_padded = toCodeString(_tensor.Z(), idx_offset + 3, _shape_info_as_args, true);
+        auto w_padded = toCodeString(_tensor.W(), idx_offset + 2, _shape_info_as_args, true);
+        auto f_padded = toCodeString(_tensor.Feature(), idx_offset + 1, _shape_info_as_args, true);
+        auto b_padded = toCodeString(_tensor.Batch(), idx_offset + 0, _shape_info_as_args, true);
 
         auto multiply = [](std::vector<std::string> dims) -> std::string {
             std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
+            for (size_t i = 0; i < dims.size() - 1; ++i) {
+                res += dims[i] + "*";
             }
-            res += ")";
+            res += dims.back() + ")";
             return res;
         };
 
@@ -598,8 +602,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     return definitions;
 }
 
-std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value, size_t dyn_tensor_index) {
-    return std::static_pointer_cast<JitConstant>(std::make_shared<DataTensorJitConstant>(name, value, dyn_tensor_index));
+std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const DataTensor& value, size_t dyn_tensor_index, bool shape_info_as_args) {
+    return std::static_pointer_cast<JitConstant>(std::make_shared<DataTensorJitConstant>(name, value, dyn_tensor_index, shape_info_as_args));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1585,17 +1589,19 @@ std::string FusedOpsCodeGenerator::GetTypeStr() const {
     }
 }
 
-JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/, size_t dynamic_in_tensors_count) const {
+JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsConfiguration& /*conf*/,
+                                                                size_t dynamic_in_tensors_count,
+                                                                bool shape_info_as_args) const {
     JitConstants jit{};
     size_t dyn_tensor_idx = dynamic_in_tensors_count;
     for (size_t op_input_id = 0; op_input_id < desc.tensors.size(); op_input_id++) {
         std::string name = GetInputTensorName(op_input_id);
-        jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id], dyn_tensor_idx));
+        jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id], dyn_tensor_idx, shape_info_as_args));
         if (desc.tensors[op_input_id].is_dynamic())
             dyn_tensor_idx++;
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor, dyn_tensor_idx));
+    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor, dyn_tensor_idx, shape_info_as_args));
     return jit;
 }
 

@@ -15,21 +15,20 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
     if (input.is_dynamic()) {
-        auto x = toCodeString(input.X(), 5);
-        auto y = toCodeString(input.Y(), 4);
-        auto z = toCodeString(input.Z(), 3);
-        auto w = toCodeString(input.W(), 2);
-        auto f = toCodeString(input.Feature(), 1);
+        bool shape_info_as_args = params.use_shape_info_as_kernel_args;
+
+        auto x = toCodeString(input.X(), 5, shape_info_as_args);
+        auto y = toCodeString(input.Y(), 4, shape_info_as_args);
+        auto z = toCodeString(input.Z(), 3, shape_info_as_args);
+        auto w = toCodeString(input.W(), 2, shape_info_as_args);
+        auto f = toCodeString(input.Feature(), 1, shape_info_as_args);
 
         auto multiply = [](std::vector<std::string> dims) -> std::string {
             std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
+            for (size_t i = 0; i < dims.size() - 1; ++i) {
+                res += dims[i] + "*";
             }
-            res += ")";
+            res += dims.back() + ")";
             return res;
         };
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", multiply({x, y, z, w, f})));
@@ -135,7 +134,9 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      1,
                      fused_deps_total,
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.outputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;

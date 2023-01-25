@@ -30,13 +30,15 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
 
     const auto& output = params.outputs[0];
     if (output.is_dynamic()) {
+        bool shape_info_as_args = params.use_shape_info_as_kernel_args;
         size_t output_offset = (1 + GetFusedPrimitiveInputsCount(params)) * 6;
-        auto x = toCodeString(output.X(), output_offset + 5);
-        auto y = toCodeString(output.Y(), output_offset + 4);
-        auto z = toCodeString(output.Z(), output_offset + 3);
-        auto w = toCodeString(output.W(), output_offset + 2);
-        auto f = toCodeString(output.Feature(), output_offset + 1);
-        auto b = toCodeString(output.Batch(), output_offset);
+
+        auto x = toCodeString(output.X(), output_offset + 5, shape_info_as_args);
+        auto y = toCodeString(output.Y(), output_offset + 4, shape_info_as_args);
+        auto z = toCodeString(output.Z(), output_offset + 3, shape_info_as_args);
+        auto w = toCodeString(output.W(), output_offset + 2, shape_info_as_args);
+        auto f = toCodeString(output.Feature(), output_offset + 1, shape_info_as_args);
+        auto b = toCodeString(output.Batch(), output_offset, shape_info_as_args);
 
         auto multiply = [](std::vector<std::string> dims) -> std::string {
             std::string res = "(";
@@ -277,7 +279,9 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     params.inputs[0].is_dynamic());
+                     params.inputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
 
     return {kd};
 }

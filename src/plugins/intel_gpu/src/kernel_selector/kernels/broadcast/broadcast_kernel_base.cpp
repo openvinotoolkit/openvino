@@ -47,7 +47,8 @@ static std::string GetInputBlockND(const broadcast_params& params) {
             if (idx >= 2) {
                 shape_info_idx += (6 - rank);
             }
-            block_nd_s[idx] = "(" + toCodeString(input.GetDims()[rank - idx - 1], shape_info_idx) + " * " + block_nd_s[idx + 1] + ")";
+            block_nd_s[idx] = "(" + toCodeString(input.GetDims()[rank - idx - 1], shape_info_idx, params.use_shape_info_as_kernel_args)
+                                  + " * " + block_nd_s[idx + 1] + ")";
         }
 
         for (int i = 0; i < (rank + 1); i++) {
@@ -106,7 +107,9 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      0,
                      1,
-                     prim_params.inputs[0].is_dynamic() || prim_params.outputs[0].is_dynamic());
+                     prim_params.inputs[0].is_dynamic() || prim_params.outputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
 
     return {k_data};
 }

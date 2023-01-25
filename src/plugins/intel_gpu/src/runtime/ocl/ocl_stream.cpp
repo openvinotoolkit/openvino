@@ -171,6 +171,12 @@ void set_arguments_impl(ocl_kernel_type& kernel,
             case args_t::SHAPE_INFO:
                 status = set_kernel_arg(kernel, i, data.shape_info);
                 break;
+            case args_t::SCALAR_SHAPE_INFO: {
+                if (args[i].index < data.shape_info_scalars.size() && data.shape_info_scalars[args[i].index] > 0) {
+                    status = kernel.setArg(i, data.shape_info_scalars[args[i].index]);
+                }
+                break;
+            }
             default:
                 break;
         }

@@ -89,10 +89,11 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     jit.Merge(MakeUnitTypeJitConstants(unitType));
     jit.Merge(MakeActivationJitConstants(params.activations, unitType));
 
+    bool shape_info_as_args = params.use_shape_info_as_kernel_args;
     size_t dyn_tensor_idx = 0;
 
     for (size_t i = 0; i < params.inputs.size(); i++) {
-        jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i], dyn_tensor_idx));
+        jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i], dyn_tensor_idx, shape_info_as_args));
         if (params.inputs[i].is_dynamic())
             dyn_tensor_idx++;
     }
@@ -107,19 +108,35 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
     }
 
     // NOTE : until all cl kernels legacy is resolved, the outputs are to be OUTPUT, OUTPUT1, OUTPUT2, ...
-    jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], dyn_tensor_idx));
+    jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], dyn_tensor_idx, shape_info_as_args));
     if (params.outputs[0].is_dynamic())
             dyn_tensor_idx++;
     for (size_t i = 1; i < params.outputs.size(); i++) {
-        jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i], dyn_tensor_idx));
+        jit.AddConstant(MakeJitConstant("OUTPUT" + toCodeString(i), params.outputs[i], dyn_tensor_idx, shape_info_as_args));
         if (params.outputs[0].is_dynamic())
             dyn_tensor_idx++;
     }
 
     if (dyn_tensor_idx > 0) {
         jit.AddConstant(MakeJitConstant("IS_DYNAMIC", 1));
-        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
-        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
+
+        if (shape_info_as_args) {
+            size_t max_rank = 6;
+            std::string shape_info_arg, shape_info_tensor;
+
+            for (size_t i = 0; i < dyn_tensor_idx; ++i) {
+                for (size_t d = 0; d < max_rank; ++d) {
+                    size_t offset = max_rank * i + d;
+                    shape_info_arg += "int dim" + toCodeString(offset) + ", ";
+                    shape_info_tensor += "dim" + toCodeString(offset) + ", ";
+                }
+            }
+            jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", shape_info_arg));
+            jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", shape_info_tensor));
+        } else {
+            jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
+            jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
+        }
     } else {
         jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", ""));
         jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", ""));
@@ -224,7 +241,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
         std::string op_type = fused_dep_codegen.GetTypeStr();
 
-        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0], dynamic_in_tensors_count));
+        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0], dynamic_in_tensors_count, params.use_shape_info_as_kernel_args));
         jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");

@@ -1090,6 +1090,8 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
 
+    params.use_shape_info_as_kernel_args = program->get_config().get_property(ov::intel_gpu::allow_shape_info_as_kernel_args);
+
     auto impl_forcing = program->get_config().get_property(ov::intel_gpu::force_implementations);
 
     if (impl_forcing.count(param_info.desc->id) != 0) {

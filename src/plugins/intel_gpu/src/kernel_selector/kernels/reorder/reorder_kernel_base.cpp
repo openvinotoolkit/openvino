@@ -250,9 +250,9 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
-
-    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.outputs[0].is_dynamic());
+                     newParams.outputs[0].is_dynamic(),
+                     params.use_shape_info_as_kernel_args,
+                     GetDynamicBuffersCount(params));
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }

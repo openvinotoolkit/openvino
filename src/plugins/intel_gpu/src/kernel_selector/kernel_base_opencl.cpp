@@ -124,15 +124,24 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
 }
 
 Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
-                                          bool use_weights,
-                                          bool use_bias,
-                                          uint32_t number_of_inputs_for_fused_prim,
-                                          uint32_t num_of_output,
-                                          bool is_dynamic) const {
+                                        bool use_weights,
+                                        bool use_bias,
+                                        uint32_t number_of_inputs_for_fused_prim,
+                                        uint32_t num_of_output,
+                                        bool is_dynamic,
+                                        bool shape_info_as_args,
+                                        uint32_t number_of_dynamic_buffers) const {
     Arguments args;
 
-    if (is_dynamic)
-        args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    if (is_dynamic) {
+        if (shape_info_as_args) {
+            for (uint32_t i = 0; i < number_of_dynamic_buffers * 6; i++) {
+                args.push_back({ArgumentDescriptor::Types::SCALAR_SHAPE_INFO, i});
+            }
+        } else {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+    }
 
     for (uint32_t i = 0; i < num_of_input; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
@@ -199,6 +208,20 @@ uint32_t KernelBaseOpenCL::GetFusedPrimitiveInputsCount(const Params &params) co
     return fused_deps_total;
 }
 
+uint32_t KernelBaseOpenCL::GetDynamicBuffersCount(const Params &params) const {
+    auto p = dynamic_cast<const base_params&>(params);
+    uint32_t dynamic_buffers_total = 0;
+
+    dynamic_buffers_total += std::count_if(p.inputs.begin(), p.inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    dynamic_buffers_total += std::count_if(p.outputs.begin(), p.outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+
+    for (auto fused_op : p.fused_ops) {
+        dynamic_buffers_total += std::count_if(fused_op.tensors.begin(), fused_op.tensors.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    }
+
+    return dynamic_buffers_total;
+}
+
 void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         const CommonDispatchData& dispatchData,
                                         const EngineInfo& engine_info,
@@ -211,13 +234,16 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
                                         int number_of_inputs,
                                         uint32_t number_of_inputs_for_fused_prims,
                                         int number_of_outputs,
-                                        bool is_dynamic) const {
+                                        bool is_dynamic,
+                                        bool shape_info_as_args,
+                                        uint32_t number_of_dynamic_buffers) const {
     if (!is_dynamic)
         KernelBase::CheckDispatchData(kernelMapName, dispatchData, engine_info.maxWorkGroupSize);
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs, is_dynamic);
+    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs,
+                                          is_dynamic, shape_info_as_args, number_of_dynamic_buffers);
 }
 
 bool KernelBaseOpenCL::layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) const {

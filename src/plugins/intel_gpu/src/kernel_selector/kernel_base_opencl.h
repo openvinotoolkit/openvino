@@ -32,7 +32,9 @@ protected:
                           bool use_bias,
                           uint32_t number_of_inputs_for_fused_prim = 0,
                           uint32_t num_of_outpus = 1,
-                          bool is_dynamic = false) const;
+                          bool is_dynamic = false,
+                          bool shape_info_as_args = true,
+                          uint32_t number_of_dynamic_buffers = 0) const;
     std::shared_ptr<KernelString> GetKernelString(const std::string& kernel_name,
                                                   const std::pair<std::string, std::string>& jit,
                                                   const std::string& entry_point,
@@ -40,6 +42,8 @@ protected:
                                                   const std::string& exe_mode = EXE_MODE_DEFAULT) const;
 
     uint32_t GetFusedPrimitiveInputsCount(const Params &params) const;
+
+    uint32_t GetDynamicBuffersCount(const Params &params) const;
 
     void FillCLKernelData(clKernelData& kernel,
                           const CommonDispatchData& dispatchData,
@@ -53,7 +57,9 @@ protected:
                           int number_of_inputs = 1,
                           uint32_t number_of_inputs_for_fused_prims = 0,
                           int number_of_outputs = 1,
-                          bool is_dynamic = false) const;
+                          bool is_dynamic = false,
+                          bool shape_info_as_args = true,
+                          uint32_t number_of_dynamic_buffers = 0) const;
 
     bool layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) const;
 };

@@ -117,8 +117,11 @@ protected:
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
 
-        args.shape_info = instance.shape_info_memory_ptr();
-
+        if (_kernel_data.params->use_shape_info_as_kernel_args) {
+            args.shape_info_scalars = instance.shape_info_values();
+        } else {
+            args.shape_info = instance.shape_info_memory_ptr();
+        }
         return args;
     }
 

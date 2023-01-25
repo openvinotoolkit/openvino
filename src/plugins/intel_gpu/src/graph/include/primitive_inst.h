@@ -151,6 +151,7 @@ public:
     }
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
+    const std::vector<int32_t>& shape_info_values() const { return _shape_info_values; }
 
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
@@ -257,6 +258,7 @@ protected:
 
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
+    std::vector<int32_t> _shape_info_values;
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _shape_changed = false;
