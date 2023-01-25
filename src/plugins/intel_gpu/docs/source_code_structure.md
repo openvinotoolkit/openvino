@@ -64,5 +64,5 @@ src/tests/functional/plugin/gpu/shared_tests_instances    <--- instances for GPU
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [OpenVINO Plugins](../../README.md)
- * [OPENVINO GPU Plugin](../README.md)
+ * [OpenVINO GPU Plugin](../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
