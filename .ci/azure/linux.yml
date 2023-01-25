@@ -398,7 +398,7 @@ jobs:
     displayName: 'TensorFlow Common Unit Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
-    displayName: 'TensorFlow Lite Unit Tests'
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
