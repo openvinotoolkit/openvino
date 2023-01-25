@@ -29,7 +29,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::ICompiledModel>& impl, co
 }
 
 std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return std::const_pointer_cast<const Model>(_impl->get_runtime_model()));
+    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->get_runtime_model());
 }
 
 std::vector<ov::Output<const ov::Node>> CompiledModel::inputs() const {
@@ -40,7 +40,8 @@ ov::Output<const ov::Node> CompiledModel::input() const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
         const auto inputs = _impl->inputs();
         if (inputs.size() != 1) {
-            throw ov::Exception("input() must be called on a function with exactly one parameter.");
+            throw ov::Exception(
+                "CompiledModel::input() must be called on a compiled model with exactly one parameter.");
         }
         return inputs.at(0);
     });
@@ -68,7 +69,7 @@ ov::Output<const ov::Node> CompiledModel::output() const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
         const auto outputs = _impl->outputs();
         if (outputs.size() != 1) {
-            throw ov::Exception("output() must be called on a function with exactly one result.");
+            throw ov::Exception("CompiledModel::output() must be called on a compiled model with exactly one result.");
         }
         return outputs.at(0);
     });
@@ -100,7 +101,7 @@ void CompiledModel::set_property(const AnyMap& config) {
 }
 
 Any CompiledModel::get_property(const std::string& name) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->get_property(name););
+    OV_COMPILED_MODEL_CALL_STATEMENT(return {_impl->get_property(name), {_so}});
 }
 
 RemoteContext CompiledModel::get_context() const {
@@ -116,4 +117,3 @@ CompiledModel::operator bool() const noexcept {
 }
 
 }  // namespace ov
-

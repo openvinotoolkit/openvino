@@ -32,7 +32,7 @@ class IExecutableNetworkWrapper;
 
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
-    ICompiledModel(const std::shared_ptr<ov::Model>& model,
+    ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                    const std::shared_ptr<const ov::IPlugin>& plugin,
                    const InferenceEngine::ITaskExecutor::Ptr& task_executor =
                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(InferenceEngine::IStreamsExecutor::Config{

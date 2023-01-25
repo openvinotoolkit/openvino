@@ -6,7 +6,7 @@
 
 #include "openvino/core/model.hpp"
 
-ov::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
+ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                    const InferenceEngine::ITaskExecutor::Ptr& task_executor,
                                    const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
@@ -14,10 +14,9 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
       m_task_executor(task_executor),
       m_callback_executor(callback_executor) {
     if (model) {
-        std::shared_ptr<const ov::Model> const_model = model;
         // Initialize inputs/outputs
-        m_inputs = const_model->inputs();
-        m_outputs = const_model->outputs();
+        m_inputs = model->inputs();
+        m_outputs = model->outputs();
     }
 }
 
