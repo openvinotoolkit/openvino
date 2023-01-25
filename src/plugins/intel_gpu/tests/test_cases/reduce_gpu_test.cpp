@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reduce.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "reduce_inst.h"
 
 #include <cmath>
 #include <algorithm>
@@ -1634,6 +1635,43 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
 
     std::vector<float> ref_data = {2.407605964f, 5.407605964f};
 
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
+    }
+}
+
+TEST(reduce_gpu, dynamic) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});
+
+    layout in_dyn_layout { ov::PartialShape::dynamic(6), data_types::f32, format::bfwzyx };
+
+    set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f});
+
+    topology topology;
+    topology.add(input_layout("input", in_dyn_layout));
+    topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 1));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("reduce");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<float> ref_data = {0.0f, 60.0f};
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {

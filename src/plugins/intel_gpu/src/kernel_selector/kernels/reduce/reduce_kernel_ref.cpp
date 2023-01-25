@@ -27,10 +27,11 @@ ParamsKey ReduceKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
-CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params, const optional_params&) const {
+CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();

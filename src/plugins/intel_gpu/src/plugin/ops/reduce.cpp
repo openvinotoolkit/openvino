@@ -91,9 +91,7 @@ static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, 
         auto reorder_prim = cldnn::reorder(reorderLayerName,
                                            cldnn::input_info(resultLayerName),
                                            out_format,
-                                           out_dt,
-                                           std::vector<float>(),
-                                           cldnn::reorder_mean_mode::subtract);
+                                           out_dt);
         p.add_primitive(*op, reorder_prim);
     }
 }

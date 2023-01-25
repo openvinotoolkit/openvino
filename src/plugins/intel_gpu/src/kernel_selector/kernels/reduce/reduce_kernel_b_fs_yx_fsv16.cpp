@@ -108,7 +108,7 @@ DeviceFeaturesKey ReduceKernel_b_fs_yx_fsv16::get_required_device_features_key(c
     return k;
 }
 
-CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& params, const optional_params&) const {
+CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& params) const {
     CommonDispatchData dispatchData;
 
     auto in_dims = calc_in_dims(params);
