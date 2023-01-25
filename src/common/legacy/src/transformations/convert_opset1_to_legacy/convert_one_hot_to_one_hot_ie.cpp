@@ -60,5 +60,5 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
 }
 
 void ngraph::pass::ConvertOneHotToOneHotIEMatcher::detect_output_type(const std::shared_ptr<ngraph::Function> &f) {
-    m_output_type  = ngraph::op::util::has_f16_constants(f) ? element::Type_t::f16 : element::Type_t::f32;
+    m_output_type  = ov::op::util::has_f16_constants(f) ? element::Type_t::f16 : element::Type_t::f32;
 }

@@ -64,10 +64,10 @@ void ConvEltwiseFusion::SetUp() {
         std::shared_ptr<ngraph::Node> eltwise;
         if (eltwise_type == ngraph::opset4::Multiply::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset4::Multiply>(conv, eltwise_const);
-            manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-            manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-            manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-            manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+            manager.register_pass<ov::pass::ConvolutionMultiplyFusion>();
+            manager.register_pass<ov::pass::GroupConvolutionMultiplyFusion>();
+            manager.register_pass<ov::pass::ConvolutionBackpropDataMultiplyFusion>();
+            manager.register_pass<ov::pass::GroupConvolutionBackpropDataMultiplyFusion>();
         } else if (eltwise_type == ngraph::opset4::Add::get_type_info_static()) {
             eltwise = std::make_shared<ngraph::opset4::Add>(conv, eltwise_const);
             manager.register_pass<ngraph::pass::ConvertConvolutions>();
