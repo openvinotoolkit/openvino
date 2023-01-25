@@ -101,10 +101,10 @@ CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
     auto graph = ngraph::clone_function(*ngraphImplPtr->getFunction());
 
     ::ngraph::pass::Manager manager;
-    manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    manager.register_pass<::ngraph::pass::CommonOptimizations>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<::ov::pass::InitNodeInfo>();
+    manager.register_pass<::ov::pass::CommonOptimizations>();
+    manager.register_pass<::ov::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<::ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.run_passes(graph);
 

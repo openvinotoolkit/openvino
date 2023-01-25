@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, ConvertROIAlign3To9) {
                                                             "avg");
 
         function = std::make_shared<Function>(NodeVector{roi_align}, ParameterVector{data, rois, batch_indices});
-        manager.register_pass<pass::ConvertROIAlign3To9>();
+        manager.register_pass<ov::pass::ConvertROIAlign3To9>();
     }
 
     {
