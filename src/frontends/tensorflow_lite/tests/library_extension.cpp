@@ -13,7 +13,7 @@ using TFLiteLibraryExtensionTest = FrontendLibraryExtensionTest;
 static FrontendLibraryExtensionTestParams getTestData() {
     FrontendLibraryExtensionTestParams params;
     params.m_frontEndName = TF_LITE_FE;
-    params.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
+    params.m_modelsPath = std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME);
     params.m_modelName = "2in_2out/2in_2out.tflite";
     return params;
 }

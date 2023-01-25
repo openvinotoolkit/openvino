@@ -18,6 +18,6 @@ static const std::vector<std::string> models{
 INSTANTIATE_TEST_SUITE_P(TFLiteConvertModelTest,
                          FrontEndConvertModelTest,
                          ::testing::Combine(::testing::Values(TF_LITE_FE),
-                                            ::testing::Values(std::string(TEST_TENSORFLOW_MODELS_DIRNAME)),
+                                            ::testing::Values(std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME)),
                                             ::testing::ValuesIn(models)),
                          FrontEndConvertModelTest::getTestCaseName);

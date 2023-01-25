@@ -51,7 +51,7 @@ public:
 static OpExtensionFEParam getTestDataOpExtensionViaUserClass() {
     OpExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
-    res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
+    res.m_modelsPath = std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.tflite";
     // use core OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{std::make_shared<ov::OpExtension<Relu1>>(),
@@ -64,7 +64,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaUserClass() {
 static OpExtensionFEParam getTestDataOpExtensionViaTFConstructor() {
     OpExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
-    res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
+    res.m_modelsPath = std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pb";
     // use ov::frontend::tensorflow OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{
@@ -96,7 +96,7 @@ static OpExtensionFEParam getTestDataOpExtensionViaTFConstructor() {
 static OpExtensionFEParam getTestDataOpExtensionViaCommonConstructor() {
     OpExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
-    res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
+    res.m_modelsPath = std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.tflite";
     // use ov::frontend::OpExtension
     res.m_extensions = std::vector<std::shared_ptr<ov::Extension>>{

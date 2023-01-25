@@ -762,6 +762,6 @@ Copyright: authors
 License: Apache
 
 Files: *
-Comment: flatbuffers
-Copyright: Copyright 2021 Google Inc. All rights reserved.
+Comment: FlatBuffers
+Copyright: Copyright 2014-2022 Google Inc. All rights reserved.
 License: Apache

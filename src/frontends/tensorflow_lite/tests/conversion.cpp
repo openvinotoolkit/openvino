@@ -40,7 +40,7 @@ class TensorflowLiteFrontendWrapper : public ov::frontend::tensorflow_lite::Fron
 static ConversionExtensionFEParam getTestData() {
     ConversionExtensionFEParam res;
     res.m_frontEndName = TF_LITE_FE;
-    res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
+    res.m_modelsPath = std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.tflite";
     res.m_translatorName = translator_name;
     res.m_frontend = std::make_shared<TensorflowLiteFrontendWrapper>();

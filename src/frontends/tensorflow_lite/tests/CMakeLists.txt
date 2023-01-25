@@ -27,28 +27,28 @@ ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirement
                       WARNING_MESSAGE "TensorFlow Lite frontend unit tests will be skipped"
                       RESULT_VAR tensorflow_FOUND)
 
-set(TEST_TENSORFLOW_MODELS_DIRNAME test_model_zoo/tensorflow_lite_test_models)
-target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_MODELS_DIRNAME=\"${TEST_TENSORFLOW_MODELS_DIRNAME}/\")
+set(TEST_TENSORFLOW_LITE_MODELS_DIRNAME test_model_zoo/tensorflow_lite_test_models)
+target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_LITE_MODELS_DIRNAME=\"${TEST_TENSORFLOW_LITE_MODELS_DIRNAME}/\")
 
 # If 'tensorflow' is not found, code will still be compiled
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'tensorflow' installed to check code style
 if (tensorflow_FOUND)
-    set(TEST_TENSORFLOW_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_MODELS_DIRNAME}/)
+    set(TEST_TENSORFLOW_LITE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_TENSORFLOW_LITE_MODELS_DIRNAME}/)
 
     file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
     file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})
         get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_TENSORFLOW_MODELS}/${FILE_WE}_done.txt)
+        set(OUT_DONE_FILE ${TEST_TENSORFLOW_LITE_MODELS}/${FILE_WE}_done.txt)
         set(OUT_FILES ${OUT_DONE_FILE} ${OUT_FILES})
         add_custom_command(OUTPUT ${OUT_DONE_FILE}
                 COMMAND ${PYTHON_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
                 ${GEN_SCRIPT}
-                ${TEST_TENSORFLOW_MODELS}
+                ${TEST_TENSORFLOW_LITE_MODELS}
                 ${OUT_DONE_FILE}
                 JOB_POOL four_jobs
                 DEPENDS ${TENSORFLOW_ALL_SCRIPTS}
@@ -56,8 +56,8 @@ if (tensorflow_FOUND)
     endforeach()
     add_custom_target(tensorflow_lite_test_models DEPENDS ${OUT_FILES})
 
-    install(DIRECTORY ${TEST_TENSORFLOW_MODELS}
-            DESTINATION tests/${TEST_TENSORFLOW_MODELS_DIRNAME}
+    install(DIRECTORY ${TEST_TENSORFLOW_LITE_MODELS}
+            DESTINATION tests/${TEST_TENSORFLOW_LITE_MODELS_DIRNAME}
             COMPONENT tests
             EXCLUDE_FROM_ALL)
 else()
@@ -69,7 +69,7 @@ else()
     add_custom_target(tensorflow_lite_test_models DEPENDS unable_build_tensorflow_models.txt)
 endif()
 
-get_target_property(TENSORFLOW_FRONTEND_SRC_DIR openvino_tensorflow_frontend SOURCE_DIR)
+get_target_property(TENSORFLOW_LITE_FRONTEND_SRC_DIR openvino_tensorflow_lite_frontend SOURCE_DIR)
 
 add_subdirectory(standalone_build)
 add_dependencies(${TARGET_NAME} tensorflow_lite_fe_standalone_build_test)
