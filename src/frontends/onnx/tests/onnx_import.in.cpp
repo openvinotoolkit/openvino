@@ -6497,6 +6497,35 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
          -0.500000f, -0.162460f, -0.500000f, 0.162460f,  -0.500000f, 0.688191f});
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_inverse_only_real.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{3, 5, 1},
+                               {0.000000f,
+                                1.000000f,
+                                2.000000f,
+                                3.000000f,
+                                4.000000f,
+                                5.000000f,
+                                6.000000f,
+                                7.000000f,
+                                8.000000f,
+                                9.000000f,
+                                10.000000f,
+                                11.000000f,
+                                12.000000f,
+                                13.000000f,
+                                14.000000f});
+    test_case.add_expected_output<float>(
+        Shape{3, 5, 2},
+        {2.000000f,  0.000000f,  -0.500000f, -0.688191f, -0.500000f, -0.162460f, -0.500000f, 0.162460f,
+         -0.500000f, 0.688191f,  7.000000f,  0.000000f,  -0.500000f, -0.688191f, -0.500000f, -0.162460f,
+         -0.500000f, 0.162460f,  -0.500000f, 0.688191f,  12.000000f, 0.000000f,  -0.500000f, -0.688191f,
+         -0.500000f, -0.162460f, -0.500000f, 0.162460f,  -0.500000f, 0.688191f});
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                         SERIALIZED_ZOO,
@@ -6518,6 +6547,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
     test_case.add_expected_output<float>(
         Shape{2, 4},
         {0.000000f, 1.000000f, 2.000000f, 3.000000f, 4.000000f, 5.000000f, 6.000000f, 7.000000f});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
+    auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                                        SERIALIZED_ZOO,
+                                                                        "onnx/dft_inverse_onesided_real_input.onnx"));
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input<float>(Shape{2, 3, 1}, {1.000000f, 0.000000f, -1.000000f, 0.5000000f, -0.5000000f, 0.000000f});
+    test_case.add_expected_output<float>(Shape{2, 3, 1},
+                                         {0.750000f, -0.250000f, -0.500000f, 0.250000f, 0.250000f, -0.500000f});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dft_inversed_length_provided) {
