@@ -67,23 +67,20 @@ protected:
 };
 
 bool CopyInsertionForEliminatedLayersHandler::InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer) {
-    auto modified = false;
-    for (size_t i = 0; i < layer->get_input_size(); i++) {
-        auto layer_input = layer->get_input_node_shared_ptr(i);
+    auto layer_input = layer->get_input_node_shared_ptr(0);
 
-        // skip non functional layers
-        auto current_node = get_prev_node_skipping_certain(layer_input, is_gna_non_functional_node);
+    // skip non functional layers
+    auto current_node = get_prev_node_skipping_certain(layer_input, is_gna_non_functional_node);
 
-        if (!std::dynamic_pointer_cast<Parameter>(current_node)) {
-            continue;
-        }
-
-        if (WillLayerBeEliminated(layer)) {
-            insert_copy_layer_between(layer_input, layer, i);
-            modified = true;
-        }
+    if (!std::dynamic_pointer_cast<Parameter>(current_node)) {
+        return false;
     }
-    return modified;
+
+    if (WillLayerBeEliminated(layer)) {
+        insert_copy_layer_between(layer_input, layer, 0);
+        return true;
+    }
+    return false;
 }
 
 bool BroadcastCopyInsertionHandler::WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) {
@@ -111,8 +108,6 @@ bool BroadcastCopyInsertionHandler::WillLayerBeEliminated(std::shared_ptr<ngraph
 }
 
 bool TileCopyInsertionHandler::WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) {
-    auto data_node = layer->input_value(0);
-
     static constexpr size_t index_of_repeats_shape = 1;
 
     auto repeats_node =

@@ -74,8 +74,8 @@ public:
 };
 
 /**
- * @brief Inserts Copy layer before Broadcast/Tile if it is connected to the network input layer
- * while skipping Reshape/Trivial transpose/Squeeze/Unsqueeze (non-functional) layers:
+ * @brief Inserts Copy layer before Broadcast/Tile in two cases:
+ * 1. If Parameter is an input to Broadcast/Tile layer.
  *
  *   [Parameter]              [Parameter]
  *     |                          |
@@ -84,7 +84,8 @@ public:
  *   [Broadcast/Tile]       [Broadcast/Tile]
  *
  *
- * With non-functional layers:
+ * 2. If there are Reshape/Trivial transpose/Squeeze/Unsqueeze (non-functional) layers
+ *    between Parameter and Broadcast/Tile layer.
  *
  *   [Parameter]              [Parameter]
  *     |                          |
