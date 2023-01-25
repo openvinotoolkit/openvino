@@ -228,7 +228,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }) != convert_precision_map.end();
 
                 if (!has_valid_conversion) {
-                    convert_precision_map.push_back(et_pair);
+                    convert_precision_map.insert(et_pair);
                 }
             }
         }
