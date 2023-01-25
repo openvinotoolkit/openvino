@@ -40,7 +40,7 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
                                                                  ov::element::i64,
                                                                  ov::element::i64);
     } else {
-        auto blank_index_const = make_shared<Constant>(sequence_length.get_element_type(), ov::Shape{}, blank_index);
+        auto blank_index_const = make_shared<Constant>(sequence_length.get_element_type(), Shape{}, blank_index);
         ctc_greedy_decoder = make_shared<CTCGreedyDecoderSeqLen>(inputs,
                                                                  sequence_length,
                                                                  blank_index_const,
