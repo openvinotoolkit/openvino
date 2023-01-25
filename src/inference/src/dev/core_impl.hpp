@@ -67,6 +67,9 @@ ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std
     return {deviceName_, config_};
 }
 
+ov::util::FilePath getPluginPath(const std::string& plugin);
+ov::util::FilePath getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly = false);
+
 #ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile);
@@ -249,8 +252,9 @@ public:
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
+     * @param ByAbsPath A boolean value - register plugins by absolute file path or not
      */
-    void register_plugins_in_registry(const std::string& xmlConfigFile);
+    void register_plugins_in_registry(const std::string& xmlConfigFile, const bool& ByAbsPath = false);
 
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
@@ -375,7 +379,7 @@ public:
 
     /**
      * @brief Returns reference to CPP plugin wrapper by a device name
-     * @param deviceName A name of device
+     * @param pluginName A name of device
      * @return Reference to a CPP plugin wrapper
      */
     ov::Plugin get_plugin(const std::string& pluginName) const;
@@ -388,9 +392,11 @@ public:
 
     /**
      * @brief Registers plugin meta-data in registry for specified device
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name
      * @param deviceName A name of device
      */
-    void register_plugin(const std::string& pluginName, const std::string& deviceName);
+    void register_plugin(const std::string& plugin, const std::string& deviceName);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created
