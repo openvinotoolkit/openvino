@@ -27,11 +27,6 @@ enum class OpType { SCALAR, VECTOR };
 
 std::ostream& operator<<(std::ostream& os, OpType type);
 
-IE_SUPPRESS_DEPRECATED_START
-std::shared_ptr<InferenceEngine::CNNLayer> getLayerByName(const InferenceEngine::CNNNetwork& network,
-                                                          const std::string& layerName);
-IE_SUPPRESS_DEPRECATED_END
-
 template <typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType>& vec) {
     if (!vec.empty()) {

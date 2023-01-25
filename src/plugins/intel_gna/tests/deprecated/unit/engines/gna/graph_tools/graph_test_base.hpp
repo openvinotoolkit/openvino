@@ -12,6 +12,7 @@
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "cnnlayer_utils.hpp"
 
 namespace GraphTest {
 

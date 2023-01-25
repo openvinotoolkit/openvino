@@ -42,7 +42,6 @@
 
 # OpenVINO Func Tests:
 /src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
-/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
 /src/frontends/tests/frontend/shared/ @openvinotoolkit/openvino-ie-tests-maintainers
 /thirdparty/gtest/ @openvinotoolkit/openvino-ie-tests-maintainers
 
@@ -61,7 +60,6 @@
 
 # OpenVINO GNA:
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
-/src/common/legacy/ @openvinotoolkit/openvino-ie-gna-maintainers
 
 # OpenVINO Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers

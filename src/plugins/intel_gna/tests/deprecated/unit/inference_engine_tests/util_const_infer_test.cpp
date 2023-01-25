@@ -20,6 +20,7 @@
 #include <legacy/details/ie_cnn_network_tools.h>
 #include <precision_utils.h>
 #include "common_test_utils/common_utils.hpp"
+#include "cnnlayer_utils.hpp"
 
 namespace IE = InferenceEngine;
 

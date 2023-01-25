@@ -41,13 +41,8 @@ ov_coverage_extract(INPUT "openvino" OUTPUT "low_precision_transformations"
 ov_coverage_genhtml(INFO_FILE "low_precision_transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ov_coverage_extract(INPUT "openvino" OUTPUT "legacy"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/common/legacy/*")
-ov_coverage_genhtml(INFO_FILE "legacy"
-                    PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-
 ov_coverage_extract(INPUT "openvino" OUTPUT "preprocessing"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}src/common/preprocessing/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}src/common/preprocessing/src/*")
 ov_coverage_genhtml(INFO_FILE "preprocessing"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 

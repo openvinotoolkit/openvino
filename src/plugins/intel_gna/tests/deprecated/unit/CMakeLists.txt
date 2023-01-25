@@ -74,6 +74,10 @@ endif()
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS -IGNORE:4286)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE
     # static libraries
     inference_engine_s # need to have this explicitly for USE_STATIC_IE

@@ -92,7 +92,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/core/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/bindings/c/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/transformations/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/common/preprocessing"
+                                                  "${OpenVINO_SOURCE_DIR}/src/common/preprocessing/src"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/util/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"

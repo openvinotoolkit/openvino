@@ -215,6 +215,8 @@ set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
 set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
 # CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
 set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+# CMake 3.12+: find_package() uses <PackageName>_ROOT variables.
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
 # CMake 3.13+: option() honors normal variables.
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 # CMake 3.19+: An imported target missing its location property fails during generation.

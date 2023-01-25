@@ -50,6 +50,12 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+
+    # TODO: remove together we GNA plugin
+    # for static linkage the dependencies are in opposite order
+    if(TARGET inference_engine_ir_v7_reader)
+        target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_ir_v7_reader)
+    endif()
 endif()
 
 if(WIN32)
