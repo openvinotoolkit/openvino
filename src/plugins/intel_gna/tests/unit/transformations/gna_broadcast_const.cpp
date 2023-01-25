@@ -224,7 +224,7 @@ void BroadcastConstTestFixture::SetUp() {
 void execute_test(std::shared_ptr<ngraph::Function> function,
                   std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
@@ -239,7 +239,7 @@ void execute_cloned_test(std::shared_ptr<ngraph::Function> function) {
     auto reference_function = ngraph::clone_function(*function);
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));

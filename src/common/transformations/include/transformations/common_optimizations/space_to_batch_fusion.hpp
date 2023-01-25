@@ -34,9 +34,3 @@ public:
     OPENVINO_RTTI("SpaceToBatchFusion", "0");
     SpaceToBatchFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SpaceToBatchFusion;
-}  // namespace pass
-}  // namespace ngraph
