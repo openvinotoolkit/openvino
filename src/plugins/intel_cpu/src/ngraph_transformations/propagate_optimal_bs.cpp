@@ -3,6 +3,7 @@
 //
 
 #include "propagate_optimal_bs.hpp"
+#include "mixed_affinity_utils.hpp"
 
 #include <openvino/opsets/opset1.hpp>
 #include "rt_info/optimal_batch_size.hpp"
@@ -34,7 +35,7 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
                          "Node ",
                          node->get_friendly_name(),
                          " whose rt_info contains 'OptimalBatchSize' has dynamic rank.");
-            ov::DimensionTracker::set_label(const_cast<ov::Dimension&>(in_shape[0]), batch_label);
+            ov::DimensionTracker::set_label(const_cast<ov::Dimension&>(in_shape[0]), mixed_affinity::batch_label);
             node->validate_and_infer_types();
             set_n_splits(in_shape[0], get_optimal_bs(node));
             continue;
@@ -44,16 +45,16 @@ bool PropagateOptimalBS::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (out_shape.rank().is_dynamic())
             continue;
 
-        // batch_label propagation
+        // ::mixed_affinity propagation
         node->validate_and_infer_types();
         if (std::all_of(out_shape.begin(), out_shape.end(),
-            [](const ov::Dimension& d) { return ov::DimensionTracker::get_label(d) != batch_label; })) {
+            [](const ov::Dimension& d) { return ov::DimensionTracker::get_label(d) != mixed_affinity::batch_label; })) {
             continue;
         }
 
         auto get_batch_dim = [](const ov::PartialShape& shape) -> size_t {
             for (size_t i = 0; i < shape.size(); ++i) {
-                if (ov::DimensionTracker::get_label(shape[i]) == batch_label)
+                if (ov::DimensionTracker::get_label(shape[i]) == mixed_affinity::batch_label)
                     return i;
             }
             return 0;

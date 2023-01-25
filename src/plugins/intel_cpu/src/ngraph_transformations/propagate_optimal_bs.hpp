@@ -8,8 +8,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
-constexpr ov::label_t batch_label = 2007;
 class PropagateOptimalBS : public ov::pass::ModelPass {
 public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;

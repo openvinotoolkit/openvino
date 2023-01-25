@@ -8,6 +8,8 @@
 namespace ov {
 namespace intel_cpu {
 namespace mixed_affinity {
+constexpr ov::label_t batch_label = 2007;
+
 struct Subgraph {
     std::set<ov::Input<ov::Node>> starts;
     std::set<ov::Output<ov::Node>> ends;
@@ -16,12 +18,14 @@ struct Subgraph {
 class Characteristics {
 public:
     Characteristics(const size_t opt_bs, const size_t n_splits) : opt_bs(opt_bs), n_splits(n_splits) {}
-    bool operator<(const Characteristics& other) const { return opt_bs < other.opt_bs || n_splits < other.n_splits; }
-    bool operator==(const Characteristics& other) const { return opt_bs == other.opt_bs && n_splits == other.n_splits; }
+    bool operator<(const Characteristics& other) const;
+    bool operator==(const Characteristics& other) const;
 
     size_t opt_bs;
     size_t n_splits;
 };
+
+size_t get_batch_idx(const ov::PartialShape& shape);
 }  // namespace mixed_affinity
 }  // namespace intel_cpu
 }  // namespace ov

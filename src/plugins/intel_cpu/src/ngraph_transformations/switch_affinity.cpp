@@ -3,7 +3,6 @@
 //
 
 #include "switch_affinity.hpp"
-#include "propagate_optimal_bs.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,6 +19,7 @@
 #include <openvino/pass/serialize.hpp>
 
 namespace {
+using namespace ov::intel_cpu::mixed_affinity;
 static const char skip_reshape[] = "skip_reshape";
 
 void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
@@ -29,7 +29,6 @@ void serialize(const std::shared_ptr<ov::Model> model, std::string name) {
 }
 
 void force_replace_output(ov::Output<ov::Node> target, const ov::Output<ov::Node>& replacement) {
-    // Update output tensor name
     const std::string new_name = ov::op::util::get_ie_output_name(target);
     replacement.get_node()->set_friendly_name(new_name);
     NGRAPH_SUPPRESS_DEPRECATED_START
@@ -53,14 +52,6 @@ void force_replace_output(ov::Output<ov::Node> target, const ov::Output<ov::Node
                       replacement.get_node_shared_ptr());
 }
 
-size_t get_batch_idx(const ov::PartialShape& shape) {
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (ov::DimensionTracker::get_label(shape[i]) == ov::intel_cpu::batch_label)
-            return i;
-    }
-    return 0ul;
-}
-
 void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) {
     for (auto&& param : model->get_parameters()) {
         if (param->get_rt_info().count(skip_reshape))
@@ -69,7 +60,7 @@ void setBatch(const std::shared_ptr<ov::Model> model, const size_t batch_value) 
         const size_t batch_idx = get_batch_idx(param_shape);
 
         param_shape[batch_idx] = batch_value;
-        ov::DimensionTracker::set_label(param_shape[batch_idx], ov::intel_cpu::batch_label);
+        ov::DimensionTracker::set_label(param_shape[batch_idx], batch_label);
         param->set_partial_shape(param_shape);
     }
     model->validate_nodes_and_infer_types();
@@ -100,10 +91,10 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
 
         size_t batch_idx = get_batch_idx(start_shape);
         // if dimension label isn't set for input shape, than check output one
-        if (ov::DimensionTracker::get_label(start_shape[batch_idx]) != ov::intel_cpu::batch_label) {
+        if (ov::DimensionTracker::get_label(start_shape[batch_idx]) != batch_label) {
             const auto& out_shape = start.get_node()->get_output_partial_shape(0);
             batch_idx = get_batch_idx(out_shape);
-            NGRAPH_CHECK(ov::DimensionTracker::get_label(out_shape[batch_idx]) == ov::intel_cpu::batch_label,
+            NGRAPH_CHECK(ov::DimensionTracker::get_label(out_shape[batch_idx]) == batch_label,
                          "Batch label must be set for each node output in mixed affinity subgraph.");
         }
 

@@ -3,7 +3,7 @@
 //
 
 #include <openvino/pass/graph_rewrite.hpp>
-#include "mixed_affinity_subgraph.hpp"
+#include "mixed_affinity_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

@@ -2,25 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "propagate_optimal_bs.hpp"
+#include "markup_optimal_bs.hpp"
+#include "switch_affinity.hpp"
 #include "mixed_affinity.hpp"
 
 #include <memory>
 #include <vector>
 #include <unordered_map>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pass/manager.hpp>
-#include "transformations/utils/utils.hpp"
+#include <openvino/pass/manager.hpp>
+#include <openvino/opsets/opset1.hpp>
 
 #include "rt_info/optimal_batch_size.hpp"
 #include "rt_info/num_splits.hpp"
-
-#include "markup_optimal_bs.hpp"
-#include "propagate_optimal_bs.hpp"
-#include "switch_affinity.hpp"
-
-#include <dimension_tracker.hpp>
 
 #include <ngraph/pass/serialize.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
@@ -28,15 +23,8 @@
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MixedAffinity, "MixedAffinity", 0);
 
 namespace {
-size_t get_batch_idx(const ov::PartialShape& shape) {
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (ov::DimensionTracker::get_label(shape[i]) == ov::intel_cpu::batch_label)
-            return i;
-    }
-    return 0ul;
-}
-
 using namespace ov::intel_cpu::mixed_affinity;
+
 std::unordered_map<Characteristics, Subgraph> formSubgraphs(const std::shared_ptr<ov::Model>& m) {
     std::unordered_map<Characteristics, Subgraph> subgraphs;
 
@@ -74,7 +62,7 @@ std::unordered_map<Characteristics, Subgraph> formSubgraphs(const std::shared_pt
         const size_t opt_bs = ov::intel_cpu::get_optimal_bs(node);
         for (const auto& input : node->inputs()) {
             const auto input_node = input.get_source_output().get_node_shared_ptr();
-            const bool non_data_const = input.get_index() > 0 && ov::is_type<ngraph::opset1::Constant>(input_node);
+            const bool non_data_const = input.get_index() > 0 && ov::is_type<ov::opset1::Constant>(input_node);
             if (!non_data_const && (!optimal_bs_is_equal(input_node, opt_bs) || !n_splits_is_equal(input_node, n_splits))) {
                 add_start(input, Characteristics(opt_bs, n_splits));
             }
@@ -106,18 +94,18 @@ bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>
     // get graph components separated by batch size
     const auto& subgraphs = formSubgraphs(m);
 
-    for (const auto& subgraph : subgraphs) {
-        std::cout << "Batch=" << subgraph.first.opt_bs << std::endl;
-        std::cout << "N_splits=" << subgraph.first.n_splits << std::endl;
-        std::cout << "\tStarts:\n";
-        for (const auto start : subgraph.second.starts) {
-            std::cout << "\t\t" << start << std::endl;
-        }
-        std::cout << "\tEnds:\n";
-        for (const auto end : subgraph.second.ends) {
-            std::cout << "\t\t" << end << std::endl;
-        }
-    }
+    // for (const auto& subgraph : subgraphs) {
+    //     std::cout << "Batch=" << subgraph.first.opt_bs << std::endl;
+    //     std::cout << "N_splits=" << subgraph.first.n_splits << std::endl;
+    //     std::cout << "\tStarts:\n";
+    //     for (const auto start : subgraph.second.starts) {
+    //         std::cout << "\t\t" << start << std::endl;
+    //     }
+    //     std::cout << "\tEnds:\n";
+    //     for (const auto end : subgraph.second.ends) {
+    //         std::cout << "\t\t" << end << std::endl;
+    //     }
+    // }
 
     ov::pass::Manager switch_affinity_manager(get_pass_config());
     // TODO: remove 'share_constants' parameter
