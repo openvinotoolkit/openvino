@@ -47,6 +47,18 @@ std::vector<layout> shape_of_inst::calc_output_layouts(shape_of_node const& /*no
 
 template std::vector<layout> shape_of_inst::calc_output_layouts<ov::PartialShape>(shape_of_node const& node, const kernel_impl_params& impl_param);
 
+std::vector<size_t> shape_of_inst::extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+    ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+    ps.insert(ps.end(), 6 - ps.size(), ov::Dimension(1));
+    return ps.to_shape();
+}
+
+std::vector<size_t> shape_of_inst::extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+    ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
+    ps.insert(ps.end(), 6 - ps.size(), ov::Dimension(1));
+    return ps.to_shape();
+}
+
 std::string shape_of_inst::to_string(shape_of_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();

@@ -267,21 +267,6 @@ void primitive_inst::realloc_if_needed() {
 void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
-    auto extend_to_6d = [this](ov::PartialShape ps) -> std::vector<size_t> {
-        // For shape_of we extend shape with 1-s to 6d rank to make kernel simpler
-        if (_node->is_type<shape_of>()) {
-            ps.insert(ps.end(), 6 - ps.size(), ov::Dimension(1));
-            return ps.to_shape();
-        }
-        if (ps.size() < 4) {
-            if (_node->is_type<gemm>())
-                ps.insert(ps.begin(), 4 - ps.size(), ov::Dimension(1));
-            else
-                ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-        }
-        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-        return l.transform(format::bfwzyx).to_shape();
-    };
 
     auto get_layout_key = [&](const kernel_impl_params& params) -> size_t {
         size_t seed = 0;
@@ -301,21 +286,23 @@ void primitive_inst::update_impl() {
         return seed;
     };
 
-    auto update_shape_info = [this, extend_to_6d, prev_impl_str](const kernel_impl_params& params) {
+    auto update_shape_info = [this, prev_impl_str](const kernel_impl_params& params) {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
             if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = extend_to_6d(params.get_input_layout(i).get_partial_shape());
+                auto input_shape = _node->type()->extend_input_shape_to_6d(params, i);
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
             }
         }
 
-        if (_node->get_output_layout().is_dynamic()) {
-            auto output_shape = extend_to_6d(params.get_output_layout().get_partial_shape());
-            for (size_t j = 0; j < output_shape.size(); j++)
-                lock[offset++] = static_cast<int32_t>(output_shape[j]);
+        for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
+            if (_node->get_output_layout(i).is_dynamic()) {
+                auto output_shape = _node->type()->extend_output_shape_to_6d(params, i);
+                for (size_t j = 0; j < output_shape.size(); j++)
+                    lock[offset++] = static_cast<int32_t>(output_shape[j]);
+            }
         }
         std::stringstream s;
         s << "shapes: ";
@@ -365,6 +352,7 @@ void primitive_inst::update_impl() {
 
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(updated_params);
+
                 update_shape_info(updated_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
