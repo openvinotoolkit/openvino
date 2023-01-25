@@ -85,7 +85,7 @@ float16::float16(float value) {
         }
     }
     frac &= fmask_16;
-    if (biased_exp_16 > 30) {
+    if (biased_exp_16 > 30 || biased_exp_16 < -30) {
         // Infinity
         m_value = ((iv & smask) | emask_16 | 0) >> 16;
         return;
