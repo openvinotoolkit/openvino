@@ -377,7 +377,6 @@ void GNAPropagateMatcher :: match() {
             BlobMap  input_blob_map;
             BlobMap  output_blob_map;
             for (auto info : inputsInfo) {
-                size_t current_size = InferenceEngine::details::product(info.second->getTensorDesc().getDims());
                 input_blob_map[info.first] = input[info.first];
             }
             size_t offset = 0;
