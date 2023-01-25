@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("DivideFusion", "0");
     DivideFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DivideFusion;
-}  // namespace pass
-}  // namespace ngraph

@@ -215,36 +215,3 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 }  // namespace util
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace util {
-using ov::op::util::activation;
-using ov::op::util::broadcastTo;
-using ov::op::util::can_eliminate_eltwise_node;
-using ov::op::util::check_for_broadcast;
-using ov::op::util::clone_try_fold;
-using ov::op::util::constantIsEqualTo;
-using ov::op::util::create_ie_output_name;
-using ov::op::util::eltwise_fold;
-using ov::op::util::get_ie_output_name;
-using ov::op::util::get_node_target_inputs;
-using ov::op::util::get_single_value;
-using ov::op::util::has_constant_value;
-using ov::op::util::has_decompression_converts;
-using ov::op::util::has_f16_constants;
-using ov::op::util::has_op_with_type;
-using ov::op::util::is_dequantization_subgraph;
-using ov::op::util::is_seq_len_provided;
-using ov::op::util::make_try_fold;
-using ov::op::util::node_to_get_shape_value_of_indices_from_shape_node;
-using ov::op::util::node_to_get_shape_value_of_indices_from_shape_source;
-using ov::op::util::normalize_constant;
-using ov::op::util::normalize_single_value;
-using ov::op::util::reshapeTo;
-using ov::op::util::shapes_equal_except_dynamic_expected_batch;
-using ov::op::util::try_fold_unary_output;
-using ov::op::util::visit_shape_path;
-}  // namespace util
-}  // namespace op
-}  // namespace ngraph
