@@ -491,7 +491,6 @@ struct layout {
     ov::Shape get_shape() const;
 
     tensor get_tensor() const;
-    tensor get_max_tensor() const;
 
     template<typename T>
     T get() const;

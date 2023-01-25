@@ -784,14 +784,16 @@ void network::allocate_primitives() {
                     auto lhs_layout = lhs->get_output_layout();
                     auto rhs_layout = rhs->get_output_layout();
                     if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
-                        lhs_layout.set_tensor(lhs_layout.get_max_tensor());
+                        lhs_layout.set_tensor(lhs_layout.get_tensor());
                     }
                     if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
-                        rhs_layout.set_tensor(rhs_layout.get_max_tensor());
+                        rhs_layout.set_tensor(rhs_layout.get_tensor());
                     }
 
-                    if (rhs_layout.is_dynamic() && lhs_layout.is_dynamic())
+                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
                         return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
+                    }
+
                     if (rhs_layout.is_dynamic())
                         return true;
                     if (lhs_layout.is_dynamic())

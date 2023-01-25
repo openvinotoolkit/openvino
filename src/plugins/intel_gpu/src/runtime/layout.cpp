@@ -317,36 +317,16 @@ ov::Shape layout::get_shape() const {
 }
 
 tensor layout::get_tensor() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] get_tensor() is called for dynamic shape");
-
-    auto shape = size.to_shape();
-    std::vector<tensor::value_type> dims(shape.begin(), shape.end());
-
-    auto rank = std::max(format.dimension(), dims.size());
-    auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
-    if (default_fmt.dimension() > dims.size()) {
-        dims.insert(dims.end(), default_fmt.dimension() - dims.size(), 1);
-    }
-
-    while (dims.size() > default_fmt.dimension()) {
-        dims.pop_back();
-    }
-
-    tensor t(default_fmt, dims);
-    return t;
-}
-
-tensor layout::get_max_tensor() const {
-    if (!is_dynamic())
-        return get_tensor();
-    OPENVINO_ASSERT(
-        has_upper_bound(),
-        "[GPU] Dynamic layout called for get_max_tensor() should have upper bound (" + to_short_string() + ")");
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
     ov::Shape shape;
-    for (auto dim : size) {
-        shape.push_back(dim.get_max_length());
+    if (is_dynamic() && has_upper_bound()) {
+        for (auto dim : size) {
+                shape.push_back(dim.get_max_length());
+        }
+    } else {
+        shape = size.to_shape();
     }
+
     std::vector<tensor::value_type> dims(shape.begin(), shape.end());
 
     auto rank = std::max(format.dimension(), dims.size());
@@ -390,7 +370,7 @@ tensor layout::get_buffer_size() const {
             throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
     }
 
-    auto t = (is_dynamic() && has_upper_bound()) ? get_max_tensor() : get_tensor();
+    auto t = get_tensor();
 
     return t.add(data_padding.lower_size()).add(data_padding.upper_size());
 }

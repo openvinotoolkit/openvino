@@ -613,7 +613,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     }
 
     if (_outputs[0])
-        max_output_layout_size = _outputs[0]->get_layout().get_max_tensor().count();
+        max_output_layout_size = _outputs[0]->get_layout().get_tensor().count();
 }
 
 void primitive_inst::allocate_internal_buffers(void) {
@@ -777,10 +777,11 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
-        auto max_layout = cldnn::layout(layout.data_type, layout.format, layout.get_max_tensor(), layout.data_padding);
+        // Use layout with max tensor for dynamic shape with upper bound
+        auto static_layout = cldnn::layout(layout.data_type, layout.format, layout.get_tensor(), layout.data_padding);
         if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
-            return pool.get_memory(max_layout, id, net_id, dependencies, type, reusable);
-        return pool.get_memory(max_layout, type);
+            return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable);
+        return pool.get_memory(static_layout, type);
     };
 
     auto layout = impl_params.get_output_layout(idx);
