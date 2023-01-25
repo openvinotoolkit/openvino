@@ -157,7 +157,7 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
 
         counter = 0;
         for (const auto& result : results) {
-            auto data = out_info_map.at(ngraph::op::util::get_ie_output_name(result->input_value(0)));
+            auto data = out_info_map.at(ov::op::util::get_ie_output_name(result->input_value(0)));
             temp_body.outputs[counter++] = data;
         }
 
@@ -1841,7 +1841,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     cnnNetworkImpl->setName(graph->get_friendly_name());
 
     const ngraph::NodeVector& nodes = graph->get_ops();
-    bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
+    bool keep_constants = keep_constant_inputs || ::ov::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
     auto can_change_name = [](const std::shared_ptr<ngraph::Node> & node) -> bool {
@@ -1902,7 +1902,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
 
         // Set originalLayersNames from FusedNames
-        std::string originalNames = ngraph::getFusedNames(layer);
+        std::string originalNames = ov::getFusedNames(layer);
         if (!originalNames.empty()) {
             cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
         }
@@ -1959,7 +1959,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 continue;
             }
 
-            auto outName = ngraph::op::util::get_ie_output_name(layer->output(i));
+            auto outName = ov::op::util::get_ie_output_name(layer->output(i));
 
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
@@ -2011,7 +2011,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            cnnNetworkImpl->addOutput(ngraph::op::util::get_ie_output_name(input));
+            cnnNetworkImpl->addOutput(ov::op::util::get_ie_output_name(input));
             continue;
         }
 

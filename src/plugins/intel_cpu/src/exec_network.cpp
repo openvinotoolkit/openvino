@@ -76,7 +76,7 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     if (function == nullptr) {
         IE_THROW() << "CPU plug-in doesn't support not ngraph-based model!";
     }
-    bool isFloatModel = !ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
+    bool isFloatModel = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(function);
 
     _cfg.isNewApi = !isLegacyAPI();
     _mutex = std::make_shared<std::mutex>();
