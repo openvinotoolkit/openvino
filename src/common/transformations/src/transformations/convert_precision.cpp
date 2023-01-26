@@ -164,7 +164,7 @@ bool convert_precision(ov::pass::PassBase& pass,
                     res = t2f_it->second(node, precisions);
                 }
                 if ((is_changed || is_output_precision_changed || res) && !node_is_replaced(node)) {
-                    node->validate_and_infer_types();
+                    node->revalidate_and_infer_types();
                 }
                 return res;
             };
@@ -178,7 +178,7 @@ bool convert_precision(ov::pass::PassBase& pass,
                     res = it->second(node, precisions);
                 }
                 if ((is_changed || res) && !node_is_replaced(node)) {
-                    node->validate_and_infer_types();
+                    node->revalidate_and_infer_types();
                 }
                 return res;
             };
