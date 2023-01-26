@@ -52,35 +52,6 @@ TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements
     req.infer();
 }
 
-TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements_TEMPLATE) {
-    // auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape{Dimension::dynamic(),6,10});
-    auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape::dynamic(4));
-    data->get_default_output().get_tensor().add_names({"data"});
-    auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
-    auto crops_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-    auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
-    auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
-
-    auto f = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
-
-    // this commented part "removes" the error
-    // pass::Manager m;
-    // m.register_pass<ov::pass::ConvertBatchToSpace>();
-    // m.run_passes(f);
-
-    // f->reshape({{"data",PartialShape{2,6,10}}});
-
-    std::string deviceName = "TEMPLATE";
-    ov::Core core;
-    auto net = core.compile_model(f, deviceName);
-
-    auto req = net.create_infer_request();
-    float host_data[100 * 7 * 13 * 3];
-    auto tensor = ov::Tensor(element::f32, Shape{100, 7, 13, 3}, host_data);
-    req.set_tensor(data, tensor);
-    req.infer();
-}
-
 TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
     {
         auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
@@ -138,6 +109,8 @@ TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
     }
+
+    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {

@@ -150,30 +150,24 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         const auto two = Constant::create(element::i64, Shape{1}, {2});
         const auto int_max = Constant::create(element::i64, Shape{1}, {INT_MAX});
 
-        // const auto shape_of_data = make_shared<ShapeOf>(data);
-        // shared_ptr<Node> dispersed_shape = make_shared<Concat>(OutputVector{one, shape_of_data}, 0);
-        // shared_ptr<Node> squeezed_shape = shape_of_data;
-        shared_ptr<Node> dispersed_shape = make_shared<Concat>(OutputVector{one, make_shared<ShapeOf>(data)}, 0);
-        shared_ptr<Node> squeezed_shape = make_shared<ShapeOf>(data);
+        const auto shape_of_data = make_shared<ShapeOf>(data);
+        shared_ptr<Node> dispersed_shape = make_shared<Concat>(OutputVector{zero, shape_of_data}, 0);
+        shared_ptr<Node> squeezed_shape = shape_of_data;
 
         NodeVector new_ops;
         shared_ptr<Node> flat_node = data.get_node_shared_ptr();
 
         shared_ptr<Node> div;
         for (size_t block_idx = 1; block_idx < block_lenght; ++block_idx) {
-            // 1,100,7,13,3
-            // dispersed_shape[0] = block[block_idx];
-            // dispersed_shape[1] /= block[block_idx];
-            // 10,10,7,13,3
-
             const auto bidx = Constant::create(element::i64, Shape{1}, {block_idx});
             const auto bidx_next = Constant::create(element::i64, Shape{1}, {block_idx + 1});
             const auto block_value = make_shared<Gather>(block, bidx, zero);
 
+            // dispersed_shape[0] = block[block_idx];
+            // dispersed_shape[1] /= block[block_idx];
             if (!div) {
-                const auto block_value_1st_dim = make_shared<Gather>(make_shared<ShapeOf>(data), zero, zero);
+                const auto block_value_1st_dim = make_shared<Gather>(dispersed_shape, one, zero);
                 div = make_shared<Divide>(block_value_1st_dim, block_value);
-                //   div = Constant::create(element::i64, Shape{1}, {10});
             } else {
                 div = make_shared<Divide>(div, block_value);
             }
@@ -201,7 +195,6 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
 
             // squeezed_shape[0] = dispersed_shape[1];
             // squeezed_shape[block_idx] *= block[block_idx];
-            // dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
             const auto sq_slice = make_shared<Slice>(squeezed_shape, one, bidx, one);
             const auto sq_shape_bidx = make_shared<Gather>(squeezed_shape, bidx, zero);
             const auto sq_mul = make_shared<Multiply>(sq_shape_bidx, block_value);
@@ -210,6 +203,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             squeezed_shape = make_shared<Concat>(OutputVector{div, sq_slice, sq_mul, sq_shape_tail}, 0);
             flat_node = make_shared<Reshape>(flat_node, squeezed_shape, special_zero);
 
+            // dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
             const auto dispersed_shape_beg = make_shared<Slice>(dispersed_shape, zero, bidx_next, one);
             dispersed_shape_tail = make_shared<Slice>(dispersed_shape,
                                                       Constant::create(element::i64, Shape{1}, {block_idx + 2}),

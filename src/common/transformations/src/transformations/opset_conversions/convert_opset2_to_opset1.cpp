@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 
@@ -19,6 +20,7 @@ bool ov::pass::ConvertOpSet2ToOpSet1::run_on_model(const std::shared_ptr<ngraph:
 
     manager.register_pass<ov::pass::ConvertSpaceToBatch>();
     manager.register_pass<ov::pass::ConvertBatchToSpace>();
+    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
 
     manager.run_passes(f);
 
