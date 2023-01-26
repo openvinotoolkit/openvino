@@ -1,4 +1,3 @@
 -c ../../src/bindings/python/constraints.txt
 -r ./requirements.txt
-numpy>=1.16.6,<1.25.0
 protobuf>=3.18.1,<4.0.0
