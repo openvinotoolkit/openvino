@@ -219,9 +219,7 @@ private:
         const InferenceEngine::CNNNetwork& model,
         ov::Plugin& plugin,
         const std::map<std::string, std::string>& parsedConfig,
-        const InferenceEngine::RemoteContext::Ptr& context,
-        const CacheContent& cacheContent,
-        bool forceDisableCache = false);
+        const InferenceEngine::RemoteContext::Ptr& context);
 
 public:
     CoreImpl(bool _newAPI);
