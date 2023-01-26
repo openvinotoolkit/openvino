@@ -1,6 +1,6 @@
 # GPU kernels implementation overview
 
-As mentioned in [[GPU plugin structure|GPUPluginStructure]], kernels for GPU plugin are located in `src/plugins/intel_gpu/src/kernel_selector` folder.
+As mentioned in [GPU plugin structure](./source_code_structure.md), kernels for GPU plugin are located in `src/plugins/intel_gpu/src/kernel_selector` folder.
 
 For each operation we usually have multiple kernels that can support different parameters and/or optimized for different scenarios.
 

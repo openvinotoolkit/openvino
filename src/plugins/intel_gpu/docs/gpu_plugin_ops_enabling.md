@@ -14,7 +14,7 @@
     * Review the [ngraph operation spec](https://github.com/openvinotoolkit/openvino/tree/master/docs/ops)
     * IE operations(a.k.a primitive or NN-layer) are defined by ngraph.
     * You can check ngraph reference implementation of the primitive as well
-        * e.g. [Scatter Elements Update in nGraph](https://github.com/openvinotoolkit/openvino/blob/master/ngraph/core/reference/include/ngraph/runtime/reference/scatter_elements_update.hpp)
+        * e.g. [Scatter Elements Update in nGraph](https://github.com/openvinotoolkit/openvino/blob/master/src/core/reference/include/ngraph/runtime/reference/scatter_elements_update.hpp)
 
 1. Try to find existing primitive that fully or partially covers this operation.
     * It is also possible to transform the network so that the missing primitive is covered from existing primitive.
@@ -26,9 +26,9 @@
         
         | File | Description |
         |------|-------------|
-        | [scatter_elements_update_ref.cl](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/kernel_selector/core/cl_kernels/scatter_elements_update_ref.cl) | OpenCL Kernel body. For more detail, please see [How to write OCL kernel](#writing-ocl-kernel) section |
-        | [scatter_elements_update_kernel_ref.(cpp,h)](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/kernel_selector/core/actual_kernels/scatter_update/scatter_elements_update_kernel_ref.cpp) | Counterpart of kernel body for host |
-        | [scatter_elements_update_kernel_selector.(cpp,h)](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/kernel_selector/core/actual_kernels/scatter_update/scatter_elements_update_kernel_selector.cpp) | Kernel selector for a primitive |
+        | [scatter_elements_update_ref.cl](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/kernel_selector/cl_kernels/scatter_elements_update_ref.cl) | OpenCL Kernel body. For more detail, please see [How to write OCL kernel](#writing-ocl-kernel) section |
+        | [scatter_elements_update_kernel_ref.(cpp,h)](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/kernel_selector/kernels/scatter_update/scatter_elements_update_kernel_ref.cpp) | Counterpart of kernel body for host |
+        | [scatter_elements_update_kernel_selector.(cpp,h)](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/kernel_selector/kernels/scatter_update/scatter_elements_update_kernel_selector.cpp) | Kernel selector for a primitive |
         | [register_gpu.(cpp,hpp)](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/gpu/register_gpu.cpp) | Primitive registration |
         | [scatter_elements_update_gpu.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/gpu/scatter_elements_update_gpu.cpp) | Primitive registration, input spec |
         | [scatter_elements_update_inst.h](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/include/scatter_elements_update_inst.h) | Node type declaration for cldnn program |
@@ -40,7 +40,7 @@
 
         | File | Description |
         |------|-------------|
-        | [scatter_elements_update_gpu_test.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/tests/test_cases/scatter_elements_update_gpu_test.cpp) | Unittest for layer |
+        | [scatter_elements_update_gpu_test.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/test_cases/scatter_elements_update_gpu_test.cpp) | Unittest for layer |
 
         * Need to add reference code or expected result for checking the result.
 

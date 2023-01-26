@@ -2,7 +2,7 @@
 
 The simplified workflow in the GPU plugin is shown on the picture below (click on image for higher resolution):
 
-[](../../../../docs/img/ov_intel_gpu_plugin_diagram.png)
+![](../../../../docs/img/ov_intel_gpu_plugin_diagram.png)
 
 ## See also
  * [OpenVINO™ README](../../../../README.md)

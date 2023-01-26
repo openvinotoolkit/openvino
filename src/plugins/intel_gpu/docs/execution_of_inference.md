@@ -8,7 +8,7 @@ The main body of network execution is `cldnn::network::execute_impl`. [(src)](ht
 In case of synchronous API call(i.e. `inferRequest->infer()`), waiting for completion of kernels is also required. It is called from `cldnn::network_output::get_memory()` function. [(src)](https://github.com/openvinotoolkit/openvino/blob/f48b23362965fba7e86b0077319ea0d7193ec429/src/plugins/intel_gpu/include/intel_gpu/graph/network.hpp#L31)
 
 ## Optimized-out node
-During graph compilation[(link)](https://github.com/openvinotoolkit/openvino/wiki/Graph-Optimization-Passes), some nodes may be optimized out.
+During graph compilation [(link)](https://github.com/openvinotoolkit/openvino/wiki/Graph-Optimization-Passes), some nodes may be optimized out.
 
 For example, concat operation may be executed _implicitly_, or in other words, concat may be _optimized out_. Implicit concat is possible when the input of concat can put the output tensor directly into the result tensor of concat.
 

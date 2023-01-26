@@ -1,7 +1,7 @@
 # Basic data structures of GPU graph and overall flow
 
 ## Overall graph data structure
-[![]()](https://user-images.githubusercontent.com/25142117/156685475-9b31ddfd-3b00-47e8-a801-57f94c820215.png)
+![](https://user-images.githubusercontent.com/25142117/156685475-9b31ddfd-3b00-47e8-a801-57f94c820215.png)
 
 There are three levels of abstraction in the graph structures being used in the gpu plugin : *topology*, *program*, *network*. <br>
 The above [figure](https://user-images.githubusercontent.com/25142117/156685475-9b31ddfd-3b00-47e8-a801-57f94c820215.png) presents the overall data structures. 
@@ -75,7 +75,7 @@ In the above example, "pool0" is the *primitive_id* of the first pooling, and "i
 
 Note that topology is created from ngraph representation in the gpu plugin. Manual definition of a topology shown in the above snippet is usually for unittest purpose.
 
-## program_node
+## program_node (impl)
 
 ```cpp
 struct program_node {
@@ -100,7 +100,7 @@ Basically a program_node holds the following information which is to be decided 
 * fused operations : fused operations to the current program_node
 * selected impl : The primitive_impl object which holds the information for the selected kernel required to run it, such as the selected kernels, work group size, etc. Also this object has the methods to set kernel arguments for a primitive_inst and execute the kernel by enqueueing it to the command queue. 
 
-## program <br>
+## program (impl)
 
 ```cpp
 struct program {
@@ -128,9 +128,9 @@ The major tasks that are done while building a program are as follows:
         * propagate_constants : Transfer and reorder original weight data to the generic_nodes created at post_optimize_weights. Here, note that the constant propagation is doing weight reorder by running actual network (w/ is_internal = true). To this end, a temporal program is created/built/run within this pass. <br>
 
 * Kernel selection and graph compilations ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L436)) : Select best kernel for the program_node and create the impl (i.e., primitive_impl), and collect the kernel source code strings to the kernels_cache. 
-* Kernel compilation ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L451)): JIT compilation of the collected kernels. Currently 9 kernels are combined as a batch and compiled at a time. Also the batches are compiled in parallel. See https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/runtime/kernels_cache.cpp#L400
+* Kernel compilation ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L451)): JIT compilation of the collected kernels. Currently 9 kernels are combined as a batch and compiled at a time. Also the batches are compiled in parallel. See [here](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/runtime/kernels_cache.cpp#L400)
 
-## primitive_inst
+## primitive_inst (impl)
 
 ```cpp
 class primitive_inst {
@@ -154,7 +154,7 @@ While each primitive_inst object is still associated to the corresponding  progr
 * output memory : An output memory of a primitive_inst is allocated at the creation of each primitive_inst ([impl](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L210)), unless its output is reusing the input memory or the node is a mutable data to be used as a 2nd output. The general output tensors are allocated by the memory pool, so that the memory could be reused by other nodes when it is not needed. (Note that constants data are not reusable and should retain the own memory, so that they could be shared by multiple streams. More descriptions about memory pool will be given by dedicated section (TBD)).
 * intermediate memory ([impl](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/primitive_inst.cpp#L215)): Some kernels requires intermediate memories in addition to the input/output memories such as [detection_output](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/kernel_selector/core/actual_kernels/detection_output/detection_output_kernel_ref.cpp#L155). The allocation happens after all primitive_insts are finished ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/network.cpp#L592)), since it needs to be processed in a processing_order to use the predecessors' allocation information while the creation of primitive_inst is done in a order sorted by memory_size. 
 
-## network
+## network (impl)
 ```cpp
 struct network {
 ...
