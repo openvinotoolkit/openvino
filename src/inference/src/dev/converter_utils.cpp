@@ -328,7 +328,7 @@ public:
             outputs.emplace_back(output->output(0));
         }
         m_inputs = inputs;
-        m_outputs = inputs;
+        m_outputs = outputs;
     }
     std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const override {
         return m_model->CreateInferRequest();
