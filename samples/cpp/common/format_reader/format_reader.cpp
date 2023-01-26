@@ -6,9 +6,11 @@
 
 // clang-format off
 #include "bmp.h"
+#include "npy.h"
 #include "MnistUbyte.h"
 #include "yuv_nv12.h"
 #include "opencv_wrapper.h"
+
 #include "format_reader.h"
 // clang-format on
 
@@ -21,6 +23,7 @@ Register<YUV_NV12> YUV_NV12::reg;
 #ifdef USE_OPENCV
 Register<OCVReader> OCVReader::reg;
 #else
+Register<NumpyArray> NumpyArray::reg;
 Register<BitMap> BitMap::reg;
 #endif
 

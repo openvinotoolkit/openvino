@@ -94,14 +94,14 @@ def get_input_data(paths_to_input, app_input_info):
     binaries_to_be_used_map = {input_name: len(binaries)
                             for input_name, binaries in binary_mapping.items()}
 
-    def verify_objects_to_be_used(objects_to_be_used, info, total_frames, type):
-        if objects_to_be_used[info.name] > total_frames and objects_to_be_used[info.name] % total_frames != 0:
-            objects_to_be_used[info.name] = objects_to_be_used[info.name] - objects_to_be_used[info.name] % total_frames
+    def verify_objects_to_be_used(objects_to_be_used_map, info, total_frames, type):
+        if objects_to_be_used_map[info.name] > total_frames and objects_to_be_used_map[info.name] % total_frames != 0:
+            objects_to_be_used_map[info.name] = objects_to_be_used_map[info.name] - objects_to_be_used_map[info.name] % total_frames
             logger.warning(f"Number of provided {type} for input '{info.name}' is not a multiple of the number of "
-                            f"provided data shapes. Only {objects_to_be_used[info.name]} {type} will be processed for this input.")
-        elif objects_to_be_used[info.name] < total_frames:
+                            f"provided data shapes. Only {objects_to_be_used_map[info.name]} {type} will be processed for this input.")
+        elif objects_to_be_used_map[info.name] < total_frames:
             logger.warning(f"Some {type} will be dublicated: {total_frames} is required, "
-                            f"but only {objects_to_be_used[info.name]} were provided.")
+                            f"but only {objects_to_be_used_map[info.name]} were provided.")
 
     for info in app_input_info:
         if info.shapes:
@@ -118,6 +118,8 @@ def get_input_data(paths_to_input, app_input_info):
         else:
             if info.name in image_mapping:
                 logger.info(f"Images given for input '{info.name}' will be processed with original shapes.")
+            elif info.name in numpy_mapping:
+                logger.info(f"Numpy arrays given for input '{info.name}' will be processed with original shapes.")
             else:
                 raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
 
@@ -126,8 +128,8 @@ def get_input_data(paths_to_input, app_input_info):
         if info.name in image_mapping:
             data[port] = get_image_tensors(image_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
-        elif info.name in binary_mapping:
-            data[port] = get_numpy_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
+        elif info.name in numpy_mapping:
+            data[port] = get_numpy_tensors(numpy_mapping[info.name][:numpys_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
         elif info.name in binary_mapping:
             data[port] = get_binary_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
@@ -238,13 +240,13 @@ def get_numpy_tensors(numpy_paths: List[str], info: AppInputInfo, batch_sizes: L
                 if list(numpy_arr.shape) != shape and not process_with_original_shapes:
                     raise Exception(
                         f"Numpy array shape mismatch. File {numpy_filename} "
-                        "has shape: {numpy_arr.shape}, expected: {shape}")
+                        f"has shape: {numpy_arr.shape}, expected: {shape}")
 
                 if numpy_arr.dtype != dtype:
                     raise Exception(
                         f"Numpy array in file {numpy_filename} is of "
-                        "{numpy_arr.dtype} format, which does not match "
-                        "input type ({dtype}).")
+                        f"{numpy_arr.dtype} format, which does not match "
+                        f"input type {dtype}.")
 
                 if process_with_original_shapes:
                     if len(info.partial_shape) - 1 == len(numpy_arr.shape):
@@ -318,7 +320,7 @@ def get_image_sizes(app_input_info):
                 image_sizes.append((info.width, info.height))
             else:
                 info_image_sizes = []
-                for w, h in zip(info.widthes, info.heights):
+                for w, h in zip(info.widths, info.heights):
                     info_image_sizes.append((w, h))
                 image_sizes.append(info_image_sizes)
     return image_sizes

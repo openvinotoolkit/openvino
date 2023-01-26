@@ -543,8 +543,9 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     }
                 }
 
-                size_t w = 0;
                 size_t h = 0;
+                size_t w = 0;
+                std::vector<size_t> shape;
                 size_t fileIdx = currentFileCounters[item.get_any_name()];
                 for (; fileIdx < currentFileCounters[item.get_any_name()] + tensorBatchSize; fileIdx++) {
                     if (fileIdx >= namesVector.size()) {
@@ -553,28 +554,42 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                             "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
-                    if ((w && w != reader->width()) || (h && h != reader->height())) {
-                        throw std::logic_error("Image sizes putting into one batch should be of the same size if input "
+                    if ((w && w != reader->width()) || (h && h != reader->height()) || (!shape.empty() && shape != reader->shape())) {
+                        throw std::logic_error("File dimensions putting into one batch should be of the same dimensionality if input "
                                                "shape is dynamic and -data_shape is omitted. Problem file: " +
                                                namesVector[fileIdx]);
                     }
-                    w = reader->width();
                     h = reader->height();
+                    w = reader->width();
+                    shape = reader->shape();
                 }
                 currentFileCounters[item.get_any_name()] = fileIdx;
-
-                if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
+                if(shape.size() == 2) { // Has only h and w
+                    if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
                     info.dataShape[ov::layout::height_idx(info.layout)] = h;
+                    }
+                    if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
+                        info.dataShape[ov::layout::width_idx(info.layout)] = w;
+                    }
+                } else { // Is numpy array
+                    size_t shape_idx = 0;
+                    if (info.dataShape.size() != shape.size()) {
+                        throw std::logic_error("Shape required by the input and file shape do not have the same rank. "
+                                           "Input: " + item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
+                    }
+                    for(size_t i = ov::layout::batch_idx(info.layout); i < ov::layout::batch_idx(info.layout) + info.dataShape.size(); ++i){
+                        if(!info.dataShape[i]){
+                            info.dataShape[i] = shape.at(shape_idx++);
+                        }
+                    }
                 }
-                if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
-                    info.dataShape[ov::layout::width_idx(info.layout)] = w;
-                }
+                
 
                 if (std::any_of(info.dataShape.begin(), info.dataShape.end(), [](size_t d) {
                         return d == 0;
                     })) {
-                    throw std::logic_error("Not enough information in shape and image to determine tensor shape "
-                                           "automatically autmatically. Input: " +
+                    throw std::logic_error("Not enough information in shape and file to determine tensor shape "
+                                           "autmatically. Input: " +
                                            item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                 }
 

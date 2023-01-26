@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "format_reader_ptr.h"
+#include "npy.h"
 #include "ngraph/type/bfloat16.hpp"
 #include "samples/slog.hpp"
 #include "shared_tensor_allocator.hpp"
@@ -105,11 +106,14 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
     size_t tensor_size =
         std::accumulate(inputInfo.dataShape.begin(), inputInfo.dataShape.end(), 1, std::multiplies<size_t>());
     auto allocator = std::make_shared<SharedTensorAllocator>(tensor_size * sizeof(T));
-    char* data = allocator->get_buffer();
+    auto data = reinterpret_cast<T*>(allocator->get_buffer());
 
-    size_t numpyBatchSize = 1;
+    std::vector<std::shared_ptr<uint8_t>> numpy_array_pointers;
+    numpy_array_pointers.reserve(batchSize);
+
+    size_t numpy_batch_size = 1;
     if (!inputInfo.layout.empty() && ov::layout::has_batch(inputInfo.layout)) {
-        numpyBatchSize = batchSize;
+        numpy_batch_size = batchSize;
     } else {
         slog::warn << inputName
                    << ": layout is not set or does not contain batch dimension. Assuming that numpy array "
@@ -117,25 +121,27 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
                    << slog::endl;
     }
 
-    for (size_t b = 0; b < numpyBatchSize; ++b) {
+    for (size_t b = 0; b < numpy_batch_size; ++b) {
         auto inputIndex = (inputId + b) % files.size();
-
-        std::ifstream numpyFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
-        OPENVINO_ASSERT(numpyFile, "Cannot open ", files[inputIndex]);
-
-        auto inputSize = tensor_size * sizeof(T) / numpyBatchSize;
-
-        std::string extension = get_extension(files[inputIndex]);
-        if (extension == "npy") {
-            verifyNumpyFile<T>(numpyFile, files[inputIndex], inputInfo.dataShape, inputSize);
-        } else {
-            throw ov::Exception("Unsupported numpy file type: " + extension);
-        }
-
-        numpyFile.read(&data[b * inputSize], inputSize);
-
         if (filenames_used) {
             *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
+        }
+        FormatReader::NumpyArray numpy_array_reader(files[inputIndex].c_str());
+        if(numpy_array_reader.getData() == nullptr) {
+            slog::warn << "Numpy array " << files[inputIndex] << " cannot be read!" << slog::endl << slog::endl;
+            continue;
+        }
+
+        std::shared_ptr<uint8_t> numpy_array_data_pointer(numpy_array_reader.getData(inputInfo.width(), inputInfo.height()));
+        if (numpy_array_data_pointer) {
+            numpy_array_pointers.push_back(numpy_array_data_pointer);
+        }
+    }
+
+    for (size_t b = 0; b < numpy_batch_size; ++b) {
+        for(size_t i = 0; i < tensor_size; ++i){
+            size_t offset = b * tensor_size + i;
+            data[offset] = static_cast<T>(numpy_array_pointers.at(b).get()[i]);
         }
     }
 
@@ -255,7 +261,7 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                             std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::bf16) {
-        return create_tensor_from_image<ngraph::bfloat16>(files,
+        return create_tensor_from_image<ov::bfloat16>(files,
                                                           inputId,
                                                           batchSize,
                                                           inputInfo.second,
@@ -369,7 +375,7 @@ ov::Tensor get_numpy_tensor(const std::vector<std::string>& files,
                             std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::bf16) {
-        return create_tensor_from_numpy<ngraph::bfloat16>(files,
+        return create_tensor_from_numpy<ov::bfloat16>(files,
                                                           inputId,
                                                           batchSize,
                                                           inputInfo.second,
@@ -464,7 +470,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                              std::string* filenames_used = nullptr) {
     const auto& type = inputInfo.second.type;
     if (type == ov::element::bf16) {
-        return create_tensor_from_binary<ngraph::bfloat16>(files,
+        return create_tensor_from_binary<ov::bfloat16>(files,
                                                            inputId,
                                                            batchSize,
                                                            inputInfo.second,
@@ -628,12 +634,13 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         auto input = app_inputs_info[0].at(input_name);
         if (!files.second.empty() && files.second[0] != "random" && files.second[0] != "image_info") {
-            if (input.dataShape.empty()) {
-                if (!input.is_image()) {
-                    files.second = filter_files_by_extensions(files.second, supported_numpy_extensions);
-                } else {
-                    files.second = filter_files_by_extensions(files.second, supported_image_extensions);
-                }
+            auto filtered_numpy_files = filter_files_by_extensions(files.second, supported_numpy_extensions);
+            auto filtered_image_files = filter_files_by_extensions(files.second, supported_image_extensions);
+
+            if (!filtered_numpy_files.empty()){
+                files.second = filtered_numpy_files;
+            } else if (!filtered_image_files.empty() && input.is_image()) {
+                files.second = filtered_image_files;
             } else if (input.is_image_info() && net_input_im_sizes.size() == app_inputs_info.size()) {
                 slog::info << "Input '" << input_name
                            << "' probably is image info. All files for this input will"
@@ -725,8 +732,8 @@ std::map<std::string, ov::TensorVector> get_tensors(std::map<std::string, std::v
                 tensor_src_info =
                     "Image size tensor " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
                 tensors[input_name].push_back(get_im_info_tensor(image_size, batchSize, {input_name, input_info}));
-            } else if (input_info.dataShape.empty() && !input_info.is_image()) {
-                // Fill with Numpy arrays
+            } else if (supported_numpy_extensions.count(get_extension(files.second[0]))) {
+                // Fill with Numpy arrrays
                 tensors[input_name].push_back(
                     get_numpy_tensor(files.second, inputId, batchSize, {input_name, input_info}, &tensor_src_info));
             } else if (input_info.is_image()) {
@@ -777,7 +784,6 @@ std::map<std::string, ov::TensorVector> get_tensors_static_case(const std::vecto
     std::map<std::string, ov::TensorVector> blobs;
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
-    std::vector<std::vector<size_t>> net_input_numpy_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.partialShape.is_static() && item.second.is_image()) {
             net_input_im_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
