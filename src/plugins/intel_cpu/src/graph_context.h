@@ -110,6 +110,13 @@ public:
                                                                               const dnnl::primitive_attr& attr,
                                                                               const impl_desc_type& implType) const;
 
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> getMatMulPrim(const dnnl::memory::desc& src,
+                                                                        const dnnl::memory::desc& weight,
+                                                                        const dnnl::memory::desc& bias,
+                                                                        const dnnl::memory::desc& dst,
+                                                                        const dnnl::primitive_attr& attr,
+                                                                        const impl_desc_type& implType) const;
+
 private:
     Config config;  // network-level config
 

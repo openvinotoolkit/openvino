@@ -394,5 +394,35 @@ std::pair<dnnl::primitive, dnnl::primitive_desc_base> GraphContext::getDeconvPri
     return getPrim(key);
 }
 
+/////////////////////////////////////////////////////////////////////////////
+struct MatMulKey : public DnnlOPKey {
+    using Prim = dnnl::matmul;
+
+    dnnl::matmul::desc createOPDescriptor() const {
+        if (bias) {
+            return dnnl::matmul::desc(src, weight, bias, dst);
+        } else {
+            return dnnl::matmul::desc(src, weight, dst);
+        }
+    }
+};
+
+std::pair<dnnl::primitive, dnnl::primitive_desc_base> GraphContext::getMatMulPrim(
+    const dnnl::memory::desc& src,
+    const dnnl::memory::desc& weight,
+    const dnnl::memory::desc& bias,
+    const dnnl::memory::desc& dst,
+    const dnnl::primitive_attr& attr,
+    const impl_desc_type& implType) const {
+    MatMulKey key;
+    key.src = src;
+    key.weight = weight;
+    key.bias = bias;
+    key.dst = dst;
+    key.attr = attr;
+    key.implType = implType;
+    return getPrim(key);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

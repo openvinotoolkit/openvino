@@ -29,55 +29,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 namespace {
-
-struct MatMulKey {
-    DnnlMemoryDescCPtr inp0;
-    DnnlMemoryDescCPtr inp1;
-    DnnlMemoryDescCPtr bias;
-    DnnlMemoryDescCPtr out;
-    dnnl::primitive_attr attr;
-    impl_desc_type implType;
-
-    size_t hash() const;
-    bool operator==(const MatMulKey& rhs) const;
-};
-
-size_t MatMulKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-
-    for (const auto& ptr : {inp0, inp1, bias, out}) {
-        if (ptr) {
-            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
-        }
-    }
-
-    seed = hash_combine(seed, get_attr_hash(*attr.get()));
-    seed = hash_combine(seed, implType);
-    return seed;
-}
-
-bool MatMulKey::operator==(const MatMulKey &rhs) const {
-    bool retVal = true;
-    if (inp0 != rhs.inp0) {
-        retVal = retVal && inp0 && rhs.inp0 && inp0->getDnnlDesc() == rhs.inp0->getDnnlDesc();
-    }
-    if (inp1 != rhs.inp1) {
-        retVal = retVal && inp1 && rhs.inp1 && inp1->getDnnlDesc() == rhs.inp1->getDnnlDesc();
-    }
-    if (bias != rhs.bias) {
-        retVal = retVal && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
-    }
-    if (out != rhs.out) {
-        retVal = retVal && out && rhs.out && out->getDnnlDesc() == rhs.out->getDnnlDesc();
-    }
-    retVal = retVal && *attr.get() == *rhs.attr.get() &&
-             implType == rhs.implType;
-    return retVal;
-}
-
 bool canBeExecutedInInt8(const Precision& firstInput, const Precision& secondInput) {
     return one_of(firstInput, Precision::U8, Precision::I8) && secondInput == Precision::I8;
 }
@@ -495,94 +446,61 @@ void MatMul::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW()  << errorPrefix << " did not set preferable primitive descriptor";
 
-    DnnlMemoryDescPtr src0TransposedDesc;
-    DnnlMemoryDescPtr src1TransposedDesc;
 
-    AttrPtr attr;
+    memory srcMem = src0MemPtr->GetPrimitive();
+    memory weightMem = src1MemPtr->GetPrimitive();
+    memory dstMem = dstMemPtr->GetPrimitive();
+    memory biasMem;
 
-    if (isDynamicNode()) {
-        attr = initPrimitiveAttr(dstMemPtr->getStaticDims());
+    memory::desc srcDesc = srcMem.get_desc();
+    memory::desc weightDesc = weightMem.get_desc();
+    memory::desc dstDesc = dstMem.get_desc();
+    memory::desc biasDesc;
 
-        const auto& src0Desc = src0MemPtr->getDesc();
-        const auto& src1Desc = src1MemPtr->getDesc();
-
-        auto src0Shape = src0Desc.getShape();
-        auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
-        src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src0Desc.getPrecision(), src0Shape, src0Strides);
-
-        auto src1Shape = src1Desc.getShape();
-        auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
-        src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src1Desc.getPrecision(), src1Shape, src1Strides);
-    } else {
-        attr = initPrimitiveAttr();
-        src0TransposedDesc = inDataDesc[0];
-        src1TransposedDesc = inDataDesc[1];
-    }
-
-    auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
-
-    DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
+    MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
-        auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
-        if (!biasMemory || !biasMemory->isAllocated())
-            IE_THROW()  << errorPrefix << " did not allocate bias memory";
-        dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
+        auto biasMemPtr = getParentEdgeAt(2)->getMemoryPtr();
+        if (!biasMemPtr || !biasMemPtr->isAllocated())
+            IE_THROW() << "Bias memory hasn't been allocated.";
+        biasMem = biasMemPtr->GetPrimitive();
+        biasDesc = biasMem.get_desc();
     }
-
-    MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
-                     dstDnnlDesc, *attr, selected_pd->getImplementationType()};
-
-    auto engine = getEngine();
-
-    auto builder = [&engine](const MatMulKey& key) -> std::shared_ptr<dnnl::primitive> {
-        std::shared_ptr<dnnl::matmul::desc> matmul_desc;
-
-        if (key.bias) {
-            matmul_desc.reset(new dnnl::matmul::desc{key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
-                                                       key.bias->getDnnlDesc(),
-                                                       key.out->getDnnlDesc()});
-        } else {
-            matmul_desc.reset(new dnnl::matmul::desc(key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
-                                                       key.out->getDnnlDesc()));
+    auto getTransposedDesc = [](const memory::desc& in, bool transpose) {
+        if (!transpose) {
+            return in;
         }
-
-        DnnlDesriptor desc(matmul_desc);
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-        matmul::primitive_desc prim_desc;
-
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
-            }
-            if (!itpd.next_impl())
-                return nullptr;
-        }
-        return std::make_shared<matmul>(prim_desc);
+        auto rank = in.dims().size();
+        std::vector<int> perm(rank);
+        std::iota(perm.begin(), perm.end(), 0);
+        std::swap(perm[rank-1], perm[rank-2]);
+        return in.permute_axes(perm);
     };
 
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
+    memory::desc srcTransposedDesc = getTransposedDesc(srcDesc, transposeIn[0]);
+    memory::desc weightTransposedDesc = getTransposedDesc(weightDesc, transposeIn[1]);
+    AttrPtr attr = initPrimitiveAttr(dstMemPtr->getStaticDims());
 
-    if (!result.first) {
+    auto prim_pd = context->getMatMulPrim(srcTransposedDesc,
+                                          weightTransposedDesc,
+                                          biasDesc,
+                                          dstDesc,
+                                          *attr,
+                                          selected_pd->getImplementationType());
+    if (!prim_pd.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
     }
 
-    prim = result.first;
+    prim = std::make_shared<dnnl::primitive>(prim_pd.first);
 
     auto pd = (*prim).get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
 
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-    primArgs[DNNL_ARG_SRC_0] = src0MemPtr->GetPrimitive();
-    primArgs[DNNL_ARG_WEIGHTS_0] = src1MemPtr->GetPrimitive();
-    primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+    primArgs[DNNL_ARG_SRC_0] = srcMem;
+    primArgs[DNNL_ARG_WEIGHTS_0] = weightMem;
+    primArgs[DNNL_ARG_DST] = dstMem;
     if (withBiases)
-        primArgs[DNNL_ARG_BIAS] = getParentEdgeAt(2)->getMemoryPtr()->GetPrimitive();
+        primArgs[DNNL_ARG_BIAS] = biasMem;
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
 }

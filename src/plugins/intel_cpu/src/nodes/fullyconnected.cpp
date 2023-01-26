@@ -231,23 +231,23 @@ void FullyConnected::prepareParams() {
     if (!srcMemPtr || !srcMemPtr->isAllocated())
         IE_THROW() << "Input memory hasn't been allocated.";
 
-    memory src_mem = srcMemPtr->GetPrimitive();
-    memory weight_mem = wghMemPtr->GetPrimitive();
-    memory dst_mem = dstMemPtr->GetPrimitive();
-    memory bias_mem;
+    memory srcMem = srcMemPtr->GetPrimitive();
+    memory weightMem = wghMemPtr->GetPrimitive();
+    memory dstMem = dstMemPtr->GetPrimitive();
+    memory biasMem;
 
-    memory::desc src_desc = src_mem.get_desc();
-    memory::desc weight_desc = weight_mem.get_desc();
-    memory::desc dst_desc = dst_mem.get_desc();
-    memory::desc bias_desc;
+    memory::desc srcDesc = srcMem.get_desc();
+    memory::desc weightDesc = weightMem.get_desc();
+    memory::desc dstDesc = dstMem.get_desc();
+    memory::desc biasDesc;
 
     MemoryPtr biasMemPtr = nullptr;
     if (withBiases) {
         auto biasMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
         if (!biasMemPtr || !biasMemPtr->isAllocated())
             IE_THROW() << "Input memory hasn't been allocated.";
-        bias_mem = biasMemPtr->GetPrimitive();
-        bias_desc = bias_mem.get_desc();
+        biasMem = biasMemPtr->GetPrimitive();
+        biasDesc = biasMem.get_desc();
     }
 
     AttrPtr attr = std::make_shared<dnnl::primitive_attr>();
@@ -255,8 +255,8 @@ void FullyConnected::prepareParams() {
     (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
     // create primitive using weight with format tag any
-    dnnl::memory::desc weight_desc_any(weight_desc.dims(),
-                                       getWeightDataType(src_desc.data_type()),
+    dnnl::memory::desc weightDescAny(weightDesc.dims(),
+                                       getWeightDataType(srcDesc.data_type()),
                                        dnnl::memory::format_tag::any);
     std::pair<dnnl::primitive, dnnl::primitive_desc_base> prim_pd;
     auto useConv1x1 = canBeExecutedInConv1x1();
@@ -276,17 +276,17 @@ void FullyConnected::prepareParams() {
             return newDesc;
         };
 
-        auto convSrcDesc = CanonicalizeSrcDst(src_desc);
-        auto convDstDesc = CanonicalizeSrcDst(dst_desc);
+        auto convSrcDesc = CanonicalizeSrcDst(srcDesc);
+        auto convDstDesc = CanonicalizeSrcDst(dstDesc);
 
         // weight memory   :  OC, IC
         // make a fake shape: OC, IC, 1
-        auto wdims = weight_desc_any.dims();
-        auto convWeightDescAny = weight_desc_any.reshape({wdims[0], wdims[1], dnnl::memory::dim{1}});
+        auto wdims = weightDescAny.dims();
+        auto convWeightDescAny = weightDescAny.reshape({wdims[0], wdims[1], dnnl::memory::dim{1}});
 
         prim_pd = context->getConvPrim(convSrcDesc,
                                        convWeightDescAny,
-                                       bias_desc,
+                                       biasDesc,
                                        convDstDesc,
                                        {1},   // stride
                                        {0},   // dilation
@@ -297,18 +297,18 @@ void FullyConnected::prepareParams() {
     }
 
     if (!prim_pd.first) {
-        auto inDesc = src_desc;
+        auto inDesc = srcDesc;
         auto inDims = inDesc.dims();
         if (inDims.size() == 3) {
             inDesc = inDesc.reshape({inDims[0] * inDims[1], inDims[2]});
         }
 
-        auto outDesc = dst_desc;
+        auto outDesc = dstDesc;
         auto outDims = outDesc.dims();
         if (outDims.size() == 3) {
             outDesc = outDesc.reshape({outDims[0] * outDims[1], outDims[2]});
         }
-        prim_pd = context->getInnerProductPrim(inDesc, weight_desc_any, bias_desc, outDesc, *attr, implementationTypeIP);
+        prim_pd = context->getInnerProductPrim(inDesc, weightDescAny, biasDesc, outDesc, *attr, implementationTypeIP);
     }
 
     if (!prim_pd.first) {
@@ -331,23 +331,23 @@ void FullyConnected::prepareParams() {
     auto canonical_src_desc = executor.getPrimitiveDesc().src_desc(0);
     auto canonical_dst_desc = executor.getPrimitiveDesc().dst_desc(0);
 
-    executor.setArg(DNNL_ARG_SRC, src_mem, false, &canonical_src_desc);
+    executor.setArg(DNNL_ARG_SRC, srcMem, false, &canonical_src_desc);
     if (impl_type == brgconv_avx512_1x1) {
         // FC node weight dims (OC,IC), but brgconv_1x1 requires (OC,IC,1)
         auto prim_w_desc = executor.getPrimitiveDesc().weights_desc(0);
-        auto canonical_desc = weight_desc.reshape(prim_w_desc.dims());
+        auto canonical_desc = weightDesc.reshape(prim_w_desc.dims());
 
         executor.setArg(DNNL_ARG_WEIGHTS,
-                        weight_mem,
+                        weightMem,
                         getParentEdgeAt(1)->getParent()->isConstant(),
                         &canonical_desc);
     } else {
-        executor.setArg(DNNL_ARG_WEIGHTS, weight_mem, getParentEdgeAt(1)->getParent()->isConstant());
+        executor.setArg(DNNL_ARG_WEIGHTS, weightMem, getParentEdgeAt(1)->getParent()->isConstant());
     }
-    executor.setArg(DNNL_ARG_DST, dst_mem, false, &canonical_dst_desc);
+    executor.setArg(DNNL_ARG_DST, dstMem, false, &canonical_dst_desc);
 
-    if (bias_mem)
-        executor.setArg(DNNL_ARG_BIAS, bias_mem);
+    if (biasMem)
+        executor.setArg(DNNL_ARG_BIAS, biasMem);
 
     for (auto & entry : postOpsArgs) {
         executor.setArg(entry.first, entry.second->GetPrimitive());
