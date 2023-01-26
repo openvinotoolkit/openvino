@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from utils import utils
+from utils import constants
 from argparse import ArgumentParser
 from subprocess import Popen, STDOUT, TimeoutExpired
 from hashlib import sha256
@@ -197,7 +198,7 @@ class TestParallelRunner:
                 pos = test_name.find('#')
                 if pos > 0:
                     real_test_name = test_suite + test_name[2:pos-2]
-                    if utils.DISABLED_PREFIX in real_test_name:
+                    if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     else:
                         test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
@@ -361,7 +362,7 @@ class TestParallelRunner:
             logger.info(f"Logs directory {logs_dir} is cleaned up")
             rmtree(logs_dir)
         os.mkdir(logs_dir)
-        for test_st, _ in utils.TEST_STATUS.items():
+        for test_st, _ in constants.TEST_STATUS.items():
             if not os.path.exists(os.path.join(logs_dir, test_st)):
                 os.mkdir(os.path.join(logs_dir, test_st))
         hash_map = dict()
@@ -374,13 +375,13 @@ class TestParallelRunner:
                 dir = None
                 test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
                 for line in log_file.readlines():
-                    if utils.GTEST_FILTER in line:
-                        line = line[line.find(utils.GTEST_FILTER):]
+                    if constants.GTEST_FILTER in line:
+                        line = line[line.find(constants.GTEST_FILTER):]
                         test_cnt_expected = line.count(':')
-                    if utils.RUN in line:
-                        test_name = line[line.find(utils.RUN) + len(utils.RUN) + 1:-1:]
+                    if constants.RUN in line:
+                        test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
                     if dir is None:
-                        for test_st, mes_list in utils.TEST_STATUS.items():
+                        for test_st, mes_list in constants.TEST_STATUS.items():
                             for mes in mes_list:
                                 if mes in line:
                                     dir = test_st

@@ -8,7 +8,10 @@ from pathlib import Path
 from hashlib import sha256
 from utils import utils
 
-from openvino.runtime import Core
+try:
+    from openvino.runtime import Core
+except:
+    #TODO: to setup python env
 
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"

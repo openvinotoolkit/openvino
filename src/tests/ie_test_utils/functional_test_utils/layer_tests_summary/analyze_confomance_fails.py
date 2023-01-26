@@ -9,6 +9,7 @@ import argparse
 import openpyxl
 
 from utils import utils
+from utils import constants
 
 
 LOGS_ZIP_NAME = 'logs.zip'
@@ -90,7 +91,7 @@ class AnalyzerConformanceLog:
                         test_info_by_device = None
 
                         for line in lines:
-                            if utils.RUN in line:
+                            if constants.RUN in line:
                                 in_run_stage = True
                                 error_msg = ''
                                 # if run stage exists, it is because gtest decided to show log as test fails
@@ -98,7 +99,7 @@ class AnalyzerConformanceLog:
                                 continue
 
                             # it is result, we got to the end of run stage
-                            if utils.TEST_STATUS['failed'][0] in line:
+                            if constants.TEST_STATUS['failed'][0] in line:
                                 in_run_stage = False
                                 if error_msg:
                                     test_info_by_device['err_info'] = error_msg
