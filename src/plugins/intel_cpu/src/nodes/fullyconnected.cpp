@@ -31,59 +31,6 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-namespace {
-
-struct FCKey {
-    dnnl::memory::desc src;
-    dnnl::memory::desc weight;
-    dnnl::memory::desc bias;
-    dnnl::memory::desc dst;
-    dnnl::primitive_attr attr;
-    impl_desc_type implType;
-    bool useConv1x1;
-
-    size_t hash() const;
-    bool operator==(const FCKey& rhs) const;
-};
-
-size_t FCKey::hash() const {
-    using namespace dnnl::impl;
-    using namespace dnnl::impl::primitive_hashing;
-
-    size_t seed = 0;
-
-    for (const auto& ptr : {src, weight, bias, dst}) {
-        if (ptr) {
-            seed = hash_combine(seed, get_md_hash(ptr.data));
-        }
-    }
-
-    seed = hash_combine(seed, get_attr_hash(*attr.get()));
-    seed = hash_combine(seed, implType);
-    seed = hash_combine(seed, useConv1x1);
-    return seed;
-}
-
-bool FCKey::operator==(const FCKey &rhs) const {
-    bool retVal = true;
-    if (src != rhs.src) {
-        retVal = retVal && src && rhs.src && src == rhs.src;
-    }
-    if (weight != rhs.weight) {
-        retVal = retVal && weight && rhs.weight && weight == rhs.weight;
-    }
-    if (bias != rhs.bias) {
-        retVal = retVal && bias && rhs.bias && bias == rhs.bias;
-    }
-    if (dst != rhs.dst) {
-        retVal = retVal && dst && rhs.dst && dst == rhs.dst;
-    }
-    retVal = retVal && *attr.get() == *rhs.attr.get() &&
-             implType == rhs.implType && useConv1x1 == rhs.useConv1x1;
-    return retVal;
-}
-
-} // namespace
 
 bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
