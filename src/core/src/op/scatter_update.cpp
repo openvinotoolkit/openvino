@@ -4,6 +4,7 @@
 
 #include "ngraph/op/scatter_update.hpp"
 
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"

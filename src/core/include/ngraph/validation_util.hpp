@@ -16,6 +16,7 @@
 namespace ngraph {
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
+using ov::has_no_labels;
 using ov::infer_auto_padding;
 using ov::infer_convolution_forward;
 using ov::normalize_axes;

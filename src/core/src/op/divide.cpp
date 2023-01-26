@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/equal.hpp"
@@ -15,7 +16,6 @@
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
-#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;

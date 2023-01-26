@@ -4,8 +4,7 @@
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
-#include <ngraph/validation_util.hpp>
-
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"

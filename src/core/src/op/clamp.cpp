@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/clamp.hpp"
 #include "ngraph/util.hpp"
@@ -140,9 +141,9 @@ bool op::Clamp::visit_attributes(AttributeVisitor& visitor) {
 }
 
 bool op::Clamp::evaluate_lower(ov::TensorVector& output_values) const {
-    return default_lower_bound_evaluator(this, output_values);
+    return ov::default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::Clamp::evaluate_upper(ov::TensorVector& output_values) const {
-    return default_upper_bound_evaluator(this, output_values);
+    return ov::default_upper_bound_evaluator(this, output_values);
 }
