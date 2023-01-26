@@ -16,7 +16,7 @@ ET_defused = defuse_stdlib()[ET]
 Element = ET_defused.Element
 SubElement = ET_defused.SubElement
 
-logger = utils.get_logger('XmlMerger')
+logger = utils.get_logger('xml_merge_tool')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -54,7 +54,7 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
 def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, report_type: str):
     aggregated_timestamp = None
     for xml in xml_reports:
-        logger.info(f" Processing: {xml}")
+        # logger.info(f" Processing: {xml}")
         try:
             xml_root = ET.parse(xml).getroot()
         except ET.ParseError:

@@ -14,7 +14,7 @@ XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
 META_EXTENSION = ".meta"
 
-logger = utils.get_logger('Rename Conformance IRs using hash')
+logger = utils.get_logger('rename_conformance_ir')
 
 
 def parse_arguments():
@@ -77,7 +77,7 @@ def create_hash(in_dir_path: Path):
         meta_path.rename(Path(meta_path.parent, new_name + META_EXTENSION))
         bin_path.rename(Path(bin_path.parent, new_name + BIN_EXTENSION))
 
-        logger.info(f"{old_name} -> {new_name}")
+        # logger.info(f"{old_name} -> {new_name}")
 
 if __name__=="__main__":
     args = parse_arguments()

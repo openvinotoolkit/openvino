@@ -98,7 +98,7 @@ class AnalyzerConformanceLog:
                                 continue
 
                             # it is result, we got to the end of run stage
-                            if utils.TEST_STATUS['failed'] in line:
+                            if utils.TEST_STATUS['failed'][0] in line:
                                 in_run_stage = False
                                 if error_msg:
                                     test_info_by_device['err_info'] = error_msg

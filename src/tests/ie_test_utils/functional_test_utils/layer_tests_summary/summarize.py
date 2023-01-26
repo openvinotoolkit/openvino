@@ -22,7 +22,7 @@ NA = "N/A"
 
 STATUS_CSV_ORDER = ["implemented", "passed", "failed", "skipped", "crashed", "hanged", "passrate"]
 
-logger = utils.get_logger('Summarize')
+logger = utils.get_logger('conformance_summary')
 
 
 def parse_arguments():
@@ -228,7 +228,7 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
 def create_summary(summary_root: Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
-        utils.update_conformance_test_counters(summary_root, logger)
+        utils.update_conformance_test_counters(summary_root)
         utils.update_passrates(summary_root.find("results"))
     device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
