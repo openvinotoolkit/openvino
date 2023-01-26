@@ -51,12 +51,3 @@ public:
         add_matcher<ov::pass::MultiplyMultiplyFusion>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::AddAddFusion;
-using ov::pass::AddMultiplyFusion;
-using ov::pass::LinOpSequenceFusion;
-using ov::pass::MultiplyMultiplyFusion;
-}  // namespace pass
-}  // namespace ngraph

@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertBroadcast3", "0");
     ConvertBroadcast3();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertBroadcast3;
-}  // namespace pass
-}  // namespace ngraph

@@ -42,7 +42,6 @@
 
 # OpenVINO Func Tests:
 /src/tests/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
-/src/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers @openvinotoolkit/openvino-ie-test-developers
 /src/frontends/tests/frontend/shared/ @openvinotoolkit/openvino-ie-tests-maintainers
 /thirdparty/gtest/ @openvinotoolkit/openvino-ie-tests-maintainers
 
@@ -61,7 +60,6 @@
 
 # OpenVINO GNA:
 /src/plugins/intel_gna/  @openvinotoolkit/openvino-ie-gna-maintainers
-/src/common/legacy/ @openvinotoolkit/openvino-ie-gna-maintainers
 
 # OpenVINO Auto (MULTI) plugin:
 /src/plugins/auto/  @openvinotoolkit/openvino-ie-auto-multi-maintainers
@@ -80,6 +78,7 @@
 /src/frontends/ir/ @openvinotoolkit/openvino-ir-frontend-maintainers
 /src/frontends/paddle/  @openvinotoolkit/openvino-ie-paddle-maintainers
 /src/frontends/tensorflow/  @openvinotoolkit/openvino-tf-frontend-maintainers
+/src/frontends/tensorflow_common/  @openvinotoolkit/openvino-tf-frontend-maintainers
 /src/frontends/pytorch/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
 
 # OpenVINO ONNX Frontend:
@@ -106,6 +105,7 @@
 /docs/  @openvinotoolkit/openvino-docs-maintainers
 /docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 /**/*.md  @openvinotoolkit/openvino-docs-maintainers
+/**/*.svg  @openvinotoolkit/openvino-docs-maintainers
 /docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-mo-maintainers
 /docs/OV_Runtime_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/IE_PLUGIN_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
