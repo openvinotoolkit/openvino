@@ -497,17 +497,28 @@ std::string LayerTestsCommon::getRuntimePrecision(const std::string& layerName) 
     const auto execGraph = executableNetwork.GetExecGraphInfo();
     const auto execFunction = execGraph.getFunction();
 
-    for (const auto& op : execFunction->get_ops()) {
-        const auto name = op->get_friendly_name();
-        if (name == layerName) {
-            const auto& rtInfo = op->get_rt_info();
-            const auto& it = rtInfo.find("runtimePrecision");
-            IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
-            return it->second.as<std::string>();
+    auto find_node = [&execFunction](const std::string& target_name) -> std::string {
+        for (const auto& op : execFunction->get_ops()) {
+            const auto name = op->get_friendly_name();
+            if (name == target_name) {
+                const auto& rtInfo = op->get_rt_info();
+                const auto& it = rtInfo.find("runtimePrecision");
+                IE_ASSERT(it != rtInfo.end()) << "Runtime precision is not found for node: " << name;
+                return it->second.as<std::string>();
+            }
         }
-    }
 
-    return "";
+        return "";
+    };
+
+    const auto res = find_node(layerName);
+    if (!res.empty()) {
+        return res;
+    } else {
+        // WA to handle graphs after mixed_affinity pass
+        const auto mixed_affinity_layer_name = layerName + "_0";
+        return find_node(mixed_affinity_layer_name);
+    }
 }
 
 std::string LayerTestsCommon::getRuntimePrecisionByType(const std::string& layerType) {
