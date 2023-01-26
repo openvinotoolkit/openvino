@@ -210,6 +210,9 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core_vnni() && !InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
         // MatMul in Snippets uses BRGEMM that supports i8 only on platforms with VNNI or AMX instructions
         retVector.emplace_back(R"(.*Snippets.*MatMulFQ.*)");
+        retVector.emplace_back(R"(.*Snippets.*MatMul.*Quantized.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAFQ.*)");
+        retVector.emplace_back(R"(.*Snippets.*MHAINT8.*)");
     }
     if (!InferenceEngine::with_cpu_x86_avx512_core_amx_int8())
         //TODO: Issue 92895

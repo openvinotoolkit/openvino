@@ -553,7 +553,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MHAQuant, MHAQuantTest,
                                 ::testing::ValuesIn(inputPrecisionsQuant),
                                 ::testing::ValuesIn(matMulIn0PrecisionsQuant),
                                 ::testing::ValuesIn(patternTypesQuant),
-                                ::testing::Values("MHA"),  // Snippets don't support Quantized MHA pattern yet
+                                ::testing::Values("MHA"),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         MHAQuantTest::getTestCaseName);
 

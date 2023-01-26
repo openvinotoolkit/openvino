@@ -139,8 +139,12 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
     auto results = model->get_results();
     num_inputs = params.size();
     num_outputs = results.size();
-    is_buffer_needed = std::any_of(ops.begin(), ops.end(),
-        [](const std::shared_ptr<ov::Node>& node) { return ov::is_type<ngraph::snippets::op::Buffer>(node); } );
+    std::set<size_t> unique_buffers;
+    for (const auto& op : ops) {
+        if (const auto buffer = ov::as_type_ptr<ngraph::snippets::op::Buffer>(op))
+            unique_buffers.insert(buffer->get_id());
+    }
+    num_unqiue_buffer = unique_buffers.size();
     NodeVector io_nodes;
     std::copy(params.begin(), params.end(), std::back_inserter(io_nodes));
     std::copy(results.begin(), results.end(), std::back_inserter(io_nodes));
@@ -216,15 +220,16 @@ void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
     if (!out.empty())
         IE_THROW() << "KernelEmitter got invalid number of outputs. Expected 0, got " << out.size();
-    const auto num_params = num_inputs + num_outputs + static_cast<size_t>(is_buffer_needed);
+    const auto num_params = num_inputs + num_outputs + num_unqiue_buffer;
     // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
     if (data_ptr_regs_idx.size() != num_params)
-        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsisnent with the number of allocated registers"
+        IE_THROW() << "KernelEmitter: number of inputs and outputs is inconsisnent with the number of allocated registers "
         << num_params << " data_ptr_regs_idx.size() = " << data_ptr_regs_idx.size();
 }
 
-void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, bool is_buffer_needed,
-                                       const Reg64& reg_indexes, const Reg64& reg_const_params, const std::vector<Reg64>& data_ptr_regs) const {
+void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, size_t num_unqiue_buffer,
+                                       const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,
+                                       const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = jcp.master_shape.size() - 1;
     //const size_t tile_rank = jcp.tile_rank;
@@ -287,8 +292,8 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     // Vector "data_ptr_regs" is sorted by abstract regs.
     // It means that the vector contains the physical registers in order [src, .., src, dst, .., dst, buffer]
     // So we can initialize buffer register firstly as last value of vector "data_ptr_regs"
-    if (is_buffer_needed) {
-        h->mov(data_ptr_regs[num_params], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
+    for (size_t i = 0; i < num_unqiue_buffer; ++i) {
+        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {
@@ -319,7 +324,7 @@ void KernelEmitter::emit_impl(const std::vector<size_t>& in,
     std::vector<Reg64> data_ptr_regs;
     transform_idxs_to_regs(data_ptr_regs_idx, data_ptr_regs);
 
-    init_data_pointers(num_inputs, num_inputs + num_outputs, is_buffer_needed, reg_indexes, reg_const_params, data_ptr_regs);
+    init_data_pointers(num_inputs, num_inputs + num_outputs, num_unqiue_buffer, reg_indexes, reg_const_params, data_ptr_regs);
     for (const auto& c : body) {
         const auto& emitter = c.first;
         std::vector<size_t> in_regs, out_regs;

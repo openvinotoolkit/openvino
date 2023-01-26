@@ -97,7 +97,6 @@ public:
 
     size_t get_buffer_scratchpad_size() const { return m_buffer_scratchpad; }
     size_t get_virtual_port_count() const { return m_virtual_port_count; }
-    bool is_buffer_needed() const { return m_buffer_needed; }
     bool is_quantized() const { return config.m_is_quantized; }
     bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
@@ -122,7 +121,6 @@ public:
     void set_generator(std::shared_ptr<ngraph::snippets::Generator> generator);
     void set_tile_rank(size_t newRank) {tileRank = newRank;}
     void set_virtual_port_count(const size_t count);
-    void set_buffer_needed(const bool need);
 
     void print() const;
     void print_statistics(bool verbose);
@@ -137,8 +135,10 @@ public:
     // should have explicit Constants even if they're non-scalar (Reshape, Transpose, Broadcast)
     // This check returns True if Constant op which is input of this op should be inside Subgraph body
     static auto constant_input_should_be_inside_body(const std::shared_ptr<ov::Node>& node) -> bool;
-
     static bool check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept;
+    // Return estimated unqiue buffer count (rating from above). It's needed for tokenization
+    static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
+    static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
 
 private:
     void align_element_types(const BlockedShapeVector& outputShapes, const BlockedShapeVector& inputShapes);
@@ -147,12 +147,9 @@ private:
     void initialize_buffer_scratchpad_size();
     // Count of Subgraph virtual ports:
     //  - Potential non-scalar Constants that will be created after some transformations (At the moment it's relevant only for FakeQuantize decomposition)
-    // Need Buffer op or not
-    //  - Buffers. All Buffers are considered as one common additional virtual port. So we cannot summarize them as potential non-scalar Constants
     // NOTE: To avoid overheads in each calculation of this count (for example, in validate_and_type_infer()),
     //       we should MANUALLY calculate it where it needed.
     size_t m_virtual_port_count = 0;
-    bool m_buffer_needed = false;
     size_t m_buffer_scratchpad = 0lu;
     Shape exec_domain = {};
     std::shared_ptr<ngraph::snippets::Generator> m_generator = nullptr;

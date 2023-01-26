@@ -83,6 +83,7 @@ public:
             std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets);
     LoopEnd() = default;
     std::shared_ptr<LoopBegin> get_loop_begin();
+    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     const std::vector<int64_t>& get_finalization_offsets() const;

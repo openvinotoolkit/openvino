@@ -12,6 +12,7 @@ namespace snippets {
 
 typedef std::tuple<
         std::vector<ov::PartialShape>,   // Input shapes
+        std::vector<ov::element::Type>,  // Input Element types
         bool,                            // With Multiply
         size_t,                          // Expected num nodes
         size_t,                          // Expected num subgraphs
@@ -38,6 +39,21 @@ protected:
 };
 
 class MHAWOTransposeOnInputs : public MHA {
+protected:
+    void SetUp() override;
+};
+
+class MHAINT8MatMul : public MHA {
+protected:
+    void SetUp() override;
+};
+
+class MHAFQAfterMatMul : public MHA {
+protected:
+    void SetUp() override;
+};
+
+class MHAFQ : public MHA {
 protected:
     void SetUp() override;
 };

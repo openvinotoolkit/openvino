@@ -27,6 +27,8 @@ public:
     size_t get_offset_b() const { return get_input_offset(1); }
     size_t get_offset_c() const { return get_output_offset(0); }
 
+    static ov::element::Type get_output_type(const ov::element::Type& in_type0, const ov::element::Type& in_type1);
+
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 

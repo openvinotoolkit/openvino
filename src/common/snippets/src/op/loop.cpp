@@ -181,6 +181,15 @@ void LoopEnd::validate_and_infer_types() {
         get_output_descriptor(i).set_tensor_ptr(get_input_descriptor(i).get_output().get_tensor_ptr());
 }
 
+bool LoopEnd::visit_attributes(AttributeVisitor& visitor) {
+    LoopBase::visit_attributes(visitor);
+    for (size_t i = 0; i < ptr_increments.size(); ++i) {
+        visitor.on_attribute("ptr_increment_" + std::to_string(i), ptr_increments[i]);
+        visitor.on_attribute("finalization_offsets_" + std::to_string(i), finalization_offsets[i]);
+    }
+    return true;
+}
+
 } // namespace op
 } // namespace snippets
 } // namespace ngraph

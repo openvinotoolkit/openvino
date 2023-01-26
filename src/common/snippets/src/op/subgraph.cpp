@@ -25,6 +25,7 @@
 #include "snippets/pass/reset_buffer.hpp"
 #include "snippets/pass/insert_buffer.hpp"
 #include "snippets/pass/loop_fusion.hpp"
+#include "snippets/pass/buffer_identification.hpp"
 #include "snippets/utils.hpp"
 
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -51,8 +52,13 @@ void snippets::op::Subgraph::set_virtual_port_count(const size_t count) {
     m_virtual_port_count = count;
 }
 
-void snippets::op::Subgraph::set_buffer_needed(const bool need) {
-    m_buffer_needed = need;
+auto snippets::op::Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool {
+    return ov::is_type<ov::op::v1::Transpose>(op) ||
+           ov::is_type<ov::op::v1::Softmax>(op) ||
+           ov::is_type<ov::op::v8::Softmax>(op) ||
+           ov::is_type<ov::op::v0::MatMul>(op) ||
+           ov::is_type<ov::op::v1::Broadcast>(op) || // Broadcast is domain sensetive op because the output shape depends on
+           ov::is_type<ov::op::v3::Broadcast>(op);   // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
 }
 
 void snippets::op::Subgraph::init_config() {
@@ -62,14 +68,67 @@ void snippets::op::Subgraph::init_config() {
             ov::is_type<ov::op::v0::FakeQuantize>(op);
         config.m_has_type_relaxed_ops = config.m_has_type_relaxed_ops ||
             std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(op);
-        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops ||
-            ov::is_type<ov::op::v1::Transpose>(op) ||
-            ov::is_type<ov::op::v1::Softmax>(op) ||
-            ov::is_type<ov::op::v8::Softmax>(op) ||
-            ov::is_type<ov::op::v0::MatMul>(op);
+        config.m_has_domain_sensitive_ops = config.m_has_domain_sensitive_ops || is_domain_sensitive_op(op);
     }
     // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
     config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
+}
+
+auto snippets::op::Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
+    // The count of potential unique Buffers - it's hidden virtual ports as well
+    // We should go through Subgraph and calculate potential non-inplace Buffers count.
+    // These Buffers can be only around Loops (for example, around MatMul they may be inplace). So we should
+    // check for element type size of nodes which are used Buffer to get rating from above for uniqe Buffer count.
+    // The count is estimated because when we calculate this number we have only original graph representation
+    // and where will be Loops - we can just predict.
+    // Note: The ops that create Buffers: MatMul, Transpose and Softmax (always FP32)
+    std::vector<size_t> used_precision_size;
+    for (const auto& op : ops) {
+        if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(op)) {
+            // At the moment Transposes are supported only on Results and Parameters but
+            // then we should have the different Buffers for Transpose as well (Transpose isn't inplace)
+            const auto consumers = transpose->get_output_target_inputs(0);
+            // If after Transpose there is Result it means that there won't be Buffer after Transpose.
+            // The same case is for Parameter before Transpose
+            const auto are_prev_or_next_ops = std::none_of(consumers.begin(), consumers.end(),
+                                                           [](const ov::Input<ov::Node>& in) {
+                                                                return ov::is_type<ov::op::v0::Result>(in.get_node());
+                                                           }) ||
+                                              !ov::is_type<ov::op::v0::Parameter>(transpose->get_input_node_shared_ptr(0));
+            if (are_prev_or_next_ops) {
+                const auto prc_size = transpose->get_element_type().size();
+                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
+                    used_precision_size.push_back(prc_size);
+                }
+            }
+        } else if (ov::is_type<ov::op::v1::Softmax>(op) || ov::is_type<ov::op::v8::Softmax>(op)) {
+            // Softmax always uses 2 FP32 Buffers
+            const auto prc_size = ov::element::f32.size();
+            if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
+                used_precision_size.push_back(prc_size);
+            }
+        } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
+            // First input check is enough because MatMul requires the same prc size on inputs
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)) ||
+                !ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1))) {
+                const auto prc_size = matmul->get_input_element_type(0).size();
+                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
+                    used_precision_size.push_back(prc_size);
+                }
+            }
+
+            const auto consumers = matmul->get_output_target_inputs(0);
+            if (std::none_of(consumers.begin(), consumers.end(),
+                             [](const ov::Input<ov::Node>& in) { return ov::is_type<ov::op::v0::Result>(in.get_node()); })) {
+                const auto prc_size = matmul->get_element_type().size();
+                if (used_precision_size.empty() || used_precision_size.back() != prc_size) {
+                    used_precision_size.push_back(prc_size);
+                }
+            }
+        }
+    }
+
+    return used_precision_size.size();
 }
 
 snippets::op::Subgraph::Subgraph(const OutputVector& args, std::shared_ptr<ov::Model> body)
@@ -195,17 +254,11 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Nod
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
-    bool need_buffer = false;
     size_t hidden_data_count = 0lu;
     if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
         hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
-    // Ops that requires Buffer
-    } else if (ov::is_type<ov::op::v1::Softmax>(node) ||
-               ov::is_type<ov::op::v8::Softmax>(node)) {
-        need_buffer |= true;
     }
     subgraph->set_virtual_port_count(hidden_data_count);
-    subgraph->set_buffer_needed(need_buffer);
 
     for (size_t i = 0; i < body->get_parameters().size(); i++) {
         body->get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -491,10 +544,19 @@ void snippets::op::Subgraph::initialize_buffer_scratchpad_size() {
 
             if (buffer->is_intermediate_memory()) {
                 // Transpose, MatMul and other non-decomposed ops should have different memories on inputs and outputs to avoid data corruption,
-                // so after them, we should allocate new memory. Other operations (Eltwises, Convert) can be executed inplace inside Loop.
+                // so after them, we should allocate new memory. Other operations (Eltwises, Convert) can be executed inplace inside Loop only at the moment.
                 OPENVINO_ASSERT(buffer->get_input_size() == 1, "Buffer with intermediate memory must have one parent");
                 const auto parent = buffer->get_input_node_shared_ptr(0);
                 if (!ov::is_type<LoopEnd>(parent) || is_transpose_loop(parent)) {
+                    offset = m_buffer_scratchpad;
+                    propagate_offset(buffer, offset);
+                    m_buffer_scratchpad += buffer_size;
+                    continue;
+                }
+
+                // If previous allocated memory is less than needed, we have to allocate new
+                const auto prev_alloc_size = m_buffer_scratchpad - offset;
+                if (prev_alloc_size < buffer_size) {
                     offset = m_buffer_scratchpad;
                     propagate_offset(buffer, offset);
                     m_buffer_scratchpad += buffer_size;
@@ -581,7 +643,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             m_generator->get_target_machine()->get_lanes(), !config.m_explicit_loop_insertion);
         if (config.m_has_domain_sensitive_ops) {
             manager.register_pass<snippets::pass::LoopFusion>();
-            manager.register_pass<snippets::pass::ResetBufferState>();
         }
     }
     manager.run_passes(body_ptr());
@@ -629,6 +690,11 @@ snippets::Schedule snippets::op::Subgraph::generate(
     precision_manager.run_passes(body_ptr());
 
     post_precision.run_passes(body_ptr());
+
+    ov::pass::Manager buffer_m;
+    buffer_m.register_pass<snippets::pass::BufferIdentification>();
+    buffer_m.register_pass<snippets::pass::ResetBufferState>();
+    buffer_m.run_passes(body_ptr());
 
     // After all passes, when all optimizations are completed and all MemoryAccess ops are inserted,
     // we can calculate common buffer scratchpad size and propagate offset from Buffer to the corresponding MemoryAccess ops

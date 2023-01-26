@@ -17,6 +17,13 @@ void SetSnippetsNodeType(const std::shared_ptr<Node> &node, SnippetsNodeType nod
     rt["SnippetsNodeType"] = nodeType;
 }
 
+void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph> &node, SnippetsSubgraphType nodeType) {
+    if (node) {
+        auto &rt = node->get_rt_info();
+        rt["SnippetsSubgraphType"] = nodeType;
+    }
+}
+
 SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsNodeType")
     auto &rt = node->get_rt_info();
@@ -24,6 +31,17 @@ SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node> &node) {
     if (rinfo == rt.end())
         return SnippetsNodeType::NotSet;
     return rinfo->second.as<SnippetsNodeType>();
+}
+
+SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph> &node) {
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::GetSnippetsSubgraphType")
+    if (!node)
+        return SnippetsSubgraphType::NotSet;
+    auto &rt = node->get_rt_info();
+    const auto rinfo = rt.find("SnippetsSubgraphType");
+    if (rinfo == rt.end())
+        return SnippetsSubgraphType::NotSet;
+    return rinfo->second.as<SnippetsSubgraphType>();
 }
 
 void SetTopologicalOrder(const std::shared_ptr<Node> &node, int64_t order) {

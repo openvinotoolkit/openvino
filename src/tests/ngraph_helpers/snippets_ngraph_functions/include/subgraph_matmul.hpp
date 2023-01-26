@@ -70,6 +70,40 @@ protected:
     std::vector<ov::element::Type> precisions;
 };
 
+//  Quantized MatMul
+//       FQ[I8]
+//        Add
+class MatMulBiasQuantizedFunction : public SnippetsFunctionBase {
+public:
+    explicit MatMulBiasQuantizedFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+            : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        MatMulFunction::verify_precisions(precisions);
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    std::vector<ov::element::Type> precisions;
+};
+
+//  Quantized MatMul  FQ[I8]
+//       FQ[U8]    Reshape  <- To have only one sequence in Subgraph: MatMuL->FQ[U8]->MatMul->FQ[I8]
+//            \     /
+//             MatMul
+//             FQ[I8]
+class MatMulsQuantizedFunction : public SnippetsFunctionBase {
+public:
+    explicit MatMulsQuantizedFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+            : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        MatMulFunction::verify_precisions(precisions);
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    std::vector<ov::element::Type> precisions;
+};
+
 /// Minimal graph to test MatMul+Transpose combinations. Transpose location is specified via the position argument:
 /// 0 - before the first MatMul input; 1 - before the second MatMul input; 2 - after the MatMul output.
 /// Tokenized simply by starting subgraph,
@@ -119,6 +153,24 @@ public:
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
+//  Quantized MatMul  FQ[I8]
+//       Softmax    Reshape  <- To have only one sequence in Subgraph: MatMuL->Softmax>FQ[U8]->MatMul->FQ[I8]
+//        FQ[U8]     /
+//             MatMul
+//             FQ[I8]
+class MatMulsQuantizedSoftmaxFunction : public SnippetsFunctionBase {
+public:
+    explicit MatMulsQuantizedSoftmaxFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
+            : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+        NGRAPH_CHECK(input_shapes.size() == 3, "Got invalid number of input shapes");
+        MatMulFunction::verify_precisions(precisions);
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+
+    std::vector<ov::element::Type> precisions;
 };
 
 }  // namespace snippets

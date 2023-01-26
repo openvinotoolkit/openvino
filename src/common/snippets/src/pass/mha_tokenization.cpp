@@ -7,6 +7,8 @@
 #include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/utils.hpp"
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
@@ -16,18 +18,19 @@
 
 namespace {
 auto is_supported_tensor(const ngraph::descriptor::Tensor& t) -> bool {
-    // TODO: Add support of all supported by common tokenization element types
-    //       return ngraph::snippets::pass::TokenizeSnippets::supported_element_types.count(input.get_element_type()) != 0;
-    //       Also only 4D is supported at the moment
-    return t.get_element_type() == ngraph::element::f32 && t.get_partial_shape().is_static() && t.get_shape().size() == 4;
+    // TODO: Add support of non-4D tensors
+    return t.get_partial_shape().is_static() && t.get_shape().size() == 4;
 }
 
-// TODO: Add support of FQ, Reshape?
-auto is_supported_op(const std::shared_ptr<ngraph::Node>& node) -> bool {
-    return ngraph::snippets::pass::TokenizeSnippets::AppropriateForSubgraph(node) &&
-           (ngraph::is_type<ngraph::op::util::UnaryElementwiseArithmetic>(node) ||
-            ngraph::is_type<ngraph::op::util::BinaryElementwiseArithmetic>(node) ||
-            ngraph::is_type<ngraph::op::v1::Select>(node));
+// TODO: Add support of Reshape?
+auto is_supported_intermediate_op(const std::shared_ptr<ngraph::Node>& node) -> bool {
+    const auto is_intermediate_op = [](const std::shared_ptr<ngraph::Node>& node) {
+        return ngraph::is_type<ngraph::op::util::UnaryElementwiseArithmetic>(node) ||
+               ngraph::is_type<ngraph::op::util::BinaryElementwiseArithmetic>(node) ||
+               ngraph::is_type<ngraph::op::v0::FakeQuantize>(node) ||
+               ngraph::is_type<ngraph::op::v1::Select>(node);
+    };
+    return ngraph::snippets::pass::TokenizeSnippets::AppropriateForSubgraph(node) && is_intermediate_op(node);
 }
 
 auto is_valid_transpose(const std::shared_ptr<ngraph::opset1::Transpose>& node, std::vector<int64_t> expected_order) -> bool {
@@ -37,9 +40,12 @@ auto is_valid_transpose(const std::shared_ptr<ngraph::opset1::Transpose>& node, 
             return false;
         return transpose_pattern->cast_vector<int64_t>() == expected_order;
     };
+    auto is_supported_transpose_tensor = [](const ngraph::descriptor::Tensor& t) {
+        return is_supported_tensor(t) && ngraph::snippets::pass::TokenizeSnippets::supported_element_types.count(t.get_element_type()) != 0;
+    };
 
     return node && node->get_output_target_inputs(0).size() == 1 && node->get_shape().size() == 4 &&
-           valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_tensor(node->get_input_tensor(0));
+           valid_transpose_order(node->get_input_node_shared_ptr(1)) && is_supported_transpose_tensor(node->get_input_tensor(0));
 }
 
 auto tokenize_broadcast(const std::shared_ptr<ov::Node>& interm_op, ov::NodeVector& ordered_ops) -> void {
@@ -95,26 +101,78 @@ auto tokenize_reshape_around_softmax(std::shared_ptr<ov::Node>& interm_op,
                                      ngraph::NodeVector& ordered_ops) -> bool {
     reshape = ngraph::as_type_ptr<ngraph::opset1::Reshape>(interm_op);
     if (reshape) {
-        const auto shape = reshape->get_input_shape(0);
-        if (shape.back() != reshape->get_output_shape(0).back() || reshape->get_output_target_inputs(0).size() != 1)
+        const auto in_shape = reshape->get_input_shape(0);
+        const auto out_shape = reshape->get_output_shape(0);
+        if (in_shape.back() != out_shape.back() || reshape->get_output_target_inputs(0).size() != 1)
             return false;
         ordered_ops.push_back(reshape);
         interm_op = reshape->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     }
     return true;
-};
+}
 
-auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ngraph::NodeVector& ordered_ops) -> bool {
-    // TODO: Add Reshape, FQ support
-    while (is_supported_op(interm_op)) {
+auto get_potential_body_params(const std::shared_ptr<ov::Node>& op) -> size_t {
+    size_t count = 0;
+    for (size_t i = 1; i < op->get_input_size(); ++i) {
+        const auto input = op->input_value(i);
+        const auto parent = input.get_node_shared_ptr();
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
+        if (!(constant && (ngraph::shape_size(input.get_shape()) == 1 ||
+                           ov::is_type<ov::op::v0::FakeQuantize>(op)||
+                           ngraph::snippets::op::Subgraph::constant_input_should_be_inside_body(op)))) {
+            count++;
+        }
+    }
+    return count;
+}
+
+auto update_intermediate_supported_ops(std::shared_ptr<ov::Node>& interm_op, ngraph::NodeVector& ordered_ops,
+                                       size_t& hidden_virtual_ports_count, size_t& potential_body_params_count) -> bool {
+    // TODO: Add Reshape support
+    while (is_supported_intermediate_op(interm_op)) {
         // All supported intermediate ops have only one output port
-        // To verify output element type is enough because all supported intermediate ops have the same output element type as input type
-        if (interm_op->get_output_target_inputs(0).size() != 1 || !is_supported_tensor(interm_op->get_output_tensor(0)))
+        if (interm_op->get_output_target_inputs(0).size() != 1)
             return false;
 
-        // Check for supported Broadcast op
+        // Check for supported ops on branches: Broadcast/Elementwise (for example, dequantize ops)
         if (interm_op->get_input_size() > 1) {
             tokenize_broadcast(interm_op, ordered_ops);
+
+            // To avoid unsupported number of non-scalar Constants in the future after FakeQuantize decomposition (plugin specific limitation)
+            // we should calculate potential number of non-scalar Constants for FakeQuantize that will be moved up from body.
+            if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(interm_op)) {
+                hidden_virtual_ports_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
+            }
+
+            auto is_supported_branch_op = [&ordered_ops](const std::shared_ptr<ov::Node>& op) {
+                return is_supported_intermediate_op(op) &&
+                       ngraph::snippets::pass::GetSnippetsNodeType(op) != ngraph::snippets::pass::SnippetsNodeType::SkippedByPlugin &&
+                       std::find(ordered_ops.begin(), ordered_ops.end(), op) == ordered_ops.end();
+            };
+
+            for (size_t i = 0; i < interm_op->get_input_size(); ++i) {
+                const size_t shift = ordered_ops.size();
+                auto parent = interm_op->get_input_node_shared_ptr(i);
+                while (is_supported_branch_op(parent)) {
+                    // All supported ops have only one output port
+                    if (parent->get_output_target_inputs(0).size() != 1)
+                        break;
+
+                    // Add node only if there are scalar constants on inputs because of plugin-specific limitation
+                    bool are_weights_scalar = true;
+                    const auto parent_count = parent->get_input_size();
+                    for (size_t i = 1; i < parent_count; ++i) {
+                        are_weights_scalar = are_weights_scalar && ngraph::shape_size(parent->get_input_shape(i)) == 1;
+                    }
+
+                    ordered_ops.insert(ordered_ops.begin() + shift, parent);
+                    // We think that sequence of ops goes through input port 0
+                    // But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
+                    parent = parent->get_input_node_shared_ptr(0);
+                }
+            }
+
+            potential_body_params_count += get_potential_body_params(interm_op);
         }
 
         ordered_ops.push_back(interm_op);
@@ -135,14 +193,29 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeMHASnippets")
         auto& pattern_to_output = m.get_pattern_value_map();
 
+        // Queries + Key + Values = 3 standard inputs of MHA
+        size_t potential_body_params_count = 3;
         // After some transformations, a different number of Constants for some operations may be created
         // than the actual number of Constants during tokenization.
         // To avoid unsupported number of non-scalar Constants in the future (plugin specific limitation)
         // we should calculate potential number of non-scalar Constants that will be moved up from body.
-        // TODO: Need update this variable when FQ will be supported
         size_t hidden_virtual_ports_count = 0;
-        // Default value is True because MHA pattern always requires Buffer op
-        bool need_buffer = true;
+        // The count of potential unique Buffers - it's hidden virtual ports as well
+        // We should go through Subgraph and calculate potential non-inplace Buffers count.
+        // Example:
+        //     Buffer - i32 [32, 128] -> ~ Loop ~ -> Buffer - i8 [32, 128]
+        //     After each Loop iteration we should increment pointers of Buffers: accordingly on 4 byte and 1 byte for scalar case.
+        //     It means that these Buffers cannot be inplace => Each Buffer should have the own register
+        // For that we can just check the following "branches":
+        //  - Between MatMul0 and MatMul1 - Softmax is sync point. The operations between MatMul0 -> Softmax and Softmax -> MatMul1
+        //                                  will be fused into one loop aftet conversion to snippet dialect (Becase it's just FQ, Eltwise nodes)
+        //  - Between MatMul0 and Transpose1 - At the moment operations after Transpose1 cannot be fused in Transpose Loop (to avoid performance regressions).
+        //                                     But operations after Transpose1 and before MatMul0  will be fused into one loop as well (look at first point)
+        // Note: If the pass is updated, need to check the new possible branches for potential non-inplace Buffers!
+        // Default value is 1 because
+        //  - Firstly Softmax always need to have Buffers
+        //  - Secondly Softmax need 2 Buffer but they can be inplace - One virtual port is enough for Softmax
+        size_t buffer_count = 1;
         std::string fused_names;
         ngraph::NodeVector ordered_ops;
 
@@ -166,15 +239,24 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             !is_supported_tensor(matmul0->get_input_tensor(0)) || !is_supported_tensor(matmul0->get_input_tensor(1)))
             return false;
 
-        if (transformation_callback(matmul0)) {
+        const auto matmul0_prc = op::Brgemm::get_output_type(matmul0->get_input_element_type(0), matmul0->get_input_element_type(1));
+        if (matmul0_prc == element::undefined) {
             return false;
+        }
+
+        // Between MatMul0 and Softmax will be the one Loop because of LoopFusing optimization.
+        // The Loop will have one Buffer with the same shape both on input and output.
+        // Need to check for precision to get if we need one more register for Buffer
+        if (matmul0_prc.size() != ov::element::f32.size()) {
+            if (buffer_count < 2)
+                buffer_count++;
         }
 
         ordered_ops.push_back(matmul0);
 
         auto interm_op = matmul0->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
         // Add supported operations which are between MatMul0 and Softmax to ordered_ops
-        if (!update_intermediate_supported_ops(interm_op, ordered_ops))
+        if (!update_intermediate_supported_ops(interm_op, ordered_ops, hidden_virtual_ports_count, potential_body_params_count))
             return false;
 
         std::shared_ptr<ngraph::opset1::Reshape> reshape0 = nullptr;
@@ -205,13 +287,25 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             return false;
 
         // Add supported operations which are between Softmax and MatMul1 to ordered_ops
-        if (!update_intermediate_supported_ops(interm_op, ordered_ops))
+        if (!update_intermediate_supported_ops(interm_op, ordered_ops, hidden_virtual_ports_count, potential_body_params_count))
             return false;
 
         const auto matmul1 = ngraph::as_type_ptr<ngraph::opset1::MatMul>(interm_op);
         if (!matmul1 || matmul1->get_output_target_inputs(0).size() != 1 || matmul1->get_transpose_a() || matmul1->get_transpose_b() ||
+            op::Brgemm::get_output_type(matmul1->get_input_element_type(0), matmul1->get_input_element_type(1)) == element::undefined ||
             !is_supported_tensor(matmul1->get_input_tensor(0)) || !is_supported_tensor(matmul1->get_input_tensor(1)))
             return false;
+
+        if (transformation_callback(matmul1)) {
+            return false;
+        }
+
+        // Between Softmax and MatMul1 will be the one Loop because of LoopFusing optimization.
+        // The Loop will have one Buffer with the same shape both on input and output.
+        // Need to check for precision to get if we need one more register for Buffer
+        if (matmul1->get_input_element_type(0).size() != ov::element::f32.size()) {
+            buffer_count++;
+        }
 
         /***********************/
 
@@ -224,16 +318,21 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         // so firstly we insert Transpose1 on the beginning of ordered_ops and then Transpose1
         bool are_weights_scalar = true;
         auto parent = matmul0->get_input_node_shared_ptr(1);
-        while (is_supported_op(parent)) {
+        while (is_supported_intermediate_op(parent)) {
             // All supported ops have only one output port
-            // To verify output element type is enough because all supported ops have the same output element type as input type
-            if (parent->get_output_target_inputs(0).size() != 1 || !is_supported_tensor(parent->get_output_tensor(0)))
+            if (parent->get_output_target_inputs(0).size() != 1)
                 break;
 
-            const auto parent_count = parent->inputs().size();
+            const auto parent_count = parent->get_input_size();
             for (size_t i = 1; i < parent_count; ++i) {
                 are_weights_scalar = are_weights_scalar && ngraph::shape_size(parent->get_input_shape(i)) == 1;
             }
+            // To avoid unsupported number of non-scalar Constants in the future after FakeQuantize decomposition (plugin specific limitation)
+            // we should calculate potential number of non-scalar Constants for FakeQuantize that will be moved up from body.
+            if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(parent)) {
+                hidden_virtual_ports_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
+            }
+            potential_body_params_count += get_potential_body_params(parent);
             ordered_ops.insert(ordered_ops.begin(), parent);
             // We think that sequence of ops goes through input port 0
             // But can be Select here? If it can be, parent shouldn't be on input port 0. Need another way?
@@ -261,6 +360,15 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             }
         }
 
+        if (transpose1) {
+            // Between Transpose1 and MatMul0 will be the one Loop because of LoopFusing optimization.
+            // The Loop will have one Buffer with the same shape both on input and output.
+            // Need to check for precision to get if we need one more register for Buffer
+            if (matmul0->get_input_element_type(1).size() != transpose1->get_output_element_type(0).size()) {
+                buffer_count++;
+            }
+        }
+
         // TODO: Add Reshape Support for all Transposes
         //       Add 3D support for all Transposes
         const auto transpose0 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(matmul0->get_input_node_shared_ptr(0));
@@ -276,16 +384,41 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         }
         ordered_ops.push_back(matmul1);
 
+        bool are_ops_after_matmul2 = false;
         auto child = matmul1->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
-        // TODO: Add support Eltwises between MatMul1 and Transpose
-        // status = update_intermediate_supported_ops(child, ordered_ops);
-        // if (!status) {
-        //     ordered_ops.push_back(child);
-        // }
+        while (is_supported_intermediate_op(child)) {
+            are_ops_after_matmul2 = true;
+            // All supported ops have only one output port
+            if (child->get_output_target_inputs(0).size() != 1)
+                break;
 
-        auto transpose3 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(child);
-        if (is_valid_transpose(transpose3, {0, 2, 1, 3})) {
-            ordered_ops.push_back(transpose3);
+            // To avoid unsupported number of non-scalar Constants in the future after FakeQuantize decomposition (plugin specific limitation)
+            // we should calculate potential number of non-scalar Constants for FakeQuantize that will be moved up from body.
+            if (const auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(child)) {
+                hidden_virtual_ports_count += ngraph::snippets::utils::get_non_scalar_constant_count_for_fq(fq_node);
+            }
+            potential_body_params_count += get_potential_body_params(child);
+
+            // TODO: move this plugin-specific constraint to the plugin callback
+            //       We cannot collapse op to Subgraph if count of potential Parameter and Result count is higher 12
+            if (potential_body_params_count + child->get_output_target_inputs(0).size() + hidden_virtual_ports_count + buffer_count > 12) {
+                break;
+            }
+
+            ordered_ops.push_back(child);
+            child = child->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        }
+
+        // TODO: Add full support of Transpose to cover cases where there are nodes between MatMul2 and Transpose3:
+        //     MatMul2
+        //  <Supported ops>
+        //    Transpose3
+        // TODO: Add check for precision of MatMul (we cannot collapse Transpose to I8/BF16 MatMul)
+        if (!are_ops_after_matmul2) {
+            auto transpose3 = ngraph::as_type_ptr<ngraph::opset1::Transpose>(child);
+            if (is_valid_transpose(transpose3, {0, 2, 1, 3})) {
+                ordered_ops.push_back(transpose3);
+            }
         }
 
         /**********************/
@@ -293,6 +426,12 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         /* ================================ */
 
         /* ====== Subgraph creation ======= */
+
+        // TODO: move this plugin-specific constraint to the plugin callback
+        const auto last_node = ordered_ops.back();
+        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 12) {
+            return false;
+        }
 
         ngraph::OutputVector body_inputs, subgraph_inputs;
         ngraph::ParameterVector body_parameters;
@@ -304,7 +443,9 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
                 const auto input = node->input(i);
                 const auto parent = input.get_source_output().get_node_shared_ptr();
                 const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
-                if (constant && (ngraph::shape_size(input.get_shape()) == 1 || op::Subgraph::constant_input_should_be_inside_body(node))) {
+                if (constant && (ngraph::shape_size(input.get_shape()) == 1 ||
+                                 ov::is_type<ov::op::v0::FakeQuantize>(node) ||
+                                 op::Subgraph::constant_input_should_be_inside_body(node))) {
                     // If Constant has one consumer - target node, we add Constant to body_inputs
                     // If Constant has several consumers, we should check that all these consumers are inside Subgraph body
                     // and if all of them are inside body, we can explicitly add Constant to the body_inputs, otherwise we should
@@ -347,7 +488,6 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
             fused_names += op->get_friendly_name() + ",";
         }
 
-        const auto last_node = ordered_ops.back();
         for (const auto& output : last_node->outputs()) {
             subgraph_result_inputs.push_back(output.get_target_inputs());
         }
@@ -357,11 +497,6 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
 
         if (body_results.size() != subgraph_result_inputs.size()) {
             throw ngraph_error("body results and node results size mismatch during subgraph collapse");
-        }
-
-        // todo: move this plugin-specific constraint to the plugin callback
-        if (body_parameters.size() + body_results.size() + hidden_virtual_ports_count > 12) {
-            return false;
         }
 
         auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
@@ -385,7 +520,9 @@ ngraph::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets() {
         }
         subgraph->get_rt_info()["originalLayersNames"] = fused_names;
         subgraph->set_virtual_port_count(hidden_virtual_ports_count);
-        subgraph->set_buffer_needed(need_buffer);
+
+        // mark the Subgraph as Completed to not allow Snippets to include any nodes into the MHA Subgraph in common Tokenization
+        SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
 
         return true;
 
