@@ -56,8 +56,11 @@ class PytorchLayerTest:
             graph = model.inlined_graph
             print(graph)
 
-            assert kind is None or self._check_kind_exist(
-                graph, kind), "Operation type doesn't exist in provided graph"
+            if kind is not None and not isinstance(kind, (tuple, list)):
+                kind = [kind]
+            if kind is not None:
+                for op in kind:
+                    assert self._check_kind_exist(graph, op), f"Operation {op} type doesn't exist in provided graph"
 
             fe_manager = FrontEndManager()
             fe = fe_manager.load_by_framework('pytorch')
