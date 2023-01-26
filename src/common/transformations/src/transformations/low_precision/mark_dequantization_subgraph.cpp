@@ -4,14 +4,30 @@
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
-using namespace ngraph;
+static bool is_constfoldable(const std::shared_ptr<ov::Node>& node) {
+    if (ov::is_type<ov::opset10::Constant>(node))
+        return true;
+
+    const auto num_inputs = node->get_input_size();
+    if (num_inputs == 0)
+        return false;
+
+    if (!node->has_evaluate() || ov::constant_folding_is_disabled(node))
+        return false;
+
+    for (size_t i = 0; i < num_inputs; i++) {
+        const auto& input = node->get_input_node_shared_ptr(i);
+        if (!is_constfoldable(input))
+            return false;
+    }
+    return true;
+}
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions) {
     // Dequantization subgraph may have two forms: with and without Subtract
@@ -50,14 +66,13 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
             }
         }
 
-        // validation by Convert operation input precisions
         const auto& input_precision = input->get_output_element_type(0);
+        // validation by Convert operation input precisions
         if (std::find(precisions.begin(), precisions.end(), input_precision) == precisions.end()) {
             return false;
         }
 
-        std::vector<Node*> tmp;
-        if (ngraph::could_propagate(input, tmp)) {
+        if (is_constfoldable(input)) {
             // disable ConstantFolding if dequantization subgraph is on constant data
             ov::disable_constant_folding(convert);
         }
