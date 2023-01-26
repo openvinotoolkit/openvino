@@ -233,7 +233,8 @@ std::unique_ptr<TResult> get_input_bounds(const ov::Node* op,
         };
 
     std::unique_ptr<TResult> out;
-    if (auto lowers = op::get_input_const_data_as<TShape, int64_t>(op, idx, constant_data)) {
+    if (auto lowers =
+            op::get_input_const_data_as<TShape, int64_t>(op, idx, constant_data, sh_infer::tr::Cast<int64_t>())) {
         const auto& et = get_input_const_element_type(op, idx, constant_data);
         out.reset(new TResult(make_bounds_vec(et, *lowers, *lowers)));
     } else {

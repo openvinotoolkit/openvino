@@ -84,7 +84,7 @@ public:
         const std::vector<ngraph::element::Type> supportedTypes = {ngraph::element::i8, ngraph::element::u8};
         decomp->add_matcher<ngraph::pass::low_precision::PullReshapeThroughDequantization>(supportedTypes);
         decomp->add_matcher<ngraph::pass::low_precision::PullTransposeThroughDequantization>(supportedTypes);
-        decomp->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+        decomp->add_matcher<ov::pass::LinOpSequenceFusion>();
         manager.run_passes(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
