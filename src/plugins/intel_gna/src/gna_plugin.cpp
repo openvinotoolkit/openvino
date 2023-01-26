@@ -706,6 +706,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::ReorderActivationAndPooling>();
         manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
         manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
+        manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
         manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
