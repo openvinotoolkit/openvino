@@ -19,12 +19,12 @@ GPU Plugin contains the following components:
 * [Simplified workflow](./docs/simplified_workflow.md)
   * [Graph Optimization Passes](./docs/graph_optimization_passes.md)
   * [Execution of Inference](./docs/execution_of_inference.md)
-* Memory formats
-* Kernels and kernel selectors
-* GPU plugin operations enabling flow
-* Debug utils
-* OpenCL Runtime issues troubleshooting
-* GPU plugin unit test
+* [Memory formats](./docs/gpu_memory_formats.md)
+* [Kernels and kernel selectors](./docs/gpu_kernels.md)
+* [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
+* [Debug utils](./docs/gpu_debug_utils.md)
+* [OpenCL Runtime issues troubleshooting](./docs/gpu_plugin_driver_troubleshooting.md)
+* [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 
 ## Attached licenses
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
