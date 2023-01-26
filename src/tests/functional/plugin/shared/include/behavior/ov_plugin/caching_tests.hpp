@@ -89,11 +89,14 @@ class CompileModelLoadFromMemoryTestBase : public testing::WithParamInterface<co
                                            virtual public SubgraphBaseTest,
                                            virtual public OVPluginTestBase {
     std::string m_cacheFolderName;
+    std::vector<std::uint8_t> weights_vector;
+
+protected:
     std::string m_modelName;
     std::string m_weightsName;
     std::string m_model;
     ov::Tensor m_weights;
-    std::vector<std::uint8_t> weights_vector;
+
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromMemoryParams> obj);

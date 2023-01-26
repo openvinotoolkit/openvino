@@ -19,6 +19,6 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const;
-    virtual CommonDispatchData SetDefault(const quantize_params& params, const optional_params&) const = 0;
+    virtual CommonDispatchData SetDefault(const quantize_params& params) const = 0;
 };
 }  // namespace kernel_selector

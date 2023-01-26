@@ -83,7 +83,7 @@ shared_ptr<Model> gen_reference(size_t batch, size_t hidden_size, size_t input_s
     auto B = make_shared<Concat>(OutputVector{split_bias_r_z->output(1), split_bias_r_z->output(0), Bh}, 1);
 
     auto squeeze_B = make_shared<Squeeze>(B, axis_0);
-    auto cell = make_shared<op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, hidden_size);
+    auto cell = make_shared<ov::op::internal::AUGRUCell>(X, H, Wzrh, Rzrh, squeeze_B, A, hidden_size);
     return make_shared<Model>(OutputVector{cell}, params);
 }
 }  // namespace
@@ -100,7 +100,7 @@ TEST_P(AUGRUFusionTest, AUGRUCellPattern) {
     const auto& p = GetParam();
     {
         model = gen_model(p.batch, p.hidden_size, p.input_size, false);
-        manager.register_pass<pass::AUGRUCellFusion>();
+        manager.register_pass<ov::pass::AUGRUCellFusion>();
     }
 
     { model_ref = gen_reference(p.batch, p.hidden_size, p.input_size); }
@@ -117,7 +117,7 @@ TEST_P(AUGRUFusionTestDyn, AUGRUCellPatternDynamicShapes) {
         model = gen_model(p.batch, p.hidden_size, p.input_size, true);
         // the transformation won't be applied because we can't determine hidden_size/input_size,
         // they are dynamic.
-        manager.register_pass<pass::AUGRUCellFusion>();
+        manager.register_pass<ov::pass::AUGRUCellFusion>();
     }
 }
 

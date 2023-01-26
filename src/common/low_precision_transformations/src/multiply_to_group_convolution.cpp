@@ -115,11 +115,11 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     ngraph::CoordinateDiff pads(spatialDimsSize, 0ul);
     ngraph::Strides dilations(spatialDimsSize, 1ul);
 
-    const auto convolution = std::make_shared<op::TypeRelaxed<opset1::GroupConvolution>>(
+    const auto convolution = std::make_shared<ov::op::TypeRelaxed<opset1::GroupConvolution>>(
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{ element::f32 },
-        ngraph::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weightsNode, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weightsNode, element::f32).get(),
         strides,
         pads,
         pads,

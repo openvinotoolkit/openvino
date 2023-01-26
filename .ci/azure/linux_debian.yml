@@ -320,8 +320,7 @@ jobs:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Paddle Frontend UT'
 
-  - script: |
-      $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
+  - script: $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     env:
       LD_LIBRARY_PATH: $(INSTALL_TEST_DIR)
     displayName: 'TensorFlow Frontend Unit Tests'
