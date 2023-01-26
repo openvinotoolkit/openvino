@@ -16,13 +16,12 @@ namespace intel_cpu {
 void shape_inference(ov::Node* op,
                      const std::vector<StaticShape>& input_shapes,
                      std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
+                     const std::map<size_t, HostTensorPtr>& constant_data = {});
 
 class IShapeInferCommon {
 public:
-    virtual std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) = 0;
+    virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
+                                           const std::map<size_t, HostTensorPtr>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     virtual const ov::CoordinateDiff& get_pads_begin() = 0;
@@ -31,7 +30,21 @@ public:
     virtual const std::vector<int64_t>& get_input_ranks() = 0;
 };
 
-std::shared_ptr<IShapeInferCommon> make_shape_inference(const std::shared_ptr<ngraph::Node>& op);
+class IStaticShapeInfer : public IShapeInferCommon {
+public:
+    virtual std::vector<StaticShape> infer(
+        const std::vector<StaticShape>& input_shapes,
+        const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) = 0;
+};
 
-}   // namespace intel_cpu
-}   // namespace ov
+template <class TShapeInferIface = IShapeInferCommon>
+std::shared_ptr<TShapeInferIface> make_shape_inference(std::shared_ptr<ov::Node> op);
+
+template <>
+std::shared_ptr<IShapeInferCommon> make_shape_inference<IShapeInferCommon>(std::shared_ptr<ov::Node> op);
+
+template <>
+std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::shared_ptr<ov::Node> op);
+
+}  // namespace intel_cpu
+}  // namespace ov
