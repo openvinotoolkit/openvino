@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <ie_input_info.hpp>
+#include <ie_plugin_config.hpp>
 #include <ie_version.hpp>
 #include <memory>
 #include <openvino/core/except.hpp>
@@ -347,6 +348,39 @@ public:
     }
 
     ov::Any get_property(const std::string& name) const override {
+        if (ov::loaded_from_cache == name) {
+            return m_model->isLoadedFromCache();
+        }
+        if (ov::supported_properties == name) {
+            try {
+                auto supported_properties = m_model->GetMetric(name).as<std::vector<ov::PropertyName>>();
+                supported_properties.erase(std::remove_if(supported_properties.begin(),
+                                                          supported_properties.end(),
+                                                          [](const ov::PropertyName& name) {
+                                                              return name == METRIC_KEY(SUPPORTED_METRICS) ||
+                                                                     name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
+                                                          }),
+                                           supported_properties.end());
+                return supported_properties;
+            } catch (InferenceEngine::Exception&) {
+                auto ro_properties = m_model->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+                auto rw_properties =
+                    m_model->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+                std::vector<ov::PropertyName> supported_properties;
+                for (auto&& ro_property : ro_properties) {
+                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
+                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+                        supported_properties.emplace_back(ro_property, ov::PropertyMutability::RO);
+                    }
+                }
+                for (auto&& rw_property : rw_properties) {
+                    supported_properties.emplace_back(rw_property, ov::PropertyMutability::RW);
+                }
+                supported_properties.emplace_back(ov::supported_properties.name(), ov::PropertyMutability::RO);
+                supported_properties.emplace_back(ov::loaded_from_cache.name(), ov::PropertyMutability::RO);
+                return supported_properties;
+            }
+        }
         try {
             return m_model->GetMetric(name);
         } catch (InferenceEngine::Exception&) {
