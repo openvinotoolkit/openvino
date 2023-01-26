@@ -430,7 +430,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
             res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
         }
     } else if (cacheManager) {
-        res = plugin.compile_model(model_path, parsed._config);
+        auto cnnNetwork = ReadNetwork(model_path, std::string());
+        // TODO: 'validation' for dynamic API doesn't work for this case, as it affects a lot of plugin API
+        res = compile_model(plugin, cnnNetwork.getFunction(), {}, parsed._config);
     } else {
         auto cnnNetwork = ReadNetwork(model_path, std::string());
         res = compile_model_impl(cnnNetwork.getFunction(), plugin, parsed._config, {}, cacheContent);
@@ -483,37 +485,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto ret = get_plugin(parsed._deviceName).query_model(model, parsed._config);
-    auto specialized_function = model->clone();
-
-    std::string defDevice = ret.begin()->second;
-    ngraph::pass::ConstantFolding().run_on_model(specialized_function);
-    std::unordered_set<std::string> opNames;
-
-    for (const auto& op : specialized_function->get_ops())
-        opNames.emplace(op->get_friendly_name());
-
-    for (const auto& op : model->get_ops()) {
-        if (opNames.find(op->get_friendly_name()) == opNames.end()) {
-            ret[op->get_friendly_name()] = defDevice;
-        }
-    }
-
-    for (const auto& op : model->get_ops()) {
-        if (!ret.count(op->get_friendly_name()) && std::dynamic_pointer_cast<ngraph::op::Constant>(op)) {
-            bool are_all_users_supported = true;
-            for (const auto& user : op->output(0).get_target_inputs()) {
-                if (!ret.count(user.get_node()->get_friendly_name())) {
-                    are_all_users_supported = false;
-                    break;
-                }
-            }
-            if (are_all_users_supported) {
-                ret[op->get_friendly_name()] = defDevice;
-            }
-        }
-    }
-    return ret;
+    return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
