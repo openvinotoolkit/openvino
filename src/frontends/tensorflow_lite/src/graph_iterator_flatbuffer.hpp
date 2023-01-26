@@ -8,6 +8,7 @@
 
 #include "decoder_flatbuffer.h"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
 
 using namespace tflite;
@@ -33,7 +34,11 @@ public:
     explicit GraphIteratorFlatBuffer(const std::basic_string<T>& path) {
         std::ifstream model_file;
         model_file.open(path, std::ios::binary | std::ios::in);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", ov::util::wstring_to_string(path));
+#else
         FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
+#endif
 
         model_file.seekg(0, std::ios::end);
         auto length = model_file.tellg();

@@ -15,6 +15,9 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
 
+set_target_properties(${TARGET_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::util
                                      PUBLIC openvino::core::dev)
 
