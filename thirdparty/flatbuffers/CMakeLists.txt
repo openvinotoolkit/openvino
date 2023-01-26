@@ -19,7 +19,7 @@ if(NOT (FLATBUFFERS_BUILD_FLATLIB OR FLATBUFFERS_BUILD_SHAREDLIB))
     # create interface library with flatbuffers headers
     add_library(flatbuffers INTERFACE)
     target_include_directories(flatbuffers INTERFACE
-        $<BUILD_INTERFACE:"${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers/include")
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers/include>)
 endif()
 
 # build flatc depending on host system processor
