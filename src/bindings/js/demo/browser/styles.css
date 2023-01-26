@@ -1,3 +1,7 @@
+:root {
+  --btn-color: #6d0f3f;
+}
+
 body {
   font-family: Helvetica, Arial, sans-serif;
 }
@@ -23,12 +27,26 @@ canvas {
   margin-left: 10px;
 }
 
+pre {
+  margin-left: 10px;
+  font-size: 1.5em;
+}
+
 .file-selector {
+  transition: color .2s ease-in-out, background-color .2s ease-in-out;
+  color: var(--btn-color);
   display: inline-block;
-  border: 1px solid red;
+  border: 2px solid var(--btn-color);
   padding: 5px 10px;
   margin-bottom: 10px;
   cursor: pointer;
+  font-weight: bold; 
+  background-color: #fff;
+}
+
+.file-selector:hover {
+  background-color: var(--btn-color);
+  color: #fff;
 }
 
 .file-selector input {
