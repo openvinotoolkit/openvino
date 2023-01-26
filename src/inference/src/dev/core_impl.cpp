@@ -59,7 +59,7 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
-ov::util::FilePath ov::getPluginPath(const std::string& plugin) {
+ov::util::FilePath ov::get_plugin_path(const std::string& plugin) {
     // Assume `plugin` may contain:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to working directory
@@ -70,57 +70,57 @@ ov::util::FilePath ov::getPluginPath(const std::string& plugin) {
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos)
         return ov::util::to_file_path(ov::util::get_absolute_file_path(plugin));
 
-    auto libName = plugin;
+    auto lib_name = plugin;
     // For 3rd case - convert to 4th case
     if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        libName = FileUtils::makePluginLibraryName({}, plugin);
+        lib_name = FileUtils::makePluginLibraryName({}, plugin);
 
     // For 4th case
-    auto libPath = ov::util::to_file_path(ov::util::get_absolute_file_path(libName));
-    if (ov::util::file_exists(libPath))
-        return libPath;
-    return ov::util::to_file_path(libName);
+    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
+    if (ov::util::file_exists(lib_path))
+        return lib_path;
+    return ov::util::to_file_path(lib_name);
 }
 
-ov::util::FilePath ov::getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly) {
+ov::util::FilePath ov::get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only) {
     // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to XML directory
     // 3. example library name - to be converted to 4th case
     // 4. libexample.so - path relative to XML directory (if exists) or file to be found in ENV
-    // (if `asAbsOnly` is false)
+    // (if `as_abs_only` is false)
 
     // For 1st case
     if (ov::util::is_absolute_file_path(plugin))
         return ov::util::to_file_path(plugin);
 
-    auto xmlPath_ = xmlPath;
-    if (xmlPath.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xmlPath_ = FileUtils::makePath(std::string("."), xmlPath);  // treat plugins.xml as CWD/plugins.xml
+    auto xml_path_ = xml_path;
+    if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
+        xml_path_ = FileUtils::makePath(std::string("."), xml_path);  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = FileUtils::makePath(ov::util::get_directory(xmlPath_), plugin);
+        auto path_ = FileUtils::makePath(ov::util::get_directory(xml_path_), plugin);
         return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
     }
 
-    auto libFileName = plugin;
+    auto lib_file_name = plugin;
     // For 3rd case - convert to 4th case
     if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        libFileName = FileUtils::makePluginLibraryName({}, plugin);
+        lib_file_name = FileUtils::makePluginLibraryName({}, plugin);
 
     // For 4th case
-    auto libPath = FileUtils::makePath(ov::util::get_directory(xmlPath_), libFileName);
-    libPath = ov::util::get_absolute_file_path(libPath);  // canonicalize path
-    if (asAbsOnly || ov::util::file_exists(libPath))
-        return ov::util::to_file_path(libPath);
-    return ov::util::to_file_path(libFileName);
+    auto lib_path = FileUtils::makePath(ov::util::get_directory(xml_path_), lib_file_name);
+    lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
+    if (as_abs_only || ov::util::file_exists(lib_path))
+        return ov::util::to_file_path(lib_path);
+    return ov::util::to_file_path(lib_file_name);
 }
 
-void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile, const bool& ByAbsPath) {
+void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto parse_result = ParseXml(xmlConfigFile.c_str());
+    auto parse_result = ParseXml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
         IE_THROW() << parse_result.error_msg;
     }
@@ -140,7 +140,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"), xmlConfigFile, ByAbsPath);
+        ov::util::FilePath pluginPath =
+            get_plugin_path(GetStrAttr(pluginNode, "location"), xml_config_file, by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -741,21 +742,21 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     plugins.erase(deviceName);
 }
 
-void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& deviceName) {
+void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& device_name) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto it = pluginRegistry.find(deviceName);
+    auto it = pluginRegistry.find(device_name);
     if (it != pluginRegistry.end()) {
-        IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the OpenVINO Runtime";
+        IE_THROW() << "Device with \"" << device_name << "\"  is already registered in the OpenVINO Runtime";
     }
 
-    if (deviceName.find('.') != std::string::npos) {
+    if (device_name.find('.') != std::string::npos) {
         IE_THROW() << "Device name must not contain dot '.' symbol";
     }
 
-    PluginDescriptor desc{getPluginPath(plugin)};
-    pluginRegistry[deviceName] = desc;
-    add_mutex(deviceName);
+    PluginDescriptor desc{get_plugin_path(plugin)};
+    pluginRegistry[device_name] = desc;
+    add_mutex(device_name);
 }
 
 /**
