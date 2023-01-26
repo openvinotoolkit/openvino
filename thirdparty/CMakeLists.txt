@@ -306,7 +306,7 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
     endif()
 
-    set(flatbuffers_LIBRARY ${flatbuffers_LIBRARY} PARENT_SCOPE)
+    set(flatbuffers_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${flatbuffers_LIBRARY},INTERFACE_INCLUDE_DIRECTORIES> PARENT_SCOPE)
     set(flatbuffers_COMPILER ${flatbuffers_COMPILER} PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY ${flatbuffers_DEPENDENCY} PARENT_SCOPE)
 endif()

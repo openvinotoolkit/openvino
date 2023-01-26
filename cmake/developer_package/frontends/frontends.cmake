@@ -251,8 +251,7 @@ macro(ov_add_frontend)
     endif()
 
     if(flatbuffers_schema_files)
-        ov_install_static_lib(${flatbuffers_LIBRARY} ${OV_CPACK_COMP_CORE})
-        link_system_libraries(${TARGET_NAME} PRIVATE ${flatbuffers_LIBRARY})
+        target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${flatbuffers_INCLUDE_DIRECTORIES})
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
