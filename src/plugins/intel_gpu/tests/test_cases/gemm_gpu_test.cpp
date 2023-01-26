@@ -298,8 +298,8 @@ TEST(gemm_gpu, dynamic) {
     auto input2 = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f32, format::bfyx});
 
     std::vector<float> input1_data = {
-        1.f, -2.f,  3.f, -4.f,
-        5.f,  6.f, 1.f, 2.f,
+        1.f, -2.f, 3.f, -4.f,
+        5.f, 6.f, 1.f, 2.f,
         3.f, 3.f, 2.f, -1.f,
     };
 
@@ -339,6 +339,168 @@ TEST(gemm_gpu, dynamic) {
     ASSERT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
         ASSERT_FLOAT_EQ(output_ptr[i], out_data[i]);
+    }
+}
+
+TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
+    auto& engine = get_test_engine();
+
+    auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
+    auto in1_actual_layout = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
+    auto in2_layout = layout{ ov::PartialShape{ 1, 4 }, data_types::f32, format::bfyx };
+    auto input1_1 = engine.allocate_memory(in1_actual_layout);
+    auto input1_2 = engine.allocate_memory(in1_actual_layout);
+    auto input2 = engine.allocate_memory(in2_layout);
+
+    std::vector<float> input1_data1 = {
+        1.f, -2.f, 3.f, -4.f,
+        5.f, 6.f, 1.f, 2.f,
+        3.f, 3.f, 2.f, -1.f,
+    };
+    std::vector<float> input1_data2 = {
+        -1.f, 2.f, -3.f, 4.f,
+        5.f, 6.f, -1.f, 2.f,
+        3.f, -3.f, 2.f, 1.f,
+    };
+    std::vector<float> input2_data = {
+        2.f, 5.f, -4.f, -7.f,
+    };
+    set_values(input1_1, input1_data1);
+    set_values(input1_2, input1_data2);
+    set_values(input2, input2_data);
+
+    std::vector<float> out_data1 = {
+        8.f, 22.f, 20.f
+    };
+    std::vector<float> out_data2 = {
+        -8.f, 30.f, -24.f
+    };
+
+    topology topology;
+    topology.add(input_layout("input1", in1_dyn_layout),
+                 input_layout("input2", in2_layout),
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+    );
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    {
+        network.set_input_data("input1", input1_1);
+        network.set_input_data("input2", input2);
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gemm");
+
+        auto output_prim_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+        for (uint32_t i = 0; i < out_data1.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], out_data1[i]);
+        }
+    }
+
+    {
+        network.set_input_data("input1", input1_2);
+        network.set_input_data("input2", input2);
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gemm");
+
+        auto output_prim_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+        for (uint32_t i = 0; i < out_data2.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], out_data2[i]);
+        }
+    }
+}
+
+TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
+    auto& engine = get_test_engine();
+
+    auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
+    auto in1_actual_layout1 = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
+    auto in1_actual_layout2 = layout{ ov::PartialShape{ 1, 1, 4, 4 }, data_types::f32, format::bfyx };
+    auto in2_layout = layout{ ov::PartialShape{ 1, 4 }, data_types::f32, format::bfyx };
+    auto input1_1 = engine.allocate_memory(in1_actual_layout1);
+    auto input1_2 = engine.allocate_memory(in1_actual_layout2);
+    auto input2 = engine.allocate_memory(in2_layout);
+
+    std::vector<float> input1_data1 = {
+        1.f, -2.f, 3.f, -4.f,
+        5.f, 6.f, 1.f, 2.f,
+        3.f, 3.f, 2.f, -1.f,
+    };
+    std::vector<float> input1_data2 = {
+        -1.f, 2.f, -3.f, 4.f,
+        5.f, 6.f, -1.f, 2.f,
+        3.f, -3.f, 2.f, 1.f,
+        1.f, 2.f, -5.f, 6.f,
+    };
+    std::vector<float> input2_data = {
+        2.f, 5.f, -4.f, -7.f,
+    };
+    set_values(input1_1, input1_data1);
+    set_values(input1_2, input1_data2);
+    set_values(input2, input2_data);
+
+    std::vector<float> out_data1 = {
+        8.f, 22.f, 20.f
+    };
+    std::vector<float> out_data2 = {
+        -8.f, 30.f, -24.f, -10.f
+    };
+
+    topology topology;
+    topology.add(input_layout("input1", in1_dyn_layout),
+                 input_layout("input2", in2_layout),
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+    );
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    {
+        network.set_input_data("input1", input1_1);
+        network.set_input_data("input2", input2);
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gemm");
+
+        auto output_prim_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), (uint32_t)3);
+        for (uint32_t i = 0; i < out_data1.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], out_data1[i]);
+        }
+    }
+
+    {
+        network.set_input_data("input1", input1_2);
+        network.set_input_data("input2", input2);
+
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gemm");
+
+        auto output_prim_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_ptr(output_prim_mem, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), (uint32_t)4);
+        for (uint32_t i = 0; i < out_data2.size(); ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], out_data2[i]);
+        }
     }
 }
 

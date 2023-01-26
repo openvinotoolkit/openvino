@@ -27,7 +27,7 @@
     #define BLOCK_WRITE_C(ptr, offset, data) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, data)
 #endif // TILE_N > SIMD_WIDTH
 
-inline uint FUNC(get_input0_batch_offset)(uint b, uint f, uint w, uint z) {
+inline uint FUNC(get_input0_batch_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z) {
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, 0, 0);
 #else // INPUT0_SIMPLE
@@ -35,7 +35,7 @@ inline uint FUNC(get_input0_batch_offset)(uint b, uint f, uint w, uint z) {
 #endif // INPUT0_SIMPLE
 }
 
-inline uint FUNC(get_input1_batch_offset)(uint b, uint f, uint w, uint z) {
+inline uint FUNC(get_input1_batch_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z) {
 #if INPUT1_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, 0, 0);
 #else // INPUT1_SIMPLE
@@ -44,7 +44,7 @@ inline uint FUNC(get_input1_batch_offset)(uint b, uint f, uint w, uint z) {
 }
 
 #ifdef INPUT2_TYPE
-inline uint FUNC(get_input2_batch_offset)(uint b, uint f, uint w, uint z) {
+inline uint FUNC(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z) {
 #if INPUT2_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT2, b, f, w, z, 0, 0);
 #else // INPUT2_SIMPLE
@@ -53,7 +53,7 @@ inline uint FUNC(get_input2_batch_offset)(uint b, uint f, uint w, uint z) {
 }
 #endif // INPUT2_TYPE
 
-inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
+inline uint FUNC(get_output_batch_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z) {
 #if OUTPUT_SIMPLE
     return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, 0, 0);
 #else // OUTPUT_SIMPLE
@@ -65,6 +65,7 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 REQD_SUB_GROUP_SIZE(SIMD_WIDTH)
 __attribute__((reqd_work_group_size(SIMD_WIDTH, 1, 1)))
 KERNEL(gemm_tiled_opt)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input0,
     const __global INPUT1_TYPE* input1,
 #ifdef INPUT2_TYPE
@@ -86,18 +87,26 @@ KERNEL(gemm_tiled_opt)(
 
     // Setting x and y for fusings indexing
     // TODO: investigate how we can use only TILE_N_NOT_DIVISIBLE here for getting stable results in fusings
+#if IS_DYNAMIC
+    const uint x = (uint)get_global_id(0);
+#else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     const uint x = (uint)get_global_id(0);
 #else // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     const uint x = tile_n_num * SIMD_WIDTH * B_VEC_SIZE;
 #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
+#endif // IS_DYNAMIC
     uint y = tile_m_offset;
 
+#if IS_DYNAMIC
+    const uint tile_m_iterations = TILE_M_NOT_DIVISIBLE ? (tile_m_num == (tile_m_size - 1) ? TILE_M_LEFTOVER : TILE_M) : TILE_M;
+#else // IS_DYNAMIC
 #if TILE_M_NOT_DIVISIBLE
     const uint tile_m_iterations = tile_m_num == (tile_m_size - 1) ? TILE_M_LEFTOVER : TILE_M;
 #else // TILE_M_NOT_DIVISIBLE
     const uint tile_m_iterations = TILE_M;
 #endif // TILE_M_NOT_DIVISIBLE
+#endif // IS_DYNAMIC
 
     const uint z = batch_number % OUTPUT_SIZE_Z;
     batch_number /= OUTPUT_SIZE_Z;
@@ -108,12 +117,12 @@ KERNEL(gemm_tiled_opt)(
     const uint b = batch_number % OUTPUT_BATCH_NUM;
 
     // Batch offsets
-    const uint batch_offset_input0 = FUNC_CALL(get_input0_batch_offset)(b, f, w, z);
-    const uint batch_offset_input1 = FUNC_CALL(get_input1_batch_offset)(b, f, w, z);
+    const uint batch_offset_input0 = FUNC_CALL(get_input0_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
+    const uint batch_offset_input1 = FUNC_CALL(get_input1_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
 #ifdef INPUT2_TYPE
-    const uint batch_offset_input2 = FUNC_CALL(get_input2_batch_offset)(b, f, w, z);
+    const uint batch_offset_input2 = FUNC_CALL(get_input2_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
 #endif // INPUT2_TYPE
-    const uint batch_offset_output = FUNC_CALL(get_output_batch_offset)(b, f, w, z);
+    const uint batch_offset_output = FUNC_CALL(get_output_batch_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z);
 
     // Start pointers offsets
 #if !TRANSPOSE_INPUT0
@@ -152,11 +161,15 @@ KERNEL(gemm_tiled_opt)(
 
         // Loading B tile
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
+#if IS_DYNAMIC
+            b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
+#else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
 #else // TILE_N_NOT_DIVISIBLE
             b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
 #endif // TILE_N_NOT_DIVISIBLE
+#endif // IS_DYNAMIC
 #if !TRANSPOSE_INPUT1
             b_ptr += N;
 #else // !TRANSPOSE_INPUT1
@@ -198,11 +211,15 @@ KERNEL(gemm_tiled_opt)(
         // Loading A tile and tile C calculation
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if !TRANSPOSE_INPUT0
+#if IS_DYNAMIC
+            A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[dot_id * K + sglid] : BLOCK_READ_A(a_ptr, dot_id * K);
+#else // IS_DYNAMIC
 #if TILE_K_NOT_DIVISIBLE
             A_FLOATN a_read = a_ptr[dot_id * K + sglid];
 #else // TILE_K_NOT_DIVISIBLE
             A_FLOATN a_read = BLOCK_READ_A(a_ptr, dot_id * K);
 #endif // TILE_K_NOT_DIVISIBLE
+#endif // IS_DYNAMIC
 
             unroll_for (uint subtile_k_id = 0; subtile_k_id < TILE_K / SIMD_WIDTH; subtile_k_id++) {
                 unroll_for (uint simd_local_id = 0; simd_local_id < SIMD_WIDTH; simd_local_id++) {
@@ -261,6 +278,24 @@ KERNEL(gemm_tiled_opt)(
 
     } // Full tile calculation end
 
+#if IS_DYNAMIC
+    if (TILE_K_NOT_DIVISIBLE) {
+        // Loading leftovers of the matrix B
+        unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
+            b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
+            b_ptr += N;
+        } // Loading leftovers of the matrix B end
+
+        // Loading leftovers of the matrix A and tile C calculation
+        unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
+            INPUT0_TYPE a_read = a_ptr[dot_id * K + sglid];
+
+            unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
+                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
+            }
+        } // Loading leftovers of the matrix A and tile C calculation end
+    }
+#else // IS_DYNAMIC
 #if TILE_K_NOT_DIVISIBLE
     // Loading leftovers of the matrix B
     unroll_for (uint b_load_id = 0; b_load_id < TILE_K_LEFTOVER; b_load_id++) {
@@ -281,17 +316,43 @@ KERNEL(gemm_tiled_opt)(
         }
     } // Loading leftovers of the matrix A and tile C calculation end
 #endif // TILE_K_NOT_DIVISIBLE
+#endif // IS_DYNAMIC
 
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
+#if IS_DYNAMIC
+    FUSED_OPS_PRELOAD_SCALAR;
+#else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
     FUSED_OPS_PRELOAD_SCALAR;
 #else // TILE_N_NOT_DIVISIBLE
     FUSED_OPS_PRELOAD_VEC;
 #endif // TILE_N_NOT_DIVISIBLE
+#endif // IS_DYNAMIC
 #endif // HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
 
     // Writing result in the global memory
     unroll_for (uint write_id = 0; write_id < tile_m_iterations; write_id++) {
+#if IS_DYNAMIC
+        if (b_raw_global_id < N) {
+#ifdef INPUT2_TYPE
+            ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
+#else // INPUT2_TYPE
+            ACCUMULATOR_TYPE dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
+#endif // INPUT2_TYPE
+
+#if HAS_FUSED_OPS
+#if FUSED_OPS_CAN_USE_PRELOAD
+            FUSED_OPS_CALC_SCALAR;
+#else // FUSED_OPS_CAN_USE_PRELOAD
+            FUSED_OPS_SCALAR;
+#endif // FUSED_OPS_CAN_USE_PRELOAD
+            OUTPUT_TYPE res = FUSED_OPS_RESULT_SCALAR;
+            d_ptr[sglid] = res;
+#else // HAS_FUSED_OPS
+            d_ptr[sglid] = dequantized;
+#endif // HAS_FUSED_OPS
+        }
+#else // IS_DYNAMIC
 #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
         if (b_raw_global_id < N) {
 #ifdef INPUT2_TYPE
@@ -335,6 +396,7 @@ KERNEL(gemm_tiled_opt)(
 #endif // HAS_FUSED_OPS
 
 #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
+#endif // IS_DYNAMIC
         d_ptr += N;
 #ifdef INPUT2_TYPE
         c_ptr += N;
