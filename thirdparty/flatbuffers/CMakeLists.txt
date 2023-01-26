@@ -17,7 +17,6 @@ endif()
 
 # build flatc when we don't use cross-compilation
 
-set(CMAKE_VERSION 3.13)
 add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
