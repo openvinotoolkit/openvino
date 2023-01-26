@@ -5,7 +5,7 @@ import tensorflow as tf
 import os
 import numpy as np
 from common.layer_test_class import CommonLayerTest
-from common.utils.tflite_utils import get_tflite_results, save_pb_to_tflite
+from common.utils.tflite_utils import get_tflite_results, get_tensors_from_graph
 
 
 class TFLiteLayerTest(CommonLayerTest):
@@ -26,11 +26,12 @@ class TFLiteLayerTest(CommonLayerTest):
     def produce_tflite_model(self, framework_model, save_path):
         with tf.Graph().as_default() as g:
             tf.graph_util.import_graph_def(framework_model, name="")
-            input_tensors = g.get_tensor_by_name(self.inputs[0] + ':0')
-            output_tensors = g.get_tensor_by_name(self.outputs[0] + ':0')
+            input_tensors = get_tensors_from_graph(g, self.inputs)
+            output_tensors = get_tensors_from_graph(g, self.outputs)
+
         tflite_model = tf.compat.v1.lite.TFLiteConverter(framework_model,
-                                                         input_tensors=[input_tensors],
-                                                         output_tensors=[output_tensors]).convert()
+                                                         input_tensors=input_tensors,
+                                                         output_tensors=output_tensors).convert()
 
         tflite_model_path = os.path.join(os.path.dirname(save_path), 'model.tflite')
         with tf.io.gfile.GFile(tflite_model_path, 'wb') as f:

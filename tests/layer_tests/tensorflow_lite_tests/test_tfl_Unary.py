@@ -1,10 +1,10 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+import itertools
 from functools import partial
 
 import pytest
 from common.tflite_layer_test_class import TFLiteLayerTest
-from common.layer_test_class import parametrize
 import tensorflow as tf
 
 
@@ -41,7 +41,7 @@ test_params = [
     {'shape': [2, 10, 10, 3]},
     {'shape': [2, 10]}
 ]
-test_data = parametrize(test_ops, test_params)
+test_data = list(itertools.product(test_ops, test_params))
 
 
 class TestTFLiteUnaryLayerTest(TFLiteLayerTest):
