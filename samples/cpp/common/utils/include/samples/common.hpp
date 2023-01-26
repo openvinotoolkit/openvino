@@ -1040,10 +1040,10 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(ov::InferRequest request,
@@ -1177,16 +1177,15 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
                 opt_proportion_str = "N/A";
             }
             stream << std::setw(20) << std::left << "proportion: " + opt_proportion_str + "%";
-
             stream << std::endl;
         }
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED bool sort_pc_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
@@ -1256,10 +1255,10 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInfo> performanceData,
@@ -1317,10 +1316,10 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> performanceData,
