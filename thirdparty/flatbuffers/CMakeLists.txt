@@ -19,13 +19,13 @@ endif()
 
 add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    set_target_properties(flatc PROPERTIES COMPILE_OPTIONS "-Wno-shadow")
-endif()
-
 # build flatc using cross-compilation
 
 if(FLATBUFFERS_BUILD_FLATC)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set_target_properties(flatc PROPERTIES COMPILE_OPTIONS "-Wno-shadow")
+    endif()
+
     set(flatbuffers_COMPILER $<TARGET_FILE:flatc> PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY flatc PARENT_SCOPE)
 else()
