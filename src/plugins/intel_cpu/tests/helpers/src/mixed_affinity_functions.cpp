@@ -90,6 +90,7 @@ std::shared_ptr<ov::Model> GrConvWithParamFunction::initOriginal() {
                                                                ov::CoordinateDiff{0, 0},
                                                                ov::CoordinateDiff{0, 0},
                                                                ov::Strides{1, 1});
+    group_conv->set_friendly_name("group_conv");
     return std::make_shared<ov::Model>(ov::NodeVector{group_conv}, parameters);
 }
 
@@ -154,6 +155,7 @@ std::shared_ptr<ov::Model> ConvWithSplitAndResultFunction::initOriginal() {
     const auto convolution_2 = getDefaultConv(split->output(1), out_channels);
     convolution_2->set_friendly_name("convolution_2");
     auto relu_2 = std::make_shared<ov::opset1::Relu>(convolution_2);
+    relu_2->set_friendly_name("relu_2");
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(split->output(0)), std::make_shared<ov::opset1::Result>(relu_2)};
     return std::make_shared<ov::Model>(results, parameters);

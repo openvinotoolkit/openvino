@@ -132,3 +132,31 @@ TEST_F(PropagateOptimalBSTest, TwoConvAndAddDifferentBatches3) {
     model_ref = builder.getOriginal(reference_markup);
     ov::pass::InitNodeInfo().run_on_model(model_ref);
 }
+
+TEST_F(PropagateOptimalBSTest, TwoConvWithS2BFunction) {
+    ov::PartialShape input_shape{4, 3, 16, 16};
+    TwoConvWithS2BFunction builder({input_shape});
+    BSMarkup actual_markup{{"convolution_1", 1}, {"convolution_2", 1}};
+    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup reference_markup{
+        {"convolution_1", {1, 4}},
+        {"convolution_2", {1, 16}},
+    };
+    model_ref = builder.getOriginal(reference_markup);
+    ov::pass::InitNodeInfo().run_on_model(model_ref);
+}
+
+TEST_F(PropagateOptimalBSTest, ConvWithConcatFunction) {
+    ov::PartialShape input_shape{4, 3, 16, 16};
+    ConvWithConcatFunction builder({input_shape, input_shape});
+    BSMarkup actual_markup{{"convolution_1", 1}, {"convolution_2", 1}};
+    model = builder.getOriginal(transformBSMarkup(actual_markup));
+    MixedAffinityMarkup reference_markup{
+        {"convolution_1", {1, 4}},
+        {"transpose_1", {1, 4}},
+        {"convolution_2", {1, 4}},
+        {"transpose_2", {1, 4}},
+    };
+    model_ref = builder.getOriginal(reference_markup);
+    ov::pass::InitNodeInfo().run_on_model(model_ref);
+}
