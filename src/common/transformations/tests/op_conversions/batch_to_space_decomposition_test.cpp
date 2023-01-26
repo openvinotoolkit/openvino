@@ -24,9 +24,11 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements) {
+TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements_CPU) {
 
+        // auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape{Dimension::dynamic(),6,10});
         auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape::dynamic(3));
+        data->get_default_output().get_tensor().add_names({"data"});
         auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 1});
         auto crops_begin = std::make_shared<opset3::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 0, 0});
         auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 0, 0});
@@ -37,9 +39,9 @@ TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements
         // this commented part "removes" the error
         // pass::Manager m;
         // m.register_pass<ov::pass::ConvertBatchToSpace>();
-        // m.register_pass<ov::pass::ConstantFolding>();
-        // m.register_pass<ov::pass::Validate>();
         // m.run_passes(f);
+
+        // f->reshape({{"data",PartialShape{2,6,10}}});
 
         std::string deviceName = "CPU";
         ov::Core core;
@@ -48,6 +50,36 @@ TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements
         auto req = net.create_infer_request();
         float host_data[2*6*10];
         auto tensor = ov::Tensor(element::f32, Shape{2,6,10}, host_data);
+        req.set_tensor(data, tensor);
+        req.infer();
+}
+
+TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements_TEMPLATE) {
+
+        // auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape{Dimension::dynamic(),6,10});
+        auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape::dynamic(4));
+        data->get_default_output().get_tensor().add_names({"data"});
+        auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
+        auto crops_begin = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 0, 0, 0});
+        auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+        auto f = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
+
+        // this commented part "removes" the error
+        // pass::Manager m;
+        // m.register_pass<ov::pass::ConvertBatchToSpace>();
+        // m.run_passes(f);
+
+        // f->reshape({{"data",PartialShape{2,6,10}}});
+
+        std::string deviceName = "TEMPLATE";
+        ov::Core core;
+        auto net = core.compile_model(f, deviceName);
+
+        auto req = net.create_infer_request();
+        float host_data[100*7*13*3];
+        auto tensor = ov::Tensor(element::f32, Shape{100, 7, 13, 3}, host_data);
         req.set_tensor(data, tensor);
         req.infer();
 }
