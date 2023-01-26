@@ -32,26 +32,31 @@ std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
     OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->get_runtime_model());
 }
 
-std::vector<ov::Output<const ov::Node>> CompiledModel::inputs() const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->inputs(););
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
+    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->inputs());
 }
 
-ov::Output<const ov::Node> CompiledModel::input() const {
+const ov::Output<const ov::Node>& CompiledModel::input() const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
-        const auto inputs = _impl->inputs();
-        if (inputs.size() != 1) {
-            throw ov::Exception(
-                "CompiledModel::input() must be called on a compiled model with exactly one parameter.");
-        }
+        const auto& inputs = _impl->inputs();
+        OPENVINO_ASSERT(inputs.size() == 1,
+                        "CompiledModel::input() must be called on a compiled model with exactly one parameter.");
         return inputs.at(0);
     });
 }
 
-ov::Output<const ov::Node> CompiledModel::input(size_t i) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->inputs().at(i));
+const ov::Output<const ov::Node>& CompiledModel::input(size_t i) const {
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        OPENVINO_ASSERT(i < _impl->inputs().size(),
+                        "Cannot get input for index: ",
+                        i,
+                        " outputs size is ",
+                        _impl->inputs().size());
+        return _impl->inputs().at(i);
+    });
 }
 
-ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) const {
+const ov::Output<const ov::Node>& CompiledModel::input(const std::string& tensor_name) const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
         for (const auto& input : _impl->inputs()) {
             if (input.get_names().count(tensor_name)) {
@@ -62,22 +67,29 @@ ov::Output<const ov::Node> CompiledModel::input(const std::string& tensor_name) 
     });
 }
 
-std::vector<ov::Output<const ov::Node>> CompiledModel::outputs() const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->outputs(););
+const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {
+    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->outputs());
 }
-ov::Output<const ov::Node> CompiledModel::output() const {
+
+const ov::Output<const ov::Node>& CompiledModel::output() const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
-        const auto outputs = _impl->outputs();
-        if (outputs.size() != 1) {
-            throw ov::Exception("CompiledModel::output() must be called on a compiled model with exactly one result.");
-        }
+        const auto& outputs = _impl->outputs();
+        OPENVINO_ASSERT(outputs.size() == 1,
+                        "CompiledModel::output() must be called on a compiled model with exactly one result.");
         return outputs.at(0);
     });
 }
-ov::Output<const ov::Node> CompiledModel::output(size_t i) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->outputs().at(i));
+const ov::Output<const ov::Node>& CompiledModel::output(size_t i) const {
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        OPENVINO_ASSERT(i < _impl->outputs().size(),
+                        "Cannot get output for index: ",
+                        i,
+                        " outputs size is ",
+                        _impl->outputs().size());
+        return _impl->outputs().at(i);
+    });
 }
-ov::Output<const ov::Node> CompiledModel::output(const std::string& tensor_name) const {
+const ov::Output<const ov::Node>& CompiledModel::output(const std::string& tensor_name) const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
         for (const auto& output : _impl->outputs()) {
             if (output.get_names().count(tensor_name)) {
