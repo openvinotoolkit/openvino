@@ -1,10 +1,11 @@
+-c ../../../src/bindings/python/constraints.txt
 requests
 pyyaml
 wheel
 test-generator
 numpy
 pytest
-py>=1.9.0
+py
 scikit-build
 opencv-python
 progress

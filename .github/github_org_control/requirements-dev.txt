@@ -1,1 +1,2 @@
-pylint==2.11.1
+-c ../../src/bindings/python/constraints.txt
+pylint

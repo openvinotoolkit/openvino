@@ -1,4 +1,5 @@
-requests>=2.25.1
+-c ../../src/bindings/python/constraints.txt
+requests
 numpy>=1.19.2
 torch
 torchvision

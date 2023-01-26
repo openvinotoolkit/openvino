@@ -1,2 +1,2 @@
 -c ../../../src/bindings/python/constraints.txt
-PyYAML
+-r ./requirements.txt

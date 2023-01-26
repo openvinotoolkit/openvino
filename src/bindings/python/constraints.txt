@@ -1,0 +1,60 @@
+# Pytest
+pytest>=6.2.4; python_version < '3.10'
+pytest==7.2.0; python_version >= '3.10'
+pytest-forked; platform_system != "Windows"
+pytest-dependency==0.5.1
+pytest-html>=1.19.0
+pytest-timeout==2.0.1
+
+# Model Optimizer
+networkx<=2.8.8
+requests>=2.25.1
+fastjsonschema~=2.15.1
+defusedxml>=0.7.1
+importlib-metadata; python_version < "3.8" and sys_platform == 'win32'
+openvino-telemetry>=2022.1.0
+mxnet~=1.2.0; sys_platform == 'win32'
+mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
+urllib3>=1.26.4
+coverage>=4.4.2,<=7.0.5
+astroid>=2.9.0
+pylint>=2.7.0
+pyenchant>=3.0.0
+test-generator==0.1.1
+requests>=2.25.1
+py>=1.9.0 # also used in X
+
+# Benchmark tool, cross check tool
+opencv-python>=4.5
+
+# Python bindings
+pygments>=2.8.1
+wheel>=0.38.1
+setuptools>=53.0.0
+patchelf; sys_platform == 'linux' and platform_machine == 'x86_64'
+
+# Frontends
+docopt~=0.6.2
+paddlepaddle==2.4.1
+gast==0.3.3
+six~=1.16.0
+
+# openvino/tests
+PyYAML>=5.4.1
+pymongo>=3.12.0
+Jinja2>=2.11.2
+pandas>=1.3.5
+h5py>=3.1.0
+scipy~=1.7; python_version == '3.7'
+scipy>=1.8; python_version >= '3.8'
+distro==1.8.0
+
+# openvino/.github
+PyGithub==1.55
+ldap3==2.7
+
+# .../intel_cpu/tools/dump_check
+matplotlib>=3.3.4, <3.6
+
+# .../tests/ie_test_utils/functional_test_utils/layer_tests_summary
+openpyxl==3.0.10
