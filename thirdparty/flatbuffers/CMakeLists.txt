@@ -58,4 +58,4 @@ endif()
 
 # set parent scope
 
-set(flatbuffers_LIBRARY FlatBuffers::FlatBuffers PARENT_SCOPE)
+set(flatbuffers_LIBRARY FlatBuffers PARENT_SCOPE)
