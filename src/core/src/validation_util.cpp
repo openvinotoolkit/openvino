@@ -1348,42 +1348,45 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
 }
 
 bool ov::default_label_evaluator(const Node* node, TensorLabelVector& output_labels) {
-    const auto& input_values = node->input_values();
+    const auto& inputs_count = node->get_input_size();
+    if (inputs_count > 0) {
+        const auto& labels = node->get_input_tensor(0).get_value_label();
+        if (!has_no_labels(labels)) {
+            TensorVector inputs;
+            inputs.reserve(inputs_count);
 
-    HostTensorVector input_tensors(input_values.size());
-    for (size_t i = 0; i < input_values.size(); ++i) {
-        const auto& input = input_values[i];
-        if (i != 0) {
-            if (input.get_tensor().has_and_set_bound())
-                input_tensors[i] = input.get_tensor().get_lower_value();
-            else
-                return false;
-        } else {
-            const auto& input_labels = input.get_tensor().get_value_label();
-            if (has_no_labels(input_labels)) {
-                return false;
+            inputs.emplace_back(element::from<label_t>(), node->get_input_shape(0));
+            std::copy(labels.begin(), labels.end(), inputs.back().data<label_t>());
+
+            for (size_t i = 1; i < inputs_count; ++i) {
+                if (node->get_input_tensor(i).has_and_set_bound()) {
+                    const auto& et = node->get_input_element_type(i);
+                    const auto& shape = node->get_input_shape(i);
+                    inputs.emplace_back(et, shape, node->get_input_tensor(i).get_lower_value()->get_data_ptr());
+                } else {
+                    return false;
+                }
             }
 
-            auto labels_constant = op::v0::Constant::create(ov::element::u64, input.get_shape(), input_labels);
-            auto idxs_htp = std::make_shared<HostTensor>(labels_constant);
-            input_tensors[i] = idxs_htp;
+            const auto& outputs_count = node->get_output_size();
+            TensorVector outputs;
+            outputs.reserve(outputs_count);
+
+            for (size_t i = 0; i < outputs_count; ++i) {
+                const auto& partial_shape = node->get_output_partial_shape(i);
+                // Set shape for static or Shape{0} for dynamic to postpone memory allocation
+                auto shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
+                outputs.emplace_back(element::from<label_t>(), shape);
+            }
+
+            if (node->evaluate(outputs, inputs)) {
+                std::transform(outputs.cbegin(), outputs.cend(), output_labels.begin(), [](const Tensor& t) {
+                    // Return empty label tensor if input tensor not valid (can have Shape{0})
+                    return t ? TensorLabel(t.data<label_t>(), t.data<label_t>() + t.get_size()) : TensorLabel();
+                });
+                return true;
+            }
         }
-    }
-
-    HostTensorVector output_tensors;
-    output_tensors.reserve(node->get_output_size());
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        output_tensors.push_back(std::make_shared<HostTensor>(element::u64, node->get_output_partial_shape(i)));
-    }
-
-    if (node->evaluate(output_tensors, input_tensors)) {
-        std::transform(output_tensors.cbegin(),
-                       output_tensors.cend(),
-                       output_labels.begin(),
-                       [](const HostTensorPtr& tensor) {
-                           return std::make_shared<op::v0::Constant>(tensor)->cast_vector<label_t>();
-                       });
-        return true;
     }
     return false;
 }
