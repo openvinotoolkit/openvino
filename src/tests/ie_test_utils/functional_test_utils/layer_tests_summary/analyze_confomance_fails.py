@@ -8,7 +8,7 @@ import zipfile
 import argparse
 import openpyxl
 
-from utils import utils
+from utils.conformance_utils import get_logger
 from utils import constants
 
 
@@ -18,7 +18,7 @@ NEW_LOG_DIR = 'ie_logs'
 
 SW_PLUGINS = {'HETERO': '1', 'AUTO': '2', 'BATCH': '3', 'MULTI': '4'}
 
-logger = utils.get_logger('AnalyzerConformanceLog')
+logger = get_logger('AnalyzerConformanceLog')
 
 
 class AnalyzerConformanceLog:

@@ -6,18 +6,14 @@ import defusedxml.ElementTree as ET
 from argparse import ArgumentParser
 from pathlib import Path
 from hashlib import sha256
-from utils import utils
-
-try:
-    from openvino.runtime import Core
-except:
-    #TODO: to setup python env
+from utils.conformance_utils import get_logger
+from openvino.runtime import Core
 
 XML_EXTENSION = ".xml"
 BIN_EXTENSION = ".bin"
 META_EXTENSION = ".meta"
 
-logger = utils.get_logger('rename_conformance_ir')
+logger = get_logger('rename_conformance_ir')
 
 
 def parse_arguments():

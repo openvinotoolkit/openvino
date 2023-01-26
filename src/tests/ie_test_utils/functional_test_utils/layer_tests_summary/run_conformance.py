@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from argparse import ArgumentParser
-from utils import utils
 from subprocess import Popen
 from shutil import copytree, rmtree
 from summarize import create_summary
@@ -10,7 +9,6 @@ from merge_xmls import merge_xml
 from run_parallel import TestParallelRunner
 from rename_conformance_ir import create_hash
 from pathlib import Path
-from sys import version, platform
 
 import defusedxml.ElementTree as ET
 from urllib.parse import urlparse
@@ -18,9 +16,11 @@ from urllib.parse import urlparse
 import os
 import urllib.request as ur
 from utils import constants
+from utils.conformance_utils import get_logger
+from utils import file_utils
 
 
-logger = utils.get_logger('conformance_runner')
+logger = get_logger('conformance_runner')
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
@@ -48,7 +48,7 @@ def parse_arguments():
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
-    parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=utils.get_ov_path(SCRIPT_DIR_PATH))
+    parser.add_argument("-ov", "--ov_path", help=ov_help, type=str, required=False, default=file_utils.get_ov_path(SCRIPT_DIR_PATH))
     parser.add_argument("-w", "--working_dir", help=working_dir_help, type=str, required=False, default=get_default_working_dir())
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
@@ -62,7 +62,7 @@ class Conformance:
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
-        self._ov_bin_path = utils.get_ov_path(SCRIPT_DIR_PATH, self._ov_path, True)
+        self._ov_bin_path = file_utils.get_ov_path(SCRIPT_DIR_PATH, self._ov_path, True)
         self._working_dir = working_dir
         if os.path.exists(self._working_dir):
             logger.info(f"Working dir {self._working_dir} is cleaned up")
@@ -85,10 +85,10 @@ class Conformance:
             logger.error(f"Please verify URL: {self._model_path}. Looks like that is incorrect")
             exit(-1)
         logger.info(f"Conformance IRs were downloaded from {self._model_path} to {model_archieve_path}")
-        if not utils.is_archieve(model_archieve_path):
+        if not file_utils.is_archieve(model_archieve_path):
             logger.error(f"The file {model_archieve_path} is not archieve! It should be the archieve!")
             exit()
-        self._model_path = utils.unzip_archieve(model_archieve_path, self._working_dir)
+        self._model_path = file_utils.unzip_archieve(model_archieve_path, self._working_dir)
 
     def __dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
@@ -176,7 +176,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --gtest_filter = {self._gtest_filter}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
 
-        if self._model_path == NO_MODEL_CONSTANT or utils.is_url(self._model_path):
+        if self._model_path == NO_MODEL_CONSTANT or file_utils.is_url(self._model_path):
             self.__download_conformance_ir()
         if dump_models:
             self.__dump_subgraph()

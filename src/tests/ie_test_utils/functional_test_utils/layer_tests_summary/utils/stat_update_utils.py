@@ -1,25 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
-import os
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
-from shutil import rmtree, copyfile
-from zipfile import ZipFile, is_zipfile
-
-import tarfile
-
-from shutil import rmtree, copyfile
-import sys
-from pathlib import Path, PurePath
-
-from urllib.parse import urlparse
-
-from . import constants
-from . import utils
-
+from . import conformance_utils
 
 def update_passrates(results: ET.SubElement):
     for device in results:
@@ -68,6 +52,6 @@ def update_conformance_test_counters(results: ET.SubElement):
                 if test_cnt != max_test_cnt[op.tag]:
                     diff = max_test_cnt[op.tag] - test_cnt
                     op.set("skipped", str(int(op.attrib["skipped"]) + diff))
-                    utils.UTILS_LOGGER.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
+                    conformance_utils.UTILS_LOGGER.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
     update_passrates(results)
 

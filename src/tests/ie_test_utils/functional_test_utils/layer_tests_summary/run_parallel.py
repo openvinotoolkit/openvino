@@ -1,8 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from utils import utils
+from utils.conformance_utils import get_logger, progressbar
 from utils import constants
+from utils import file_utils
 from argparse import ArgumentParser
 from subprocess import Popen, STDOUT, TimeoutExpired
 from hashlib import sha256
@@ -26,7 +27,7 @@ LOG_NAME_REPLACE_STR = "##NAME##"
 DEFAULT_PROCESS_TIMEOUT = 3600
 MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
 
-logger = utils.get_logger('test_parallel_runner')
+logger = get_logger('test_parallel_runner')
 
 def parse_arguments():
     parser = ArgumentParser()
@@ -167,9 +168,9 @@ class TestParallelRunner:
                 buf = ""
                 for _ in argument.split(','):
                     input_path = argument.replace('"', '')
-                    if os.path.isfile(input_path) and utils.is_archieve(input_path):
-                        input_path = utils.unzip_archieve(input_path, self._working_dir)
-                    buf = utils.prepare_filelist(input_path, "*.xml")
+                    if os.path.isfile(input_path) and file_utils.is_archieve(input_path):
+                        input_path = file_utils.unzip_archieve(input_path, self._working_dir)
+                    buf = file_utils.prepare_filelist(input_path, "*.xml")
                     buf += ","
                 argument = buf 
             else:
@@ -326,9 +327,9 @@ class TestParallelRunner:
         
         commands = [f'{self._command} --gtest_filter={filter}' for filter in self.__get_filters()]
         task_manager = TaskManager(commands, self._working_dir)
-        for _ in utils.progressbar(range(self._worker_num), "Worker initialization: ", 40):
+        for _ in progressbar(range(self._worker_num), "Worker initialization: ", 40):
             task_manager.init_worker()
-        for _ in utils.progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
+        for _ in progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
             if not task_manager.update_worker():
                 break
         task_manager.compelete_all_processes()
