@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/validation_util.hpp"
+
 #include <algorithm>
 #include <ngraph/ops.hpp>
 #include <ngraph/rt_info.hpp>
@@ -22,7 +24,6 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 

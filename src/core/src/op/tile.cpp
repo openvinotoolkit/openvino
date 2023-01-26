@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/tile.hpp"
+
 #include <ngraph/validation_util.hpp>
 #include <tile_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/tile.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
