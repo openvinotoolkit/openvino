@@ -68,7 +68,7 @@ std::vector<TShape> shape_infer(const Eye* op,
     }
 
     using TDimValue = typename TShape::value_type::value_type;
-    constexpr auto get_non_negatives = sh_infer::tr::InTypeRange<TDimValue>(0, std::numeric_limits<TDimValue>::max());
+    constexpr auto get_non_negatives = ov::util::InTypeRange<TDimValue>(0, std::numeric_limits<TDimValue>::max());
 
     for (size_t i = 0; i < 2; ++i) {
         if (auto eye_dim = get_input_const_data_as_shape<TShape>(op, i, constant_data, get_non_negatives)) {

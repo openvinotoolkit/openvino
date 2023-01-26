@@ -16,10 +16,15 @@ if(ENABLE_OV_PADDLE_FRONTEND)
     add_subdirectory(paddle)
 endif()
 
+if(ENABLE_OV_PYTORCH_FRONTEND)
+    add_subdirectory(pytorch)
+endif()
+
 if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()
 
 if(ENABLE_OV_TF_FRONTEND)
+    add_subdirectory(tensorflow_common)
     add_subdirectory(tensorflow)
 endif()

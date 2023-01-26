@@ -10,7 +10,7 @@ from openvino.runtime import Dimension
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
+    CPU_DEVICE_NAME, GPU_DEVICE_NAME, \
     BLOB_EXTENSION, AUTO_DEVICE_NAME
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
@@ -255,23 +255,22 @@ def main():
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "
                                    "but it still may be non-optimal for some cases, for more information look at README.")
-                    if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
-                        if key in supported_properties:
-                            config[device][key] = get_device_type_from_name(device) + "_THROUGHPUT_AUTO"
-                        elif "NUM_STREAMS" in supported_properties:
-                            key = "NUM_STREAMS"
-                            config[device][key] = "-1"  # Set AUTO mode for streams number
-                        elif device in [MULTI_DEVICE_NAME, AUTO_DEVICE_NAME]:
-                            # Set nstreams to default value auto if no nstreams specified from cmd line.
-                            for hw_device in hw_devices_list:
-                                hw_supported_properties = benchmark.core.get_property(hw_device, 'SUPPORTED_PROPERTIES')
-                                key = get_device_type_from_name(hw_device) + "_THROUGHPUT_STREAMS"
-                                value = get_device_type_from_name(hw_device) + "_THROUGHPUT_AUTO"
-                                if key not in hw_supported_properties:
-                                    key = "NUM_STREAMS"
-                                    value = "AUTO"
-                                if key in hw_supported_properties:
-                                    update_configs(hw_device, key, value)
+                    if key in supported_properties:
+                        config[device][key] = get_device_type_from_name(device) + "_THROUGHPUT_AUTO"
+                    elif "NUM_STREAMS" in supported_properties:
+                        key = "NUM_STREAMS"
+                        config[device][key] = "-1"  # Set AUTO mode for streams number
+                    elif device in [MULTI_DEVICE_NAME, AUTO_DEVICE_NAME]:
+                        # Set nstreams to default value auto if no nstreams specified from cmd line.
+                        for hw_device in hw_devices_list:
+                            hw_supported_properties = benchmark.core.get_property(hw_device, 'SUPPORTED_PROPERTIES')
+                            key = get_device_type_from_name(hw_device) + "_THROUGHPUT_STREAMS"
+                            value = get_device_type_from_name(hw_device) + "_THROUGHPUT_AUTO"
+                            if key not in hw_supported_properties:
+                                key = "NUM_STREAMS"
+                                value = "AUTO"
+                            if key in hw_supported_properties:
+                                update_configs(hw_device, key, value)
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
                 return
@@ -301,9 +300,6 @@ def main():
                 ## for GPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()
                 set_infer_precision()
-            elif MYRIAD_DEVICE_NAME in device:
-                set_throughput_streams()
-                config[device]['LOG_LEVEL'] = 'LOG_INFO'
             elif AUTO_DEVICE_NAME in device:
                 set_throughput_streams()
                 set_infer_precision()

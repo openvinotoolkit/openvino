@@ -65,7 +65,7 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
+std::string NetworkCompilationContext::computeHash(CNNNetwork& network,
                                                    const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
 
@@ -73,11 +73,10 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 
     uint64_t seed = 0;
     // 1. Calculate hash on function
-    CNNNetwork net(network);
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::FixRtInfo>();
+    m.register_pass<ov::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(net.getFunction());
+    m.run_passes(network.getFunction());
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
@@ -151,17 +150,19 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
     seed = hash_combine(seed, modelStr);
 
     // tensor data
-    seed = hash_combine(seed, tensor.get_size());
+    if (tensor) {
+        seed = hash_combine(seed, tensor.get_size());
 
-    auto ptr = static_cast<size_t*>(tensor.data());
-    size_t size = tensor.get_size() / sizeof(size_t);
-    for (size_t i = 0; i < size; i++)
-        seed = hash_combine(seed, ptr[i]);
-    auto size_done = size * sizeof(size_t);
-    auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
-    size_t size_left = tensor.get_size() - size_done;
-    for (size_t i = 0; i < size_left; i++)
-        seed = hash_combine(seed, ptr_left[i]);
+        auto ptr = static_cast<size_t*>(tensor.data());
+        size_t size = tensor.get_size() / sizeof(size_t);
+        for (size_t i = 0; i < size; i++)
+            seed = hash_combine(seed, ptr[i]);
+        auto size_done = size * sizeof(size_t);
+        auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
+        size_t size_left = tensor.get_size() - size_done;
+        for (size_t i = 0; i < size_left; i++)
+            seed = hash_combine(seed, ptr_left[i]);
+    }
 
     // compile options
     for (const auto& kvp : compileOptions) {

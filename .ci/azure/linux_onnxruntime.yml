@@ -12,6 +12,7 @@ trigger:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 pr:
   drafts: 'false'
@@ -28,6 +29,7 @@ pr:
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
     - 'tools/*'
+    - 'tests/layer_tests/*'
 
 jobs:
 - job: onnxruntime
@@ -107,7 +109,6 @@ jobs:
         -GNinja
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF
         -DENABLE_INTEL_GNA=OFF
         -DENABLE_INTEL_GPU=OFF
         -DENABLE_CPPLINT=OFF
@@ -116,6 +117,7 @@ jobs:
         -DENABLE_COMPILE_TOOL=OFF
         -DENABLE_OV_TF_FRONTEND=OFF
         -DENABLE_OV_PADDLE_FRONTEND=OFF
+        -DENABLE_OV_PYTORCH_FRONTEND=OFF
         -DENABLE_OPENVINO_DEBUG=OFF
         -S $(REPO_DIR)
         -B $(BUILD_DIR)
