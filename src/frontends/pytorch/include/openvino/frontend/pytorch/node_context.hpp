@@ -55,15 +55,17 @@ public:
         return res;
     }
 
+    Any get_input_type(size_t index) const {
+        return m_decoder->get_input_type(index);
+    }
+
     bool input_is_none(size_t index) const {
         return m_decoder->input_is_none(index);
     }
 
     // Convert the resulting value of this node to ov Constant; works correctly only for nodes that produce
     // constant value, naturally for prim::Constant
-    OutputVector as_constant() const {
-        return m_decoder->as_constant();
-    }
+    OutputVector as_constant() const;
 
     /*
     TODO: Should be uncommented when explicit NodeContext ctor won't require passing op_type
