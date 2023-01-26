@@ -16,7 +16,7 @@ namespace frontend {
 namespace tensorflow_lite {
 
 class TensorLitePlace;
-class TensorInfo;
+struct TensorInfo;
 
 class DecoderFlatBuffer : public ov::frontend::DecoderBase {
 public:
