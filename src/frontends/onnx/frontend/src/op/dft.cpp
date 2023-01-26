@@ -5,6 +5,7 @@
 #include "op/dft.hpp"
 
 #include "default_opset.hpp"
+#include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph {
@@ -20,14 +21,12 @@ bool try_convert_real_to_complex(ov::Output<ov::Node>& data) {
         const auto length = data.get_partial_shape().rank().get_length();
         const auto last_axis_pos = length - 1;
         const auto last_dim = data.get_partial_shape()[last_axis_pos];
-        if (last_dim.is_static()) {
-            if (last_dim.get_length() == 1) {
-                ov::Output<ov::Node> imag_part = default_opset::Constant::create(data.get_element_type(), {}, {0});
-                imag_part = std::make_shared<default_opset::Broadcast>(imag_part,
-                                                                       std::make_shared<default_opset::ShapeOf>(data));
-                data = std::make_shared<default_opset::Concat>(OutputVector{data, imag_part}, last_axis_pos);
-                return true;
-            }
+        if (last_dim.is_static() && last_dim.get_length() == 1) {
+            ov::Output<ov::Node> imag_part = default_opset::Constant::create(data.get_element_type(), {}, {0});
+            imag_part =
+                std::make_shared<default_opset::Broadcast>(imag_part, std::make_shared<default_opset::ShapeOf>(data));
+            data = std::make_shared<default_opset::Concat>(OutputVector{data, imag_part}, last_axis_pos);
+            return true;
         }
     }
     // [D_0, D_1, ..., D_{N-1}, 2] case, so additional transformations not needed or we are not able to check it during
@@ -40,7 +39,7 @@ OutputVector dft(const Node& node) {
     const OutputVector ng_inputs{node.get_ng_inputs()};
     ov::Output<ov::Node> data = ng_inputs.at(0);
 
-    const auto dft_length_provided = ng_inputs.size() > 1;
+    const auto dft_length_provided = ng_inputs.size() > 1 && !ngraph::op::is_null(ng_inputs[1]);
     const auto axis = node.get_attribute_value<int64_t>("axis", 1);
     const auto axis_const = default_opset::Constant::create(element::i64, {1}, {axis});
     const auto inverse = node.get_attribute_value<int64_t>("inverse", 0);

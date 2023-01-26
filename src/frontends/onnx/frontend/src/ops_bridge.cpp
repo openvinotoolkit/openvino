@@ -333,6 +333,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
     REGISTER_OPERATOR("DequantizeLinear", 13, dequantize_linear);
     REGISTER_OPERATOR("Div", 1, div);
+    REGISTER_OPERATOR("Div", 7, div);
     REGISTER_OPERATOR("DFT", 1, dft);
     REGISTER_OPERATOR("Dropout", 1, dropout);
     REGISTER_OPERATOR("Dropout", 7, dropout);
