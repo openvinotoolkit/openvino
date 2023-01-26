@@ -35,9 +35,7 @@ void op::v0::Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    auto output_shapes = std::vector<PartialShape>(1, ov::PartialShape{});
-    shape_infer(this, input_shapes, output_shapes);
+    auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
@@ -57,10 +55,11 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     auto repeats_val = read_index_vector(axis);
     const auto repeats_rank = repeats_val.size();
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {data->get_shape(), axis->get_shape()};
-    shape_infer(this, input_shapes, output_shapes, {{1, axis}});
-    const auto& output_shape = output_shapes[0].to_shape();
+    auto axis_tensor = Tensor(axis->get_element_type(), axis->get_shape(), axis->get_data_ptr());
+    auto const_map = std::map<size_t, std::reference_wrapper<const Tensor>>{{1, axis_tensor}};
+
+    const auto input_shapes = std::vector<ov::PartialShape>{data->get_shape(), axis->get_shape()};
+    const auto& output_shape = shape_infer(this, input_shapes, const_map).front().to_shape();
     if (!output->get_is_allocated()) {
         output->set_shape(output_shape);
     }
@@ -75,14 +74,40 @@ bool op::v0::Tile::evaluate_tile(const HostTensorVector& outputs, const HostTens
     return true;
 }
 
-bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v0::Tile::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
     OV_OP_SCOPE(v0_Tile_evaluate);
-    return evaluate_tile(outputs, inputs);
+    const auto& data = input_values[0];
+    const auto& axis = input_values[1];
+    auto& output = output_values[0];
+    auto repeats_val = get_tensor_data_as<int64_t>(axis, ov::util::Cast<int64_t>());
+    const auto repeats_rank = repeats_val.size();
+
+    std::vector<ov::PartialShape> input_shapes = {data.get_shape(), axis.get_shape()};
+
+    auto const_map = std::map<size_t, std::reference_wrapper<const Tensor>>{{1, axis}};
+    const auto& output_shape = shape_infer(this, input_shapes, const_map).front().to_shape();
+    output.set_shape(output_shape);
+    repeats_val.insert(repeats_val.begin(), output_shape.size() - repeats_rank, 1);
+    ngraph::runtime::reference::tile(static_cast<const char*>(data.data()),
+                                     static_cast<char*>(output.data()),
+                                     data.get_shape(),
+                                     output_shape,
+                                     data.get_element_type().size(),
+                                     repeats_val);
+
+    return true;
 }
 
 bool op::v0::Tile::has_evaluate() const {
     OV_OP_SCOPE(v0_Tile_has_evaluate);
     return true;
+}
+
+bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    // This duplicate version for ov::Tensor because template plugin and shape inference utils
+    // are not ready for usage with ov::Tensor when it happens this function can be removed.
+    OV_OP_SCOPE(v0_Tile_evaluate);
+    return evaluate_tile(outputs, inputs);
 }
 
 bool op::v0::Tile::evaluate_lower(const HostTensorVector& output_values) const {

@@ -64,7 +64,7 @@ void shape_infer(const StridedSlice* op,
 
     std::unique_ptr<std::vector<int64_t>> strides;
     if (input_shapes.size() > 3) {
-        strides = get_input_const_data_as<T, int64_t>(op, 3, constant_data, sh_infer::tr::Cast<int64_t>());
+        strides = get_input_const_data_as<T, int64_t>(op, 3, constant_data);
     } else if (begin) {
         // generate default strides
         strides.reset(new std::vector<int64_t>(begin->size(), 1));
