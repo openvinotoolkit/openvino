@@ -4,12 +4,13 @@
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
+
+#include "bound_evaluation_util.hpp"
 
 using namespace ngraph;
 
@@ -46,7 +47,7 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
 
         const auto& input = pattern_map.at(input_pattern);
         std::vector<Node*> tmp;
-        if (ngraph::could_propagate(input, tmp)) {
+        if (ov::could_propagate(input, tmp)) {
             // disable ConstantFolding if dequantization subgraph is on constant data
             ov::disable_constant_folding(convert);
         }

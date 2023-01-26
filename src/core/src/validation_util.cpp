@@ -9,6 +9,7 @@
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
+#include "bound_evaluation_util.hpp"
 #include "compare.hpp"
 #include "dimension_tracker.hpp"
 #include "ngraph/evaluator.hpp"

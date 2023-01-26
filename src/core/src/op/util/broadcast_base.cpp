@@ -7,6 +7,7 @@
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"

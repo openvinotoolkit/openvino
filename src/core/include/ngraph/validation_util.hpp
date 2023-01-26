@@ -14,17 +14,12 @@
 #include "openvino/core/validation_util.hpp"
 
 namespace ngraph {
-using ov::could_propagate;
-using ov::default_lower_bound_evaluator;
-using ov::default_upper_bound_evaluator;
 using ov::evaluate_as_partial_shape;
 using ov::get_constant_from_source;
 using ov::infer_auto_padding;
 using ov::infer_convolution_forward;
-using ov::interval_bound_evaluator;
 using ov::normalize_axes;
 using ov::normalize_axis;
-using ov::tensor_is_positive;
 
 NGRAPH_API
 Strides conv_default_strides(const Node* node, const PartialShape& data_batch_shape, const PartialShape& filters_shape);

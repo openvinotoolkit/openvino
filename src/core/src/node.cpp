@@ -6,12 +6,12 @@
 
 #include <memory>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
 
 #include "atomic_guard.hpp"
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"

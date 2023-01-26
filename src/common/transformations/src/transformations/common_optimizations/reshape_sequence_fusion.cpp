@@ -7,10 +7,10 @@
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <vector>
 
+#include "bound_evaluation_util.hpp"
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
