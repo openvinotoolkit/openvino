@@ -27,9 +27,11 @@
 'category: CPP API':
 - 'src/inference/include/**/*'
 - 'src/core/include/**/*'
-- 'src/frontends/common/**/*'
+- 'src/frontends/common/include/**/*'
 - 'src/frontends/onnx/frontend/include/**/*'
 - 'src/frontends/tensorflow/include/**/*'
+- 'src/frontends/tensorflow_lite/include/**/*'
+- 'src/frontends/pytorch/include/**/*'
 - 'src/frontends/paddle/include/**/*'
 
 'category: CPU':
