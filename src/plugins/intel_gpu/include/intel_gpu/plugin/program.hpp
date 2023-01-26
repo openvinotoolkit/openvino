@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,14 @@
 
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
+#include "gpu/gpu_config.hpp"
 
-#include "intel_gpu/plugin/device_config.hpp"
 
+#include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/program.hpp"
 
 // Forward declarations for cldnn part
 namespace cldnn {
@@ -31,11 +34,11 @@ enum class eltwise_mode : int32_t;
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
 void __register ## _ ## op_name ## _ ## op_version();                                             \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
-    Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
-    [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
-        auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
+    Program::RegisterFactory<ov::op::op_version::op_name>(                                        \
+    [](Program& p, const std::shared_ptr<ov::Node>& op) {                                         \
+        auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);              \
         if (!op_casted)                                                                           \
-            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__;         \
+            IE_THROW() << "Invalid ov Node type passed into " << __PRETTY_FUNCTION__;             \
         Create##op_name##Op(p, op_casted);                                                        \
        });                                                                                        \
 }
@@ -78,19 +81,13 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+    Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
             bool createTopologyOnly = false, bool partialBuild = false);
-    Program(std::shared_ptr<cldnn::engine> engine, const Config& config)
+    Program(cldnn::engine& engine, const ExecutionConfig& config)
         : m_max_batch(1)
         , m_curBatch(-1)
         , m_config(config)
         , m_engine(engine)
-        , queryMode(false) {}
-    Program()
-        : m_max_batch(1)
-        , m_curBatch(-1)
-        , m_config()
-        , m_engine(nullptr)
         , queryMode(false) {}
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -109,6 +106,7 @@ public:
     std::map<std::string, cldnn::layout> inputLayouts;
     using BlobCacheKey = std::pair<const char*, std::vector<size_t>>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+    CustomLayerMap m_custom_layers;
 
     int m_max_batch;
     int m_curBatch;
@@ -119,9 +117,8 @@ public:
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return inputLayouts; }
     InferenceEngine::InputsDataMap GetNetworkInputs() const { return m_networkInputs; }
     InferenceEngine::OutputsDataMap GetNetworkOutputs() const { return m_networkOutputs; }
-    cldnn::engine& GetEngine() const { return *m_engine; }
-    std::shared_ptr<cldnn::engine> GetEnginePtr() const { return m_engine; }
-    const Config& GetConfig() const { return m_config; }
+    cldnn::engine& get_engine() const { return m_engine; }
+    const ExecutionConfig& get_config() const { return m_config; }
     int GetMaxBatchSizeForSingleProgram();
 
     bool IsOpSupported(const InferenceEngine::CNNNetwork& network, const std::shared_ptr<ngraph::Node>& op);
@@ -166,8 +163,8 @@ public:
 private:
     static factories_map_t factories_map;
     std::vector<std::shared_ptr<cldnn::program>> m_programs;
-    Config m_config;
-    std::shared_ptr<cldnn::engine> m_engine;
+    ExecutionConfig m_config;
+    cldnn::engine& m_engine;
 
     std::shared_ptr<cldnn::topology> m_topology;
     InferenceEngine::InputsDataMap m_networkInputs;

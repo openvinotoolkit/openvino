@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,10 +49,10 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::get(
     const BranchNodes branchNodes2 = getBranch(actualValues.branch2);
 
     auto multiplyOriginal = opset1::Multiply(
-        ngraph::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get());
+        ov::op::TemporaryReplaceOutputType(branchNodes1.dequantization, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(branchNodes2.dequantization, element::f32).get());
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
+    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         multiplyOriginal,
         std::vector<element::Type>{element::f32, element::f32},
         std::vector<element::Type>{precision});

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 
 namespace ngraph {
 namespace onnx_import {
-Subgraph Attribute::get_subgraph(const Graph* parent_graph) const {
+Subgraph Attribute::get_subgraph(Graph* parent_graph) const {
     if (m_attribute_proto->type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH) {
         throw error::attribute::InvalidData{m_attribute_proto->type()};
     }

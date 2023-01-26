@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,8 @@
 #include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <ie_icore.hpp>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal {
     std::shared_ptr<GNAPlugin> plg;
@@ -135,4 +136,5 @@ class GNAExecutableNetwork : public InferenceEngine::IExecutableNetworkInternal 
     }
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

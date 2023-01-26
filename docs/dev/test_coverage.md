@@ -47,7 +47,6 @@ OpenVINO components define several common groups which allow to run tests for se
  - CPU - CPU plugin tests
  - GPU - GPU plugin tests
  - GNA - GNA plugin tests
- - VPU - VPU plugin tests
 
 
 After sufficient number of tests are executed, the coverage numbers can be calculated. In order to do this, run:
@@ -66,7 +65,6 @@ coverage/paddle_frontend/index.html
 coverage/tf_frontend/index.html
 coverage/openvino/index.html
 coverage/onnx_frontend/index.html
-coverage/legacy/index.html
 coverage/ir_frontend/index.html
 coverage/low_precision_transformations/index.html
 coverage/template_plugin/index.html

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,13 @@
 
 #include <ie_common.h>
 #include <legacy/ie_layers.h>
-#include "dnn_types.h"
+#include "dnn_types.hpp"
 
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace backend {
+
 struct DnnComponentExtra {
     std::string name;
     intel_dnn_component_t dnnComponent;
@@ -71,5 +73,7 @@ struct DnnComponents {
 private:
     uint32_t delayedOperations = 0;
 };
+
 }  // namespace backend
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

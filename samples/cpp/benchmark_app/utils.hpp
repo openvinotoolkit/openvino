@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,11 +29,11 @@ const std::unordered_set<std::string> supported_binary_extensions = {"bin"};
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
-inline uint64_t get_duration_in_milliseconds(uint32_t duration) {
+inline uint64_t get_duration_in_milliseconds(uint64_t duration) {
     return duration * 1000LL;
 }
 
-inline uint64_t get_duration_in_nanoseconds(uint32_t duration) {
+inline uint64_t get_duration_in_nanoseconds(uint64_t duration) {
     return duration * 1000000000LL;
 }
 

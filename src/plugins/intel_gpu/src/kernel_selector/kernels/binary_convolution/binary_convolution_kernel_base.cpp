@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -162,7 +162,6 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      !newParams.bias.empty(),
                      1,
                      fused_deps_total);
-    kernel.params.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
     kd.autoTuneIndex = autoTuneIndex;
 

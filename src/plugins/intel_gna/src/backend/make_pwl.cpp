@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,9 +10,9 @@
 
 #include "runtime/pwl.h"
 #include "make_pwl.hpp"
-#include "gna_slope_scale.h"
-#include "dnn_types.h"
-#include "backend/gna_types.h"
+#include "gna_slope_scale.hpp"
+#include "dnn_types.hpp"
+#include "backend/gna_types.hpp"
 #include "common/numerical_utils.hpp"
 #include "pwl_input_params.hpp"
 #include "pwl_segments_creator_factory.hpp"

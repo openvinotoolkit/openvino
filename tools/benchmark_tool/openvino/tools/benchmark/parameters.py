@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys, argparse
@@ -25,17 +25,26 @@ class print_help(argparse.Action):
           show_available_devices()
           sys.exit()
 
+class HelpFormatterWithLines(argparse.HelpFormatter):
+     def _split_lines(self, text, width):
+          lines = super()._split_lines(text, width)
+          lines += ['']
+          if "simple JSON file" not in text:
+               return lines
+          lines = text.split('\n')
+          return lines
+
 def parse_args():
-     parser = argparse.ArgumentParser(add_help=False)
+     parser = argparse.ArgumentParser(add_help=False, formatter_class=HelpFormatterWithLines)
      args = parser.add_argument_group('Options')
      args.add_argument('-h', '--help', action=print_help, nargs='?', default=argparse.SUPPRESS,
                          help='Show this help message and exit.')
      args.add_argument('-i', '--paths_to_input', action='append', nargs='+', type=str, required=False,
                          help='Optional. '
                               'Path to a folder with images and/or binaries or to specific image or binary file.'
-                              'It is also allowed to map files to network inputs: '
+                              'It is also allowed to map files to model inputs: '
                               'input_1:file_1/dir1,file_2/dir2,input_4:file_4/dir4 input_2:file_3/dir3 '
-                              'Currently supported data types: bin, npy. If OPENCV is enabled, this functionality'
+                              'Currently supported data types: bin, npy. If OPENCV is enabled, this functionality '
                               'is extended with the following data types: bmp, dib, jpeg, jpg, jpe, jp2, png, pbm, '
                               'pgm, ppm, sr, ras, tiff, tif.')
      args.add_argument('-m', '--path_to_model', type=str, required=True,
@@ -85,7 +94,7 @@ def parse_args():
                               'Prompts how model layouts should be treated by application. '
                               'For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.')
      args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
-                         help='Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD '
+                         help='Optional. Number of streams to use for inference on the CPU/GPU '
                               '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
                               'or just <nstreams>). '
                               'Default value is determined automatically for a device. Please note that although the automatic selection '
@@ -132,30 +141,29 @@ def parse_args():
      args.add_argument('-dump_config', type=str, required=False, default='',
                          help="Optional. Path to JSON file to dump OpenVINO parameters, which were set by application.")
      args.add_argument('-load_config', type=str, required=False, default='',
-                      help="Optional. Path to JSON file to load custom OpenVINO parameters.\n"
-                           "Please note, command line parameters have higher priority then parameters from configuration file.\n"
-                           "Example 1: a simple JSON file for HW device with primary properties.\n"
-                           "             {\n"
-                           "                \"CPU\": {\"NUM_STREAMS\": \"3\", \"PERF_COUNT\": \"NO\"}\n"
-                           "             }\n"
-                           "Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.\n"
-                           "             {\n"
-                           "                \"AUTO\": {\n"
-                           "                     \"PERFORMANCE_HINT\": \"\",\n"
-                           "                     \"PERF_COUNT\": \"NO\",\n"
-                           "                     \"DEVICE_PROPERTIES\": {\n"
-                           "                          \"CPU\": {\n"
-                           "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-                           "                               \"NUM_STREAMS\": \"3\"\n"
-                           "                          },\n"
-                           "                          \"GPU\": {\n"
-                           "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
-                           "                               \"NUM_STREAMS\": \"5\"\n"
-                           "                          }\n"
-                           "                     }\n"
-                           "                }\n"
-                           "             }\n")
-
+                         help="Optional. Path to JSON file to load custom OpenVINO parameters.\n"
+                              "Please note, command line parameters have higher priority then parameters from configuration file.\n"
+                              "Example 1: a simple JSON file for HW device with primary properties.\n"
+                              "             {\n"
+                              "                \"CPU\": {\"NUM_STREAMS\": \"3\", \"PERF_COUNT\": \"NO\"}\n"
+                              "             }\n"
+                              "Example 2: a simple JSON file for meta device(AUTO/MULTI) with HW device properties.\n"
+                              "             {\n"
+                              "                \"AUTO\": {\n"
+                              "                     \"PERFORMANCE_HINT\": \"\",\n"
+                              "                     \"PERF_COUNT\": \"NO\",\n"
+                              "                     \"DEVICE_PROPERTIES\": {\n"
+                              "                          \"CPU\": {\n"
+                              "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+                              "                               \"NUM_STREAMS\": \"3\"\n"
+                              "                          },\n"
+                              "                          \"GPU\": {\n"
+                              "                               \"INFERENCE_PRECISION_HINT\": \"f32\",\n"
+                              "                               \"NUM_STREAMS\": \"5\"\n"
+                              "                          }\n"
+                              "                     }\n"
+                              "                }\n"
+                              "             }\n")
      args.add_argument('-infer_precision', type=str, required=False,
                          help='Optional. Hint to specifies inference precision. Example: -infer_precision CPU:bf16,GPU:f32')
      args.add_argument('-ip', '--input_precision', type=str, required=False, choices=['boolean', 'BOOL', 'f16', 'FP16', 'f32', 'FP32', 'f64', 'FP64', 'i4', 'I4', 'i8', 'I8', 'i16', 'I16', 'i32', 'I32', 'i64', 'I64', 'u1', 'U1', 'u4', 'U4', 'u8', 'U8', 'u16', 'U16', 'u32', 'U32', 'u64', 'U64', 'bf16', 'BF16'],
