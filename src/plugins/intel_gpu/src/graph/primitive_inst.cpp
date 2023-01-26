@@ -265,29 +265,20 @@ void primitive_inst::realloc_if_needed() {
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return;
-        bool can_reuse_internal_buffer = (max_intermediates_memory_sizes.size() == ibuf_layouts.size());
-        if (can_reuse_internal_buffer) {
-            for (size_t i = 0; i < max_intermediates_memory_sizes.size(); ++i) {
-                if (ibuf_layouts[i].bytes_count() > max_intermediates_memory_sizes[i]) {
-                    can_reuse_internal_buffer = false;
-                    break;
-                }
-            }
-        }
-        if (!can_reuse_internal_buffer) {
-            allocate_internal_buffers();
-            if (max_intermediates_memory_sizes.empty()) {
-                for (auto mem : _intermediates_memory) {
-                    max_intermediates_memory_sizes.push_back(mem->size());
-                }
-            } else {
-                for (size_t i = 0; i < _intermediates_memory.size(); ++i) {
-                    max_intermediates_memory_sizes[i] = std::max(max_intermediates_memory_sizes[i], _intermediates_memory[i]->size());
-               }
-            }
-        } else {
-            for (size_t i = 0; i < _intermediates_memory.size(); ++i) {
+
+        for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
+            if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
+                // can reuse
                 _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+            } else {
+                if (i < _intermediates_memory.size()) {
+                    _intermediates_memory[i] = allocate_internal_buffer(i);
+                    max_intermediates_memory_sizes[i] = _intermediates_memory[i]->size();
+                } else {
+                    // i-th layout has not been allocated yet
+                    _intermediates_memory.push_back(allocate_internal_buffer(i));
+                    max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
+                }
             }
         }
     }
@@ -616,12 +607,12 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         max_output_layout_size = _outputs[0]->get_layout().get_tensor().count();
 }
 
-void primitive_inst::allocate_internal_buffers(void) {
+memory::ptr primitive_inst::allocate_internal_buffer(size_t idx) {
     if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
-        return;
+        return nullptr;
     const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
     if (ibuf_layouts.empty())
-        return;
+        return nullptr;
 
     auto device_mem_acc = [&](size_t a, std::pair<std::shared_ptr<primitive_inst>, int32_t> b) {
         if (!b.first->mem_allocated()) return a;
@@ -658,18 +649,30 @@ void primitive_inst::allocate_internal_buffers(void) {
             }
         }
     }
+    // allocate intermediate memory for the updated layout of buffer
+    auto layout = ibuf_layouts[idx];
+    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "]" << std::endl;
+    auto alloc_type = allocation_type::unknown;
+    if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
+        alloc_type = engine.get_preferred_memory_allocation_type();
+    } else {
+        alloc_type = engine.get_lockable_preferred_memory_allocation_type();
+    }
+    return engine.allocate_memory(layout, alloc_type);
+}
+
+void primitive_inst::allocate_internal_buffers(void) {
+    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr)
+        return;
+    const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
+    if (ibuf_layouts.empty())
+        return;
 
     // allocate intermediate memory for the updated layout of buffer
     std::vector<memory::cptr> intermediates_memory;
-    for (auto layout : ibuf_layouts) {
-        GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf]" << std::endl;
-        auto alloc_type = allocation_type::unknown;
-        if (input_device_mem && (available_device_mem_size - (int64_t)layout.bytes_count() >= 0)) {
-            alloc_type = engine.get_preferred_memory_allocation_type();
-        } else {
-            alloc_type = engine.get_lockable_preferred_memory_allocation_type();
-        }
-        intermediates_memory.push_back(engine.allocate_memory(layout, alloc_type));
+    for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
+        intermediates_memory.push_back(allocate_internal_buffer(i));
+        max_intermediates_memory_sizes.push_back(intermediates_memory[i]->size());
     }
     _intermediates_memory = intermediates_memory;
 }
