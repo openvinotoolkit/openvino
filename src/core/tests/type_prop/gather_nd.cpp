@@ -107,7 +107,7 @@ TEST(type_prop, gather_nd_fail_batch_dims_greater_indices_rank) {
 
 TEST(type_prop, gather_nd_fail_unequal_batch_dims) {
     Shape params_shape{2, 3, 4, 5};
-    Shape indices_shape{2, 1, 4};
+    Shape indices_shape{2, 1, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
 
@@ -140,8 +140,6 @@ TEST(type_prop, gather_nd_fail_indices_tuple_greater_data_rank_batch_dims2) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
-
-// ------------------------------ V0 + V5 ------------------------------
 
 TEST(type_prop, gather_nd_scalar_from_2d) {
     Shape params_shape{2, 2};
@@ -415,7 +413,7 @@ TEST(type_prop, gather_nd_8_fail_batch_dims_greater_indices_rank) {
 
 TEST(type_prop, gather_nd_8_fail_unequal_batch_dims) {
     Shape params_shape{2, 3, 4, 5};
-    Shape indices_shape{2, 1, 4};
+    Shape indices_shape{2, 1, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
 
