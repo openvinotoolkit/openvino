@@ -35,6 +35,8 @@ OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_expand);
 OP_CONVERTER(translate_expand_as);
+OP_CONVERTER(translate_eye);
+OP_CONVERTER(translate_fill_);
 OP_CONVERTER(translate_flatten);
 OP_CONVERTER(translate_floordiv);
 OP_CONVERTER(translate_floor_divide);
@@ -73,6 +75,7 @@ OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
+OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
@@ -90,11 +93,14 @@ OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
 OP_CONVERTER(translate_transpose);
+OP_CONVERTER(translate_tril);
+OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_tuple_construct);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
 OP_CONVERTER(translate_var);
+OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_view);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
@@ -165,6 +171,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::exp", op::translate_1to1_match_1_inputs<opset10::Exp>},
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
+        {"aten::eye", op::translate_eye},
+        {"aten::fill_", op::inplace_op<op::translate_fill_>},
         {"aten::flatten", op::translate_flatten},
         {"aten::floor", op::translate_1to1_match_1_inputs<opset10::Floor>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
@@ -183,6 +191,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh", op::translate_hardtanh},
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::Int", op::translate_int},
+        {"aten::IntImplicit", op::translate_int},
         {"aten::im2col", op::translate_im2col},
         {"aten::is_grad_enabled", op::return_false_scalar},
         {"aten::layer_norm", op::translate_layer_norm},
@@ -227,12 +236,14 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
+        {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_repeat},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
         {"aten::rsub", op::translate_rsub},
         {"aten::roll", op::translate_roll},
         {"aten::rsqrt", op::translate_rsqrt},
+        {"aten::ScalarImplicit", op::skip_node},
         {"aten::select", op::translate_select},
         {"aten::selu", op::translate_selu},
         {"aten::selu_", op::inplace_op<op::translate_selu>},
@@ -257,16 +268,19 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::tanh", op::translate_1to1_match_1_inputs<opset10::Tanh>},
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tanh>>},
         {"aten::tensor", op::translate_as_tensor},
-        {"aten::type_as",
-         op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
+        {"aten::tril", op::translate_tril},
+        {"aten::triu", op::translate_triu},
+        {"aten::type_as",
+         op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::var", op::translate_var},
+        {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_view},
         {"aten::where", op::translate_where},
         {"aten::zeros", op::translate_zeros},
