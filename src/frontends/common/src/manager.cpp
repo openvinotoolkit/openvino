@@ -149,14 +149,12 @@ private:
         };
 
         // List of prioritized frontends.
-        std::list<FrontEndNames> priority_list = {
-            {"ir", "ir"},
-            {"onnx", "onnx"},
-            {"tf", "tensorflow"},
-            {"tflite", "tensorflow_lite"},
-            {"paddle", "paddle"},
-            {"pytorch", "pytorch"}
-        };
+        std::list<FrontEndNames> priority_list = {{"ir", "ir"},
+                                                  {"onnx", "onnx"},
+                                                  {"tf", "tensorflow"},
+                                                  {"tflite", "tensorflow_lite"},
+                                                  {"paddle", "paddle"},
+                                                  {"pytorch", "pytorch"}};
         if (variants.empty()) {
             return nullptr;
         }
