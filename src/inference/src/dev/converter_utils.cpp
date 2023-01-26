@@ -24,6 +24,7 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "icompiled_model_wrapper.hpp"
 #include "ie_icore.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "iplugin_wrapper.hpp"
@@ -313,97 +314,6 @@ std::shared_ptr<::ov::IPlugin> ov::legacy_convert::convert_plugin(
     std::shared_ptr<::ov::IPlugin> ov_plugin(new ::InferenceEngine::IPluginWrapper(plugin));
     return ov_plugin;
 }
-
-namespace InferenceEngine {
-
-class ICompiledModelWrapper : public ov::ICompiledModel {
-public:
-    ICompiledModelWrapper(const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model)
-        : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin)),
-          m_model(model) {
-        std::vector<ov::Output<const ov::Node>> inputs, outputs;
-        for (const auto& input : m_model->getInputs()) {
-            inputs.emplace_back(input->output(0));
-        }
-        for (const auto& output : m_model->getOutputs()) {
-            outputs.emplace_back(output->output(0));
-        }
-        m_inputs = inputs;
-        m_outputs = outputs;
-    }
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const override {
-        return m_model->CreateInferRequest();
-    }
-
-    void export_model(std::ostream& model) const override {
-        m_model->Export(model);
-    }
-
-    std::shared_ptr<ov::Model> get_runtime_model() const override {
-        return m_model->GetExecGraphInfo();
-    }
-
-    void set_property(const ov::AnyMap& properties) override {
-        m_model->SetConfig(properties);
-    }
-
-    ov::Any get_property(const std::string& name) const override {
-        if (ov::loaded_from_cache == name) {
-            return m_model->isLoadedFromCache();
-        }
-        if (ov::supported_properties == name) {
-            try {
-                auto supported_properties = m_model->GetMetric(name).as<std::vector<ov::PropertyName>>();
-                supported_properties.erase(std::remove_if(supported_properties.begin(),
-                                                          supported_properties.end(),
-                                                          [](const ov::PropertyName& name) {
-                                                              return name == METRIC_KEY(SUPPORTED_METRICS) ||
-                                                                     name == METRIC_KEY(SUPPORTED_CONFIG_KEYS);
-                                                          }),
-                                           supported_properties.end());
-                return supported_properties;
-            } catch (InferenceEngine::Exception&) {
-                auto ro_properties = m_model->GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-                auto rw_properties =
-                    m_model->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-                std::vector<ov::PropertyName> supported_properties;
-                for (auto&& ro_property : ro_properties) {
-                    if (ro_property != METRIC_KEY(SUPPORTED_METRICS) &&
-                        ro_property != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-                        supported_properties.emplace_back(ro_property, ov::PropertyMutability::RO);
-                    }
-                }
-                for (auto&& rw_property : rw_properties) {
-                    supported_properties.emplace_back(rw_property, ov::PropertyMutability::RW);
-                }
-                supported_properties.emplace_back(ov::supported_properties.name(), ov::PropertyMutability::RO);
-                supported_properties.emplace_back(ov::loaded_from_cache.name(), ov::PropertyMutability::RO);
-                return supported_properties;
-            }
-        }
-        try {
-            return m_model->GetMetric(name);
-        } catch (InferenceEngine::Exception&) {
-            return m_model->GetConfig(name);
-        }
-    }
-
-    ov::RemoteContext get_context() const override {
-        return {m_model->GetContext(), {}};
-    }
-
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_model() {
-        return m_model;
-    }
-
-private:
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_model;
-
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_sync_infer_request() const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-};
-}  // namespace InferenceEngine
 
 namespace ov {
 

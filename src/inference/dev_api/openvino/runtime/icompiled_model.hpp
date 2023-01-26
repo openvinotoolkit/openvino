@@ -27,6 +27,7 @@ class ICompiledModelWrapper;
 
 namespace ov {
 
+class CoreImpl;
 class IPlugin;
 class IExecutableNetworkWrapper;
 
@@ -60,8 +61,10 @@ private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
     std::shared_ptr<const ov::IPlugin> m_plugin;
-    bool m_loaded_from_cache = false;
 
+    void loaded_from_cache();
+
+    friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
 

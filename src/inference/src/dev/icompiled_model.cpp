@@ -4,6 +4,8 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -36,4 +38,12 @@ std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::crea
 
 std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
     return m_plugin;
+}
+
+void ov::ICompiledModel::loaded_from_cache() {
+    if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
+        wrapper->get_model()->loadedFromCache();
+        return;
+    }
+    OPENVINO_NOT_IMPLEMENTED;
 }
