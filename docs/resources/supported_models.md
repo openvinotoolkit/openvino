@@ -11,27 +11,15 @@ before every release. These models are considered officially supported.
    :color: primary
    :outline:
 
-   All supported models [PDF]
-
-.. button-link:: _static/download/OV_2022_models_supported.pdf
-   :color: primary
-
-   All supported models [PDF]
-
-.. button-link:: _static/download/OV_2022_models_supported.pdf
-   :color: primary
-   :outline:
-
    :material-regular:`download;1.5em` Click for supported models [PDF]
 
 
+| Note that the list provided here does not include all models supported by OpenVINO.
+| If your model is not included but is similar to those that are, it is still very likely to work. 
+  If your model fails to execute properly there are a few options available: 
+
 @endsphinxdirective
 
-
-Note that the list provided here does not include all models supported by OpenVINO.
-If your model is not included but is similar to those that are, it is very likely it will work.
-
-Should a model fail to execute properly there are a few options available:  
 * If the model originates from a framework like TensorFlow or PyTorch, OpenVINO™ offers a hybrid solution. The original model can be run without explicit conversion into the OpenVINO format. For more information, see [OpenVINO TensorFlow Integration](https://docs.openvino.ai/latest/ovtf_integration.html).  
 * You can create a GitHub request for the operation(s) that are missing. These requests are reviewed regularly. You will be informed if and how the request will be accommodated. Additionally, your request may trigger a reply from someone in the community who can help.  
 * As OpenVINO™ is open source you can enhance it with your own contribution to the GitHub repository. To learn more, see the articles on [OpenVINO Extensibility](https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Intro.html).
