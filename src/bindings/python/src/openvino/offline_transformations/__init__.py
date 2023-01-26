@@ -9,8 +9,7 @@ import warnings
 
 warnings.warn(
     message="The module is private and following namespace "
-    "`offline_transformations` will be removed in "
-    "the future, use `openvino.runtime.passes` instead!",
+    "`offline_transformations` will be removed in the future.",
     category=FutureWarning,
 )
 
@@ -80,7 +79,11 @@ def compress_model_transformation(model):
     _base.compress_model_transformation(model)
 
 
-@deprecated(version="2023.1", message="The module is private and following namespace " "`offline_transformations` will be removed in " "the future.")
+@deprecated(version="2023.1", 
+            message="The module is private and following namespace " 
+            "`offline_transformations` will be removed in the future. " 
+            "This transformation will be enabled as a part of read_model method of ov::Core "
+            "and convert method of ov::Frontend classes.")
 def compress_quantize_weights_transformation(model):
     _base.compress_quantize_weights_transformation(model)
 
