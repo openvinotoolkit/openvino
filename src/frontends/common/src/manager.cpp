@@ -143,7 +143,9 @@ private:
             {".xml", {"ir", "ir"}},
             {".onnx", {"onnx", "onnx"}},
             {".pb", {"tf", "tensorflow"}},
+            {".tflite", {"tflite", "tensorflow_lite"}},
             {".pdmodel", {"paddle", "paddle"}},
+            // {".ts", {"pytorch", "pytorch"}},
         };
 
         // List of prioritized frontends.
@@ -151,7 +153,9 @@ private:
             {"ir", "ir"},
             {"onnx", "onnx"},
             {"tf", "tensorflow"},
+            {"tflite", "tensorflow_lite"},
             {"paddle", "paddle"},
+            {"pytorch", "pytorch"}
         };
         if (variants.empty()) {
             return nullptr;
