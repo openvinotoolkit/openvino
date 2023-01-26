@@ -37,7 +37,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/openvino_contrib
-    ref: master
+    ref: refs/pull/570/head
 
 jobs:
 - job: linux_arm64
