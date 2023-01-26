@@ -16,26 +16,6 @@ NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupConvolutionOptimalBS, "MarkupConvolu
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupGroupConvolutionOptimalBS, "MarkupGroupConvolutionOptimalBS", 0);
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MarkupFullyConnectedOptimalBS, "MarkupFullyConnectedOptimalBS", 0);
 
-namespace {
-// TODO: remove this WA
-bool conv_with_fused_add(const std::shared_ptr<ov::Node> node) {
-    const auto consumers = node->output(0).get_target_inputs();
-    if (consumers.size() == 1) {
-        const auto consumer = (*consumers.begin()).get_node();
-        if (ov::is_type<ov::opset1::Add>(consumer)) {
-            const auto second_parent = consumer->get_input_node_shared_ptr(1);
-            if (ov::is_type<ov::opset1::Parameter>(second_parent))
-                return true;
-            if (ov::is_type<ov::opset1::Convert>(second_parent) &&
-                ov::is_type<ov::opset1::Parameter>(second_parent->get_input_node_shared_ptr(0)))
-                return true;
-        }
-    }
-
-    return false;
-}
-}  // namespace
-
 ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
     auto conv_m = ov::pass::pattern::wrap_type<ov::opset1::Convolution>(ov::pass::pattern::has_static_shape());
 
@@ -48,11 +28,8 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         const double min_value = 1.;
         const double max_value = 10.;
         const auto original_batch = output_shape[0];
-        // std::cout << node->get_friendly_name() << std::endl << "Original bs: " << original_batch << " metric: " << metric << std::endl;
-        auto get_opt_batch = [&]() -> size_t {
-            if (conv_with_fused_add(node))
-                return original_batch;
 
+        auto get_opt_batch = [&]() -> size_t {
             auto bs = output_shape[0];
             while ((metric < min_value || metric > max_value) && bs % 2 == 0) {
                 if (metric < min_value) {
@@ -67,7 +44,6 @@ ov::intel_cpu::MarkupConvolutionOptimalBS::MarkupConvolutionOptimalBS() {
         };
 
         const auto new_batch = get_opt_batch();
-        // std::cout << "New bs: " << new_batch << " metric: " << metric << std::endl;
         // TODO: do we really need this check?
         const auto optimal_bs = original_batch % new_batch == 0 ? new_batch : original_batch;
         const auto batch_to_set = optimal_bs <= original_batch ? optimal_bs : original_batch;
@@ -103,11 +79,8 @@ ov::intel_cpu::MarkupGroupConvolutionOptimalBS::MarkupGroupConvolutionOptimalBS(
         const double min_value = 1.;
         const double max_value = 10.;
         const auto original_batch = output_shape[0];
-        // std::cout << node->get_friendly_name() << std::endl << "Original bs: " << original_batch << " metric: " << metric << std::endl;
-        auto get_opt_batch = [&]() -> size_t {
-            if (conv_with_fused_add(node))
-                return original_batch;
 
+        auto get_opt_batch = [&]() -> size_t {
             auto bs = output_shape[0];
             while ((metric < min_value || metric > max_value) && bs % 2 == 0) {
                 if (metric < min_value) {
