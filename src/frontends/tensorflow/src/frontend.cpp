@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow;
@@ -252,7 +253,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     manager.register_pass<pass::GRUBlockCellReplacer>();
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
-    manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    //manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::TransposeSinking>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
 }
