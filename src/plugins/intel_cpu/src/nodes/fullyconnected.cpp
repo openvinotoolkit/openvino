@@ -269,7 +269,7 @@ void FullyConnected::prepareParams() {
             if (dims.size() == 3) {
                 newDesc = oldDesc.permute_axes({0, 2, 1});
             } else if (dims.size() == 2) {
-                newDesc = oldDesc.reshape({1, dims[0], dims[1]}).permute_axes({0, 2, 1});
+                newDesc = oldDesc.reshape({dnnl::memory::dim{1}, dims[0], dims[1]}).permute_axes({0, 2, 1});
             } else {
                 IE_THROW();
             }

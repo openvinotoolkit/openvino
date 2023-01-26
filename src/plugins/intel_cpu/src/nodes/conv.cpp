@@ -182,7 +182,7 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         biasesDims = { groupOC };
 
         for (int i = 0; i < convolutionOp->get_strides().size(); i++) {
-            stride.push_back(convolutionOp->get_strides()[i]);
+            stride.push_back(static_cast<ptrdiff_t>(convolutionOp->get_strides()[i]));
         }
         for (int i = 0; i < convolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(convolutionOp->get_dilations()[i]) - 1);
@@ -205,7 +205,7 @@ Convolution::Convolution(const std::shared_ptr<ngraph::Node>& op, const GraphCon
         biasesDims = {groupOC * groupNum};
 
         for (int i = 0; i < groupConvolutionOp->get_strides().size(); i++) {
-            stride.push_back(groupConvolutionOp->get_strides()[i]);
+            stride.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_strides()[i]));
         }
         for (int i = 0; i < groupConvolutionOp->get_dilations().size(); i++) {
             dilation.push_back(static_cast<ptrdiff_t>(groupConvolutionOp->get_dilations()[i]) - 1);
@@ -730,7 +730,7 @@ createDescriptorInternal(const dnnl::memory::desc& inputDesc,
                          const dnnl::memory::desc& biasDesc,
                          const dnnl::memory::desc& outputDesc,
                          bool withBiases,
-                         const std::vector<size_t>& stride,
+                         const std::vector<ptrdiff_t>& stride,
                          const std::vector<ptrdiff_t>& dilation,
                          const std::vector<ptrdiff_t>& paddingL,
                          const std::vector<ptrdiff_t>& paddingR,
@@ -1290,6 +1290,7 @@ void Convolution::prepareParams() {
                                              *pAttrLocal,
                                              selected_pd->getImplementationType());
     if (!conv_prim_pd.first) {
+        // further relaxing src/dst layout
         memory::desc srcDescAny(srcDesc.dims(), srcDesc.data_type(), memory::format_tag::any);
         memory::desc dstDescAny(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::any);
         conv_prim_pd = context->getConvPrim(srcDescAny,

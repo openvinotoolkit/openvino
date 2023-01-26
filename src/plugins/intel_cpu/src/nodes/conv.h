@@ -57,7 +57,7 @@ public:
     void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
 
     const InferenceEngine::SizeVector &getWeightDims() { return weightDims; }
-    const std::vector<size_t> &getStride() { return stride; }
+    const std::vector<ptrdiff_t> &getStride() { return stride; }
     const std::vector<ptrdiff_t> &getDilation() { return dilation; }
     const std::vector<ptrdiff_t> &getPaddingL() { return paddingL; }
     const std::vector<ptrdiff_t> &getPaddingR() { return paddingR; }
@@ -117,7 +117,7 @@ private:
     bool preferLegacyZeroPoint = false;
     zpType inputZeroPointType = zpType::None;
 
-    std::vector<size_t> stride;
+    std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
@@ -129,7 +129,7 @@ private:
     size_t dw_conv_ih;
     size_t dw_conv_iw;
     std::vector<size_t> dw_conv_kernel;
-    std::vector<size_t> dw_conv_strides;
+    std::vector<ssize_t> dw_conv_strides;
     dnnl::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;

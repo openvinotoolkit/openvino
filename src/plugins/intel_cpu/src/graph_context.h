@@ -75,12 +75,33 @@ public:
                                                                       const dnnl::memory::desc& weight,
                                                                       const dnnl::memory::desc& bias,
                                                                       const dnnl::memory::desc& dst,
-                                                                      const std::vector<size_t>& stride,
+                                                                      const std::vector<ptrdiff_t>& stride,
                                                                       const std::vector<ptrdiff_t>& dilation,
                                                                       const std::vector<ptrdiff_t>& paddingL,
                                                                       const std::vector<ptrdiff_t>& paddingR,
                                                                       const dnnl::primitive_attr& attr,
                                                                       const impl_desc_type& implType) const;
+
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> getConvBackPrim(const dnnl::memory::desc& src,
+                                                                          const dnnl::memory::desc& weight,
+                                                                          const dnnl::memory::desc& dst,
+                                                                          const std::vector<ptrdiff_t>& stride,
+                                                                          const std::vector<ptrdiff_t>& dilation,
+                                                                          const std::vector<ptrdiff_t>& paddingL,
+                                                                          const std::vector<ptrdiff_t>& paddingR,
+                                                                          const dnnl::primitive_attr& attr,
+                                                                          const impl_desc_type& implType) const;
+
+    std::pair<dnnl::primitive, dnnl::primitive_desc_base> getDeconvPrim(const dnnl::memory::desc& src,
+                                                                        const dnnl::memory::desc& weight,
+                                                                        const dnnl::memory::desc& bias,
+                                                                        const dnnl::memory::desc& dst,
+                                                                        const std::vector<ptrdiff_t>& stride,
+                                                                        const std::vector<ptrdiff_t>& dilation,
+                                                                        const std::vector<ptrdiff_t>& paddingL,
+                                                                        const std::vector<ptrdiff_t>& paddingR,
+                                                                        const dnnl::primitive_attr& attr,
+                                                                        const impl_desc_type& implType) const;
 
     std::pair<dnnl::primitive, dnnl::primitive_desc_base> getInnerProductPrim(const dnnl::memory::desc& src,
                                                                               const dnnl::memory::desc& weight,

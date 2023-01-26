@@ -168,7 +168,7 @@ struct DnnlOPKey {
 struct ConvKey : public DnnlOPKey {
     using Prim = dnnl::convolution_forward;
 
-    std::vector<size_t> stride;
+    std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
@@ -257,7 +257,7 @@ std::pair<dnnl::primitive, dnnl::primitive_desc_base> GraphContext::getConvPrim(
                                                                                 const dnnl::memory::desc &weight,
                                                                                 const dnnl::memory::desc &bias,
                                                                                 const dnnl::memory::desc &dst,
-                                                                                const std::vector<size_t> &stride,
+                                                                                const std::vector<ptrdiff_t> &stride,
                                                                                 const std::vector<ptrdiff_t> &dilation,
                                                                                 const std::vector<ptrdiff_t> &paddingL,
                                                                                 const std::vector<ptrdiff_t> &paddingR,
@@ -304,6 +304,91 @@ std::pair<dnnl::primitive, dnnl::primitive_desc_base> GraphContext::getInnerProd
     key.weight = weight;
     key.bias = bias;
     key.dst = dst;
+    key.attr = attr;
+    key.implType = implType;
+    return getPrim(key);
+}
+/////////////////////////////////////////////////////////////////////////////
+struct ConvBackwardDataKey : public ConvKey {
+    using Prim = dnnl::convolution_backward_data;
+    dnnl::convolution_backward_data::desc createOPDescriptor() const {
+        auto alg = (implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd
+                                                         : dnnl::algorithm::convolution_direct;
+        return dnnl::convolution_backward_data::desc(alg,
+                                                     dst,   // diff_src_desc
+                                                     weight,
+                                                     src,   // diff_dst_desc
+                                                     dnnl::memory::dims(stride.begin(), stride.end()),
+                                                     dnnl::memory::dims(dilation.begin(), dilation.end()),
+                                                     dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                                                     dnnl::memory::dims(paddingR.begin(), paddingR.end()));
+    }
+};
+
+std::pair<dnnl::primitive, dnnl::primitive_desc_base> GraphContext::getConvBackPrim(
+    const dnnl::memory::desc& src,
+    const dnnl::memory::desc& weight,
+    const dnnl::memory::desc& dst,
+    const std::vector<ptrdiff_t>& stride,
+    const std::vector<ptrdiff_t>& dilation,
+    const std::vector<ptrdiff_t>& paddingL,
+    const std::vector<ptrdiff_t>& paddingR,
+    const dnnl::primitive_attr& attr,
+    const impl_desc_type& implType) const {
+    ConvBackwardDataKey key;
+    key.src = src;
+    key.weight = weight;
+    key.dst = dst;
+    key.stride = stride;
+    key.dilation = dilation;
+    key.paddingL = paddingL;
+    key.paddingR = paddingR;
+    key.attr = attr;
+    key.implType = implType;
+    return getPrim(key);
+}
+/////////////////////////////////////////////////////////////////////////////
+struct DeconvKey : public ConvKey {
+    using Prim = dnnl::deconvolution_forward;
+    dnnl::deconvolution_forward::desc createOPDescriptor() const {
+        auto NormalizedBias = bias;
+        if (NormalizedBias) {
+            // WA to align IR bias representation (3 to 5 rank tensors) to oneDNN representation (1 rank tensor)
+            NormalizedBias = NormalizedBias.reshape({static_cast<dnnl::memory::dim>(dst.dims()[1])});
+        }
+        return dnnl::deconvolution_forward::desc(dnnl::prop_kind::forward_inference,
+                                                 dnnl::algorithm::deconvolution_direct,
+                                                 src,
+                                                 weight,
+                                                 NormalizedBias,
+                                                 dst,
+                                                 dnnl::memory::dims(stride.begin(), stride.end()),
+                                                 dnnl::memory::dims(dilation.begin(), dilation.end()),
+                                                 dnnl::memory::dims(paddingL.begin(), paddingL.end()),
+                                                 dnnl::memory::dims(paddingR.begin(), paddingR.end()));
+    }
+};
+
+std::pair<dnnl::primitive, dnnl::primitive_desc_base> GraphContext::getDeconvPrim(
+    const dnnl::memory::desc& src,
+    const dnnl::memory::desc& weight,
+    const dnnl::memory::desc& bias,
+    const dnnl::memory::desc& dst,
+    const std::vector<ptrdiff_t>& stride,
+    const std::vector<ptrdiff_t>& dilation,
+    const std::vector<ptrdiff_t>& paddingL,
+    const std::vector<ptrdiff_t>& paddingR,
+    const dnnl::primitive_attr& attr,
+    const impl_desc_type& implType) const {
+    DeconvKey key;
+    key.src = src;
+    key.weight = weight;
+    key.bias = bias;
+    key.dst = dst;
+    key.stride = stride;
+    key.dilation = dilation;
+    key.paddingL = paddingL;
+    key.paddingR = paddingR;
     key.attr = attr;
     key.implType = implType;
     return getPrim(key);
