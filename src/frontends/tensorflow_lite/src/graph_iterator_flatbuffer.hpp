@@ -11,8 +11,6 @@
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"
 
-using namespace tflite;
-
 namespace ov {
 namespace frontend {
 namespace tensorflow_lite {
@@ -26,37 +24,16 @@ struct TensorInfo {
 
 class GraphIteratorFlatBuffer {
     size_t node_index = 0;
-    std::vector<const Operator*> m_nodes;
+    std::vector<const tflite::Operator*> m_nodes;
     std::shared_ptr<tflite::Model> m_model;
 
 public:
-    template <typename T>
-    explicit GraphIteratorFlatBuffer(const std::basic_string<T>& path) {
-        std::ifstream model_file;
-        model_file.open(path, std::ios::binary | std::ios::in);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", ov::util::wstring_to_string(path));
-#else
-        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
+    explicit GraphIteratorFlatBuffer(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    explicit GraphIteratorFlatBuffer(const std::wstring& path);
 #endif
 
-        model_file.seekg(0, std::ios::end);
-        auto length = model_file.tellg();
-        model_file.seekg(0, std::ios::beg);
-        char* data = new char[length];
-        model_file.read(data, length);
-        model_file.close();
-
-        m_model = std::shared_ptr<tflite::Model>(GetMutableModel(data), [](tflite::Model* p) {});
-        const auto subgraphs = m_model->subgraphs();
-        FRONT_END_GENERAL_CHECK(subgraphs->size() == 1,
-                                "Number of sub-graphs in the model is ",
-                                subgraphs->size(),
-                                ". Supported number of sub-graphs is 1.");
-        const auto graph = *subgraphs->begin();
-        const auto operators = graph->operators();
-        m_nodes = {operators->begin(), operators->end()};
-    }
     using Ptr = std::shared_ptr<GraphIteratorFlatBuffer>;
 
     ~GraphIteratorFlatBuffer() = default;

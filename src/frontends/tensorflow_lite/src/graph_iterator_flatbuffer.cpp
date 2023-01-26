@@ -4,8 +4,39 @@
 
 #include <graph_iterator_flatbuffer.hpp>
 
-std::shared_ptr<ov::frontend::tensorflow_lite::DecoderFlatBuffer>
-ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::get_decoder() const {
+using namespace ov::frontend::tensorflow_lite;
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::wstring& path)
+    : GraphIteratorFlatBuffer(ov::util::wstring_to_string(path)) {}
+
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+GraphIteratorFlatBuffer::GraphIteratorFlatBuffer(const std::string& path) {
+    std::ifstream model_file;
+    model_file.open(path, std::ios::binary | std::ios::in);
+    FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
+
+    model_file.seekg(0, std::ios::end);
+    auto length = model_file.tellg();
+    model_file.seekg(0, std::ios::beg);
+    char* data = new char[length];
+    model_file.read(data, length);
+    model_file.close();
+
+    m_model = std::shared_ptr<tflite::Model>(tflite::GetMutableModel(data), [](tflite::Model* p) {});
+    const auto subgraphs = m_model->subgraphs();
+    FRONT_END_GENERAL_CHECK(subgraphs->size() == 1,
+                            "Number of sub-graphs in the model is ",
+                            subgraphs->size(),
+                            ". Supported number of sub-graphs is 1.");
+    const auto graph = *subgraphs->begin();
+    const auto operators = graph->operators();
+    m_nodes = {operators->begin(), operators->end()};
+}
+
+std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const {
     auto inputs_vec = (*m_model->subgraphs()->begin())->inputs();
     auto outputs_vec = (*m_model->subgraphs()->begin())->outputs();
     auto inputs = std::set<int32_t>{inputs_vec->begin(), inputs_vec->end()};
@@ -49,9 +80,9 @@ ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::get_decoder() const {
     } else {
         type = tflite::EnumNamesBuiltinOperator()[operator_code->builtin_code()];
     }
-    return std::make_shared<ov::frontend::tensorflow_lite::DecoderFlatBuffer>(m_nodes[node_index],
-                                                                              type,
-                                                                              std::to_string(node_index),
-                                                                              input_info,
-                                                                              output_info);
+    return std::make_shared<DecoderFlatBuffer>(m_nodes[node_index],
+                                               type,
+                                               std::to_string(node_index),
+                                               input_info,
+                                               output_info);
 }
