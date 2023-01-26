@@ -18,22 +18,21 @@ void printTensor(ov::Tensor t, ov::element::Type type) {
 	std::cout << std::endl; 
 }
 
-Session::Session(std::string xml_path, std::string bin_path) {
-	this->model = loadModel(xml_path, bin_path);
+Session::Session(std::string xml_path, std::string bin_path, std::string shape, std::string layout) {
+	auto model = loadModel(xml_path, bin_path);
+
+	this->model = compileModel(model, shape, layout);
+	this->shape = shape;
 }
 
-uintptr_t Session::run(std::string shape, std::string layout, uintptr_t inputBuffer, int size) {
-	ov::CompiledModel compiled_model = compileModel(this->model, shape, layout);
-
+uintptr_t Session::run(uintptr_t inputBuffer, int size) {
 	uint8_t* input_data_array = reinterpret_cast<uint8_t *>(inputBuffer);
-	ov::Tensor input_tensor = ov::Tensor(ov::element::u8, shape, input_data_array);
-	ov::Tensor output_tensor = performInference(compiled_model, input_tensor);
+	ov::Tensor input_tensor = ov::Tensor(ov::element::u8, this->shape, input_data_array);
+	ov::Tensor output_tensor = performInference(this->model, input_tensor);
 
 	int output_tensor_size = output_tensor.get_size();
-
 	std::cout << "== Output tensor size: " << output_tensor_size << std::endl;
-	std::cout << "== Float size: " << sizeof(float) * CHAR_BIT << std::endl;
-	std::cout << "== Tensor output: " << std::endl;
+	this->output_tensor_size = output_tensor_size;
 
 	auto data_tensor = reinterpret_cast<float*>(output_tensor.data(ov::element::f32)); 
 	float values[output_tensor_size];

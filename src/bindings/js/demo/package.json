@@ -4,8 +4,9 @@
   "description": "Demo of using openvinojs from nodejs environment",
   "main": "nodejs/index.js",
   "scripts": {
-    "nodejs": "cd nodejs && node index.js",
-    "browser": "http-server -c-1 ./browser/"
+    "nodejs": "cd nodejs && node index.mjs",
+    "browser": "http-server -c-1 ./browser/",
+    "postinstall": "./create_symlinks.sh"
   },
   "author": "vishniakov-nikolai",
   "license": "Apache-2.0",

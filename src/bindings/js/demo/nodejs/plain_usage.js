@@ -1,23 +1,26 @@
 const fs = require('fs');
 const { createCanvas, loadImage } = require('canvas');
 
-const openvinojs = require('../../../../../bin/ia32/Release/openvino_wasm.js');
+const openvinojs = require('../dist/openvino_wasm.js');
 
 const MODEL_PATH = '../assets/models/';
 const MODEL_FILENAME = 'v3-small_224_1.0_float';
+const IMAGE_PATH = '../assets/images/coco.jpg';
 
 openvinojs().then(async ov => {
-  console.log('== start');
+  console.log('= Start');
 
-  console.log(ov.getVersionString());
-  console.log(ov.getDescriptionString());
+  const imagenetClassesMap = (await import('../assets/imagenet_classes_map.mjs')).default;
+
+  console.log(`== OpenVINO v${ov.getVersionString()}`);
+  console.log(`== Description string: ${ov.getDescriptionString()}`);
 
   // Uploading and creating files on virtual WASM fs
   await uploadFile(`${MODEL_PATH}${MODEL_FILENAME}.bin`, ov);
   await uploadFile(`${MODEL_PATH}${MODEL_FILENAME}.xml`, ov);
 
-  const session = new ov.Session(`${MODEL_FILENAME}.xml`, `${MODEL_FILENAME}.bin`);
-  const imgData = await getArrayByImgPath('../assets/images/coco.jpg');
+  const session = new ov.Session(`${MODEL_FILENAME}.xml`, `${MODEL_FILENAME}.bin`, '[1, 224, 224, 3]', 'NHWC');
+  const imgData = await getArrayByImgPath(IMAGE_PATH);
 
   const values = new Uint8Array(imgData);
 
@@ -27,22 +30,28 @@ openvinojs().then(async ov => {
     heapSpace = ov._malloc(values.length*values.BYTES_PER_ELEMENT);
     ov.HEAPU8.set(values, heapSpace); 
 
-    heapResult = session.run('[1, 224, 224, 3]', 'NHWC', heapSpace, values.length);
+    console.time('== Inference time');
+    heapResult = session.run(heapSpace, values.length);
+    console.timeEnd('== Inference time');
   } finally {
     ov._free(heapSpace);
   }
 
-  const SIZE = 1001;
+  const SIZE = session.outputTensorSize;
 
   const arrayData = [];
   for (let v = 0; v < SIZE; v++) {
     arrayData.push(ov.HEAPF32[heapResult/Float32Array.BYTES_PER_ELEMENT + v]);
   }
 
+  console.log('== Output vector:');
   console.log(arrayData);
-  console.log(getMaxElement(arrayData));
+
+  const max = getMaxElement(arrayData);
+  console.log(`== Max index: ${max.index}, value: ${max.value}`);
+  console.log(`== Result class: ${imagenetClassesMap[max.index]}`);
   
-  console.log('== end');
+  console.log('= End');
 });
 
 async function uploadFile(path, ov) {

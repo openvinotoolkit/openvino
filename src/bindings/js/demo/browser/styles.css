@@ -1,0 +1,40 @@
+body {
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.row img {
+  border: 1px solid black; 
+  max-width: 300px;
+  max-height: 300px;
+}
+
+canvas { 
+  border: 1px solid black; 
+  margin-left: 10px;
+}
+
+.file-selector {
+  display: inline-block;
+  border: 1px solid red;
+  padding: 5px 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.file-selector input {
+  display: none;
+}
+
+.hide {
+  display: none;
+}

@@ -1,1 +1,7 @@
 node_modules
+
+browser/assets
+browser/dist
+
+dist/openvino_wasm.js
+dist/openvino_wasm.wasm

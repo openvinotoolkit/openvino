@@ -1,12 +1,16 @@
 #pragma once
 
+#include <iostream>
+
 #include "openvino/openvino.hpp"
 #include "./helpers.h"
 
 class Session {
   private:
-    std::shared_ptr<ov::Model> model;
+    ov::CompiledModel model;
   public:
-    Session(std::string xml_path, std::string bin_path);
-    uintptr_t run(std::string shape, std::string layout, uintptr_t arrayBuffer, int size);
+    std::string shape;
+    int output_tensor_size;
+    Session(std::string xml_path, std::string bin_path, std::string shape, std::string layout);
+    uintptr_t run(uintptr_t arrayBuffer, int size);
 };

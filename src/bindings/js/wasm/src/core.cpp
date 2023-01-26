@@ -71,8 +71,9 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	function("readModel", &readModel);
 
 	class_<Session>("Session")
-    .constructor<std::string, std::string>()
+    .constructor<std::string, std::string, std::string, std::string >()
     .function("run", &Session::run)
+		.property("outputTensorSize", &Session::output_tensor_size)
     ;
 }
 #endif

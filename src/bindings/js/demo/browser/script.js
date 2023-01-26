@@ -4,8 +4,8 @@ const MODEL_FILENAME = 'v3-small_224_1.0_float';
 const statusDiv = document.getElementById('status');
 
 Module().then(async ov => {
-  statusDiv.innerText = 'Ready';
-  console.log('== start');
+  statusDiv.innerText = 'OpenVINO package loaded and ready';
+  console.log('= Start');
 
   console.log(ov.getVersionString());
   console.log(ov.getDescriptionString());
@@ -14,7 +14,7 @@ Module().then(async ov => {
   await uploadFile(`${MODEL_PATH}${MODEL_FILENAME}.bin`, ov);
   await uploadFile(`${MODEL_PATH}${MODEL_FILENAME}.xml`, ov);
 
-  const session = new ov.Session(`${MODEL_FILENAME}.xml`, `${MODEL_FILENAME}.bin`);
+  const session = new ov.Session(`${MODEL_FILENAME}.xml`, `${MODEL_FILENAME}.bin`, '[1, 224, 224, 3]', 'NHWC');
 
   const imgData = await getArrayByImgPath('./assets/images/coco.jpg');
 
@@ -26,7 +26,9 @@ Module().then(async ov => {
     heapSpace = ov._malloc(values.length*values.BYTES_PER_ELEMENT);
     ov.HEAPU8.set(values, heapSpace); 
 
-    heapResult = session.run('[1, 224, 224, 3]', 'NHWC', heapSpace, values.length);
+    console.time('== Inference time');
+    heapResult = session.run(heapSpace, values.length);
+    console.timeEnd('== Inference time');
   } finally {
     ov._free(heapSpace);
   }
@@ -41,7 +43,7 @@ Module().then(async ov => {
   console.log(arrayData);
   console.log(getMaxElement(arrayData));
   
-  console.log('== end');
+  console.log('= End');
 });
 
 async function uploadFile(path, instance) {
@@ -54,7 +56,6 @@ async function uploadFile(path, instance) {
     return response.blob();
   });
 
-  const buffer = await blob.arrayBuffer();
   const data = new Uint8Array(await blob.arrayBuffer());
 
   const stream = instance.FS.open(filename, 'w+');
