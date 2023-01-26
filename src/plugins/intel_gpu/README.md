@@ -18,7 +18,7 @@ GPU Plugin contains the following components:
   * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
 * [Simplified workflow](./docs/simplified_workflow.md)
   * [Graph Optimization Passes](./docs/graph_optimization_passes.md)
-  * Execution of Inference
+  * [Execution of Inference](./docs/execution_of_inference.md)
 * Memory formats
 * Kernels and kernel selectors
 * GPU plugin operations enabling flow
