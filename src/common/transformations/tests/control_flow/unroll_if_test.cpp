@@ -287,10 +287,10 @@ TEST(TransformationTests, UnrollIfInsideIf) {
 
         f = std::make_shared<ov::Model>(ov::NodeVector{if_result}, ov::ParameterVector{X, Y});
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::PushConstantToSubgraph>();
         manager.register_pass<ov::pass::ConstantFolding>();
-        manager.register_pass<ngraph::pass::UnrollIf>();
+        manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
