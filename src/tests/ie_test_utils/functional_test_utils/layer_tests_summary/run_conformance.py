@@ -126,6 +126,10 @@ class Conformance:
         self._type = type
         self._workers = workers
         self._gtest_filter = gtest_filter
+
+        if not os.path.exists(ov_config_path) and ov_config_path != "":
+            logger.error(f"Specified config file does not exist: {ov_config_path}.")
+            exit(-1)
         self._ov_config_path = ov_config_path
 
     def __download_repo(self, https_url: str, version: str):
