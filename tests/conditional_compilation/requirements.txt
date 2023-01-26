@@ -1,4 +1,7 @@
 -c ../../src/bindings/python/constraints.txt
+numpy>=1.16.6
 pytest
 pytest-dependency
-numpy>=1.16.6
+pytest-html
+py
+PyYAML

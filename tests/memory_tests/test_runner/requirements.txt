@@ -2,6 +2,7 @@
 pytest
 py
 PyYAML
+pymongo
 jsonschema
 distro
 pytest-html

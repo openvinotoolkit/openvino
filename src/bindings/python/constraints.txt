@@ -7,7 +7,6 @@ py>=1.9.0  # Python bindings, openvino/tests, Model Optimizer
 pylint>=2.7.0  # Model Optimizer, openvino/.github
 requests>=2.25.1  # Model Optimizer, openvino/tests
 test-generator==0.1.1  # Model Optimizer, openvino/tests
-wheel>=0.38.1  # Python bindings, openvino/tests
 
 # pytest
 pytest==7.2.0; python_version >= '3.10'
@@ -18,7 +17,6 @@ pytest-html>=1.19.0
 pytest-timeout==2.0.1
 
 # Python bindings
-patchelf; sys_platform == 'linux' and platform_machine == 'x86_64'
 pygments>=2.8.1
 setuptools>=53.0.0
 
@@ -49,6 +47,7 @@ pymongo>=3.12.0
 PyYAML>=5.4.1
 scipy>=1.8; python_version >= '3.8'
 scipy~=1.7; python_version == '3.7'
+wheel>=0.38.1
 
 # openvino/.github
 ldap3==2.7
