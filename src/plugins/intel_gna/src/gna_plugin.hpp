@@ -191,6 +191,10 @@ protected:
 
     void DumpXNNToFile() const;
 
+    void pre_post_process(InferenceEngine::Blob::Ptr input_blob,
+                      InferenceEngine::Blob::Ptr output_blob,
+                      std::shared_ptr<ov::Model> model);
+
     void ImportFrames(void* ptr_dst,
                       const void* ptr_src,
                       InferenceEngine::Precision input_precision,

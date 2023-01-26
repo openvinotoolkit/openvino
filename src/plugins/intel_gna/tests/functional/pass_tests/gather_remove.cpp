@@ -3,7 +3,7 @@
 //
 
 // EMUTEX FIXME: cleanup header list
-
+#include <algorithm>
 #include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
@@ -31,7 +31,7 @@ std::vector<size_t> GenerateVector(size_t size, size_t initial_value) {
 
 std::vector<size_t> MakeGatherIndexes(size_t size) {
     std::vector<size_t> indexes = GenerateVector(size, 0);
-    std::next_permutation(indexes.begin(), indexes.end());
+    std::reverse(indexes.begin(), indexes.end());
     return indexes;
 }
 
