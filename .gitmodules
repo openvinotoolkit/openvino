@@ -63,6 +63,3 @@
 	path = thirdparty/json/nlohmann_json
 	url = https://github.com/nlohmann/json.git
 	shallow = true
-[submodule "thirdparty/flatbuffers"]
-	path = thirdparty/flatbuffers/flatbuffers
-	url = https://github.com/google/flatbuffers.git

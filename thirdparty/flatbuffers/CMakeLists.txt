@@ -15,18 +15,18 @@ else()
     set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
 endif()
 
-if(NOT (FLATBUFFERS_BUILD_FLATLIB OR FLATBUFFERS_BUILD_SHAREDLIB))
-    # create interface library with flatbuffers headers
-    add_library(flatbuffers INTERFACE)
-    target_include_directories(flatbuffers INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/flatbuffers/include>)
+# build flatc when we don't use cross-compilation
+
+set(CMAKE_VERSION 3.13)
+add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set_target_properties(flatc PROPERTIES COMPILE_OPTIONS "-Wno-shadow")
 endif()
 
-# build flatc depending on host system processor
+# build flatc using cross-compilation
 
 if(FLATBUFFERS_BUILD_FLATC)
-    add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
-
     set(flatbuffers_COMPILER $<TARGET_FILE:flatc> PARENT_SCOPE)
     set(flatbuffers_DEPENDENCY flatc PARENT_SCOPE)
 else()
@@ -59,4 +59,4 @@ endif()
 
 # set parent scope
 
-set(flatbuffers_LIBRARY flatbuffers PARENT_SCOPE)
+set(flatbuffers_LIBRARY FlatBuffers::FlatBuffers PARENT_SCOPE)
