@@ -56,7 +56,7 @@ protected:
     void SetUp() override;
 };
 
-class TransposeMatMul : public testing::WithParamInterface<ov::test::snippets::TransposeMatMulParams>,
+class TransposeMatMulTest : public testing::WithParamInterface<ov::test::snippets::TransposeMatMulParams>,
                         virtual public ov::test::SnippetsTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj);

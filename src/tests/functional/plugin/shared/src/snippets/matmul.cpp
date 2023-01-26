@@ -98,7 +98,8 @@ void ExplicitTransposeMulMatMulBias::SetUp() {
     }
 }
 
-std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj) {
+std::string TransposeMatMulTest::getTestCaseName(
+    testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj) {
     std::vector<ov::PartialShape> input_shapes;
     size_t transpose_position;
     ov::element::Type elem_type;
@@ -118,7 +119,7 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
     return result.str();
 }
 
-void TransposeMatMul::SetUp() {
+void TransposeMatMulTest::SetUp() {
     std::vector<ov::PartialShape> input_shapes;
     size_t transpose_position;
     ov::element::Type elem_type;
@@ -158,7 +159,7 @@ TEST_P(ExplicitTransposeMulMatMulBias, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
-TEST_P(TransposeMatMul, CompareWithRefImpl) {
+TEST_P(TransposeMatMulTest, CompareWithRefImpl) {
     run();
     validateNumSubgraphs();
 }
