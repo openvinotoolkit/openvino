@@ -15,7 +15,7 @@ GPU Plugin contains the following components:
 
 * [Source code structure](./docs/source_code_structure.md)
   * [Basic data structures of gpu graph and overall flow](./docs/basic_data_structures.md)
-  * Memory allocation in GPU plugin
+  * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
 * Simplified workflow
   * Graph Optimization Passes
   * Execution of Inference
@@ -28,9 +28,9 @@ GPU Plugin contains the following components:
 
 ## Attached licenses
 GPU plugin uses 3<sup>rd</sup>-party components licensed under following licenses:
-- *googletest* under [Google\* License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
-- *OpenCL™ ICD and C++ Wrapper* under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
-- *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
+- *googletest* under [Google License](https://github.com/google/googletest/blob/master/googletest/LICENSE)
+- *OpenCL™ ICD and C++ Wrapper under [Khronos™ License](https://github.com/KhronosGroup/OpenCL-CLHPP/blob/master/LICENSE.txt)
+- *RapidJSON* under [Tencent License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
 ## Support
 Please report issues and suggestions
