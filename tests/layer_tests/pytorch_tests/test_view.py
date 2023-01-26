@@ -77,7 +77,8 @@ class TestViewSize(PytorchLayerTest):
         self._test(*self.create_model(), ie_device, precision, ir_version)
 
 @pytest.mark.parametrize('input_data', [(np.random.randn(2, 3, 2), 2, 6),
-                                        (np.random.randn(4), 2, 2)])
+                                        (np.random.randn(4), 2, 2),
+                                        (np.random.randn(4), 2, 2.1)])
 class TestView(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -92,7 +93,7 @@ class TestView(PytorchLayerTest):
                 self.dim2 = input_data[2]
 
             def forward(self, input_tensor):
-                return input_tensor.view(self.dim1, self.dim2)
+                return input_tensor.view(self.dim1, int(self.dim2))
 
         ref_net = None
 
