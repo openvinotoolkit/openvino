@@ -29,7 +29,7 @@ def prepare_filelist(input_dir: os.path, pattern: str):
         head, _ = os.path.split(filelist_path)
         input_dir = head
     if os.path.isfile(filelist_path):
-        utils.utils_logger.info(f"{filelist_path} is exists! The script will update it!")
+        utils.UTILS_LOGGER.info(f"{filelist_path} is exists! The script will update it!")
     xmls = Path(input_dir).rglob(pattern)
     try:
         with open(filelist_path, 'w') as file:
@@ -37,18 +37,25 @@ def prepare_filelist(input_dir: os.path, pattern: str):
                 file.write(str(xml) + '\n')
             file.close()
     except:
-        utils.utils_logger.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
+        utils.UTILS_LOGGER.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
     return filelist_path
 
 def is_archieve(input_path: os.path):
     return tarfile.is_tarfile(input_path) or is_zipfile(input_path)
+
+def is_url(url: str):
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
 
 def unzip_archieve(zip_path: os.path, dst_path: os.path):
     _, tail = os.path.split(zip_path)
     dst_path = os.path.join(dst_path, tail)
     if zip_path != dst_path:
         copyfile(zip_path, dst_path)
-    utils.utils_logger.info(f"Archieve {zip_path} was copied to {dst_path}")
+    utils.UTILS_LOGGER.info(f"Archieve {zip_path} was copied to {dst_path}")
     dst_dir, _ = os.path.splitext(dst_path)
     if tarfile.is_tarfile(zip_path):
         file = tarfile.open(dst_path)
@@ -58,11 +65,11 @@ def unzip_archieve(zip_path: os.path, dst_path: os.path):
         with ZipFile(dst_path, 'r') as zObject:
             zObject.extractall(path=dst_dir)
     else:
-        utils.utils_logger.error(f"Impossible to extract {zip_path}")
+        utils.UTILS_LOGGER.error(f"Impossible to extract {zip_path}")
         exit(-1)
-    utils.utils_logger.info(f"Archieve {dst_path} was extacted to {dst_dir}")
+    utils.UTILS_LOGGER.info(f"Archieve {dst_path} was extacted to {dst_dir}")
     os.remove(dst_path)
-    utils.utils_logger.info(f"Archieve {dst_path} was removed")
+    utils.UTILS_LOGGER.info(f"Archieve {dst_path} was removed")
     return dst_dir
 
 # find latest changed directory
@@ -79,5 +86,14 @@ def find_latest_dir(in_dir: Path, pattern_list = list()):
                 for pattern in pattern_list: 
                     if pattern in str(os.fspath(PurePath(entity))):
                         return entity
-    utils.utils_logger.error(f"{in_dir} does not contain applicable directories to patterns: {pattern_list}")
+    utils.UTILS_LOGGER.error(f"{in_dir} does not contain applicable directories to patterns: {pattern_list}")
     exit(-1)
+
+def get_ov_path(script_dir_path: os.path, ov_dir=None, is_bin=False):
+    if ov_dir is None or not os.path.isdir(ov_dir):
+        ov_dir = os.path.abspath(script_dir_path)[:os.path.abspath(script_dir_path).find(constants.OPENVINO_NAME) + len(constants.OPENVINO_NAME)]
+    if is_bin:
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, ['bin']))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir))
+        ov_dir = os.path.join(ov_dir, find_latest_dir(ov_dir, [constants.DEBUG_DIR, constants.RELEASE_DIR]))
+    return ov_dir
