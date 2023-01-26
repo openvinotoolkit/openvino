@@ -29,6 +29,5 @@ add_subdirectory(common/preprocessing)
 add_subdirectory(bindings)
 
 if(ENABLE_TESTS)
-    add_subdirectory(tests_deprecated)
     add_subdirectory(tests)
 endif()

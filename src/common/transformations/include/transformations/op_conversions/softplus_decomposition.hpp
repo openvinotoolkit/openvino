@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("SoftPlusDecomposition", "0");
     SoftPlusDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SoftPlusDecomposition;
-}  // namespace pass
-}  // namespace ngraph
