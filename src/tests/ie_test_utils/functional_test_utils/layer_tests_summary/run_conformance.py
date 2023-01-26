@@ -91,7 +91,7 @@ class Conformance:
         self._model_path = utils.unzip_archieve(model_archieve_path, self._working_dir)
 
     def __dump_subgraph(self):
-        subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{utils.OS_BIN_FILE_EXT}')
+        subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
         if not os.path.isfile(subgraph_dumper_path):
             logger.error(f"{subgraph_dumper_path} is not exist!")
             exit(-1)
@@ -122,9 +122,9 @@ class Conformance:
     def __run_conformance(self):
         conformance_path = None
         if self._type == constants.API_CONFORMANCE:
-            conformance_path = os.path.join(self._ov_bin_path, f'{OP_CONFORMANCE_BIN_NAME}{utils.OS_BIN_FILE_EXT}')
+            conformance_path = os.path.join(self._ov_bin_path, f'{OP_CONFORMANCE_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
         else:
-            conformance_path = os.path.join(self._ov_bin_path, f'{API_CONFORMANCE_BIN_NAME}{utils.OS_BIN_FILE_EXT}')
+            conformance_path = os.path.join(self._ov_bin_path, f'{API_CONFORMANCE_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
 
         if not os.path.isfile(conformance_path):
             logger.error(f"{conformance_path} is not exist!")
@@ -157,7 +157,7 @@ class Conformance:
         logger.info(f"Report was saved to {os.path.join(report_dir, 'report.html')}")
 
     def run(self, dump_models: bool):
-        command = f'{utils.PIP_NAME} install -r {os.path.join(SCRIPT_DIR_PATH, "requirements.txt")}'
+        command = f'{constants.PIP_NAME} install -r {os.path.join(SCRIPT_DIR_PATH, "requirements.txt")}'
         process = Popen(command, shell=True)
         out, err = process.communicate()
         if err is None:

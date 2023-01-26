@@ -27,3 +27,6 @@ PY_OPENVINO = "python_api"
 
 DEBUG_DIR = "Debug"
 RELEASE_DIR = "Release"
+
+OP_CONFORMANCE = "OP"
+API_CONFORMANCE = "API"
