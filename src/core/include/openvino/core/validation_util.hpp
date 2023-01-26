@@ -248,4 +248,11 @@ OPENVINO_API std::pair<Tensor, Tensor> evaluate_both_bounds(const Output<Node>& 
 OPENVINO_API bool interval_bound_evaluator(const Node* node,
                                            TensorVector& lower_output_values,
                                            TensorVector& upper_output_values);
+
+/// \brief Constant folds a subgraph to a constant node
+///
+/// \param subgraph sink
+///
+/// \return Constant node or nullptr if unable to constantfold the subgraph
+OPENVINO_API std::shared_ptr<op::v0::Constant> constantfold_subgraph(const Output<Node>& subgraph_sink);
 }  // namespace ov

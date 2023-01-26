@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/validation_util.hpp"
-
 #include <algorithm>
 #include <ngraph/ops.hpp>
 #include <ngraph/rt_info.hpp>
@@ -24,6 +22,7 @@
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "sequnce_generator.hpp"
 
@@ -1774,3 +1773,27 @@ bool ov::are_unique(const std::vector<int64_t>& data) {
 int64_t ov::clip(const int64_t& value, const int64_t& min, const int64_t& max) {
     return std::min(std::max(value, min), max);
 };
+
+std::shared_ptr<op::v0::Constant> ov::constantfold_subgraph(const Output<Node>& subgraph_sink) {
+    if (const auto& c = ov::as_type_ptr<op::v0::Constant>(subgraph_sink.get_node_shared_ptr()))
+        return c;
+
+    const auto node = subgraph_sink.get_node();
+    const auto num_inputs = node->get_input_size();
+    if (num_inputs == 0)
+        return nullptr;
+
+    OutputVector inputs;
+    inputs.reserve(num_inputs);
+    for (size_t i = 0; i < num_inputs; i++) {
+        auto constant = constantfold_subgraph(node->input_value(i));
+        if (constant == nullptr)
+            return nullptr;
+        inputs.push_back(constant);
+    }
+
+    OutputVector outputs(node->get_output_size());
+    if (!node->constant_fold(outputs, inputs))
+        return nullptr;
+    return ov::as_type_ptr<op::v0::Constant>(outputs[subgraph_sink.get_index()].get_node_shared_ptr());
+}

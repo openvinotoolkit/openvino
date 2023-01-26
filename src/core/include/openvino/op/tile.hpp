@@ -34,6 +34,7 @@ public:
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
+    bool evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
