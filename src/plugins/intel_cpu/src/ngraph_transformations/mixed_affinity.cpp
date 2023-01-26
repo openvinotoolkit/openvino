@@ -22,10 +22,9 @@
 
 NGRAPH_RTTI_DEFINITION(ov::intel_cpu::MixedAffinity, "MixedAffinity", 0);
 
-namespace {
 using namespace ov::intel_cpu::mixed_affinity;
 
-std::unordered_map<Characteristics, Subgraph> formSubgraphs(const std::shared_ptr<ov::Model>& m) {
+std::unordered_map<Characteristics, Subgraph> ov::intel_cpu::MixedAffinity::formSubgraphs(const std::shared_ptr<ov::Model>& m) {
     std::unordered_map<Characteristics, Subgraph> subgraphs;
 
     auto optimal_bs_is_equal = [](const std::shared_ptr<ov::Node>& node, const size_t value) {
@@ -80,7 +79,6 @@ std::unordered_map<Characteristics, Subgraph> formSubgraphs(const std::shared_pt
 
     return subgraphs;
 }
-}  // namespace
 
 bool ov::intel_cpu::MixedAffinity::run_on_model(const std::shared_ptr<ov::Model>& m) {
     ov::pass::Manager markup_manager(get_pass_config());
