@@ -55,7 +55,6 @@ def aggregate_stats(stats: dict):
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
 
-
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [
