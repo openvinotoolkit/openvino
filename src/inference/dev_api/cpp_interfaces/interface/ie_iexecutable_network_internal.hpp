@@ -149,6 +149,10 @@ public:
      */
     virtual Parameter GetMetric(const std::string& name) const;
 
+    virtual Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+        return GetMetric(name);
+    };
+
     /**
      * @brief Gets the remote context.
      * @return A reference to a context

@@ -212,7 +212,12 @@ void CompiledModel::set_property(const AnyMap& config) {
     OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
+
 Any CompiledModel::get_property(const std::string& name) const {
+    OV_EXEC_NET_CALL_STATEMENT(return get_property(name, AnyMap{}));
+}
+
+Any CompiledModel::get_property(const std::string& name, const AnyMap& argument) const {
     OV_EXEC_NET_CALL_STATEMENT({
         if (ov::loaded_from_cache == name) {
             return _impl->isLoadedFromCache();
@@ -247,7 +252,7 @@ Any CompiledModel::get_property(const std::string& name) const {
             }
         }
         try {
-            return {_impl->GetMetric(name), {_so}};
+            return {_impl->GetMetric(name, argument), {_so}};
         } catch (ie::Exception&) {
             return {_impl->GetConfig(name), {_so}};
         }

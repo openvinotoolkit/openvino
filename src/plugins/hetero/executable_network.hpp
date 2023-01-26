@@ -60,6 +60,8 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
+    InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
     void Export(std::ostream& modelFile) override;
 
 private:
@@ -77,6 +79,7 @@ private:
     std::string _name;
     std::map<std::string, std::string> _config;
     std::unordered_map<std::string, std::string> _blobNameMap;
+    uint32_t _default_subgraph_id = 0;
 };
 
 }  // namespace HeteroPlugin

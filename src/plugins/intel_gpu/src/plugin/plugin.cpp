@@ -527,7 +527,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::uarch_version.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::device_id.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else if (name == ov::intel_gpu::driver_version) {
         return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};

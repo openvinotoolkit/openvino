@@ -162,14 +162,33 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
 }
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    auto get_device_priorities = [&]() {
+        auto deviceIt = options.find("TARGET_FALLBACK");
+        if (deviceIt != options.end()) {
+            return deviceIt->second.as<std::string>();
+        } else {
+            deviceIt = options.find(ov::device::priorities.name());
+            if (deviceIt != options.end()) {
+                return deviceIt->second.as<std::string>();
+            } else {
+                return GetConfig(ov::device::priorities.name(), {}).as<std::string>();
+            }
+        }
+    };
+    if (ov::caching_properties.name() == name) {
+        return decltype(ov::caching_properties)::value_type{};
+    }else if (ov::device::properties.name() == name) {
+        return decltype(ov::device::properties)::value_type{DeviceProperties(get_device_priorities(), options)};
+    } else if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
                                                       ov::device::full_name.name(),
                                                       METRIC_KEY(SUPPORTED_CONFIG_KEYS),
                                                       ov::device::architecture.name(),
                                                       METRIC_KEY(IMPORT_EXPORT_SUPPORT),
-                                                      ov::device::capabilities.name()});
+                                                      ov::device::capabilities.name(),
+                                                      ov::caching_properties.name(),
+                                                      ov::device::properties.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, getSupportedConfigKeys());
     } else if (ov::device::full_name == name) {
@@ -179,35 +198,59 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
     } else if (ov::device::architecture == name) {
-        auto deviceIt = options.find("TARGET_FALLBACK");
-        std::string targetFallback;
-        if (deviceIt != options.end()) {
-            targetFallback = deviceIt->second.as<std::string>();
-        } else {
-            deviceIt = options.find(ov::device::priorities.name());
-            if (deviceIt != options.end()) {
-                targetFallback = deviceIt->second.as<std::string>();
-            } else {
-                targetFallback = GetConfig(ov::device::priorities.name(), {}).as<std::string>();
-            }
-        }
-        return decltype(ov::device::architecture)::value_type{DeviceArchitecture(targetFallback)};
+        return decltype(ov::device::architecture)::value_type{DeviceArchitecture(get_device_priorities())};
     } else {
-        IE_THROW() << "Unsupported metric key: " << name;
+        IE_THROW() << "HETERO: Unsupported metric key: " << name;
     }
 }
+
+std::map<std::string, ov::AnyMap> Engine::DeviceProperties(const std::string& targetFallback, const ov::AnyMap& options) const {
+    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+    std::map<std::string, ov::AnyMap> res;
+    std::string requested_device_name = "";
+    if (options.count(ov::device::name.name())) {
+        requested_device_name = options.at(ov::device::name.name()).as<std::string>();
+    }
+    std::vector<ov::PropertyName> requested_names;
+    bool is_names_specified = false;
+    if (options.count(ov::property::names.name())) {
+        requested_names = options.at(ov::property::names.name()).as<std::vector<ov::PropertyName>>();
+        is_names_specified = true;
+    }
+    for (const auto& device : fallbackDevices) {
+        if (requested_device_name.empty() || requested_device_name == device) {
+            InferenceEngine::DeviceIDParser parser(device);
+            res[device] = {};
+            auto supported_names = GetCore()->get_property(parser.getDeviceName(), ov::supported_properties);
+            auto names = is_names_specified ? requested_names : supported_names;
+            for (auto& name : names) {
+                if (std::find(supported_names.begin(), supported_names.end(), name) != supported_names.end())
+                    res[device][name] = GetCore()->get_property(parser.getDeviceName(), name, options);
+            }
+        }
+    }
+    return res;
+}
+
 std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
     std::string resArch;
     for (const auto& device : fallbackDevices) {
         InferenceEngine::DeviceIDParser parser(device);
+        std::string arch = parser.getDeviceName();
 
-        auto supportedMetricKeys =
-            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
-        auto arch = (it != supportedMetricKeys.end())
-                        ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()
-                        : parser.getDeviceName();
+        auto supportedProperties = GetCore()->get_property(parser.getDeviceName(), ov::supported_properties);
+        auto it = std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::architecture.name());
+        if (it != supportedProperties.end()) {
+            arch = GetCore()->get_property(device, ov::device::architecture);
+        } else {
+            auto supportedMetricKeys =
+                GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+            auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
+            if (it != supportedMetricKeys.end()) {
+                arch = GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>();
+            }
+        }
         resArch += " " + arch;
     }
     return resArch;

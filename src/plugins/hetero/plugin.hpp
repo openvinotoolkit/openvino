@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
 
@@ -48,6 +49,7 @@ public:
 
 private:
     Configs GetSupportedConfig(const Configs& config, const std::string& deviceName) const;
+    std::map<std::string, ov::AnyMap> DeviceProperties(const std::string& targetFallback, const ov::AnyMap& options) const;
     std::string DeviceArchitecture(const std::string& targetFallback) const;
 };
 }  // namespace HeteroPlugin

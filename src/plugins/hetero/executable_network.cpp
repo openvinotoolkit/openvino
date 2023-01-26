@@ -886,7 +886,41 @@ void collectPluginMetrics(std::vector<std::string>& baseMetrics, const std::vect
 }  // namespace
 
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name) const {
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
+    return GetMetric(name, {});
+}
+
+InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    int32_t subgraph_id = -1;
+    if (options.count(ov::subgraph::id.name())) {
+        subgraph_id = options.at(ov::subgraph::id.name()).as<uint32_t>();
+    }
+    if (ov::subgraph::properties.name() == name) {
+        std::vector<ov::PropertyName> requested_names = {};
+        bool is_names_requested = false;
+        if (options.count(ov::property::names.name())) {
+            requested_names = options.at(ov::property::names.name()).as<std::vector<ov::PropertyName>>();
+            is_names_requested = true;
+        }
+        std::map<uint32_t, ov::AnyMap> props;
+        auto get_subraph_parameters = [&](uint32_t id) {
+            auto execNetwork = _networks.at(id)._network;
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            for (auto&& metricKey : param.as<std::vector<std::string>>()) {
+                if (std::find(requested_names.begin(), requested_names.end(), metricKey) != requested_names.end() || !is_names_requested)
+                    props[id][metricKey] = execNetwork->GetMetric(metricKey);
+            }
+        };
+
+        if (subgraph_id != -1) {
+            get_subraph_parameters(subgraph_id);
+        } else {
+            // collect metrics key among plugin metrics
+            for (uint32_t id = 0; id < _networks.size(); id++) {
+                get_subraph_parameters(id);
+            }
+        }
+        return decltype(ov::subgraph::properties)::value_type{props};
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
@@ -895,20 +929,26 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
 
         {
             std::vector<::Metrics> pluginMetrics;
-            for (auto&& desc : _networks) {
-                auto execNetwork = desc._network;
-                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-                ::Metrics metrics;
-                for (auto&& metricName : param.as<std::vector<std::string>>()) {
-                    metrics[metricName] = execNetwork->GetMetric(metricName);
-                }
-                pluginMetrics.push_back(std::move(metrics));
+            auto execNetwork = _networks.at(_default_subgraph_id)._network;
+            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            ::Metrics metrics;
+            for (auto&& metricName : param.as<std::vector<std::string>>()) {
+                metrics[metricName] = execNetwork->GetMetric(metricName);
             }
+            pluginMetrics.push_back(std::move(metrics));
 
             collectPluginMetrics(heteroMetrics, pluginMetrics);
         }
 
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
+    } else if (ov::supported_properties == name) {
+        std::vector<ov::PropertyName> hetero_supported_properties = {
+            ov::PropertyName{ov::model_name.name(),                       ov::PropertyMutability::RO},
+            ov::PropertyName{ov::supported_properties.name(),             ov::PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(),                ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::priorities.name(),               ov::PropertyMutability::RW}};
+        return decltype(ov::supported_properties)::value_type{hetero_supported_properties};
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {"TARGET_FALLBACK",
                                                      ov::device::priorities.name(),
@@ -943,25 +983,19 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
     } else if (name == ov::execution_devices) {
         std::vector<std::string> exeDevices;
         std::set<std::string> s;
-        for (auto&& subnetwork : _networks) {
-            if (s.count(subnetwork._device) != 0)
-                continue;
-            s.insert(subnetwork._device);
-            exeDevices.push_back(subnetwork._device);
+        if (subgraph_id != -1) {
+            exeDevices = { _networks.at(subgraph_id)._device };
+        } else {
+            for (auto&& subnetwork : _networks) {
+                if (s.count(subnetwork._device) != 0)
+                    continue;
+                s.insert(subnetwork._device);
+                exeDevices.push_back(subnetwork._device);
+            }
         }
         return decltype(ov::execution_devices)::value_type{exeDevices};
     } else {
-        // find metric key among plugin metrics
-        for (auto&& desc : _networks) {
-            auto execNetwork = desc._network;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-            for (auto&& metricKey : param.as<std::vector<std::string>>()) {
-                if (metricKey == name) {
-                    return execNetwork->GetMetric(metricKey);
-                }
-            }
-        }
-
-        IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
+        if (subgraph_id == -1) subgraph_id = _default_subgraph_id;
+        return _networks.at(subgraph_id)._network->GetMetric(name);
     }
 }

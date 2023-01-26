@@ -10,6 +10,7 @@
 #pragma once
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_iextension.h"
 #include "openvino/runtime/iplugin.hpp"
 
@@ -76,7 +77,26 @@ public:
     T get_property(const ov::Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(property.name(), arguments).template as<T>();
     }
-};
 
+   template<class...>
+    struct std_void {
+        using type = void;
+    };
+
+    template <template<typename...> class Map, typename K, typename V,
+             ov::PropertyMutability M1,
+             typename = typename std_void<typename Map<K, V>::mapped_type>::type>
+    Map<K, V> get_property(const ov::Property<Map<K, V>, M1>& property) const {
+        return get_property(property);
+    }
+
+    template <template<typename...> class Map, typename K, typename V,
+             ov::PropertyMutability M1,
+             typename = typename std_void<typename Map<K, V>::mapped_type>::type,
+             typename... Args>
+    Map<K, V> get_property(const ov::Property<Map<K, V>, M1>& property, Args&&... args) const {
+        return get_property(property.name(), AnyMap{std::forward<Args>(args)...});
+    }
+};
 }  // namespace ov
 

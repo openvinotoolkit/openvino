@@ -822,6 +822,28 @@ int main(int argc, char* argv[]) {
             next_step();
             startTime = Time::now();
             compiledModel = core.compile_model(model, device_name);
+
+            std::cout << "************************** ALL PROPERTIES" << std::endl;
+            auto subgraphs_properties = compiledModel.get_property(ov::subgraph::properties);
+            for (auto&& item : subgraphs_properties) {
+                for(auto&& config : item.second) {
+                    std::cout << item.first << " "  << config.first << ": " << config.second.as<std::string>() << std::endl;
+                }
+            }
+
+            std::cout << "************************** PROPERTIES OF FIRST SUBGRAPH" << std::endl;
+            auto subgraphs_properties1 = compiledModel.get_property(ov::supported_properties, ov::subgraph::id(1));
+            for (auto&& name : subgraphs_properties1) {
+                std::cout << name << std::endl;
+            }
+
+            std::cout << "************************** SELECTED PROPERTIES" << std::endl;
+            auto subgraphs_precisions = compiledModel.get_property(ov::subgraph::properties, ov::optimal_number_of_infer_requests);
+            for (auto&& item : subgraphs_precisions) {
+                for(auto&& config : item.second) {
+                    std::cout << item.first << " "  << config.first << ": " << config.second.as<std::string>() << std::endl;
+                }
+            }
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)

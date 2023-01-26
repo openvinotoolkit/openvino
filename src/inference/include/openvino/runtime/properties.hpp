@@ -82,6 +82,11 @@ struct StringAny<T> {
     constexpr static const bool value = std::is_convertible<T, std::pair<std::string, ov::Any>>::value;
 };
 
+template<class...>
+struct std_void {
+    using type = void;
+};
+
 template <typename T, typename... Args>
 using EnableIfAllStringAny = typename std::enable_if<StringAny<Args...>::value, T>::type;
 
@@ -642,7 +647,9 @@ static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
  * @brief Type for property to pass set of properties to specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
-struct Properties {
+struct Properties : public Property<std::map<std::string, ov::AnyMap>> {
+public:
+    using Property<std::map<std::string, ov::AnyMap>>::Property;
     /**
      * @brief Constructs property
      * @param device_name device plugin alias
@@ -679,7 +686,21 @@ struct Properties {
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
  */
-static constexpr Properties properties;
+static constexpr Properties properties{"DEVICE_PROPERTIES"};
+
+struct DeviceName : public Property<std::string> {
+public:
+    using Property<std::string>::Property;
+    /**
+     * @brief Constructs property
+     * @param id subgraph id
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const std::string& device_name) const {
+        return {std::string(name()), device_name};
+    }
+};
+static constexpr DeviceName name{"DEVICE_NAME"};
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
@@ -813,6 +834,54 @@ constexpr static const auto EXPORT_IMPORT = "EXPORT_IMPORT";  //!< Device suppor
 
 }  // namespace device
 
+namespace property {
+struct PropertyNames {
+    using value_type = std::pair<std::string, std::vector<ov::PropertyName>>;
+    /**
+     * @brief Constructs property
+     * @param property_names property names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const ov::PropertyName& property_name) const {
+        return {name(), std::vector<ov::PropertyName>{property_name}};
+    }
+    /**
+     * @brief Constructs property
+     * @param property_names property names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const std::vector<ov::PropertyName>& property_names) const {
+        return {name(), property_names};
+    }
+
+    static std::string name() {
+        return std::string("PROPERTY_NAMES");
+    }
+};
+/**
+ * @brief Read-only property to specify inserested list of properties
+ * @ingroup ie_dev_api_plugin_api
+ */
+static constexpr PropertyNames names;
+}  // namespace property
+
+namespace subgraph {
+struct SubgraphId : public Property<uint32_t, PropertyMutability::RO> {
+public:
+    using Property<uint32_t, PropertyMutability::RO>::Property;
+    /**
+     * @brief Constructs property
+     * @param id subgraph id
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const uint32_t& id) const {
+        return {std::string(name()), id};
+    }
+};
+static constexpr SubgraphId id{"SUBGRAPH_ID"};
+static constexpr Property<std::map<uint32_t, ov::AnyMap>, PropertyMutability::RO> properties{"SUBGRAPH_PROPERTIES"};
+};
+
 /**
  * @brief Namespace for streams in streams executor
  */
@@ -820,6 +889,7 @@ namespace streams {
 /**
  * @brief Class to represent number of streams in streams executor
  * @ingroup ov_runtime_cpp_prop_api
+ *
  */
 struct Num {
     using Base = std::tuple<int32_t>;  //!< NumStreams is representable as int32_t

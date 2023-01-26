@@ -321,6 +321,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
+        std::cout << "Loaded from cache : " << (loadedFromCache ? "TRUE" : "FALSE") << std::endl;
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
         } else {
@@ -364,6 +365,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         bool loadedFromCache = false;
         auto lock = cacheGuard.getHashLock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
+        std::cout << "Loaded from cache : " << (loadedFromCache ? "TRUE" : "FALSE") << std::endl;
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
         } else {
@@ -987,6 +989,7 @@ std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov:
     std::map<std::string, std::string> compileConfig;
 
     // 0. Move TARGET_FALLBACK key to getMetricConfig
+    /*
     auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
     if (targetFallbackIt == origConfig.end()) {
         targetFallbackIt = origConfig.find(ov::device::priorities.name());
@@ -1008,10 +1011,27 @@ std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov:
         // Take device name if device does not support DEVICE_ARCHITECTURE metric
         compileConfig[ov::device::architecture.name()] = deviceFamily;
     }
+    */
 
     // 3. Extract config keys which affect compile config
+    getMetricConfig.insert(origConfig.begin(), origConfig.end());
     if (device_supports_property(plugin, ov::caching_properties.name())) {
-        auto cachingProps = plugin.get_property(ov::caching_properties);
+        if (device_supports_property(plugin, ov::device::properties.name())) {
+            getMetricConfig.insert(ov::property::names(ov::caching_properties.name()));
+            auto caching_props = plugin.get_property(ov::device::properties, getMetricConfig);
+            for (const auto& item : caching_props) {
+                if (item.second.count(ov::caching_properties.name())) {
+                    auto device_name = item.first;
+                    auto prop_names = item.second.at(ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
+                    getMetricConfig[ov::device::name.name()] = device_name;
+                    getMetricConfig[ov::property::names.name()] = prop_names;
+                    auto caching_props = plugin.get_property(ov::device::properties, getMetricConfig);
+                    for (const auto& prop : caching_props.at(device_name))
+                        compileConfig[prop.first + "(" + device_name + ")"] = prop.second.as<std::string>();
+                }
+            }
+        }
+        auto cachingProps = plugin.get_property(ov::caching_properties, origConfig);
         for (const auto& prop : cachingProps) {
             // origConfig values have higher priority than plugin parameters
             auto it = origConfig.find(prop);
@@ -1019,6 +1039,8 @@ std::map<std::string, std::string> ov::CoreImpl::create_compile_config(const ov:
                 it == origConfig.end() ? plugin.get_property(prop, {}).as<std::string>() : it->second.as<std::string>();
         }
     }
+    for (auto& c : compileConfig)
+        std::cout << c.first << ": " << c.second << std::endl;
     return compileConfig;
 }
 

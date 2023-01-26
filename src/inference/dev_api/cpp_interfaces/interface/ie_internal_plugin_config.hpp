@@ -132,6 +132,5 @@ namespace ov {
  * which should affect the hash calculation for model cache
  * @ingroup ie_dev_api_plugin_api
  */
-static constexpr Property<std::vector<PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
-
+static constexpr Property<std::vector<ov::PropertyName>, PropertyMutability::RO> caching_properties{"CACHING_PROPERTIES"};
 }  // namespace ov
