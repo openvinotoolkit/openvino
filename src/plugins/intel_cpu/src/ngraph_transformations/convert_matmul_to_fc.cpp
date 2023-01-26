@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,7 +111,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
             auto transpose_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ transpose_order.size() }, transpose_order);
-            auto transpose = ngraph::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
+            auto transpose = ov::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
             if (!ngraph::is_type<ngraph::opset1::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
                 MatcherPass::register_new_node(transpose);
@@ -146,7 +146,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             NGRAPH_CHECK(K.is_static());
             std::vector<int64_t> reshape_shape_values = { -1ll, static_cast<int64_t>(K.get_length()) };
             auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, reshape_shape_values);
-            fc_input_b = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
+            fc_input_b = ov::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
             if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
             }

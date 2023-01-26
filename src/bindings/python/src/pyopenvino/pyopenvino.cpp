@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -34,6 +34,7 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/frontend/decoder.hpp"
 #include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
 #include "pyopenvino/frontend/input_model.hpp"
@@ -235,6 +236,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_frontend_FrontEnd(m);
     regclass_frontend_InputModel(m);
     regclass_frontend_NodeContext(m);
+    regclass_frontend_IDecoder(m);
 
     // frontend extensions
     regclass_frontend_TelemetryExtension(m);

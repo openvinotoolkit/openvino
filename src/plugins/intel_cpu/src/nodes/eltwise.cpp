@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1666,8 +1666,8 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-    Node(op, eng, cache, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
+Eltwise::Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+    Node(op, context, EltwiseShapeInferFactory()), broadcastingPolicy(Undefined) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -2050,7 +2050,7 @@ void Eltwise::prepareParams() {
         }
     }
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     execPtr = result.first;
 }

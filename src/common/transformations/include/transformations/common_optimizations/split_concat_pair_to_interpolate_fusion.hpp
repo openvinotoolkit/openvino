@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,9 +28,3 @@ public:
     OPENVINO_RTTI("SplitConcatPairToInterpolateFusion", "0");
     SplitConcatPairToInterpolateFusion(bool use_shape_for_elimination = true);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SplitConcatPairToInterpolateFusion;
-}  // namespace pass
-}  // namespace ngraph

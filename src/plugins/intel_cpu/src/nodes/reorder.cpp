@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,13 +55,13 @@ bool Reorder::isExecutable() const {
     return Node::isExecutable() && !isOptimized;
 }
 
-Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node(op, eng, w_cache, PassThroughShapeInferFactory()) {
+Reorder::Reorder(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     IE_THROW() << "Can't create reorder node from ngraph node";
 }
 
-Reorder::Reorder(const std::string& name, const dnnl::engine& eng, WeightsSharing::Ptr &w_cache) :
-        Node("Reorder", name, eng, w_cache) {}
+Reorder::Reorder(const std::string& name, const GraphContext::CPtr context) :
+        Node("Reorder", name, context) {}
 
 void Reorder::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)
@@ -247,7 +247,7 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         return std::make_shared<dnnl::reorder>(pd);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     std::pair<std::shared_ptr<dnnl::primitive>, CacheEntryBase::LookUpStatus> result{
         nullptr,
         CacheEntryBase::LookUpStatus::Miss};

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -99,14 +99,3 @@ public:
         add_matcher<ov::pass::PadFusionGroupConvolutionBackpropData>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::PadFusion;
-using ov::pass::PadFusionAvgPool;
-using ov::pass::PadFusionConvolution;
-using ov::pass::PadFusionConvolutionBackpropData;
-using ov::pass::PadFusionGroupConvolution;
-using ov::pass::PadFusionGroupConvolutionBackpropData;
-}  // namespace pass
-}  // namespace ngraph

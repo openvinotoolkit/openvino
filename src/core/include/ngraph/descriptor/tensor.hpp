@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,9 +16,10 @@
 #include "openvino/core/descriptor/tensor.hpp"
 
 namespace ngraph {
+using ov::TensorLabel;
+using ov::TensorLabelVector;
 namespace descriptor {
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 using ov::descriptor::Tensor;
-using TensorLabel = std::vector<size_t>;
 }  // namespace descriptor
 }  // namespace ngraph

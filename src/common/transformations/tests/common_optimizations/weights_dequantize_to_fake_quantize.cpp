@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,8 +96,8 @@ TEST_P(TranslateNewWeightFormatToOldOne, ReshapeMatMul) {
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitUniqueNames>(unh);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::WeightsDequantizeToFakeQuantize>();
     m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));

@@ -60,8 +60,8 @@ struct multiclass_nms_impl : public typed_primitive_impl_ocl<multiclass_nms> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<multiclass_nms>& instance, int32_t unused) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, unused);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<multiclass_nms>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         args.inputs.push_back(instance.output_indices_memory());
         args.inputs.push_back(instance.output_num_memory());
         return args;
