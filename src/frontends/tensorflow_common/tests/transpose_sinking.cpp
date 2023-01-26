@@ -26,10 +26,25 @@ int64_t count_ops_of_type(const shared_ptr<Model>& f) {
     return cnt;
 }
 
-TEST(TransposeSinkingTest, PassProperty) {
-    auto pass = std::make_shared<TransposeSinking>();
-    ASSERT_TRUE(pass->get_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE));
-    ASSERT_FALSE(pass->get_property(ov::pass::PassProperty::CHANGE_DYNAMIC_STATE));
+TEST(TransposeSinkingTest, DynamicShape) {
+    ov::PartialShape shape_nhwc(vector<Dimension>(4, Dimension::dynamic()));
+    auto a = make_shared<Parameter>(ngraph::element::i32, shape_nhwc);
+    auto ng_order = std::make_shared<Constant>(ngraph::element::u64, ngraph::Shape{4}, ngraph::Shape{0, 3, 1, 2});
+    auto transpose = make_shared<Transpose>(a, ng_order);
+    auto absn = make_shared<Abs>(transpose);
+    auto absn2 = make_shared<Abs>(absn);
+    absn2->output(0).set_names({"out_name"});
+    auto res = make_shared<Result>(absn2);
+    auto func = make_shared<ngraph::Function>(ngraph::OutputVector{res}, ngraph::ParameterVector{a});
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(func);
+
+    auto new_transpose =
+        ngraph::as_type_ptr<Transpose>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(new_transpose);
+    EXPECT_EQ(new_transpose->output(0).get_names(), std::unordered_set<std::string>({"out_name"}));
 }
 
 TEST(TransposeSinkingTest, TensorNames) {
