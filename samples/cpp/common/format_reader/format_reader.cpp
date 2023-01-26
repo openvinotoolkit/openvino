@@ -20,10 +20,10 @@ std::vector<Registry::CreatorFunction> Registry::_data;
 
 Register<MnistUbyte> MnistUbyte::reg;
 Register<YUV_NV12> YUV_NV12::reg;
+Register<NumpyArray> NumpyArray::reg;
 #ifdef USE_OPENCV
 Register<OCVReader> OCVReader::reg;
 #else
-Register<NumpyArray> NumpyArray::reg;
 Register<BitMap> BitMap::reg;
 #endif
 

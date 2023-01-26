@@ -3,8 +3,8 @@
 //
 
 /**
- * \brief YUV NV12 reader
- * \file yuv_nv12.h
+ * \brief NumpyArray reader
+ * \file npy.h
  */
 #pragma once
 

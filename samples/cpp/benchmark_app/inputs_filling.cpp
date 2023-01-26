@@ -126,13 +126,13 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
         if (filenames_used) {
             *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
         }
-        FormatReader::NumpyArray numpy_array_reader(files[inputIndex].c_str());
-        if(numpy_array_reader.getData() == nullptr) {
+        FormatReader::ReaderPtr numpy_array_reader(files[inputIndex].c_str());
+        if(numpy_array_reader.get() == nullptr) {
             slog::warn << "Numpy array " << files[inputIndex] << " cannot be read!" << slog::endl << slog::endl;
             continue;
         }
 
-        std::shared_ptr<uint8_t> numpy_array_data_pointer(numpy_array_reader.getData(inputInfo.width(), inputInfo.height()));
+        std::shared_ptr<uint8_t> numpy_array_data_pointer(numpy_array_reader->getData(inputInfo.width(), inputInfo.height()));
         if (numpy_array_data_pointer) {
             numpy_array_pointers.push_back(numpy_array_data_pointer);
         }
