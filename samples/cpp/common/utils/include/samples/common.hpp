@@ -607,10 +607,10 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, ov::Profil
     }
     stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
            << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 /**
