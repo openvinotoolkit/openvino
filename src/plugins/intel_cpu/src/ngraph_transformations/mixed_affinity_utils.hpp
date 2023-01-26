@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <set>
+#include <vector>
 #include <openvino/core/node.hpp>
 
 namespace ov {
@@ -13,8 +13,8 @@ namespace mixed_affinity {
 constexpr ov::label_t batch_label = 2007;
 
 struct Subgraph {
-    std::set<ov::Input<ov::Node>> starts;
-    std::set<ov::Output<ov::Node>> ends;
+    std::vector<ov::Input<ov::Node>> starts;
+    std::vector<ov::Output<ov::Node>> ends;
 };
 
 class Characteristics {

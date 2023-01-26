@@ -37,14 +37,14 @@ std::unordered_map<Characteristics, Subgraph> ov::intel_cpu::MixedAffinity::form
 
     auto add_start = [&subgraphs](const ov::Input<ov::Node>& start, const Characteristics& key) {
         if (subgraphs.count(key))
-            subgraphs[key].starts.insert(start);
+            subgraphs[key].starts.push_back(start);
         else
             subgraphs[key] = Subgraph{{start}, {}};
     };
 
     auto add_end = [&subgraphs](const ov::Output<ov::Node>& end, const Characteristics& key) {
         if (subgraphs.count(key))
-            subgraphs[key].ends.insert(end);
+            subgraphs[key].ends.push_back(end);
         else
             subgraphs[key] = Subgraph{{}, {end}};
     };
