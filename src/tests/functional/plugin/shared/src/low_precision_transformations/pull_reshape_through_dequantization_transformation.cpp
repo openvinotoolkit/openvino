@@ -86,7 +86,7 @@ void PullReshapeThroughDequantizationTransformation::Run() {
     const auto params = std::get<5>(GetParam());
     auto opName = params.operationName;
     // MixedAffinity case
-    if (shape[0].is_static() && shape[0].get_length() > 1)
+    if (targetDevice == CommonTestUtils::DEVICE_CPU && shape[0].is_static() && shape[0].get_length() > 1)
         opName += "_0";
     const auto actualType = getRuntimePrecision(opName);
     EXPECT_EQ(actualType, params.expectedKernelType);
