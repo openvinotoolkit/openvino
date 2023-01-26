@@ -563,7 +563,8 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        transfer_memory_to_device();
+        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+            transfer_memory_to_device();
     }
 
     cleanup();
