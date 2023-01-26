@@ -35,7 +35,7 @@ test_ops = [
     {'op_name': 'LEAKY_RELU', 'op_func': partial(tf.nn.leaky_relu, alpha=-0.5)},
     {'op_name': 'LOG', 'op_func': tf.math.log, 'input_generator': make_positive_array},
     {'op_name': 'LOG_SOFTMAX', 'op_func': partial(tf.nn.log_softmax, axis=1)},
-    {'op_name': 'LOGICAL_NOT', 'op_func': tf.math.logical_not, 'input_generator': make_boolean_array},
+    {'op_name': 'LOGICAL_NOT', 'op_func': tf.math.logical_not, 'input_generator': make_boolean_array, 'dtype': tf.bool},
     {'op_name': 'LOGISTIC', 'op_func': tf.math.sigmoid},
     {'op_name': 'NEG', 'op_func': tf.math.negative},
     {'op_name': 'RANK', 'op_func': tf.rank},
@@ -71,10 +71,8 @@ class TestTFLiteUnaryLayerTest(TFLiteLayerTest):
     def make_model(test_op_params: callable, shape: list):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            if test_op_params['op_name'] == 'LOGICAL_NOT':
-                tf_input = tf.compat.v1.placeholder(tf.bool, shape, name=TestTFLiteUnaryLayerTest.inputs[0])
-            else:
-                tf_input = tf.compat.v1.placeholder(tf.float32, shape, name=TestTFLiteUnaryLayerTest.inputs[0])
+            dtype = test_op_params.get('dtype') if test_op_params.get('dtype') else tf.float32
+            tf_input = tf.compat.v1.placeholder(dtype, shape, name=TestTFLiteUnaryLayerTest.inputs[0])
             test_op_params['op_func'](tf_input, name=TestTFLiteUnaryLayerTest.outputs[0])
             net = sess.graph_def
         return net
