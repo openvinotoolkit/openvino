@@ -77,6 +77,7 @@
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/smart_reshape/lstm_states_broadcast.hpp>
 #include <transformations/smart_reshape/reshape_sinking.hpp>
+#include "transformations/common_optimizations/transpose_sinking_general.hpp"
 
 #include "itt.hpp"
 
@@ -234,6 +235,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     fq_fusions->set_name("ov::pass::FakeQuantizeFusions");
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
+    REGISTER_PASS(manager, TransposeSinkingGeneral)
     REGISTER_PASS(manager, ConstantFolding)
 
     manager.run_passes(f);
