@@ -157,11 +157,8 @@ def get_params(ie_device=None, precision=None):
     :param precision: list of precisions
     """
 
-    # ie_device_params = ie_device if ie_device else test_device
-    # precision_params = precision if precision else test_precision
-
-    ie_device_params = ['CPU']
-    precision_params = ['FP32']
+    ie_device_params = ie_device if ie_device else test_device
+    precision_params = precision if precision else test_precision
 
     test_args = []
     for element in itertools.product(ie_device_params, precision_params):

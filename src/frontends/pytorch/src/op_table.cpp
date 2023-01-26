@@ -268,11 +268,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::tensor", op::translate_as_tensor},
         {"aten::to", op::translate_to},
         {"aten::transpose", op::translate_transpose},
-        {"aten::unfold", op::translate_unfold},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
         {"aten::type_as",
          op::translate_1to1_match_2_inputs<opset10::ConvertLike>},  // TODO: overflow semantics is different
+        {"aten::unfold", op::translate_unfold},
         {"aten::unsqueeze", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
