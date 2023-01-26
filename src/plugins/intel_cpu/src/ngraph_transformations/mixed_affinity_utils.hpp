@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <set>
 #include <openvino/core/node.hpp>
 
@@ -33,9 +35,7 @@ size_t get_batch_idx(const ov::PartialShape& shape);
 namespace std {
 template <>
 struct hash<ov::intel_cpu::mixed_affinity::Characteristics> {
-    size_t operator()(const ov::intel_cpu::mixed_affinity::Characteristics& other) const {
-        return std::hash<size_t>()(other.opt_bs) ^ (std::hash<size_t>()(other.n_splits) << 10);
-    }
+    size_t operator()(const ov::intel_cpu::mixed_affinity::Characteristics& other) const;
 };
 
 }  // namespace std

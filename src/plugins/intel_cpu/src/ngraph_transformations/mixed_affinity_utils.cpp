@@ -27,3 +27,9 @@ size_t get_batch_idx(const ov::PartialShape& shape) {
 }  // namespace mixed_affinity
 }  // namespace intel_cpu
 }  // namespace ov
+
+namespace std {
+size_t hash<ov::intel_cpu::mixed_affinity::Characteristics>::operator()(const  ov::intel_cpu::mixed_affinity::Characteristics& other) const {
+    return std::hash<size_t>()(other.opt_bs) ^ (std::hash<size_t>()(other.n_splits) << 10);
+}
+}  // namespace std
