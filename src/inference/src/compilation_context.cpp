@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@
 #    define stat _stat
 #endif
 
-namespace InferenceEngine {
+namespace ov {
 
 template <typename T>
 static uint64_t hash_combine(uint64_t seed, const T& a) {
@@ -41,15 +41,31 @@ static int32_t as_int32_t(T v) {
     return static_cast<int32_t>(v);
 }
 
-//////////////////////////////////////////////////
+}  // namespace ov
 
-std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
+namespace {
+
+uint64_t calculate_td(const InferenceEngine::TensorDesc& td, uint64_t _seed) {
+    uint64_t seed = _seed;
+
+    seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
+    seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
+    return seed;
+}
+
+}  // namespace
+
+namespace ov {
+
+std::string NetworkCompilationContext::calculate_file_info(const std::string& filePath) {
     uint64_t seed = 0;
     auto absPath = filePath;
-    try {
-        absPath = FileUtils::absoluteFilePath(filePath);
-    } catch (...) {
-        // can't get absolute path, will use filePath for hash
+    if (filePath.size() > 0) {
+        try {
+            absPath = FileUtils::absoluteFilePath(filePath);
+        } catch (std::runtime_error&) {
+            // can't get absolute path, will use filePath for hash
+        }
     }
 
     seed = hash_combine(seed, absPath);
@@ -63,70 +79,75 @@ std::string NetworkCompilationContext::calculateFileInfo(const std::string& file
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
-                                                   const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - CNN");
+std::string NetworkCompilationContext::compute_hash(const std::shared_ptr<const ov::Model>& model,
+                                                    const ov::AnyMap& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - Model");
 
-    IE_ASSERT(network.getFunction());
+    OPENVINO_ASSERT(model);
 
     uint64_t seed = 0;
     // 1. Calculate hash on function
-    CNNNetwork net(network);
     ov::pass::Manager m;
-    m.register_pass<ngraph::pass::FixRtInfo>();
+    m.register_pass<ov::pass::FixRtInfo>();
     m.register_pass<ov::pass::Hash>(seed);
-    m.run_passes(net.getFunction());
+    m.run_passes(std::const_pointer_cast<ov::Model>(model));
 
     // 2. Compute hash on serialized data and options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = ov::hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
 
     // 3. Add runtime information which may not be serialized
-    for (const auto& op : network.getFunction()->get_ordered_ops()) {
+    for (const auto& op : model->get_ordered_ops()) {
         const auto& rt = op->get_rt_info();
         for (const auto& rtMapData : rt) {
-            seed = hash_combine(seed, rtMapData.first);
+            seed = ov::hash_combine(seed, rtMapData.first);
             std::stringstream strm;
             rtMapData.second.print(strm);
-            seed = hash_combine(seed, strm.str());
+            seed = ov::hash_combine(seed, strm.str());
         }
     }
 
-    // 4. Add inputs info
-    for (const auto& input : network.getInputsInfo()) {
-        InputInfo::Ptr info = input.second;
-        seed = hash_combine(seed, as_int32_t(info->getPrecision()));
-        seed = hash_combine(seed, as_int32_t(info->getLayout()));
+    // 4. Legacy part if CNNNetwork is used with new Plugin API
+    for (auto&& input : model->inputs()) {
+        auto& rt_info = input.get_rt_info();
 
-        const InferenceEngine::PreProcessInfo& preproc = info->getPreProcess();
-        seed = hash_combine(seed, as_int32_t(preproc.getMeanVariant()));
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
+        }
 
-        if (preproc.getMeanVariant() == MeanVariant::MEAN_VALUE) {
-            seed = hash_combine(seed, preproc.getNumberOfChannels());
-            for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
-                const PreProcessChannel::Ptr& channelInfo = preproc[c];
-                seed = hash_combine(seed, channelInfo->stdScale);
-                seed = hash_combine(seed, channelInfo->meanValue);
+        it = rt_info.find("ie_legacy_preproc");
+        if (it != rt_info.end()) {
+            auto preproc = it->second.as<InferenceEngine::PreProcessInfo>();
+
+            seed = ov::hash_combine(seed, ov::as_int32_t(preproc.getMeanVariant()));
+
+            if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_VALUE) {
+                seed = ov::hash_combine(seed, preproc.getNumberOfChannels());
+                for (size_t c = 0; c < preproc.getNumberOfChannels(); ++c) {
+                    const InferenceEngine::PreProcessChannel::Ptr& channelInfo = preproc[c];
+                    seed = ov::hash_combine(seed, channelInfo->stdScale);
+                    seed = ov::hash_combine(seed, channelInfo->meanValue);
+                }
+            } else if (preproc.getMeanVariant() == InferenceEngine::MeanVariant::MEAN_IMAGE) {
+                // TODO: think if we need to compute hash for mean image if it exists
             }
-        } else if (preproc.getMeanVariant() == MeanVariant::MEAN_IMAGE) {
-            // TODO: think if we need to compute hash for mean image if it exists
         }
     }
-
-    // 5. Add outputs info
-    for (const auto& output : network.getOutputsInfo()) {
-        DataPtr info = output.second;
-        seed = hash_combine(seed, as_int32_t(info->getPrecision()));
-        seed = hash_combine(seed, as_int32_t(info->getLayout()));
+    for (auto&& output : model->outputs()) {
+        auto& rt_info = output.get_rt_info();
+        auto it = rt_info.find("ie_legacy_td");
+        if (it != rt_info.end()) {
+            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
+        }
     }
 
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const std::string& modelName,
-                                                   const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
+std::string NetworkCompilationContext::compute_hash(const std::string& modelName, const ov::AnyMap& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
@@ -135,35 +156,37 @@ std::string NetworkCompilationContext::computeHash(const std::string& modelName,
         seed = hash_combine(seed, modelName);
     }
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }
 
-std::string NetworkCompilationContext::computeHash(const std::string& modelStr,
-                                                   const ov::Tensor& tensor,
-                                                   const std::map<std::string, std::string>& compileOptions) {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - Model Memory");
+std::string NetworkCompilationContext::compute_hash(const std::string& modelStr,
+                                                    const ov::Tensor& tensor,
+                                                    const ov::AnyMap& compileOptions) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "NetworkCompilationContext::compute_hash - Model Memory");
     uint64_t seed = 0;
     // model string
     seed = hash_combine(seed, modelStr);
 
     // tensor data
-    seed = hash_combine(seed, tensor.get_size());
+    if (tensor) {
+        seed = hash_combine(seed, tensor.get_size());
 
-    auto ptr = static_cast<size_t*>(tensor.data());
-    size_t size = tensor.get_size() / sizeof(size_t);
-    for (size_t i = 0; i < size; i++)
-        seed = hash_combine(seed, ptr[i]);
-    auto size_done = size * sizeof(size_t);
-    auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
-    size_t size_left = tensor.get_size() - size_done;
-    for (size_t i = 0; i < size_left; i++)
-        seed = hash_combine(seed, ptr_left[i]);
+        auto ptr = static_cast<size_t*>(tensor.data());
+        size_t size = tensor.get_size() / sizeof(size_t);
+        for (size_t i = 0; i < size; i++)
+            seed = hash_combine(seed, ptr[i]);
+        auto size_done = size * sizeof(size_t);
+        auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
+        size_t size_left = tensor.get_size() - size_done;
+        for (size_t i = 0; i < size_left; i++)
+            seed = hash_combine(seed, ptr_left[i]);
+    }
 
     // compile options
     for (const auto& kvp : compileOptions) {
-        seed = hash_combine(seed, kvp.first + kvp.second);
+        seed = hash_combine(seed, kvp.first + kvp.second.as<std::string>());
     }
     return std::to_string(seed);
 }
@@ -207,4 +230,4 @@ std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header)
     return stream;
 }
 
-}  // namespace InferenceEngine
+}  // namespace ov

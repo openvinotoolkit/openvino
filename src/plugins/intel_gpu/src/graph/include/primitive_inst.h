@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -404,6 +404,26 @@ public:
 
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
+    }
+
+    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+        ov::PartialShape ps =  orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
+    }
+
+    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+        ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
+
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
     }
 
     typed_primitive_inst_base(network& network, typed_node const& node)

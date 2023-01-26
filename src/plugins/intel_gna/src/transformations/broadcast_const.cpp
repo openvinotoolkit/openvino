@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,14 +66,14 @@ bool DoTransformation(Node const_node_1, Node const_node_2, Node eltwise_node) {
     auto broadcast_const = ngraph::opset8::Constant::create(ngraph::element::Type_t::i64,
                                          ngraph::Shape{eltwise_out_shape.size()}, eltwise_out_shape);
 
-    auto new_const_node_1 = ngraph::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node_1,
+    auto new_const_node_1 = ov::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node_1,
                                                                                      broadcast_const,
                                                                                      GetBroadcastType(eltwise_node));
 
     ngraph::replace_node(const_node_1, new_const_node_1);
 
     if (const_node_2) {
-        auto new_const_node_2 = ngraph::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node_2,
+        auto new_const_node_2 = ov::op::util::make_try_fold<ngraph::opset8::Broadcast>(const_node_2,
                                                                                          broadcast_const,
                                                                                          GetBroadcastType(eltwise_node));
 

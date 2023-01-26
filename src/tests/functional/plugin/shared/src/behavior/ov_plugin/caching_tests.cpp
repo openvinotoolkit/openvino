@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,8 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -278,8 +280,8 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     target_device = targetDevice;
     APIBaseTest::SetUp();
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
-    ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
     m_modelName = ss.str() + ".xml";
     m_weightsName = ss.str() + ".bin";
     for (auto& iter : configuration) {
@@ -449,6 +451,33 @@ void CompileModelLoadFromMemoryTestBase::run() {
 }
 
 TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
+    run();
+}
+
+TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExecption) {
+    ngraph::pass::Manager manager;
+    std::shared_ptr<ov::Model> model;
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+
+        auto mul = std::make_shared<ov::op::v1::Multiply>(data, data);
+
+        auto res = std::make_shared<ov::op::v0::Result>(mul);
+        model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
+    }
+
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(model);
+
+    try {
+        std::ifstream model_file(m_modelName, std::ios::binary);
+        std::stringstream ss;
+        ss << model_file.rdbuf();
+        m_model = ss.str();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read xml file from: " << m_modelName << "\nException [" << ex.what() << "]" << std::endl;
+    }
+    m_weights = ov::Tensor();
     run();
 }
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -9,7 +9,7 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from openvino.tools.mo.main import main
-from openvino.tools.mo.utils.get_ov_update_message import get_tf_fe_message, get_tf_fe_legacy_message
+from openvino.tools.mo.utils.get_ov_update_message import get_tf_fe_message
 
 
 def arg_parse_helper(input_model,
@@ -46,7 +46,6 @@ def arg_parse_helper(input_model,
         source_layout={},
         target_layout={},
         freeze_placeholder_with_value=None,
-        tensorflow_use_custom_operations_config=None,
         data_type=None,
         tensorflow_custom_operations_config_update=None,
     )
@@ -63,18 +62,4 @@ class TestInfoMessagesTFFE(unittest.TestCase):
             main(argparse.ArgumentParser())
             std_out = f.getvalue()
         tf_fe_message_found = get_tf_fe_message() in std_out
-        tf_fe_legacy_message_found = get_tf_fe_legacy_message() in std_out
-        assert tf_fe_message_found and not tf_fe_legacy_message_found
-
-    @patch('argparse.ArgumentParser.parse_args',
-           return_value=arg_parse_helper(input_model="future_op.pbtxt",
-                                         use_legacy_frontend=True, use_new_frontend=False,
-                                         framework=None, input_model_is_text=True))
-    def test_tf_fe_legacy(self, mock_argparse):
-        f = io.StringIO()
-        with redirect_stdout(f):
-            main(argparse.ArgumentParser())
-            std_out = f.getvalue()
-        tf_fe_message_found = get_tf_fe_message() in std_out
-        tf_fe_legacy_message_found = get_tf_fe_legacy_message() in std_out
-        assert tf_fe_legacy_message_found and not tf_fe_message_found
+        assert tf_fe_message_found

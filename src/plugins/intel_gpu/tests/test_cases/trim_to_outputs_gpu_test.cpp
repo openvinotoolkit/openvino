@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,9 +24,9 @@ using namespace ::tests;
 */
 TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
-    build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv1" }));
+    config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 1, 1 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
@@ -45,7 +45,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     topology.add(cldnn::convolution("conv1", { input_info("input") }, { "weights" }, { "bias" }));
     topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights" }, { "bias" }));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -73,9 +73,9 @@ Network structure:  input  -> conv1 (output)
 */
 TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
-    build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv1" }));
+    config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -100,7 +100,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     topology.add(data("bias2", bias2));
     topology.add(cldnn::convolution("conv2", { input_info("input") }, { "weights2" }, { "bias2" }));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -130,9 +130,9 @@ Convolutions conv2, conv3 should be optimized out along with weights23 shered by
 */
 TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(cldnn::build_option::outputs({ "conv4" }));
-    build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "conv4" }));
+    config.set_property(ov::intel_gpu::optimize_data(false));             // to avoid adding reorders
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -159,7 +159,7 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     topology.add(data("weights4", weights4));
     topology.add(cldnn::convolution("conv4", { input_info("conv1") }, { "weights4" }, { "bias" }));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 

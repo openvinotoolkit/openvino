@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,8 +108,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
-            auto mem = p.GetEngine().allocate_memory(meanBlobLayout, false);
-            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.GetEngine().get_program_stream() };
+            auto mem = p.get_engine().allocate_memory(meanBlobLayout, false);
+            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.get_engine().get_service_stream() };
             auto buf = tmpPointer.data();
             auto bufSize = meanBlobLayout.bytes_count();
 
@@ -197,7 +197,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
         p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
     } else {
-        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.GetConfig().nv12_two_inputs) {
+        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
             // for NV12, create two input layouts with reorder instead of one,
             // and then would expect compound blob in inferRequest
             if (InferenceEngine::Layout::NCHW != l &&

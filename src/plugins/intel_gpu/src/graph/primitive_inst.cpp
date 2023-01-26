@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -96,9 +96,13 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     // check shared image/buffer compatibility, if applicable
     auto params = mem.get_internal_params();
     if (params.mem_type != shared_mem_type::shared_mem_empty) {
-        if (!mem.is_allocated_by(get_network().get_engine())) {
-            CLDNN_ERROR_MESSAGE(_node->id(), "Memory object is not suitable");
-        }
+        auto& net_engine = get_network().get_engine();
+        auto& mem_engine = *mem.get_engine();
+        OPENVINO_ASSERT(mem.is_allocated_by(net_engine), "[GPU] Can't set memory due to engines mismatch. ",
+                        "Network was created for ", &net_engine, " (",
+                        net_engine.get_device_info().dev_name, ") engine",
+                        " while memory object was allocated for ", &mem_engine, "(",
+                        mem_engine.get_device_info().dev_name, ")");
 
         switch (params.mem_type) {
         case shared_mem_type::shared_mem_vasurface:
@@ -182,7 +186,7 @@ void primitive_inst::update_shape() {
         auto& dep = _node->get_dependency(i);
         auto dep_id = dep.id();
         // Events may be not created for in-order queue, so take them for OOO queue only
-        if (_network.has_event(dep.id()) && queue_type == queue_types::out_of_order) {
+        if (_network.has_event(dep.id()) && queue_type == QueueTypes::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
             GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
         }
@@ -192,9 +196,9 @@ void primitive_inst::update_shape() {
     }
 
     if (has_runtime_deps) {
-        if (!dependencies_events.empty() && queue_type == queue_types::out_of_order) {
+        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
-        } else if (queue_type == queue_types::in_order) {
+        } else if (queue_type == QueueTypes::in_order) {
             _network.get_stream().finish();
         }
     }
@@ -263,21 +267,6 @@ void primitive_inst::realloc_if_needed() {
 void primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
-    auto extend_to_6d = [this](ov::PartialShape ps) -> std::vector<size_t> {
-        // For shape_of we extend shape with 1-s to 6d rank to make kernel simpler
-        if (_node->is_type<shape_of>()) {
-            ps.insert(ps.end(), 6 - ps.size(), ov::Dimension(1));
-            return ps.to_shape();
-        }
-        if (ps.size() < 4) {
-            if (_node->is_type<gemm>())
-                ps.insert(ps.begin(), 4 - ps.size(), ov::Dimension(1));
-            else
-                ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
-        }
-        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
-        return l.transform(format::bfwzyx).to_shape();
-    };
 
     auto get_layout_key = [&](const kernel_impl_params& params) -> size_t {
         size_t seed = 0;
@@ -297,21 +286,23 @@ void primitive_inst::update_impl() {
         return seed;
     };
 
-    auto update_shape_info = [this, extend_to_6d, prev_impl_str](const kernel_impl_params& params) {
+    auto update_shape_info = [this, prev_impl_str](const kernel_impl_params& params) {
         mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
             if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = extend_to_6d(params.get_input_layout(i).get_partial_shape());
+                auto input_shape = _node->type()->extend_input_shape_to_6d(params, i);
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
             }
         }
 
-        if (_node->get_output_layout().is_dynamic()) {
-            auto output_shape = extend_to_6d(params.get_output_layout().get_partial_shape());
-            for (size_t j = 0; j < output_shape.size(); j++)
-                lock[offset++] = static_cast<int32_t>(output_shape[j]);
+        for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
+            if (_node->get_output_layout(i).is_dynamic()) {
+                auto output_shape = _node->type()->extend_output_shape_to_6d(params, i);
+                for (size_t j = 0; j < output_shape.size(); j++)
+                    lock[offset++] = static_cast<int32_t>(output_shape[j]);
+            }
         }
         std::stringstream s;
         s << "shapes: ";
@@ -361,6 +352,7 @@ void primitive_inst::update_impl() {
 
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(updated_params);
+
                 update_shape_info(updated_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
@@ -446,7 +438,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         dependencies = events;
     } else {
         auto queue_type = get_network().get_stream().get_queue_type();
-        if (queue_type == queue_types::out_of_order) {
+        if (queue_type == QueueTypes::out_of_order) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
                 auto id = input->id();
@@ -755,8 +747,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                             uint32_t net_id, bool is_internal, size_t idx) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
-        if (_engine.configuration().use_memory_pool)
-                return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
+        if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
+            return pool.get_memory(layout, id, net_id, dependencies, type, reusable);
         return pool.get_memory(layout, type);
     };
 
@@ -933,10 +925,11 @@ cldnn::network::ptr primitive_inst::get_unfused_subgraph() {
                 in = _node->get_dependency(i).id();
             }
         }
-        build_options bo;
-        bo.set_option(build_option::allow_static_input_reorder(true));
-        bo.set_option(build_option::allow_new_shape_infer(true));
-        auto prog = program::build_program(get_network().get_engine(), t, bo, true, false);
+        ExecutionConfig subgraph_config{
+            ov::intel_gpu::allow_static_input_reorder(true),
+            ov::intel_gpu::allow_new_shape_infer(true)
+        };
+        auto prog = program::build_program(get_network().get_engine(), t, subgraph_config, true, false);
 
         _unfused_subgraph = network::allocate_network(get_network().get_stream_ptr(), prog, true, get_network().is_primary_stream());
     }
