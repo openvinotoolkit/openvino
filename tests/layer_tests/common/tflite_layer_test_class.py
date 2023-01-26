@@ -3,7 +3,6 @@
 
 import tensorflow as tf
 import os
-import numpy as np
 from common.layer_test_class import CommonLayerTest
 from common.utils.tflite_utils import get_tflite_results, get_tensors_from_graph
 
@@ -12,11 +11,6 @@ class TFLiteLayerTest(CommonLayerTest):
     model_path = None
     inputs = None
     outputs = None
-
-    def _prepare_input(self, inputs_dict):
-        for input in inputs_dict.keys():
-            inputs_dict[input] = np.random.randint(-10, 10, inputs_dict[input]).astype(np.float32)
-        return inputs_dict
 
     @staticmethod
     def make_model(unary_op: callable, shape: list):
@@ -46,6 +40,6 @@ class TFLiteLayerTest(CommonLayerTest):
         return get_tflite_results(self.use_new_frontend, self.use_old_api, inputs_dict, model_path)
 
     def _test(self, ie_device, precision, temp_dir, params):
-        model = self.make_model(params[0][1], params[1]['shape'])
+        model = self.make_model(params[0], params[1]['shape'])
         self.model_path = self.produce_tflite_model(model, temp_dir)
-        super()._test(model, None, ie_device, precision, None, temp_dir, False, True)
+        super()._test(model, None, ie_device, precision, None, temp_dir, False, True, **params[0])
