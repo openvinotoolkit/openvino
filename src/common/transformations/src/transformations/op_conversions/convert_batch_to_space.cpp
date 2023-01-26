@@ -4,6 +4,7 @@
 
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 
+#include <algorithm>
 #include <climits>
 #include <memory>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -15,12 +16,16 @@
 
 #include "itt.hpp"
 
+using namespace ov;
+using namespace opset10;
+using namespace std;
+
 void ov::pass::ConvertBatchToSpace::convert_batch_to_space() {
     MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
     auto batch_to_space = ngraph::pattern::wrap_type<ov::opset3::BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ov::opset3::BatchToSpace>(m.get_match_root());
-        if (!batch_to_space) {
+        if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
         }
 
@@ -123,13 +128,9 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
     auto batch_to_space = ngraph::pattern::wrap_type<ov::opset3::BatchToSpace>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ov::opset3::BatchToSpace>(m.get_match_root());
-        // if (!batch_to_space || transformation_callback(batch_to_space)) {
-        if (!batch_to_space) {
+        if (!batch_to_space || transformation_callback(batch_to_space)) {
             return false;
         }
-
-        using namespace opset10;
-        using namespace std;
 
         const auto data = batch_to_space->input_value(0);
 
@@ -157,22 +158,32 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         NodeVector new_ops;
         shared_ptr<Node> flat_node = data.get_node_shared_ptr();
 
-        shared_ptr<Node> div;
-        for (size_t block_idx = 1; block_idx < block_lenght; ++block_idx) {
-            const auto bidx = Constant::create(element::i64, Shape{1}, {block_idx});
-            const auto bidx_next = Constant::create(element::i64, Shape{1}, {block_idx + 1});
-            const auto block_value = make_shared<Gather>(block, bidx, zero);
+        auto make_shape_node = [](OutputVector nodes) {
+            nodes.erase(remove_if(nodes.begin(),
+                                  nodes.end(),
+                                  [](const Output<Node>& n) {
+                                      return n.get_shape()[0] == 0;
+                                  }),
+                        nodes.end());
+            return make_shared<Concat>(nodes, 0);
+        };
 
-            // dispersed_shape[0] = block[block_idx];
-            // dispersed_shape[1] /= block[block_idx];
+        shared_ptr<Node> div;
+        for (size_t b_idx = 1; b_idx < block_lenght; ++b_idx) {
+            const auto block_index = Constant::create(element::i64, Shape{1}, {b_idx});
+            const auto block_index_next = Constant::create(element::i64, Shape{1}, {b_idx + 1});
+            const auto block_value = make_shared<Gather>(block, block_index, zero);
+
+            // dispersed_shape[0] = block[b_idx];
+            // dispersed_shape[1] /= block[b_idx];
             if (!div) {
-                const auto block_value_1st_dim = make_shared<Gather>(dispersed_shape, one, zero);
-                div = make_shared<Divide>(block_value_1st_dim, block_value);
+                const auto batch = make_shared<Gather>(shape_of_data, zero, zero);
+                div = make_shared<Divide>(batch, block_value);
             } else {
                 div = make_shared<Divide>(div, block_value);
             }
-            shared_ptr<Node> dispersed_shape_tail = make_shared<Slice>(dispersed_shape, two, int_max, one);
-            dispersed_shape = make_shared<Concat>(OutputVector{block_value, div, dispersed_shape_tail}, 0);
+            auto ds_tail = make_shared<Slice>(dispersed_shape, two, int_max, one);
+            dispersed_shape = make_shape_node({block_value, div, ds_tail});
             constexpr auto special_zero = false;
             flat_node = make_shared<Reshape>(flat_node, dispersed_shape, special_zero);
             new_ops.push_back(flat_node);
@@ -180,7 +191,7 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             vector<size_t> axes_order(block_lenght + 1);
             size_t val = 1;
             for (size_t axis_idx = 0; axis_idx <= block_lenght; ++axis_idx) {
-                if ((block_idx + 1) == axis_idx) {
+                if ((b_idx + 1) == axis_idx) {
                     axes_order[axis_idx] = 0;
                 } else {
                     axes_order[axis_idx] = val;
@@ -194,22 +205,22 @@ void ov::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
             new_ops.push_back(flat_node);
 
             // squeezed_shape[0] = dispersed_shape[1];
-            // squeezed_shape[block_idx] *= block[block_idx];
-            const auto sq_slice = make_shared<Slice>(squeezed_shape, one, bidx, one);
-            const auto sq_shape_bidx = make_shared<Gather>(squeezed_shape, bidx, zero);
-            const auto sq_mul = make_shared<Multiply>(sq_shape_bidx, block_value);
-            const auto sq_shape_tail = make_shared<Slice>(squeezed_shape, bidx_next, int_max, one);
+            // squeezed_shape[b_idx] *= block[b_idx];
+            const auto sq_slice = make_shared<Slice>(squeezed_shape, one, block_index, one);
+            const auto sq_bidx_dim = make_shared<Gather>(squeezed_shape, block_index, zero);
+            const auto sq_mul = make_shared<Multiply>(sq_bidx_dim, block_value);
+            const auto sq_shape_tail = make_shared<Slice>(squeezed_shape, block_index_next, int_max, one);
             squeezed_shape.reset();
-            squeezed_shape = make_shared<Concat>(OutputVector{div, sq_slice, sq_mul, sq_shape_tail}, 0);
+            squeezed_shape = make_shape_node({div, sq_slice, sq_mul, sq_shape_tail});
             flat_node = make_shared<Reshape>(flat_node, squeezed_shape, special_zero);
 
-            // dispersed_shape[block_idx + 1] = squeezed_shape[block_idx];
-            const auto dispersed_shape_beg = make_shared<Slice>(dispersed_shape, zero, bidx_next, one);
-            dispersed_shape_tail = make_shared<Slice>(dispersed_shape,
-                                                      Constant::create(element::i64, Shape{1}, {block_idx + 2}),
-                                                      int_max,
-                                                      one);
-            dispersed_shape = make_shared<Concat>(OutputVector{dispersed_shape_beg, sq_mul, dispersed_shape_tail}, 0);
+            // dispersed_shape[b_idx + 1] = squeezed_shape[b_idx];
+            const auto ds_front = make_shared<Slice>(dispersed_shape, zero, block_index_next, one);
+            ds_tail = make_shared<Slice>(dispersed_shape,
+                                         Constant::create(element::i64, Shape{1}, {b_idx + 2}),
+                                         int_max,
+                                         one);
+            dispersed_shape = make_shape_node({ds_front, sq_mul, ds_tail});
         }
 
         const auto shape_of_flat_node = make_shared<ShapeOf>(flat_node, crops_end.get_element_type());
