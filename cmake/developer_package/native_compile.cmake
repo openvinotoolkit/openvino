@@ -56,7 +56,7 @@ function(ov_native_compile_external_project)
 
     # compile flags
     if(CMAKE_COMPILER_IS_GNUCXX)
-        set(compile_flags "-Wno-undef -Wno-error -Wno-shadow -Wno-deprecated-declarations")
+        set(compile_flags "-Wno-undef -Wno-error -Wno-deprecated-declarations")
     endif()
 
     if(ARG_NATIVE_SOURCE_SUBDIR)
