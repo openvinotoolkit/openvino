@@ -264,7 +264,7 @@ void primitive_inst::realloc_if_needed() {
     allocate_internal_buffers();
 }
 
-void primitive_inst::update_impl() {
+bool primitive_inst::update_impl() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
 
@@ -306,6 +306,9 @@ void primitive_inst::update_impl() {
                 _impl = cache.get(impl_key)->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
+            // impl is not replaced
+            } else if (!shape_changed() && _impl != nullptr && _impl->is_dynamic()) {
+                return false;
             }
         }
         if (!has_cached_impl) {
@@ -354,6 +357,8 @@ void primitive_inst::update_impl() {
 
         reset_shape_change();
     }
+    // impl is replaced
+    return true;
 }
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
@@ -394,12 +399,16 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             return outputs.at(last_prim_id).get_event();
         }
 
-        if (shape_changed() || !_impl) {
-            update_impl();
-            auto ev = update_weights();
-            if (ev)
-                dependencies.push_back(ev);
-            realloc_if_needed();
+        // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
+        // Only try update weight and realloc when impl is updated.
+        if (shape_changed() || !_impl
+            || (!shape_changed() && _impl->is_dynamic())) {
+            if (update_impl()) {
+                auto ev = update_weights();
+                if (ev)
+                    dependencies.push_back(ev);
+                realloc_if_needed();
+            }
         }
     }
 
@@ -647,32 +656,30 @@ event::ptr primitive_inst::update_weights() {
         layout expected_layout = from_weights_tensor(weights_params.dest);
         auto& engine = _network.get_engine();
 
-        auto get_layout_key = [&]() -> std::string {
-            std::string layout_key_str = id() + "_" + std::to_string(_node->get_unique_id());
-            layout_key_str += "_" + expected_layout.to_string();
-            layout_key_str += "_" + original_layout.to_string();
-            return layout_key_str;
+        auto get_kernel_key = [&]() -> size_t {
+            auto seed = _node->get_hash();
+            seed = hash_combine(seed, expected_layout.hash());
+            seed = hash_combine(seed, original_layout.hash());
+            return seed;
         };
 
         cldnn::kernel::ptr kernel = nullptr;
-        auto layout_key = get_layout_key();
-        if (layout_key != "") {
-            auto& cache = get_network().get_in_mem_kernels_cache();
-            if (cache.has(layout_key)) {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
-                                       << " to " << expected_layout.to_short_string() << std::endl;
-                GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
-                kernel = cache.get(layout_key);
-            } else {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
-                                       << " to " << expected_layout.to_short_string() << std::endl;
-                auto& kernels_cache = get_network().get_kernels_cache();
-                auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);
-                kernels_cache.compile();
-                kernel = kernels_cache.get_kernel(kernel_id);
-                cache.add(layout_key, kernel);
-                kernels_cache.reset();
-            }
+        auto kernel_key = get_kernel_key();
+        auto& cache = get_network().get_in_mem_kernels_cache();
+        if (cache.has(kernel_key)) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
+                                    << " to " << expected_layout.to_short_string() << std::endl;
+            GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
+            kernel = cache.get(kernel_key);
+        } else {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
+                                    << " to " << expected_layout.to_short_string() << std::endl;
+            auto& kernels_cache = get_network().get_kernels_cache();
+            auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);
+            kernels_cache.compile();
+            kernel = kernels_cache.get_kernel(kernel_id);
+            cache.add(kernel_key, kernel);
+            kernels_cache.reset();
         }
 
         auto& stream = get_network().get_stream();
@@ -1227,5 +1234,9 @@ size_t primitive_inst::get_impl_key(const kernel_impl_params& params) const {
         seed = hash_combine(seed, out.hash() * prime_number);
     }
     return seed;
+}
+size_t primitive_inst::get_impl_key() const {
+    auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
+    return get_impl_key(updated_params);
 }
 }  // namespace cldnn

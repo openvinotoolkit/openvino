@@ -132,6 +132,7 @@ struct broadcast : public primitive_base<broadcast> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
+        seed = hash_range(seed, axes_mapping.begin(), axes_mapping.end());
         return seed;
     }
 };
