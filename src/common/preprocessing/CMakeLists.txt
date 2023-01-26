@@ -4,6 +4,6 @@
 
 add_subdirectory(src)
 
-if(ENABLE_TESTS)
+if(ENABLE_TESTS AND ENABLE_GAPI_PREPROCESSING)
     add_subdirectory(tests)
 endif()
