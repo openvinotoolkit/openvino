@@ -708,6 +708,14 @@ void regclass_graph_Model(py::module m) {
     });
 
     model.def(
+        "__copy__",
+        [](ov::Model& self) {
+            auto error_message = py::detail::c_str(std::string("cannot copy 'openvino.runtime.Model. Please, use deepcopy instead."));
+            PyErr_SetString(PyExc_TypeError, error_message);
+            throw py::error_already_set()
+        });
+
+    model.def(
         "__deepcopy__",
         [](ov::Model& self, py::dict) {
             return self.clone();
