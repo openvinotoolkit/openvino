@@ -10,8 +10,6 @@
 #include "ngraph_transformations/mixed_affinity.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-#include <openvino/pass/visualize_tree.hpp>
-
 
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::mixed_affinity;
@@ -28,8 +26,6 @@ class FormSubgraphsTests: public TransformationTests {
 public:
     void TearDown() override {
         OPENVINO_ASSERT(model != nullptr, "Test Model is not initialized.");
-        ov::pass::VisualizeTree("/home/vgolubev/models/test.svg").run_on_model(model);
-
         const auto subgraphs = MixedAffinity::formSubgraphs(model);
         ASSERT_EQ(subgraphs.size(), ref_subgraphs.size());
 
