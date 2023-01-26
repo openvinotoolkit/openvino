@@ -1,12 +1,10 @@
-const fs = require('fs');
-const { createCanvas, loadImage } = require('canvas');
-
-const openvinojs = require('../../../../../bin/ia32/Release/openvino_wasm.js');
-
-const MODEL_PATH = '../assets/models/';
+const MODEL_PATH = './assets/models/';
 const MODEL_FILENAME = 'v3-small_224_1.0_float';
 
-openvinojs().then(async ov => {
+const statusDiv = document.getElementById('status');
+
+Module().then(async ov => {
+  statusDiv.innerText = 'Ready';
   console.log('== start');
 
   console.log(ov.getVersionString());
@@ -17,7 +15,8 @@ openvinojs().then(async ov => {
   await uploadFile(`${MODEL_PATH}${MODEL_FILENAME}.xml`, ov);
 
   const session = new ov.Session(`${MODEL_FILENAME}.xml`, `${MODEL_FILENAME}.bin`);
-  const imgData = await getArrayByImgPath('../assets/images/coco.jpg');
+
+  const imgData = await getArrayByImgPath('./assets/images/coco.jpg');
 
   const values = new Uint8Array(imgData);
 
@@ -45,15 +44,42 @@ openvinojs().then(async ov => {
   console.log('== end');
 });
 
-async function uploadFile(path, ov) {
+async function uploadFile(path, instance) {
   const filename = path.split('/').pop();
-  const fileData = fs.readFileSync(path);
 
-  const data = new Uint8Array(fileData);
+  const blob = await fetch(path).then(response => {
+    if (!response.ok) {
+      return null;
+    }     
+    return response.blob();
+  });
 
-  const stream = ov.FS.open(filename, 'w+');
-  ov.FS.write(stream, data, 0, data.length, 0);
-  ov.FS.close(stream);
+  const buffer = await blob.arrayBuffer();
+  const data = new Uint8Array(await blob.arrayBuffer());
+
+  const stream = instance.FS.open(filename, 'w+');
+  instance.FS.write(stream, data, 0, data.length, 0);
+  instance.FS.close(stream);
+}
+
+function loadImage(path) {
+  return new Promise((resolve) => {
+    const img = new Image();
+
+    img.src = path;
+    img.onload = () => {
+      resolve(img);
+    };
+  });
+}
+
+function createCanvas(width, height) {
+  const canvasElement = document.createElement('canvas');
+
+  canvasElement.width = width;
+  canvasElement.height = height;
+
+  return canvasElement;
 }
 
 async function getArrayByImgPath(path) {
