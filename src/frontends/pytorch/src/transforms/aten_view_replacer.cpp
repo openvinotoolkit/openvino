@@ -30,8 +30,7 @@ AtenViewReplacer::AtenViewReplacer() {
             for (auto& input : shape_node->inputs()) {
                 auto rank = input.get_partial_shape().rank();
                 FRONT_END_OP_CONVERSION_CHECK(rank.is_dynamic() || rank.get_length() == 0, "Rank must be 0");
-                auto converted_in = std::make_shared<opset10::Convert>(input.get_source_output(), element::i64);
-                auto unsqueeze = std::make_shared<opset10::Unsqueeze>(converted_in, axis_0);
+                auto unsqueeze = std::make_shared<opset10::Unsqueeze>(input.get_source_output(), axis_0);
                 inputs.push_back(unsqueeze);
             }
             auto concat = std::make_shared<opset10::Concat>(inputs, 0);
