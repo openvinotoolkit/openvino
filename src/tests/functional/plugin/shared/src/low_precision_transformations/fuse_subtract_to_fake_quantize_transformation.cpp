@@ -35,7 +35,7 @@ void FuseSubtractToFakeQuantizeTransformation::SetUp() {
         testValues.actual.fakeQuantizeOnData,
         testValues.actual.dequantization);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_function(function);
 }
 
 TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareWithRefImpl) {

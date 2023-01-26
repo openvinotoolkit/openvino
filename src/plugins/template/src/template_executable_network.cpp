@@ -170,7 +170,7 @@ void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<ov:
     size_t idx = 0;
     for (auto&& result : model->get_results()) {
         const auto& input = result->input_value(0);
-        auto name = ngraph::op::util::get_ie_output_name(input);
+        auto name = ov::op::util::get_ie_output_name(input);
         if (_outputIndex.emplace(name, idx).second)
             idx++;
     }
