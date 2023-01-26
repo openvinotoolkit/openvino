@@ -34,6 +34,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
     kernel_arguments_data_idx _kernel_args;
+    bool _is_output_event;
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -51,9 +52,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
             _kernels.emplace_back(other._kernels[k]->clone());
         }
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
+        this->_is_output_event = other._is_output_event;
     }
 
-    typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
+    typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd, bool is_output_event = false)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
           _kernel_data(kd) {
         // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
@@ -62,6 +64,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         _kernel_data.weightsReorderParams.clKernel = nullptr;
 
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
+        this->_is_output_event = is_output_event;
     }
 
     bool is_cpu() const override { return false; }
@@ -76,6 +79,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << _kernel_data.kernels;
         ob << _kernel_ids;
         ob << _kernel_args;
+        ob << _is_output_event;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -84,6 +88,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ib >> _kernel_data.kernels;
         ib >> _kernel_ids;
         ib >> _kernel_args;
+        ib >> _is_output_event;
     }
 
     template<typename ImplType>
@@ -95,7 +100,10 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
 
-        return make_unique<ImplType>(best_kernel);
+        // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
+        bool is_output_event = is_any_user_cpu(arg.get_users()) || arg.is_output();
+
+        return make_unique<ImplType>(best_kernel, is_output_event);
     }
 
 protected:
@@ -255,15 +263,6 @@ protected:
 
         for (size_t k = 0; k < _kernels.size(); ++k) {
             std::vector<event::ptr> new_events;
-            // is any user of the prim's users is an detecion output, set prim as a output event (event won't be nullptr)
-            bool is_output_event;
-            if (instance.node != nullptr) {
-                auto users = instance.node->get_users();
-                is_output_event = is_any_user_cpu(users) || instance.node->is_output();
-            } else {
-                is_output_event = instance.is_output();
-            }
-
             kernel_arguments_data args;
 
             if (_kernel_args.inputs.size() > 0) {
@@ -278,7 +277,7 @@ protected:
 
             args.scalars = &_kernel_data.kernels[k].params.scalars;
 
-            auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, is_output_event);
+            auto ev = stream.enqueue_kernel(*_kernels[k], _kernel_data.kernels[k].params, args, tmp_events, _is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 
