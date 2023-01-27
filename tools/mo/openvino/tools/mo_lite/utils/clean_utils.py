@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 import argparse
 import os
+from typing import Union, Iterable
+
 import numpy as np
 import logging as log
 from openvino.tools.mo_lite.utils.error import Error
@@ -208,3 +210,14 @@ def create_params_with_custom_types(packed_user_shapes: [None, dict]):
             if user_defined_type is not None:
                 params_with_custom_types.append(p_name)
     return params_with_custom_types
+
+
+def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
+    """
+    This function acts in a same way as np.array except for the case when dtype is not provided
+    and np.array return fp64 array this function returns fp32 array
+    """
+    x = np.array(value, dtype=dtype)
+    if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
+        x = x.astype(np.float32)
+    return x

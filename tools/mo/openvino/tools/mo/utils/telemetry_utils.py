@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array
-
+from openvino.tools.mo_lite.utils.telemetry_utils import send_framework_info
 try:
     import openvino_telemetry as tm
 except ImportError:

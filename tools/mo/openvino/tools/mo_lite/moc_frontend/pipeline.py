@@ -165,8 +165,8 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
             input_model.set_element_type(place, ov_type)
             # prepare and cast value to dtype
-            from openvino.tools.mo.utils.type_utils import np_map_cast
-            from openvino.tools.mo.front.common.partial_infer.utils import mo_array
+            from openvino.tools.mo_lite.utils.type_utils import np_map_cast
+            from openvino.tools.mo_lite.utils.clean_utils import mo_array
             if isinstance(value, list):
                 casted_list = list()
                 for v in mo_array(value):
