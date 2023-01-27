@@ -13,6 +13,7 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.utils.error import Error, InternalError, FrameworkError
 from openvino.tools.mo.utils.logger import progress_bar
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo_lite.utils.clean_utils import get_enabled_and_disabled_transforms
 
 _registered_classes_dict = {}
 
@@ -35,7 +36,6 @@ def _check_unique_ids():
                     unique_idxs.add(id_cls)
     log.debug("All replacers has unique idxs.")
 
-from openvino.tools.mo.utils.clean_utils import get_enabled_and_disabled_transforms
 
 class ClassType(Enum):
     EXTRACTOR = 0
