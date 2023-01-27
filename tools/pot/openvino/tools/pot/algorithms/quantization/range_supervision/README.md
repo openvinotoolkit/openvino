@@ -8,7 +8,9 @@ Deep neural network find applications in many scenarios where the prediction is 
 	x = clamp(x ; T_{low}, T_{up}) = min(max(x, T_{low}), T_{high})
 	\f]
 	where \f$T_{low}\f$ and \f$T_{up}\f$ are the lower and upper bounds for the particular protection layer, respectively.
-The process flow follows the diagram [Fig 1](#Schematic). Starting from the internal representation (IR) of an OpenVINO model, the POT RangeSupervision algorithm is called to **add protection layers into the model graph**. This step requires **appropriate threshold values that are automatically extracted from a specified test dataset**. The result is an IR representation of the model with additional "RangeSupervision" layers after each supported activation layer. The original and the modified model can be called in the same way through the OpenVINO inference engine to evaluate the impact on accuracy, performance, and dependability in the presence of potential soft errors (for example using the *benchmark_app* and *accuracy_checker* functions). **The algorithm is designed to provide efficient protection at negligible performance overhead or accuracy impact in the absence of faults.** Bound extraction is a one-time effort and the protected IR model returned by the RangeSupervision algorithm can be used independently from there on. No changes in the learned parameters of the network are needed.
+The process flow follows the diagram [Fig 1](#schematic-supervision). Starting from the internal representation (IR) of an OpenVINO model, the POT RangeSupervision algorithm is called to **add protection layers into the model graph**. This step requires **appropriate threshold values that are automatically extracted from a specified test dataset**. The result is an IR representation of the model with additional "RangeSupervision" layers after each supported activation layer. The original and the modified model can be called in the same way through the OpenVINO inference engine to evaluate the impact on accuracy, performance, and dependability in the presence of potential soft errors (for example using the *benchmark_app* and *accuracy_checker* functions). **The algorithm is designed to provide efficient protection at negligible performance overhead or accuracy impact in the absence of faults.** Bound extraction is a one-time effort and the protected IR model returned by the RangeSupervision algorithm can be used independently from there on. No changes in the learned parameters of the network are needed.
+
+<a name="schematic-supervision"></a>
 
 @anchor schematic
 ![Schematic](../../../../../../docs/range_supervision/images/scheme3.svg)
@@ -27,7 +29,7 @@ The following activation layers are currently supported for range supervision:
  - `Gelu`
  - `Sigmoid`
  - `Tanh`
- 
+
 This means that any activation layer of one of the above types, that the model under consideration contains, will be protected with an appropriate subsequent RangeSupervision layer.
 
 ## Usage
@@ -38,16 +40,16 @@ Algorithm has a minimal configuration. Below is an example of such configuration
 
 ```json
 {
-	"name": "RangeSupervision", 
+	"name": "RangeSupervision",
 	"params": {
 			"stat_subset_size": 300
 			"stat_batch_size": 1
 		}
-	
+
 }
 ```
 
-The protected model will be saved in IR format in a new folder ``./results/\<model_name\>_RangeSupervision/...`` . 
+The protected model will be saved in IR format in a new folder ``./results/\<model_name\>_RangeSupervision/...`` .
 
 Mandatory parameters:
 - `"stat_subset_size"`:  This parameter defines *how many images* of the specified dataset in "engine: config" are used to extract the bounds (images are randomly chosen if a subset is chosen). This value is set to **300** by default. The more images are selected for the bound generation, the more accurate the estimation of an out-of-bound event will be, at the cost of increasing extraction time.
