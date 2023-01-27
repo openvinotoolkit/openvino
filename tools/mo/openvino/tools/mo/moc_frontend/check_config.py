@@ -4,7 +4,7 @@
 import argparse
 from pathlib import Path
 
-from openvino.tools.mo.utils import import_extensions
+from openvino.tools.mo.utils.clean_utils import default_path
 from openvino.tools.mo.utils.error import Error
 
 
@@ -22,7 +22,7 @@ def any_extensions_used(argv: argparse.Namespace):
             if not isinstance(ext, str):
                 has_non_str_objects = True
                 continue
-            if len(ext) == 0 or ext == import_extensions.default_path():
+            if len(ext) == 0 or ext == default_path():
                 continue
             has_non_default_path = True
 
@@ -38,7 +38,7 @@ def legacy_extensions_used(argv: argparse.Namespace):
         for extension in extensions:
             if not isinstance(extension, str):
                 continue
-            if extension == import_extensions.default_path():
+            if extension == default_path():
                 continue
             if not Path(extension).is_file():
                 legacy_ext_counter += 1

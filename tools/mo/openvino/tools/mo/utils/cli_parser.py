@@ -18,10 +18,9 @@ import numpy as np
 from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 
 import openvino
-from openvino.tools.mo.front.extractor import split_node_in_port
-from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
-from openvino.tools.mo.utils import import_extensions
+from openvino.tools.mo.utils.clean_utils import split_node_in_port
+from openvino.tools.mo.utils.clean_utils import destination_type_to_np_data_type, np_data_type_to_destination_type
+from openvino.tools.mo.utils.clean_utils import default_path
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.version import get_version
@@ -46,7 +45,7 @@ def transformations_config_to_str(value):
 
 def extensions_to_str_or_extensions_class(extensions):
     if extensions is None:
-        return [import_extensions.default_path()]
+        return [default_path()]
     extensions_list = []
     if isinstance(extensions, str):
         extensions_list = extensions.split(',')
@@ -1029,7 +1028,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     common_group.add_argument("--extensions",
                               help=mo_convert_params_common['extensions'].description.format(
                                   mo_convert_params_common['extensions'].possible_types_command_line),
-                              default=[import_extensions.default_path()],
+                              default=[default_path()],
                               action=CanonicalizePathCheckExistenceAction,
                               type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
@@ -2228,7 +2227,7 @@ def check_available_transforms(transforms: list):
     :param transforms: list of user specified transformations
     :return: raises an Error if transformation is not available
     """
-    from openvino.tools.mo.back.offline_transformations import get_available_transformations
+    from openvino.tools.mo.utils.offline_transformations import get_available_transformations
     available_transforms = get_available_transformations()
 
     missing_transformations = []
