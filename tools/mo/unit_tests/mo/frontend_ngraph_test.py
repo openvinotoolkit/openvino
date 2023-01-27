@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -74,6 +74,15 @@ def test_main_error_log():
     ref_log = "[ WARNING ]  warning\n[ FRAMEWORK ERROR ]  FW ERROR MESSAGE\n"
 
     assert test_log == ref_log
+
+
+def test_rt_info():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'convert/meta_data_test_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ, capture_output=True)
+    assert not status.returncode
 
 
 def test_mo_extensions_test():

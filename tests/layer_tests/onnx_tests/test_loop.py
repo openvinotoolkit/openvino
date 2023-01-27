@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -18,7 +18,7 @@ class TestLoop(OnnxRuntimeLayerTest):
         elif tensor_type == TensorProto.FLOAT:
             np_type = np.float
         elif tensor_type == TensorProto.BOOL:
-            np_type = np.bool
+            np_type = bool
         else:
             return None
         return helper.make_node('Constant', inputs=[], outputs=[name],

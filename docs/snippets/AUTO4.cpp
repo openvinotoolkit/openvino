@@ -1,6 +1,6 @@
 #include <openvino/openvino.hpp>
 
-int auto4() {
+int main() {
     ov::Core core;
 
     // Read a network in IR, PaddlePaddle, or ONNX format:
@@ -15,7 +15,7 @@ ov::CompiledModel compiled_model1 = core.compile_model(model, "AUTO",
 ov::CompiledModel compiled_model2 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::LOW));
 /************
-  Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
+  Assume that all the devices (CPU, GPU, and MYRIAD) can support all the models.
   Result: compiled_model0 will use GPU, compiled_model1 will use MYRIAD, compiled_model2 will use CPU.
  ************/
 
@@ -27,7 +27,7 @@ ov::CompiledModel compiled_model4 = core.compile_model(model, "AUTO",
 ov::CompiledModel compiled_model5 = core.compile_model(model, "AUTO",
     ov::hint::model_priority(ov::hint::Priority::LOW));
 /************
-  Assume that all the devices (CPU, GPU, and MYRIAD) can support all the networks.
+  Assume that all the devices (CPU, GPU, and MYRIAD) can support all the models.
   Result: compiled_model3 will use GPU, compiled_model4 will use GPU, compiled_model5 will use MYRIAD.
  ************/
 //! [part4]

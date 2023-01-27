@@ -1,7 +1,7 @@
 #include <openvino/runtime/core.hpp>
 #include <inference_engine.hpp>
 
-int ov_properties_migration_main_new_cpp() {
+int main_new() {
     ov::Core core;
 
 //! [core_get_ro_property]
@@ -25,7 +25,7 @@ auto model = core.read_model("sample.xml");
 auto compiled_model = core.compile_model(model, "MULTI",
     ov::device::priorities("GPU", "CPU"),
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-    ov::hint::inference_precision(ov::element::f32));
+    ov::inference_precision(ov::element::f32));
 //! [core_compile_model]
 
 //! [compiled_model_set_property]
@@ -51,7 +51,7 @@ return 0;
 }
 
 
-int ov_properties_migration_main_old_cpp() {
+int main_old() {
     InferenceEngine::Core core;
 //! [core_get_metric]
 auto full_device_name = core.GetMetric("CPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();

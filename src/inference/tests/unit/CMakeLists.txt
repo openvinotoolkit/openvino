@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,6 +12,8 @@ ov_add_test_target(
         LINK_LIBRARIES
             unitTestUtils
         INCLUDES
+        # for static ie_plugins.hpp
+        "${CMAKE_BINARY_DIR}/src/inference/"
         ADD_CLANG_FORMAT
         LABELS
             OV

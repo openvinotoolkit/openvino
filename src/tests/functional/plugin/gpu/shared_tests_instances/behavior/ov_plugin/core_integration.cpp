@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,6 +86,10 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassGetAvailableDevices, OVClassGetAvailable
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetModelPriorityConfigTest, OVClassSetModelPriorityConfigTest,
         ::testing::Values("MULTI", "AUTO"));
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassSetExecutionModeHintConfigTest, OVClassSetExecutionModeHintConfigTest,
+        ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetTBBForceTerminatePropertyTest, OVClassSetTBBForceTerminatePropertyTest,
@@ -346,14 +350,21 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     auto value = ov::element::undefined;
     const auto expected_default_precision = ov::element::f16;
 
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::inference_precision));
     ASSERT_EQ(expected_default_precision, value);
 
     const auto forced_precision = ov::element::f32;
 
-    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::hint::inference_precision(forced_precision)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::inference_precision(forced_precision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::inference_precision));
     ASSERT_EQ(value, forced_precision);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    const auto forced_precision_deprecated = ov::element::f16;
+    OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::hint::inference_precision(forced_precision_deprecated)));
+    OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
+    ASSERT_EQ(value, forced_precision_deprecated);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
@@ -715,6 +726,9 @@ const std::vector<ov::AnyMap> gpuCorrectConfigs = {
 
 auto gpuCorrectConfigsWithSecondaryProperties = []() {
     return std::vector<ov::AnyMap>{
+        {ov::device::properties(CommonTestUtils::DEVICE_GPU,
+                                ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE),
+                                ov::inference_precision(ov::element::f32))},
         {ov::device::properties(CommonTestUtils::DEVICE_GPU,
                                 ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                 ov::hint::allow_auto_batching(false))},

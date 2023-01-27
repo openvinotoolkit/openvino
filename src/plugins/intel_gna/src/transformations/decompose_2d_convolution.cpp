@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -182,7 +182,7 @@ static std::vector<std::shared_ptr<ngraph::Node>> Split2DConvFilters(std::shared
     }
 
     for (auto &new_filter : result)
-        new_filter = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
+        new_filter = ov::op::util::make_try_fold<ngraph::opset7::Reshape>(new_filter,
             ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, reshape_shape), false);
 
     return result;
@@ -314,7 +314,7 @@ static std::shared_ptr<ngraph::Node> Create1DConv(const GraphData& graph_data, c
         // Bias & fake quantize
         if (graph_data.bias_const && conv_index == 0) {
             auto bias_size = shape_size(graph_data.bias_const->get_shape());
-            auto reshaped_bias_const = ngraph::op::util::make_try_fold<ngraph::opset7::Reshape>(graph_data.bias_const,
+            auto reshaped_bias_const = ov::op::util::make_try_fold<ngraph::opset7::Reshape>(graph_data.bias_const,
                 ngraph::opset7::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, bias_size, 1, 1}), false);
             last_conv_block_op = std::make_shared<ngraph::opset7::Add>(conv, reshaped_bias_const);
             copy_runtime_info(graph_data.conv, last_conv_block_op);

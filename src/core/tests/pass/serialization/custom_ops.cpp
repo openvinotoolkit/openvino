@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ngraph/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
-#include "transformations/serialize.hpp"
 
 class CustomOpsSerializationTest : public ::testing::Test {
 protected:

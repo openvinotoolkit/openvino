@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,8 @@
 #include "resample_inst.h"
 #include "loop_inst.h"
 #include "non_max_suppression_inst.h"
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "border_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -67,9 +69,7 @@ bool concat_noop_optimization::match(concatenation_node& node) {
         return false;
     if (node.is_dynamic())
         return false;
-    return node.get_dependencies().size() == 1 &&
-        !node.has_fused_primitives() &&
-        node.get_fused_activations_funcs().empty();
+    return node.get_dependencies().size() == 1 && !node.has_fused_primitives();
 }
 
 bool concat_noop_optimization::optimize(concatenation_node& node) {
@@ -84,7 +84,7 @@ bool concat_noop_optimization::optimize(concatenation_node& node) {
 bool concat_in_place_optimization::match(concatenation_node& node) {
     if (node.is_output())
         return false;
-    if (node.has_fused_primitives() || !node.get_fused_activations_funcs().empty())
+    if (node.has_fused_primitives())
         return false;
     if (node.is_dynamic())
         return false;
@@ -300,7 +300,7 @@ void concat_in_place_optimization::optimize_cascade(concatenation_node& node, st
 }  // namespace
 
 static bool can_reshape_be_optimized(const reshape_node& node) {
-    return node.is_in_place() && node.get_fused_activations_funcs().empty();
+    return node.is_in_place() && !node.has_fused_primitives();
 }
 
 // ToDo remove friendship relation from  program_node
@@ -322,11 +322,11 @@ void prepare_buffer_fusing::run(program& p) {
         // The condition below check only output layout as cases like
         // (dyn_shape) -> reshape -> (static_shape) -> some_static_primitive
         // may have invalid set_arguments call as output memory of reshape won't be available until reshape primitive is executed
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && node->get_fused_activations_funcs().empty()) {
+        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
-        if (node->is_dynamic() || node->is_output() || (!node->get_fused_activations_funcs().empty())) {
+        if (node->is_dynamic() || node->is_output() || node->has_fused_primitives()) {
             return false;
         }
         return true;
@@ -363,6 +363,8 @@ void prepare_buffer_fusing::run(program& p) {
                     if (can_reshape_be_optimized(reshape_node))
                         return;
                 }
+                if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
+                    return;
             }
 
             if (node.get_dependencies().size() == 1 && node.get_users().size() > 0) {
@@ -378,8 +380,8 @@ void prepare_buffer_fusing::run(program& p) {
                 auto input_layout = node.get_dependency(0).get_output_layout();
                 const auto& crop_size = crop_layout.get_tensor();
                 const auto& out_padd = crop_layout.data_padding;
-                const auto opt_lower_pad = crop_prim->offsets.feature[0];
-                const auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
+                auto opt_lower_pad = crop_prim->offsets.feature[0];
+                auto opt_upper_pad = input_layout.feature() - crop_prim->offsets.feature[0] - crop_size.feature[0];
 
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
@@ -416,6 +418,20 @@ void prepare_buffer_fusing::run(program& p) {
                     //  In-place crop
                     //  crop output buffer
                     //  |_low_pad_|__data_size__|___|<-upper pad
+
+                    //  feature num of pad should be accumulated if dep has been optimized out.
+                    auto& dep = node.get_dependency(0);
+                    if (dep.is_type<crop>() && dep.can_be_optimized()) {
+                        auto dep_pad = dep.get_output_layout().data_padding;
+                        OPENVINO_ASSERT(
+                            dep_pad.lower_size().batch[0] == 0 && dep_pad.upper_size().batch[0] == 0 &&
+                            dep_pad.lower_size().spatial[0] == 0 && dep_pad.upper_size().spatial[0] == 0 &&
+                            dep_pad.lower_size().spatial[1] == 0 && dep_pad.upper_size().spatial[1] == 0,
+                            "batch, y, x of pad should be aligned to 0.");
+
+                        opt_lower_pad += dep_pad.lower_size().feature[0];
+                        opt_upper_pad += dep_pad.upper_size().feature[0];
+                    }
 
                     node.set_output_padding(
                         padding({out_padd.lower_size().batch[0],

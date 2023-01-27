@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,9 +94,3 @@ private:
     type_to_fuse_map m_additional_type_to_fuse_map;
     bool m_keep_precision_sensitive_in_fp32;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertPrecision;
-}  // namespace pass
-}  // namespace ngraph

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 set -e
@@ -8,8 +8,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-default_comp=(core dev python)
-all_comp=("${default_comp[@]}" opencv_req opencv_opt)
+all_comp=(core dev python)
 os=${os:-auto}
 
 # public options
@@ -48,7 +47,7 @@ done
 
 # No components selected - install default
 if [ ${#comp[@]} -eq 0 ]; then
-    comp=("${default_comp[@]}")
+    comp=("${all_comp[@]}")
 fi
 
 #===================================================================================================
@@ -124,43 +123,16 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
 elif [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_core=(libtbb2 libpugixml1v5)
-    pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json-dev make curl sudo)
-    pkgs_opencv_opt=(
-        gstreamer1.0-plugins-bad
-        gstreamer1.0-plugins-base
-        gstreamer1.0-plugins-good
-        gstreamer1.0-plugins-ugly
-        gstreamer1.0-tools
-        libavcodec57
-        libavformat57
-        libavresample3
-        libavutil55
-        libgstreamer1.0-0
-        libswscale4
-    )
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
     pkgs_core=(libpugixml1v5)
-    pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
-    pkgs_opencv_opt=(
-        gstreamer1.0-plugins-bad
-        gstreamer1.0-plugins-base
-        gstreamer1.0-plugins-good
-        gstreamer1.0-plugins-ugly
-        gstreamer1.0-tools
-        libavcodec58
-        libavformat58
-        libavutil56
-        libgstreamer1.0-0
-        libswscale5
-    )
 
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
         pkgs_core=("${pkgs_core[@]}" libtbb2)
@@ -168,7 +140,6 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
     elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
         pkgs_core=("${pkgs_core[@]}" libtbb2)
         pkgs_python=("${pkgs_python[@]}" libpython3.8)
-        pkgs_opencv_opt=("${pkgs_opencv_opt[@]}" libavresample4)
     elif [ "$os" == "ubuntu21.10" ] ||
          [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
         pkgs_core=("${pkgs_core[@]}" libtbb2)
@@ -192,13 +163,13 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     fi
 
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 "json-devel.$arch" "zlib-devel.$arch" sudo)
-    
+
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_dev+=(pkgconfig)
     else
         pkgs_dev+=(pkgconf-pkg-config)
     fi
-    
+
     if [ "$os" == "rhel9.1" ] ; then
         pkgs_dev+=(curl-minimal)
     else
@@ -215,12 +186,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     if [ "$os" == "centos7" ] || [ "$os" == "amzn2" ] ; then
         pkgs_core=("tbb.$arch" "pugixml.$arch" "gflags.$arch")
         pkgs_dev+=("gflags-devel.$arch")
-        pkgs_opencv_opt=(
-            "gstreamer1.$arch"
-            "gstreamer1-plugins-ugly-free.$arch"
-            "gstreamer1-plugins-good.$arch"
-            "gstreamer1-plugins-bad-free.$arch"
-        )
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm")
     elif [ "$os" == "centos8" ] || [ "$os" == "rhel8" ] || [ "$os" == "almalinux8.7" ] ; then
         pkgs_core+=(
@@ -232,42 +197,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_dev+=(
             "https://vault.centos.org/centos/8/PowerTools/$arch/os/Packages/gflags-devel-2.1.2-6.el8.$arch.rpm"
             "https://download-ib01.fedoraproject.org/pub/epel/8/Everything/$arch/Packages/j/json-devel-3.6.1-2.el8.$arch.rpm"
-        )
-        pkgs_opencv_req=(gtk3)
-        pkgs_opencv_opt=(
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libcdio-2.0.0-3.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libtheora-1.1.1-21.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/opus-1.3-0.4.beta.el8.$arch.rpm"
-            "http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/orc-0.4.28-3.el8.$arch.rpm"
-            "http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/libglvnd-gles-1.3.4-1.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdvdread-5.0.3-9.el8.$arch.rpm"
-            "http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/libvisual-0.4.0-25.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/liba52-0.7.4-32.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdvdread-5.0.3-9.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libXv-1.0.11-7.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/taglib-1.11.1-8.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/mpg123-libs-1.25.10-2.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/lame-libs-3.100-6.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/BaseOS/$arch/os/Packages/libgudev-232-4.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libv4l-1.14.2-3.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/speex-1.2.0-1.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libraw1394-2.1.2-5.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libsrtp-1.5.4-8.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libvpx-1.7.0-8.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/wavpack-5.1.0-15.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libiec61883-1.2.0-18.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libshout-2.2.2-19.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/twolame-libs-0.3.13-12.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libavc1394-0.5.4-7.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdv-1.0.0-27.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/libdvdnav-5.0.3-8.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/webrtc-audio-processing-0.3-9.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-base-1.16.1-2.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-1.16.1-2.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-bad-free-1.16.1-1.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-good-1.16.1-2.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/gstreamer1-plugins-ugly-free-1.16.1-1.el8.$arch.rpm"
-            "https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/soundtouch-2.0.0-3.el8.$arch.rpm"
         )
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] ; then
@@ -329,7 +258,7 @@ if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04
     [ -n "$dry" ] && iopt="--dry-run"
     [ -n "$keepcache" ] && rm -f /etc/apt/apt.conf.d/docker-clean
 
-    apt-get update && apt-get install -y --no-install-recommends "$iopt" "${pkgs[@]}"
+    apt-get update && apt-get install --no-install-recommends "$iopt" "${pkgs[@]}"
 
 elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||

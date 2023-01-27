@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,8 +31,8 @@ using TargetShape = Shape;
 
 void convert_broadcast3_test(std::shared_ptr<Function> f, std::shared_ptr<Function> f_ref) {
     pass::Manager manager;
-    manager.register_pass<pass::InitNodeInfo>();
-    manager.register_pass<pass::ConvertBroadcast3>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::ConvertBroadcast3>();
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
@@ -347,8 +347,8 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -388,8 +388,8 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -433,8 +433,8 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -479,8 +479,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -518,8 +518,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -559,8 +559,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
         f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -603,8 +603,8 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
         f = std::make_shared<Function>(NodeVector{broadcast}, ParameterVector{input1});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
-        manager.register_pass<pass::ConvertBroadcast3>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

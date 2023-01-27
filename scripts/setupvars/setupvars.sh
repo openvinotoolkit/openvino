@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
@@ -32,20 +32,13 @@ if [ -e "$INSTALLDIR/runtime" ]; then
     system_type=$(ls "$INSTALLDIR/runtime/lib/")
     IE_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type
 
-    export HDDL_INSTALL_DIR=$INSTALLDIR/runtime/3rdparty/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
         export DYLD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}
         export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}/Release:${IE_PLUGINS_PATH}/Debug${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
         export PKG_CONFIG_PATH=${IE_PLUGINS_PATH}/Release/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     else
-        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
         export PKG_CONFIG_PATH=$IE_PLUGINS_PATH/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
-    fi
-
-    HDDL_UNITE_DIR=$INSTALLDIR/runtime/3rdparty/hddl_unite
-
-    if [ -e "$HDDL_UNITE_DIR" ]; then
-        export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
 
     if [ -e "$INSTALLDIR/runtime/3rdparty/tbb" ]; then

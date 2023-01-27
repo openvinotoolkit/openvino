@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -512,14 +512,14 @@ ie_core_set_config(ie_core_t* core, const ie_config_t* ie_core_config, const cha
  * @brief Registers a new device and a plugin which implement this device inside Inference Engine.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param plugin_name A name of a plugin. Depending on a platform, plugin_name is wrapped with
- * a shared library suffix and a prefix to identify a full name of the library.
+ * @param plugin - A path (absolute or relative) or name of a plugin. Depending on platform,
+ * plugin is wrapped with shared library suffix and prefix to identify library full name
  * @param device_name A device name to register plugin for. If not specified, the method registers
  * a plugin with the default name.
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode)
-ie_core_register_plugin(ie_core_t* core, const char* plugin_name, const char* device_name);
+ie_core_register_plugin(ie_core_t* core, const char* plugin, const char* device_name);
 
 /**
  * @brief Registers plugins specified in an ".xml" configuration file.
@@ -581,7 +581,7 @@ ie_core_get_config(const ie_core_t* core, const char* device_name, const char* c
  * @brief Gets available devices for neural network inference.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+ * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1 }
  * If there more than one device of specific type, they are enumerated with .# suffix
  * @return Status code of the operation: OK(0) for success.
  */

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/plugin/program.hpp"
@@ -66,7 +66,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     if (special_body_ports.current_iteration_input_idx >= 0) {
         auto current_iteration_input = body_inputs.at(special_body_ports.current_iteration_input_idx);
         body_current_iteration_id = layer_type_name_ID(current_iteration_input);
-        std::string input_name = ngraph::op::util::create_ie_output_name(current_iteration_input);
+        std::string input_name = ov::op::util::create_ie_output_name(current_iteration_input);
         const auto networkInput = networkInputs.at(input_name);
         auto precision = InferenceEngine::details::convertPrecision(current_iteration_input->get_element_type());
         networkInput->setPrecision(precision);
@@ -76,7 +76,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     if (special_body_ports.body_condition_output_idx >= 0) {
         auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
         body_execution_condition_id = layer_type_name_ID(body_condition_output);
-        std::string output_name = ngraph::op::util::create_ie_output_name(body_condition_output);
+        std::string output_name = ov::op::util::create_ie_output_name(body_condition_output);
         const auto networkOutput = networkOutputs.at(output_name);
         networkOutput->setPrecision(InferenceEngine::Precision::I64);
     }

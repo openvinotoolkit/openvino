@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9) {
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertMulticlassNms8ToMulticlassNms9>();
+        manager.register_pass<ov::pass::ConvertMulticlassNms8ToMulticlassNms9>();
     }
 
     {
@@ -49,7 +49,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9_dynamic_rank)
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertMulticlassNms8ToMulticlassNms9>();
+        manager.register_pass<ov::pass::ConvertMulticlassNms8ToMulticlassNms9>();
     }
 
     {
@@ -73,7 +73,7 @@ TEST_F(TransformationTestsF, ConvertMulticlassNms8ToMulticlassNms9_dynamic_dims)
 
         function = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        manager.register_pass<ngraph::pass::ConvertMulticlassNms8ToMulticlassNms9>();
+        manager.register_pass<ov::pass::ConvertMulticlassNms8ToMulticlassNms9>();
     }
 
     {

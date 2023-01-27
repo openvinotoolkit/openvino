@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -67,7 +67,8 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         FrontEnd.add_extension = Mock()
 
     def basic(self, input_model, argv_input, inputs, dtype, expected, freeze_placeholder_with_value=None,
-              input_shape=None, only_conversion=False, input_model_is_text=True):
+              input_shape=None, only_conversion=False, input_model_is_text=True, use_new_frontend=True,
+              use_legacy_frontend=False):
         path = os.path.dirname(__file__)
         input_model = os.path.join(path, "test_models", input_model)
         args = base_args_config()
@@ -76,6 +77,8 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         args.freeze_placeholder_with_value = freeze_placeholder_with_value
         args.input_shape = input_shape
         args.input_model_is_text = input_model_is_text
+        args.use_new_frontend = use_new_frontend
+        args.use_legacy_frontend = use_legacy_frontend
 
         try:
             _, model = prepare_ir(args)
@@ -288,3 +291,12 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         self.basic("mul_with_unknown_rank_y.pbtxt", inputs, inputs_data, dtype, expected,
                    freeze_placeholder_with_value,
                    input_shape, only_conversion, True)
+
+    def test_conversion_failure_fallback_default(self):
+        self.basic("ctc_model_based.pbtxt", None, None, None, None,
+                   None, None, True, True, False, False)
+
+    def test_conversion_failure_fallback_use_new_frontend(self):
+        with self.assertRaisesRegex(Exception, "Internal error: No translator found for Enter node"):
+            self.basic("ctc_model_based.pbtxt", None, None, None, None,
+                       None, None, True, True, True, False)

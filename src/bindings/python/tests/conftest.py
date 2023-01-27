@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -68,9 +68,9 @@ def get_model_with_template_extension():
     return core, core.read_model(ir)
 
 
-def model_path(is_myriad=False):
+def model_path(is_fp16=False):
     base_path = os.path.dirname(__file__)
-    if is_myriad:
+    if is_fp16:
         test_xml = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.xml")
         test_bin = os.path.join(base_path, "test_utils", "utils", "test_model_fp16.bin")
     else:
@@ -93,7 +93,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--backend",
         default="CPU",
-        choices=["CPU", "GPU", "HDDL", "MYRIAD", "HETERO", "TEMPLATE"],
+        choices=["CPU", "GPU", "GNA", "HETERO", "TEMPLATE"],
         help="Select target device",
     )
     parser.addoption(
@@ -118,8 +118,7 @@ def pytest_configure(config):
     # register additional markers
     config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
     config.addinivalue_line("markers", "skip_on_gpu: Skip test on GPU")
-    config.addinivalue_line("markers", "skip_on_hddl: Skip test on HDDL")
-    config.addinivalue_line("markers", "skip_on_myriad: Skip test on MYRIAD")
+    config.addinivalue_line("markers", "skip_on_gna: Skip test on GNA")
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
     config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
@@ -135,8 +134,7 @@ def pytest_collection_modifyitems(config, items):
     keywords = {
         "CPU": "skip_on_cpu",
         "GPU": "skip_on_gpu",
-        "HDDL": "skip_on_hddl",
-        "MYRIAD": "skip_on_myriad",
+        "GNA": "skip_on_gna",
         "HETERO": "skip_on_hetero",
         "TEMPLATE": "skip_on_template",
     }
@@ -144,8 +142,7 @@ def pytest_collection_modifyitems(config, items):
     skip_markers = {
         "CPU": pytest.mark.skip(reason="Skipping test on the CPU backend."),
         "GPU": pytest.mark.skip(reason="Skipping test on the GPU backend."),
-        "HDDL": pytest.mark.skip(reason="Skipping test on the HDDL backend."),
-        "MYRIAD": pytest.mark.skip(reason="Skipping test on the MYRIAD backend."),
+        "GNA": pytest.mark.skip(reason="Skipping test on the GNA backend."),
         "HETERO": pytest.mark.skip(reason="Skipping test on the HETERO backend."),
         "TEMPLATE": pytest.mark.skip(reason="Skipping test on the TEMPLATE backend."),
     }

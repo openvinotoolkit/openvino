@@ -1,6 +1,6 @@
 #include <openvino/runtime/core.hpp>
 
-int ov_hetero() {
+int main() {
 ov::Core core;
 auto model = core.read_model("sample.xml");
 //! [set_manual_affinities]
@@ -49,7 +49,7 @@ auto compiled_model = core.compile_model(model, "HETERO",
     // profiling is enabled only for GPU
     ov::device::properties("GPU", ov::enable_profiling(true)),
     // FP32 inference precision only for CPU
-    ov::device::properties("CPU", ov::hint::inference_precision(ov::element::f32))
+    ov::device::properties("CPU", ov::inference_precision(ov::element::f32))
 );
 //! [configure_fallback_devices]
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -54,7 +54,6 @@ def aggregate_stats(stats: dict):
     return {step_name: {"avg": statistics.mean(duration_list),
                         "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
-
 
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
