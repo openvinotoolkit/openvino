@@ -781,14 +781,25 @@ void network::allocate_primitives() {
     std::sort(nodes_to_allocate.begin(),
               nodes_to_allocate.end(),
               [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                    if (rhs->get_output_layout().is_dynamic() && lhs->get_output_layout().is_dynamic())
+                    auto lhs_layout = lhs->get_output_layout();
+                    auto rhs_layout = rhs->get_output_layout();
+                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
+                        lhs_layout.set_tensor(lhs_layout.get_tensor());
+                    }
+                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
+                        rhs_layout.set_tensor(rhs_layout.get_tensor());
+                    }
+
+                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
                         return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
-                    if (rhs->get_output_layout().is_dynamic())
+                    }
+
+                    if (rhs_layout.is_dynamic())
                         return true;
-                    if (lhs->get_output_layout().is_dynamic())
+                    if (lhs_layout.is_dynamic())
                         return false;
 
-                    return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
               });
 
     for (auto const& node : nodes_to_allocate) {
@@ -1195,6 +1206,9 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (!get_engine().supports_allocation(allocation_type::usm_device))
+        return;
+
+    if (get_engine().get_device_info().dev_type != device_type::discrete_gpu)
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
