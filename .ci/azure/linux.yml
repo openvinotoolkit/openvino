@@ -308,9 +308,6 @@ jobs:
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
-    # env:
-    #   # because of static build libgna is needed for python binary
-    #   LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64
     displayName: 'nGraph and IE Python Bindings Tests'
 
     # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time
@@ -324,18 +321,12 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_zoo_models.py \
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py
     env:
-      # because of static build libgna is needed for python binary and mock_py frontend library
-      # LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(INSTALL_TEST_DIR)
-      # For frontend manager to load mock_py library
       OV_FRONTEND_PATH: $(INSTALL_TEST_DIR)
     displayName: 'Python API 2.0 Tests'
 
   - script: |
       export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
-    # env:
-    #   # because of static build libgna is needed for python binary
-    #   LD_LIBRARY_PATH: $(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$LD_LIBRARY_PATH
     displayName: 'Model Optimizer UT'
 
   - script: |
