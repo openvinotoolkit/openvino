@@ -110,8 +110,8 @@ TEST_P(TransposeToReshapeTests, CompareFunctions) {
     auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     pass::Manager m;
     m.register_pass<pass::InitUniqueNames>(unh);
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::TransposeToReshape>();
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::TransposeToReshape>();
     m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     m.run_passes(f);
     f->validate_nodes_and_infer_types();
@@ -210,9 +210,9 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
         pass::Manager m;
         m.register_pass<pass::InitUniqueNames>(unh);
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ngraph::pass::Validate>();
-        m.register_pass<ngraph::pass::TransposeToReshape>();
+        m.register_pass<ov::pass::TransposeToReshape>();
         m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
         m.run_passes(optimized_f);
 

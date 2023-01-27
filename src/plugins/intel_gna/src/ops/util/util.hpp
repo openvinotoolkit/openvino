@@ -159,7 +159,7 @@ static bool is_power_activation(const ov::Node* node) noexcept {
         if (!const_node)
             return false;
         float value;
-        if (!ngraph::op::util::get_single_value(const_node, value)) {
+        if (!ov::op::util::get_single_value(const_node, value)) {
             return true;
         }
         return (1.0f != value);
