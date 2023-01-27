@@ -75,6 +75,7 @@ OP_CONVERTER(translate_ones_like);
 OP_CONVERTER(translate_pad);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_relu6);
+OP_CONVERTER(translate_remainder);
 OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
@@ -91,6 +92,7 @@ OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
+OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
@@ -99,6 +101,7 @@ OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_nearest2d);
 OP_CONVERTER(translate_var);
+OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_view);
 OP_CONVERTER(translate_where);
 OP_CONVERTER(translate_zeros);
@@ -234,6 +237,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::relu", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten::relu_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten::relu6", op::translate_relu6},
+        {"aten::remainder", op::translate_remainder},
         {"aten::repeat", op::translate_repeat},
         {"aten::reshape", op::translate_reshape},
         {"aten::reshape_as", op::translate_reshape_as},
@@ -266,6 +270,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tanh>>},
         {"aten::tensor", op::translate_as_tensor},
         {"aten::to", op::translate_to},
+        {"aten::topk", op::translate_topk},
         {"aten::transpose", op::translate_transpose},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
@@ -277,6 +282,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
         {"aten::var", op::translate_var},
+        {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_view},
         {"aten::where", op::translate_where},
         {"aten::zeros", op::translate_zeros},
