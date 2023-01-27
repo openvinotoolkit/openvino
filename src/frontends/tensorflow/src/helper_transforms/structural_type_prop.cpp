@@ -167,6 +167,10 @@ bool DecomposeStrParameters::run_on_model(const std::shared_ptr<Model>& model) {
         // Check 1D and Str structural type
         auto rank = parameter->get_partial_shape().rank();
         auto rt_info = parameter->get_rt_info();
+        rt_info["structural_type"] = StructuralTypeAttribute(element::StructuralType::Str());
+        //parameter->set_element_type(element::dynamic);
+        //parameter->set_partial_shape(PartialShape{Dimension()});
+        parameter->validate_and_infer_types();
         if(
             parameter->get_element_type() == element::dynamic &&
             StructuralTypeAttribute::has_type(rt_info, element::StructuralType::Str()))

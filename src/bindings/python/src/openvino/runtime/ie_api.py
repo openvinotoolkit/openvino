@@ -130,9 +130,12 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     return new_inputs
 
 
-def postprocess_results (outputs: dict, model_outputs) -> dict:
+def postprocess_results (outputs: dict, model_outputs, model=None) -> dict:
     #print('1:', model_outputs)
     #print('2:', outputs)
+    print('postprocess_results')
+    print(model)
+    #print(model.get_rt_info())
     if len(model_outputs) == 1:
         # TODO: find out how to access RT info in Python or implement it
         #print([key for key in output.get_rt_info()])
@@ -155,8 +158,12 @@ def postprocess_results (outputs: dict, model_outputs) -> dict:
 class InferRequest(InferRequestBase):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def postprocessed (self, inputs):
-        return postprocess_results(super().infer(inputs), super().model_outputs)
+    def __init__(self, infer_request, model):
+        super().__init__(infer_request)
+        self.model = model
+
+    def postprocessed(self, inputs):
+        return postprocess_results(super().infer(inputs), super().model_outputs, self.model)
 
     def infer(self, inputs: Any = None) -> dict:
         """Infers specified input(s) in synchronous mode.
@@ -295,7 +302,7 @@ class CompiledModel(CompiledModelBase):
         :return: New InferRequest object.
         :rtype: openvino.runtime.InferRequest
         """
-        return InferRequest(super().create_infer_request())
+        return InferRequest(super().create_infer_request(), self)
 
     def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray, str] = None) -> dict:
         """Infers specified input(s) in synchronous mode.

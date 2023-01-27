@@ -119,7 +119,7 @@ void InputModel::InputModelTFImpl::loadPlaces() {
             auto pshape = node_decoder->get_attribute("shape").as<ov::PartialShape>();
 
             std::cerr << "[ INFO TF FE ] Start quering attributes for TensorPlace\n";
-            
+
             Any structural_type = node_decoder->get_attribute("dtype");
             // TODO: calling get_attribute_as_any directly instead of
             // templated version skips calling apply_additional_conversion_rules.
@@ -331,7 +331,7 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::getPlaceByTensorName(cons
     if (m_op_places_map.find(operation_name) != m_op_places_map.end()) {
         std::vector<std::string> names = {tensorName};
         auto m_var_place =
-            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape(), ov::element::undefined, names);
+            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape(), ov::element::dynamic, names);
         m_tensor_places[tensorName] = m_var_place;
         return m_var_place;
     }

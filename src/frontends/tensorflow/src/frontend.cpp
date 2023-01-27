@@ -204,8 +204,12 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                         "Input created with pruning must have one output");
                 ng_inputs.push_back(input_outputs_vector.at(producer_port_idx));
             } else {
+                std::cerr << "ng_op_map:\n";
+                for(auto i = ng_op_map.begin(); i != ng_op_map.end(); ++i) {
+                    std::cerr << "    " << i->first << '\n';
+                }
                 FRONT_END_GENERAL_CHECK(false,
-                                        "No input is found for node \"" + operation_name + "\" by port " +
+                                        "No input \"" + producer_name + "\" is found for node \"" + operation_name + "\" by port " +
                                             std::to_string(producer_port_idx));
             }
         }
@@ -500,13 +504,14 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
     propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughStrOpsProp>());
     propagators->add_matcher<ov::pass::GraphRewrite>(std::make_shared<pass::ThroughReshapeProp>());
     manager.register_pass<pass::DecomposeStructResults>();
-    manager.register_pass<pass::ReplaceParameterByVocab>();
+    //manager.register_pass<pass::ReplaceParameterByVocab>();
 
     manager.set_per_pass_validation(false);
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
     manager.run_passes(function);
+    std::cerr << "[ END OF TRANSFORMATIONS ]\n";
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {

@@ -125,7 +125,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
                 std::cerr << "[ INFO TF FE ] Unsupported type: " << attrs[0].type() << "\n";
                 return ov::element::StructuralType::Str();
             } else {
-                return ov::element::undefined;
+                return ov::element::dynamic;
             }
         }
     }
