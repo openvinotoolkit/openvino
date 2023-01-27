@@ -56,6 +56,15 @@ TEST_P(FrontEndConversionExtensionTest, TestConversionExtension) {
                                                       auto res = std::make_shared<ov::opset8::Relu>(ng_input);
                                                       return {res};
                                                   }));
+    } else if (m_param.m_frontEndName == "tflite") {
+        frontend->add_extension(
+            std::make_shared<ConversionExtension>(m_param.m_translatorName,
+                                                  [&](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+                                                      invoked = true;
+                                                      auto input = node.get_input(0);
+                                                      auto res = std::make_shared<ov::opset8::Sigmoid>(input);
+                                                      return {res};
+                                                  }));
     } else if (m_param.m_frontEndName == "onnx") {
         frontend->add_extension(
             std::make_shared<ConversionExtension>(m_param.m_translatorName,

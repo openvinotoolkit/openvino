@@ -19,7 +19,7 @@ OutputVector translate_einsum_op(const NodeContext& node) {
 
     OutputVector inputs;
     for (size_t input_ind = 0; input_ind < node.get_input_size(); ++input_ind) {
-        inputs.push_back(node.get_input(input_ind));
+        inputs.push_back(node.get_input(static_cast<int>(input_ind)));
     }
 
     auto einsum = make_shared<Einsum>(inputs, equation);
