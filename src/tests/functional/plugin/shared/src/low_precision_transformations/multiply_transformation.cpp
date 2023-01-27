@@ -66,7 +66,7 @@ void MultiplyTransformation::SetUp() {
         param.fakeQuantizeAfter,
         param.secondInputIsConstant);
 
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_function(function);
 }
 
 void MultiplyTransformation::Run() {

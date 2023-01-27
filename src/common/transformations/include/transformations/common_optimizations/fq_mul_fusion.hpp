@@ -29,9 +29,3 @@ public:
     OPENVINO_RTTI("FakeQuantizeMulFusion", "0");
     FakeQuantizeMulFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::FakeQuantizeMulFusion;
-}  // namespace pass
-}  // namespace ngraph
