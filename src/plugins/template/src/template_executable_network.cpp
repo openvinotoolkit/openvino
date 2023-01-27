@@ -163,7 +163,7 @@ void TransformNetwork(const std::shared_ptr<ov::Model>& model);
 
 void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
-    TransformNetwork(model);
+    // TransformNetwork(model);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
