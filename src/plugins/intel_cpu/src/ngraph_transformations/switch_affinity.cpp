@@ -142,8 +142,15 @@ bool switchToImageAffinity(const ov::intel_cpu::mixed_affinity::Characteristics&
     }
 
     auto change_names = [&](const std::shared_ptr<ov::Model>& m, const size_t batch_idx) {
+        const std::string suffix = "_" + std::to_string(batch_idx);
         for (const auto& n : m->get_ordered_ops()) {
-            n->set_friendly_name(n->get_friendly_name() + "_" + std::to_string(batch_idx));
+            n->set_friendly_name(n->get_friendly_name() + suffix);
+            for (const auto& output : n->outputs()) {
+                std::unordered_set<std::string> new_names;
+                for (const auto& name : output.get_tensor_ptr()->get_names())
+                    new_names.insert(name + suffix);
+                output.get_tensor_ptr()->set_names(new_names);
+            }
         }
     };
 
