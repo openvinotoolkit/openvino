@@ -355,6 +355,8 @@ class TestParallelRunner:
     @staticmethod
     def progressbar(it_num, message="", progress_bar_size=60, out=sys.stdout):
         max_len = len(it_num)
+        if max_len == 0:
+            return
         def show(sym_pos):
             x = int(progress_bar_size * sym_pos / max_len)
             print("{}[{}{}] {}/{}".format(message, "#"*x, "."*(progress_bar_size-x), sym_pos, max_len), 
