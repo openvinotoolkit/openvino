@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023  Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from utils import utils
@@ -286,6 +286,8 @@ class TestParallelRunner:
         if idx < len(proved_test_list):
             while proved_test_list[idx]._time == -1:
                 proved_test_list.pop(idx)
+                if idx >= len(proved_test_list):
+                    break
 
         # prepare gtest filters per worker according command line length limitation
         while len(proved_test_list) > 0:
@@ -353,6 +355,8 @@ class TestParallelRunner:
     @staticmethod
     def progressbar(it_num, message="", progress_bar_size=60, out=sys.stdout):
         max_len = len(it_num)
+        if max_len == 0:
+            return
         def show(sym_pos):
             x = int(progress_bar_size * sym_pos / max_len)
             print("{}[{}{}] {}/{}".format(message, "#"*x, "."*(progress_bar_size-x), sym_pos, max_len), 
