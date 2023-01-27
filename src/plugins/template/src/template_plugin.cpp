@@ -15,6 +15,7 @@
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/template_pattern_transformation.hpp"
 
 using namespace TemplatePlugin;
@@ -56,6 +57,7 @@ void TransformNetwork(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Example: register plugin specific transformation
     passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
     passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
