@@ -3,7 +3,6 @@
 //
 
 #include <cstring>
-#include <iostream>
 #include <numeric>
 #include <openvino/util/file_util.hpp>
 #include <regex>
