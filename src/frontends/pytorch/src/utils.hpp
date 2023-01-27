@@ -18,7 +18,7 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
-void num_inputs_check(NodeContext& context, int min_inputs, int max_inputs);
+void num_inputs_check(NodeContext& context, size_t min_inputs, size_t max_inputs);
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
