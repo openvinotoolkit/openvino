@@ -1,4 +1,4 @@
-# SnippetS developers documentation
+# SnippetS
 
 * [SnippetS design guide](./docs/snippets_design_guide.md)
 * [CPU target for SnippetS code generator](./docs/snippets_cpu_target.md)

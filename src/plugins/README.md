@@ -4,13 +4,13 @@ OpenVINO Plugins provide support for hardware devices.
 
 The list of supported plugins:
 
- * [auto](./auto)
+ * [auto](./auto/README.md)
  * [auto_batch](./auto_batch)
  * [hetero](./hetero/README.md)
  * [intel_cpu](./intel_cpu/README.md)
  * [intel_gna](./intel_gna)
  * [intel_gpu](./intel_gpu/README.md)
- * [template](./template)
+ * [template](./template/README.md)
 
 ## See also
  * [OpenVINO™ README](../../README.md)

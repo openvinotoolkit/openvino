@@ -31,10 +31,10 @@
         | [scatter_elements_update_kernel_selector.(cpp,h)](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/kernel_selector/kernels/scatter_update/scatter_elements_update_kernel_selector.cpp) | Kernel selector for a primitive |
         | [register_gpu.(cpp,hpp)](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/gpu/register_gpu.cpp) | Primitive registration |
         | [scatter_elements_update_gpu.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/gpu/scatter_elements_update_gpu.cpp) | Primitive registration, input spec |
-        | [scatter_elements_update_inst.h](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/include/scatter_elements_update_inst.h) | Node type declaration for cldnn program |
-        | [clDNN/src/scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/scatter_elements_update.cpp) | Code for scatter_elements_update_inst.h |
-        | [clDNN/api/cldnn/primitives/scatter_elements_update.hpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/api/cldnn/primitives/scatter_elements_update.hpp) | clDNN primitive definition |
-        | [common_types.h](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/kernel_selector/common/common_types.h) | Enum declaration for KernelType and arguments |
+        | [scatter_elements_update_inst.h](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/graph/include/scatter_elements_update_inst.h) | Node type declaration for cldnn program |
+        | [clDNN/src/scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/graph/scatter_elements_update.cpp) | Code for scatter_elements_update_inst.h |
+        | [clDNN/api/cldnn/primitives/scatter_elements_update.hpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/include/intel_gpu/primitives/scatter_elements_update.hpp) | clDNN primitive definition |
+        | [common_types.h](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/src/kernel_selector/common_types.h) | Enum declaration for KernelType and arguments |
 
     1. Add unit tests for the new operation
 
@@ -82,7 +82,7 @@
 
     | File | Description |
     |------|-------------|
-    | [single_layer_tests/scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/tests/functional/plugin/gpu/shared_tests_instances/single_layer_tests/scatter_elements_update.cpp) | Single layer test |
+    | [single_layer_tests/scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/tests/functional/shared_tests_instances/single_layer_tests/scatter_elements_update.cpp) | Single layer test |
 
     * It is possible to use ngraph reference code for result validation.
     * This is compiled into `gpuFuncTests`. It is also `gtest` application.

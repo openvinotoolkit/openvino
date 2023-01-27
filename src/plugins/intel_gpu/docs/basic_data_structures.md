@@ -91,7 +91,7 @@ struct program_node {
 ...
 };
 ```
-A program is consisting of program_nodes which are created from primitives. [link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L353). A program_node is created by a factory for each primitive type, i.e., primitive_type, which is associated to each primitive as type ([link](https://github.com/openvinotoolkit/openvino/blob/173f328c53d39dd42ecdb9de9e04f9d2c266683f/src/plugins/intel_gpu/include/intel_gpu/primitives/primitive.hpp#L79)). (Note that this primitive_type is used to create primitive_inst or call choose_impl too.) 
+A program is consisting of program_nodes which are created from primitives. ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L353)) A program_node is created by a factory for each primitive type, i.e., primitive_type, which is associated to each primitive as type ([link](https://github.com/openvinotoolkit/openvino/blob/173f328c53d39dd42ecdb9de9e04f9d2c266683f/src/plugins/intel_gpu/include/intel_gpu/primitives/primitive.hpp#L79)). (Note that this primitive_type is used to create primitive_inst or call choose_impl too.) 
 
 Basically a program_node holds the following information which is to be decided throughout the transformation / optimization processes in a program:
 * layout : output layout of a program_node. ([impl](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/include/intel_gpu/runtime/layout.hpp))
@@ -128,7 +128,7 @@ The major tasks that are done while building a program are as follows:
         * propagate_constants : Transfer and reorder original weight data to the generic_nodes created at post_optimize_weights. Here, note that the constant propagation is doing weight reorder by running actual network (w/ is_internal = true). To this end, a temporal program is created/built/run within this pass. <br>
 
 * Kernel selection and graph compilations ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L436)) : Select best kernel for the program_node and create the impl (i.e., primitive_impl), and collect the kernel source code strings to the kernels_cache. 
-* Kernel compilation ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L451)): JIT compilation of the collected kernels. Currently 9 kernels are combined as a batch and compiled at a time. Also the batches are compiled in parallel. See [here](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/runtime/kernels_cache.cpp#L400)
+* Kernel compilation ([link](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/graph/program.cpp#L451)): JIT compilation of the collected kernels. Currently 9 kernels are combined as a batch and compiled at a time. Also the batches are compiled in parallel. See [here](https://github.com/openvinotoolkit/openvino/blob/4c01d6c50c6d314373dffd2a8ddbc294011b2508/src/plugins/intel_gpu/src/runtime/kernels_cache.cpp#L400).
 
 ## primitive_inst (impl)
 

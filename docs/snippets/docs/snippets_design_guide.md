@@ -1,5 +1,5 @@
 # SnippetS design guide
-This document describes the design and rationale for snippets code generator. Implementation of code functionality is located [here](https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/src/snippets). Proposal for CPU backend integration is [here](https://github.com/openvinotoolkit/openvino/pull/2824).
+This document describes the design and rationale for snippets code generator. Implementation of code functionality is located [here](https://github.com/openvinotoolkit/openvino/tree/master/src/common/snippets). Proposal for CPU backend integration is [here](https://github.com/openvinotoolkit/openvino/pull/2824).
 
 ## Rationale
 
@@ -30,7 +30,7 @@ Code generation is split into 2 phases, **tokenization** and **lowering**.
 
 Tokenization runs on full topology nGraph function inside a specific plugin in a stage of common transformations. Input of tokenization is a topology graph. Output is a modified topology graph with `ngraph::snippets::op::Subgraph` operations installed. Each subgraph contains nGraph function (called **body**) which holds a part of original topology legal for snippet generation (can be scheduled with a single schedule) 
 
-Procedure of finding subgraphs suitable for code generation is called **tokenization**, meaning that we split the topology tree into subgraphs in the same greedy approach which is used for parsing input stream of characters into the tokens. It also could be seen as and modified into a basic block construction problem, since we also find a leader and potentially terminators. Implementation can be found [here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/src/snippets/src/pass/collapse_subgraph.cpp).
+Procedure of finding subgraphs suitable for code generation is called **tokenization**, meaning that we split the topology tree into subgraphs in the same greedy approach which is used for parsing input stream of characters into the tokens. It also could be seen as and modified into a basic block construction problem, since we also find a leader and potentially terminators. Implementation can be found [here](https://github.com/openvinotoolkit/openvino/blob/master/src/common/snippets/src/pass/collapse_subgraph.cpp).
 
 Tokenization has an advantage over the pattern matching approach (used in traditional and MLIR-based compilers) since it can handle arbitrary patterns of operations. Pattern matching deduces specific configuration of operations to translate to another one, more suitable for target machine or further lowering. This means that relations between operations are fixed. Tokenization on the other hand has the only limitation on specific operation types which are **suitable and profitable** to fuse with respect to original topology correctness (keeping it as a direct acyclic graph).
 
@@ -301,6 +301,7 @@ Subgraph can be executed with nGraph references if no generator is present.
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO SnippetS](../README.md)
  * [OpenVINO Core Components](../../../src/README.md)
  * [Developer documentation](../../../docs/dev/index.md)
 

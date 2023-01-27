@@ -23,7 +23,7 @@ In order to dump buffers, we need to wait for the moment that the kernel is abou
 
 Typical network execution happens with `usm_host` for network input and output and `usm_device` for the buffers inside the network.
 
-For usage of this dumping feature, please see [link](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDebugUtils#layer-inout-buffer-dumps)
+For usage of this dumping feature, please see [link](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDebugUtils#layer-inout-buffer-dumps).
 
 ## See also
  * [OpenVINO™ README](../../../../README.md)

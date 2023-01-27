@@ -1,10 +1,10 @@
 # Graph Optimization Passes
 
-Graph optimization is a collection of optimization passes that happens to convert a general network description into a network-description-for-GPU-execution. It happens in the constructor of `cldnn::program`. In other words, the input of graph optimization is `topology`[(link)](https://github.com/openvinotoolkit/openvino/wiki/Basic-data-structures-of-gpu-graph-and-overall-flow#topology) and output is `program`[(link)](https://github.com/openvinotoolkit/openvino/wiki/Basic-data-structures-of-gpu-graph-and-overall-flow#program-impl--).
+Graph optimization is a collection of optimization passes that happens to convert a general network description into a network-description-for-GPU-execution. It happens in the constructor of `cldnn::program`. In other words, the input of graph optimization is `topology`[(link)](./basic_data_structures.md#topology) and output is `program`[(link)](./basic_data_structures.md#program-impl--).
 
 The transformation from original graph into the final graph is quite complicated. The steps are divided into smaller pieces(`pass`). The purpose of this documentation is not to explain every step in detail, but to explain key steps.
 
-For debugging purpose, you can dump the optimized graph after each step. Please see this [link](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDebugUtils#graph-dumps) for detail.
+For debugging purpose, you can dump the optimized graph after each step. Please see this [link](./gpu_debug_utils.md#graph-dumps) for detail.
 
 Note: The optimization passes runs in sequence and the prefixed number indicates the sequence. However, this sequence number might change in the future.
 

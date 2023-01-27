@@ -32,7 +32,7 @@ openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
        - Check whether or not eltwise is fused to other primitives as expected
   - [primitive_name]_fusion_test.cpp
        - Check that nodes such as eltwise or activation are fusing to the [primitive_name] as expected
-  - The detail of how to add each instance is described [below](https://github.com/openvinotoolkit/openvino/wiki/GPU-plugin-unit-test#fusions-1).
+  - The detail of how to add each instance is described [below](#fusions-1).
 
 - ### test_cases
   - It is mainly checking that cldnn primitives and topology creation are working as designed
@@ -137,7 +137,7 @@ GPU unit tests are using 2 types of test macros(**TEST** and **TEST_P**)  in  [G
 ## module_test and test_cases
 
 - module_test and test_cases are testing GPU plugin using both **TEST_P** and **TEST**.
-- Please refer to [the fusion test](https://github.com/openvinotoolkit/openvino/wiki/GPU-plugin-unit-test#fusions-1) for the test case based on **TEST_P**
+- Please refer to [the fusion test](#fusions-1) for the test case based on **TEST_P**
 - **TEST** checks the test result by comparing the execution results with expected values after running network created from the target topology to check.
   - It is important to generate test input and expected output result in **TEST**
   - You can create input data and expected output data using the 3 following ways:

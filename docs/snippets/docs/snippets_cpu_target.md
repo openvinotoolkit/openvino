@@ -51,6 +51,7 @@ Tensor data can be passed with strides.
 
 ## See also
  * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO SnippetS](../README.md)
  * [OpenVINO Core Components](../../../src/README.md)
  * [Developer documentation](../../../docs/dev/index.md)
  

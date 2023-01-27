@@ -23,11 +23,11 @@ Number of devices                                 1
   Device Type                                     GPU
 ```
 ## 1. Make sure that you have GPU on your system
-Some Intel® CPUs might not have integrated GPU, so if you want to run OpenVINO on iGPU, go to https://ark.intel.com/ and make sure that your CPU has it
+Some Intel® CPUs might not have integrated GPU, so if you want to run OpenVINO on iGPU, go to [ark.intel website](https://ark.intel.com/) and make sure that your CPU has it.
 
 ## 2. Make sure that OpenCL® Runtime is installed
-On Windows OpenCL runtime is a part of the GPU driver, but on linux it should be installed separately. For the installation tips please refer to [OpenVINO docs](https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_linux.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/blob/master/opencl/doc/DISTRIBUTIONS.md).
-To get support of Intel® Iris® Xe MAX Graphics with Linux* please follow [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
+On Windows OpenCL runtime is a part of the GPU driver, but on linux it should be installed separately. For the installation tips please refer to [OpenVINO docs](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
+To get support of Intel® Iris® Xe MAX Graphics with Linux please follow [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
 
 
 ## 3. Make sure that user has all required permissions to work with GPU device
@@ -50,7 +50,7 @@ $ cat /etc/OpenCL/vendors/intel.icd
 Note: path to the runtime lib may vary in different driver versions
 
 ## 6. Use LD_DEBUG=libs to trace loaded libraries
-More details: https://github.com/bashbaug/OpenCLPapers/blob/markdown/OpenCLOnLinux.md
+For more details, see the [OpenCL on Linux](https://github.com/bashbaug/OpenCLPapers/blob/markdown/OpenCLOnLinux.md)
 
 ## 7. If you are using dGPU with XMX, ensure that HW_MATMUL feature is recognized
 Openvino contains hello_query_device sample application: [link](https://docs.openvino.ai/latest/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html)
