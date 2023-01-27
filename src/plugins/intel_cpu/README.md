@@ -1,5 +1,9 @@
 # CPU Plugin
 
+## Key Contacts
+
+Please contact a member of [openvino-ie-cpu-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-cpu-maintainers) group, for assistance regarding CPU.
+
 ## Components
 
 CPU Plugin contains the following components:
