@@ -113,13 +113,3 @@ public:
         add_matcher<ov::pass::PReluFusionMultiplySub>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::PReluFusion;
-using ov::pass::PReluFusionMultiplyAdd;
-using ov::pass::PReluFusionMultiplySub;
-using ov::pass::PReluFusionNegativeAdd;
-using ov::pass::PReluFusionNegativeSub;
-}  // namespace pass
-}  // namespace ngraph
