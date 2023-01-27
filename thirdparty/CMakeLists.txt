@@ -291,7 +291,19 @@ endif()
 
 if(ENABLE_OV_TF_LITE_FRONTEND)
     if(ENABLE_SYSTEM_FLATBUFFERS)
-        find_package(Flatbuffers QUIET)
+        if(CMAKE_HOST_LINUX AND EMSCRIPTEN AND HOST_X86_64)
+            set(_old_flat_CMAKE_LIBRARY_ARCHITECTURE ${CMAKE_LIBRARY_ARCHITECTURE})
+            # without this WA cmake does not search in <triplet> subfolder
+            # see https://cmake.org/cmake/help/latest/command/find_package.html#config-mode-search-procedure
+            set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        endif()
+
+        find_host_package(Flatbuffers QUIET NO_CMAKE_FIND_ROOT_PATH)
+
+        if(DEFINED _old_flat_CMAKE_LIBRARY_ARCHITECTURE)
+            set(CMAKE_LIBRARY_ARCHITECTURE ${_old_flat_CMAKE_LIBRARY_ARCHITECTURE})
+            unset(_old_flat_CMAKE_LIBRARY_ARCHITECTURE)
+        endif()
     endif()
 
     if(Flatbuffers_FOUND)
