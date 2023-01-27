@@ -3,10 +3,10 @@
 import itertools
 from functools import partial
 
-import pytest
-from common.tflite_layer_test_class import TFLiteLayerTest
-import tensorflow as tf
 import numpy as np
+import pytest
+import tensorflow as tf
+from common.tflite_layer_test_class import TFLiteLayerTest
 
 np.random.seed(42)
 
@@ -23,57 +23,74 @@ def make_boolean_array(inputs_dict):
     return inputs_dict
 
 
+data_generators = {
+    'positive': make_positive_array,
+    'boolean': make_boolean_array,
+}
+
 test_ops = [
     {'op_name': 'ABS', 'op_func': tf.math.abs},
     {'op_name': 'CAST', 'op_func': partial(tf.cast, dtype=tf.int32)},
     {'op_name': 'CEIL', 'op_func': tf.math.ceil},
     {'op_name': 'COS', 'op_func': tf.math.cos},
     {'op_name': 'ELU', 'op_func': tf.nn.elu},
-    {'op_name': 'EXP', 'op_func': tf.math.exp, 'input_generator': make_positive_array},
+    {'op_name': 'EXP', 'op_func': tf.math.exp, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'FLOOR', 'op_func': tf.math.floor},
-    # {'op_name': 'HARD_SWISH'}, 'op_func': tf have no such operation
     {'op_name': 'LEAKY_RELU', 'op_func': partial(tf.nn.leaky_relu, alpha=-0.5)},
-    {'op_name': 'LOG', 'op_func': tf.math.log, 'input_generator': make_positive_array},
-    {'op_name': 'LOG_SOFTMAX', 'op_func': partial(tf.nn.log_softmax, axis=1)},
-    {'op_name': 'LOGICAL_NOT', 'op_func': tf.math.logical_not, 'input_generator': make_boolean_array, 'dtype': tf.bool},
+    {'op_name': 'LOG', 'op_func': tf.math.log, 'kwargs_to_prepare_input': 'positive'},
+    {'op_name': 'LOG_SOFTMAX', 'op_func': partial(tf.nn.log_softmax, axis=-1)},
+    {'op_name': 'LOGICAL_NOT', 'op_func': tf.math.logical_not, 'kwargs_to_prepare_input': 'boolean', 'dtype': tf.bool},
     {'op_name': 'LOGISTIC', 'op_func': tf.math.sigmoid},
     {'op_name': 'NEG', 'op_func': tf.math.negative},
-    {'op_name': 'RANK', 'op_func': tf.rank},
     {'op_name': 'RELU6', 'op_func': tf.nn.relu6},
     {'op_name': 'ROUND', 'op_func': tf.math.round},
-    {'op_name': 'RSQRT', 'op_func': tf.math.rsqrt, 'input_generator': make_positive_array},
-    {'op_name': 'SHAPE', 'op_func': partial(tf.shape, out_type=tf.int32)},
-    {'op_name': 'SIGN', 'op_func': tf.math.sign},
+    {'op_name': 'RSQRT', 'op_func': tf.math.rsqrt, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'SIN', 'op_func': tf.math.sin},
-    {'op_name': 'SOFTMAX', 'op_func': partial(tf.nn.softmax, axis=1)},  # additionally test with alpha
-    {'op_name': 'SQRT', 'op_func': tf.math.sqrt, 'input_generator': make_positive_array},
+    {'op_name': 'SOFTMAX', 'op_func': partial(tf.nn.softmax, axis=-1)},  # additionally test with alpha
+    {'op_name': 'SQRT', 'op_func': tf.math.sqrt, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'SQUARE', 'op_func': tf.math.square},
     {'op_name': 'TANH', 'op_func': tf.math.tanh},
+
+    # These operations are getting optimized out by tflite aka empty tfl model
+    # {'op_name': 'RANK', 'op_func': tf.rank},
+    # {'op_name': 'SHAPE', 'op_func': partial(tf.shape, out_type=tf.int32)},
+
+    # This op could not be converted standalone -- tries to become FlexOp (offload from tfl to tf)
+    # {'op_name': 'SIGN', 'op_func': tf.math.sign},
+
+    # TF has no such standalone operation
+    # {'op_name': 'HARD_SWISH'}
 ]
 
 test_params = [
     {'shape': [2, 10, 10, 3]},
     {'shape': [2, 10]}
 ]
+
 test_data = list(itertools.product(test_ops, test_params))
+for i, (parameters, shapes) in enumerate(test_data):
+    parameters.update(shapes)
+    test_data[i] = parameters.copy()
 
 
 class TestTFLiteUnaryLayerTest(TFLiteLayerTest):
     inputs = ["Input"]
     outputs = ["UnaryOperation"]
 
-    def _prepare_input(self, inputs_dict):
-        if self.input_generator:
-            return self.input_generator(inputs_dict)
-        return super()._prepare_input(inputs_dict)
+    def _prepare_input(self, inputs_dict, generator=None):
+        if generator is None:
+            return super()._prepare_input(inputs_dict)
+        return data_generators[generator](inputs_dict)
 
-    @staticmethod
-    def make_model(test_op_params: callable, shape: list):
+
+    def make_model(self, params):
+        assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape'})) == 3, \
+            'Unexpected parameters for test: ' + ','.join(params.keys())
+        self.allowed_ops = [params['op_name']]
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            dtype = test_op_params.get('dtype') if test_op_params.get('dtype') else tf.float32
-            tf_input = tf.compat.v1.placeholder(dtype, shape, name=TestTFLiteUnaryLayerTest.inputs[0])
-            test_op_params['op_func'](tf_input, name=TestTFLiteUnaryLayerTest.outputs[0])
+            place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'], name=TestTFLiteUnaryLayerTest.inputs[0])
+            params['op_func'](place_holder, name=TestTFLiteUnaryLayerTest.outputs[0])
             net = sess.graph_def
         return net
 
