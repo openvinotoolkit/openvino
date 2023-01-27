@@ -463,19 +463,9 @@ public:
         // hash for primitive
         seed = get_primitive()->hash();
 
-        // hash for activations
-        for (auto& act : fused_activations) {
-            seed = hash_combine(seed, act.func);
-            seed = hash_combine(seed, act.params.a);
-            seed = hash_combine(seed, act.params.b);
-        }
-
         // hash for fused prims
         for (auto& prim : fused_prims) {
             seed = hash_combine(seed, prim.desc->hash());
-            seed = hash_combine(seed, prim.activation);
-            seed = hash_combine(seed, prim.activation_params.a);
-            seed = hash_combine(seed, prim.activation_params.b);
         }
     }
 
