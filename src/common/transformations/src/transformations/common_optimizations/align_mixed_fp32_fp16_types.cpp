@@ -55,18 +55,12 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                     if (std::dynamic_pointer_cast<opset10::Result>(out_node))
                         continue;
 
-                    const auto& existing_convert = std::dynamic_pointer_cast<opset10::Convert>(out_node);
-
-                    if (existing_convert) {
-                        existing_convert->set_convert_element_type(element::f32);
-                    } else {
-                        // element_type of this convert will be changed automatically to f16 after
-                        // ConvertPrecision(f32 -> f16). It's kept here f32 to keep ov::Model validatable
-                        auto convert = std::make_shared<opset10::Convert>(output, element::f32);
-                        copy_runtime_info(node, convert);
-                        convert->set_friendly_name(node->get_friendly_name() + "_compressed_to_f16");
-                        out_inputs.replace_source_output(convert);
-                    }
+                    // element_type of this convert will be changed automatically to f16 after
+                    // ConvertPrecision(f32 -> f16). It's kept here f32 to keep ov::Model validatable
+                    auto convert = std::make_shared<opset10::Convert>(output, element::f32);
+                    copy_runtime_info(node, convert);
+                    convert->set_friendly_name(node->get_friendly_name() + "_compressed_to_f16");
+                    out_inputs.replace_source_output(convert);
                     is_changed = true;
                 }
             }
