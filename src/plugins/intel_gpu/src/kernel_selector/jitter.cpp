@@ -215,6 +215,12 @@ std::string toCodeString(double val) {
     return buf;
 }
 
+std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output, size_t num_of_inputs) {
+    size_t actual_idx = (num_of_inputs * 6 * (is_output ? 1 : 0)) + (6 * arg_idx) + data_idx_at_6d;
+    snprintf(buf, sizeof(buf), "shape_info[%zu]", actual_idx);
+    return buf;
+}
+
 JitDefinitions JitConstants::GetDefinitions() const {
     JitDefinitions definitons;
     definitons.reserve(_constants.size() * 6);  // assuming max 6 pairs per jit_constant

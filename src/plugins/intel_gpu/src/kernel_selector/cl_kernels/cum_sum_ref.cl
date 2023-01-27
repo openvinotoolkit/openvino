@@ -28,7 +28,13 @@ KERNEL(cum_sum_ref)(
     int stop_ind = axes[AXIS] + 1;
 
 #ifdef REVERSE
+
+#ifdef STOP_IND
+    stop_ind = STOP_IND;
+#else
     stop_ind = OUTPUT_SIZES[AXIS_LAYOUT_INDEX];
+#endif
+
 #ifdef EXCLUSIVE
     ++axes[AXIS];
 #endif
