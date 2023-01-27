@@ -30,8 +30,8 @@ OutputVector translate_instance_norm_inference(NodeContext& context,
                                                const Output<Node>& input,
                                                const Output<Node>& reduction_axes,
                                                float eps) {
-    auto norm = context.mark_node(
-        std::make_shared<MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
+    auto norm =
+        context.mark_node(std::make_shared<MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     if (!context.input_is_none(1)) {
         auto weight = context.get_input(1);
         weight = reshape_conv_bias(context, weight, norm);

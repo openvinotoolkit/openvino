@@ -988,6 +988,18 @@ class Graph(nx.MultiDiGraph):
         else:
             return list(reversed(order))
 
+    def pseudo_topological_sort_with_start_node(self, start_node: Node, reverse: bool = False):
+        nodes_without_inputs = [start_node.soft_get('name')]
+        visited = set()
+        order = self.dfs(nodes_without_inputs[0], visited)
+
+        order = [Node(self, node) for node in order]
+
+        if reverse:
+            return order
+        else:
+            return list(reversed(order))
+
     def clean_up(self, undead_node_types: list = None):
         if undead_node_types is None:
             undead_node_types = []

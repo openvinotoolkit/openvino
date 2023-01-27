@@ -115,7 +115,7 @@ CMake version 3.10 or higher is required for building the OpenVINO™ toolkit sa
 
 CMake is installed. Continue to the next section to set the environment variables.
 
-.. _set-the-environment-variables:
+.. _set-the-environment-variables-raspbian:
 
 @endsphinxdirective
 
