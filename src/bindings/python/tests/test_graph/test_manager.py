@@ -39,9 +39,9 @@ def test_constant_folding():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_seperate_paths_kwargs(request):
+def test_serialize_seperate_paths_kwargs(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [2, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -63,9 +63,9 @@ def test_serialize_seperate_paths_kwargs(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_seperate_paths_args(request):
+def test_serialize_seperate_paths_args(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [2, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -88,9 +88,9 @@ def test_serialize_seperate_paths_args(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass_mixed_args_kwargs(request):
+def test_serialize_pass_mixed_args_kwargs(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [3, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -111,9 +111,9 @@ def test_serialize_pass_mixed_args_kwargs(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass_mixed_args_kwargs_v2(request):
+def test_serialize_pass_mixed_args_kwargs_v2(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -135,8 +135,8 @@ def test_serialize_pass_mixed_args_kwargs_v2(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass_wrong_num_of_args(request):
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+def test_serialize_pass_wrong_num_of_args(request, tmp_path):
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:
@@ -145,13 +145,13 @@ def test_serialize_pass_wrong_num_of_args(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_results(request):
+def test_serialize_results(request, tmp_path):
     core = Core()
     node_constant = ov.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.ceiling(node_constant)
     func = Model(node_ceil, [], "Model")
 
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     pass_manager = Manager()
     pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
     pass_manager.run_passes(func)
@@ -167,9 +167,9 @@ def test_serialize_results(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_pass_tuple(request):
+def test_serialize_pass_tuple(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -191,9 +191,9 @@ def test_serialize_pass_tuple(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_default_version(request):
+def test_default_version(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -215,9 +215,9 @@ def test_default_version(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_default_version_IR_V11_tuple(request):
+def test_default_version_IR_V11_tuple(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
@@ -239,9 +239,9 @@ def test_default_version_IR_V11_tuple(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_default_version_IR_V11_seperate_paths(request):
+def test_default_version_IR_V11_seperate_paths(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
