@@ -9,7 +9,7 @@ from typing import Callable
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
+from openvino.tools.mo.utils.clean_utils import dynamic_dimension
 
 try:
     import openvino_telemetry as tm

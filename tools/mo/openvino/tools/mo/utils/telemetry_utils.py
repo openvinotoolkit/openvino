@@ -5,9 +5,6 @@ from collections import Counter
 
 import numpy as np
 
-from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array
-from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.cli_parser import get_params_with_paths_list
 from openvino.tools.mo.utils.telemetry_params import telemetry_params
 from openvino.tools.mo.utils.version import get_simplified_mo_version
@@ -22,15 +19,16 @@ def init_mo_telemetry():
     _ = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
 
 
-def send_op_names_info(framework: str, graph: Graph):
+def send_op_names_info(framework: str, graph):
     """
     This function sends information about operations in model.
     :param framework: framework name.
     :param graph: model graph.
     """
+    from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
     op_counter = Counter()
 
-    def gather_op_statistics(g: Graph, op_c: Counter = op_counter):
+    def gather_op_statistics(g, op_c: Counter = op_counter):
         if hasattr(g, 'op_names_statistic'):
             op_c += g.op_names_statistic
 
@@ -41,12 +39,13 @@ def send_op_names_info(framework: str, graph: Graph):
         t.send_event('mo', 'op_count', "{}_{}".format(framework, op_name), op_counter[op_name])
 
 
-def send_shapes_info(framework: str, graph: Graph):
+def send_shapes_info(framework: str, graph):
     """
     This function sends information about model input shapes.
     :param framework: framework name.
     :param graph: model graph.
     """
+    from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array
     shapes = []
     for node in graph.get_op_nodes():
         op_type = node.soft_get('type', None)

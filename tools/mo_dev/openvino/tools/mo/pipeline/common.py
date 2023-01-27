@@ -258,11 +258,4 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     tensor_names.output_tensor_names_map(graph, os.path.join(output_dir,
                                                              '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
 
-
-def get_ir_version(argv: argparse.Namespace):
-    """
-    Determine IR version based on command line arguments and the default version.
-    :param argv: the parsed command line arguments
-    :return: the IR version
-    """
-    return 11
+from openvino.tools.mo.utils.clean_utils import get_ir_version

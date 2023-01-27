@@ -18,16 +18,10 @@ try:
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
 
-from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from openvino.tools.mo.moc_frontend.check_config import legacy_transformations_config_used, \
     tensorflow_custom_operations_config_update_used, new_extensions_used
 from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
-from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from openvino.tools.mo.pipeline.common import prepare_emit_ir
-from openvino.tools.mo.pipeline.unified import unified_pipeline
-from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_advanced_cli_options, get_available_front_ends, get_caffe_cli_options, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
@@ -44,7 +38,6 @@ from openvino.tools.mo.utils.telemetry_utils import send_params_info, send_frame
 from openvino.tools.mo.utils.version import get_simplified_mo_version, get_simplified_ie_version, get_version
 from openvino.tools.mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from openvino.tools.mo.utils.telemetry_utils import get_tid
-from openvino.tools.mo.front.common.partial_infer.utils import mo_array
 from openvino.tools.mo.moc_frontend.check_config import legacy_extensions_used
 
 # pylint: disable=no-name-in-module,import-error
@@ -55,6 +48,7 @@ from openvino.runtime import get_version as get_rt_version
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
                     is_onnx: bool):
+    from openvino.tools.mo.utils import import_extensions
     extensions = None
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions
@@ -288,9 +282,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
 
-    load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
-
-    return argv
+    return argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx
 
 
 def check_fallback(argv: argparse.Namespace):
@@ -404,7 +396,7 @@ def prepare_ir(argv: argparse.Namespace):
         from openvino.tools.mo.front.tf.loader import convert_to_pb
         path_to_aux_pb = convert_to_pb(argv)
 
-    argv = arguments_post_parsing(argv)
+    argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
     ngraph_function = None
@@ -444,6 +436,7 @@ def prepare_ir(argv: argparse.Namespace):
                     if os.path.exists(path_to_aux_pb):
                         os.remove(path_to_aux_pb)
 
+    load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
     if len(fallback_reasons) > 0:
         reasons_message = ", ".join(fallback_reasons)
         load_extensions(argv, *list(deduce_legacy_frontend_by_namespace(argv)))
@@ -455,6 +448,7 @@ def prepare_ir(argv: argparse.Namespace):
                     refer_to_faq_msg(105))
 
     t.send_event("mo", "conversion_method", "mo_legacy")
+    from openvino.tools.mo.pipeline.unified import unified_pipeline
     graph = unified_pipeline(argv)
 
     return graph, ngraph_function
@@ -469,7 +463,9 @@ def read_model(fem: FrontEndManager, path_to_xml: str):
     return function
 
 
-def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
+def emit_ir(graph, argv: argparse.Namespace, non_default_params: dict):
+    from openvino.tools.mo.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
+    from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
@@ -490,6 +486,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace, non_default_params: dict):
             if os.path.exists(path_to_file):
                 os.remove(path_to_file)
 
+    from openvino.tools.mo.pipeline.common import prepare_emit_ir
     try:
         prepare_emit_ir(graph=graph,
                         data_type=graph.graph['cmd_params'].data_type,
@@ -1019,4 +1016,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        raise e#.with_traceback(None) FIXME

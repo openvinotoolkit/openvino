@@ -7,7 +7,7 @@ from typing import List
 import networkx as nx
 
 from openvino.tools.mo.front.common.layout import get_dim_from_layout
-from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension
+from openvino.tools.mo.utils.clean_utils import dynamic_dimension
 from openvino.tools.mo.graph.graph import Node, Graph, dict_includes
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, shrink_str_value
@@ -238,25 +238,7 @@ def override_batch(graph: Graph, batch: int):
                     node['shape'][0] = batch
 
 
-def validate_batch_in_shape(shape, layer_name: str):
-    """
-    Raises Error #39 if shape is not valid for setting batch size
-    Parameters
-    ----------
-    shape: current shape of layer under validation
-    layer_name: name of layer under validation
-    """
-    if len(shape) == 0 or (shape[0] is not dynamic_dimension and shape[0] not in (-1, 0, 1)):
-        raise Error(('The input layer {} has a shape {} defined in the model. \n\n' +
-                     'When you use -b (--batch) option, Model Optimizer applies its value to the first ' +
-                     'element of the shape if it is equal to -1, 0 or 1. Otherwise, this is the ambiguous ' +
-                     'situation - Model Optimizer can not know in advance whether the layer has the batch ' +
-                     'dimension or not.\n\n For example, you want to set batch dimension equals 100 ' +
-                     'for the input layer "data" with shape (10,34). Although you can not use --batch, ' +
-                     'you should pass --input_shape (100,34) instead of --batch 100. \n\n' +
-                     'You can also tell Model Optimizer where batch dimension is located by specifying --layout. \n\n' +
-                     refer_to_faq_msg(39))
-                    .format(layer_name, shape))
+from openvino.tools.mo.utils.clean_utils import validate_batch_in_shape
 
 
 def override_placeholder_shapes(graph: Graph, user_shapes: dict, batch=None):

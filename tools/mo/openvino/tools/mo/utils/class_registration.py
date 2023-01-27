@@ -35,22 +35,7 @@ def _check_unique_ids():
                     unique_idxs.add(id_cls)
     log.debug("All replacers has unique idxs.")
 
-
-def get_enabled_and_disabled_transforms():
-    """
-    :return: tuple of lists with force enabled and disabled id of transformations.
-    """
-    disabled_transforms = os.environ['MO_DISABLED_TRANSFORMS'] if 'MO_DISABLED_TRANSFORMS' in os.environ else ''
-    enabled_transforms = os.environ['MO_ENABLED_TRANSFORMS'] if 'MO_ENABLED_TRANSFORMS' in os.environ else ''
-
-    assert isinstance(enabled_transforms, str)
-    assert isinstance(disabled_transforms, str)
-
-    disabled_transforms = disabled_transforms.split(',')
-    enabled_transforms = enabled_transforms.split(',')
-
-    return enabled_transforms, disabled_transforms
-
+from openvino.tools.mo.utils.clean_utils import get_enabled_and_disabled_transforms
 
 class ClassType(Enum):
     EXTRACTOR = 0

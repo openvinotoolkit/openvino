@@ -14,7 +14,7 @@ from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.class_registration import _check_unique_ids, update_registration, \
     get_enabled_and_disabled_transforms, clear_registered_classes_dict
 from openvino.tools.mo.utils.model_analysis import AnalyzeAction
-
+from openvino.tools.mo.utils.clean_utils import default_path
 
 def get_internal_dirs(framework: str, get_front_classes: callable):
     front_classes = get_front_classes()

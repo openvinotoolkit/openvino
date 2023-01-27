@@ -8,7 +8,6 @@ import numpy as np
 
 from openvino.tools.mo.utils.error import Error
 
-dynamic_dimension = np.ma.masked
 # numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid
 # value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension, the big prime
 # (by modulo) negative number is selected as such a value
