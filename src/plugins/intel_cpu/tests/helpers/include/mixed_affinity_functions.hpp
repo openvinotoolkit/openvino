@@ -23,7 +23,7 @@ class MixedAffinityFunctionBase {
 public:
     explicit MixedAffinityFunctionBase(const std::vector<ov::PartialShape>& input_shapes) : input_shapes(input_shapes) {}
     std::shared_ptr<ov::Model> getOriginal(const MixedAffinityMarkup& markup = {});
-    std::shared_ptr<ov::Model> getReference(const MixedAffinityMarkup& markup = {});
+    std::shared_ptr<ov::Model> getReference();
 
 protected:
     virtual std::shared_ptr<ov::Model> initOriginal();
@@ -39,6 +39,15 @@ public:
     explicit ConvWithBiasFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
+};
+
+class Int8ConvWithDqSubFunction : public MixedAffinityFunctionBase {
+public:
+    explicit Int8ConvWithDqSubFunction(const std::vector<ov::PartialShape>& input_shapes);
+protected:
+    std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class GrConvWithParamFunction : public MixedAffinityFunctionBase {
@@ -46,6 +55,7 @@ public:
     explicit GrConvWithParamFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvWithTransposeFunction : public MixedAffinityFunctionBase {
@@ -53,6 +63,7 @@ public:
     explicit ConvWithTransposeFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvWithReshapeFunction : public MixedAffinityFunctionBase {
@@ -60,6 +71,7 @@ public:
     explicit ConvWithReshapeFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvWithSplitAndResultFunction : public MixedAffinityFunctionBase {
@@ -67,6 +79,7 @@ public:
     explicit ConvWithSplitAndResultFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvolutionsAndSplitFunction : public MixedAffinityFunctionBase {
@@ -74,6 +87,7 @@ public:
     explicit ConvolutionsAndSplitFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class TwoConvAndAddFunction : public MixedAffinityFunctionBase {
@@ -81,6 +95,7 @@ public:
     explicit TwoConvAndAddFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class TwoConvWithS2BFunction : public MixedAffinityFunctionBase {
@@ -88,6 +103,7 @@ public:
     explicit TwoConvWithS2BFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvAndAddWithParameterFunction : public MixedAffinityFunctionBase {
@@ -95,6 +111,7 @@ public:
     explicit ConvAndAddWithParameterFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvWithTransposeAndAddFunction : public MixedAffinityFunctionBase {
@@ -102,6 +119,7 @@ public:
     explicit ConvWithTransposeAndAddFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
 
 class ConvWithConcatFunction : public MixedAffinityFunctionBase {
@@ -109,4 +127,5 @@ public:
     explicit ConvWithConcatFunction(const std::vector<ov::PartialShape>& input_shapes);
 protected:
     std::shared_ptr<ov::Model> initOriginal() override;
+    std::shared_ptr<ov::Model> initReference() override;
 };
