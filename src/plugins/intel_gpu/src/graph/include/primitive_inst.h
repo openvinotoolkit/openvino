@@ -276,8 +276,10 @@ protected:
     bool _is_constant = false;
 
     size_t max_output_layout_size = 0;
+    std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
+    memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
     void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
@@ -443,8 +445,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.get_output_layout().is_dynamic())
-            return false;
+        if (typ_node.get_output_layout().is_dynamic() && !typ_node.get_output_layout().has_upper_bound()) {
+                return false;
+        }
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat

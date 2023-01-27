@@ -476,6 +476,14 @@ struct layout {
 
     bool is_dynamic() const;
 
+    bool has_upper_bound() const {
+        for (auto i : size) {
+            if (i.get_max_length() == -1)
+                return false;
+        }
+        return true;
+    }
+
     bool is_static() const;
 
     ov::PartialShape get_partial_shape() const;
