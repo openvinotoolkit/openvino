@@ -119,7 +119,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(pad_op,
-                                                          "ov::frontend::pytorch::pass::PrimListConstrucPadReplacer");
+                                                          "ov::frontend::pytorch::pass::PrimListConstructPadReplacer");
     this->register_matcher(m, callback);
 };
 
