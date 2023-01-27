@@ -156,7 +156,7 @@ ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
-ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Use system flatbuffers" OFF
+ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Use system flatbuffers" ${ENABLE_SYSTEM_LIBS_DEFAULT}
     "ENABLE_OV_TF_LITE_FRONTEND;BUILD_SHARED_LIBS" OFF)
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)

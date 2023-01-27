@@ -291,8 +291,10 @@ endif()
 
 if(ENABLE_OV_TF_LITE_FRONTEND)
     if(ENABLE_SYSTEM_FLATBUFFERS)
-        find_package(Flatbuffers REQUIRED)
+        find_package(Flatbuffers QUIET)
+    endif()
 
+    if(Flatbuffers_FOUND)
         # we don't actually use library files (.so | .dylib | .a) itself, only headers
         set(flatbuffers_LIBRARY flatbuffers::flatbuffers)
         set(flatbuffers_COMPILER flatbuffers::flatc)
@@ -300,9 +302,7 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         foreach(target IN LISTS flatbuffers_LIBRARY flatbuffers_COMPILER)
             set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ON)
         endforeach()
-    endif()
-
-    if(NOT Flatbuffers_FOUND)
+    else()
         add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
     endif()
 
