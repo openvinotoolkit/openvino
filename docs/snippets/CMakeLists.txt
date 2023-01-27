@@ -25,7 +25,9 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 if (NOT TARGET OpenCL::OpenCL)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gpu/context_sharing_va.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/gpu/context_sharing.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing_nv12_two_planes.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing_nv12_single_plane.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing_nv12_to_gray.cpp"                             
                              "${CMAKE_CURRENT_SOURCE_DIR}/gpu/queue_sharing.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/gpu/remote_objects_creation.cpp")
 endif()
