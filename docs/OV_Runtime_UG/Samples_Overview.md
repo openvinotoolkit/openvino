@@ -1,4 +1,4 @@
-# OpenVINO Samples {#openvino_docs_OV_UG_Samples_Overview}
+# OpenVINO™ Samples {#openvino_docs_OV_UG_Samples_Overview}
 
 @sphinxdirective
 
@@ -36,12 +36,12 @@
 
 The OpenVINO™ samples are simple console applications that show how to utilize specific OpenVINO API capabilities within an application. They can assist you in executing specific tasks such as loading a model, running inference, querying specific device capabilities, etc.
 
-If you installed OpenVINO Runtime via archive files, sample applications for С, and C++, and Python are created in the following directories:
-* `<INSTALL_DIR>/samples/c`
-* `<INSTALL_DIR>/samples/cpp`
-* `<INSTALL_DIR>/samples/python`
-
-If you installed OpenVINO via PyPI, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/3) and use samples from `samples/python`.
+* If you installed OpenVINO Runtime via archive files, sample applications for С, and C++, and Python are created in the following directories:
+  * `<INSTALL_DIR>/samples/c`
+  * `<INSTALL_DIR>/samples/cpp`
+  * `<INSTALL_DIR>/samples/python`
+* If you installed OpenVINO via PyPI, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/3) and use samples from `samples/python`.
+* If you installed OpenVINO via HomeBrew, download [the OpenVINO repository](https://github.com/openvinotoolkit/openvino/tree/releases/2022/3) and use samples from `samples/cpp`.
 
 The applications include:
 
@@ -96,13 +96,13 @@ To run the sample, you can use [public](@ref omz_models_group_public) or [Intel'
 
 ### <a name="build-samples-linux"></a>Build the Sample Applications on Linux
 
-The officially supported Linux* build environment is the following:
+The officially supported Linux build environment is the following:
 
-* Ubuntu* 18.04 LTS 64-bit or Ubuntu* 20.04 LTS 64-bit
-* GCC* 7.5.0 (for Ubuntu* 18.04) or GCC* 9.3.0 (for Ubuntu* 20.04)
-* CMake* version 3.10 or higher
+* Ubuntu 18.04 LTS 64-bit or Ubuntu 20.04 LTS 64-bit
+* GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
+* CMake version 3.10 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -110,8 +110,9 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/openvino_c_samples_build/intel64/Release`
-* C++ samples: `~/openvino_cpp_samples_build/intel64/Release`
+* C samples: `~/openvino_c_samples_build/<architecture>/Release`
+* C++ samples: `~/openvino_cpp_samples_build/<architecture>/Release`
+where the <architecture> is the output of `uname -m`, for example, `intel64`, `armhf`, or `aarch64`.
 
 You can also build the sample applications manually:
 
@@ -121,7 +122,6 @@ You can also build the sample applications manually:
 ```sh
 mkdir build
 ```
-> **NOTE**: If you run the Image Classification verification script during the installation, the C++ samples build directory is created in your home directory: `~/openvino_cpp_samples_build/`
 
 2. Go to the created directory:
 ```sh
@@ -142,8 +142,8 @@ cd build
 make
 ```
 
-For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+For the release configuration, the sample application binaries are in `<path_to_build_directory>/<architecture>/Release/`;
+for the debug configuration — in `<path_to_build_directory>/<architecture>/Debug/`.
 
 ### <a name="build-samples-windows"></a>Build the Sample Applications on Microsoft Windows
 
@@ -169,15 +169,15 @@ You can also build a generated solution manually. For example, if you want to bu
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\openvino_cpp_samples_build\Samples.sln`
 directory.
 
-### <a name="build-samples-macos"></a>Build the Sample Applications on macOS*
+### <a name="build-samples-macos"></a>Build the Sample Applications on macOS
 
-The officially supported macOS* build environment is the following:
+The officially supported macOS build environment is the following:
 
-* macOS* 10.15 64-bit or higher
-* Clang* compiler from Xcode* 10.1 or higher
-* CMake* version 3.13 or higher
+* macOS 10.15 64-bit or higher
+* Clang compiler from Xcode 10.1 or higher
+* CMake version 3.13 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
 
 To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -185,14 +185,15 @@ build_samples.sh
 ```
 
 Once the build is completed, you can find sample binaries in the following folders:
-* C samples: `~/openvino_c_samples_build/intel64/Release`
-* C++ samples: `~/openvino_cpp_samples_build/intel64/Release`
+* C samples: `~/openvino_c_samples_build/<architecture>/Release`
+* C++ samples: `~/openvino_cpp_samples_build/<architecture>/Release`
+where the `<architecture>` is the output of `uname -m`, for example, `intel64` or `arm64`.
 
 You can also build the sample applications manually:
 
 > **NOTE**: If you have installed the product as a root user, switch to root mode before you continue: `sudo -i`
 
-> **NOTE**: Before proceeding, make sure you have OpenVINO™ environment set correctly. This can be done manually by
+> **NOTE**: Before proceeding, make sure you have OpenVINO environment set correctly. This can be done manually by
 ```sh
 cd <INSTALL_DIR>/
 source setupvars.sh
@@ -202,7 +203,6 @@ source setupvars.sh
 ```sh
 mkdir build
 ```
-> **NOTE**: If you ran the Image Classification verification script during the installation, the C++ samples build directory was already created in your home directory: `~/openvino_cpp_samples_build/`
 
 2. Go to the created directory:
 ```sh
@@ -223,22 +223,23 @@ cd build
 make
 ```
 
-For the release configuration, the sample application binaries are in `<path_to_build_directory>/intel64/Release/`;
-for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
+For the release configuration, the sample application binaries are in `<path_to_build_directory>/<architecture>/Release/`;
+for the debug configuration — in `<path_to_build_directory>/<architecture>/Debug/`.
 
 ## Get Ready for Running the Sample Applications
 
-### Get Ready for Running the Sample Applications on Linux*
+### Get Ready for Running the Sample Applications on Linux
 
-Before running compiled binary files, make sure your application can find the
-OpenVINO Runtime libraries.
+Before running compiled binary files, make sure your application can find the OpenVINO Runtime libraries.
+
 Run the `setupvars` script to set all necessary environment variables:
 ```sh
 source <INSTALL_DIR>/setupvars.sh
 ```
 
-**(Optional)**: The OpenVINO environment variables are removed when you close the
-shell. As an option, you can permanently set the environment variables as follows:
+#### (Optional) Set Environment Variables Permanently
+
+The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
 
 1. Open the `.bashrc` file in `<user_home_directory>`:
 ```sh
@@ -257,7 +258,7 @@ You are ready to run sample applications. To learn about how to run a particular
 sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
-### Get Ready for Running the Sample Applications on Windows*
+### Get Ready for Running the Sample Applications on Windows
 
 Before running compiled binary files, make sure your application can find the
 OpenVINO Runtime libraries.
@@ -284,4 +285,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [OpenVINO™ Runtime User Guide](openvino_intro.md)
+* [OpenVINO Runtime User Guide](openvino_intro.md)
