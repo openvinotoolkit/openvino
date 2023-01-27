@@ -4,14 +4,13 @@
 
 #include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
-#include "ngraph/ngraph.hpp"
-#include "util/type_prop.hpp"
 #include "openvino/op/ops.hpp"
+#include "util/type_prop.hpp"
 
 using namespace std;
-using namespace ngraph;
-using namespace testing;
+using namespace ov;
 using namespace op;
+using namespace testing;
 
 template <typename T>
 class gather_nd_type_prop : public TypePropOpTest<T> {};
@@ -57,7 +56,6 @@ TYPED_TEST_P(gather_nd_type_prop, static_shape_batch_dims_1_ind_tuple_2) {
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), expected_shape);
 }
-
 
 TYPED_TEST_P(gather_nd_type_prop, static_shape_batch_dims_1_ind_tuple_3) {
     PartialShape data_shape{8, 3, 11, 12};
@@ -110,7 +108,6 @@ TYPED_TEST_P(gather_nd_type_prop, interval_both_labeled_batch_dims_1_ind_tuple_2
     EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(20, 21, 13));
 }
 
-
 TYPED_TEST_P(gather_nd_type_prop, interval_data_labeled_batch_dims_1_ind_tuple_2) {
     PartialShape data_shape{{2, 6}, {3, 7}, {8, 10}, {12, 14}};
     set_shape_labels(data_shape, 10);
@@ -156,12 +153,10 @@ REGISTER_TYPED_TEST_SUITE_P(gather_nd_type_prop,
                             static_shape_batch_dims_1_ind_tuple_dynamic,
                             interval_both_labeled_batch_dims_1_ind_tuple_2,
                             interval_data_labeled_batch_dims_1_ind_tuple_2,
-                            interval_indices_labeled_batch_dims_1_ind_tuple_2
-                            );
+                            interval_indices_labeled_batch_dims_1_ind_tuple_2);
 
-typedef Types<op::v5::GatherND, op::v8::GatherND> GatherNDTypes;
+typedef Types<v5::GatherND, v8::GatherND> GatherNDTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, gather_nd_type_prop, GatherNDTypes);
-
 
 // ------------------------------ V5 ------------------------------
 
@@ -169,9 +164,9 @@ TEST(type_prop, gather_nd_v5_slices_from_4d_batch_dims0) {
     Shape data_shape{2, 3, 11, 12};
     Shape indices_shape{2, 3, 2};
     Shape expected_shape{2, 3, 11, 12};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 0);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -180,9 +175,9 @@ TEST(type_prop, gather_nd_v5_scalars_from_4d_batch_dims2) {
     Shape data_shape{2, 3, 11, 12};
     Shape indices_shape{2, 3, 2};
     Shape expected_shape{6};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -191,9 +186,9 @@ TEST(type_prop, gather_nd_v5_slices_from_5d_batch_dims2) {
     Shape data_shape{7, 5, 11, 12, 32};
     Shape indices_shape{7, 5, 3, 1};
     Shape expected_shape{35, 3, 12, 32};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -202,9 +197,9 @@ TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim) {
     PartialShape data_shape{7, Dimension::dynamic(), 11, 12, 32};
     Shape indices_shape{7, 5, 3, 1};
     Shape expected_shape{35, 3, 12, 32};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -213,9 +208,9 @@ TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim2) {
     PartialShape data_shape{7, Dimension::dynamic(), Dimension::dynamic(), 12, 32};
     Shape indices_shape{7, 5, 3, 1};
     Shape expected_shape{35, 3, 12, 32};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -224,9 +219,9 @@ TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim3) {
     PartialShape data_shape{7, Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
     Shape indices_shape{7, 5, 3, 1};
     PartialShape expected_shape{35, 3, 12, Dimension::dynamic()};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(expected_shape));
 }
@@ -234,9 +229,9 @@ TEST(type_prop, gather_nd_v5_batch_dim2_with_dyn_dim3) {
 TEST(type_prop, gather_nd_v5_batch_dim0_with_dyn_ind_dim) {
     PartialShape data_shape{7, Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
     PartialShape indices_shape{7, 5, 3, Dimension::dynamic()};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 0);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, 0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
@@ -244,11 +239,11 @@ TEST(type_prop, gather_nd_v5_batch_dim0_with_dyn_ind_dim) {
 TEST(type_prop, gather_nd_v5_fail_batch_dims_greater_indices_rank) {
     Shape data_shape{2, 3, 4, 5};
     Shape indices_shape{2, 1};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 3);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param, 3);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -262,11 +257,11 @@ TEST(type_prop, gather_nd_v5_fail_batch_dims_greater_indices_rank) {
 TEST(type_prop, gather_nd_v5_fail_unequal_batch_dims) {
     Shape data_shape{2, 3, 4, 5};
     Shape indices_shape{2, 1, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -279,11 +274,11 @@ TEST(type_prop, gather_nd_v5_fail_unequal_batch_dims) {
 TEST(type_prop, gather_nd_v5_fail_indices_tuple_greater_data_rank_batch_dims2) {
     Shape data_shape{2, 1, 4, 5};
     Shape indices_shape{2, 1, 5, 3};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v5::GatherND>(data_param, indices_param, 2);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param, 2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -299,10 +294,10 @@ TEST(type_prop, gather_nd_v5_scalar_from_2d) {
     Shape data_shape{2, 2};
     Shape indices_shape{2, 2};
     Shape expected_shape{2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -311,10 +306,10 @@ TEST(type_prop, gather_nd_v5_1d_from_2d) {
     Shape data_shape{2, 2};
     Shape indices_shape{2, 1};
     Shape expected_shape{2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -323,10 +318,10 @@ TEST(type_prop, gather_nd_v5_scalar_from_3d) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{2, 3};
     Shape expected_shape{2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -335,10 +330,10 @@ TEST(type_prop, gather_nd_v5_1d_from_3d) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{2, 2};
     Shape expected_shape{2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -347,10 +342,10 @@ TEST(type_prop, gather_nd_v5_2d_from_3d) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{1, 1};
     Shape expected_shape{1, 2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -359,10 +354,10 @@ TEST(type_prop, gather_nd_v5_batch_scalar_from_2d) {
     Shape data_shape{2, 2};
     Shape indices_shape{2, 1, 2};
     Shape expected_shape{2, 1};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -371,10 +366,10 @@ TEST(type_prop, gather_nd_v5_batch_1d_from_2d) {
     Shape data_shape{2, 2};
     Shape indices_shape{2, 1, 1};
     Shape expected_shape{2, 1, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -383,10 +378,10 @@ TEST(type_prop, gather_nd_v5_batch_scalar_from_3d) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{2, 2, 3};
     Shape expected_shape{2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -395,10 +390,10 @@ TEST(type_prop, gather_nd_v5_batch_1d_from_3d) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{2, 2, 2};
     Shape expected_shape{2, 2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -407,10 +402,10 @@ TEST(type_prop, gather_nd_v5_batch_2d_from_3d) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{2, 1, 1};
     Shape expected_shape{2, 1, 2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -428,7 +423,7 @@ TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_2) {
     auto data_param = std::make_shared<v0::Parameter>(element::f32, data_shape);
     auto indices_param = std::make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, batch_dims);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, batch_dims);
 
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -449,7 +444,7 @@ TEST(type_prop, gather_nd_v5_interval_both_labeled_batch_dims_2_ind_tuple_1) {
     auto data_param = std::make_shared<v0::Parameter>(element::f32, data_shape);
     auto indices_param = std::make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v5::GatherND>(data_param, indices_param, batch_dims);
+    auto op = make_shared<v5::GatherND>(data_param, indices_param, batch_dims);
 
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -461,11 +456,11 @@ TEST(type_prop, gather_nd_v5_fail_params_rank) {
     Shape data_shape{};
     Shape indices_shape{2, 1, 1};
     Shape expected_shape{2, 1, 2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect params rank";
     } catch (const NodeValidationFailure& error) {
@@ -479,11 +474,11 @@ TEST(type_prop, gather_nd_v5_fail_indices_rank) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{};
     Shape expected_shape{2, 1, 2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -497,11 +492,11 @@ TEST(type_prop, gather_nd_v5_fail_indices_element_type) {
     Shape data_shape{2, 2, 2};
     Shape indices_shape{2, 1, 1};
     Shape expected_shape{2, 1, 2, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::f32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::f32, indices_shape);
 
     try {
-        auto op = make_shared<op::v5::GatherND>(data_param, indices_param);
+        auto op = make_shared<v5::GatherND>(data_param, indices_param);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices element type";
     } catch (const NodeValidationFailure& error) {
@@ -517,9 +512,9 @@ TEST(type_prop, gather_nd_v8_slices_from_4d_batch_dims0) {
     Shape data_shape{2, 3, 11, 12};
     Shape indices_shape{2, 3, 2};
     Shape expected_shape{2, 3, 11, 12};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 0);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -528,9 +523,9 @@ TEST(type_prop, gather_nd_v8_scalars_from_4d_batch_dims2) {
     Shape data_shape{2, 3, 11, 12};
     Shape indices_shape{2, 3, 2};
     Shape expected_shape{2, 3};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -539,9 +534,9 @@ TEST(type_prop, gather_nd_v8_slices_from_5d_batch_dims2) {
     Shape data_shape{7, 5, 11, 12, 32};
     Shape indices_shape{7, 5, 3, 1};
     Shape expected_shape{7, 5, 3, 12, 32};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -550,9 +545,9 @@ TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim) {
     PartialShape data_shape{7, Dimension::dynamic(), 11, 12, 32};
     Shape indices_shape{7, 5, 3, 1};
     Shape expected_shape{7, 5, 3, 12, 32};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -561,9 +556,9 @@ TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim2) {
     PartialShape data_shape{7, Dimension::dynamic(), Dimension::dynamic(), 12, 32};
     Shape indices_shape{7, 5, 3, 1};
     Shape expected_shape{7, 5, 3, 12, 32};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), expected_shape);
 }
@@ -572,9 +567,9 @@ TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim3) {
     PartialShape data_shape{7, Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
     Shape indices_shape{7, 5, 3, 1};
     PartialShape expected_shape{7, 5, 3, 12, Dimension::dynamic()};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(expected_shape));
 }
@@ -582,9 +577,9 @@ TEST(type_prop, gather_nd_v8_batch_dim2_with_dyn_dim3) {
 TEST(type_prop, gather_nd_v8_batch_dim0_with_dyn_ind_dim) {
     PartialShape data_shape{7, Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
     PartialShape indices_shape{7, 5, 3, Dimension::dynamic()};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 0);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, 0);
     EXPECT_EQ(op->get_element_type(), element::f32);
     ASSERT_TRUE(op->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
@@ -602,7 +597,7 @@ TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_2) {
     auto data_param = std::make_shared<v0::Parameter>(element::f32, data_shape);
     auto indices_param = std::make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, batch_dims);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, batch_dims);
 
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -623,7 +618,7 @@ TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_1) {
     auto data_param = std::make_shared<v0::Parameter>(element::f32, data_shape);
     auto indices_param = std::make_shared<v0::Parameter>(element::i32, indices_shape);
 
-    auto op = make_shared<op::v8::GatherND>(data_param, indices_param, batch_dims);
+    auto op = make_shared<v8::GatherND>(data_param, indices_param, batch_dims);
 
     const auto& out_shape = op->get_output_partial_shape(0);
     EXPECT_EQ(op->get_element_type(), element::f32);
@@ -634,11 +629,11 @@ TEST(type_prop, gather_nd_v8_interval_both_labeled_batch_dims_2_ind_tuple_1) {
 TEST(type_prop, gather_nd_v8_fail_batch_dims_greater_indices_rank) {
     Shape data_shape{2, 3, 4, 5};
     Shape indices_shape{2, 1};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 3);
+        auto op = make_shared<v8::GatherND>(data_param, indices_param, 3);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -652,11 +647,11 @@ TEST(type_prop, gather_nd_v8_fail_batch_dims_greater_indices_rank) {
 TEST(type_prop, gather_nd_v8_fail_unequal_batch_dims) {
     Shape data_shape{2, 3, 4, 5};
     Shape indices_shape{2, 1, 2};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+        auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
@@ -669,11 +664,11 @@ TEST(type_prop, gather_nd_v8_fail_unequal_batch_dims) {
 TEST(type_prop, gather_nd_v8_fail_indices_tuple_greater_data_rank_batch_dims2) {
     Shape data_shape{2, 1, 4, 5};
     Shape indices_shape{2, 1, 5, 3};
-    auto data_param = make_shared<op::Parameter>(element::f32, data_shape);
-    auto indices_param = make_shared<op::Parameter>(element::i32, indices_shape);
+    auto data_param = make_shared<v0::Parameter>(element::f32, data_shape);
+    auto indices_param = make_shared<v0::Parameter>(element::i32, indices_shape);
 
     try {
-        auto op = make_shared<op::v8::GatherND>(data_param, indices_param, 2);
+        auto op = make_shared<v8::GatherND>(data_param, indices_param, 2);
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect indices rank";
     } catch (const NodeValidationFailure& error) {
