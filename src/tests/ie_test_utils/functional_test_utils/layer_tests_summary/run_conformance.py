@@ -59,7 +59,7 @@ def parse_arguments():
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
-    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
+    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
 
     return parser.parse_args()
 
@@ -81,6 +81,10 @@ class Conformance:
         self._type = type
         self._workers = workers
         self._gtest_filter = gtest_filter
+        if not os.path.exists(ov_config_path) and ov_config_path != "":
+            logger.error(f"Specified config file does not exist: {ov_config_path}.")
+            exit(-1)
+        self._ov_config_path = ov_config_path
 
     def __download_conformance_ir(self):
         _, file_name = os.path.split(urlparse(self._model_path).path)
@@ -211,4 +215,4 @@ if __name__ == "__main__":
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
                               args.working_dir, args.ov_config_path)
-    conformance.start_pipeline(args.dump_conformance)
+    conformance.run(args.dump_conformance)
