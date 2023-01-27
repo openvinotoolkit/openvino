@@ -45,6 +45,7 @@ function(add_lfs_repo name prefix url tag)
         LOG_DOWNLOAD ON)
 
     execute_process(
+        COMMAND ${GIT_EXECUTABLE} config --global --add safe.directory .
         COMMAND ${GIT_EXECUTABLE} lfs install --local --force
         WORKING_DIRECTORY ${prefix}/src/${name}
         OUTPUT_VARIABLE lfs_output
