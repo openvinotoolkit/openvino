@@ -176,8 +176,6 @@ TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after_4}, ngraph::ParameterVector{data});
     }
-
-    disable_rt_info_check();
 }
 
 TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {

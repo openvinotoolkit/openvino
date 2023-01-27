@@ -138,76 +138,72 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         // static data shape rank implies static block shape
         const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
 
-        NodeVector new_ops;
+        NodeRegistry rg;
 
-        shared_ptr<Node> flat_node = make_shared<Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        new_ops.push_back(flat_node);
+        shared_ptr<Node> flat_node = rg.make<Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
 
-        shared_ptr<Node> squeezed_shape = make_shared<ShapeOf>(flat_node);
+        shared_ptr<Node> squeezed_shape = rg.make<ShapeOf>(flat_node);
         vector<int64_t> axes_order(block_lenght + 1);
 
-        const auto zero = Constant::create(element::i64, Shape{1}, {0});
-        const auto one = Constant::create(element::i64, Shape{1}, {1});
-        const auto int_max = Constant::create(element::i64, Shape{1}, {INT_MAX});
+        const auto zero = rg.make<Constant>(element::i64, Shape{1}, 0);
+        const auto one = rg.make<Constant>(element::i64, Shape{1}, 1);
+        const auto int_max = rg.make<Constant>(element::i64, Shape{1}, INT_MAX);
 
         for (int64_t b_idx = block_lenght - 1; b_idx >= 0; --b_idx) {
-            const auto block_index = Constant::create(element::i64, Shape{1}, {b_idx});
-            const auto block_index_next = Constant::create(element::i64, Shape{1}, {b_idx + 1});
-            const auto block_value = make_shared<Gather>(block, block_index, zero);
+            const auto block_index = rg.make<Constant>(element::i64, Shape{1}, b_idx);
+            const auto block_index_next = rg.make<Constant>(element::i64, Shape{1}, b_idx + 1);
+            const auto block_value = rg.make<Gather>(block, block_index, zero);
             int64_t sq_idx = block_lenght - 1;
             int64_t axis_idx = axes_order.size() - 1;
 
             NodeVector dispersed_shape_prep(block_lenght + 1);
             for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
-                const auto squeezed_index = Constant::create(element::i64, Shape{1}, {sq_idx});
+                const auto squeezed_index = rg.make<Constant>(element::i64, Shape{1}, sq_idx);
                 if (ds_idx == (b_idx + 1)) {
                     dispersed_shape_prep[ds_idx] = block_value;
                     axes_order[0] = ds_idx;
                 } else if (ds_idx == b_idx) {
-                    const auto squeezed_element = make_shared<Gather>(squeezed_shape, squeezed_index, zero);
-                    dispersed_shape_prep[ds_idx] = make_shared<Divide>(squeezed_element, block_value);
+                    const auto squeezed_element = rg.make<Gather>(squeezed_shape, squeezed_index, zero);
+                    dispersed_shape_prep[ds_idx] = rg.make<Divide>(squeezed_element, block_value);
                     axes_order[axis_idx] = ds_idx;
                     axis_idx--;
                     sq_idx--;
                 } else {
-                    dispersed_shape_prep[ds_idx] = make_shared<Gather>(squeezed_shape, squeezed_index, zero);
+                    dispersed_shape_prep[ds_idx] = rg.make<Gather>(squeezed_shape, squeezed_index, zero);
                     axes_order[axis_idx] = ds_idx;
                     axis_idx--;
                     sq_idx--;
                 }
             }
 
-            const auto dispersed_shape = make_shared<Concat>(dispersed_shape_prep, 0);
+            const auto dispersed_shape = rg.make<Concat>(dispersed_shape_prep, 0);
             constexpr auto special_zero = false;
-            flat_node = make_shared<Reshape>(flat_node, dispersed_shape, special_zero);
-            new_ops.push_back(flat_node);
+            flat_node = rg.make<Reshape>(flat_node, dispersed_shape, special_zero);
 
-            const auto axes_order_const = Constant::create(element::i64, Shape{axes_order.size()}, axes_order);
-            flat_node = make_shared<Transpose>(flat_node, axes_order_const);
-            new_ops.push_back(flat_node);
+            const auto axes_order_const = rg.make<Constant>(element::i64, Shape{axes_order.size()}, axes_order);
+            flat_node = rg.make<Transpose>(flat_node, axes_order_const);
 
             // don't change squeezed_shape at the last iteration, block[0] is assumed to be 1 by op definion
             if (b_idx > 0) {
                 NodeVector squeezed_shape_prep;
                 squeezed_shape_prep.push_back(
-                    make_shared<Multiply>(make_shared<Gather>(squeezed_shape, zero, zero), block_value));
+                    rg.make<Multiply>(rg.make<Gather>(squeezed_shape, zero, zero), block_value));
                 if (b_idx > 1) {  // avoid addind empty Slice into Concat
-                    squeezed_shape_prep.push_back(make_shared<Slice>(squeezed_shape, one, block_index, one));
+                    squeezed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, one, block_index, one));
                 }
                 squeezed_shape_prep.push_back(
-                    make_shared<Divide>(make_shared<Gather>(squeezed_shape, block_index, zero), block_value));
+                    rg.make<Divide>(rg.make<Gather>(squeezed_shape, block_index, zero), block_value));
                 if (b_idx < block_lenght - 1) {  // avoid addind empty Slice into Concat
-                    squeezed_shape_prep.push_back(make_shared<Slice>(squeezed_shape, block_index_next, int_max, one));
+                    squeezed_shape_prep.push_back(rg.make<Slice>(squeezed_shape, block_index_next, int_max, one));
                 }
 
-                squeezed_shape = make_shared<Concat>(squeezed_shape_prep, 0);
+                squeezed_shape = rg.make<Concat>(squeezed_shape_prep, 0);
             }
-            flat_node = make_shared<Reshape>(flat_node, squeezed_shape, special_zero);
-            new_ops.push_back(flat_node);
+            flat_node = rg.make<Reshape>(flat_node, squeezed_shape, special_zero);
         }
 
         flat_node->set_friendly_name(space_to_batch->get_friendly_name());
-        copy_runtime_info(space_to_batch, new_ops);
+        copy_runtime_info(space_to_batch, rg.get());
         replace_node(space_to_batch, flat_node);
         return true;
     };
