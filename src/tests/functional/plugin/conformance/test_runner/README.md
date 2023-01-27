@@ -78,6 +78,9 @@ The script has the following arguments:
 > **NOTE**:
 > All arguments are optional and have default values to reproduce OMZ conformance results in a default way.
 
+> **NOTE**:
+> The approach can be used as custom model scope validator!
+
 ## Examples of usage:
 1. Use the default way to reproduce opset conformance results for OMZ on GPU:
 ```
@@ -92,14 +95,13 @@ python3 run_conformance.py -m /path/to/new/model_irs -s=1 -w /path/to/working/di
 python3 run_conformance.py -m /path/to/conformance_irs -s=0 -ov /path/to/ov_repo_on_custom_branch -d GNA
 ``` 
 
-
 > **IMPORTANT NOTE:**
 > If you need to debug some conformance tests, use the binary run as the default method. If you want to get conformance results or reproduce CI behavior, use the simple python runner.
 
 
 ## How to generate Conformance IRs set
 Run the following commands:
-1. Clone [`Open Model Zoo repo`](https://github.com/openvinotoolkit/open_model_zoo)
+1. Clone [`Open Model Zoo repo`](https://github.com/openvinotoolkit/open_model_zoo) or prepare custom model scope
 2. Download all models using [Downloader tool](https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/model_tools/downloader.py) from the repo.
 3. Convert downloaded models to IR files using [Converter tool](https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/model_tools/converter.py) from the repo.
 4. Run [Subgraph dumper](./../subgraphs_dumper/README.md) to collect unique operation set from the models.
