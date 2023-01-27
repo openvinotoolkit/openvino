@@ -74,6 +74,11 @@ public:
     }
 
     layout get_per_channel_layout(gemm_test_params& p) {
+        // WA: refer PR message
+        if (engine.get_device_info().supports_immad){
+            std::cout << "per_channel layout for onednn gemm not supported." << std::endl;
+            return layout{p.default_type, p.default_format, tensor{1, 1, 1, 1}};
+        }
         return layout{ p.default_type, p.default_format, tensor{ 1, p.in_shapes.at(0).feature[0], 1, 1 } };
     }
 
