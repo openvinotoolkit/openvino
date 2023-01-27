@@ -9,8 +9,8 @@
 #include "openvino/core/validation_util.hpp"
 
 using namespace std;
-using namespace ov;
 
+namespace ov {
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
                          const Output<Node>& logit_length,
                          const Output<Node>& labels,
@@ -98,3 +98,4 @@ shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_
         throw ov::Exception("Incorrect number of arguments");
     }
 }
+}  // namespace ov
