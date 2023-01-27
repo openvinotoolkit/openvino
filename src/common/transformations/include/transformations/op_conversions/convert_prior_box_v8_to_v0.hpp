@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertPriorBox8To0", "0");
     ConvertPriorBox8To0();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertPriorBox8To0;
-}  // namespace pass
-}  // namespace ngraph

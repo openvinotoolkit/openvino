@@ -11,6 +11,7 @@ trigger:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tests/layer_tests/*'
 
 pr:
   drafts: 'false'
@@ -26,6 +27,7 @@ pr:
     - '*.md'
     - '*/layer_tests_summary/*'
     - '*/conformance/*'
+    - 'tests/layer_tests/*'
 
 resources:
   repositories:
@@ -130,7 +132,6 @@ jobs:
       export PATH="/usr/local/opt/cython/bin:$PATH"
       cmake -GNinja \
         -DENABLE_CPPLINT=OFF \
-        -DENABLE_INTEL_MYRIAD_COMMON=OFF \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -198,10 +199,6 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU*--gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ONNXFrontend.xml
     displayName: 'ONNX Frontend Tests'
-    enabled: 'false'
-
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
-    displayName: 'IE UT old'
     enabled: 'false'
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ov_cpu_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_cpu_unit_tests.xml

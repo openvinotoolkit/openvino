@@ -93,7 +93,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1) {
                                                    ngraph::ParameterVector{box_logits, class_preds, proposals});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+            manager.register_pass<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
             manager.run_passes(f);
         }
 
@@ -165,7 +165,7 @@ TEST(TransformationTests, DetectionOutput8ToDetectionOutput1FiveArguments) {
                 ngraph::ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
+            manager.register_pass<ov::pass::ConvertDetectionOutput8ToDetectionOutput1>();
             manager.run_passes(f);
         }
 
