@@ -43,6 +43,7 @@ template OutputVector translate_unary_op<Cosh>(const NodeContext& node);
 template OutputVector translate_unary_op<Erf>(const NodeContext& node);
 template OutputVector translate_unary_op<Exp>(const NodeContext& node);
 template OutputVector translate_unary_op<Floor>(const NodeContext& node);
+template OutputVector translate_unary_op<HSwish>(const NodeContext& node);
 template OutputVector translate_unary_op<opset10::IsFinite>(const NodeContext& node);
 template OutputVector translate_unary_op<opset10::IsInf>(const NodeContext& node);
 template OutputVector translate_unary_op<opset10::IsNaN>(const NodeContext& node);
