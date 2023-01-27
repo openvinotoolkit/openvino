@@ -173,7 +173,7 @@ public:
                 prim.input_layout.count() == prim.output_layout.count() || prim.input_layout.count() == 1;
         }
         if (!full_tensor_or_per_tensor) {
-            IE_THROW() << "FIXME: Onednn gemm has an issue for post-op axis.";
+            IE_THROW() << "FIXME: Onednn gemm has some issues in the post-op axis. Refer PR message.";
         }
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
