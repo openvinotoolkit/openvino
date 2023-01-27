@@ -68,8 +68,8 @@ ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std
     return {deviceName_, config_};
 }
 
-ov::util::FilePath getPluginPath(const std::string& plugin);
-ov::util::FilePath getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly = false);
+ov::util::FilePath get_plugin_path(const std::string& plugin);
+ov::util::FilePath get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only = false);
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
@@ -228,10 +228,10 @@ public:
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
-     * @param xmlConfigFile An .xml configuraion with device / plugin information
-     * @param ByAbsPath A boolean value - register plugins by absolute file path or not
+     * @param xml_config_file An .xml configuraion with device / plugin information
+     * @param by_abs_path A boolean value - register plugins by absolute file path or not
      */
-    void register_plugins_in_registry(const std::string& xmlConfigFile, const bool& ByAbsPath = false);
+    void register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path = false);
 
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
@@ -371,9 +371,9 @@ public:
      * @brief Registers plugin meta-data in registry for specified device
      * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform `plugin` is wrapped with
      * shared library suffix and prefix to identify library full name
-     * @param deviceName A name of device
+     * @param device_name A name of device
      */
-    void register_plugin(const std::string& plugin, const std::string& deviceName);
+    void register_plugin(const std::string& plugin, const std::string& device_name);
 
     /**
      * @brief Provides a list of plugin names in registry; physically such plugins may not be created

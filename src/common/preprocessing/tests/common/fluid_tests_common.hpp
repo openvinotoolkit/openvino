@@ -11,14 +11,6 @@
 
 #include <gtest/gtest.h>
 
-namespace
-{
-    std::ostream& operator<<(std::ostream& o, const cv::GCompileArg& arg)
-    {
-        return o << (arg.tag.empty() ? "empty" : arg.tag);
-    }
-}
-
 class TestFunctional
 {
 public:
