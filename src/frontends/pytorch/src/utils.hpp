@@ -5,13 +5,14 @@
 #pragma once
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 
 namespace op {
 namespace util {
 class FrameworkNode;
-}
+}  // namespace util
 }  // namespace op
 
 namespace frontend {
@@ -83,14 +84,14 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
 }
 
 inline OutputVector return_false_scalar(NodeContext& context) {
-    return {context.mark_node(opset10::Constant::create(element::boolean, Shape{}, {false}))};
+    return {context.mark_node(ov::op::v0::Constant::create(element::boolean, Shape{}, {false}))};
 }
 
 inline OutputVector skip_node(NodeContext& context) {
     return {context.get_input(0).get_node_shared_ptr()};
 }
-}  // namespace op
 
+}  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
