@@ -8,7 +8,7 @@ from openvino.tools.mo.ops.elementwise import Elementwise
 from openvino.tools.mo.graph.graph import Node, Graph
 from openvino.tools.mo.ops.const import Const
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.str_to import StrTo
+from openvino.tools.mo.front.mxnet.extractors.str_to import StrTo
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 

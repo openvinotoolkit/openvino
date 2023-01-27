@@ -3,8 +3,8 @@
 
 import sys
 
-from openvino.tools.mo.utils.cli_parser import get_tf_cli_parser
+from openvino.tools.mo_lite.utils.cli_parser import get_tf_cli_parser
 
 if __name__ == "__main__":
-    from openvino.tools.mo.main import main
+    from openvino.tools.mo_lite.main import main
     sys.exit(main(get_tf_cli_parser(), 'tf'))

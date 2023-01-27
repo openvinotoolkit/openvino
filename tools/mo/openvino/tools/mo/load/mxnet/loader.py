@@ -17,7 +17,7 @@ from openvino.tools.mo.front.mxnet.extractor import mxnet_op_extractors, mxnet_o
 from openvino.tools.mo.front.mxnet.loader import symbol2nx, load_symbol_def
 from openvino.tools.mo.front.mxnet.nd_to_params import save_params_file
 from openvino.tools.mo.graph.graph import Graph
-from openvino.tools.mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
+from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
 
 
 class MxNetLoader(Loader):

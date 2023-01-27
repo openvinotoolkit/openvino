@@ -14,7 +14,7 @@ from openvino.tools.mo.ops.op import Op
 from openvino.tools.mo.utils.class_registration import _check_unique_ids, update_registration, \
     get_enabled_and_disabled_transforms, clear_registered_classes_dict
 from openvino.tools.mo.utils.model_analysis import AnalyzeAction
-
+from openvino.tools.mo_lite.utils.clean_utils import default_path
 
 def get_internal_dirs(framework: str, get_front_classes: callable):
     front_classes = get_front_classes()
@@ -31,11 +31,6 @@ def get_internal_dirs(framework: str, get_front_classes: callable):
 def import_by_path(path: str, middle_names: list = (), prefix: str = ''):
     for module_loader, name, ispkg in pkgutil.iter_modules([path]):
         importlib.import_module('{}{}.{}'.format(prefix, '.'.join(middle_names), name))
-
-
-def default_path():
-    EXT_DIR_NAME = '.'
-    return os.path.abspath(os.getcwd().join(EXT_DIR_NAME))
 
 
 def load_dir(framework: str, path: str, get_front_classes: callable):

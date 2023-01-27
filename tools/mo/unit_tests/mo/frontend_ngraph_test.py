@@ -14,7 +14,7 @@ import pytest
 
 
 class TestNoInferenceEngine(unittest.TestCase):
-    @patch('openvino.tools.mo.utils.find_ie_version.find_ie_version')
+    @patch('openvino.tools.mo_lite.utils.find_ie_version.find_ie_version')
     def test_no_ie_ngraph(self, mock_find):
         mock_find.return_value = False
         with pytest.raises(SystemExit) as e, self.assertLogs(log.getLogger(), level="ERROR") as cm:

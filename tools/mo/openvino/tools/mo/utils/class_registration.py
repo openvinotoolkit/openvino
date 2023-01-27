@@ -13,6 +13,7 @@ from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_
 from openvino.tools.mo.utils.error import Error, InternalError, FrameworkError
 from openvino.tools.mo.utils.logger import progress_bar
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo_lite.utils.clean_utils import get_enabled_and_disabled_transforms
 
 _registered_classes_dict = {}
 
@@ -34,22 +35,6 @@ def _check_unique_ids():
                         raise Error('Found replacer {} with not unique id!'.format(replacer_cls))
                     unique_idxs.add(id_cls)
     log.debug("All replacers has unique idxs.")
-
-
-def get_enabled_and_disabled_transforms():
-    """
-    :return: tuple of lists with force enabled and disabled id of transformations.
-    """
-    disabled_transforms = os.environ['MO_DISABLED_TRANSFORMS'] if 'MO_DISABLED_TRANSFORMS' in os.environ else ''
-    enabled_transforms = os.environ['MO_ENABLED_TRANSFORMS'] if 'MO_ENABLED_TRANSFORMS' in os.environ else ''
-
-    assert isinstance(enabled_transforms, str)
-    assert isinstance(disabled_transforms, str)
-
-    disabled_transforms = disabled_transforms.split(',')
-    enabled_transforms = enabled_transforms.split(',')
-
-    return enabled_transforms, disabled_transforms
 
 
 class ClassType(Enum):

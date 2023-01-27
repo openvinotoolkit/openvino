@@ -19,9 +19,9 @@ def mocked_parse_args(*argv):
 
 
 @patch('argparse.ArgumentParser.parse_args', mocked_parse_args)
-@patch('openvino.tools.mo.convert_impl.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
+@patch('openvino.tools.mo_lite.convert_impl.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
 def run_main(mock_driver):
-    from openvino.tools.mo.main import main
+    from openvino.tools.mo_lite.main import main
     # runs main() method where driver() raises FrameworkError
     main(argparse.ArgumentParser())
 

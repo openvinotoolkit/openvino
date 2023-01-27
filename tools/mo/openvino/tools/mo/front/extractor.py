@@ -18,6 +18,7 @@ from openvino.tools.mo.utils import class_registration
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.unsupported_ops import UnsupportedOps
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
+from openvino.tools.mo_lite.utils.clean_utils import get_new_placeholder_name, raise_no_node, raise_node_name_collision
 
 
 def restore_edges(graph: Graph, get_edges: callable):
@@ -454,17 +455,6 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
-def raise_no_node(node_name: str):
-    raise Error('No node with name {}'.format(node_name))
-
-
-def raise_node_name_collision(node_name: str, found_nodes: list):
-    raise Error('Name collision was found, there are several nodes for mask "{}": {}. '
-                'If your intention was to specify port for node, please instead specify node names connected to '
-                'this port. If your intention was to specify the node name, please add port to the node '
-                'name'.format(node_name, found_nodes))
-
-
 def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
     """
     Extracts port and node ID out of user provided name
@@ -512,61 +502,6 @@ def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
         direction = 'port'
         port = None
     return node_id, direction, port
-
-
-def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int = 0):
-    """
-    Forms a name of new placeholder created by cutting a graph
-    :param node_id: a node name that is cut
-    :param is_out_port: it is True iff output port is cut
-    :param port: a port number
-    :return: a name of new placeholder created by cutting a graph
-    """
-    port_type = '_out' if is_out_port else ''
-    return '{}/placeholder{}_port_{}'.format(node_id, port_type, port)
-
-
-def create_params_with_custom_types(packed_user_shapes: [None, dict]):
-    """
-    Compute a list of placeholder names for which an user specifies custom type
-    :param packed_user_shapes: packed data that contains input node names,
-    their port numbers, shapes and data types
-    :return: a list of placeholder names for which an user specifies custom type
-    Example of packed_user_shapes dictionary:
-    packed_user_shapes =
-    {
-        'node_ID':
-            [
-                {'shape': None, 'in': 0},
-                {'shape': None, 'in': 1},
-            ],
-        'node_1_ID':
-            [
-                {'shape': [1, 227, 227, 3], 'port': None, 'data_type': np.int32}
-            ],
-        'node_2_ID':
-            [
-                {'shape': None, 'out': 3}
-            ]
-    }
-    For which the function returns a list ['node_1_ID'] because this node only has custom data type
-    """
-    if packed_user_shapes is None:
-        return []
-
-    params_with_custom_types = []
-    for input_name in packed_user_shapes:
-        for desc in packed_user_shapes[input_name]:
-            p_name = input_name
-            if 'port' in desc and desc['port'] is None:  # neither input nor output port specified
-                user_defined_type = desc.get('data_type', None)
-            else:  # need to check the particular port the Parameter was created for
-                p_name = get_new_placeholder_name(input_name, 'out' in desc,
-                                                  desc['out'] if 'out' in desc else desc['in'])
-                user_defined_type = desc.get('data_type', None)
-            if user_defined_type is not None:
-                params_with_custom_types.append(p_name)
-    return params_with_custom_types
 
 
 def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray],
@@ -826,33 +761,6 @@ def check_input(graph: Graph, node_name: str):
             not node['is_input']:
         raise Error("--input parameter was provided. Other inputs are needed for output computation. "
                     "Provide more inputs or choose another place to cut the net. " + refer_to_faq_msg(27))
-
-
-def split_node_in_port(node_id: str):
-    """Split node_id in form port:node to separate node and port, where port is converted to int"""
-    if isinstance(node_id, str):
-        separator = ':'
-        parts = node_id.split(separator)
-        if len(parts) > 1:
-            if parts[0].isdigit():
-                node_name = separator.join(parts[1:])
-                try:
-                    port = int(parts[0])
-                    return node_name, port
-                except ValueError as err:
-                    log.warning('Didn\'t recognize port:node format for "{}" because port is not an integer.'.format(
-                    node_id))
-            else:
-                node_name = separator.join(parts[:-1])
-                try:
-                    port = int(parts[-1])
-                    return node_name, port
-                except ValueError as err:
-                    log.warning('Didn\'t recognize node:port format for "{}" because port is not an integer.'.format(
-                    node_id))
-
-    return node_id, None
-
 
 def add_input_op_input_port_without_data(graph: Graph, node_id: str, input_op, edge_attrs: dict):
     input_node = input_op.create_node()

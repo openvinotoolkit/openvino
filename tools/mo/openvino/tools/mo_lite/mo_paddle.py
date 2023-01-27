@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 if __name__ == "__main__":
-    from openvino.tools.mo.subprocess_main import subprocess_main
-    from openvino.tools.mo.utils.telemetry_utils import init_mo_telemetry
+    from openvino.tools.mo_lite.subprocess_main import subprocess_main
+    from openvino.tools.mo_lite.utils.telemetry_utils import init_mo_telemetry
     init_mo_telemetry()
     subprocess_main(framework='paddle')

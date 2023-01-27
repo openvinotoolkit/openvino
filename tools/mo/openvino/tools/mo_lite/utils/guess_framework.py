@@ -4,7 +4,7 @@
 import re
 from argparse import Namespace
 
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo_lite.utils.error import Error
 
 
 def deduce_legacy_frontend_by_namespace(argv: Namespace):

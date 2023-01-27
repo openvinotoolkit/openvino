@@ -6,8 +6,8 @@ import os
 
 from openvino.runtime import Model  # pylint: disable=no-name-in-module,import-error
 
-from openvino.tools.mo.back.preprocessing import apply_preprocessing
-from openvino.tools.mo.utils.cli_parser import parse_transform
+from openvino.tools.mo_lite.utils.preprocessing import apply_preprocessing
+from openvino.tools.mo_lite.utils.cli_parser import parse_transform
 
 
 def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
@@ -17,7 +17,7 @@ def moc_emit_ir(ngraph_function: Model, argv: argparse.Namespace):
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
 
     # Apply transformations
-    from openvino.tools.mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations, \
+    from openvino.tools.mo_lite.utils.offline_transformations import apply_user_transformations, apply_moc_transformations, \
         apply_moc_legacy_transformations, apply_fused_names_cleanup
 
     apply_moc_transformations(ngraph_function)

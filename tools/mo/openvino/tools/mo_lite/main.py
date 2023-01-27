@@ -9,18 +9,16 @@ import sys
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
-from openvino.tools.mo.convert_impl import _convert
-from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
-from openvino.tools.mo.utils.logger import init_logger
-from openvino.tools.mo.utils.error import Error, FrameworkError
+from openvino.tools.mo_lite.convert_impl import _convert
+from openvino.tools.mo_lite.utils.clean_utils import get_ir_version
+from openvino.tools.mo_lite.utils.logger import init_logger
+from openvino.tools.mo_lite.utils.error import Error, FrameworkError
 import traceback
-from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
+from openvino.tools.mo_lite.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
     get_tf_fe_message
-from openvino.tools.mo.utils.model_analysis import AnalysisResults
-from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
+from openvino.tools.mo_lite.utils.guess_framework import deduce_legacy_frontend_by_namespace
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager
@@ -52,6 +50,7 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
         log.debug(traceback.format_exc())
     except Error as err:
+        from openvino.tools.mo.utils.model_analysis import AnalysisResults # FIXME I'll probably fail! Need getter of these results that would return None if we use mo-lite
         analysis_results = AnalysisResults()
         if analysis_results.get_messages() is not None:
             for el in analysis_results.get_messages():
@@ -92,5 +91,5 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
 
 if __name__ == "__main__":
-    from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
+    from openvino.tools.mo_lite.utils.cli_parser import get_all_cli_parser
     sys.exit(main(get_all_cli_parser(FrontEndManager()), None))

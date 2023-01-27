@@ -21,6 +21,7 @@ from openvino.tools.mo.middle.passes.infer import type_infer
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.ops.Cast import Cast
 from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo_lite.utils.clean_utils import get_ir_version
 
 
 def determined_sort(outputs: list):
@@ -258,11 +259,3 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     tensor_names.output_tensor_names_map(graph, os.path.join(output_dir,
                                                              '{}{}.mapping'.format(output_model_name, ir_path_suffix)))
 
-
-def get_ir_version(argv: argparse.Namespace):
-    """
-    Determine IR version based on command line arguments and the default version.
-    :param argv: the parsed command line arguments
-    :return: the IR version
-    """
-    return 11

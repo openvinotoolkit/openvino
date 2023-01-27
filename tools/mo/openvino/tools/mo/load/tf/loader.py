@@ -30,7 +30,8 @@ from openvino.tools.mo.graph.graph import Graph, Node
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils import tensorboard_util
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info, send_framework_info
+from openvino.tools.mo.utils.telemetry_utils import send_op_names_info, send_shapes_info
+from openvino.tools.mo.utils.telemetry_utils import send_framework_info
 from openvino.tools.mo.utils.utils import refer_to_faq_msg
 
 
