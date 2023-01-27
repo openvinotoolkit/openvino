@@ -211,13 +211,10 @@ class TestElementwiseReverseInfer(unittest.TestCase):
 
 class TestUnaryElementwiseReverseInfer(unittest.TestCase):
     @staticmethod
-    def build_and_test_reverse_inference(inp_shape, out_shape, ref_shape):
-        in_port_with_defined_shape = 0 if inp_shape is not None else 1
-        defined_shape = shape_array(inp_shape if inp_shape is not None else inp_shape_2)
+    def build_and_test_reverse_inference(out_shape):
 
         nodes = {
             **shaped_parameter('undefined_shape_data', None, {'reverse_infer': Parameter.reverse_infer}),
-            **shaped_parameter('data', shape_array(defined_shape), {'reverse_infer': Parameter.reverse_infer}),
             **regular_op_with_empty_data('elementwise',
                                          {'op': 'Sqrt', 'type': 'Sqrt',
                                          'infer': eltwise_infer,
@@ -226,31 +223,25 @@ class TestUnaryElementwiseReverseInfer(unittest.TestCase):
         }
 
         edges = [
-            *connect('undefined_shape_data', '{}:elementwise'.format(int(not in_port_with_defined_shape))),
-            *connect('data', '{}:elementwise'.format(in_port_with_defined_shape)),
-            *connect('elementwise', 'res')
+            *connect('undefined_shape_data', '0:elementwise'),
+            *connect('elementwise', 'res'),
         ]
 
         graph = build_graph(nodes, edges)
         graph.stage = 'middle'
         Node(graph, 'elementwise').out_port(0).data.set_shape(shape_array(out_shape))
-        Node(graph, 'elementwise').in_port(in_port_with_defined_shape).data.set_shape(defined_shape)
 
         partial_infer(graph)
-        actual_shape = Node(graph, 'undefined_shape_data').out_port(0).data.get_shape()
-        if ref_shape is None:
-            assert actual_shape == ref_shape
-        else:
-            assert strict_compare_tensors(actual_shape, shape_array(ref_shape))
+        actual_shape = Node(graph, 'elementwise').in_port(0).data.get_shape()
+
+        # check that out_shape is transferred into only existing in_port(0)
+        assert strict_compare_tensors(actual_shape, shape_array(out_shape))
 
     def test_reverse_infer_1(self):
-        self.build_and_test_reverse_inference(inp_shape=[dyn, dyn],
-                                              inp_shape_2=None,
-                                              out_shape=[dyn, dyn, dyn, dyn],
-                                              ref_shape=[dyn, dyn, dyn, dyn])
+        self.build_and_test_reverse_inference(out_shape=[dyn, dyn, dyn, dyn])
 
     def test_reverse_infer_2(self):
-        self.build_and_test_reverse_inference(inp_shape=None,
-                                              inp_shape_2=[dyn, dyn],
-                                              out_shape=[dyn, dyn, dyn, dyn],
-                                              ref_shape=[dyn, dyn, dyn, dyn])
+        self.build_and_test_reverse_inference(out_shape=[dyn, dyn])
+
+    def test_reverse_infer_3(self):
+        self.build_and_test_reverse_inference(out_shape=[1, 100])
