@@ -13,6 +13,8 @@ namespace pass {
 
 class TRANSFORMATIONS_API MarkSugraphsToKeepInMixedPrecision;
 
+constexpr auto float16_min_normalized = float16::from_bits(0x0400);
+
 }  // namespace pass
 }  // namespace ov
 

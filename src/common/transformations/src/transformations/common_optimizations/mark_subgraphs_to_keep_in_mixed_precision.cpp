@@ -18,6 +18,7 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace std;
+using namespace ov::opset10;
 
 namespace ov {
 namespace pass {
@@ -31,7 +32,7 @@ public:
 
     MarkNormalizationOps() {
         MATCHER_SCOPE(MarkNormalizationOps);
-        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, opset10::MVN, opset10::NormalizeL2>();
+        auto ops_to_be_kept_fp32 = pattern::wrap_type<opset2::MVN, MVN, NormalizeL2>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
@@ -47,28 +48,27 @@ public:
 };
 
 // Marking continues to propagate through these ops.
-std::shared_ptr<Node> propagate_through_ops =
-    pattern::wrap_type<opset10::Squeeze,
-                       opset10::Unsqueeze,
-                       opset10::Reshape,
-                       op::util::BroadcastBase,
-                       op::util::BinaryElementwiseArithmetic,
-                       op::util::UnaryElementwiseArithmetic,
-                       opset10::MVN,
-                       opset2::MVN,
-                       opset10::NormalizeL2,
-                       opset10::Sqrt,
-                       opset10::StridedSlice,
-                       opset10::ReduceSum,
-                       opset10::ReduceMean,
-                       opset10::Slice,
-                       opset10::VariadicSplit,
-                       opset10::Split,
-                       op::util::GatherBase,
-                       opset10::Concat,
-                       opset10::Convert,  // through Convert can go only to Constants
-                       opset10::Constant,
-                       opset10::Tile>();
+std::shared_ptr<Node> propagate_through_ops = pattern::wrap_type<Squeeze,
+                                                                 Unsqueeze,
+                                                                 Reshape,
+                                                                 op::util::BroadcastBase,
+                                                                 op::util::BinaryElementwiseArithmetic,
+                                                                 op::util::UnaryElementwiseArithmetic,
+                                                                 MVN,
+                                                                 opset2::MVN,
+                                                                 NormalizeL2,
+                                                                 Sqrt,
+                                                                 StridedSlice,
+                                                                 ReduceSum,
+                                                                 ReduceMean,
+                                                                 Slice,
+                                                                 VariadicSplit,
+                                                                 Split,
+                                                                 op::util::GatherBase,
+                                                                 Concat,
+                                                                 Convert,  // through Convert can go only to Constants
+                                                                 Constant,
+                                                                 Tile>();
 
 /* After PropagateDownMark we need to go also once up to include side branches of ops with several args:
  * Elementwise, Concat and so. E.g. if one of the argument of Concat was marked
@@ -96,11 +96,11 @@ public:
             if (!has_marked_output)
                 return false;
 
-            auto convert_node = dynamic_pointer_cast<opset10::Convert>(node);
+            auto convert_node = dynamic_pointer_cast<Convert>(node);
             if (convert_node) {
                 // if during propagating up there is a Convert it must go to Const,
                 // otherwise interrupt propagation
-                auto const_node = dynamic_pointer_cast<opset10::Constant>(node->input_value(0).get_node_shared_ptr());
+                auto const_node = dynamic_pointer_cast<Constant>(node->input_value(0).get_node_shared_ptr());
                 if (!const_node)
                     return false;
             }
@@ -130,7 +130,7 @@ public:
                 return false;
 
             // on convert down propagation should be interrupted
-            auto convert_node = dynamic_pointer_cast<opset10::Convert>(node);
+            auto convert_node = dynamic_pointer_cast<Convert>(node);
             if (convert_node)
                 return false;
 
@@ -169,7 +169,7 @@ public:
     InitMarkReduceOpPath() {
         MATCHER_SCOPE(InitMarkReduceOpPath);
 
-        auto reduce_ops = pattern::wrap_type<opset10::ReduceSum, opset10::ReduceMean>();
+        auto reduce_ops = pattern::wrap_type<ReduceSum, ReduceMean>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
@@ -216,7 +216,7 @@ public:
     OPENVINO_RTTI("MarkExp", "0");
     MarkExp() {
         MATCHER_SCOPE(MarkExp);
-        auto exp_pattern = pattern::wrap_type<opset10::Exp>();
+        auto exp_pattern = pattern::wrap_type<Exp>();
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
             const auto& node = m.get_match_root();
@@ -270,20 +270,20 @@ public:
         auto input_1 = pattern::any_input();
         auto input_2 = pattern::any_input();
 
-        auto eps_const_pattern = pattern::wrap_type<opset10::Constant>();
-        auto max_or_add = pattern::wrap_type<opset10::Maximum, opset10::Add>(OutputVector{input_2, eps_const_pattern});
+        auto eps_const_pattern = pattern::wrap_type<Constant>();
+        auto max_or_add = pattern::wrap_type<Maximum, Add>(OutputVector{input_2, eps_const_pattern});
 
-        auto sqrt = std::make_shared<opset10::Sqrt>(max_or_add);
+        auto sqrt = std::make_shared<Sqrt>(max_or_add);
         auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
-        auto divide = std::make_shared<opset10::Divide>(input_1, sqrt_or_max_add);
+        auto divide = std::make_shared<Divide>(input_1, sqrt_or_max_add);
 
-        auto pow_exp = pattern::wrap_type<opset10::Constant>();
-        auto convert_pattern = pattern::wrap_type<opset10::Convert>({pow_exp});
+        auto pow_exp = pattern::wrap_type<Constant>();
+        auto convert_pattern = pattern::wrap_type<Convert>({pow_exp});
         auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{pow_exp, convert_pattern});
 
-        auto pow_pattern = std::make_shared<opset10::Power>(max_or_add, pow_exp_or_convert);
-        auto mul_pattern = std::make_shared<opset10::Multiply>(input_1, pow_pattern);
+        auto pow_pattern = std::make_shared<Power>(max_or_add, pow_exp_or_convert);
+        auto mul_pattern = std::make_shared<Multiply>(input_1, pow_pattern);
         auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
         matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -291,11 +291,11 @@ public:
             if (!m.get_match_root())
                 return false;
 
-            const auto mul = std::dynamic_pointer_cast<opset10::Multiply>(m.get_match_root());
+            const auto mul = std::dynamic_pointer_cast<Multiply>(m.get_match_root());
             // if pattern input_1*Pow(Maximum(input_2, eps), z) or input_1*Pow(Add(input_2, eps), z) is matched
             // need to check that power is negative
             if (mul) {
-                const auto pow_const = std::dynamic_pointer_cast<opset10::Constant>(pattern_to_output.at(pow_exp));
+                const auto pow_const = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(pow_exp));
                 if (pow_const) {
                     // continue only if exponent is negative (z < 0)
                     if (pow_const->get_element_type() == element::f16) {
@@ -310,17 +310,16 @@ public:
                 }
             }
 
-            const auto eps_const =
-                std::dynamic_pointer_cast<opset10::Constant>(pattern_to_output.at(eps_const_pattern));
+            const auto eps_const = std::dynamic_pointer_cast<Constant>(pattern_to_output.at(eps_const_pattern));
             if (!eps_const)
                 return false;
             if (eps_const->get_element_type() == element::f32) {
                 for (const auto& val : eps_const->get_vector<float>())
-                    if (val > static_cast<float>(float16::from_bits(0x0400)))
+                    if (val > static_cast<float>(float16_min_normalized))
                         return false;
             } else if (eps_const->get_element_type() == element::f16) {
                 for (const auto& val : eps_const->get_vector<float16>())
-                    if (val > float16::from_bits(0x0400))
+                    if (val > float16_min_normalized)
                         return false;
             }
             disable_fp16_compression(m.get_match_root());

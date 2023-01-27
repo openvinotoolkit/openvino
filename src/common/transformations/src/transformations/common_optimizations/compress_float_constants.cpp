@@ -4,8 +4,6 @@
 
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 
-#include <iomanip>
-
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset8.hpp"
