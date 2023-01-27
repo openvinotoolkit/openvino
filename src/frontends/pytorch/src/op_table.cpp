@@ -108,7 +108,7 @@ OP_CONVERTER(translate_zeros_like);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
-        {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},
+        {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>}, // TODO: cover numerical cases
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
