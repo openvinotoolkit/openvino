@@ -27,10 +27,9 @@ bool op::v9::GridSample::visit_attributes(AttributeVisitor& visitor) {
 void op::v9::GridSample::validate_and_infer_types() {
     OV_OP_SCOPE(v9_GridSample_validate_and_infer_types);
     if (!get_input_element_type(1).is_dynamic()) {
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_element_type(1).is_real(),
-            "The element type of the grid input tensor must be a floating point type.");
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(1).is_real(),
+                              "The element type of the grid input tensor must be a floating point type.");
     }
 
     std::vector<PartialShape> out_shapes(1);

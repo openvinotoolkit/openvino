@@ -11,19 +11,21 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
+using namespace ov::opset10;
+
 OutputVector translate_grid_sampler(NodeContext& context) {
     auto x = context.get_input(0);
     auto grid = context.get_input(1);
-    ov::op::v9::GridSample::Attributes attrs{};
-    const std::unordered_map<int64_t, ov::op::v9::GridSample::InterpolationMode> grid_sample_mode_map{
-        {0, ov::op::v9::GridSample::InterpolationMode::BILINEAR},
-        {1, ov::op::v9::GridSample::InterpolationMode::NEAREST},
-        {2, ov::op::v9::GridSample::InterpolationMode::BICUBIC},
+    GridSample::Attributes attrs{};
+    const std::unordered_map<int64_t, GridSample::InterpolationMode> grid_sample_mode_map{
+        {0, GridSample::InterpolationMode::BILINEAR},
+        {1, GridSample::InterpolationMode::NEAREST},
+        {2, GridSample::InterpolationMode::BICUBIC},
     };
-    const std::unordered_map<int64_t, ov::op::v9::GridSample::PaddingMode> grid_sample_padding_mode_map{
-        {0, ov::op::v9::GridSample::PaddingMode::ZEROS},
-        {1, ov::op::v9::GridSample::PaddingMode::BORDER},
-        {2, ov::op::v9::GridSample::PaddingMode::REFLECTION}};
+    const std::unordered_map<int64_t, GridSample::PaddingMode> grid_sample_padding_mode_map{
+        {0, GridSample::PaddingMode::ZEROS},
+        {1, GridSample::PaddingMode::BORDER},
+        {2, GridSample::PaddingMode::REFLECTION}};
     auto mode = context.const_input<int64_t>(2);
     FRONT_END_OP_CONVERSION_CHECK(grid_sample_mode_map.count(mode), "Unknown interpolation mode: ", mode);
     attrs.mode = grid_sample_mode_map.at(mode);
@@ -38,7 +40,7 @@ OutputVector translate_grid_sampler(NodeContext& context) {
     }
     attrs.align_corners = align_corners;
 
-    return {context.mark_node(std::make_shared<ov::op::v9::GridSample>(x, grid, attrs))};
+    return {context.mark_node(std::make_shared<GridSample>(x, grid, attrs))};
 };
 
 }  // namespace op
