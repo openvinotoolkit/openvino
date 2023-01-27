@@ -21,18 +21,15 @@ For each plugin
 7. Go to step 2
 
 Example:
-```
-    1
-    |
-    2
-   / \
-  3   4
-   \ /
-    5
-    |
-    6
-    |
-    7
+```mermaid
+graph TD;
+    1-->2;
+    2-->3;
+    2-->4;
+    3-->5;
+    4-->5;
+    5-->6;
+    6-->7;
 ```
 
 Nodes [1,2,3,5,6,7] are supported in plugin, [4] is not
