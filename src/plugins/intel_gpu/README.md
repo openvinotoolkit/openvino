@@ -6,10 +6,11 @@ GPU plugin in [OpenVINO toolkit](https://github.com/openvinotoolkit/openvino) su
 
 GPU Plugin contains the following components:
 
-* [include](./include/)
-* [src](./src/)
-* [tests](./tests/)
-* [thirdparty](./thirdparty/)
+* [docs](./docs/) - contains developer documentation pages for the component.
+* [include](./include/) - contains public API.
+* [src](./src/) - folder contains sources of the component.
+* [tests](./tests/) - contains tests for OpenVINO Plugin component.
+* [thirdparty](./thirdparty/) - contains third-party modules.
 
 ## Tutorials
 
