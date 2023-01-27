@@ -52,6 +52,7 @@ template OutputVector translate_binary_op<Multiply>(const NodeContext& node);
 template OutputVector translate_binary_op<Mod>(const NodeContext& node);
 template OutputVector translate_binary_op<NotEqual>(const NodeContext& node);
 template OutputVector translate_binary_op<Power>(const NodeContext& node);
+template OutputVector translate_binary_op<PRelu>(const NodeContext& node);
 template OutputVector translate_binary_op<Divide>(const NodeContext& node);
 template OutputVector translate_binary_op<SquaredDifference>(const NodeContext& node);
 template OutputVector translate_binary_op<Subtract>(const NodeContext& node);
