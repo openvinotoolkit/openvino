@@ -180,8 +180,4 @@ if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
 endif()
 
-if (ENABLE_INTEL_CPU)
-    add_definitions(-DENABLE_INTEL_CPU=1)
-endif()
-
 print_enabled_features()
