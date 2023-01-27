@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -2206,10 +2206,10 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
-            const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getEngine(), graph.weightsCache);
+            const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getGraphContext());
             graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
 
-            const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getEngine(), graph.weightsCache);
+            const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getGraphContext());
             EdgePtr newEdge(new Edge(cpuConstant, cpuUnsqueeze, 0, 1));
             cpuUnsqueeze->addEdge(newEdge);
             auto &graphEdges = graph.GetEdges();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -461,4 +461,4 @@ attach_proposal_impl::attach_proposal_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl, cldnn::object_type::PROPOSAL_IMPL_CPU)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::proposal_impl)

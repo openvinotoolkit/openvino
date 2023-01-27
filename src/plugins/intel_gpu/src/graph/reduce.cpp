@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,10 +14,7 @@
 #include "reduce_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id reduce::type_id() {
-    static primitive_type_base<reduce> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(reduce)
 
 static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
     std::vector<uint16_t> converted_axes;
@@ -83,8 +80,8 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
     else if (output_type == data_types::i8 || output_type == data_types::u8)
         output_type = data_types::f32;
 
-    if (desc->output_data_type)
-        output_type = *desc->output_data_type;
+    if (desc->output_data_types[0])
+        output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives())
         output_type = impl_param.get_fused_output_layout().data_type;
@@ -200,7 +197,7 @@ std::vector<layout> reduce_inst::calc_output_layouts(reduce_node const& /*node*/
     else if (input_type == data_types::i8 || input_type == data_types::u8)
         output_type = data_types::f32;
 
-    output_type = desc->output_data_type.value_or(output_type);
+    output_type = desc->output_data_types[0].value_or(output_type);
 
     if (impl_param.has_fused_primitives())
         output_type = impl_param.get_fused_output_layout().data_type;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ namespace {
 
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
-        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        bool isINTModel = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
         if (isINTModel) {
             return METRIC_VALUE(INT8);
         }
@@ -64,28 +64,32 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     // parsing the string and splitting to tokens
     std::vector<std::string> devicesWithRequests = _pluginConfig.ParsePrioritiesDevices(priorities);
 
-    auto setTputAsDefault = [&](const std::string& targetDevice,
-                                std::map<std::string, std::string>& deviceConfig,
-                                const std::map<std::string, std::string>& mergedConfig) {
+    auto setDefaultHint = [&](const std::string& targetDevice,
+                              std::map<std::string, std::string>& deviceConfig,
+                              const std::map<std::string, std::string>& mergedConfig) {
         auto isSetPerHint = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != mergedConfig.end();
-        if (GetName() == "AUTO" && !isSetPerHint && mergedConfig.find(targetDevice) == mergedConfig.end()) {
-            // setting tput as the default performance mode if no hints setting for AUTO plugin and no properties
-            // specified for target device.
-            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
+        auto isSetDeviceProperties = mergedConfig.find(targetDevice) != mergedConfig.end();
+        if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties) {
+            // setting latency as the default performance mode if
+            // 1. no hints setting for AUTO plugin
+            // 2. no ov::device::properties(secondary properties) setting for target device
+            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::LATENCY;
             return;
         }
 
-        // set TPUT for MULTI if no above propertis were set by user
         if (GetName() == "MULTI") {
-            if (isSetPerHint || mergedConfig.find(targetDevice) != mergedConfig.end())
-                return;
-            for (auto&& kvp : mergedConfig) {
-                if (kvp.first == ov::affinity || kvp.first == ov::num_streams ||
-                    kvp.first == ov::inference_num_threads) {
-                    return;
-                }
+            auto isSetNumStreams = mergedConfig.find(ov::num_streams.name()) != mergedConfig.end();
+            auto isSetAffinity = mergedConfig.find(ov::affinity.name()) != mergedConfig.end();
+            auto isSetNumThreads = mergedConfig.find(ov::inference_num_threads.name()) != mergedConfig.end();
+            if (!isSetPerHint && !isSetAffinity && !isSetNumThreads && !isSetDeviceProperties && !isSetNumStreams) {
+                // setting tput as the default performance mode if
+                // 1. no hints setting for MULTI plugin
+                // 2. no affinity setting for MULTI plugin
+                // 3. no inference_num_threads setting for MULTI plugin
+                // 4. no ov::device::properties(secondary properties) setting for target device
+                // 5. no ov::num_streams setting for target device
+                deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
             }
-            deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::THROUGHPUT;
         }
     };
 
@@ -100,7 +104,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        setTputAsDefault(deviceName, deviceConfig, tconfig);
+        setDefaultHint(deviceName, deviceConfig, tconfig);
         return deviceConfig;
     };
 
@@ -297,9 +301,9 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetMetric(const std::stri
 }
 
 // Is called only when caching is enabled
-IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
+ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> MultiDeviceInferencePlugin::LoadNetwork(const std::string& modelPath,
                                                                         const std::map<std::string, std::string>& config) {
-    return LoadNetworkImpl(modelPath, {}, config);
+    return {LoadNetworkImpl(modelPath, {}, config), nullptr};
 }
 
 IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(const CNNNetwork &network,
@@ -329,19 +333,29 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // updateFromMap will check config valid
     loadConfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = loadConfig._keyConfigMap;
+    bool workModeAuto = GetName() == "AUTO";
     // Remove the performance hint if no setting to this property from user.
     if (!loadConfig._isSetPerHint) {
         fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        // set performance hint to 'THROUGHPUT' model for AutoExecutable Network.
-        loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
+        if (workModeAuto) {
+            // set performance hint to 'LATENCY' model for AutoExecutable Network.
+            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
+                                                  PluginConfigParams::LATENCY);
+        } else {
+            // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
+            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
+                                                  PluginConfigParams::THROUGHPUT);
+        }
     }
     if (!loadConfig._isSetCacheDir)
         fullConfig.erase(CONFIG_KEY(CACHE_DIR));
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    bool workModeAuto = GetName() == "AUTO";
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    if (priorities->second.find("AUTO") != std::string::npos || priorities->second.find("MULTI") != std::string::npos) {
+        IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
+    }
     // If the user sets the property, insert the property into the deviceConfig
     auto insertPropToConfig = [&](std::string property,
                                   std::string& deviceName,
@@ -412,8 +426,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.first.c_str(),
                              config.second.c_str());
             }
-            insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
-            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
+            // carry on batch configs only if user explicitly sets
+            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
+                insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
+            if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
+                insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
             strDevices += iter->deviceName;
             strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
@@ -447,8 +464,16 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (priorities->second.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
-        metaDevices = ParseMetaDevices(priorities->second, fullConfig);
-        multiNetworkConfig.insert(*priorities);
+        auto metaDevicesByConfig = ParseMetaDevices(priorities->second, fullConfig);
+        metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
+                                        : metaDevicesByConfig;
+        if (metaDevicesByConfig.size() != metaDevices.size()) {
+            LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
+            multiNetworkConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
+                    = metaDevices[0].deviceName;
+        } else {
+            multiNetworkConfig.insert(*priorities);
+        }
     }
     auto multiSContext = std::make_shared<MultiScheduleContext>();
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
@@ -463,9 +488,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
                 multiSContext->_batchingDisabled = true;
             }
-            p.config.insert({tmpiter->first, tmpiter->second});
+            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
+                p.config.insert({tmpiter->first, tmpiter->second});
         }
-        insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+        if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
+            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
         insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
         const auto& deviceName = p.deviceName;
         const auto& deviceConfig = p.config;
@@ -610,23 +637,22 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryconfig.UpdateFromMap(config, GetName(), true);
     auto fullConfig = queryconfig._keyConfigMap;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (priorities->second.empty()) {
-        IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() <<  " device";
-    }
-    auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
-    std::unordered_set<std::string> supportedLayers;
-    for (auto&& value : metaDevices) {
-        auto deviceQr = GetCore()->QueryNetwork(network, value.deviceName, value.config);
-        std::unordered_set<std::string> deviceSupportedLayers;
-        for (auto&& layerQr : deviceQr.supportedLayersMap) {
-            deviceSupportedLayers.emplace(layerQr.first);
+    if (!priorities->second.empty()) {
+        auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
+        std::unordered_set<std::string> supportedLayers;
+        for (auto&& value : metaDevices) {
+            auto deviceQr = GetCore()->QueryNetwork(network, value.deviceName, value.config);
+            std::unordered_set<std::string> deviceSupportedLayers;
+            for (auto&& layerQr : deviceQr.supportedLayersMap) {
+                deviceSupportedLayers.emplace(layerQr.first);
+            }
+            supportedLayers = supportedLayers.empty()
+                            ? deviceSupportedLayers : (deviceSupportedLayers.empty()
+                            ? supportedLayers : InferenceEngine::details::Intersection(supportedLayers, deviceSupportedLayers));
         }
-        supportedLayers = supportedLayers.empty()
-                        ? deviceSupportedLayers : (deviceSupportedLayers.empty()
-                        ? supportedLayers : InferenceEngine::details::Intersection(supportedLayers, deviceSupportedLayers));
-    }
-    for (auto&& supportedLayer : supportedLayers) {
-        queryResult.supportedLayersMap[supportedLayer] = GetName();
+        for (auto&& supportedLayer : supportedLayers) {
+            queryResult.supportedLayersMap[supportedLayer] = GetName();
+        }
     }
     return queryResult;
 }

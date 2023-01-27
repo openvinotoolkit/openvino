@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -75,7 +75,6 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sr
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
     $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-target_compile_definitions(${TARGET_NAME} PRIVATE $<$<CONFIG:Debug>:DNNL_ENABLE_EXCEPTIONS>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk

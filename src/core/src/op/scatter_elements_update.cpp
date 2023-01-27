@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace ngraph;
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterElementsUpdate);
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
@@ -44,8 +42,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
 
+    element::Type merged_type;
     NODE_VALIDATION_CHECK(this,
-                          data_et == updates_et,
+                          element::Type::merge(merged_type, data_et, updates_et),
                           "Data type and updates type are required to be the same. ",
                           "Got: ",
                           data_et,

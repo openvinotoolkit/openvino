@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -181,7 +181,7 @@ public:
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
         check_attribute_name(name);
-        m_node.append_attribute(name.c_str()).set_value(adapter.get());
+        m_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
@@ -275,17 +275,18 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& input_description : input_descriptions) {
             pugi::xml_node input = port_map.append_child("input");
-            input.append_attribute("external_port_id").set_value(input_description->m_input_index);
+            input.append_attribute("external_port_id")
+                .set_value(static_cast<unsigned long long>(input_description->m_input_index));
             input.append_attribute("internal_layer_id")
                 .set_value(parameter_mapping[input_description->m_body_parameter_index].c_str());
 
             if (auto slice_input =
                     ov::as_type_ptr<ngraph::op::util::SubGraphOp::SliceInputDescription>(input_description)) {
-                input.prepend_attribute("axis").set_value(slice_input->m_axis);
-                input.append_attribute("start").set_value(slice_input->m_start);
-                input.append_attribute("end").set_value(slice_input->m_end);
-                input.append_attribute("stride").set_value(slice_input->m_stride);
-                input.append_attribute("part_size").set_value(slice_input->m_part_size);
+                input.prepend_attribute("axis").set_value(static_cast<long long>(slice_input->m_axis));
+                input.append_attribute("start").set_value(static_cast<long long>(slice_input->m_start));
+                input.append_attribute("end").set_value(static_cast<long long>(slice_input->m_end));
+                input.append_attribute("stride").set_value(static_cast<long long>(slice_input->m_stride));
+                input.append_attribute("part_size").set_value(static_cast<long long>(slice_input->m_part_size));
             } else if (auto merged_input =
                            ov::as_type_ptr<ngraph::op::util::SubGraphOp::MergedInputDescription>(input_description)) {
                 pugi::xml_node back_edges = m_xml_node.parent().child("back_edges");
@@ -314,17 +315,18 @@ class XmlSerializer : public ngraph::AttributeVisitor {
 
         for (const auto& output_description : output_descriptions) {
             pugi::xml_node output = port_map.append_child("output");
-            output.append_attribute("external_port_id").set_value(input_count + output_description->m_output_index);
+            output.append_attribute("external_port_id")
+                .set_value(static_cast<unsigned long long>(input_count + output_description->m_output_index));
             output.append_attribute("internal_layer_id")
                 .set_value(result_mapping[output_description->m_body_value_index].c_str());
 
             if (auto concat_output =
                     ov::as_type_ptr<ngraph::op::util::SubGraphOp::ConcatOutputDescription>(output_description)) {
-                output.prepend_attribute("axis").set_value(concat_output->m_axis);
-                output.append_attribute("start").set_value(concat_output->m_start);
-                output.append_attribute("end").set_value(concat_output->m_end);
-                output.append_attribute("stride").set_value(concat_output->m_stride);
-                output.append_attribute("part_size").set_value(concat_output->m_part_size);
+                output.prepend_attribute("axis").set_value(static_cast<long long>(concat_output->m_axis));
+                output.append_attribute("start").set_value(static_cast<long long>(concat_output->m_start));
+                output.append_attribute("end").set_value(static_cast<long long>(concat_output->m_end));
+                output.append_attribute("stride").set_value(static_cast<long long>(concat_output->m_stride));
+                output.append_attribute("part_size").set_value(static_cast<long long>(concat_output->m_part_size));
             }
         }
     }
@@ -386,6 +388,33 @@ public:
                 }
             }
         }
+        if (!is_body_target) {
+            std::string id = "input_descriptions";
+            std::string od = "output_descriptions";
+            const auto& id_pos = name.find("input_descriptions");
+            const auto& od_pos = name.find("output_descriptions");
+            auto id_str = name;
+            size_t body_id;
+            if (id_pos != std::string::npos) {
+                id_str.erase(id_pos, id.length());
+                std::stoi(id_str, &body_id);
+                is_body_target = true;
+            } else if (od_pos != std::string::npos) {
+                id_str.erase(od_pos, od.length());
+                std::stoi(id_str, &body_id);
+                is_body_target = true;
+            }
+            if (is_body_target) {
+                auto body_name = "body" + id_str;
+                if (m_xml_node.parent().child(body_name.c_str())) {
+                    bnames = BodyTargetNames{body_name,
+                                             "port_map" + id_str,
+                                             {"input_descriptions" + id_str, "output_descriptions" + id_str}};
+                } else {
+                    is_body_target = false;
+                }
+            }
+        }
         if (is_body_target) {
             auto body_name = std::get<0>(bnames);
             auto portmap_name = std::get<1>(bnames);
@@ -426,8 +455,8 @@ public:
                 const int64_t size = a->get()->size();
                 int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()), size);
 
-                m_xml_node.append_attribute("offset").set_value(offset);
-                m_xml_node.append_attribute("size").set_value(size);
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(size));
             }
         } else if (const auto& a =
                        ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -480,7 +509,7 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get().c_str());
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
-        m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
+        m_xml_node.append_attribute(name.c_str()).set_value(static_cast<long long>(adapter.get()));
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
@@ -501,7 +530,8 @@ public:
         m_xml_node.append_attribute(name.c_str()).set_value(create_atribute_list(adapter).c_str());
     }
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<Function>>& adapter) override {
-        if (name == "body" || name == "then_body" || name == "else_body") {
+        if (name.find("body") != std::string::npos) {
+            // name that contains subgraphs: body{n}, then_body, else_body
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "body"
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
@@ -793,7 +823,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     if (!deterministic || !is_name_auto_generated(f)) {
         netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     }
-    netXml.append_attribute("version").set_value(version);
+    netXml.append_attribute("version").set_value(static_cast<long long>(version));
     pugi::xml_node layers = netXml.append_child("layers");
 
     const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);

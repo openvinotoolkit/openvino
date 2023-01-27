@@ -18,13 +18,12 @@ endif()
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
-                  "${CMAKE_CURRENT_SOURCE_DIR}/vpu/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/gpu/*.cpp")
 
 find_package(OpenCL)
 find_path(OpenCL_HPP_INCLUDE_DIR
     NAMES
-      CL/cl2.hpp OpenCL/cl2.hpp
+      CL/opencl.hpp OpenCL/opencl.hpp
     HINTS
       ${opencl_root_hints}
       ENV "PROGRAMFILES(X86)"
@@ -80,6 +79,10 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide3.cpp"
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide4.cpp")
 
+# build separatelly as ov_integration_snippet and ov_integration_snippet_c
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
+                         "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -89,7 +92,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/core/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/bindings/c/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/transformations/include"
-                                                  "${OpenVINO_SOURCE_DIR}/src/common/preprocessing"
+                                                  "${OpenVINO_SOURCE_DIR}/src/common/preprocessing/src"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/util/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"

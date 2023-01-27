@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,10 @@
 #include "split_shape_inference.hpp"
 
 namespace cldnn {
-primitive_type_id crop::type_id() {
-    static primitive_type_base<crop> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(crop)
 
 layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for crop_node!");
     auto desc = impl_param.typed_desc<crop>();
     const auto& ref_in_sizes = desc->reference_input;
@@ -44,7 +41,7 @@ layout crop_inst::calc_output_layout(crop_node const& node, kernel_impl_params c
 
 template<typename ShapeType>
 std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, const kernel_impl_params& impl_param) {
-    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_type) == false,
+    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false,
            "Output data type forcing is not supported for crop_node!");
 
     auto desc = impl_param.typed_desc<crop>();

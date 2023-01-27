@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -43,11 +43,36 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
                                                        : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+    }
 };
 
 namespace detail {
 
 attach_mvn_impl::attach_mvn_impl() {
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<mvn>::add(impl_types::ocl,
+                                 shape_types::dynamic_shape,
+                                 typed_primitive_impl_ocl<mvn>::create<mvn_impl>,
+                                 dyn_types,
+                                 dyn_formats);
+
     implementation_map<mvn>::add(impl_types::ocl, typed_primitive_impl_ocl<mvn>::create<mvn_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
@@ -100,4 +125,4 @@ attach_mvn_impl::attach_mvn_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mvn_impl, cldnn::object_type::MVN_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::mvn_impl)

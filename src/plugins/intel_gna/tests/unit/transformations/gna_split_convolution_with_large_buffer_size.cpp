@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -287,7 +287,7 @@ void execute_test(std::shared_ptr<ngraph::Function> function,
 template <typename TransformationT>
 ngraph::pass::Manager createPassManager() {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<TransformationT>();
     return manager;
 }

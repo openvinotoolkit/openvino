@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::Reverse);
 
 op::v1::Reverse::Reverse(const Output<Node>& data, const Output<Node>& reversed_axes, const std::string& mode)
     : Op({data, reversed_axes}),
@@ -209,6 +207,4 @@ NGRAPH_API EnumNames<ngraph::op::v1::Reverse::Mode>& EnumNames<ngraph::op::v1::R
         {{"index", ngraph::op::v1::Reverse::Mode::INDEX}, {"mask", ngraph::op::v1::Reverse::Mode::MASK}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v1::Reverse::Mode>);
 }  // namespace ov

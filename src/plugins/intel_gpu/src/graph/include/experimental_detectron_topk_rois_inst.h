@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ public:
 
     static std::string to_string(experimental_detectron_topk_rois_node const &node);
 
-public:
     typed_primitive_inst(network &network, experimental_detectron_topk_rois_node const &desc);
 };
 

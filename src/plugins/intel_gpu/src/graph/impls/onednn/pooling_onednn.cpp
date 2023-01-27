@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@
 namespace cldnn {
 namespace onednn {
 
-struct pooling_onednn : typed_primitive_onednn_impl<pooling, dnnl::pooling_forward::desc> {
-    using parent = typed_primitive_onednn_impl<pooling, dnnl::pooling_forward::desc>;
+struct pooling_onednn : typed_primitive_onednn_impl<pooling> {
+    using parent = typed_primitive_onednn_impl<pooling>;
     using parent::parent;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
@@ -26,45 +26,65 @@ protected:
         return make_unique<pooling_onednn>(*this);
     }
 
-    static std::shared_ptr<dnnl::pooling_forward::desc> get_pooling_descriptor(const kernel_impl_params& impl_params) {
+    static std::shared_ptr<dnnl::pooling_forward::primitive_desc> get_pooling_primitive_descriptor(const kernel_impl_params& impl_params,
+                                                                                                   const dnnl::primitive_attr& attr = dnnl::primitive_attr()) {
+        auto& engine = impl_params.prog->get_engine();
         auto prim = impl_params.typed_desc<pooling>();
 
         auto input_layout = impl_params.get_input_layout(0);
         auto output_layout = impl_params.get_output_layout();
 
-        dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
-        dnnl::memory::dims kernel(prim->size.begin(), prim->size.end());
-        dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
-        dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
+        auto kernel_shape = prim->size;
+        auto stride_shape = prim->stride;
+        auto pads_begin_shape = prim->pads_begin;
+        auto pads_end_shape = prim->pads_end;
+        auto dilation_shape = prim->dilation;
+        if (dilation_shape.empty()) dilation_shape.resize(stride_shape.size(), 0);
+
+        kernel_shape.resize(std::max<size_t>(2, prim->size.size()), 1);
+        stride_shape.resize(std::max<size_t>(2, prim->stride.size()), 1);
+        pads_begin_shape.resize(std::max<size_t>(2, prim->pads_begin.size()), 0);
+        pads_end_shape.resize(std::max<size_t>(2, prim->pads_end.size()), 0);
+        dilation_shape.resize(std::max<size_t>(2, dilation_shape.size()), 0);
+
+        dnnl::memory::dims stride(stride_shape.begin(), stride_shape.end());
+        dnnl::memory::dims kernel(kernel_shape.begin(), kernel_shape.end());
+        dnnl::memory::dims pad_l(pads_begin_shape.begin(), pads_begin_shape.end());
+        dnnl::memory::dims pad_r(pads_end_shape.begin(), pads_end_shape.end());
+        dnnl::memory::dims dilation(dilation_shape.begin(), dilation_shape.end());
 
         auto input_md = onednn::layout_to_memory_desc(input_layout);
         auto output_md = onednn::layout_to_memory_desc(output_layout);
 
         for (size_t i = 0; i < kernel.size(); i++) {
-            pad_r[i] = (output_md.dims()[2 + i] - 1) * stride[i] - input_md.dims()[2 + i] + kernel[i] - pad_l[i];
+            pad_r[i] = (output_md.get_dims()[2 + i] - 1) * stride[i] - input_md.get_dims()[2 + i] + kernel[i] - pad_l[i];
         }
 
         dnnl::algorithm alg;
         switch (prim->mode) {
-            case pooling_mode::average: alg = dnnl::algorithm::pooling_avg; break;
+            case pooling_mode::average: alg = dnnl::algorithm::pooling_avg_include_padding; break;
             case pooling_mode::max: alg = dnnl::algorithm::pooling_max; break;
             case pooling_mode::average_no_padding: alg = dnnl::algorithm::pooling_avg_exclude_padding; break;
             default: throw std::runtime_error("unsupported pool mode");
         }
 
-        return std::make_shared<dnnl::pooling_forward::desc>(
+        return std::make_shared<dnnl::pooling_forward::primitive_desc>(
+            engine.get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
             alg,
             input_md,
             output_md,
             stride,
             kernel,
+            dilation,
             pad_l,
-            pad_r);
+            pad_r,
+            attr);
     }
 
 public:
     void save(BinaryOutputBuffer& ob) const override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::save(ob);
 
         ob << make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
@@ -72,12 +92,17 @@ public:
         std::vector<uint8_t> prim_cache;
         prim_cache = _prim.get_cache_blob();
         ob << prim_cache;
+#endif
     }
 
     void load(BinaryInputBuffer& ib) override {
+#ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         parent::load(ib);
 
-        _desc = std::make_shared<dnnl::pooling_forward::desc>();
+        const char dummy_mem[sizeof(dnnl::pooling_forward::desc)] = {};
+        const dnnl::pooling_forward::desc *dummy_opdesc
+            = reinterpret_cast<const dnnl::pooling_forward::desc *>(&dummy_mem[0]);
+        _desc = std::make_shared<dnnl::pooling_forward::desc>(std::move(*dummy_opdesc));
         ib >> make_data(&_desc->data, sizeof(dnnl_pooling_desc_t));
 
         std::vector<uint8_t> prim_cache;
@@ -85,15 +110,16 @@ public:
 
         _pd = dnnl::primitive_desc(&_desc->data, _attrs.get(), ib.get_engine().get_onednn_engine(), nullptr);
         _prim = dnnl::primitive(_pd, prim_cache);
+#endif
     }
 
     static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto desc = get_pooling_descriptor(impl_params);
+        auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
-        dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
+        auto prim_desc = get_pooling_primitive_descriptor(impl_params, *attr);
 
-        return cldnn::make_unique<pooling_onednn>(engine, desc, attr, prim_desc);
+        return cldnn::make_unique<pooling_onednn>(engine, config, attr, *prim_desc);
     }
 };
 
@@ -129,4 +155,4 @@ attach_pooling_onednn::attach_pooling_onednn() {
 }  // namespace onednn
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn, cldnn::object_type::POOLING_ONEDNN)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::onednn::pooling_onednn)

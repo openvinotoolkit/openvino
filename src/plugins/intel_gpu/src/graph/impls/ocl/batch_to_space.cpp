@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,4 +68,4 @@ attach_batch_to_space_impl::attach_batch_to_space_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::batch_to_space_impl, cldnn::object_type::BATCH_TO_SPACE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::batch_to_space_impl)

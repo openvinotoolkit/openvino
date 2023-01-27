@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,13 @@
 ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     MATCHER_SCOPE(EliminateUnsqueezeGather);
     // Remove Unsqueeze + Gather pair, if Gather gathers data by `1` dimension that was previously added by Unsqueeze
-    const auto unsqueezeAxis = ngraph::pattern::any_input();
-    const auto unsqueezeInput = ngraph::pattern::any_input();
+    const auto unsqueezeAxis = pass::pattern::any_input();
+    const auto unsqueezeInput = pass::pattern::any_input();
     const auto unsqueeze =
         ngraph::pattern::wrap_type<opset6::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, pattern::consumers_count(1));
     const auto gatherIndices = opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-    const auto gatherAxis = ngraph::pattern::any_input();
-    const auto gather =
-        ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>({unsqueeze, gatherIndices, gatherAxis});
+    const auto gatherAxis = pass::pattern::any_input();
+    const auto gather = ngraph::pattern::wrap_type<op::util::GatherBase>({unsqueeze, gatherIndices, gatherAxis});
 
     ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& patternValue = m.get_pattern_value_map();
@@ -64,14 +63,14 @@ ov::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
 ov::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
     MATCHER_SCOPE(EliminateGatherUnsqueeze);
 
-    const auto gather_indices_label = ngraph::pattern::wrap_type<ngraph::op::Constant>(pattern::rank_equals(0));
-    const auto gather_axis_label = ngraph::pattern::wrap_type<ngraph::op::Constant>();
-    const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
-        {ngraph::pattern::any_input(), gather_indices_label, gather_axis_label},
+    const auto gather_indices_label = ngraph::pattern::wrap_type<opset6::Constant>(pattern::rank_equals(0));
+    const auto gather_axis_label = ngraph::pattern::wrap_type<opset6::Constant>();
+    const auto gather_label = ngraph::pattern::wrap_type<op::util::GatherBase>(
+        {pass::pattern::any_input(), gather_indices_label, gather_axis_label},
         pattern::rank_equals(0));
 
     const auto unsqueeze_label =
-        ngraph::pattern::wrap_type<opset6::Unsqueeze>({gather_label, ngraph::pattern::any_input()},
+        ngraph::pattern::wrap_type<opset6::Unsqueeze>({gather_label, pass::pattern::any_input()},
                                                       pattern::rank_equals(1));
 
     ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {

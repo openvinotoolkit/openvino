@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,7 @@
 #include "edge.h"
 #include "cache/multi_cache.h"
 #include "dnnl_scratch_pad.h"
+#include "graph_context.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -27,39 +28,30 @@ class InferRequest;
 class Graph {
 public:
     typedef std::shared_ptr<Graph> Ptr;
-    WeightsSharing::Ptr weightsCache;
 
-    enum Status {
+    enum class Status {
         NotReady = 0,
-        Ready = 1,
+        ReadyStatic = 1,
+        ReadyDynamic = 2
     };
 
     Graph() = default;
     ~Graph();
 
-    Status GetStatus() {
-        return status;
-    }
-
     bool IsReady() {
-        return (GetStatus() == Ready);
+        return (status != Status::NotReady);
     }
 
-    void setConfig(const Config &cfg);
-    const Config& getConfig() const;
-
-    void setProperty(const std::map<std::string, std::string> &properties);
-    Config getProperty() const;
+    const Config & getConfig() const {
+        return context->getConfig();
+    }
 
     template<typename NET>
-    void CreateGraph(NET &network,
-                     const ExtensionManager::Ptr& extMgr,
-                     WeightsSharing::Ptr &w_cache,
-                     const std::shared_ptr<std::mutex>& mutex);
+    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
-                     WeightsSharing::Ptr &w_cache,
+                     const GraphContext::CPtr ctx,
                      std::string name);
 
     bool hasMeanImageFor(const std::string& name) {
@@ -114,7 +106,11 @@ public:
     }
 
     dnnl::engine getEngine() const {
-        return eng;
+        return context->getEngine();
+    }
+
+    GraphContext::CPtr getGraphContext() const {
+        return context;
     }
 
     void GetPerfData(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const;
@@ -190,10 +186,6 @@ public:
 
     void SortTopologically();
 
-    bool isQuantized() const {
-        return isQuantizedFlag;
-    }
-
     bool hasDynamicInput() const {
         return graphHasDynamicInput;
     }
@@ -202,17 +194,16 @@ protected:
     void VisitNode(NodePtr node, std::vector<NodePtr>& sortedNodes);
 
     void ForgetGraphData() {
-        status = NotReady;
-        eng = dnnl::engine(dnnl::engine::kind::cpu, 0);
+        status = Status::NotReady;
 
         inputNodesMap.clear();
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
         _normalizePreprocMap.clear();
+        syncNodesInds.clear();
     }
-    Status status { NotReady };
-    Config config;
+    Status status { Status::NotReady };
 
     // For dumping purposes. -1 - no counting, all other positive
     // values mean increment it within each Infer() call
@@ -228,13 +219,10 @@ protected:
     std::map<std::string, NormalizePreprocess> _normalizePreprocMap;
     std::string _name;
 
-    bool isQuantizedFlag = false;
     bool graphHasDynamicInput = false;
 
-    static dnnl::engine eng;
-
-    void Replicate(const InferenceEngine::CNNNetwork &network, const ExtensionManager::Ptr& extMgr);
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph, const ExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
     void InitGraph();
     void InitNodes();
     void InitDescriptors();
@@ -246,6 +234,8 @@ protected:
     void ExtractConstantAndExecutableNodes();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void ExecuteConstantNodesOnly() const;
+    void InferStatic(InferRequestBase* request);
+    void InferDynamic(InferRequestBase* request);
 
     friend class LegacyInferRequest;
     friend class intel_cpu::InferRequest;
@@ -263,9 +253,9 @@ private:
     std::vector<NodePtr> constantGraphNodes;
     std::vector<NodePtr> executableGraphNodes;
 
-    MultiCachePtr rtParamsCache;
-    std::shared_ptr<std::mutex> sharedMutex = nullptr;
-    DnnlScratchPadPtr rtScratchPad;
+    std::unordered_map<Node*, size_t> syncNodesInds;
+
+    GraphContext::CPtr context;
 
     void EnforceBF16();
 };

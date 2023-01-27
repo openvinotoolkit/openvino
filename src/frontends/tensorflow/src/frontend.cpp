@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,11 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
+using namespace ov;
 using namespace ov::frontend::tensorflow;
 
 namespace {
@@ -33,8 +36,8 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
     auto translator_it = TRANSLATE_OP_MAP.find(type);
     FRONT_END_OP_CONVERSION_CHECK(translator_it != TRANSLATE_OP_MAP.end(), "No translator found for ", type, " node.");
 
-    ov::OutputVector ng_inputs = node->input_values();
-    NodeContext node_ctx(node->get_decoder(), ng_inputs);
+    ov::OutputVector ov_inputs = node->input_values();
+    NodeContext node_ctx(node->get_decoder(), ov_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
 
     auto new_output = new_node_outputs.begin();
@@ -48,41 +51,10 @@ void translate_framework_node(const std::shared_ptr<FrameworkNode>& node,
 }  // namespace
 
 
-void StructuralTypeAttribute::copy (const Node::RTMap& src, Node::RTMap& dst) {
-    Any st = get(src);
-    if(!st.empty()) {
-        dst["structural_type"] = StructuralTypeAttribute(st);
-    }
-}
-
-
-ov::Any StructuralTypeAttribute::get (const Node::RTMap& src) {
-    auto pstructural_type = src.find("structural_type");
-    if(pstructural_type != src.end()) {
-        return pstructural_type->second.as<StructuralTypeAttribute>().value;
-    } else {
-        return Any();
-    }
-}
-
-
-bool StructuralTypeAttribute::has_type (const Node::RTMap& rt_info, const ov::Any& type) {
-    Any st = get(rt_info);
-    return !st.empty() && type == st;
-}
-
-
-void StructuralTypeAttribute::move_to_original (Node::RTMap& rt_info) {
-    auto pstructural_type = rt_info.find("structural_type");
-    if(pstructural_type != rt_info.end()) {
-        rt_info["orig_structural_type"] = pstructural_type->second;
-        rt_info.erase(pstructural_type);
-    }
-}
-
 
 FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) { std::cerr << "[ INFO ] TensorFlow FE is initialized\n"; }
 
+#if 0
 void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                const std::string& model_name,
                                bool fail_fast,
@@ -344,6 +316,8 @@ void FrontEnd::translate_graph(const ov::frontend::InputModel::Ptr& model,
     ng_function = std::make_shared<ov::Model>(results, params, model_name);
 }
 
+#endif
+
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
@@ -421,8 +395,25 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
         return function;
     }
 
+    // create a shared pointer to the cloned dictionary of translators
+    auto translator_map = std::make_shared<TranslatorDictionaryType>(m_op_translators);
+
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "TensorFlow_Frontend_IR", true, false, f);
+    TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR", true, m_telemetry != nullptr);
+    try {
+        f = translate_session.get_converted_model();
+    } catch (const std::exception&) {
+        if (m_telemetry) {
+            auto telemetry_data = translate_session.get_telemetry_data();
+            if (telemetry_data) {
+                // send event about which operation is not supported for conversion
+                for (const auto& telemetry_item : *telemetry_data.get()) {
+                    m_telemetry->send_event(telemetry_item.first, telemetry_item.second);
+                }
+            }
+        }
+        throw;
+    }
     normalize(f);
 
     for (const auto& node : f->get_ordered_ops()) {
@@ -462,16 +453,55 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
         return function;
     }
 
+    // create a shared pointer to the cloned dictionary of translators
+    auto translator_map = std::make_shared<TranslatorDictionaryType>(m_op_translators);
+
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, false, f);
+    TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR", false, m_telemetry != nullptr);
+    try {
+        f = translate_session.get_converted_model();
+    } catch (const std::exception&) {
+        if (m_telemetry) {
+            auto telemetry_data = translate_session.get_telemetry_data();
+            if (telemetry_data) {
+                // send event about which operation is not supported for conversion
+                for (const auto& telemetry_item : *telemetry_data.get()) {
+                    m_telemetry->send_event(telemetry_item.first, telemetry_item.second);
+                }
+            }
+        }
+        throw;
+    }
     normalize(f);
+
     return f;
 }
 
 std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr& model) const {
-    auto model_tf = std::dynamic_pointer_cast<InputModel>(model);
+    auto translator_map = std::make_shared<TranslatorDictionaryType>();
+
+    const std::set<std::string> required_types{"Placeholder", "NoOp"};
+    for (const auto& name : required_types) {
+        translator_map->emplace(name, m_op_translators.at(name));
+    }
+
     std::shared_ptr<ov::Model> f;
-    translate_graph(model_tf, "TensorFlow_Frontend_IR", false, true, f);
+    TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR", false, m_telemetry != nullptr);
+    try {
+        f = translate_session.get_converted_model();
+    } catch (const std::exception&) {
+        if (m_telemetry) {
+            auto telemetry_data = translate_session.get_telemetry_data();
+            if (telemetry_data) {
+                // send event about which operation is not supported for conversion
+                for (const auto& telemetry_item : *telemetry_data.get()) {
+                    m_telemetry->send_event(telemetry_item.first, telemetry_item.second);
+                }
+            }
+        }
+        throw;
+    }
+
     return f;
 }
 
@@ -510,6 +540,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
 
     // TODO: reimplement TransposeSinking that does not corrupt filters for Convolution
     manager.register_pass<ov::frontend::tensorflow::pass::TransposeSinking>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     manager.run_passes(function);
     std::cerr << "[ END OF TRANSFORMATIONS ]\n";
 }

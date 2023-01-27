@@ -8,7 +8,7 @@
 #include <vector>
 #include <numeric>
 
-#include "../helper_ops/str_ops.hpp"
+#include "helper_ops/str_ops.hpp"
 
 #include "openvino/frontend/tensorflow/frontend.hpp"
 #include <ngraph/opsets/opset8.hpp>

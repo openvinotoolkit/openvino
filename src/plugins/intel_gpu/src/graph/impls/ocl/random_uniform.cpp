@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,4 +61,4 @@ attach_random_uniform_impl::attach_random_uniform_impl() {
 } // namespace ocl
 } // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl, cldnn::object_type::RANDOM_UNIFORM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::random_uniform_impl)

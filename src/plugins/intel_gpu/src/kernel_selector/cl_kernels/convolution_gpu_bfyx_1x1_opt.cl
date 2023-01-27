@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define SIMD_SIZE 8
-__attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+REQD_SUB_GROUP_SIZE(SIMD_SIZE)
 KERNEL(convolution)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
     const uint group_x = (uint)get_group_id(0) * OUT_BLOCK_WIDTH;
     const uint group_y = (uint)get_group_id(1) * OUT_BLOCK_HEIGHT;
@@ -58,18 +57,18 @@ KERNEL(convolution)(
         }
 
 #if OUT_BLOCK_DEPTH == 8
-        float8 w = as_float8(intel_sub_group_block_read8((__global uint*)weights + filter_offset + k * 64));
+        float8 w = as_float8(_sub_group_block_read8((__global uint*)weights + filter_offset + k * 64));
 #elif OUT_BLOCK_DEPTH == 4
-        float4 w = as_float4(intel_sub_group_block_read4((__global uint*)weights + filter_offset + k * 32));
+        float4 w = as_float4(_sub_group_block_read4((__global uint*)weights + filter_offset + k * 32));
 #elif OUT_BLOCK_DEPTH == 2
-        float2 w = as_float2(intel_sub_group_block_read2((__global uint*)weights + filter_offset + k * 16));
+        float2 w = as_float2(_sub_group_block_read2((__global uint*)weights + filter_offset + k * 16));
 #endif
 
         for(uint br = 0; br < OUT_BLOCK_HEIGHT; br++)
         {
             for(uint bc = 0; bc < OUT_BLOCK_WIDTH; bc++)
             {
-                float _in = intel_sub_group_shuffle(in[br], bc);
+                float _in = _sub_group_shuffle(in[br], bc);
                 for(uint bd = 0; bd < OUT_BLOCK_DEPTH/2; bd++)
                 {
                     dotProd0[bc + OUT_BLOCK_WIDTH * (br + OUT_BLOCK_HEIGHT * bd)] += _in * w[bd];

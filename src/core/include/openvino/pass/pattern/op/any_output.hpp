@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace op {
 class OPENVINO_API AnyOutput : public Pattern {
 public:
     OPENVINO_RTTI("patternAnyOutput");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief creates an AnyOutput node matching any output of a node
     /// \param node The node to match
     AnyOutput(const std::shared_ptr<Node>& pattern) : Pattern({pattern->output(0)}) {}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@ protected:
 
 public:
     OPENVINO_OP("ReductionBase", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \return true if reduction axes are constant else false.
     bool reduction_axes_constant() const;

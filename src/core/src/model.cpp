@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,6 @@
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Model>>);
 
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
@@ -88,10 +86,6 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
 }
 
 }  // namespace
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-const ov::DiscreteTypeInfo ov::Model::type_info = ov::Model::get_type_info_static();
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::Model::Model(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -887,7 +881,7 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
 
     try {
         ov::pass::Manager ssr_manager;
-        ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+        ssr_manager.register_pass<ov::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
         reshape_only(new_param_shapes);

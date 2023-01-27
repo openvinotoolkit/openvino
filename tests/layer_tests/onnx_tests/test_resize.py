@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,8 +36,8 @@ class TestResize(OnnxRuntimeLayerTest):
 
         onnx_scales = scales
         if scales is None:
-            onnx_scales = np.array(output_shape).astype(np.float) / np.array(input_shape).astype(
-                np.float)
+            onnx_scales = np.array(output_shape).astype(float) / np.array(input_shape).astype(
+                float)
         scales_node = onnx.helper.make_node(
             'Constant',
             inputs=[],
@@ -114,14 +114,14 @@ class TestResize(OnnxRuntimeLayerTest):
             if sizes is not None and scales is not None:
                 shape_calculation_mode = 'sizes'
                 sizes_value = int64_array(sizes)
-                scales_value = np.array(scales).astype(np.float)
+                scales_value = np.array(scales).astype(float)
             elif sizes is not None and scales is None:
                 shape_calculation_mode = 'sizes'
                 sizes_value = int64_array(sizes)
                 scales_value = sizes_value / input_shape_as_array
             else:
                 shape_calculation_mode = 'scales'
-                scales_value = np.array(scales).astype(np.float)
+                scales_value = np.array(scales).astype(float)
                 sizes_value = np.floor(input_shape_as_array * scales_value + 1e-5).astype(np.int64)
 
             if precision == 'FP16':

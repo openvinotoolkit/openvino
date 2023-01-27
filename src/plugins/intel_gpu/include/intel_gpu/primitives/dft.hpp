@@ -10,12 +10,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Direction of DFT operation.
 enum class dft_direction {
@@ -42,14 +36,14 @@ struct dft : public primitive_base<dft> {
     /// @param direction Direction of DFT operation.
     /// @param mode Mode of DFT operation.
     dft(const primitive_id& id,
-        const primitive_id& input,
+        const input_info& input,
         std::vector<int64_t> axes,
         std::vector<int64_t> signal_size,
         const ov::Shape& output_shape,
         dft_direction direction,
         dft_mode mode,
         const padding& output_padding = {})
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, {output_padding}),
           axes(std::move(axes)),
           signal_size(std::move(signal_size)),
           output_shape(output_shape),

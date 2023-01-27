@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -76,7 +76,7 @@ _install_prerequisites_redhat()
     echo
     CMDS=("dnf install -y 'dnf-command(config-manager)'"
           "dnf config-manager --add-repo \
-           https://repositories.intel.com/graphics/rhel/8.4/intel-graphics.repo")
+           https://repositories.intel.com/graphics/rhel/8.5/intel-graphics.repo")
     
     for cmd in "${CMDS[@]}"; do
         echo "$cmd"
@@ -92,12 +92,15 @@ _install_prerequisites_redhat()
 
 _install_prerequisites_ubuntu()
 {
+    apt-get update
+    apt-get install -y gpg-agent
+    curl https://repositories.intel.com/graphics/intel-graphics.key |gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
+    echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu focal-legacy main' | tee  /etc/apt/sources.list.d/intel.gpu.focal.list
+    apt-get update
     if [ "$no_numa" == true ]; then
-        CMDS=("apt-get -y update"
-              "apt-get -y install --no-install-recommends ocl-icd-libopencl1")
+        CMDS=("apt-get -y install --no-install-recommends ocl-icd-libopencl1")
     else
-        CMDS=("apt-get -y update"
-              "apt-get -y install --no-install-recommends libnuma1 ocl-icd-libopencl1")
+        CMDS=("apt-get -y install --no-install-recommends libnuma1 ocl-icd-libopencl1")
     fi
     
     for cmd in "${CMDS[@]}"; do
@@ -144,14 +147,10 @@ _install_user_mode_redhat()
 
     CMDS=("rpm -ivh https://vault.centos.org/centos/8/AppStream/x86_64/os/Packages/mesa-filesystem-21.1.5-1.el8.x86_64.rpm" \
           "dnf install --refresh -y \
-	   intel-igc-opencl-1.0.9441-i643.el8.x86_64 \
-           intel-media-21.4.1-i643.el8.x86_64 \
-           level-zero-1.6.2-i643.el8.x86_64 \
-           intel-level-zero-gpu-1.2.21786-i643.el8.x86_64 \
-           intel-opencl-21.49.21786-i643.el8.x86_64 \
-           intel-igc-core-1.0.9441-i643.el8.x86_64 \
-           intel-ocloc-21.49.21786-i643.el8.x86_64 \
-           intel-gmmlib-21.3.3-i643.el8.x86_64"
+           intel-opencl-22.28.23726.1-i419.el8.x86_64 intel-media intel-mediasdk libmfxgen1 libvpl2 \
+           level-zero intel-level-zero-gpu \
+           intel-metrics-library intel-igc-core intel-igc-cm \
+           libva libva-utils  intel-gmmlib" \
           "rpm -ivh http://mirror.centos.org/centos/8-stream/AppStream/x86_64/os/Packages/ocl-icd-2.2.12-1.el8.x86_64.rpm" )	
 
     for cmd in "${CMDS[@]}"; do
@@ -169,7 +168,7 @@ _install_user_mode_redhat()
 
 _install_user_mode_ubuntu()
 {
-    _deploy_deb "intel*.deb"
+    find . -name "intel*.deb" -exec dpkg -i {} \;
     if [[ $? -ne 0 ]]; then
         echo "ERROR: failed to install debs $cmd error"  >&2
         echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
@@ -254,7 +253,7 @@ uninstall_user_mode()
     fi
 }
 
-_download_packages_ubuntu()
+_get_packages_ubuntu()
 {
     case $INSTALL_DRIVER_VERSION in
     "21.38.21026")
@@ -271,6 +270,12 @@ _download_packages_ubuntu()
         curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.9441/intel-igc-opencl_1.0.9441_amd64.deb
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-opencl-icd_21.48.21782_amd64.deb
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/intel-level-zero-gpu_1.2.21782_amd64.deb
+    ;;
+    "22.35.24055")
+        apt-get install -y \
+        intel-opencl-icd=22.35.24055+i815~u20.04 \
+        intel-level-zero-gpu=1.3.24055+i815~u20.04 \
+        level-zero=1.8.5+i815~u20.04
     ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
@@ -289,6 +294,9 @@ _verify_checksum_ubuntu()
         curl -L -O https://github.com/intel/compute-runtime/releases/download/21.48.21782/ww48.sum
         sha256sum -c ww48.sum
     ;;
+    "22.35.24055")
+        echo "Verification by apt"
+    ;;
         *)
         echo "ERROR: Unrecognized driver ${INSTALL_DRIVER_VERSION}."
         exit $EXIT_WRONG_ARG
@@ -304,7 +312,7 @@ verify_checksum()
     fi
 }
 
-download_packages()
+get_packages()
 {
     mkdir -p "$SCRIPT_DIR/neo"
     cd "$SCRIPT_DIR/neo" || exit
@@ -312,7 +320,7 @@ download_packages()
     if [[ $DISTRO == "redhat" ]]; then
         return 0
     else
-        _download_packages_ubuntu
+        _get_packages_ubuntu
     fi
     verify_checksum
     if [[ $? -ne 0 ]]; then
@@ -374,22 +382,22 @@ add_user_to_video_group()
 _check_distro_version()
 {
     if [[ $DISTRO == redhat ]]; then
-        RHEL_MINOR_VERSION_SUPPORTED="[3-6]"
+        RHEL_MINOR_VERSION_SUPPORTED="[3-7]"
         RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.${RHEL_MINOR_VERSION_SUPPORTED}")
         if [[ $? -ne 0 ]]; then
-            echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.6"
+            echo "Warning: This runtime can be installed only on RHEL 8.3 up to RHEL 8.7"
             echo "More info https://dgpu-docs.intel.com/releases/releases-20211130.html" >&2
             echo "Installation of Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver interrupted"
             exit $EXIT_FAILURE
         else
-            INSTALL_DRIVER_VERSION='21.49.21786'
+            INSTALL_DRIVER_VERSION='22.28.23726'
         fi
     elif [[ $DISTRO == ubuntu ]]; then
         UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
         if [[ $UBUNTU_VERSION == '18.04' ]]; then
             INSTALL_DRIVER_VERSION='21.38.21026'
         elif [[ $UBUNTU_VERSION == '20.04' ]]; then
-            INSTALL_DRIVER_VERSION='21.48.21782'
+            INSTALL_DRIVER_VERSION='22.35.24055'
         else
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
@@ -456,7 +464,7 @@ install()
 {   
     uninstall_user_mode
     install_prerequisites
-    download_packages
+    get_packages
     install_user_mode
     add_user_to_video_group
 }

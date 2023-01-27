@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -253,8 +253,27 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
         return false;
     }
 
+    const size_t outChannelsShapeIndex = ov::is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
+    auto checkConstShape = [&](const std::shared_ptr<ngraph::opset1::Constant> node) {
+        const auto subConstShape = node->get_shape();
+        if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex])
+            return false;
+        else
+            return true;
+    };
+
+    if (dequantizationOnWeights.subtract && !checkConstShape(dequantizationOnWeights.subtractConstant) ||
+        dequantizationOnWeights.multiply && !checkConstShape(dequantizationOnWeights.multiplyConstant)) {
+        return false;
+    }
+
+    auto deqData = dequantizationOnWeights.data.get_node_shared_ptr();
+    // Quantize/Dequantize case
+    if (ov::is_type<ngraph::opset1::Convert>(deqData)) {
+        deqData = deqData->get_input_node_shared_ptr(0);
+    }
     // TODO: LPT: is it possible to share with canBeTransformed?
-    if (ov::is_type<opset1::Constant>(dequantizationOnWeights.data.get_node())) {
+    if (ov::is_type<opset1::Constant>(deqData)) {
         const ngraph::element::Type weightsDataPrecision = dequantizationOnWeights.data.get_element_type();
         if (!DataPrecision::isSupported(weightsDataPrecision)) {
             return false;
@@ -266,23 +285,15 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
                 return false;
             }
         }
-
-        const size_t outChannelsShapeIndex = ov::is_type<opset1::ConvolutionBackpropData>(layer) ? 1ul : 0ul;
-        if (dequantizationOnWeights.subtract) {
-            const auto subConstShape = dequantizationOnWeights.subtractConstant->get_shape();
-            if (shape_size(subConstShape) > 1ul && shape_size(subConstShape) != subConstShape[outChannelsShapeIndex]) {
-                return false;
-            }
-        }
-        if (dequantizationOnWeights.multiply) {
-            const auto mulConstShape = dequantizationOnWeights.multiplyConstant->get_shape();
-            if (shape_size(mulConstShape) > 1ul && shape_size(mulConstShape) != mulConstShape[outChannelsShapeIndex]) {
-                return false;
-            }
-        }
-
         return true;
-    } else if (ov::is_type<opset1::FakeQuantize>(dequantizationOnWeights.data.get_node())) {
+    } else if (auto fq = ov::as_type_ptr<opset1::FakeQuantize>(deqData)) {
+        for (size_t i = 1; i < fq->get_input_size(); ++i) {
+            if (auto constant = ov::as_type_ptr<ngraph::opset1::Constant>(fq->get_input_node_shared_ptr(i))) {
+                if (!checkConstShape(constant)) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 

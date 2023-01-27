@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
+#include "compare.hpp"
 #include "itt.hpp"
 
 using namespace std;
@@ -278,11 +279,11 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
         OPENVINO_RTTI(STR(NAME), "0");                                                  \
         NAME() {                                                                        \
             MATCHER_SCOPE(NAME);                                                        \
-            auto match_node = ngraph::pattern::wrap_type<OP>();                         \
-            ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) { \
+            auto match_node = ov::pass::pattern::wrap_type<OP>();                       \
+            ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {   \
                 return FUNC(m.get_match_root());                                        \
             };                                                                          \
-            auto m = make_shared<ngraph::pattern::Matcher>(match_node, matcher_name);   \
+            auto m = make_shared<ov::pass::pattern::Matcher>(match_node, matcher_name); \
             register_matcher(m, callback);                                              \
         }                                                                               \
     };
@@ -718,7 +719,31 @@ pass::EliminateEltwise::EliminateEltwise() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
+pass::EliminateScatterUpdate::EliminateScatterUpdate() {
+    MATCHER_SCOPE(EliminateScatterUpdate);
+    auto scatter_pattern =
+        pattern::wrap_type<opset8::ScatterUpdate, opset8::ScatterNDUpdate, opset8::ScatterElementsUpdate>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto scatter = m.get_match_root();
+        const auto& indices_pshape = scatter->get_input_partial_shape(1);
+        const auto& updates_pshape = scatter->get_input_partial_shape(2);
+
+        auto has_zero = [](const ov::PartialShape& shape) -> bool {
+            return std::any_of(shape.cbegin(), shape.cend(), ov::cmp::Equal<ov::Dimension>(0));
+        };
+        if (has_zero(indices_pshape) || has_zero(updates_pshape)) {
+            return replace_output_update_name(scatter->output(0), scatter->input_value(0));
+        } else {
+            return false;
+        }
+    };
+
+    auto m = make_shared<pattern::Matcher>(scatter_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
     ADD_MATCHER_FOR_THIS(EliminatePad)
     ADD_MATCHER_FOR_THIS(EliminateConvert)
@@ -732,6 +757,7 @@ ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
+        ADD_MATCHER_FOR_THIS(EliminateScatterUpdate)
         ADD_MATCHER_FOR_THIS(EliminateReshape)
         ADD_MATCHER_FOR_THIS(EliminateSqueeze)
         ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)

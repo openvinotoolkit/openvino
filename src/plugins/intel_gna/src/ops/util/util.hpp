@@ -84,7 +84,7 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
     if (std::dynamic_pointer_cast<ngraph::opset8::Split>(input_op) || std::dynamic_pointer_cast<ngraph::opset8::VariadicSplit>(input_op)) {
         for (size_t index = 0; index < input_op_out_index; index++) {
             size_t outputSize = ngraph::shape_size(input_op->get_output_shape(index));
-            offset += outputSize * GNAPluginNS::GNALimitations::bytesPerSplitElement;
+            offset += outputSize * limitations::bytesPerSplitElement;
         }
     }
     return (offset == ALIGN64(offset));
@@ -93,7 +93,7 @@ static bool is_aligned_split(const std::shared_ptr<ngraph::Node> input_op, size_
 static bool is_crop_affined(std::shared_ptr<ngraph::Node> node) {
     auto crop = std::dynamic_pointer_cast<ngraph::op::CropIE>(node);
     if (crop != nullptr && !crop->offset.empty()) {
-        return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop->offset.back());
+        return limitations::isCropAffinedOffset(crop->offset.back());
     }
     return false;
 }
@@ -117,7 +117,7 @@ static bool is_trivial_transpose(std::shared_ptr<ngraph::Node> node) {
     auto input = transpose->input(0).get_source_output().get_node_shared_ptr();
     auto input_order = transpose->get_input_shape(0);
 
-    return GNAPluginNS::isTrivialPermute(node_order, input_order);
+    return permute::isTrivialPermute(node_order, input_order);
 }
 
 inline std::shared_ptr<ov::Node> get_prev_node_skipping_certain(const std::shared_ptr<ngraph::Node>& node,
@@ -159,7 +159,7 @@ static bool is_power_activation(const ov::Node* node) noexcept {
         if (!const_node)
             return false;
         float value;
-        if (!ngraph::op::util::get_single_value(const_node, value)) {
+        if (!ov::op::util::get_single_value(const_node, value)) {
             return true;
         }
         return (1.0f != value);
@@ -173,20 +173,20 @@ static bool is_power_activation(const std::shared_ptr<ngraph::Node>& node) noexc
     return is_power_activation(node.get());
 }
 
-static bool is_eltwise_mul(const ngraph::Output<ngraph::Node>& node) {
-    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+static bool is_eltwise_mul(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise) return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
 }
 
-static bool is_eltwise_add(const ngraph::Output<ngraph::Node>& node) {
-    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+static bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
+    auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node);
     if (!eltwise) return false;
     return eltwise->eltwise_type == ELTWISE_TYPE::Sum;
 }
 
-static bool is_pooling(const ngraph::Output<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node.get_node_shared_ptr()) != nullptr);
+static bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
+    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
 }
 
 template <typename T>

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,9 +13,7 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
+#include <openvino/core/node.hpp>
 #include <openvino/core/rtti.hpp>
 #include <set>
 #include <string>
@@ -41,7 +39,7 @@ public:
      * Constructs a new OldApiMapElementType object.
      * @param[in]  value  The object that stores values of OldApiMapElementType.
      */
-    OldApiMapElementType(const ngraph::element::Type& value) : value(value) {}
+    OldApiMapElementType(const ov::element::Type& value) : value(value) {}
 
     bool is_copyable() const override {
         return false;
@@ -49,7 +47,7 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-    ngraph::element::Type value;
+    ov::element::Type value;
 };
 
 inline bool has_old_api_map_element_type(const std::shared_ptr<Node>& node) {

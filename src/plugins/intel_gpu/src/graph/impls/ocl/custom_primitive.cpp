@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
-            args.inputs.push_back(dep->output_memory_ptr());
+            args.inputs.push_back(dep.first->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
         stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
@@ -75,14 +75,18 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
-            args.inputs.push_back(dep->output_memory_ptr());
+            args.inputs.push_back(dep.first->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
-        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node->is_output());
+        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
     }
 
-    std::vector<std::string> get_kernel_ids() override {
+    std::vector<std::string> get_kernel_ids() const override {
         return {_kernel_id};
+    }
+
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -258,4 +262,4 @@ attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl, cldnn::object_type::CUSTOM_GPU_PRIMITIVE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl)

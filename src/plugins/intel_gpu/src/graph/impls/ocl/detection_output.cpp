@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,13 +24,6 @@ struct detection_output_impl : typed_primitive_impl_ocl<detection_output> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<detection_output_impl>(*this);
-    }
-
-protected:
-    bool optimized_out(detection_output_inst& instance) const override {
-        /// purpose: To optimize out detection_output for perf measurement.
-        /// how-to: update nms_threshold to '-100' from ir file.
-        return (instance.argument->nms_threshold < -1);
     }
 
 public:
@@ -92,4 +85,4 @@ attach_detection_output_impl::attach_detection_output_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl, cldnn::object_type::DETECTION_OUTPUT_IMPL_OCL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::detection_output_impl)

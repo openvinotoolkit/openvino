@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ struct roi_pooling_impl : typed_primitive_impl_ocl<roi_pooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance) const override {
         kernel_arguments_data args;
 
         if (instance.argument->mode == pooling_mode::deformable_bilinear && !instance.argument->no_trans)
@@ -108,4 +108,4 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl, cldnn::object_type::ROI_POOLING_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl)

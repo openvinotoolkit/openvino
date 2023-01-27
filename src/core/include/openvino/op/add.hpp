@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API Add : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Add", "opset1", util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
     Add() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}

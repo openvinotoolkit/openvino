@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,6 @@
 #include "itt.hpp"
 
 using namespace ov;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::MulticlassNmsBase);
 
 op::util::MulticlassNmsBase::MulticlassNmsBase(const OutputVector& arguments, const Attributes& attrs)
     : Op(arguments),
@@ -98,6 +96,4 @@ EnumNames<op::util::MulticlassNmsBase::SortResultType>::get() {
          {"none", op::util::MulticlassNmsBase::SortResultType::NONE}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::util::MulticlassNmsBase::SortResultType>);
 }  // namespace ov

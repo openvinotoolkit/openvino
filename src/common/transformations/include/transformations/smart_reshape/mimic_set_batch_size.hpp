@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,15 @@
 
 #include <functional>
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
 #include <numeric>
+#include <openvino/pass/graph_rewrite.hpp>
+
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
 
-class NGRAPH_API MimicSetBatchSize;
+class TRANSFORMATIONS_API MimicSetBatchSize;
 
 }  // namespace pass
 }  // namespace ov
@@ -29,14 +31,8 @@ class NGRAPH_API MimicSetBatchSize;
  * This transformation should be executed only while setBatchSize method call
  */
 
-class ov::pass::MimicSetBatchSize : public ngraph::pass::FunctionPass {
+class ov::pass::MimicSetBatchSize : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("MimicSetBatchSize", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::MimicSetBatchSize;
-}  // namespace pass
-}  // namespace ngraph

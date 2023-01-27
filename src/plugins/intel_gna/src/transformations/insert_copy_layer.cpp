@@ -1,8 +1,9 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/insert_copy_layer.hpp"
+#include "insert_copy_layer.hpp"
+
 #include <openvino/cc/ngraph/itt.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset8.hpp>
@@ -11,11 +12,13 @@
 #include <ops/copy.hpp>
 #include <legacy/ngraph_ops/crop_ie.hpp>
 #include <openvino/core/except.hpp>
+#include <openvino/opsets/opset9.hpp>
 
 #include "ops/util/util.hpp"
 
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::ngraph_util;
+using namespace ov::opset9;
 
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeAssignLayer, "InsertCopyBeforeAssignLayer", 0);
 NGRAPH_RTTI_DEFINITION(InsertCopyBeforeConcatLayer, "InsertCopyBeforeConcatLayer", 0);
@@ -43,7 +46,101 @@ namespace {
 
         output_op->input(index).replace_source_output(copy_op);
     }
-}// namespace
+
+class CopyInsertionForEliminatedLayersHandler {
+public:
+    virtual ~CopyInsertionForEliminatedLayersHandler() = default;
+    bool InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer);
+
+protected:
+    virtual bool WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) = 0;
+};
+
+class BroadcastCopyInsertionHandler : public CopyInsertionForEliminatedLayersHandler {
+protected:
+    bool WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) override;
+};
+
+class TileCopyInsertionHandler : public CopyInsertionForEliminatedLayersHandler {
+protected:
+    bool WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) override;
+};
+
+bool CopyInsertionForEliminatedLayersHandler::InsertCopyBeforeIfNeeded(std::shared_ptr<ngraph::Node>& layer) {
+    auto layer_input = layer->get_input_node_shared_ptr(0);
+
+    // skip non functional layers
+    auto current_node = get_prev_node_skipping_certain(layer_input, is_gna_non_functional_node);
+
+    if (!std::dynamic_pointer_cast<Parameter>(current_node)) {
+        return false;
+    }
+
+    if (WillLayerBeEliminated(layer)) {
+        insert_copy_layer_between(layer_input, layer, 0);
+        return true;
+    }
+    return false;
+}
+
+bool BroadcastCopyInsertionHandler::WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) {
+    auto data_node = layer->input_value(0);
+
+    // if input has dynamic shape
+    if (data_node.get_partial_shape().is_dynamic()) {
+        return false;
+    }
+
+    auto input_shape = data_node.get_shape();
+    auto output_shape = layer->get_output_shape(0);
+
+    // if input shape rank is higher than output shape rank return false;
+    if (input_shape.size() > output_shape.size()) {
+        return false;
+    }
+
+    // if size product is not the same
+    if (shape_size(input_shape) != shape_size(output_shape)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool TileCopyInsertionHandler::WillLayerBeEliminated(std::shared_ptr<ngraph::Node>& layer) {
+    static constexpr size_t index_of_repeats_shape = 1;
+
+    auto repeats_node =
+        std::dynamic_pointer_cast<Constant>(layer->input_value(index_of_repeats_shape).get_node_shared_ptr());
+
+    if (!repeats_node)
+        return false;
+
+    auto repeats_vaues = repeats_node->cast_vector<int64_t>();
+
+    for (const auto& value : repeats_vaues) {
+        if (value != 1) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::shared_ptr<CopyInsertionForEliminatedLayersHandler> GetCopyInsertionHandler(
+    std::shared_ptr<ngraph::Node>& layer) {
+    if (std::dynamic_pointer_cast<Broadcast>(layer)) {
+        return std::make_shared<BroadcastCopyInsertionHandler>();
+    }
+
+    if (std::dynamic_pointer_cast<Tile>(layer)) {
+        return std::make_shared<TileCopyInsertionHandler>();
+    }
+
+    return nullptr;
+}
+
+}  // namespace
 
 InsertCopyBeforeAssignLayer::InsertCopyBeforeAssignLayer() {
     MATCHER_SCOPE(InsertCopyBeforeAssignLayer);
@@ -81,7 +178,7 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
     auto concat_op = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto concat = std::dynamic_pointer_cast<ngraph::opset8::Concat>(m.get_match_root());
+        auto concat = m.get_match_root();
 
         std::set<std::shared_ptr<ngraph::Node>> inputs;
         // Insert copy layers after concat inputs with multiple connections to concat
@@ -112,6 +209,33 @@ InsertCopyBeforeConcatLayer::InsertCopyBeforeConcatLayer() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(concat_op, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+InsertCopyBeforeLayerToBeEliminated::InsertCopyBeforeLayerToBeEliminated() {
+    MATCHER_SCOPE(InsertCopyBeforeLayerToBeEliminated);
+    const auto constant = ngraph::pattern::wrap_type<Constant>();
+    const auto broadcast_op = ngraph::pattern::wrap_type<Broadcast>({ngraph::pattern::any_input(), constant});
+
+    const auto tile_op = ngraph::pattern::wrap_type<Tile>({ngraph::pattern::any_input(), constant});
+
+    const auto brodcast_tile = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{broadcast_op, tile_op});
+
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto node = m.get_match_root();
+
+        auto insertion_handler = GetCopyInsertionHandler(node);
+
+        if (!insertion_handler) {
+            return false;
+        }
+
+        // Parameter -> Tile/Broadcast to Parameter -> Copy -> Tile/Broadcast
+        // Parameter -> non functional -> Tile/Broadcast to Parameter -> non functional -> Copy -> Tile/Broadcast
+        return insertion_handler->InsertCopyBeforeIfNeeded(node);
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(brodcast_tile, matcher_name);
     this->register_matcher(m, callback);
 }
 

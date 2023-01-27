@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ namespace ov {
 namespace intel_gpu {
 
 void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::eltwise_mode mode) {
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto out_pshape = op->get_output_partial_shape(0);
@@ -42,7 +42,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
     // New shape infer is supposed to work w/o extra reshapes/reorders
     // So the code below must be removed once new shape infer is enabled
     if (out_pshape.is_static()) {
-        for (size_t i = 0; i < inputPrimitives.size(); ++i) {
+        for (size_t i = 0; i < inputs.size(); ++i) {
             auto input_pshape = op->get_input_partial_shape(i);
             auto input_rank = input_pshape.size();
             if (input_rank != out_rank && input_pshape.is_static()) {
@@ -52,14 +52,14 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                     auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                     auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(i));
                     auto reorderPrim = cldnn::reorder(reorderName,
-                                                    inputPrimitives[i],
+                                                    inputs[i],
                                                     targetFormat,
                                                     targetDatatype,
                                                     std::vector<float>(),
                                                     cldnn::reorder_mean_mode::subtract);
 
                     p.add_primitive(*op, reorderPrim);
-                    inputPrimitives[i] = reorderName;
+                    inputs[i] = cldnn::input_info(reorderName);
                 }
 
                 auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
@@ -69,17 +69,17 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
 
                 auto targetShape = tensor_from_dims(input_pshape.to_shape());
 
-                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+                auto reshapePrim = cldnn::reshape(reshapeName, inputs[i], targetShape);
                 p.add_primitive(*op, reshapePrim);
 
-                inputPrimitives[i] = reshapeName;
+                inputs[i] = cldnn::input_info(reshapeName);
             }
         }
     }
 
     auto out_dt = cldnn::element_type_to_data_type(op->get_output_element_type(0));
     auto eltwisePrim = cldnn::eltwise(layerName,
-                                      inputPrimitives,
+                                      inputs,
                                       mode,
                                       {},
                                       out_dt,
@@ -158,7 +158,7 @@ static void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Powe
     if (power_node) {
         if (ngraph::shape_size(power_node->get_output_shape(0)) == 1) {
             float pow;
-            if (!ngraph::op::util::get_single_value(power_node, pow))
+            if (!ov::op::util::get_single_value(power_node, pow))
                 IE_THROW() << "Invalid parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
             CreateUnaryEltwiseOp(p, op, cldnn::activation_func::pow, {pow});
             return;

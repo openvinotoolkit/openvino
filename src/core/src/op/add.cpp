@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,8 +55,6 @@ bool evaluate_add(const HostTensorPtr& arg0,
 }  // namespace add
 
 // ------------------------------- v1 ------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(ov::op::v1::Add);
 
 op::v1::Add::Add(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

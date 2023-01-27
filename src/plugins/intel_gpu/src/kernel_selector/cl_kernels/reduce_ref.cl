@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
-inline uint FUNC(calc_linear_offset)(uint b, uint f, uint w, uint z, uint y, uint x)
+inline uint FUNC(calc_linear_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x)
 {
     uint index = b * OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W * OUTPUT_FEATURE_NUM +
                  f * OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z * OUTPUT_SIZE_W +
@@ -18,6 +17,7 @@ inline uint FUNC(calc_linear_offset)(uint b, uint f, uint w, uint z, uint y, uin
 }
 
 KERNEL(reduce_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* data,
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -36,18 +36,23 @@ KERNEL(reduce_ref)(
 #if INPUT0_DIMS == 4
     const uint w    = 0;
     const uint z    = 0;
-    const uint out_idx = OUTPUT_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
     const uint z    = wz % OUTPUT_SIZE_Z;
     const uint w    = 0;
-    const uint out_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
 #elif INPUT0_DIMS == 6
     const uint z    = wz % OUTPUT_SIZE_Z;
     const uint w    = wz / OUTPUT_SIZE_Z;
+#endif
+
+#if OUTPUT_DIMS == 4
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, y, x);
+#elif OUTPUT_DIMS == 5
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
+#elif OUTPUT_DIMS == 6
     const uint out_idx = OUTPUT_GET_INDEX(b, f, w, z, y, x);
 #endif
 
-    const uint linear_idx = FUNC_CALL(calc_linear_offset)(b, f, w, z, y, x);
+    const uint linear_idx = FUNC_CALL(calc_linear_offset)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, x);
     if (linear_idx >= COMPUTATIONAL_OPERATIONS_NUMBER)
         return;
 

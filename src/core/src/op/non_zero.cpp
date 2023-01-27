@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 
 using namespace ngraph;
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(op::v3::NonZero);
 
 op::v3::NonZero::NonZero(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();

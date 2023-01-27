@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -143,9 +144,10 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
         idx_order[i] = zero_val;
 
     // Fix size to inputs[0] dims size
-    for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
-        idx_order.pop_back();
-
+    if (params.outputs[0].GetDims().size() > params.inputs[0].GetDims().size()) {
+        for (size_t i = 0; i < params.outputs[0].GetDims().size() - params.inputs[0].GetDims().size(); i++)
+            idx_order.pop_back();
+    }
     idx_order[axis] = input_axis_index_macro;
 
     return GetOrderString(idx_order);
@@ -171,7 +173,7 @@ static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, 
     return GetOrderString(idx_order);
 }
 
-CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params, const optional_params&) const {
+CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) const {
     CommonDispatchData dispatchData;
     const auto& output = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
@@ -236,6 +238,27 @@ bool GatherKernelRef::Validate(const Params& p, const optional_params& o) const 
             return false;
     }
 
+    if (params.outputs[0].is_dynamic()) {
+        auto supported_tensor_layout = [](const DataTensor& t) -> bool {
+            if (t.GetLayout() == DataLayout::bfyx ||
+                t.GetLayout() == DataLayout::bfzyx ||
+                t.GetLayout() == DataLayout::bfwzyx) {
+                return true;
+            }
+
+            return false;
+        };
+
+        for (auto& in : params.inputs) {
+            if (!supported_tensor_layout(in))
+                return false;
+        }
+        for (auto& out : params.outputs) {
+            if (!supported_tensor_layout(out))
+                return false;
+        }
+    }
+
     return true;
 }
 
@@ -247,14 +270,34 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
     KernelData kd = KernelData::Default<gather_params>(params);
     gather_params& newParams = *static_cast<gather_params*>(kd.params.get());
 
-    auto dispatchData = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const gather_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     2,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.outputs[0].is_dynamic());
 
     return {kd};
 }

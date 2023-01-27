@@ -26,7 +26,7 @@ struct adaptive_pooling_impl : public typed_primitive_impl_ocl<adaptive_pooling>
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<adaptive_pooling>& instance) const override {
         kernel_arguments_data args;
         const auto num_inputs = instance.inputs_memory_count();
         for (size_t i = 0; i < num_inputs; ++i) {
@@ -92,4 +92,4 @@ attach_adaptive_pooling_impl::attach_adaptive_pooling_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::adaptive_pooling_impl, cldnn::object_type::ADAPTIVE_POOLING_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::adaptive_pooling_impl)

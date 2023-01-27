@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,5 +9,8 @@
 namespace ov {
 
 /** @brief Class to distinguish legacy extension. */
-class LegacyOpExtension : public BaseOpExtension {};
+class OPENVINO_API LegacyOpExtension : public BaseOpExtension {
+public:
+    ~LegacyOpExtension() override;
+};
 }  // namespace ov

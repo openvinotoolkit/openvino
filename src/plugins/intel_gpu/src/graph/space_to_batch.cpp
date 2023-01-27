@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,10 +12,7 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id cldnn::space_to_batch::type_id() {
-    static primitive_type_base<space_to_batch> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(space_to_batch)
 
 layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<space_to_batch>();
@@ -23,7 +20,7 @@ layout space_to_batch_inst::calc_output_layout(space_to_batch_node const& node, 
     auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
-    auto output_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
 
     if (impl_param.has_fused_primitives())
         output_type = impl_param.get_fused_output_layout().data_type;

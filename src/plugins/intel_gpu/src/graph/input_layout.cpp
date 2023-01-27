@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "input_layout_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
@@ -25,10 +23,7 @@ bool has_optimized_users(input_layout_node const& node) {
 }  // namespace
 
 namespace cldnn {
-primitive_type_id input_layout::type_id() {
-    static primitive_type_base<input_layout> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(input_layout)
 
 input_layout_node::typed_program_node(const std::shared_ptr<input_layout> dprim, program& prog)
     : parent(dprim, prog) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct PluginConfig {
                 _disableAutoBatching(false),
                 _batchTimeout("1000"),
                 _devicePriority(""),
-                _modelPriority(0),
+                _modelPriority(1),
                 _deviceBindBuffer(false),
                 _logLevel("LOG_NONE") {
         adjustKeyMapValues();
@@ -129,11 +129,17 @@ struct PluginConfig {
                         << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::allow_auto_batching) {
-                if (kvp.second == PluginConfigParams::NO) _disableAutoBatching = true;
-                else if (kvp.second == PluginConfigParams::YES) _disableAutoBatching = false;
-                else
+                if (kvp.second == PluginConfigParams::NO) {
+                    _disableAutoBatching = true;
+                    // temp flag, to be removed when unify this key to ie core
+                    _isBatchConfigSet = true;
+                } else if (kvp.second == PluginConfigParams::YES) {
+                    _disableAutoBatching = false;
+                    _isBatchConfigSet = true;
+                } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
+                }
             } else if (kvp.first == ov::auto_batch_timeout) {
                 try {
                     auto batchTimeout = std::stoi(kvp.second);
@@ -158,6 +164,7 @@ struct PluginConfig {
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
+                // if first level property has perf_hint setting
                 if (kvp.first == ov::hint::performance_mode.name())
                     _isSetPerHint = true;
             } else if (_availableDevices.end() != std::find(_availableDevices.begin(),
@@ -166,9 +173,6 @@ struct PluginConfig {
                 // AUTO and MULTI can accept secondary properites on calling both core::comile_model() and
                 // core::set_property().
                 _passThroughConfig.emplace(kvp.first, kvp.second);
-                // Not setting performance mode to 'THROUGHPUT' as the default value if any secondary properties
-                // appears in the configuration.
-                _isSetPerHint = true;
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first == ov::cache_dir.name()) {
@@ -282,6 +286,7 @@ struct PluginConfig {
     // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
     bool _isSetPerHint = false;
     bool _isSetCacheDir = false;
+    bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices = {"AUTO",
@@ -289,8 +294,6 @@ struct PluginConfig {
                                                      "GPU",
                                                      "GNA",
                                                      "TEMPLATE",
-                                                     "MYRIAD",
-                                                     "HDDL",
                                                      "VPUX",
                                                      "MULTI",
                                                      "HETERO",

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,8 +65,6 @@ namespace  {
              Output[FP32]
 */
 TEST_F(AddConvertToReorderTest, smoke_TestAddReorder_CPU) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     BuildGraph(ngraph::element::i8);
     Run();
     CheckNumberOfNodesWithType(executableNetwork, "Convert", 0);

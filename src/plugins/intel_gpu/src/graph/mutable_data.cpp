@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "mutable_data_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/memory.hpp"
@@ -14,10 +12,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data::type_id() {
-    static primitive_type_base<mutable_data> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(mutable_data)
 
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem, bool reuse) {
@@ -77,35 +72,53 @@ void mutable_data_inst::set_output_memory(memory::ptr mem_new, bool check, size_
 }
 
 mutable_data_inst::typed_primitive_inst(network& network, mutable_data_node const& node)
-    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {}
+    : parent(network, node, attach_or_copy_data(network, node.get_attached_memory_ptr(), network.is_primary_stream())) {
+    const auto& users = get_users();
+    for (const auto& usr : users) {
+        _user_ids.emplace_back(usr->id());
+    }
+}
 
 void mutable_data_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     parent::save(ob);
 
-    if (!_mem_allocated) {
-        for (size_t dep_idx = 0; dep_idx < _deps.size(); ++dep_idx) {
-            for (size_t m_idx = 0; m_idx < _deps[dep_idx]->_deps.size(); ++m_idx) {
-                if (get_network().get_engine().is_the_same_buffer(*_outputs[0], *_deps[dep_idx]->_deps[m_idx]->_outputs[0])) {
-                    ob << true << dep_idx << m_idx;
-                    return;
-                }
-            }
-        }
+    size_t data_size = _outputs[0]->size();
+    ob << make_data(&data_size, sizeof(size_t));
+
+    if (data_size == 0)
+        return;
+
+    allocation_type _allocation_type = _outputs[0]->get_allocation_type();
+
+    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        ob << make_data(_outputs[0]->buffer_ptr(), data_size);
+    } else {
+        mem_lock<char, mem_lock_type::read> lock{_outputs[0], get_node().get_program().get_stream()};
+        ob << make_data(lock.data(), data_size);
     }
-    ob << false;
 }
 
-void mutable_data_inst::load(cldnn::BinaryInputBuffer& ib) {
+void mutable_data_inst::load(BinaryInputBuffer& ib) {
     parent::load(ib);
 
-    bool from_dep;
-    ib >> from_dep;
-    if (from_dep && !_mem_allocated) {
-        size_t dep_idx, m_idx;
-        ib >> dep_idx >> m_idx;
+    size_t data_size;
+    ib >> make_data(&data_size, sizeof(size_t));
 
-        auto prev_node = get_network().get_primitive(_dep_ids[dep_idx]);
-        _outputs[0] = get_network().get_primitive(prev_node->_dep_ids[m_idx])->output_memory_ptr();
+    if (data_size == 0)
+        return;
+
+    OPENVINO_ASSERT(_outputs[0] != nullptr, "Output memory should be allocated before importing data.");
+
+    allocation_type _allocation_type = _outputs[0]->get_allocation_type();
+
+    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+        ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
+    } else {
+        std::vector<uint8_t> _buf;
+        _buf.resize(data_size);
+        ib >> make_data(_buf.data(), data_size);
+        _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
     }
 }
+
 }  // namespace cldnn

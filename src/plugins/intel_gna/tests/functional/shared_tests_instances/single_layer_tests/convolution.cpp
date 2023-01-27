@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-class GnaConvolutionLayerTest : public ConvolutionLayerTest {
+class gna_convolution_layerTest : public ConvolutionLayerTest {
 protected:
     void Run() override {
         ConvolutionLayerTest::Run();
@@ -23,7 +23,7 @@ protected:
     }
 };
 
-TEST_P(GnaConvolutionLayerTest, CompareWithRefs) {
+TEST_P(gna_convolution_layerTest, CompareWithRefs) {
     Run();
 }
 
@@ -81,6 +81,13 @@ const std::vector<std::vector<size_t >> kernels2D_big = {
         {7, 7},
 };
 
+const std::vector<std::vector<size_t>> kernels2D_3x3 = {
+    {3, 3},
+};
+const std::vector<std::vector<size_t>> kernels2D_5x6 = {
+    {5, 6},
+};
+
 const std::vector<std::vector<size_t >> strides2D = {
         {1, 1},
 };
@@ -92,7 +99,12 @@ const std::vector<std::vector<size_t >> dilations2D = { {1, 1},
 };
 const std::vector<size_t> numOutCannels2D = { 8, 16, 32};
 
+const std::vector<size_t> num_out_channels_for_mapped_2d = {4, 8, 12};
+
 const std::vector<size_t> input2DNCHW = { 1, 8, 20, 16 };
+
+const std::vector<size_t> input2DNCHW_3x3 = {1, 16, 3, 3};
+const std::vector<size_t> input2DNCHW_5x6 = {1, 16, 5, 6};
 
 const std::vector<std::vector<size_t>> inputShapesMapTo1d = {{1, 1, 56, 5},
                                                              {1, 32, 56, 5},
@@ -114,6 +126,26 @@ const auto conv2DParams_Kernels2D_big = ::testing::Combine(
     ::testing::ValuesIn(padEnds2D),
     ::testing::ValuesIn(dilations2D),
     ::testing::ValuesIn(numOutCannels2D),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+const auto conv2DParams_Kernels2D_3x3 = ::testing::Combine(
+    ::testing::ValuesIn(kernels2D_3x3),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(num_out_channels_for_mapped_2d),
+    ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+const auto conv2DParams_Kernels2D_5x6 = ::testing::Combine(
+    ::testing::ValuesIn(kernels2D_5x6),
+    ::testing::ValuesIn(strides2D),
+    ::testing::ValuesIn(padBegins2D),
+    ::testing::ValuesIn(padEnds2D),
+    ::testing::ValuesIn(dilations2D),
+    ::testing::ValuesIn(num_out_channels_for_mapped_2d),
     ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
@@ -244,7 +276,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid_MapTo1d, ConvolutionLa
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                          ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, gna_convolution_layerTest,
                          ::testing::Combine(
                                  conv2DParams_Kernels2D,
                                  ::testing::ValuesIn(netPrecisions),
@@ -254,9 +286,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D, GnaConvolutionLayerTest,
                                  ::testing::Values(InferenceEngine::Layout::ANY),
                                  ::testing::Values(input2DNCHW),
                                  ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-                         GnaConvolutionLayerTest::getTestCaseName);
+                         gna_convolution_layerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, GnaConvolutionLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, gna_convolution_layerTest,
     ::testing::Combine(
         conv2DParams_Kernels2D_big,
         ::testing::ValuesIn(netPrecisions),
@@ -266,5 +298,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Kernels2D_big, GnaConvolutionLayerT
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(input2DNCHW),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)),
-    GnaConvolutionLayerTest::getTestCaseName);
+    gna_convolution_layerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_3_3, ConvolutionLayerTest,
+    ::testing::Combine(
+        conv2DParams_Kernels2D_3x3,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(input2DNCHW_3x3),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+    ConvolutionLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_Map2D_Not_Transpose_h_w_5_6, ConvolutionLayerTest,
+    ::testing::Combine(
+        conv2DParams_Kernels2D_5x6,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(input2DNCHW_5x6),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+    ConvolutionLayerTest::getTestCaseName);
 }  // namespace

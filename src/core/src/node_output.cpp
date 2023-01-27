@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,8 @@ void Output<Node>::replace(const Output<Node>& replacement) {
     // In both of these cases please use replace_output_update_name() method which automatically prevents the
     // replacement for cases when we can not preserve input/output names of model.
     if (!is_type<ov::op::v0::Parameter>(replacement.get_node())) {
-        replacement.get_tensor_ptr()->set_name(get_tensor_ptr()->get_name());
+        ov::descriptor::set_ov_tensor_legacy_name(replacement.get_tensor(),
+                                                  ov::descriptor::get_ov_tensor_legacy_name(get_tensor()));
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
 

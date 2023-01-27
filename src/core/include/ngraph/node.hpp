@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,8 +56,6 @@ class HostTensor;
 using HostTensor = runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
-using TensorLabel = std::vector<size_t>;
-using TensorLabelVector = std::vector<TensorLabel>;
 
 namespace op {
 
@@ -150,8 +148,7 @@ using ov::check_new_args_count;
 #    define _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)                         \
         const ::ngraph::Node::type_info_t& CLASS::get_type_info() const { \
             return get_type_info_static();                                \
-        }                                                                 \
-        const ::ngraph::Node::type_info_t CLASS::type_info = CLASS::get_type_info_static()
+        }
 #endif
 
 #define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)               \

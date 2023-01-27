@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,4 +60,4 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl, cldnn::object_type::GATHER_ND_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl)

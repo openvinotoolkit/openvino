@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,6 +91,8 @@ protected:
     InferenceEngine::SizeVector kernel, dilation;
 
     void checkBiasFusing(ov::CompiledModel &execNet) const {
+        if (!execNet) return;
+
         auto execGraph = execNet.get_runtime_model();
         ASSERT_NE(nullptr, execGraph);
 
@@ -202,8 +204,6 @@ protected:
 };
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
     if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
@@ -214,31 +214,33 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         }
     }
 
-    // Skip tests for brgconv convolution where kernel size = 1x1
-    if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
-        bool is_1x1 = true;
-        for (const auto &i : kernel) {
-            if (i != 1) {
-                is_1x1 = false;
-                break;
-            }
+    if (!priority.empty()) {
+        // Skip tests for brgconv convolution where kernel size = 1x1
+        if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+                bool is_1x1 = true;
+                for (const auto &i : kernel) {
+                if (i != 1) {
+                        is_1x1 = false;
+                        break;
+                }
+                }
+                if (is_1x1) {
+                GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
+                }
         }
-        if (is_1x1) {
-            GTEST_SKIP() << "Disabled test due to the brgconv does not support 1x1 convolution kernel." << std::endl;
-        }
-    }
 
-    // Skip tests for brgconv_amx convolution where dilation is not 1
-    if (priority[0].find("amx") != std::string::npos) {
-        bool dilation_is_1x1 = true;
-        for (const auto &i : dilation) {
-            if (i != 1) {
-                dilation_is_1x1 = false;
-                break;
-            }
-        }
-        if (!dilation_is_1x1) {
-            GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
+        // Skip tests for brgconv_amx convolution where dilation is not 1
+        if (priority[0].find("amx") != std::string::npos) {
+                bool dilation_is_1x1 = true;
+                for (const auto &i : dilation) {
+                if (i != 1) {
+                        dilation_is_1x1 = false;
+                        break;
+                }
+                }
+                if (!dilation_is_1x1) {
+                GTEST_SKIP() << "Disabled test due to the brgconv amx does not support non 1 dilation convolution kernel." << std::endl;
+                }
         }
     }
 
@@ -1683,4 +1685,53 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_winograd, ConvolutionLayerCPUTest,
 
 } // namespace winograd
 
+/* ============= Large Filter Test ============= */
+namespace {
+
+const size_t outChannels = 80;
+
+const SizeVector kernel = { 251 };
+const SizeVector stride = { 10 };
+const std::vector<ptrdiff_t> padBegins = { 0 };
+const std::vector<ptrdiff_t> padEnds = { 0 };
+const SizeVector dilations = { 1 };
+
+const auto convParams_1D = ::testing::Combine(
+        ::testing::Values(kernel),
+        ::testing::Values(stride),
+        ::testing::Values(padBegins),
+        ::testing::Values(padEnds),
+        ::testing::Values(dilations),
+        ::testing::Values(outChannels),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+);
+
+std::vector<InputShape> inShapes = {
+    {{}, {{ 1, 1, 600 }}},
+    {
+        //dynamic shape
+        { -1, 1, -1 },
+        { //target static shapes
+            { 1, 1, 600 },
+            { 10, 1, 700 },
+            { 1, 1, 600 }
+        }
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Large_Filter, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_1D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inShapes),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type}),
+                                 ::testing::Values(emptyFusingSpec),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+} // namespace
 } // namespace CPULayerTestsDefinitions

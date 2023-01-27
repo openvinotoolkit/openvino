@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 namespace ov {
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(op::util::LogicalReduction);
 
 op::util::LogicalReduction::LogicalReduction() = default;
 

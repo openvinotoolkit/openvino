@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,13 +6,6 @@
 
 #include "ngraph/graph_util.hpp"
 #include "ngraph/opsets/opset5.hpp"
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::SliceInputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::MergedInputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::InvariantInputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::BodyOutputDescription);
-BWDCMP_RTTI_DEFINITION(ov::op::util::MultiSubGraphOp::ConcatOutputDescription);
 
 ov::op::util::MultiSubGraphOp::InputDescription::InputDescription(uint64_t input_index, uint64_t body_parameter_index)
     : m_input_index(input_index),
@@ -154,7 +147,40 @@ ov::Output<ov::Node> ov::op::util::MultiSubGraphOp::set_body_outputs(const Resul
     return Output<Node>(shared_from_this(), output_index);
 }
 
-namespace ov {
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::InputDescription>>>);
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<std::vector<std::shared_ptr<op::util::MultiSubGraphOp::OutputDescription>>>);
-}  // namespace ov
+void ov::op::util::MultiSubGraphOp::validate_and_infer_type_body(
+    const std::shared_ptr<ov::Model>& body,
+    const ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& input_descriptors) {
+    const auto& params = body->get_parameters();
+    for (const auto& input_description : input_descriptors) {
+        auto index = input_description->m_input_index;
+
+        auto body_parameter = params.at(input_description->m_body_parameter_index);
+        auto input_partial_shape = input_value(index).get_partial_shape();
+        body_parameter->set_partial_shape(input_partial_shape);
+    }
+    body->validate_nodes_and_infer_types();
+}
+
+ov::op::util::MultiSubGraphOp::OutputMap ov::op::util::MultiSubGraphOp::get_mapping_outputs_on_body_description(
+    const ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector& output_descriptors) {
+    OutputMap outputs_map = OutputMap();
+    std::unordered_set<int64_t> checked_results_in_body;
+
+    for (const auto& output_description : output_descriptors) {
+        const auto& out_index = output_description->m_output_index;
+        const auto& internal_result_index = output_description->m_body_value_index;
+        NODE_VALIDATION_CHECK(this,
+                              checked_results_in_body.count(internal_result_index) == 0,
+                              "Incorrect associating in body! Result ",
+                              internal_result_index,
+                              " is already associated with another output!");
+        NODE_VALIDATION_CHECK(this,
+                              outputs_map.count(out_index) == 0,
+                              "Incorrect associating in body! Several results try to "
+                              "associate with the same output!");
+        checked_results_in_body.insert(internal_result_index);
+        outputs_map.insert({out_index, output_description});
+    }
+
+    return outputs_map;
+}

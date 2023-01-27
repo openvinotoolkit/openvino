@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdlib>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
@@ -93,16 +94,6 @@ protected:
         const size_t hiddenSize = targetStaticShapes.front()[1][2];
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-        // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
-        // returned output format always tnc
-        if (inFmts.size() >= 3) {
-            for (size_t i = 1; i < 3; i++) {
-                if (inputDynamicShapes[i].is_static() && ov::shape_size(inputDynamicShapes[i].to_shape()) == 1) {
-                    inFmts[i] = tnc;
-                }
-            }
-        }
-
         float WRB_range = 0;
         auto it_dynamic_batch = additionalConfig.find("_dynamic_batch_test");
         if (it_dynamic_batch != additionalConfig.end() && it_dynamic_batch->second == "yes") {
@@ -139,35 +130,24 @@ protected:
         std::vector<ov::Shape> WRB = {{numDirections, 4 * hiddenSize, inputSize}, {numDirections, 4 * hiddenSize, hiddenSize},
                 {numDirections, 4 * hiddenSize}, {batchSize}};
         auto lstmSequenceOp = ngraph::builder::makeLSTM(ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes(params)),
-                                                       WRB,
-                                                       hiddenSize,
-                                                       activations,
-                                                       {},
-                                                       {},
-                                                       clip,
-                                                       true,
-                                                       direction,
-                                                       seqMode,
-                                                       WRB_range);
-
-        // method MemoryDesc::isSame can't correct compute layout for tensor with strides = 1
-        // returned output format always tnc
-        if (outFmts.size() >= 3) {
-            for (size_t i = 1; i < 3; i++) {
-                if (lstmSequenceOp->get_output_partial_shape(i).is_static() && ov::shape_size(lstmSequenceOp->get_output_shape(i)) == 1 ||
-                        lstmSequenceOp->get_output_partial_shape(0).is_static() && lstmSequenceOp->get_output_shape(0) == ov::Shape{1, 1, 2, 10}) {
-                    outFmts[i] = tnc;
-                }
-            }
-        }
+                                                        WRB,
+                                                        hiddenSize,
+                                                        activations,
+                                                        {},
+                                                        {},
+                                                        clip,
+                                                        true,
+                                                        direction,
+                                                        seqMode,
+                                                        WRB_range);
 
         function = makeNgraphFunction(netPrecision, params, lstmSequenceOp, "lstmSequenceOp");
 
         if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ov::pass::Manager manager;
             if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
-                manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
+                manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
+            manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.run_passes(function);
             bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
@@ -195,8 +175,6 @@ protected:
 };
 
 TEST_P(LSTMSequenceCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "RNNSeq");
 }
@@ -208,7 +186,8 @@ std::vector<std::map<std::string, std::string>> additionalConfig
        {{InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES}}};
 
 CPUSpecificParams cpuParams{{ntc, tnc, tnc}, {ntc, tnc, tnc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
+// CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc, ntc}, {tnc, ntc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, tnc, tnc}, {tnc, tnc, tnc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // oneDNN supports only sigmoid-tanh-tanh
@@ -238,7 +217,8 @@ const std::vector<std::vector<InputShape>> staticShapes = {
       { {}, { {1} } } },
     { { {}, { {1, 2, 10} } },  // Static shapes
       { {}, { {1, 1, 10} } },
-      { {}, { {1, 1, 10} } } }
+      { {}, { {1, 1, 10} } },
+      { {}, { {1} } } },
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_static, LSTMSequenceCPUTest,
@@ -264,14 +244,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_static_BatchSizeOne, LSTMSequenceCPUTest,
                 LSTMSequenceCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_static_bf16, LSTMSequenceCPUTest,
-                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[4]}),
+                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[0]}),
                                    ::testing::ValuesIn(mode),
                                    ::testing::ValuesIn(activations),
                                    ::testing::ValuesIn(clip),
                                    ::testing::ValuesIn(direction),
                                    ::testing::ValuesIn(netPrecisions),
                                    ::testing::Values(cpuParams),
-                                   ::testing::Values(additionalConfig[1])),
+                                   ::testing::ValuesIn(additionalConfig)),
+                LSTMSequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_static_bf16_BatchSizeOne, LSTMSequenceCPUTest,
+                ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>{staticShapes[4]}),
+                                   ::testing::ValuesIn(mode),
+                                   ::testing::ValuesIn(activations),
+                                   ::testing::ValuesIn(clip),
+                                   ::testing::ValuesIn(direction),
+                                   ::testing::ValuesIn(netPrecisions),
+                                   ::testing::Values(cpuParamsBatchSizeOne),
+                                   ::testing::ValuesIn(additionalConfig)),
                 LSTMSequenceCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> dynamicShapes = {
@@ -328,7 +319,9 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {3, -1, {0, 12}},                           // Dynamic shape 1
         { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } },   // Target shapes
       { {3, -1, {0, 12}},                           // Dynamic shape 2
-        { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } } }, // Target shapes
+        { {3, 1, 10}, {3, 1, 10}, {3, 1, 10} } },   // Target shapes
+      { {-1},                                       // Dynamic shape 3
+        { {3}, {3}, {3} } }},                       // Target shapes
     { { {{0, 11}, -1, {5, 15}},                     // #7. Dynamic shape 0
         { {10, 2, 10}, {3, 4, 10}, {5, 5, 10}, {10, 2, 10}, {5, 5, 10} } },  // Target shapes
       { {-1, 1, -1},                                // Dynamic shape 1
@@ -336,7 +329,7 @@ const std::vector<std::vector<InputShape>> dynamicShapes = {
       { {-1, 1, -1},                                // Dynamic shape 2
         { {10, 1, 10}, {3, 1, 10}, {5, 1, 10}, {10, 1, 10}, {5, 1, 10} } },  // Target shapes
       { {-1},                                       // Dynamic shape 3
-        { {10}, {3}, {5}, {10}, {5} } } }           // Target shapes
+        { {10}, {3}, {5}, {10}, {5} } } },          // Target shapes
 };
 
 
@@ -417,7 +410,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_BatchSizeOne, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(clip),
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
-                               ::testing::Values(CPUSpecificParams{{tnc}, {tnc}, {"ref_any"}, "ref_any"}),
+                               ::testing::Values(cpuParamsBatchSizeOne),
                                ::testing::Values(std::map<std::string, std::string>{})),
             LSTMSequenceCPUTest::getTestCaseName);
 
@@ -440,6 +433,17 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16, LSTMSequenceCPUTest,
                                ::testing::ValuesIn(direction),
                                ::testing::ValuesIn(netPrecisions),
                                ::testing::Values(cpuParams),
+                               ::testing::Values(additionalConfig[1])),
+            LSTMSequenceCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_dynamic_bf16_BatchSizeOne, LSTMSequenceCPUTest,
+            ::testing::Combine(::testing::ValuesIn({dynamicShapes[4]}),
+                               ::testing::ValuesIn(mode),
+                               ::testing::ValuesIn(activations),
+                               ::testing::ValuesIn(clip),
+                               ::testing::ValuesIn(direction),
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(cpuParamsBatchSizeOne),
                                ::testing::Values(additionalConfig[1])),
             LSTMSequenceCPUTest::getTestCaseName);
 } // namespace

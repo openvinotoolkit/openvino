@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,6 +52,7 @@ public:
     void set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) override;
     ngraph::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
     void set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) override;
+    ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     ov::frontend::Place::Ptr add_output(const ov::frontend::Place::Ptr& place) override;
     void remove_output(const ov::frontend::Place::Ptr& place) override;
 

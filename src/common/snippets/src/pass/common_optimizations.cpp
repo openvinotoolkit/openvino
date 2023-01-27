@@ -7,10 +7,14 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "transformations/utils/utils.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/softmax_reshape_elimination.hpp"
+#include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CommonOptimizations, "Snippets::CommonOptimizations", 0);
@@ -23,14 +27,18 @@ namespace pass {
 // Move up Constants which aren't scalars from body to Subgraph and replace them with Parameters inside body
 void ConvertConstantsToParameters(const std::shared_ptr<ngraph::snippets::op::Subgraph>& subgraph) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::ConvertConstantsToParameters");
-    auto body = subgraph->get_body();
+    auto body = subgraph->body_ptr();
 
     ParameterVector new_parameters;
     OutputVector new_external_inputs = subgraph->input_values();
 
     for (auto& op : body->get_ops()) {
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
-        if (!(constant && ngraph::shape_size(constant->get_shape()) != 1ul))
+        if (!constant || ngraph::shape_size(constant->get_shape()) == 1ul)
+            continue;
+
+        const auto child = constant->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+        if (op::Subgraph::constant_input_should_be_inside_body(child))
             continue;
 
         auto parameter = std::make_shared<opset1::Parameter>(constant->get_element_type(), constant->output(0).get_partial_shape());
@@ -59,16 +67,18 @@ CommonOptimizations::CommonOptimizations() {
             return false;
         }
 
-        auto body = subgraph->get_body();
+        auto body = subgraph->body_ptr();
         const auto is_quantized = subgraph->is_quantized();
 
         // Firsly we should transform all original Converts inside body to ConvertTruncation to save original behavior.
         // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::snippets::pass::TransformConvertToConvertTruncation>();
+        manager.register_pass<ngraph::snippets::pass::ExplicitTransposeMatMulInputs>();
         if (is_quantized) {
             manager.register_pass<ngraph::snippets::pass::CommonFakeQuantizeDecomposition>();
         }
+        manager.register_pass<snippets::pass::SoftmaxReshapeElimination>();
         manager.run_passes(body);
 
         // At the moment only non-scalar Constants of FakeQuantize can be inside Subgraph

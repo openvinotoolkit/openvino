@@ -1,11 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 
 #include <map>
 #include <mutex>
@@ -18,7 +20,6 @@
 #include <threading/ie_cpu_streams_executor.hpp>
 #include "kernels_factory.hpp"
 #include "ocl/ocl_engine.hpp"
-#include "serialization/binary_buffer.hpp"
 
 namespace cldnn {
 class kernels_cache {
@@ -76,6 +77,8 @@ public:
 private:
     static std::mutex _mutex;
     engine& _engine;
+    InferenceEngine::CPUStreamsExecutor::Ptr _task_executor;
+    ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
     size_t _kernel_idx = 0;
@@ -91,7 +94,11 @@ private:
     size_t get_max_kernels_per_batch() const;
 
 public:
-    explicit kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str = {});
+    explicit kernels_cache(engine& engine,
+                           const ExecutionConfig& config,
+                           uint32_t prog_id,
+                           InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
+                           const std::vector<std::string>& batch_header_str = {});
     kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;
@@ -108,6 +115,7 @@ public:
         _kernels.erase(id);
     }
     std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+    void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
     void compile();
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);

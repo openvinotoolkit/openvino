@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,14 +53,14 @@ protected:
         UnSqueezeFixture::SetUp();
     }
 
-    std::pair<std::vector<size_t>, std::vector<size_t>> make_in_exp_labels() const {
-        std::vector<size_t> in_labels;
-        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<size_t>(1));
+    std::pair<ov::TensorLabel, ov::TensorLabel> make_in_exp_labels() const {
+        ov::TensorLabel in_labels;
+        std::generate_n(std::back_inserter(in_labels), p_shape.size(), ov::SeqGen<ov::label_t>(1));
 
         std::set<int64_t> axes_to_remove;
         if (axes.empty()) {
             for (auto dim = p_shape.begin(); dim != p_shape.end(); ++dim) {
-                if (*dim == 1 || exp_shape.rank().is_dynamic()) {
+                if (dim->get_max_length() == 1 || exp_shape.rank().is_dynamic()) {
                     axes_to_remove.insert(std::distance(p_shape.begin(), dim));
                 }
             }
@@ -75,7 +75,7 @@ protected:
         auto exp_labels = in_labels;
         exp_labels.erase(std::remove_if(exp_labels.begin(),
                                         exp_labels.end(),
-                                        [&](size_t& label) {
+                                        [&](ov::label_t& label) {
                                             if ((rm_iter != axes_to_remove.end()) && (*rm_iter == rm_idx++)) {
                                                 return ++rm_iter, true;
                                             } else {
@@ -92,6 +92,7 @@ protected:
 
 const auto static_partial_shapes_test_values =
     Values(std::make_tuple(PartialShape{1}, std::vector<int64_t>{0}, PartialShape{}),
+           std::make_tuple(PartialShape{}, std::vector<int64_t>{0}, PartialShape{}),
            std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{0}, PartialShape{2}),
            std::make_tuple(PartialShape{1, 2}, std::vector<int64_t>{-2}, PartialShape{2}),
            std::make_tuple(PartialShape{1, 2, 1}, std::vector<int64_t>{0}, PartialShape{2, 1}),
@@ -105,6 +106,7 @@ const auto empty_axes_test_values =
                            std::vector<int64_t>{},
                            PartialShape{Dimension(2, 5), Dimension(3, 4), 6}),
            std::make_tuple(PartialShape::dynamic(6), std::vector<int64_t>{}, PartialShape::dynamic()),
+           std::make_tuple(PartialShape{Dimension(0, 1)}, std::vector<int64_t>{}, PartialShape{}),
            std::make_tuple(PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()},
                            std::vector<int64_t>{},
                            PartialShape::dynamic()),
@@ -158,7 +160,7 @@ TEST_P(SqueezeTest, labels_propagation) {
     if (p_shape.rank().is_dynamic()) {
         GTEST_SKIP() << "No dimension to set label";
     }
-    std::vector<size_t> in_labels, exp_labels;
+    ov::TensorLabel in_labels, exp_labels;
     std::tie(in_labels, exp_labels) = make_in_exp_labels();
 
     set_shape_labels(p_shape, in_labels);
@@ -249,7 +251,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(SqueezeBoundTest, propagate_label_and_dynamic_value) {
     PartialShape labeled_shape = PartialShape{p_shape};
 
-    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<size_t>(1));
+    std::generate_n(std::back_inserter(in_labels), labeled_shape.size(), ov::SeqGen<ov::label_t>(1));
     set_shape_labels(labeled_shape, in_labels);
 
     constexpr auto et = element::i64;

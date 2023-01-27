@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os.path
@@ -115,6 +115,13 @@ LIB_INSTALL_CFG = {
     "paddle_libs": {
         "name": "paddle",
         "prefix": "libs.paddle",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BUILD_DIR,
+    },
+    "pytorch_libs": {
+        "name": "pytorch",
+        "prefix": "libs.pytorch",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BUILD_DIR,

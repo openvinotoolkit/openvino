@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <legacy/ie_layers.h>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
-#include "backend/gna_types.h"
+#include "backend/gna_types.hpp"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
@@ -21,7 +21,8 @@
 #include "backend/gna_limitations.hpp"
 #include "transformations/rt_info/gna_transpose_fusable.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief detecting of const pointer for dynamic cast operations
@@ -62,7 +63,7 @@ class LayerInfo {
     // The name of the funciton may be somehwat misleading
     // Explanation: when in low precision mode the listed layers have 8-bit outputs
     // and when in 16-bit input mode, they have 16-bit outputs
-    bool has8BOr16BOutput() const noexcept {
+    bool has8BOr16BOutput() const {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
         return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
@@ -70,7 +71,7 @@ class LayerInfo {
                (isCrop() && !isCropAffined()) ||
                isPermute();
     }
-    bool has32BOutput() const noexcept {
+    bool has32BOutput() const {
         IS_VALID();
         std::vector<std::function<bool()>> has32BOutputsProbes = {
             [this]() { return isFullyConnected(); },
@@ -321,7 +322,7 @@ class LayerInfo {
         auto inputs = layer->insData.begin()->lock();
         auto inputsOrder = inputs->getTensorDesc().getDims();
 
-        return GNAPluginNS::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
+        return permute::isTrivialPermute(std::vector<int64_t>{begin(layerOrder), end(layerOrder)},
             inputsOrder);
     }
     bool isNonValuesChangable() const {
@@ -338,14 +339,25 @@ class LayerInfo {
     bool isMemory() const noexcept {
         return isOfType("memory");
     }
+    // @brief verify that it is Assign layer (Copy -> Memory)
+    bool isCopyToMemory() const {
+        if (isCopy()) {
+            for (auto&& out : getInputTo(layer->outData.front())) {
+                if (LayerInfo(out.second).isMemory()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     bool isCrop() const noexcept {
         return isOfType("crop");
     }
-    bool isCropAffined() const noexcept {
+    bool isCropAffined() const {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             const auto crop_params = GetCropParams(cropLayer);
-            return GNAPluginNS::GNALimitations::isCropAffinedOffset(crop_params.start_offset);
+            return limitations::isCropAffinedOffset(crop_params.start_offset);
         }
         return false;
     }
@@ -355,7 +367,7 @@ class LayerInfo {
     bool isCopyDelayed() const noexcept {
         return isOfType(DelayedCopyLayerName);
     }
-    bool isWeightableIdentity() const noexcept {
+    bool isWeightableIdentity() const {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
     }
     bool isFusableWithConv() const noexcept {
@@ -414,4 +426,5 @@ inline std::ostream & operator <<(std::ostream &os, const LayerInfo & info) {
     return os;
 }
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

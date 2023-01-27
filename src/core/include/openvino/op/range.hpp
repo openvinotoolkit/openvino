@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v4 {
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset4", op::Op, 4);
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an unitialized range operation.
     Range() = default;
 
@@ -58,7 +57,6 @@ namespace v0 {
 class OPENVINO_API Range : public Op {
 public:
     OPENVINO_OP("Range", "opset1");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;

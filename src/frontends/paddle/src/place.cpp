@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,14 @@ std::shared_ptr<InPortPlace> OpPlace::get_input_port_paddle(const std::string& i
 
 const ::paddle::framework::proto::OpDesc& OpPlace::get_desc() const {
     return m_op_desc;
+}
+
+const std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
+    return m_op_decoder;
+}
+
+void OpPlace::set_decoder(const std::shared_ptr<DecoderBase> op_decoder) {
+    m_op_decoder = op_decoder;
 }
 
 void OpPlace::add_out_port(const std::shared_ptr<OutPortPlace>& output, const std::string& name) {

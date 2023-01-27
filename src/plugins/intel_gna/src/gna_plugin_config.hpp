@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,8 @@
 #include <map>
 #include <mutex>
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 static const float kScaleFactorDefault = 1.f;
 
@@ -44,11 +45,13 @@ struct Config {
         gnaFlags = r.gnaFlags;
         std::lock_guard<std::mutex> lock(r.mtx4keyConfigMap);
         keyConfigMap = r.keyConfigMap;
+        cacheDir = r.cacheDir;
     }
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void AdjustKeyMapValues();
     InferenceEngine::Parameter GetParameter(const std::string& name) const;
     std::vector<std::string> GetSupportedKeys() const;
+    static const InferenceEngine::Parameter GetImpactingModelCompilationProperties(bool compiled);
     static const InferenceEngine::Parameter GetSupportedProperties(bool compiled = false);
 
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
@@ -72,8 +75,9 @@ struct Config {
 
     mutable std::mutex mtx4keyConfigMap;
     std::map<std::string, std::string> keyConfigMap;
-
     static const uint8_t max_num_requests = 127;
+    std::string cacheDir;
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,12 +17,10 @@
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/visibility.hpp"
 #include "openvino/frontend/visibility.hpp"
-#include "openvino/core/type/non_tensor_type.hpp"
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
@@ -68,54 +66,12 @@ protected:
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
-    void translate_graph(const ov::frontend::InputModel::Ptr& model,
-                         const std::string& model_name,
-                         bool fail_fast,
-                         bool no_conversion,
-                         std::shared_ptr<ov::Model>& ng_function) const;
-
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
     std::vector<ConversionExtensionBase::Ptr> m_conversion_extensions;
 
     TranslatorDictionaryType m_op_translators;
 };
-
-
-class TENSORFLOW_API StructuralTypeAttribute : public ov::RuntimeAttribute {
-public:
-    OPENVINO_RTTI("structural_type", "0");
-
-    StructuralTypeAttribute() = default;
-
-    StructuralTypeAttribute(const ov::Any& value) : value(value) {}
-
-    //Any merge(const ngraph::NodeVector& nodes) const override;
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        // TODO: Implement deserialization; now only serialization works
-        auto str_value = to_string();
-        visitor.on_attribute("value", str_value);
-        return true;
-    }
-
-    std::string to_string() const override {
-        std::ostringstream str;
-        ov::element::StructuralType::print(str, value);
-        return str.str();
-    }
-
-    ov::Any value;
-
-    static void copy (const Node::RTMap& src, Node::RTMap& dst);
-    static bool has_type (const Node::RTMap& src, const ov::Any& type);
-    static void move_to_original (Node::RTMap& rt_info);
-    static ov::Any get (const Node::RTMap& src);
-};
-
-
-
-
 
 
 }  // namespace tensorflow

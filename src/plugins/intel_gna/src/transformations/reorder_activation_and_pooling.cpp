@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ ReorderActivationAndPooling::ReorderActivationAndPooling() {
         auto new_pool = std::make_shared<ngraph::opset7::MaxPool>(node_before_act, pool->get_strides(), pool->get_pads_begin(),
                                                                   pool->get_pads_end(), kernel_shape, pool->get_rounding_type(),
                                                                   pool->get_auto_pad());
-        for (auto input : consumers) {
+        for (auto& input : consumers) {
             input.replace_source_output(new_pool);
         }
 

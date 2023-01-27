@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v1 {
 class OPENVINO_API VariadicSplit : public Op {
 public:
     OPENVINO_OP("VariadicSplit", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a variadic split operation.
     VariadicSplit() = default;
@@ -48,7 +47,7 @@ public:
 
 private:
     bool evaluate_variadic_split(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-    bool have_axis_and_splits_bound_set() const;
+    bool has_axis_and_splits_bound_set() const;
 };
 }  // namespace v1
 }  // namespace op

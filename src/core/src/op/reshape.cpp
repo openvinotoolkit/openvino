@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <dimension_tracker.hpp>
 #include <ngraph/validation_util.hpp>
 
+#include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -40,8 +41,6 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
 }
 }  // namespace
 }  // namespace reshapeop
-
-BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
 
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
@@ -417,18 +416,16 @@ void op::v1::Reshape::calculate_output_shape(vector<Dimension>& reshape_pattern,
 
     ov::PartialShape output_pshape(output_shape);
     if (input_pshape.is_static() && output_pshape.is_static()) {
-        size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), [](Dimension dim) {
-            return dim.get_max_length() == 0 && dim.get_min_length() == 0;
-        });
+        size_t zero_dims = std::count_if(reshape_pattern.begin(), reshape_pattern.end(), cmp::Equal<Dimension>(0));
 
         bool backward_compatible_check = (zero_dims && get_special_zero()) || minus_one_idx != -1;
-        bool in_out_elements_equal = shape_size(get_input_shape(0)) == shape_size(output_pshape.to_shape());
+        bool in_out_elements_equal = shape_size(input_pshape.get_shape()) == shape_size(output_pshape.to_shape());
 
         NODE_VALIDATION_CHECK(this,
                               backward_compatible_check || in_out_elements_equal,
                               "Requested output shape ",
                               output_shape,
                               " is incompatible with input shape ",
-                              get_input_shape(0));
+                              input_pshape);
     }
 }

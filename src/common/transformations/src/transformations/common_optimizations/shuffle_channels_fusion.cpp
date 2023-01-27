@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
                                    pshape_input[3]};
     }
 
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(expected_reshape_before, pshape_reshape_before)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(expected_reshape_before, pshape_reshape_before)) {
         return false;
     }
 
@@ -70,7 +70,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
     }
 
     // y = reshape(x'', [N, C, H, W])
-    if (!ngraph::op::util::shapes_equal_except_dynamic_expected_batch(pshape_input, pshape_reshape_after)) {
+    if (!ov::op::util::shapes_equal_except_dynamic_expected_batch(pshape_input, pshape_reshape_after)) {
         return false;
     }
 
@@ -81,7 +81,7 @@ bool check_shapes(const ngraph::PartialShape& pshape_input,
 
 ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input = ngraph::pattern::any_input(pattern::rank_equals(4));
+    auto input = pass::pattern::any_input(pattern::rank_equals(4));
     auto reshape_before_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
     auto transpose_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
     auto reshape_after_const_pattern = ngraph::pattern::wrap_type<opset6::Constant>();

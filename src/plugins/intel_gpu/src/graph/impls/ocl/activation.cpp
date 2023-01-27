@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,14 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "kernel_selector_helper.h"
 #include "primitive_base.hpp"
+
+namespace {
+inline void convert_new_activation_func(const activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
+                                   prim.additional_params.a,
+                                   prim.additional_params.b});
+}
+}  // namespace
 
 namespace cldnn {
 namespace ocl {
@@ -25,39 +33,14 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return make_unique<activation_impl>(*this);
     }
 
-    activation_impl() : parent() {}
+    kernel_arguments_data get_arguments(const typed_primitive_inst<activation>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
 
-    explicit activation_impl(const activation_impl& other) : parent(other),
-        _is_parameterized(other._is_parameterized) {}
-
-    activation_impl(const activation_node& arg, const kernel_selector::kernel_data& kd) : parent(arg, kd) {
-        set_node_params(arg);
-    }
-
-    void set_node_params(const program_node& arg) override {
-        IE_ASSERT(arg.is_type<activation>());
-        const auto& node = arg.as<activation>();
-        _is_parameterized = node.is_parameterized();
-    }
-
-    kernel_arguments_data get_arguments(const typed_primitive_inst<activation>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        if (_is_parameterized) {
+        if (instance.is_parameterized()) {
             args.slope = instance.slope_memory();
         }
 
         return args;
-    }
-
-    void save(BinaryOutputBuffer& ob) const override {
-        parent::save(ob);
-        ob << _is_parameterized;
-    }
-
-    void load(BinaryInputBuffer& ib) override {
-        parent::load(ib);
-        ib >> _is_parameterized;
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
@@ -65,7 +48,7 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         auto params = get_default_params<kernel_selector::activation_params>(impl_param);
         auto optional_params = get_default_optional_params<kernel_selector::activation_optional_params>(impl_param.get_program());
 
-        convert_new_activation_func(primitive, params.activations);
+        convert_new_activation_func(*primitive, params.activations);
 
         bool is_parameterized = !primitive->additional_params_input.empty();
         if (is_parameterized) {
@@ -81,9 +64,6 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         return {params, optional_params};
     }
-
-private:
-    bool _is_parameterized;
 };
 
 namespace detail {
@@ -156,4 +136,4 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl, cldnn::object_type::ACTIVATION_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl)

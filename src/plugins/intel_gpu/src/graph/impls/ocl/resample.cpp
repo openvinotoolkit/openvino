@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include "kernel_selector_helper.h"
 #include "kernel_selector/kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/kernels/resample/resample_kernel_base.h"
+#include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -155,10 +156,9 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
 
         auto scales = primitive->scales;
         bool scales_calc_mod = primitive->shape_calc_mode == resample::InterpolateOp::ShapeCalcMode::SCALES;
-        if (scales_calc_mod && impl_param.input_layouts.size() == 2 && scales.empty()) {
-            auto mem = impl_param.memory_deps.at(1);
-            float* buffer = static_cast<float*>(mem->buffer_ptr());
-            scales = std::vector<float>(buffer, buffer + mem->count());
+        if (scales_calc_mod && impl_param.input_layouts.size() > 1 && scales.empty()) {
+            auto mem = impl_param.memory_deps.at(2);
+            scales = read_vector<float>(mem, impl_param.prog->get_stream());
         }
 
         for (size_t i = 0; i < scales.size(); ++i) {
@@ -208,4 +208,4 @@ attach_resample_impl::attach_resample_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl, cldnn::object_type::RESAMPLE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::resample_impl)

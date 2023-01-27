@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,65 +54,6 @@ struct implementation_key {
     type operator()(const layout& proposed_layout) {
         return std::make_tuple(proposed_layout.data_type, proposed_layout.format);
     }
-};
-
-template <>
-struct implementation_key<permute> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<shape_of> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<reorder> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<generic_layer> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<custom_gpu_primitive> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<reshape> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<data> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<mutable_data> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-
-template <>
-struct implementation_key<input_layout> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
-};
-template <>
-struct implementation_key<loop> {
-    typedef int32_t type;
-    type operator()(const layout&) { return -1; }
 };
 
 namespace {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,21 +30,46 @@ struct shape_of_impl : typed_primitive_impl_ocl<shape_of> {
         auto optional_params = get_default_optional_params<kernel_selector::shape_of_optional_params>(impl_param.get_program());
 
         auto input_layout = impl_param.get_input_layout(0);
-        params.input_rank = input_layout.get_rank();
-        params.input_dims = input_layout.get_dims();
+        params.input_rank = input_layout.is_dynamic() ? input_layout.get_partial_shape().size() : input_layout.get_rank();
+        params.input_dims = input_layout.is_dynamic() ? std::vector<cldnn::tensor::value_type>{} : input_layout.get_dims();
 
         return {params, optional_params};
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
     }
 };
 
 namespace detail {
 
 attach_shape_of_impl::attach_shape_of_impl() {
-    implementation_map<shape_of>::add(impl_types::ocl, typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>, {});
+    implementation_map<shape_of>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>, {});
+
+    auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<shape_of>::add(impl_types::ocl,
+                                      shape_types::dynamic_shape,
+                                      typed_primitive_impl_ocl<shape_of>::create<shape_of_impl>,
+                                      dyn_types,
+                                      dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shape_of_impl, cldnn::object_type::SHAPE_OF_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::shape_of_impl)

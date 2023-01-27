@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,8 +72,8 @@ protected:
         auto weights = ngraph::builder::makeConstant<float>(ngPrc, {outChannels, inputShape[1], 1, kernelSize},
             CommonTestUtils::generate_float_numbers(outChannels * inputShape[1] * kernelSize,
                                                     weightsMinMax.first, weightsMinMax.second));
-        auto weightsLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { weightsMinMax.first });
-        auto weightsHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { weightsMinMax.second });
+        auto weightsLowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { weightsMinMax.first * 2 });
+        auto weightsHighNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { weightsMinMax.second * 2 });
         auto weightsFQ = std::make_shared<ngraph::opset7::FakeQuantize>(weights,
             weightsLowNode, weightsHighNode, weightsLowNode, weightsHighNode, levels);
 

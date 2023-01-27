@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,4 +68,4 @@ attach_space_to_depth_impl::attach_space_to_depth_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_depth_impl, cldnn::object_type::SPACE_TO_DEPTH_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_depth_impl)

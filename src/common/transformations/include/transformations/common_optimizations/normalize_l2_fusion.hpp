@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,9 @@
 
 #include <memory>
 #include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
-
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ov {
 namespace pass {
@@ -35,9 +34,3 @@ public:
     OPENVINO_RTTI("NormalizeL2Fusion", "0");
     NormalizeL2Fusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::NormalizeL2Fusion;
-}  // namespace pass
-}  // namespace ngraph

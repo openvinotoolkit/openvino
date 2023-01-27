@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include <gpu/gpu_config.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
@@ -720,6 +721,109 @@ TEST_P(OVRemoteTensor_TestsWithContext, smoke_canCreateManyTensorsOnSameMem) {
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensor_TestsWithContext, ::testing::ValuesIn(ov_with_auto_batching),
                          OVRemoteTensor_TestsWithContext::getTestCaseName);
 
+
+TEST_F(OVRemoteTensor_Test, NV12toGray) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int height = 8;
+    const int width = 8;
+    const int feature = 1;
+
+    // ------------------------------------------------------
+    // Prepare input data
+    ov::Tensor fake_image = FuncTestUtils::create_and_fill_tensor(ov::element::i8, {1, feature, height, width}, 50, 0, 1);
+    ov::Tensor fake_image_regular = FuncTestUtils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
+
+    auto image_ptr = static_cast<uint8_t*>(fake_image.data());
+    auto image_ptr_regular = static_cast<float*>(fake_image_regular.data());
+    // Apply NV12 (Surface) -> Gray conversion for regular blob
+    for (size_t i = 0; i < fake_image.get_size(); i++) {
+        auto val = static_cast<float>(image_ptr[i]) / 255;
+        val *= 296.82f;
+        val += -18.624f;
+        val = val < 0 ? 0 : val > 255 ? 255 : val;
+        image_ptr_regular[i] = val;
+    }
+
+    auto core = ov::Core();
+
+    // ------------------------------------------------------
+    // inference using remote tensor
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, feature, height, width});
+
+    using namespace ov::preprocess;
+
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::u8)
+                      .set_layout("NHWC")
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
+    p.input().model().set_layout("NCHW");
+    auto function = p.build();
+
+    auto param_input_y = fn_ptr_remote->get_parameters().at(0);
+
+    auto exec_net = core.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_remote = exec_net.create_infer_request();
+
+    auto cldnn_context = exec_net.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context.get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    cl_image_format image_format;
+    cl_image_desc image_desc = { 0 };
+    image_format.image_channel_order = CL_R;
+    image_format.image_channel_data_type = CL_UNORM_INT8;
+    image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+    image_desc.image_width = width;
+    image_desc.image_height = height;
+    cl_mem nv12_image_plane_y = clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE, &image_format, &image_desc, NULL, &err);
+    ASSERT_EQ(err, 0);
+
+    size_t origin[3] = { 0, 0, 0 };
+    size_t y_region[3] = { (size_t)width, (size_t)height, 1 };
+
+    err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_y,
+        true, origin, y_region, 0, 0, fake_image.data(), 0, NULL, NULL);
+    ASSERT_EQ(err, 0);
+
+    cl::Image2D img_y = cl::Image2D(nv12_image_plane_y);
+
+    auto tensor_remote_y = cldnn_context.create_tensor(param_input_y->get_element_type(), fake_image.get_shape(), img_y);
+    inf_req_remote.set_tensor(*param_input_y->output(0).get_tensor().get_names().begin(), tensor_remote_y);
+
+    inf_req_remote.infer();
+    auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
+
+    // ------------------------------------------------------
+    // regular inference
+    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
+
+    auto p_reg = PrePostProcessor(fn_ptr_regular);
+    p_reg.input().tensor().set_element_type(ov::element::f32)
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
+    p_reg.input().model().set_layout("NHWC");
+    auto function_regular = p_reg.build();
+
+    auto param_input_y_regular = function_regular->get_parameters().at(0);
+
+    auto exec_net_regular = core.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+    inf_req_regular.set_tensor(param_input_y_regular, fake_image_regular);
+
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+    // ------------------------------------------------------
+    // compare results
+    ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
+    ASSERT_NO_THROW(output_tensor_regular.data());
+    ASSERT_NO_THROW(output_tensor_shared.data());
+    float thr = 0.1;
+    FuncTestUtils::compare_tensor(output_tensor_shared, output_tensor_regular, thr);
+}
+
 TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
 #if defined(ANDROID)
     GTEST_SKIP();
@@ -1163,6 +1267,124 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image) {
     }
 }
 
+TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    const int height = 8;
+    const int width = 16;
+    const int feature = 1;
+
+    // ------------------------------------------------------
+    // Prepare input data
+    std::vector<ov::Tensor> fake_image;
+    std::vector<ov::Tensor> fake_image_regular;
+    for (int i = 0; i < num_batch; i++) {
+        auto tensor_image = FuncTestUtils::create_and_fill_tensor(ov::element::u8, {1, feature, height, width}, 50, 0, 1, i);
+        auto tensor_regular = FuncTestUtils::create_and_fill_tensor(ov::element::f32, {1, feature, height, width});
+        auto image_ptr = static_cast<uint8_t*>(tensor_image.data());
+        auto image_ptr_regular = static_cast<float*>(tensor_regular.data());
+        // Apply NV12 (Surface) -> Gray conversion for regular blob
+        for (size_t i = 0; i < tensor_image.get_size(); i++) {
+            auto val = static_cast<float>(image_ptr[i]) / 255;
+            val *= 296.82f;
+            val += -18.624f;
+            val = val < 0 ? 0 : val > 255 ? 255 : val;
+            image_ptr_regular[i] = val;
+        }
+        fake_image.push_back(tensor_image);
+        fake_image_regular.push_back(tensor_regular);
+    }
+
+    auto ie = ov::Core();
+
+    // ------------------------------------------------------
+    // inference using remote tensor
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({num_batch, feature, height, width});
+
+    using namespace ov::preprocess;
+
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::u8)
+                      .set_layout("NHWC")
+                      .set_memory_type(ov::intel_gpu::memory_type::surface);
+    p.input().model().set_layout("NCHW");
+    auto function = p.build();
+
+    auto param_input_y = fn_ptr_remote->get_parameters().at(0);
+
+    auto exec_net_b = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_remote = exec_net_b.create_infer_request();
+
+    auto cldnn_context = exec_net_b.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    cl_context ctx = cldnn_context.get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+    cl_int err;
+
+    std::vector<cl_mem> nv12_image_plane_y;
+    std::vector<cl::Image2D> img_y;
+    std::vector<ov::Tensor> tensor_remote_y;
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        cl_image_format image_format;
+        cl_image_desc image_desc = { 0 };
+        image_format.image_channel_order = CL_R;
+        image_format.image_channel_data_type = CL_UNORM_INT8;
+        image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+        image_desc.image_width = width;
+        image_desc.image_height = height;
+        nv12_image_plane_y.emplace_back(clCreateImage(ocl_instance->_context.get(), CL_MEM_READ_WRITE, &image_format, &image_desc, NULL, &err));
+        ASSERT_EQ(err, 0);
+
+        size_t origin[3] = { 0, 0, 0 };
+        size_t y_region[3] = { (size_t)width, (size_t)height, 1 };
+
+        err = clEnqueueWriteImage(ocl_instance->_queue.get(), nv12_image_plane_y[i],
+            true, origin, y_region, 0, 0, fake_image[i].data(), 0, NULL, NULL);
+        ASSERT_EQ(err, 0);
+
+        img_y.emplace_back(nv12_image_plane_y[i]);
+        tensor_remote_y.emplace_back(cldnn_context.create_tensor(param_input_y->get_element_type(), fake_image[i].get_shape(), img_y[i]));
+    }
+
+    // to test repeating set_tensors/infer functionality
+    for (size_t i = 0; i < 5; ++i) {
+        inf_req_remote.set_tensors(*param_input_y->output(0).get_tensor().get_names().begin(), tensor_remote_y);
+        inf_req_remote.infer();
+    }
+
+    auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
+    ASSERT_NO_THROW(output_tensor_shared.data());
+
+    // ------------------------------------------------------
+    // regular inference
+    auto fn_ptr_regular = ngraph::builder::subgraph::makeConvPoolRelu({1, 1, height, width});
+
+    auto p_reg = PrePostProcessor(fn_ptr_regular);
+    p_reg.input().tensor().set_element_type(ov::element::f32)
+                          .set_memory_type(ov::intel_gpu::memory_type::buffer);
+    p_reg.input().model().set_layout("NHWC");
+    auto function_regular = p_reg.build();
+
+    auto param_input_y_reg = fn_ptr_regular->get_parameters().at(0);
+
+    auto exec_net_regular = ie.compile_model(function_regular, CommonTestUtils::DEVICE_GPU);
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+
+    for (size_t i = 0; i < num_batch; ++i) {
+        inf_req_regular.set_tensor(param_input_y_reg, fake_image_regular[i]);
+        inf_req_regular.infer();
+        auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+        ASSERT_EQ(output_tensor_regular.get_size() * num_batch, output_tensor_shared.get_size());
+        float thr = 0.1;
+
+        FuncTestUtils::compareRawBuffers<float>(static_cast<float*>(output_tensor_shared.data()) + i * output_tensor_regular.get_size(),
+                                                static_cast<float*>(output_tensor_regular.data()),
+                                                output_tensor_regular.get_size(), output_tensor_regular.get_size(), thr);
+    }
+}
+
 TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 #if defined(ANDROID)
     GTEST_SKIP();
@@ -1319,6 +1541,52 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
 const std::vector<size_t> num_batches{ 1, 2, 4 };
 INSTANTIATE_TEST_SUITE_P(smoke_RemoteTensor, OVRemoteTensorBatched_Test, ::testing::ValuesIn(num_batches), OVRemoteTensorBatched_Test::getTestCaseName);
 
+static void check_contexts_are_same(const ov::RemoteContext& c1, const ov::RemoteContext& c2) {
+    ASSERT_EQ(c1.get_device_name(), c2.get_device_name());
+
+    // If we support other context type this check must be replaced
+    ASSERT_TRUE(c1.is<ov::intel_gpu::ocl::ClContext>());
+    ASSERT_TRUE(c2.is<ov::intel_gpu::ocl::ClContext>());
+
+    auto c1_casted = c1.as<ov::intel_gpu::ocl::ClContext>();
+    auto c2_casted = c2.as<ov::intel_gpu::ocl::ClContext>();
+
+    ASSERT_EQ(c1_casted.get(), c2_casted.get());
+}
+
+TEST(OVRemoteContextGPU, smoke_CustomContextDeviceNames) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+    std::vector<std::string> gpuDevices;
+    std::vector<std::string> availableDevices = core.get_available_devices();
+
+    std::for_each(availableDevices.begin(), availableDevices.end(), [&](const std::string& device){
+        if (device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos)
+            gpuDevices.push_back(device);
+    });
+
+    for (size_t i = 0; i < gpuDevices.size(); i++) {
+        auto device_name = "GPU." + std::to_string(i);
+        auto ctx = core.get_default_context(device_name).as<ov::intel_gpu::ocl::ClContext>();
+        cl::Context original_ctx_handle = ctx;
+        std::vector<cl::Device> devices = original_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
+        cl::Context new_ctx_handle(devices);
+        ASSERT_NE(new_ctx_handle.get(), original_ctx_handle.get());
+        auto remote_context = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle.get(), 0);
+        ASSERT_EQ(remote_context.get_device_name(), device_name);
+
+        // Check that ctx_device_id doesn't impact device name reported by context
+        cl::Context new_ctx_handle_md({devices.front(), devices.front()});
+        ASSERT_NE(original_ctx_handle.get(), new_ctx_handle_md.get());
+        auto remote_context0 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 0);
+        auto remote_context1 = ov::intel_gpu::ocl::ClContext(core, new_ctx_handle_md.get(), 1);
+        ASSERT_EQ(remote_context0.get_device_name(), device_name);
+        ASSERT_EQ(remote_context1.get_device_name(), device_name);
+    }
+}
+
 TEST(OVRemoteContextGPU, smoke_RemoteContextPerDevice) {
 #if defined(ANDROID)
     GTEST_SKIP();
@@ -1375,8 +1643,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
     auto defaultContextFirst = core.get_default_context(gpuDeviceFirst).as<ov::intel_gpu::ocl::ClContext>();
     // Check devices names
     ASSERT_EQ(defaultContextFirst.get_device_name(), gpuDeviceFirst);
-    // Check underlying OpenCL context handles
-    ASSERT_EQ(compiledModelFirstContext.get(), defaultContextFirst.get());
+    check_contexts_are_same(compiledModelFirstContext, defaultContextFirst);
 
     auto defaultContextSecond = core.get_default_context(gpuDeviceSecond).as<ov::intel_gpu::ocl::ClContext>();
     // Check devices names
@@ -1386,4 +1653,50 @@ TEST(OVRemoteContextGPU, smoke_RemoteContextCaching) {
 
     // Expect different contexts for different devices
     ASSERT_NE(compiledModelFirstContext.get(), compiledModelSecondContext.get());
+}
+
+TEST(OVRemoteContextGPU, smoke_RemoteContextSingleDevice) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    auto core = ov::Core();
+
+    auto default_ctx = core.get_default_context(CommonTestUtils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+
+    // Same context returned for multple calls
+    check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
+
+    // Set some properties which could impact engine config and check context again
+    core.set_property(CommonTestUtils::DEVICE_GPU, ov::streams::num(2));
+    core.set_property(CommonTestUtils::DEVICE_GPU, ov::intel_gpu::hint::queue_throttle(ov::intel_gpu::hint::ThrottleLevel::LOW));
+    core.set_property(CommonTestUtils::DEVICE_GPU, ov::enable_profiling(true));
+    check_contexts_are_same(default_ctx,  core.get_default_context(CommonTestUtils::DEVICE_GPU));
+
+    // Ensure compiled model uses default context too
+    auto model = ngraph::builder::subgraph::makeConvertTranspose();
+    auto compiled_model = core.compile_model(model, CommonTestUtils::DEVICE_GPU);
+    check_contexts_are_same(default_ctx, compiled_model.get_context());
+    ASSERT_EQ(2, compiled_model.get_property(ov::streams::num));
+
+    auto ocl_instance = std::make_shared<OpenCL>();
+    cl::Context default_ctx_handle = default_ctx;
+    auto default_devices = default_ctx_handle.getInfo<CL_CONTEXT_DEVICES>();
+    ASSERT_EQ(default_devices.size(), 1);
+    cl::Device default_device_handle(default_devices[0]);
+    // OCL instance looks for intel GPUs, so skip this part if CommonTestUtils::DEVICE_GPU points to GPU from other vendor
+    if (default_device_handle.getInfo<CL_DEVICE_VENDOR_ID>() == 0x8086) {
+        ov::intel_gpu::ocl::ClContext custom_ctx(core, ocl_instance->_queue.get());
+        auto compiled_model_custom_ctx = core.compile_model(model, custom_ctx, ov::streams::num(1));
+        auto model_ctx = compiled_model_custom_ctx.get_context().as<ov::intel_gpu::ocl::ClContext>();
+
+        // Check that compiled model uses custom context
+        check_contexts_are_same(custom_ctx, model_ctx);
+        ASSERT_EQ(1, compiled_model_custom_ctx.get_property(ov::streams::num));
+
+        // Check that handle differs in default context and compiled model created with custom ctx
+        ASSERT_NE(default_ctx.get(), model_ctx.get());
+
+        // Check that default ctx is untouched
+        check_contexts_are_same(default_ctx, core.get_default_context(CommonTestUtils::DEVICE_GPU));
+    }
 }

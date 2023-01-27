@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <map>
-#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -19,6 +18,12 @@
 
 #include "utils.hpp"
 // clang-format on
+
+#ifdef JSON_HEADER
+#    include <json.hpp>
+#else
+#    include <nlohmann/json.hpp>
+#endif
 
 #ifdef USE_OPENCV
 #    include <opencv2/core.hpp>
@@ -56,9 +61,6 @@ size_t InputInfo::depth() const {
 uint32_t device_default_device_duration_in_seconds(const std::string& device) {
     static const std::map<std::string, uint32_t> deviceDefaultDurationInSeconds{{"CPU", 60},
                                                                                 {"GPU", 60},
-                                                                                {"VPU", 60},
-                                                                                {"MYRIAD", 60},
-                                                                                {"HDDL", 60},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -201,18 +203,9 @@ size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info) {
         }
     }
     if (batch_size == 0) {
-        slog::warn << "No batch dimension was found at any input, asssuming batch to be 1. Beware: this might affect "
-                      "FPS calculation."
-                   << slog::endl;
         batch_size = 1;
     }
     return batch_size;
-}
-
-std::string get_shape_string(const ov::Shape& shape) {
-    std::stringstream ss;
-    ss << shape;
-    return ss.str();
 }
 
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
@@ -227,7 +220,7 @@ std::string get_shapes_string(const benchmark_app::PartialShapes& shapes) {
 
 std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string& scale_mean,
                                                               const benchmark_app::InputsInfo& inputs_info) {
-    //  Format: data:[255,255,255],info[255,255,255]
+    //  Format: data[255,255,255],info[255,255,255]
     std::map<std::string, std::vector<float>> return_value;
 
     std::string search_string = scale_mean;
@@ -262,36 +255,6 @@ std::map<std::string, std::vector<float>> parse_scale_or_mean(const std::string&
     if (!search_string.empty())
         throw std::logic_error("Can't parse input parameter string: " + scale_mean);
     return return_value;
-}
-
-std::vector<ngraph::Dimension> parse_partial_shape(const std::string& partial_shape) {
-    std::vector<ngraph::Dimension> shape;
-    for (auto& dim : split(partial_shape, ',')) {
-        if (dim == "?" || dim == "-1") {
-            shape.push_back(ngraph::Dimension::dynamic());
-        } else {
-            const std::string range_divider = "..";
-            size_t range_index = dim.find(range_divider);
-            if (range_index != std::string::npos) {
-                std::string min = dim.substr(0, range_index);
-                std::string max = dim.substr(range_index + range_divider.length());
-                shape.push_back(ngraph::Dimension(min.empty() ? 0 : std::stoi(min),
-                                                  max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
-            } else {
-                shape.push_back(std::stoi(dim));
-            }
-        }
-    }
-
-    return shape;
-}
-
-ov::Shape parse_data_shape(const std::string& dataShapeStr) {
-    std::vector<size_t> shape;
-    for (auto& dim : split(dataShapeStr, ',')) {
-        shape.push_back(std::stoi(dim));
-    }
-    return shape;
 }
 
 std::pair<std::string, std::vector<std::string>> parse_input_files(const std::string& file_paths_string) {
@@ -476,8 +439,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
         }
     }
 
-    slog::info << "Model batch size: " << batch_size << slog::endl;
-
     reshape_required = false;
 
     std::map<std::string, int> currentFileCounters;
@@ -486,7 +447,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
     }
 
     std::vector<benchmark_app::InputsInfo> info_maps;
-    for (size_t i = 0; i < min_size; ++i) {
+    for (size_t input_id = 0; input_id < min_size; ++input_id) {
         benchmark_app::InputsInfo info_map;
 
         bool is_there_at_least_one_batch_dim = false;
@@ -501,7 +462,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                         "layout command line parameter doesn't support multiple layouts for one input.");
                 }
                 info.layout = ov::Layout(layout_map.at(name)[0]);
-                // reshape_required = true;
             } else {
                 info.layout = dynamic_cast<const ov::op::v0::Parameter&>(*item.get_node()).get_layout();
             }
@@ -544,7 +504,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                     throw std::logic_error(
                         "shape command line parameter doesn't support multiple shapes for one input.");
                 }
-                info.partialShape = parse_partial_shape(shape_map.at(name)[0]);
+                info.partialShape = shape_map.at(name)[0];
                 reshape_required = true;
             } else {
                 info.partialShape = item.get_partial_shape();
@@ -557,7 +517,7 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
             // Tensor Shape
             if (info.partialShape.is_dynamic() && data_shapes_map.count(name)) {
-                info.dataShape = parse_data_shape(data_shapes_map.at(name)[i % data_shapes_map.at(name).size()]);
+                info.dataShape = data_shapes_map.at(name)[input_id % data_shapes_map.at(name).size()];
             } else if (info.partialShape.is_dynamic() && fileNames.count(filesInputName) && info.is_image()) {
                 auto& namesVector = fileNames.at(filesInputName);
                 if (contains_binaries(namesVector)) {
@@ -667,9 +627,6 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
 
         for (auto& item : info_map) {
             if (item.second.is_image()) {
-                item.second.scale.assign({1, 1, 1});
-                item.second.mean.assign({0, 0, 0});
-
                 if (scale_map.count(item.first)) {
                     item.second.scale = scale_map.at(item.first);
                 }
@@ -768,10 +725,27 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
         std::string deviceName = item.first;
+        std::map<std::string, ov::AnyMap> device_properties;
         for (const auto& option : item.second) {
-            std::stringstream strm;
-            option.second.print(strm);
-            jsonConfig[deviceName][option.first] = strm.str();
+            if (option.second.is<ov::AnyMap>()) {
+                // hw device properties
+                device_properties[option.first] = option.second.as<ov::AnyMap>();
+            } else {
+                // primary property
+                std::stringstream strm;
+                option.second.print(strm);
+                auto property_string = strm.str();
+                jsonConfig[deviceName][option.first] = property_string;
+            }
+            if (!device_properties.empty()) {
+                for (auto& item : device_properties) {
+                    auto hw_device_name = item.first;
+                    for (auto& property : item.second) {
+                        jsonConfig[deviceName]["DEVICE_PROPERTIES"][hw_device_name][property.first] =
+                            property.second.as<std::string>();
+                    }
+                }
+            }
         }
     }
 
@@ -792,14 +766,31 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
     nlohmann::json jsonConfig;
     try {
         ifs >> jsonConfig;
-    } catch (const nlohmann::json::parse_error& e) {
+    } catch (const std::exception& e) {
         throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
     }
 
-    for (const auto& item : jsonConfig.items()) {
-        std::string deviceName = item.key();
-        for (const auto& option : item.value().items()) {
-            config[deviceName][option.key()] = option.value().get<std::string>();
+    for (auto item = jsonConfig.cbegin(), end = jsonConfig.cend(); item != end; ++item) {
+        const std::string& deviceName = item.key();
+        const auto& itemValue = item.value();
+        for (auto option = itemValue.cbegin(), itemValueEnd = itemValue.cend(); option != itemValueEnd; ++option) {
+            if (option.key() != "DEVICE_PROPERTIES") {
+                config[deviceName][option.key()] = option.value().get<std::string>();
+                continue;
+            }
+            const auto& optionValue = option.value();
+            for (auto hw_properties = optionValue.cbegin(), optionValueEnd = optionValue.cend();
+                 hw_properties != optionValueEnd;
+                 ++hw_properties) {
+                const std::string& hw_device_name = hw_properties.key();
+                std::map<std::string, ov::Any> hw_device_properties;
+                const auto& hw_propertiesValue = hw_properties.value();
+                for (auto property = hw_propertiesValue.cbegin(), hw_propertiesEnd = hw_propertiesValue.cend();
+                     property != hw_propertiesEnd;
+                     ++property)
+                    hw_device_properties[property.key()] = property.value().get<std::string>();
+                config[deviceName][hw_device_name] = hw_device_properties;
+            }
         }
     }
 }

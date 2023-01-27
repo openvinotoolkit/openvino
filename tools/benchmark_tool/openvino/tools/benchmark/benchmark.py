@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -40,7 +40,7 @@ class Benchmark:
 
     def print_version_info(self) -> None:
         version = get_version()
-        logger.info("OpenVINO:")
+        logger.info('OpenVINO:')
         logger.info(f"{'Build ':.<39} {version}")
         logger.info("")
 
@@ -86,21 +86,7 @@ class Benchmark:
             requests.wait_all()
             return requests[id].latency
 
-    def update_progress_bar(self, progress_bar, exec_time, progress_count):
-        if self.duration_seconds:
-            # calculate how many progress intervals are covered by current iteration.
-            # depends on the current iteration time and time of each progress interval.
-            # Previously covered progress intervals must be skipped.
-            progress_interval_time = self.duration_seconds / progress_bar.total_num
-            new_progress = int(exec_time / progress_interval_time - progress_count)
-            progress_bar.add_progress(new_progress)
-            progress_count += new_progress
-        elif self.niter:
-            progress_bar.add_progress(1)
-        return progress_count
-
-    def sync_inference(self, request, data_queue, progress_bar):
-        progress_count = 0
+    def sync_inference(self, request, data_queue):
         exec_time = 0
         iteration = 0
         times = []
@@ -114,15 +100,10 @@ class Benchmark:
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
-
-            if progress_bar:
-                progress_count = self.update_progress_bar(progress_bar, exec_time, progress_count)
-
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         return sorted(times), total_duration_sec, iteration
 
-    def async_inference_only(self, infer_queue, progress_bar):
-        progress_count = 0
+    def async_inference_only(self, infer_queue):
         exec_time = 0
         iteration = 0
         times = []
@@ -140,18 +121,13 @@ class Benchmark:
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
-
-            if progress_bar:
-                progress_count = self.update_progress_bar(progress_bar, exec_time, progress_count)
-
         infer_queue.wait_all()
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:
             times.append(infer_queue[infer_request_id].latency)
         return sorted(times), total_duration_sec, iteration
 
-    def async_inference_full_mode(self, infer_queue, data_queue, progress_bar, pcseq):
-        progress_count = 0
+    def async_inference_full_mode(self, infer_queue, data_queue, pcseq):
         processed_frames = 0
         exec_time = 0
         iteration = 0
@@ -176,10 +152,6 @@ class Benchmark:
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
-
-            if progress_bar:
-                progress_count = self.update_progress_bar(progress_bar, exec_time, progress_count)
-
         infer_queue.wait_all()
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         
@@ -190,14 +162,14 @@ class Benchmark:
         
         return sorted(times), total_duration_sec, processed_frames, iteration
 
-    def main_loop(self, requests, data_queue, batch_size, latency_percentile, progress_bar, pcseq):
+    def main_loop(self, requests, data_queue, batch_size, latency_percentile, pcseq):
         if self.api_type == 'sync':
-            times, total_duration_sec, iteration = self.sync_inference(requests[0], data_queue, progress_bar)
+            times, total_duration_sec, iteration = self.sync_inference(requests[0], data_queue)
         elif self.inference_only:
-            times, total_duration_sec, iteration = self.async_inference_only(requests, progress_bar)
+            times, total_duration_sec, iteration = self.async_inference_only(requests)
             fps = len(batch_size) * iteration / total_duration_sec
         else:
-            times, total_duration_sec, processed_frames, iteration = self.async_inference_full_mode(requests, data_queue, progress_bar, pcseq)
+            times, total_duration_sec, processed_frames, iteration = self.async_inference_full_mode(requests, data_queue, pcseq)
             fps = processed_frames / total_duration_sec
 
         median_latency_ms = percentile(times, latency_percentile)
@@ -216,7 +188,4 @@ class Benchmark:
                     group.avg = sum(group.times) / len(group.times)
                     group.min = group.times[0]
                     group.max = group.times[-1]
-
-        if progress_bar:
-            progress_bar.finish()
         return fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration

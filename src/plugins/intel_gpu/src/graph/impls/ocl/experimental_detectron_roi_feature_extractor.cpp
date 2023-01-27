@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
     }
 
 protected:
-    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const experimental_detectron_roi_feature_extractor_inst& instance) const override {
         kernel_arguments_data args;
 
         for (std::size_t i = 0; i < instance.inputs_memory_count(); i++) {
@@ -82,5 +82,4 @@ attach_experimental_detectron_roi_feature_extractor_impl::attach_experimental_de
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl,
-                             cldnn::object_type::EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl)

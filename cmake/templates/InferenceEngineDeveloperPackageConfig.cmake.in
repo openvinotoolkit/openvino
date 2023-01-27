@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -91,9 +91,10 @@ endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
     set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+    set(_ov_pugixml_cmake_interface "@PugiXML_FOUND@")
     if(_ov_pugixml_pkgconfig_interface)
         find_dependency(PkgConfig)
-    else()
+    elseif(_ov_pugixml_cmake_interface)
         find_dependency(PugiXML)
     endif()
     if(PugiXML_FOUND)
@@ -125,6 +126,17 @@ if(ENABLE_SYSTEM_PUGIXML)
                 set_target_properties(PkgConfig::pugixml PROPERTIES
                     INTERFACE_INCLUDE_DIRECTORIES "")
             endif()
+        endif()
+    endif()
+
+    # debian 9 case: no cmake, no pkg-config files
+    if(NOT TARGET IE::pugixml)
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
+            add_library(IE::pugixml INTERFACE IMPORTED GLOBAL)
+            set_target_properties(IE::pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+        else()
+            message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
         endif()
     endif()
 endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -115,6 +115,14 @@ std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRe
     InputsDataMap networkInputs,
     OutputsDataMap networkOutputs) {
     IE_THROW(NotImplemented);
+}
+
+void IExecutableNetworkInternal::loadedFromCache() {
+    _loadedFromCache = true;
+}
+
+bool IExecutableNetworkInternal::isLoadedFromCache() const {
+    return _loadedFromCache;
 }
 
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(

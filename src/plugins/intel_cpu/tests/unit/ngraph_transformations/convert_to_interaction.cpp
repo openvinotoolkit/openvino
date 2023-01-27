@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <openvino/pass/manager.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include <ie_core.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -113,7 +113,7 @@ static std::shared_ptr<ov::Model> makeInteraction(const ov::PartialShape& inputS
         auto input_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{5.08965});
         auto output_low = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{-128});
         auto output_high = std::make_shared<opset1::Constant>(element::f32, ov::Shape{1}, std::vector<float>{127});
-        auto fq = std::make_shared<ngraph::op::TypeRelaxed<opset8::FakeQuantize>>(
+        auto fq = std::make_shared<ov::op::TypeRelaxed<opset8::FakeQuantize>>(
             opset8::FakeQuantize(concat2, input_low, input_high, output_low, output_high, 256),
             element::i8);
         model = std::make_shared<ov::Model>(fq, inputsParams, "interaction");
@@ -132,9 +132,9 @@ TEST(TransformationTests, ConvertToInteractionTest1) {
         {
             f = makeInteraction(inputShape);
             pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::NopElimination>();
-            m.register_pass<ngraph::pass::TransposeMatMul>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::NopElimination>();
+            m.register_pass<ov::pass::TransposeMatMul>();
             m.register_pass<ConvertToInteraction>();
             m.run_passes(f);
         }
@@ -166,9 +166,9 @@ TEST(TransformationTests, FuseFQtoInteractionTest1) {
         {
             f = makeInteraction(inputShape, false, true);
             pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::NopElimination>();
-            m.register_pass<ngraph::pass::TransposeMatMul>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::NopElimination>();
+            m.register_pass<ov::pass::TransposeMatMul>();
             m.register_pass<ConvertToInteraction>();
             m.register_pass<FuseFQtoInteraction>();
             m.run_passes(f);
@@ -184,7 +184,7 @@ TEST(TransformationTests, FuseFQtoInteractionTest1) {
                 features.push_back(sparse_feat);
                 inputsParams.push_back(sparse_feat);
             }
-            auto interaction = std::make_shared<ngraph::op::TypeRelaxed<ov::intel_cpu::InteractionNode>>(
+            auto interaction = std::make_shared<ov::op::TypeRelaxed<ov::intel_cpu::InteractionNode>>(
                 ov::intel_cpu::InteractionNode(features), element::i8);
             f_ref = std::make_shared<ov::Model>(interaction, inputsParams, "interaction");
         }
@@ -202,9 +202,9 @@ TEST(TransformationTests, FuseFQtoInteractionTest2) {
         {
             f = makeInteraction(inputShape, true);
             pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::NopElimination>();
-            m.register_pass<ngraph::pass::TransposeMatMul>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::NopElimination>();
+            m.register_pass<ov::pass::TransposeMatMul>();
             m.register_pass<ConvertInteractionInt8>();
             m.run_passes(f);
         }

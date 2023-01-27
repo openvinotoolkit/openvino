@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,13 @@ static bool is_static_reshape_op(std::shared_ptr<ov::Node> node) {
     if (!output_shape_const_op)
         return false;
 
-    const auto input_shape = input.get_shape();
+    const auto& input_shape = input.get_shape();
     const auto output_shape = output_shape_const_op->cast_vector<int64_t>();
-    const auto input_elems = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<int64_t>());
-    const auto output_elems = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int64_t>());
+    // below casts are needed due to VC warning C4244, literals are not enough in this case
+    const auto input_elems =
+        std::accumulate(input_shape.begin(), input_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    const auto output_elems =
+        std::accumulate(output_shape.begin(), output_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
     if (output_elems <= 0 || input_elems == output_elems)
         return false;
     return true;
@@ -115,6 +118,7 @@ static bool handle_variadic_split(const std::shared_ptr<ov::Node>& split) {
     const auto& split_lengths_type = split_lengths_node->get_output_element_type(0);
     const auto sub_const = ngraph::opset6::Constant::create(split_lengths_type, {sub_values.size()}, sub_values);
     const auto sub = std::make_shared<ngraph::opset6::Subtract>(split->input_value(2), sub_const);
+    copy_runtime_info(split->get_input_source_output(2).get_node_shared_ptr(), {sub_const, sub});
     split->input(2).replace_source_output(sub);
 
     return true;
@@ -256,6 +260,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             }
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
+            copy_runtime_info(const_node, new_const);
             NGRAPH_DEBUG << "Transform shape like (" << last_output.get_node()->get_friendly_name()
                          << "): " << const_node->get_shape_val() << " to " << new_const->get_shape_val() << std::endl;
             new_const->set_friendly_name(const_node->get_friendly_name());
@@ -300,6 +305,7 @@ bool ngraph::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ngraph::Fun
             for (auto consumer : consumers) {
                 consumer.replace_source_output(last_output);
             }
+            copy_runtime_info(const_node, last_output.get_node_shared_ptr());
         }
     }
     NGRAPH_DEBUG << "[ INFO ]   TOTAL WEIGHTS: " << total_weights_count << std::endl;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
+#include <utils/shape_inference/shape_inference_pass_through.hpp>
 
 using namespace InferenceEngine;
 
@@ -105,8 +106,8 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Lrn::Lrn(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "LRN node with name '" + getName() + "'";
@@ -194,7 +195,7 @@ void Lrn::prepareParams() {
         return std::make_shared<dnnl::lrn_forward>(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
         IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
@@ -222,10 +223,6 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
             new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
     descs.push_back(desc);
-}
-
-std::vector<VectorDims> Lrn::shapeInfer() const {
-    return { getParentEdgesAtPort(0).front()->getMemory().getStaticDims() };
 }
 
 void Lrn::executeDynamicImpl(dnnl::stream strm) {

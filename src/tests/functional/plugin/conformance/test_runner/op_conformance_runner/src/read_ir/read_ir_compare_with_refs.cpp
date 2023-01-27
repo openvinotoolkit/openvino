@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,8 @@ using namespace ov::test::subgraph;
 
 namespace {
 
-#include <ngraph/ngraph.hpp>
-
-#define NGRAPH_OP(NAME, NAMESPACE)                                                                         \
-    INSTANTIATE_TEST_SUITE_P(conformance##NAME,                                                            \
+#define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                         \
+    INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                            \
                              ReadIRTest,                                                                   \
                              ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, #NAME)),  \
                                                 ::testing::Values(targetDevice),                           \
@@ -27,12 +25,12 @@ namespace {
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
-#include <ngraph/opsets/opset10_tbl.hpp>
-#undef NGRAPH_OP
+#include "openvino/opsets/opset10_tbl.hpp"
+#undef _OPENVINO_OP_REG
 
-INSTANTIATE_TEST_SUITE_P(conformanceOther,
+INSTANTIATE_TEST_SUITE_P(conformance_other,
                         ReadIRTest,
-                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths, CONFORMANCE_OTHER_OPS)),
+                        ::testing::Combine(::testing::ValuesIn(getModelPaths(IRFolderPaths)),
                                         ::testing::Values(targetDevice),
                                         ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);

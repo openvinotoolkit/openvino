@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,11 @@ bool PermuteKernelBase::Validate(const Params& p, const optional_params& o) cons
             return false;
         }
     }
+
+    auto supported_dyn_layouts = {DataLayout::bfyx, DataLayout::bfzyx, DataLayout::bfwzyx};
+    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
+        return false;
+
     return true;
 }
 

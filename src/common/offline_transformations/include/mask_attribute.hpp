@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -203,7 +203,7 @@ public:
                 while (it != src_set.end() && *it < split_end)
                     dst_set.insert(*it++ - split_start);
                 at(i) = dst_set;
-            } else if (!mask->at(i).empty()) {
+            } else {
                 at(i) = mask->at(i);
             }
         }

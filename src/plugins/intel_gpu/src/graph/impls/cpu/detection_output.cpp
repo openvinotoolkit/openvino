@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -874,4 +874,4 @@ attach_detection_output_impl::attach_detection_output_impl() {
 }  // namespace cpu
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::detection_output_impl, cldnn::object_type::DETECTION_OUTPUT_IMPL_CPU)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::detection_output_impl)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,4 +57,4 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorg_yolo_impl, cldnn::object_type::REORG_YOLO_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorg_yolo_impl)

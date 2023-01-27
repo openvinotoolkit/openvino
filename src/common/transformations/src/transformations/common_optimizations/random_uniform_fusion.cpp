@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 
 ov::pass::RandomUniformFusion::RandomUniformFusion() {
     MATCHER_SCOPE(RandomUniformFusion);
-    const auto data_pattern = ngraph::pattern::any_input();
-    const auto ru_min_input_pattern = ngraph::pattern::any_input();
-    const auto ru_max_input_pattern = ngraph::pattern::any_input();
+    const auto data_pattern = pass::pattern::any_input();
+    const auto ru_min_input_pattern = pass::pattern::any_input();
+    const auto ru_max_input_pattern = pass::pattern::any_input();
     const auto random_uniform_pattern =
         ngraph::pattern::wrap_type<opset8::RandomUniform>({data_pattern, ru_min_input_pattern, ru_max_input_pattern},
                                                           pattern::consumers_count(1));

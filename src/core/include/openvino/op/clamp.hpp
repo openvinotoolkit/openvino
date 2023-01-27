@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,6 @@ namespace v0 {
 class OPENVINO_API Clamp : public util::UnaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Clamp", "opset1", UnaryElementwiseArithmetic);
-    BWDCMP_RTTI_DECLARATION;
 
     Clamp() = default;
     /// \brief Constructs a Clamp node.
@@ -54,8 +53,8 @@ public:
     bool has_evaluate() const override;
 
 private:
-    double m_min;
-    double m_max;
+    double m_min = 0.0;
+    double m_max = 0.0;
 };
 }  // namespace v0
 }  // namespace op
