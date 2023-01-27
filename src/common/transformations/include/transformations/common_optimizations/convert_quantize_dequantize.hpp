@@ -33,9 +33,3 @@ public:
     OPENVINO_RTTI("ConvertQuantizeDequantize", "0");
     ConvertQuantizeDequantize();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertQuantizeDequantize;
-}  // namespace pass
-}  // namespace ngraph

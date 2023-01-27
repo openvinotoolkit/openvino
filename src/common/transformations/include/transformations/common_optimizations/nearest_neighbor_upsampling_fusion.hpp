@@ -27,9 +27,3 @@ public:
     OPENVINO_RTTI("NearestNeighborUpsamplingFusion", "0");
     NearestNeighborUpsamplingFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::NearestNeighborUpsamplingFusion;
-}  // namespace pass
-}  // namespace ngraph

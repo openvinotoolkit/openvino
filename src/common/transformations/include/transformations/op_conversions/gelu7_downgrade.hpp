@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("Gelu7Downgrade", "0");
     Gelu7Downgrade();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::Gelu7Downgrade;
-}  // namespace pass
-}  // namespace ngraph

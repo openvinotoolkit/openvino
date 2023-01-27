@@ -24,7 +24,7 @@ using TargetShape = Shape;
 
 void eliminate_broadcast_test(std::shared_ptr<Function> f, std::shared_ptr<Function> f_ref) {
     pass::Manager manager;
-    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+    manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     manager.run_passes(f);
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
@@ -310,7 +310,7 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOf) {
         auto elementwise = std::make_shared<ngraph::opset5::Multiply>(input, broadcast);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise}, ngraph::ParameterVector{input});
 
-        manager.register_pass<pass::BroadcastElementwiseFusion>();
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
 
     {
@@ -330,6 +330,6 @@ TEST_F(TransformationTestsF, BroadcastElementwiseFusionWithShapeOfNeg) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{elementwise, broadcast},
                                                       ngraph::ParameterVector{input});
 
-        manager.register_pass<pass::BroadcastElementwiseFusion>();
+        manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
     }
 }
