@@ -286,6 +286,8 @@ class TestParallelRunner:
         if idx < len(proved_test_list):
             while proved_test_list[idx]._time == -1:
                 proved_test_list.pop(idx)
+                if idx >= len(proved_test_list):
+                    break
 
         # prepare gtest filters per worker according command line length limitation
         while len(proved_test_list) > 0:
