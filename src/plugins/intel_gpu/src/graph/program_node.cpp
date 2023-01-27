@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
+#include "fully_connected_inst.h"
 #include "deconvolution_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -950,6 +951,18 @@ void program_node::init_onednn_primitive_attributes() {
             auto dep_idx = desc.dep_start_idx;
             auto in = get_dependency(dep_idx).get_output_layout();
 
+            auto get_fc_input_desc = [&](cldnn::layout in) {
+                const kernel_impl_params& impl_params = *get_kernel_impl_params();
+                auto prim = impl_params.typed_desc<fully_connected>();
+                auto input_layout = impl_params.get_input_layout(0);
+                auto input_pshape = input_layout.get_partial_shape();
+                size_t input_size = (prim->input_size > input_pshape.size()) ? input_pshape.size() : prim->input_size;
+                if (input_size == 3) {
+                    cldnn::onednn::combine_bf_with_first_spatial_dim(in);
+                }
+                return onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
+            };
+
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
@@ -961,16 +974,16 @@ void program_node::init_onednn_primitive_attributes() {
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                     num_sum_post_ops++;
                 } else {
-                    dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
+                    dnnl::memory::desc in_desc = is_type<fully_connected>() ? get_fc_input_desc(in) : onednn::layout_to_memory_desc(in);
                     post_ops.append_binary(dnnl::algorithm::binary_add, in_desc);
                     update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx);
                 }
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
-                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in);
+                dnnl::memory::desc in_desc = is_type<fully_connected>() ? get_fc_input_desc(in) : onednn::layout_to_memory_desc(in);
                 post_ops.append_binary(dnnl::algorithm::binary_sub, in_desc);
                 update_onednn_post_op_list(onednn_post_op_type::binary_sub, dep_idx);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                dnnl::memory::desc in_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab, true);
+                dnnl::memory::desc in_desc = is_type<fully_connected>() ? get_fc_input_desc(in) : onednn::layout_to_memory_desc(in);
                 post_ops.append_binary(dnnl::algorithm::binary_mul, in_desc);
                 update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx, dnnl::memory::format_tag::ab, true);
             } else {

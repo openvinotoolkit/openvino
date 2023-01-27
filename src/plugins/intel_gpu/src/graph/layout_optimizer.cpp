@@ -865,11 +865,11 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
-    bool is_suitable_for_onednn = true;
     auto fc_prim = node.get_primitive();
     auto ps = node.get_output_layout().get_partial_shape();
-    int rank = ps.size();
     int non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
+    int rank = ps.size();
+
     // OneDnn doesn't support spatial dimensions for output
     for (int i = non_spatial_count; i < rank; i++) {
         if (ps[i].is_dynamic() || ps[i] != 1) {
@@ -877,7 +877,7 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
         }
     }
 
-    return is_suitable_for_onednn;
+    return true;
 }
 
 // This function is needed to avoid performance regressions for the convolutions with byxf layout
@@ -1573,7 +1573,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
         } else {
-            auto gemm_prim = node.as<gemm>().get_primitive();
             if (node.is_dynamic()) {
                 impl_candidate = impl_types::ocl;
             }
