@@ -50,8 +50,8 @@ Tensor data can be passed with strides.
 `Data` corresponds to a constant table and wraps this entity for the CPU.
 
 ## See also
- * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO SnippetS](../README.md)
- * [OpenVINO Core Components](../../../src/README.md)
- * [Developer documentation](../../../docs/dev/index.md)
+ * [OpenVINO Core Components](../../../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)
  

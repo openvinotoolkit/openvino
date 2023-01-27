@@ -300,8 +300,8 @@ Parameters for a generated snippet are split into schedule-invariant and schedul
 Subgraph can be executed with nGraph references if no generator is present.
 
 ## See also
- * [OpenVINO™ README](../../../README.md)
+ * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO SnippetS](../README.md)
- * [OpenVINO Core Components](../../../src/README.md)
- * [Developer documentation](../../../docs/dev/index.md)
+ * [OpenVINO Core Components](../../../README.md)
+ * [Developer documentation](../../../../docs/dev/index.md)
 
