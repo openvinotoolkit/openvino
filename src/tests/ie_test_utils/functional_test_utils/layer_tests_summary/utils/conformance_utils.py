@@ -33,7 +33,7 @@ def progressbar(it_num, message="", progress_bar_size=60, out=stdout):
 
 
 def set_env_variable(env: environ, var_name: str, var_value: str):
-    if var_name in env:
+    if var_name in env and not var_value in env[var_name]:
         env[var_name] = var_value + constants.ENV_SEPARATOR + env[var_name]
     else:
         env[var_name] = var_value

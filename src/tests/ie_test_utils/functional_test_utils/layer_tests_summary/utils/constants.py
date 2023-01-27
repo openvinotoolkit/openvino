@@ -21,6 +21,7 @@ OS_BIN_FILE_EXT = ".exe" if IS_WIN else ""
 ENV_SEPARATOR = ";" if IS_WIN else ":"
 PYTHON_NAME = "python" if IS_WIN else "python3"
 PIP_NAME = "pip" if IS_WIN else "pip3"
+LD_LIB_PATH_NAME = "PATH" if IS_WIN or platform == "darwin" else "LD_LIBRARY_PATH"
 
 OPENVINO_NAME = 'openvino'
 PY_OPENVINO = "python_api"

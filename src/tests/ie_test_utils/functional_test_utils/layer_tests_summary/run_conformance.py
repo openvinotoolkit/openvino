@@ -7,7 +7,6 @@ from shutil import copytree, rmtree
 from summarize import create_summary
 from merge_xmls import merge_xml
 from run_parallel import TestParallelRunner
-from rename_conformance_ir import create_hash
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
@@ -19,8 +18,13 @@ from utils import constants
 from utils.conformance_utils import get_logger
 from utils import file_utils
 
-
 logger = get_logger('conformance_runner')
+is_hash = True
+try:
+    from rename_conformance_ir import create_hash
+except:
+    logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
+    is_hash = False
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
@@ -113,11 +117,11 @@ class Conformance:
             logger.error("Process failed on step: 'Subgraph dumping'")
             exit(-1)
         self._model_path = conformance_ir_path
-        if constants.PY_OPENVINO in os.listdir(self._ov_bin_path):
+        if is_hash:
             create_hash(Path(self._model_path))
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
-            logger.warning("The OV Python was not built. Skip the step to rename XConformance IR based on a hash")
+            logger.warning("The OV Python was not built or Environment was not updated to requirments. Skip the step to rename Conformance IR based on a hash")
 
     def __run_conformance(self):
         conformance_path = None
