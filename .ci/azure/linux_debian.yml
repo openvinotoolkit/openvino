@@ -65,8 +65,23 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    OV_PYTHON_VERSION: 3.10.7
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(OV_PYTHON_VERSION)'
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python $(OV_PYTHON_VERSION)
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
+
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
@@ -227,6 +242,7 @@ jobs:
   - script: |
       # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,
       # test should be fixed
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph \
         -k 'not test_register_plugin' \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
@@ -239,7 +255,7 @@ jobs:
       # Required by python imports to load requires libraries
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend required by mock_py (is not part of wheel pkg)
-      export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
+      # export LD_LIBRARY_PATH=$(PYTHON_WHEEL_INSTALL_DIR)/openvino/libs:$(INSTALL_TEST_DIR):$LD_LIBRARY_PATH
       # For frontend manager to load frontend libraries:
       # - tests install dir for mock_py
       # - OpenVINO wheel installation dir for others frontend (not required if this variable is not set)
@@ -248,6 +264,7 @@ jobs:
       export PYTHONPATH=$(INSTALL_TEST_DIR):$PYTHONPATH
       # TODO (vurusovs): revert skip of test_core.py::test_register_plugin*,
       # test should be fixed
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
       python3 -m pytest -s $(INSTALL_TEST_DIR)/pyopenvino \
         -k 'not test_register_plugin' \
         --junitxml=$(INSTALL_TEST_DIR)/TEST-Pyngraph.xml \
@@ -256,7 +273,9 @@ jobs:
         --ignore=$(INSTALL_TEST_DIR)/pyopenvino/tests/test_onnx/test_backend.py -v
     displayName: 'Python API 2.0 Tests'
 
-  - script: python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
+  - script: |
+      export LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1910/linux/x64:$(LD_LIBRARY_PATH)
+      python3 -m pytest -s $(INSTALL_TEST_DIR)/mo/unit_tests --junitxml=$(INSTALL_TEST_DIR)/TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
 
   - script: |

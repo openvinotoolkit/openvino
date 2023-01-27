@@ -62,8 +62,23 @@ jobs:
     TMP_DIR: /mnt/tmp
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    OV_PYTHON_VERSION: 3.10.7
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(OV_PYTHON_VERSION)'
+      addToPath: true
+      disableDownloadFromRegistry: false
+      architecture: 'x64'
+      githubToken: $(auth_token)
+    displayName: Setup Python $(OV_PYTHON_VERSION)
+    name: setupPython
+  - bash: |
+      #!/bin/bash
+      python -V
+      
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
