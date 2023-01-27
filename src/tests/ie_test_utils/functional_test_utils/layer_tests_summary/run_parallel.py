@@ -150,6 +150,7 @@ class TestParallelRunner:
         self._cache_path = os.path.join(cache_path)
         head, _ = os.path.split(self._cache_path)
         if not os.path.exists(head):
+            pass
             os.mkdir(head)
         self._is_save_cache = True
         self._disabled_tests = list()
@@ -220,7 +221,7 @@ class TestParallelRunner:
                     pos = line.find(":")
                     time = line[:pos]
                     test_name = line[pos+1:]
-                    if not DISABLED_PREFIX in test_name:
+                    if not constants.DISABLED_PREFIX in test_name:
                         test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
         logger.info(f"Len test_list_cache: {len(test_list_cache)}")
         return test_list_cache
@@ -253,8 +254,10 @@ class TestParallelRunner:
         
         # Run crashed tests in a separed thread
         if idx < len(proved_test_list):
-            while proved_test_list[idx]._time == -1:
+            while proved_test_list[idx]._time == -1 :
                 proved_test_list.pop(idx)
+                if idx >= len(proved_test_list):
+                    break
 
         # prepare gtest filters per worker according command line length limitation
         while len(proved_test_list) > 0:
