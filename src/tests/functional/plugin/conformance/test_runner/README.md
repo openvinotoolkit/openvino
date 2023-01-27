@@ -44,6 +44,59 @@ Run the following command in build directory:
    make --jobs=$(nproc --all) lib_plugin_name
    ```
    
+## How to run using [simple conformance runner](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
+There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
+
+### The conformance pipeline steps:
+1. (Optional) Download models/conformance IR via URL / copy archieve to working directory / verify dirs / check list-files.
+2. (Optional) Run `SubgraphDumper` to generate a simple single op graph based on models or download the `conformance_ir` folder. (if `-s=1`)
+3. Run conformance test executable files.
+4. Generate conformance reports.
+
+### Command-line arguments
+The script has the following arguments:
+* `-h, --help`          show this help message and exit
+* `-m MODELS_PATH, --models_path MODELS_PATH`
+                        Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file or http link to download something . If `--s=0`, specify the Conformance IRs directoryy
+* `-d DEVICE, --device DEVICE`
+                        Specify the target device. The default value is CPU
+* `-ov OV_PATH, --ov_path OV_PATH`
+                        OV repo path. The default way is try to find the absolute path of OV repo (by using script path)
+* `-w WORKING_DIR, --working_dir WORKING_DIR`
+                        Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc.
+* `-t TYPE, --type TYPE`
+                        Specify conformance type: `OP` or `API`. The default value is `OP`
+* `-s DUMP_CONFORMANCE, --dump_conformance DUMP_CONFORMANCE`
+                        Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set `0`. The default value is '1'
+* `-j WORKERS, --workers WORKERS`
+                        Specify number of workers to run in parallel. The default value is CPU count - 1
+* `--gtest_filter GTEST_FILTER`
+                        Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None
+* `-c OV_CONFIG_PATH, --ov_config_path OV_CONFIG_PATH`
+                        Specify path to file contains plugin config 
+
+> **NOTE**:
+> All arguments are optional and have default values to reproduce OMZ conformance results in a default way.
+
+## Examples of usage:
+1. Use the default way to reproduce opset conformance results for OMZ on GPU:
+```
+python3 run_conformance.py -d GPU
+``` 
+2. Use the conformance pipeline to check new models support (as IRs) on the CPU plugin and save results to a custom directory:
+```
+python3 run_conformance.py -m /path/to/new/model_irs -s=1 -w /path/to/working/dir -d CPU
+``` 
+3. Use custom OV build to check GNA conformance using pre-generated conformance_irs:
+```
+python3 run_conformance.py -m /path/to/conformance_irs -s=0 -ov /path/to/ov_repo_on_custom_branch -d GNA
+``` 
+
+
+> **IMPORTANT NOTE:**
+> If you need to debug some conformance tests, use the binary run as the default method. If you want to get conformance results or reproduce CI behavior, use the simple python runner.
+
+
 ## How to generate Conformance IRs set
 Run the following commands:
 1. Clone [`Open Model Zoo repo`](https://github.com/openvinotoolkit/open_model_zoo)
@@ -74,13 +127,14 @@ The target is able to take the following command-line arguments:
 
 > **NOTE**:
 > 
-> Using of `GTest parallel` tool to run a conformance suite helps to report crashed tests and collect correct statistic after unexpected crashes. 
-> 
-> Use [`Gtest parallel`](https://github.com/google/gtest-parallel) from official repository with [this fix](https://github.com/google/gtest-parallel/pull/76).
+> Using of [`parallel_runner`](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistic after unexpected crashes. 
+> The tool is able to work in 2 modes: 
+> * one test is run in separate thread (first run, as the output the cache will be saved as a custom file)
+> * similar load time per one worker based on test execution time. May contain different test count per worker
 > 
 > The example of usage is:
 > ```
-> python3 gtest_parallel.py /path/to/openvino/bin/intel64/Debug/conformanceTests -d . 
+> python3 run_parallel.py -e=/path/to/openvino/bin/intel64/Debug/conformanceTests -d . 
 > --gtest_filter=*Add*:*BinaryConv* -- --input_folders=/path/to/ir_1,/path/to/ir_2 --device=CPU 
 > --report_unique_name --output_folder=/path/to/temp_output_report_folder
 > ```
@@ -107,50 +161,5 @@ python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-para
 
 The report contains statistics based on conformance results and filter fields at the top of the page.
 
-# [Simple conformance runner](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
-There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
 
-## The conformance pipeline steps:
-1. (Optional) Download OMZ models.
-2. (Optional) Convert models to IR or prepare a folder with IRs.
-3. (Optional) Run `SubgraphDumper` to generate a simple single op graph based on models or download the `conformance_ir` folder.
-4. Run conformance test executable files.
-5. Generate conformance reports.
-
-## Command-line arguments
-The script has the following arguments:
-* `-h, --help`          show this help message and exit
-* `-m MODELS_PATH, --models_path MODELS_PATH`
-                        Path to the directory/ies containing models to dump subgraph (the default way is to download OMZ). If `--s=0`, specify the Conformance IRs directory
-* `-d DEVICE, --device DEVICE`
-                        Specify the target device. The default value is CPU
-* `-ov OV_PATH, --ov_path OV_PATH`
-                        OV binary files path. The default way is trying to find an installed OV by `INTEL_OPENVINO_DIR` in the environment variables or to find the absolute path of the OV repo by using the script path
-* `-w WORKING_DIR, --working_dir WORKING_DIR`
-                        Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc.
-* `-t TYPE, --type TYPE`
-                        Specify conformance type: `OP` or `API`. The default value is `OP`
-* `-s DUMP_CONFORMANCE, --dump_conformance DUMP_CONFORMANCE`
-                        Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set `0`. The default value is '1'
-
-> **NOTE**:
-> All arguments are optional and have default values to reproduce OMZ conformance results in a default way.
-
-## Examples of usage:
-1. Use the default way to reproduce opset conformance results for OMZ on GPU:
-```
-python3 run_conformance.py -d GPU
-``` 
-2. Use the conformance pipeline to check new models support (as IRs) on the CPU plugin and save results to a custom directory:
-```
-python3 run_conformance.py -m /path/to/new/model_irs -s=1 -w /path/to/working/dir -d CPU
-``` 
-3. Use custom OV build to check GNA conformance using pre-generated conformance_irs:
-```
-python3 run_conformance.py -m /path/to/conformance_irs -s=0 -ov /path/to/ov_repo_on_custom_branch -d GNA
-``` 
-
-
-> **IMPORTANT NOTE:**
-> If you need to debug some conformance tests, use the binary run as the default method. If you want to get conformance results or reproduce CI behavior, use the simple python runner.
 
