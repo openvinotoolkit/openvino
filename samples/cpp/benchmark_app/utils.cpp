@@ -554,36 +554,41 @@ std::vector<benchmark_app::InputsInfo> get_inputs_info(const std::string& shape_
                             "size if -data_shape parameter is omitted and shape is dynamic)");
                     }
                     FormatReader::ReaderPtr reader(namesVector[fileIdx].c_str());
-                    if ((w && w != reader->width()) || (h && h != reader->height()) || (!shape.empty() && shape != reader->shape())) {
-                        throw std::logic_error("File dimensions putting into one batch should be of the same dimensionality if input "
-                                               "shape is dynamic and -data_shape is omitted. Problem file: " +
-                                               namesVector[fileIdx]);
+                    if ((w && w != reader->width()) || (h && h != reader->height()) ||
+                        (!shape.empty() && shape != reader->shape())) {
+                        throw std::logic_error(
+                            "File dimensions putting into one batch should be of the same dimensionality if input "
+                            "shape is dynamic and -data_shape is omitted. Problem file: " +
+                            namesVector[fileIdx]);
                     }
                     h = reader->height();
                     w = reader->width();
                     shape = reader->shape();
                 }
                 currentFileCounters[item.get_any_name()] = fileIdx;
-                if(shape.size() == 2) { // Has only h and w
+                if (shape.size() == 2) {  // Has only h and w
                     if (!info.dataShape[ov::layout::height_idx(info.layout)]) {
-                    info.dataShape[ov::layout::height_idx(info.layout)] = h;
+                        info.dataShape[ov::layout::height_idx(info.layout)] = h;
                     }
                     if (!info.dataShape[ov::layout::width_idx(info.layout)]) {
                         info.dataShape[ov::layout::width_idx(info.layout)] = w;
                     }
-                } else { // Is numpy array
+                } else {  // Is numpy array
                     size_t shape_idx = 0;
                     if (info.dataShape.size() != shape.size()) {
                         throw std::logic_error("Shape required by the input and file shape do not have the same rank. "
-                                           "Input: " + item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
+                                               "Input: " +
+                                               item.get_any_name() + ", File name: " + namesVector[fileIdx - 1]);
                     }
-                    for(size_t i = ov::layout::batch_idx(info.layout); i < ov::layout::batch_idx(info.layout) + info.dataShape.size(); ++i){
-                        if(!info.dataShape[i]){
-                            info.dataShape[i] = shape.at(shape_idx++);
+                    for (size_t i = ov::layout::batch_idx(info.layout);
+                         i < ov::layout::batch_idx(info.layout) + info.dataShape.size();
+                         ++i) {
+                        if (!info.dataShape[i]) {
+                            info.dataShape[i] = shape.at(shape_idx);
                         }
+                        shape_idx++;
                     }
                 }
-                
 
                 if (std::any_of(info.dataShape.begin(), info.dataShape.end(), [](size_t d) {
                         return d == 0;
@@ -890,18 +895,4 @@ std::string parameter_name_to_tensor_name(const std::string& name,
     }
     throw std::runtime_error("Provided I/O name \"" + name +
                              "\" is not found neither in tensor names nor in nodes names.");
-}
-
-void verifyBinaryFile(std::ifstream& binaryFile, const std::string& fileName, const unsigned long inputSize) {
-    auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
-    binaryFile.seekg(0, std::ios_base::beg);
-    OPENVINO_ASSERT(binaryFile.good(), "Can not read ", fileName);
-
-    OPENVINO_ASSERT(fileSize == inputSize,
-                    "File ",
-                    fileName,
-                    " contains ",
-                    fileSize,
-                    " bytes, but the model expects ",
-                    inputSize);
 }

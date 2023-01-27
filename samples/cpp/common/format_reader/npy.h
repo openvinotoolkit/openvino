@@ -9,9 +9,9 @@
 #pragma once
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
 
 // clang-format off
 #include "format_reader.h"
@@ -28,6 +28,7 @@ private:
     static Register<NumpyArray> reg;
     std::string type;
     size_t _size = 0;
+
 public:
     /**
      * \brief Constructor of NumpyArray reader
