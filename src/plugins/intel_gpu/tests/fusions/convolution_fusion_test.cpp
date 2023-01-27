@@ -4126,9 +4126,6 @@ TEST_P(conv_after_permute_optimizing, basic) {
 
     auto bias_layout = cldnn::layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
 
-    ov::intel_gpu::ImplementationDesc conv_impl = { cldnn::format::type::any, "", impl_types::onednn };
-    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
-
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(weights_layout)),

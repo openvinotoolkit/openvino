@@ -1913,9 +1913,14 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             //     output layout of convolution: byxf [b:1, f:128, y:2, x:2]
             //     output layout of permute:     bfyx [b:1, f:2, y:2, x:128]
             // In this case, it can be handled by changing only the shape of permute without the kernel execution.
-            if (node.get_output_layout().get_rank() == 4 && node.get_users().front()->is_type<permute>()) {
+            if (node.get_output_layout().get_rank() == 4
+                && node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
                 auto& pnode = node.get_users().front()->as<permute>();
-                auto can_optimize_permute = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
+                auto can_optimize_permute = pnode.get_dependencies().size() == 1
+                    && std::find_if(pnode.get_users().begin(), pnode.get_users().end(),
+                        [](program_node *const n) {
+                            return n->is_type<concatenation>();
+                        }) == pnode.get_users().end()
                     && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                     && pnode.is_rotating_except_batch();
                 if (can_optimize_permute) {

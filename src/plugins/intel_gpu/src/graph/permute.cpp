@@ -118,18 +118,8 @@ permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
             CLDNN_ERROR_MESSAGE(node.id(), "Permute order does not contain all of required values.");
     }
 
-    auto input_layout = node.input().get_output_layout();
-    auto output_layout = node.get_output_layout();
-    if (input_layout.is_static() && output_layout.is_static()) {
-        if (!node.can_be_optimized()) {
-            _outputs = allocate_outputs();
-            _mem_allocated = true;
-        } else {
-            reuse_input();
-        }
-    } else {
-        if (_exec_deps.size() > 0 && input_memory_ptr())
-            reuse_input();
+    if (node.can_be_optimized()) {
+        reuse_input();
     }
 }
 
@@ -146,7 +136,8 @@ void permute_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     if (_node != nullptr)
