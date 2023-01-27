@@ -28,8 +28,6 @@
 #include "template_infer_request.hpp"
 #include "transformations/template_pattern_transformation.hpp"
 #include "transformations/preprocessing/preprocessing.hpp"
-#include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
-#include "openvino/pass/constant_folding.hpp"
 // clang-format on
 
 using namespace TemplatePlugin;
@@ -69,11 +67,6 @@ void TransformNetwork(std::shared_ptr<ngraph::Function>& function,
     // TODO: add post-processing based on outputsInfoMap
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
-
-    passManager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
-    // without below ConstantFolding error doesn't occur
-    passManager.register_pass<ov::pass::ConstantFolding>();
-
     // G-API supports only FP32 networks for pre-processing
     bool needF16toF32 = false;
     for (const auto& param : function->get_parameters()) {

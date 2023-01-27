@@ -14,37 +14,32 @@
 
 #include "itt.hpp"
 
-using namespace ov::opset10;
 using namespace std;
+using namespace ov::opset10;
+using namespace ov::element;
 
 void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch);
-    const auto space_to_batch = pattern::wrap_type<ov::opset3::SpaceToBatch>();
-    matcher_pass_callback callback = [](pattern::Matcher& m) {
-        const auto space_to_batch = dynamic_pointer_cast<ov::opset3::SpaceToBatch>(m.get_match_root());
-        if (!space_to_batch) {
+    const auto space_to_batch = pattern::wrap_type<opset3::SpaceToBatch>();
+    matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        const auto space_to_batch = dynamic_pointer_cast<opset3::SpaceToBatch>(m.get_match_root());
+        if (!space_to_batch || transformation_callback(space_to_batch)) {
             return false;
         }
 
-        NodeVector new_ops;
-        auto data = space_to_batch->input_value(0);
-        auto block = space_to_batch->input_value(1);
-        auto pads_begin = space_to_batch->input_value(2);
-        auto pads_end = space_to_batch->input_value(3);
-
-        if (data.get_partial_shape().is_dynamic()) {
+        const auto data = space_to_batch->input_value(0);
+        if (data.get_partial_shape().rank().is_dynamic()) {
             return false;
         }
 
-        const auto block_const = dynamic_pointer_cast<Constant>(block.get_node_shared_ptr());
-        const auto pads_begin_const = dynamic_pointer_cast<Constant>(pads_begin.get_node_shared_ptr());
-        const auto pads_end_const = dynamic_pointer_cast<Constant>(pads_end.get_node_shared_ptr());
+        const auto block = space_to_batch->input_value(1);
+        const auto pads_begin = space_to_batch->input_value(2);
+        const auto pads_end = space_to_batch->input_value(3);
 
-        if (!block_const || !pads_begin_const || !pads_end_const) {
-            return false;
-        }
+        // static data shape rank implies static block shape
+        const auto block_lenght = static_cast<int64_t>(block.get_shape()[0]);
 
-        const vector<int64_t>& block_values = block_const->cast_vector<int64_t>();
+        NodeRegistry rg;
 
         //    Zero-pad the start and end of dimensions [D_0, ..., D_{N - 1}] of the input according to
         //    `pads_begin`
@@ -52,63 +47,60 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         //    note: P_0 for batch dimension is expected to be 0 (no-padding).
         //      x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}], where P_i =
         //      pads_begin[i] + pads_end[i]
-        shared_ptr<Node> flat_node = make_shared<Pad>(data, pads_begin_const, pads_end_const, op::PadMode::CONSTANT);
-        auto out_shape = flat_node->get_shape();
-        new_ops.push_back(flat_node);
+        shared_ptr<Node> flat_node = rg.make<Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
+        const auto out_shape = rg.make<ShapeOf>(flat_node);
+
+        const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
 
         // First we have to disperse the data from spatial dimensions, then
         // rearrange them so as appropriate chunks of data where close to their
         // destination place. Finally squeeze data from respective dimensions.
-        Shape dispersed_shape{out_shape.at(0)};
 
         //    note: B_0 for batch is ignored.
         //      x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, ...,
         //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]), where B_i = block_shape[i]
-        for (size_t i = 1; i < block_values.size(); ++i) {
-            dispersed_shape.push_back(out_shape.at(i) / block_values.at(i));
-            dispersed_shape.push_back(block_values.at(i));
+        const auto batch = rg.make<Gather>(out_shape, zero, zero);
+        NodeVector dispersed_shape_prep{batch};
+
+        //    y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ...,
+        //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
+        //    note: B_0 is assumed to be 1 by op definion
+        const auto block_prod = rg.make<ReduceProd>(block, zero);
+        NodeVector squeezed_shape_prep{rg.make<Multiply>(batch, block_prod)};
+
+        for (int64_t idx = 1; idx < block_lenght; ++idx) {
+            const auto index = rg.make<Constant>(i64, Shape{1}, idx);
+            const auto out_dim = rg.make<Gather>(out_shape, index, zero);
+            const auto block_value = rg.make<Gather>(block, index, zero);
+            const auto div = rg.make<Divide>(out_dim, block_value);
+
+            dispersed_shape_prep.push_back(div);
+            dispersed_shape_prep.push_back(block_value);
+
+            squeezed_shape_prep.push_back(div);
         }
 
-        const auto out_pattern = Constant::create(element::i64, Shape{dispersed_shape.size()}, dispersed_shape);
-        flat_node = make_shared<Reshape>(flat_node, out_pattern, false);
-        new_ops.push_back(flat_node);
+        const auto dispersed_shape = rg.make<Concat>(dispersed_shape_prep, 0);
+        flat_node = rg.make<Reshape>(flat_node, dispersed_shape, false);
 
         //    x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
-        vector<size_t> axes_order;
-        for (size_t i = 0, j = 2; i < block_values.size() - 1; ++i, j += 2) {
+        vector<int64_t> axes_order;
+        for (int64_t i = 0, j = 2; i < block_lenght - 1; ++i, j += 2) {
             axes_order.push_back(j);
         }
         axes_order.push_back(0);
-        for (size_t i = 0, j = 1; i < block_values.size() - 1; ++i, j += 2) {
+        for (int64_t i = 0, j = 1; i < block_lenght - 1; ++i, j += 2) {
             axes_order.push_back(j);
         }
 
-        const auto axes_order_const = Constant::create(element::i64,
-                                                       Shape{axes_order.size()},
-                                                       vector<int64_t>(axes_order.begin(), axes_order.end()));
-        flat_node = make_shared<Transpose>(flat_node, axes_order_const);
-        new_ops.push_back(flat_node);
+        const auto axes_order_const = rg.make<Constant>(i64, Shape{axes_order.size()}, axes_order);
+        flat_node = rg.make<Transpose>(flat_node, axes_order_const);
 
-        Shape squeezed_shape;
-        int64_t prod = 1;
-        for (const auto& el : block_values) {
-            prod *= el;
-        }
-
-        //    y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ...
-        //    ,
-        //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
-        squeezed_shape.push_back(out_shape.at(0) * prod);
-        for (size_t i = 1; i < block_values.size(); ++i) {
-            squeezed_shape.push_back(out_shape.at(i) / block_values.at(i));
-        }
-
-        const auto out_pattern_2 = Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
-        flat_node = make_shared<Reshape>(flat_node, out_pattern_2, false);
-        new_ops.push_back(flat_node);
+        const auto squeezed_shape = rg.make<Concat>(squeezed_shape_prep, 0);
+        flat_node = rg.make<Reshape>(flat_node, squeezed_shape, false);
 
         flat_node->set_friendly_name(space_to_batch->get_friendly_name());
-        copy_runtime_info(space_to_batch, new_ops);
+        copy_runtime_info(space_to_batch, rg.get());
         replace_node(space_to_batch, flat_node);
         return true;
     };
@@ -119,9 +111,9 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch() {
 
 void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
     MATCHER_SCOPE(ConvertSpaceToBatch_convert_space_to_batch_by_elements);
-    const auto space_to_batch = pattern::wrap_type<ov::opset3::SpaceToBatch>();
+    const auto space_to_batch = pattern::wrap_type<opset3::SpaceToBatch>();
     matcher_pass_callback callback = [this](pattern::Matcher& m) {
-        const auto space_to_batch = dynamic_pointer_cast<ov::opset3::SpaceToBatch>(m.get_match_root());
+        const auto space_to_batch = dynamic_pointer_cast<opset3::SpaceToBatch>(m.get_match_root());
         if (!space_to_batch || transformation_callback(space_to_batch)) {
             return false;
         }
@@ -145,20 +137,20 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         shared_ptr<Node> squeezed_shape = rg.make<ShapeOf>(flat_node);
         vector<int64_t> axes_order(block_lenght + 1);
 
-        const auto zero = rg.make<Constant>(element::i64, Shape{1}, 0);
-        const auto one = rg.make<Constant>(element::i64, Shape{1}, 1);
-        const auto int_max = rg.make<Constant>(element::i64, Shape{1}, INT_MAX);
+        const auto zero = rg.make<Constant>(i64, Shape{1}, 0);
+        const auto one = rg.make<Constant>(i64, Shape{1}, 1);
+        const auto int_max = rg.make<Constant>(i64, Shape{1}, INT_MAX);
 
         for (int64_t b_idx = block_lenght - 1; b_idx >= 0; --b_idx) {
-            const auto block_index = rg.make<Constant>(element::i64, Shape{1}, b_idx);
-            const auto block_index_next = rg.make<Constant>(element::i64, Shape{1}, b_idx + 1);
+            const auto block_index = rg.make<Constant>(i64, Shape{1}, b_idx);
+            const auto block_index_next = rg.make<Constant>(i64, Shape{1}, b_idx + 1);
             const auto block_value = rg.make<Gather>(block, block_index, zero);
             int64_t sq_idx = block_lenght - 1;
             int64_t axis_idx = axes_order.size() - 1;
 
             NodeVector dispersed_shape_prep(block_lenght + 1);
             for (int64_t ds_idx = block_lenght; ds_idx >= 0; --ds_idx) {
-                const auto squeezed_index = rg.make<Constant>(element::i64, Shape{1}, sq_idx);
+                const auto squeezed_index = rg.make<Constant>(i64, Shape{1}, sq_idx);
                 if (ds_idx == (b_idx + 1)) {
                     dispersed_shape_prep[ds_idx] = block_value;
                     axes_order[0] = ds_idx;
@@ -180,7 +172,7 @@ void ov::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             constexpr auto special_zero = false;
             flat_node = rg.make<Reshape>(flat_node, dispersed_shape, special_zero);
 
-            const auto axes_order_const = rg.make<Constant>(element::i64, Shape{axes_order.size()}, axes_order);
+            const auto axes_order_const = rg.make<Constant>(i64, Shape{axes_order.size()}, axes_order);
             flat_node = rg.make<Transpose>(flat_node, axes_order_const);
 
             // don't change squeezed_shape at the last iteration, block[0] is assumed to be 1 by op definion
