@@ -1,20 +1,9 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import logging
-import os
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
-TEST_STATUS = {'passed': "[       OK ]", 'failed': "[  FAILED  ]", 'hanged': "Test finished by timeout", 'crashed': "Crash happens", 'skipped': "[  SKIPPED ]", "interapted": "interapted"}
-RUN = "[ RUN      ]"
-
-def get_logger(app_name: str):
-    logging.basicConfig()
-    logger = logging.getLogger(app_name)
-    logger.setLevel(logging.INFO)
-    return logger
-
+from . import conformance_utils
 
 def update_passrates(results: ET.SubElement):
     for device in results:
@@ -36,7 +25,7 @@ def update_passrates(results: ET.SubElement):
             op.set("passrate", str(round(passrate, 1)))
 
 
-def update_conformance_test_counters(results: ET.SubElement, logger: logging.Logger):
+def update_conformance_test_counters(results: ET.SubElement):
     max_test_cnt = dict()
     incorrect_ops = set()
     for device in results.find("results"):
@@ -63,24 +52,6 @@ def update_conformance_test_counters(results: ET.SubElement, logger: logging.Log
                 if test_cnt != max_test_cnt[op.tag]:
                     diff = max_test_cnt[op.tag] - test_cnt
                     op.set("skipped", str(int(op.attrib["skipped"]) + diff))
-                    logger.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
+                    conformance_utils.UTILS_LOGGER.warning(f'{device.tag}: added {diff} skipped tests for {op.tag}')
     update_passrates(results)
 
-def prepare_filelist(input_dir: os.path, pattern: str, logger):
-    filelist_path = input_dir
-    if os.path.isdir(filelist_path):
-        filelist_path = os.path.join(input_dir, "conformance_ir_files.lst")
-    elif os.path.isfile(filelist_path):
-        head, _ = os.path.split(filelist_path)
-        input_dir = head
-    if os.path.isfile(filelist_path):
-        logger.info(f"{filelist_path} is exists! The script will update it!")
-    xmls = Path(input_dir).rglob(pattern)
-    try:
-        with open(filelist_path, 'w') as file:
-            for xml in xmls:
-                file.write(str(xml) + '\n')
-            file.close()
-    except:
-        logger.warning(f"Impossible to update {filelist_path}! Something going is wrong!")
-    return filelist_path
