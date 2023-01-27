@@ -85,45 +85,49 @@ def test_query_network(device):
 
 
 @pytest.mark.dynamic_library
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugin():
-    ie = IECore()
-    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to openvino_intel_cpu_plugin specific test")
-    ie.register_plugin("openvino_intel_cpu_plugin", "BLA")
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, "BLA")
-    assert isinstance(exec_net, ExecutableNetwork), "Cannot load the network to the registered plugin with name 'BLA'"
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
 
+    ie = IECore()
+    ie.register_plugin(lib_name, device)
+    with pytest.raises(RuntimeError) as e:
+        ie.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
 
 @pytest.mark.dynamic_library
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_register_plugins():
+    device = "TEST_DEVICE"
+    lib_name = "test_plugin"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    plugins_xml_path = os.path.join(os.getcwd(), "plugin_path.xml")
+
+    plugin_xml = f"""<ie>
+    <plugins>
+        <plugin location="{full_lib_name}" name="{device}">
+        </plugin>
+    </plugins>
+    </ie>"""
+
+    with open(plugins_xml_path, "w") as f:
+        f.write(plugin_xml)
+    
     ie = IECore()
-    if ie.get_metric("CPU", "FULL_DEVICE_NAME") == "arm_compute::NEON":
-        pytest.skip("Can't run on ARM plugin due-to openvino_intel_cpu_plugin specific test")
-    if platform == "linux" or platform == "linux2":
-        ie.register_plugins(plugins_xml)
-    elif platform == "darwin":
-        ie.register_plugins(plugins_osx_xml)
-    elif platform == "win32":
-        ie.register_plugins(plugins_win_xml)
+    ie.register_plugins(plugins_xml_path)
+    os.remove(plugins_xml_path)
 
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie.load_network(net, "CUSTOM")
-    assert isinstance(exec_net,
-                      ExecutableNetwork), "Cannot load the network to the registered plugin with name 'CUSTOM' " \
-                                          "registred in the XML file"
-
-
-@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
-def test_unregister_plugin(device):
-    ie = IECore()
-    ie.unregister_plugin(device)
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
-        ie.load_network(net, device)
-    assert f"Device with '{device}' name is not registered in the OpenVINO Runtime" in str(e.value)
+        ie.get_versions(device)
+    assert f"Cannot load library '{full_lib_name}'" in str(e.value)
+
+
+def test_unload_plugin(device):
+    ie = IECore()
+    # Trigger plugin loading
+    ie.get_versions(device)
+    # Unload plugin
+    ie.unregister_plugin(device)
 
 
 def test_available_devices(device):
