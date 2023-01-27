@@ -163,7 +163,7 @@ The following layers are supported by the plugins:
 | Eltwise-Greater                | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-GreaterEqual           | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-Less                   | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
-| Eltwise-LessEqual              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported\*     |
+| Eltwise-LessEqual              | Supported     |Supported\*\*\*| Not Supported | Not Supported | Supported\*     |
 | Eltwise-LogicalAnd             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-LogicalOr              | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
 | Eltwise-LogicalXor             | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported       |
