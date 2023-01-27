@@ -25,9 +25,3 @@ public:
     OPENVINO_RTTI("ConvertSoftMax1ToSoftMax8", "0");
     ConvertSoftMax1ToSoftMax8();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertSoftMax1ToSoftMax8;
-}  // namespace pass
-}  // namespace ngraph
