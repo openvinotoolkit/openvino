@@ -101,7 +101,11 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
 
     std::string separator(1, ov::util::FileTraits<char>::file_separator);
     std::string output;
+    //  generates path to the top common directory from the start directory
     if (mismatch_it.first != from_vec.end()) {
+        // adds signs: "../" until it meets the top common directory
+        // for example if start path is: /aaa/bbb/ddd/eee and destination path is: /aaa/bbb/cc/test_app
+        // it generates: "../../../"
         output += std::accumulate(mismatch_it.first,
                                   from_vec.end(),
                                   std::string{},
@@ -109,6 +113,10 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
                                       return a += ".." + separator;
                                   });
     }
+    // adds path to the destination. If before generates path contains signs: "../",
+    // for example if start path is: "/aaa/bbb/ddd/eee" and destination path is: "/aaa/bbb/cc/test_app"
+    // To the generated path: "../../../" adds: "cc/test_app",
+    // the output path is: "../../../cc/test_app"
     output += std::accumulate(mismatch_it.second,
                               to_vec.end(),
                               std::string{},
