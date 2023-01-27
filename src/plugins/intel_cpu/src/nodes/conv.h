@@ -129,7 +129,7 @@ private:
     size_t dw_conv_ih;
     size_t dw_conv_iw;
     std::vector<size_t> dw_conv_kernel;
-    std::vector<ssize_t> dw_conv_strides;
+    std::vector<ptrdiff_t> dw_conv_strides;
     dnnl::memory::data_type dw_conv_in_dt;
 
     size_t groupNum;
