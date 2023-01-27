@@ -34,7 +34,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
     kernel_arguments_data_idx _kernel_args;
-    bool _is_output_event;
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -52,7 +51,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
             _kernels.emplace_back(other._kernels[k]->clone());
         }
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
-        this->_is_output_event = other._is_output_event;
     }
 
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)
@@ -78,7 +76,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << _kernel_data.kernels;
         ob << _kernel_ids;
         ob << _kernel_args;
-        ob << _is_output_event;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -87,7 +84,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ib >> _kernel_data.kernels;
         ib >> _kernel_ids;
         ib >> _kernel_args;
-        ib >> _is_output_event;
     }
 
     template<typename ImplType>
