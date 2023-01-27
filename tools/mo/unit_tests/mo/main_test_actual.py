@@ -26,7 +26,7 @@ class TestMainErrors(unittest.TestCase):
         framework=None,
         input_model="abc.pbtxt"
     ))
-    @patch('openvino.tools.mo.convert_impl.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
+    @patch('openvino.tools.mo_lite.convert_impl.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
     @ngraph_needed
     def test_FrameworkError(self, mock_argparse, mock_driver):
         with self.assertLogs() as logger:

@@ -16,7 +16,7 @@ import numpy as np
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
 from openvino.tools.mo_lite.moc_frontend.check_config import legacy_transformations_config_used, \
     tensorflow_custom_operations_config_update_used, new_extensions_used

@@ -7,7 +7,7 @@ from typing import Iterable, List, Union
 import numpy as np
 
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo_lite.utils.clean_utils import dynamic_dimension
+from openvino.tools.mo_lite.utils.clean_utils import dynamic_dimension, mo_array
 
 # numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid
 # value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension, the big prime
@@ -189,18 +189,6 @@ def int8_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndar
 
 def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return float32_array(value)
-
-
-def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
-    """
-    This function acts in a same way as np.array except for the case when dtype is not provided
-    and np.array return fp64 array this function returns fp32 array
-    """
-    x = np.array(value, dtype=dtype)
-    if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
-        x = x.astype(np.float32)
-    return x
-
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
     """

@@ -10,12 +10,12 @@ import pytest
 from generator import generator, generate
 
 from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
-from openvino.tools.mo.convert_impl import prepare_ir
+from openvino.tools.mo_lite.convert_impl import prepare_ir
 
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
 
 def base_args_config(use_legacy_fe: bool = None, use_new_fe: bool = None):

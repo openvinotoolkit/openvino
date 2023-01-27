@@ -12,7 +12,7 @@ import json
 import argparse
 from pathlib import Path
 from itertools import chain
-from openvino.tools.mo.convert_impl import prepare_ir
+from openvino.tools.mo_lite.convert_impl import prepare_ir
 from openvino.frontend import (
     FrontEndManager,
 )  # pylint: disable=no-name-in-module,import-error
@@ -20,7 +20,7 @@ from openvino.frontend import (
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
 
 def base_args_config():

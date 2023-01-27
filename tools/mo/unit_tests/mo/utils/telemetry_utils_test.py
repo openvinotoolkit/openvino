@@ -13,7 +13,7 @@ from unit_tests.utils.graph import build_graph, regular_op
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
 
 class TestTelemetryUtils(unittest.TestCase):

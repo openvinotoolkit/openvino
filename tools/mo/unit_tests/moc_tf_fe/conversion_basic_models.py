@@ -14,7 +14,7 @@ from openvino.frontend import (
     FrontEnd,
 )  # pylint: disable=no-name-in-module,import-error
 from openvino.runtime import Core
-from openvino.tools.mo.convert_impl import prepare_ir
+from openvino.tools.mo_lite.convert_impl import prepare_ir
 
 
 def base_args_config():
@@ -56,7 +56,7 @@ def base_args_config():
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
 
 @generator

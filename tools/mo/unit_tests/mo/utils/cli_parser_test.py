@@ -13,13 +13,13 @@ from unittest.mock import patch
 
 import numpy as np
 
-from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
+from openvino.tools.mo_lite.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mean_scale_dictionary, \
     get_model_name, \
     parse_tuple_pairs, check_positive, writable_dir, readable_dirs, \
     readable_file, get_freeze_placeholder_values, parse_transform, check_available_transforms, get_layout_values, get_data_type_from_input_value, get_all_cli_parser
-from openvino.tools.mo.convert_impl import pack_params_to_args_namespace
-from openvino.tools.mo.convert import InputCutInfo, LayoutMap
-from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo_lite.convert_impl import pack_params_to_args_namespace
+from openvino.tools.mo_lite.convert import InputCutInfo, LayoutMap
+from openvino.tools.mo_lite.utils.error import Error
 from unit_tests.mo.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 from openvino.runtime import PartialShape, Dimension, Layout
 from openvino.frontend import FrontEndManager
@@ -1155,7 +1155,7 @@ class TestModelNameParsing(unittest.TestCase):
         exp_res = 'model'
         self.assertEqual(exp_res, res)
 
-    @patch("openvino.tools.mo.utils.cli_parser.os")
+    @patch("openvino.tools.mo_lite.utils.cli_parser.os")
     def test_model_name_win(self, old_os):
         old_os.path.basename.return_value = "caffemodel"
         old_os.path.splitext.return_value = ("caffemodel", "")

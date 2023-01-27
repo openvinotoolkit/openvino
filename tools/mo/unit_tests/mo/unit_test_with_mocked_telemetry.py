@@ -7,7 +7,7 @@ from unittest.mock import Mock
 try:
     import openvino_telemetry as tm
 except ImportError:
-    import openvino.tools.mo.utils.telemetry_stub as tm
+    import openvino.tools.mo_lite.utils.telemetry_stub as tm
 
 
 class UnitTestWithMockedTelemetry(unittest.TestCase):

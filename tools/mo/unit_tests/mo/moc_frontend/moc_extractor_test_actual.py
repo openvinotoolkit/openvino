@@ -3,7 +3,7 @@
 
 import unittest
 
-from openvino.tools.mo.moc_frontend.extractor import decode_name_with_port
+from openvino.tools.mo_lite.moc_frontend.extractor import decode_name_with_port
 from openvino.tools.mo.utils.error import Error
 
 import pytest
