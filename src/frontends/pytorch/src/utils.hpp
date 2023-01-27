@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 namespace ov {
 
@@ -23,7 +22,7 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 size_t bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
 
-Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
+Output<ov::Node> reshape_conv_bias(const NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
@@ -32,9 +31,9 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                                       const Output<Node>& kernel,
                                       int64_t groups);
 
-std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id);
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
 
-std::shared_ptr<Node> numel(NodeContext& context, size_t input_id);
+std::shared_ptr<Node> numel(const NodeContext& context, size_t input_id);
 
 element::Type convert_dtype(int64_t dtype_value);
 ov::op::PadType convert_pad(const std::string& pt_pad);
