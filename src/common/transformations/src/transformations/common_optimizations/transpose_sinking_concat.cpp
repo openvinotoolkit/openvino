@@ -41,9 +41,13 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
 
         auto concat_node = as_type_ptr<Concat>(main_node);
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        const int64_t transposed_concat_axis = transpose_axis_order[concat_node->get_axis()];
-        concat_node->set_concatenation_axis(transposed_concat_axis);
-
+        auto concat_axis = concat_node->get_concatenation_axis();
+        if (concat_axis < 0) {
+            return false;
+        }
+        const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
+        concat_node->set_axis(transposed_concat_axis);
+        concat_node->set_concatenation_axis(-1);
         return true;
     };
 
@@ -83,9 +87,14 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         auto concat_node = as_type_ptr<Concat>(main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_node->get_axis()];
-        concat_node->set_concatenation_axis(transposed_concat_axis);
-
+        auto concat_axis = concat_node->get_concatenation_axis();
+        if (concat_axis < 0) {
+            return false;
+        }
+        const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_axis];
+        concat_node->set_axis(transposed_concat_axis);
+        concat_node->set_concatenation_axis(-1);
+        concat_node->validate_and_infer_types();
         return true;
     };
 
