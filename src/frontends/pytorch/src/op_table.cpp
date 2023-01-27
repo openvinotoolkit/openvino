@@ -92,6 +92,7 @@ OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
+OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
@@ -269,6 +270,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tanh>>},
         {"aten::tensor", op::translate_as_tensor},
         {"aten::to", op::translate_to},
+        {"aten::topk", op::translate_topk},
         {"aten::transpose", op::translate_transpose},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
