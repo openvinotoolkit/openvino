@@ -3,12 +3,14 @@
 //
 
 #pragma once
-#include <ie_common.h>
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "cpp/ie_cnn_network.h"
+#include "legacy/ie_layers.h"
 
 namespace ov {
 namespace intel_gna {

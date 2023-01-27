@@ -4,6 +4,9 @@
 
 #include <gna/gna_config.hpp>
 
+#include "common_test_utils/test_constants.hpp"
+#include "ie_core.hpp"
+
 class GnaLayerTestCheck {
     bool verRead = false;
     int verMajor;

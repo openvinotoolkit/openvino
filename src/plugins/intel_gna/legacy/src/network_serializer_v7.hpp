@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "compilation_context.hpp"
+
 namespace InferenceEngine {
 namespace Serialization {
 
