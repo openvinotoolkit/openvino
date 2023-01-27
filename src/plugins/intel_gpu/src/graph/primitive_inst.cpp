@@ -1086,6 +1086,9 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << can_be_optimized();
     ob << can_share_buffer();
     ob << is_constant();
+    auto users = get_node().get_users();
+    bool is_output_event = is_any_user_cpu(users) || get_node().is_output();
+    ob << is_output_event;
 
     if (type() == cldnn::data::type_id()) {
         return;
@@ -1201,6 +1204,7 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     ib >> _can_be_optimized;
     ib >> _can_share_buffer;
     ib >> _is_constant;
+    ib >> _is_output_event;
 
     if (type() == cldnn::data::type_id()) {
         return;
