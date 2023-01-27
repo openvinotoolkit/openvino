@@ -23,7 +23,16 @@ function loadModel(ov) {
 
     const session = new ov.Session(xmlFilename, binFilename, shape, layout);
 
-    return { run: runInference(ov, session) };
+    // Do not freeze UI wrapper
+    return { 
+      run: (data) => {
+        const run = runInference(ov, session);
+        
+        return new Promise(resolve => {
+          setTimeout(() => resolve(run(data)), 0)
+        });
+      }
+    };
   };
 }
 

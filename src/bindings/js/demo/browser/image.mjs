@@ -14,6 +14,8 @@ const MODEL_NAME = 'v3-small_224_1.0_float';
 const WIDTH = 224;
 const HEIGHT = 224;
 
+const WAITING_INPUT_STATUS_TXT = 'OpenVINO initialized. Model loaded. Select image to make an inference';
+
 run();
 
 async function run() {
@@ -25,7 +27,7 @@ async function run() {
   const binData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.bin`); 
   const model = await ov.loadModel(xmlData, binData, `[1, ${WIDTH}, ${HEIGHT}, 3]`, 'NHWC');
 
-  statusElement.innerText = 'OpenVINO initialized. Model loaded.';
+  statusElement.innerText = WAITING_INPUT_STATUS_TXT;
   panelElement.classList.remove('hide');
 
   selectBtn.addEventListener('change', fileSelectorHandler);
@@ -49,10 +51,12 @@ async function run() {
 
       ctx.drawImage(img, 0, 0, WIDTH, HEIGHT);
 
+      statusElement.innerText = 'Inference is in the progress, please wait...';
       const imgTensor = getImgTensor(ctx);
       const startTime = performance.now();
       const outputTensor = await model.run(imgTensor);
       const endTime = performance.now();
+      statusElement.innerText = WAITING_INPUT_STATUS_TXT;
 
       console.log('== Output tensor:');
       console.log(outputTensor);

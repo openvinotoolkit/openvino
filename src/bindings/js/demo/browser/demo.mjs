@@ -7,6 +7,8 @@ const MODEL_PATH = '../assets/models/';
 const MODEL_NAME = 'v3-small_224_1.0_float';
 const IMAGE_PATH = '../assets/images/coco.jpg';
 
+const statusElement = document.getElementById('status');
+
 run();
 
 async function run() {
@@ -17,6 +19,7 @@ async function run() {
   console.log(`== OpenVINO v${ov.getVersionString()}`);
   console.log(`== Description string: ${ov.getDescriptionString()}`);
 
+  statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
   const xmlData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.xml`);  
   const binData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.bin`);  
 
@@ -25,8 +28,10 @@ async function run() {
   const imgData = await getArrayByImgPath(IMAGE_PATH);
   const imgTensor = new Uint8Array(imgData);
 
-  const outputTensor = model.run(imgTensor);
+  statusElement.innerText = 'Inference is in the progress, please wait...';
+  const outputTensor = await model.run(imgTensor);
 
+  statusElement.innerText = 'Open browser\'s console to see result';
   console.log('== Output tensor:');
   console.log(outputTensor);
 

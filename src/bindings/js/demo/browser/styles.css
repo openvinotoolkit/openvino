@@ -1,9 +1,23 @@
 :root {
   --btn-color: #6d0f3f;
+  --link-color: #0054ae;
 }
 
 body {
   font-family: Helvetica, Arial, sans-serif;
+}
+
+h1 {
+  font-size: 14px;
+}
+
+h1 a {
+  color:var(--link-color);
+  text-decoration: none;
+}
+
+h1 a:hover {
+  text-decoration: underline;
 }
 
 .content {
