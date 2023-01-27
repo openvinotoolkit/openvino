@@ -576,13 +576,13 @@ public:
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property) const {
-        return get_property(deviceName, property.name(), {}).template as<T>();
+    T get_property(const std::string& device_name, const ov::Property<T, M>& property) const {
+        return get_property(device_name, property.name(), {}).template as<T>();
     }
 
     /**
@@ -593,14 +593,14 @@ public:
      *
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @param arguments  Additional arguments to get a property.
      * @return Property value.
      */
     template <typename T, PropertyMutability M>
-    T get_property(const std::string& deviceName, const ov::Property<T, M>& property, const AnyMap& arguments) const {
-        return get_property(deviceName, property.name(), arguments).template as<T>();
+    T get_property(const std::string& device_name, const ov::Property<T, M>& property, const AnyMap& arguments) const {
+        return get_property(device_name, property.name(), arguments).template as<T>();
     }
 
     /**
@@ -612,16 +612,16 @@ public:
      * @tparam T Type of a returned value.
      * @tparam M Property mutability.
      * @tparam Args Set of additional arguments ended with property object variable.
-     * @param deviceName  Name of a device to get a property value.
+     * @param device_name  Name of a device to get a property value.
      * @param property  Property object.
      * @param args Optional pack of pairs: (argument name, argument value) ended with property object.
      * @return Property value.
      */
     template <typename T, PropertyMutability M, typename... Args>
-    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& deviceName,
+    util::EnableIfAllStringAny<T, Args...> get_property(const std::string& device_name,
                                                         const ov::Property<T, M>& property,
                                                         Args&&... args) const {
-        return get_property(deviceName, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
+        return get_property(device_name, property.name(), AnyMap{std::forward<Args>(args)...}).template as<T>();
     }
 
     /**
@@ -687,8 +687,7 @@ public:
      *    for different systems with different configurations.
      * - `properties` are set to a plugin via the ov::Core::set_property method.
      * - `extensions` are set to a plugin via the ov::Core::add_extension method.
-     * Notes:
-     * - For security purposes it suggested to specify absolute path to register plugin.
+     * @note For security purposes it suggested to specify absolute path to register plugin.
      *
      * @param xml_config_file A path to .xml file with plugins to register.
      */
