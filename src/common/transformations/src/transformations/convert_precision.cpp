@@ -306,10 +306,10 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
         {opset10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
         {opset8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8}};
 
-    std::pair<ov::element::Type, ov::element::Type> f16_decompress_pair = {ov::element::f16, ov::element::f32};
-    bool has_f16_decompress = std::count(m_precisions.begin(), m_precisions.end(), f16_decompress_pair) > 0;
+    std::pair<ov::element::Type, ov::element::Type> compress_f16_pair = {ov::element::f32, ov::element::f16};
+    bool has_compress_f16 = std::count(m_precisions.begin(), m_precisions.end(), compress_f16_pair) > 0;
 
-    if (m_keep_precision_sensitive_in_fp32 && has_f16_decompress) {
+    if (m_keep_precision_sensitive_in_fp32 && has_compress_f16) {
         pass::Manager manager(get_pass_config());
         // Mark subgraphs with disable_fp16_compression to keep them in FP32
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();

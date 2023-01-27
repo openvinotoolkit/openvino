@@ -140,7 +140,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<EinsumDecomposition>();
 
-        precisions_array fp_convert_precision_list;
+        precisions_array fp_convert_precision_list = {
+                {ov::element::f64, ov::element::f32}
+        };
+
         // call conversion of float types with keep_precision_sensitive_in_fp32 = true
         auto fp_precision_supported = [&](ov::element::Type e) -> bool {
             switch (e) {
@@ -229,8 +232,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConvertPriorBox8To0, false>();
         manager.register_pass<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
-        precisions_array int_and_f64_convert_precision_list {
-                {ngraph::element::f64, ngraph::element::f32},
+        precisions_array int_convert_precision_list {
                 {ngraph::element::i64, ngraph::element::i32},
                 {ngraph::element::u64, ngraph::element::i32},
                 {ngraph::element::u16, ngraph::element::i32},
@@ -241,7 +243,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         manager.register_pass<ngraph::pass::Validate>();
-        manager.register_pass<ov::pass::ConvertPrecision>(int_and_f64_convert_precision_list);
+        manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_list);
 
         auto pass_config = manager.get_pass_config();
         pass_config->disable<ov::pass::EyeDecomposition>();
