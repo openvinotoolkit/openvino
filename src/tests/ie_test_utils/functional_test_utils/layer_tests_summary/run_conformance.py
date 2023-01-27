@@ -48,6 +48,7 @@ def parse_arguments():
     type_help = "Specify conformance type: `OP` or `API`. The default value is `OP`"
     workers_help = "Specify number of workers to run in parallel. The default value is CPU count - 1"
     gtest_filter_helper = "Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None"
+    ov_config_path_helper = "Specify path to file contains plugin config"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
@@ -57,12 +58,14 @@ def parse_arguments():
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default="OP")
     parser.add_argument("-j", "--workers", help=workers_help, type=int, required=False, default=os.cpu_count()-1)
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
-    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
+    parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
+    parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=1)
 
     return parser.parse_args()
 
 class Conformance:
-    def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int, gtest_filter:str, working_dir:os.path):
+    def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
+                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -145,10 +148,13 @@ class Conformance:
         if not os.path.isdir(logs_dir):
             os.mkdir(logs_dir)
         
-        command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"', f"--report_unique_name", f'--output_folder="{parallel_report_dir}"', f'--gtest_filter={self._gtest_filter}']
+        command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"',
+                             f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
+                             f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"']
         conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
         conformance.run()
         conformance.postprocess_logs()
+
         final_report_name = f'report_{self._type}'
         # API Conformance contains both report type
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
@@ -182,6 +188,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --type = {self._type}")
         logger.info(f"[ARGUMENTS] --workers = {self._workers}")
         logger.info(f"[ARGUMENTS] --gtest_filter = {self._gtest_filter}")
+        logger.info(f"[ARGUMENTS] --ov_config_path = {self._ov_config_path}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
 
         if self._model_path == NO_MODEL_CONSTANT or file_utils.is_url(self._model_path):
@@ -200,5 +207,8 @@ class Conformance:
 
 if __name__ == "__main__":
     args = parse_arguments()
-    conformance = Conformance(args.device, args.models_path, args.ov_path, args.type, args.workers, args.gtest_filter, args.working_dir)
-    conformance.run(args.dump_conformance)
+    conformance = Conformance(args.device, args.models_path,
+                              args.ov_path, args.type,
+                              args.workers, args.gtest_filter,
+                              args.working_dir, args.ov_config_path)
+    conformance.start_pipeline(args.dump_conformance)

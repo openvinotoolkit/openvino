@@ -310,6 +310,7 @@ function(ov_mark_target_as_cc)
 endfunction()
 
 include(python_requirements)
+include(native_compile)
 
 # Code style utils
 
