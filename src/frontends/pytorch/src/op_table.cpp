@@ -62,6 +62,7 @@ OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
@@ -215,6 +216,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::max", op::translate_max},
         {"aten::mean", op::translate_mean},
+        {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
