@@ -10,7 +10,7 @@ import pytest
 
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Model
-from openvino.runtime.passes import Manager
+from openvino.runtime.passes import Manager, Serialize, ConstantFolding
 from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core
 
@@ -25,7 +25,7 @@ def test_constant_folding():
     assert count_ops_of_type(model, node_constant) == 1
 
     pass_manager = Manager()
-    pass_manager.register_pass("ConstantFolding")
+    pass_manager.register_pass(ConstantFolding())
     pass_manager.run_passes(model)
 
     assert count_ops_of_type(model, node_ceil) == 0
@@ -50,7 +50,7 @@ def test_serialize_seperate_paths_kwargs(request, tmp_path):
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
 
     pass_manager = Manager()
-    pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -75,7 +75,7 @@ def test_serialize_seperate_paths_args(request, tmp_path):
     func = Model(model, [parameter_a, parameter_b, parameter_c, parameter_d], "Model")
 
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path, bin_path)
+    pass_manager.register_pass(Serialize(xml_path, bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -98,7 +98,7 @@ def test_serialize_pass_mixed_args_kwargs(request, tmp_path):
     func = Model(model, [parameter_a, parameter_b], "Model")
 
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -122,7 +122,7 @@ def test_serialize_pass_mixed_args_kwargs_v2(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -140,7 +140,7 @@ def test_serialize_pass_wrong_num_of_args(request, tmp_path):
 
     pass_manager = Manager()
     with pytest.raises(TypeError) as e:
-        pass_manager.register_pass(pass_name="Serialize", xml_path=xml_path, bin_path=bin_path, model=5)
+        pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, model=5))
     assert "Invoked with:" in str(e.value)
 
 
@@ -153,7 +153,7 @@ def test_serialize_results(request, tmp_path):
 
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -178,7 +178,7 @@ def test_serialize_pass_tuple(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
+    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -202,7 +202,7 @@ def test_default_version(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
+    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -226,7 +226,7 @@ def test_default_version_IR_V11_tuple(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path), version="IR_V11")
+    pass_manager.register_pass("Serialize", output_files=(str(xml_path), str(bin_path)), version="IR_V11")
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
@@ -250,7 +250,7 @@ def test_default_version_IR_V11_seperate_paths(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path, version="IR_V11")
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, version="IR_V11"))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)

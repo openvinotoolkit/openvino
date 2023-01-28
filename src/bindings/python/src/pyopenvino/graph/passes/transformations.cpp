@@ -20,6 +20,19 @@
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
+using Version = ov::pass::Serialize::Version;
+
+
+inline Version convert_to_version(const std::string& version) {
+    if (version == "UNSPECIFIED")
+        return Version::UNSPECIFIED;
+    if (version == "IR_V10")
+        return Version::IR_V10;
+    if (version == "IR_V11")
+        return Version::IR_V11;
+    throw ov::Exception("Invoked with wrong version argument: '" + version +
+                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+}
 
 void regclass_transformations(py::module m) {
     py::class_<ov::pass::Serialize, std::shared_ptr<ov::pass::Serialize>, ov::pass::ModelPass, ov::pass::PassBase>
@@ -43,10 +56,10 @@ void regclass_transformations(py::module m) {
 
     serialize.def(
         py::init(
-            [](const py::object& path_to_xml, const py::object& path_to_bin, ov::pass::Serialize::Version version) {
+            [](const py::object& path_to_xml, const py::object& path_to_bin, const std::string& version) {
                 return std::make_shared<ov::pass::Serialize>(Common::utils::convert_path_to_string(path_to_xml),
                                                              Common::utils::convert_path_to_string(path_to_bin),
-                                                             version);
+                                                             convert_to_version(version));
             }),
         py::arg("path_to_xml"),
         py::arg("path_to_bin"),
