@@ -79,13 +79,7 @@ ie_dependent_option (ENABLE_INTEL_GNA "GNA support for OpenVINO Runtime" ON
 
 ie_option (ENABLE_INTEL_GNA_DEBUG "GNA debug build" OFF)
 
-if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
-    set(ENABLE_IR_V7_READER_DEFAULT ON)
-else()
-    set(ENABLE_IR_V7_READER_DEFAULT OFF)
-endif()
-
-ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
+ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${BUILD_SHARED_LIBS} "ENABLE_TESTS;ENABLE_INTEL_GNA" OFF)
 
 ie_option (ENABLE_GAPI_PREPROCESSING "Enables G-API preprocessing" ON)
 
@@ -98,9 +92,7 @@ ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
 
-ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_GAPI_PREPROCESSING;ENABLE_TESTS" OFF)
-
-ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
+ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_TESTS;ENABLE_GAPI_PREPROCESSING" OFF)
 
 ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
@@ -151,11 +143,15 @@ ie_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at run
 find_host_package(PythonInterp 3 QUIET)
 ie_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ${PYTHONINTERP_FOUND})
 ie_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
+ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ie_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ie_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
+ie_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
 ie_dependent_option(ENABLE_SYSTEM_PROTOBUF "Use system protobuf" OFF
     "ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_TF_FRONTEND;BUILD_SHARED_LIBS" OFF)
 ie_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
+ie_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Use system flatbuffers" ON
+    "ENABLE_OV_TF_LITE_FRONTEND" OFF)
 
 ie_dependent_option(ENABLE_OV_CORE_UNIT_TESTS "Enables OpenVINO core unit tests" ON "ENABLE_TESTS" OFF)
 ie_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
@@ -176,10 +172,6 @@ endif()
 
 if (ENABLE_PROFILING_RAW)
     add_definitions(-DENABLE_PROFILING_RAW=1)
-endif()
-
-if (ENABLE_INTEL_CPU)
-    add_definitions(-DENABLE_INTEL_CPU=1)
 endif()
 
 print_enabled_features()

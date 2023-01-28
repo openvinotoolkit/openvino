@@ -317,10 +317,16 @@ ov::Shape layout::get_shape() const {
 }
 
 tensor layout::get_tensor() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] get_tensor() is called for dynamic shape");
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
+    ov::Shape shape;
+    if (is_dynamic() && has_upper_bound()) {
+        for (auto dim : size) {
+                shape.push_back(dim.get_max_length());
+        }
+    } else {
+        shape = size.to_shape();
+    }
 
-    auto shape = size.to_shape();
     std::vector<tensor::value_type> dims(shape.begin(), shape.end());
 
     auto rank = std::max(format.dimension(), dims.size());
@@ -360,8 +366,9 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
 }
 
 tensor layout::get_buffer_size() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+    if (is_dynamic() && !has_upper_bound()) {
+            throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+    }
 
     auto t = get_tensor();
 
