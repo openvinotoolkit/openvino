@@ -62,6 +62,7 @@ OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
@@ -92,6 +93,7 @@ OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sum);
 OP_CONVERTER(translate_to);
+OP_CONVERTER(translate_topk);
 OP_CONVERTER(translate_transpose);
 OP_CONVERTER(translate_tril);
 OP_CONVERTER(translate_triu);
@@ -110,6 +112,7 @@ OP_CONVERTER(translate_zeros_like);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
+        {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
@@ -213,6 +216,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::max_pool3d", op::translate_max_poolnd},
         {"aten::max", op::translate_max},
         {"aten::mean", op::translate_mean},
+        {"aten::meshgrid", op::translate_meshgrid},
         {"aten::min", op::translate_min},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
@@ -269,6 +273,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::tanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Tanh>>},
         {"aten::tensor", op::translate_as_tensor},
         {"aten::to", op::translate_to},
+        {"aten::topk", op::translate_topk},
         {"aten::transpose", op::translate_transpose},
         {"aten::tril", op::translate_tril},
         {"aten::triu", op::translate_triu},
