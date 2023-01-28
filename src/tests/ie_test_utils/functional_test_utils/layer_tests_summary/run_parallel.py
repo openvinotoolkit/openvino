@@ -1,13 +1,14 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from utils import utils
+from utils.conformance_utils import get_logger, progressbar
+from utils import constants
+from utils import file_utils
 from argparse import ArgumentParser
 from subprocess import Popen, STDOUT, TimeoutExpired
 from hashlib import sha256
 from pathlib import Path
-from shutil import rmtree, copyfile
-from zipfile import ZipFile, is_zipfile
+from shutil import rmtree
 
 import os
 import sys
@@ -15,7 +16,6 @@ import threading
 import platform
 import csv
 import datetime
-import tarfile
 
 if sys.version_info.major >= 3:
     import _thread as thread
@@ -26,18 +26,8 @@ FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
 DEFAULT_PROCESS_TIMEOUT = 3600
 MAX_LENGHT = 4096 if platform.system() != "Windows" else 8191
-TEST_STATUS = {
-    'passed': ["[       OK ]"],
-    'failed': ["[  FAILED  ]"],
-    'hanged': ["Test finished by timeout"],
-    'crashed': ["Unexpected application crash with code", "Segmentation fault", "Crash happens", "core dumped"],
-    'skipped': ["[  SKIPPED ]"],
-    'interapted': ["interapted", "Killed"]}
-RUN = "[ RUN      ]"
-GTEST_FILTER = "Google Test filter = "
-DISABLED_PREFIX = "DISABLED_"
 
-logger = utils.get_logger('test_parallel_runner')
+logger = get_logger('test_parallel_runner')
 
 def parse_arguments():
     parser = ArgumentParser()
@@ -160,31 +150,11 @@ class TestParallelRunner:
         self._cache_path = os.path.join(cache_path)
         head, _ = os.path.split(self._cache_path)
         if not os.path.exists(head):
+            pass
             os.mkdir(head)
         self._is_save_cache = True
         self._disabled_tests = list()
         self._total_test_cnt = 0
-
-    def __unzip_archieve(self, zip_path: os.path):
-        _, tail = os.path.split(zip_path)
-        dst_path = os.path.join(self._working_dir, tail)
-        copyfile(zip_path, dst_path)
-        logger.info(f"Archieve {zip_path} was copied to {dst_path}")
-        dst_dir, _ = os.path.splitext(dst_path)
-        if tarfile.is_tarfile(zip_path):
-            file = tarfile.open(dst_path)
-            file.extractall(dst_dir)
-            file.close()
-        elif is_zipfile(zip_path):
-            with ZipFile(dst_path, 'r') as zObject:
-                zObject.extractall(path=dst_dir)
-        else:
-            logger.error(f"Impossible to extract {zip_path}")
-            sys.exit(-1)
-        logger.info(f"Archieve {dst_path} was extacted to {dst_dir}")
-        os.remove(dst_path)
-        logger.info(f"Archieve {dst_path} was removed")
-        return dst_dir
 
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
@@ -199,9 +169,9 @@ class TestParallelRunner:
                 buf = ""
                 for _ in argument.split(','):
                     input_path = argument.replace('"', '')
-                    if os.path.isfile(input_path) and (tarfile.is_tarfile(input_path) or is_zipfile(input_path)):
-                        input_path = self.__unzip_archieve(input_path)
-                    buf = utils.prepare_filelist(input_path, "*.xml", logger)
+                    if os.path.isfile(input_path) and file_utils.is_archieve(input_path):
+                        input_path = file_utils.unzip_archieve(input_path, self._working_dir)
+                    buf = file_utils.prepare_filelist(input_path, "*.xml")
                     buf += ","
                 argument = buf 
             else:
@@ -230,7 +200,7 @@ class TestParallelRunner:
                 pos = test_name.find('#')
                 if pos > 0:
                     real_test_name = test_suite + test_name[2:pos-2]
-                    if DISABLED_PREFIX in real_test_name:
+                    if constants.DISABLED_PREFIX in real_test_name:
                         self._disabled_tests.append(real_test_name)
                     else:
                         test_list.append(f'"{self.__replace_restricted_symbols(real_test_name)}":')
@@ -251,7 +221,7 @@ class TestParallelRunner:
                     pos = line.find(":")
                     time = line[:pos]
                     test_name = line[pos+1:]
-                    if not DISABLED_PREFIX in test_name:
+                    if not constants.DISABLED_PREFIX in test_name:
                         test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
         logger.info(f"Len test_list_cache: {len(test_list_cache)}")
         return test_list_cache
@@ -284,8 +254,10 @@ class TestParallelRunner:
         
         # Run crashed tests in a separed thread
         if idx < len(proved_test_list):
-            while proved_test_list[idx]._time == -1:
+            while proved_test_list[idx]._time == -1 :
                 proved_test_list.pop(idx)
+                if idx >= len(proved_test_list):
+                    break
 
         # prepare gtest filters per worker according command line length limitation
         while len(proved_test_list) > 0:
@@ -350,19 +322,6 @@ class TestParallelRunner:
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return final_test_list
 
-    @staticmethod
-    def progressbar(it_num, message="", progress_bar_size=60, out=sys.stdout):
-        max_len = len(it_num)
-        def show(sym_pos):
-            x = int(progress_bar_size * sym_pos / max_len)
-            print("{}[{}{}] {}/{}".format(message, "#"*x, "."*(progress_bar_size-x), sym_pos, max_len), 
-                    end='\r', file=out, flush=True)
-        show(0)
-        for i, item in enumerate(it_num):
-            yield item
-            show(i+1)
-        print("", flush=True, file=out)
-
     def run(self):
         if TaskManager.process_timeout == -1:
             TaskManager.process_timeout = DEFAULT_PROCESS_TIMEOUT
@@ -371,11 +330,9 @@ class TestParallelRunner:
         
         commands = [f'{self._command} --gtest_filter={filter}' for filter in self.__get_filters()]
         task_manager = TaskManager(commands, self._working_dir)
-        # from tqdm import tqdm
-        # for _ in tqdm(range(self._worker_num)):
-        for _ in self.progressbar(range(self._worker_num), "Worker initialization: ", 40):
+        for _ in progressbar(range(self._worker_num), "Worker initialization: ", 40):
             task_manager.init_worker()
-        for _ in self.progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
+        for _ in progressbar(range(len(commands) - self._worker_num), "Worker execution: ", 40):
             if not task_manager.update_worker():
                 break
         task_manager.compelete_all_processes()
@@ -409,7 +366,7 @@ class TestParallelRunner:
             logger.info(f"Logs directory {logs_dir} is cleaned up")
             rmtree(logs_dir)
         os.mkdir(logs_dir)
-        for test_st, _ in TEST_STATUS.items():
+        for test_st, _ in constants.TEST_STATUS.items():
             if not os.path.exists(os.path.join(logs_dir, test_st)):
                 os.mkdir(os.path.join(logs_dir, test_st))
         hash_map = dict()
@@ -422,13 +379,13 @@ class TestParallelRunner:
                 dir = None
                 test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
                 for line in log_file.readlines():
-                    if GTEST_FILTER in line:
-                        line = line[line.find(GTEST_FILTER):]
+                    if constants.GTEST_FILTER in line:
+                        line = line[line.find(constants.GTEST_FILTER):]
                         test_cnt_expected = line.count(':')
-                    if RUN in line:
-                        test_name = line[line.find(RUN) + len(RUN) + 1:-1:]
+                    if constants.RUN in line:
+                        test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
                     if dir is None:
-                        for test_st, mes_list in TEST_STATUS.items():
+                        for test_st, mes_list in constants.TEST_STATUS.items():
                             for mes in mes_list:
                                 if mes in line:
                                     dir = test_st

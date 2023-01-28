@@ -39,9 +39,3 @@ public:
     OPENVINO_RTTI("SimplifyCTCGreedyDecoderSeqLen", "0");
     SimplifyCTCGreedyDecoderSeqLen();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SimplifyCTCGreedyDecoderSeqLen;
-}  // namespace pass
-}  // namespace ngraph
