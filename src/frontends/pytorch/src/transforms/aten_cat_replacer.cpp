@@ -8,6 +8,8 @@
 #include <utility>
 
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -36,7 +38,7 @@ AtenCatToConcat::AtenCatToConcat() {
             return false;
 
         auto axis_node = cat->input(1).get_source_output().get_node_shared_ptr();
-        auto axis_const = std::dynamic_pointer_cast<opset10::Constant>(axis_node);
+        auto axis_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(axis_node);
         if (!axis_const)
             return false;
         auto axis = axis_const->cast_vector<int64_t>();
@@ -60,7 +62,7 @@ AtenCatToConcat::AtenCatToConcat() {
             inputs.push_back(input.get_source_output());
         }
         inputs.insert(inputs.end(), tmp_inputs.rbegin(), tmp_inputs.rend());
-        auto result = std::make_shared<opset10::Concat>(inputs, axis[0]);
+        auto result = std::make_shared<ov::op::v0::Concat>(inputs, axis[0]);
         copy_runtime_info(rt_copy_from, result);
         replace_node(cat, result);
 
