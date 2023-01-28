@@ -36,10 +36,10 @@ using SetGetConfigParams = std::tuple<std::map<std::string, std::string>,  // Se
                                       std::string,                         // Get Config
                                       bool>;                               // Throw exception
 
-std::vector<std::string> cpu_supported_properties = {
+const std::vector<std::string> cpu_supported_properties = {
     "CACHE_DIR",
 };
-std::vector<std::string> gpu_supported_properties = {
+const std::vector<std::string> gpu_supported_properties = {
     "CACHE_DIR",
     "OPTIMAL_BATCH_SIZE",
 };

@@ -110,14 +110,14 @@ public:
 
         const auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
-            batchedInputs.insert(ngraph::op::util::get_ie_output_name(params[i]->output(0)));
+            batchedInputs.insert(ov::op::util::get_ie_output_name(params[i]->output(0)));
         }
         const auto& results = function->get_results();
         for (size_t i = 0; i < results.size(); i++) {
             const auto& output = results[i];
             const auto& node = output->input_value(0);
             batchedOutputs.insert(
-                ngraph::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+                ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
         }
 
         ON_CALL(*mockInferRequestBatched, GetBlob(StrEq(*batchedInputs.begin())))
@@ -249,14 +249,16 @@ public:
         workerRequestPtr->_inferRequestBatched->SetCallback([this](std::exception_ptr exceptionPtr) mutable {
             if (exceptionPtr)
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
+        });
+
+        ON_CALL(*mockInferRequestBatched, StartAsync()).WillByDefault([this]() {
             IE_ASSERT(workerRequestPtr->_completionTasks.size() == (size_t)workerRequestPtr->_batchSize);
-            // notify the individual requests on the completion
             for (int c = 0; c < workerRequestPtr->_batchSize; c++) {
                 workerRequestPtr->_completionTasks[c]();
             }
-            // reset the timeout
             workerRequestPtr->_cond.notify_one();
         });
+
         workerRequestPtr->_thread = std::thread([this] {
             while (1) {
                 std::cv_status status;
@@ -284,6 +286,7 @@ public:
                             t.first->_inferRequest->_wasBatchedRequestUsed =
                                 AutoBatchInferRequest::eExecutionFlavor::TIMEOUT_EXECUTED;
                             t.first->_inferRequestWithoutBatch->StartAsync();
+                            t.second();
                         }
                     }
                 }
@@ -315,17 +318,18 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
         autoBatchInferRequests.emplace_back(autoRequestImpl);
 
         InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
-        auto asyncInferRequest = std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl,
-                                                                              inferRequestWithoutBatched,
-                                                                              mockTaskExecutor);
+        auto asyncInferRequest =
+            std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
+        EXPECT_NE(asyncInferRequest, nullptr);
         autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
     }
 
-    // for (auto& req : autoBatchAsyncInferRequestVec)
-    //    req->StartAsync();
+    for (auto& req : autoBatchAsyncInferRequestVec) {
+        EXPECT_NO_THROW(req->StartAsync());
+    }
 
-    // for (auto& req : autoBatchAsyncInferRequestVec)
-    //    req->Wait(InferRequest::WaitMode::RESULT_READY);
+    for (auto& req : autoBatchAsyncInferRequestVec)
+        EXPECT_NO_THROW(req->Wait(InferRequest::WaitMode::RESULT_READY));
 }
 
 const std::vector<ngraph::element::Type_t> element_type{ngraph::element::Type_t::f16,
@@ -339,7 +343,7 @@ const std::vector<ngraph::element::Type_t> element_type{ngraph::element::Type_t:
                                                         ngraph::element::Type_t::u16,
                                                         ngraph::element::Type_t::u32,
                                                         ngraph::element::Type_t::u64};
-const std::vector<int> batch_size{8, 16, 32, 64, 128};
+const std::vector<int> batch_size{1, 8, 16, 32, 64, 128};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          AutoBatchRequestTest,
