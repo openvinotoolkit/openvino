@@ -33,8 +33,9 @@ using namespace MockAutoBatchPlugin;
 using namespace MockAutoBatchDevice;
 using namespace InferenceEngine;
 
-using AutoBatchRequestTestParams = std::tuple<int,                       // batch_size
-                                              ngraph::element::Type_t>;  // data type
+using AutoBatchRequestTestParams = std::tuple<int,                      // batch_size
+                                              ngraph::element::Type_t,  // data type
+                                              int>;                     // inference interval
 class AutoBatchRequestTest : public ::testing::TestWithParam<AutoBatchRequestTestParams> {
 public:
     // Mock inferRequest
@@ -49,13 +50,15 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
-        int batch_size;
+        int batch_size, infer_interval;
         ngraph::element::Type_t element_type;
-        std::tie(batch_size, element_type) = obj.param;
+        std::tie(batch_size, element_type, infer_interval) = obj.param;
 
         std::string res;
         res = "batch_size_" + std::to_string(batch_size);
         res += "_element_type_" + std::to_string(static_cast<int>(element_type));
+        if (infer_interval > 0)
+            res += "_infer_interval_" + std::to_string(infer_interval);
         return res;
     }
 
@@ -159,9 +162,9 @@ public:
 };
 
 TEST_P(AutoBatchRequestTest, AutoBatchRequestCreateTestCase) {
-    int batch_size;
+    int batch_size, infer_interval;
     ngraph::element::Type_t element_type;
-    std::tie(batch_size, element_type) = this->GetParam();
+    std::tie(batch_size, element_type, infer_interval) = this->GetParam();
 
     std::vector<size_t> inputShape = {1, 3, 24, 24};
     auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
@@ -192,9 +195,9 @@ TEST_P(AutoBatchRequestTest, AutoBatchRequestCreateTestCase) {
 }
 
 TEST_P(AutoBatchRequestTest, AutoBatchRequestCopyBlobTestCase) {
-    int batch_size;
+    int batch_size, infer_interval;
     ngraph::element::Type_t element_type;
-    std::tie(batch_size, element_type) = this->GetParam();
+    std::tie(batch_size, element_type, infer_interval) = this->GetParam();
 
     std::vector<size_t> inputShape = {1, 3, 24, 24};
     auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
@@ -264,7 +267,7 @@ public:
                 std::cv_status status;
                 {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(20));
+                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(10));
                 }
                 if (terminate) {
                     break;
@@ -297,9 +300,38 @@ public:
 };
 
 TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
-    int batch_size;
+    int batch_size, infer_interval;
     ngraph::element::Type_t element_type;
-    std::tie(batch_size, element_type) = this->GetParam();
+    std::tie(batch_size, element_type, infer_interval) = this->GetParam();
+
+    std::vector<size_t> inputShape = {1, 3, 24, 24};
+    auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
+    prepare_input(function, batch_size);
+    create_worker(batch_size);
+
+    for (int batch_id = 0; batch_id < batch_size; batch_id++) {
+        auto autoRequestImpl = std::make_shared<AutoBatchInferRequest>(inputs,
+                                                                       outputs,
+                                                                       *workerRequestPtr,
+                                                                       batch_id,
+                                                                       batch_size,
+                                                                       batchedInputs,
+                                                                       batchedOutputs);
+        EXPECT_NE(autoRequestImpl, nullptr);
+        autoBatchInferRequests.emplace_back(autoRequestImpl);
+
+        InferenceEngine::SoIInferRequestInternal inferRequestWithoutBatched = {mockInferRequestWithoutBatched, {}};
+        auto asyncInferRequest =
+            std::make_shared<AutoBatchAsyncInferRequest>(autoRequestImpl, inferRequestWithoutBatched, nullptr);
+        EXPECT_NE(asyncInferRequest, nullptr);
+        autoBatchAsyncInferRequestVec.emplace_back(asyncInferRequest);
+    }
+}
+
+TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestStartAsyncTest) {
+    int batch_size, infer_interval;
+    ngraph::element::Type_t element_type;
+    std::tie(batch_size, element_type, infer_interval) = this->GetParam();
 
     std::vector<size_t> inputShape = {1, 3, 24, 24};
     auto function = ngraph::builder::subgraph::makeMultiSingleConv(inputShape, element_type);
@@ -325,6 +357,8 @@ TEST_P(AutoBatchAsyncInferRequestTest, AutoBatchAsyncInferRequestCreateTest) {
     }
 
     for (auto& req : autoBatchAsyncInferRequestVec) {
+        if (infer_interval > 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(infer_interval));
         EXPECT_NO_THROW(req->StartAsync());
     }
 
@@ -344,13 +378,19 @@ const std::vector<ngraph::element::Type_t> element_type{ngraph::element::Type_t:
                                                         ngraph::element::Type_t::u32,
                                                         ngraph::element::Type_t::u64};
 const std::vector<int> batch_size{1, 8, 16, 32, 64, 128};
+const std::vector<int> infer_interval{0};
+const std::vector<int> infer_interval_timeout{0, 10};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          AutoBatchRequestTest,
-                         ::testing::Combine(::testing::ValuesIn(batch_size), ::testing::ValuesIn(element_type)),
+                         ::testing::Combine(::testing::ValuesIn(batch_size),
+                                            ::testing::ValuesIn(element_type),
+                                            ::testing::ValuesIn(infer_interval)),
                          AutoBatchRequestTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          AutoBatchAsyncInferRequestTest,
-                         ::testing::Combine(::testing::ValuesIn(batch_size), ::testing::ValuesIn(element_type)),
+                         ::testing::Combine(::testing::ValuesIn(batch_size),
+                                            ::testing::ValuesIn(element_type),
+                                            ::testing::ValuesIn(infer_interval_timeout)),
                          AutoBatchAsyncInferRequestTest::getTestCaseName);
