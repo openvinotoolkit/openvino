@@ -67,11 +67,11 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
         return _buffer;
     }
 
-    event::ptr copy_from(stream& /* stream */, const memory& /* other */, bool /* blocking */) override;
-    event::ptr copy_from(stream& /* stream */, const void* /* other */, bool /* blocking */) override;
+    event::ptr copy_from(stream& stream, const memory& other, bool blocking) override;
+    event::ptr copy_from(stream& stream, const void* other, bool blocking) override;
 
-    event::ptr copy_to(stream& /* stream */, memory& /* other */, bool /* blocking */) override;
-    event::ptr copy_to(stream& /* stream */, void* /* other */, bool /* blocking */) override;
+    event::ptr copy_to(stream& stream, memory& other, bool blocking) override;
+    event::ptr copy_to(stream& stream, void* other, bool blocking) override;
 
 protected:
     cl::Image2D _buffer;
