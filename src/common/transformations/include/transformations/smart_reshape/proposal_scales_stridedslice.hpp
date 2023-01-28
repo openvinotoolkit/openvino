@@ -45,10 +45,3 @@ public:
     OPENVINO_RTTI("Proposal4Scales", "0");
     Proposal4Scales();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::Proposal1Scales;
-using ov::pass::Proposal4Scales;
-}  // namespace pass
-}  // namespace ngraph

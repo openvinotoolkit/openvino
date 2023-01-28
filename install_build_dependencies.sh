@@ -61,6 +61,10 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         `# samples and tools` \
         libgflags-dev \
         zlib1g-dev
+    # TF lite frontend
+    if apt-cache search --names-only '^libflatbuffers-dev'| grep -q libflatbuffers-dev; then
+        apt-get install -y --no-install-recommends libflatbuffers-dev
+    fi
     # git-lfs is not available on debian9
     if apt-cache search --names-only '^git-lfs'| grep -q git-lfs; then
         apt-get install -y --no-install-recommends git-lfs
