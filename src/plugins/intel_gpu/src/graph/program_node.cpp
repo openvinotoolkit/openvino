@@ -954,10 +954,7 @@ void program_node::init_onednn_primitive_attributes() {
             auto get_fc_input_desc = [&](cldnn::layout in) {
                 const kernel_impl_params& impl_params = *get_kernel_impl_params();
                 auto prim = impl_params.typed_desc<fully_connected>();
-                auto input_layout = impl_params.get_input_layout(0);
-                auto input_pshape = input_layout.get_partial_shape();
-                size_t input_size = (prim->input_size > input_pshape.size()) ? input_pshape.size() : prim->input_size;
-                if (input_size == 3) {
+                if (prim->input_size == 3) {
                     cldnn::onednn::combine_bf_with_first_spatial_dim(in);
                 }
                 return onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::ab);
