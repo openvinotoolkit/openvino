@@ -8,6 +8,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -20,37 +21,9 @@
 #include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/core.hpp"
 
+using namespace std;
 using namespace testing;
 using namespace ngraph;
-
-TEST(TransformationTests, debug_DynamicShape_BatchToSpaceDecompositionByElements_CPU) {
-    // auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape{Dimension::dynamic(),6,10});
-    auto data = std::make_shared<opset3::Parameter>(element::f32, PartialShape::dynamic(3));
-    data->get_default_output().get_tensor().add_names({"data"});
-    auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{3}, std::vector<int64_t>{1, 2, 1});
-    auto crops_begin = std::make_shared<opset3::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 0, 0});
-    auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 0, 0});
-    auto batch_to_space = std::make_shared<opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
-
-    auto f = std::make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
-
-    // this commented part "removes" the error
-    // pass::Manager m;
-    // m.register_pass<ov::pass::ConvertBatchToSpace>();
-    // m.run_passes(f);
-
-    // f->reshape({{"data",PartialShape{2,6,10}}});
-
-    std::string deviceName = "CPU";
-    ov::Core core;
-    auto net = core.compile_model(f, deviceName);
-
-    auto req = net.create_infer_request();
-    float host_data[2 * 6 * 10];
-    auto tensor = ov::Tensor(element::f32, Shape{2, 6, 10}, host_data);
-    req.set_tensor(data, tensor);
-    req.infer();
-}
 
 TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
     {
@@ -252,3 +225,58 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
     }
 }
+
+using BatchToSpaceParams = tuple<Shape,            // data_shape
+                                 vector<int64_t>,  // block
+                                 vector<int64_t>,  // crops_begin
+                                 vector<int64_t>,  // crops_end
+                                 Shape             // expected_output_shape
+                                 >;
+
+using BatchToSpaceDecomposeParams = tuple<BatchToSpaceParams,
+                                          bool  // by_elements
+                                          >;
+
+class BatchToSpaceDecompositionWithParams : public testing::WithParamInterface<BatchToSpaceDecomposeParams>,
+                                            public TransformationTests {};
+
+TEST_P(BatchToSpaceDecompositionWithParams, DynamicInputs) {
+    using namespace ov::opset10;
+    using namespace ov::pass;
+
+    const auto& params = GetParam();
+    Shape data_shape, expected_output_shape;
+    vector<int64_t> block, crops_begin, crops_end;
+    bool by_elements;
+    tie(data_shape, block, crops_begin, crops_end, expected_output_shape) = get<0>(params);
+    by_elements = get<1>(params);
+
+    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic(data_shape.size()));
+    data->get_default_output().get_tensor().add_names({"data"});
+    const auto block_shape_p = make_shared<Constant>(element::i64, Shape{block.size()}, block);
+    const auto crops_begin_p = make_shared<Constant>(element::i64, Shape{crops_begin.size()}, crops_begin);
+    const auto crops_end_p = make_shared<Constant>(element::i64, Shape{crops_end.size()}, crops_end);
+    const auto batch_to_space = make_shared<BatchToSpace>(data, block_shape_p, crops_begin_p, crops_end_p);
+    const auto f = make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
+
+    Manager m;
+    m.register_pass<ConvertBatchToSpace>();
+    ASSERT_NO_THROW(m.run_passes(f));
+    ASSERT_EQ(count_ops_of_type<BatchToSpace>(f), 0);
+    EXPECT_TRUE(f->get_result()->get_input_partial_shape(0).is_dynamic());
+
+    f->reshape({{"data", PartialShape{data_shape}}});
+    ASSERT_EQ(f->get_result()->get_input_shape(0), expected_output_shape);
+}
+
+static vector<BatchToSpaceParams> batch_to_space_params = {
+    {{4, 3}, {1, 2}, {0, 0}, {0, 0}, {2, 6}},
+    {{2, 6, 7}, {1, 2, 1}, {0, 0, 0}, {0, 0, 0}, {1, 12, 7}},
+    {{6, 5, 7}, {1, 2, 3}, {0, 1, 2}, {0, 1, 2}, {1, 8, 17}},
+    {{30, 4, 1, 1}, {1, 5, 3, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {1, 20, 3, 2}},
+    {{96, 3, 5, 7, 1}, {1, 4, 3, 2, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {4, 12, 15, 14, 1}},
+};
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         BatchToSpaceDecompositionWithParams,
+                         ::testing::Combine(::testing::ValuesIn(batch_to_space_params), ::testing::ValuesIn({true, false})));
