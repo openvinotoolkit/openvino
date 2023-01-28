@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/lib_close.hpp"
+#include "lib_close.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
@@ -54,6 +54,8 @@ TEST_P(FrontendLibCloseTest, testPlaceIsLastDeletedObject) {
     EXPECT_EQ(place->get_names().at(0), exp_name);
 }
 
+#ifndef __EMSCRIPTEN__
+
 /** \brief Frontend library unload before object deletion, expecting segfault. */
 TEST_P(FrontendLibCloseTest, testUnloadLibBeforeDeletingDependentObject) {
     EXPECT_DEATH(
@@ -72,6 +74,8 @@ TEST_P(FrontendLibCloseTest, testUnloadLibBeforeDeletingDependentObject) {
         },
         ".*");
 }
+
+#endif  // __EMSCRIPTEN__
 
 /** \brief Delete place which is created from other place instance. */
 TEST_P(FrontendLibCloseTest, testPlaceFromPlaceIsLastDeletedObject) {

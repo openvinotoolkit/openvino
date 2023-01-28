@@ -51,6 +51,8 @@ static void release_order_test(std::vector<std::size_t> order, const std::string
     }
 }
 
+#ifndef __EMSCRIPTEN__
+
 TEST_P(OVHoldersTest, Orders) {
     std::vector<std::string> objects{ "core", "compiled_model", "request"};
     std::vector<std::size_t> order(objects.size());
@@ -63,6 +65,8 @@ TEST_P(OVHoldersTest, Orders) {
         EXPECT_NO_CRASH(release_order_test(order, target_device, function)) << "for order: " << order_str.str();
     } while (std::next_permutation(order.begin(), order.end()));
 }
+
+#endif // __EMSCRIPTEN__
 
 TEST_P(OVHoldersTest, LoadedState) {
     std::vector<ov::VariableState> states;
