@@ -697,6 +697,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             if (_lo.get_optimization_attributes().use_onednn_impls) {
+                if (input.is_type<reshape>() || input.is_type<concatenation>())
+                    return;
                 #ifdef ENABLE_ONEDNN_FOR_GPU
                 // Activation should not fused if it isn't supported in onednn
                 try {
