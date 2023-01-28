@@ -226,6 +226,38 @@ TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
     }
 }
 
+template <typename Op, typename Conversion, typename Params>
+void op_convertion_test(const Params& params) {
+    using namespace ov::opset10;
+    using namespace ov::pass;
+
+    Shape data_shape;
+    Shape expected_output_shape;
+    vector<int64_t> block;
+    vector<int64_t> input_2;  // crops_begin or pads_begin
+    vector<int64_t> input_3;  // crops_end or pads_end
+    bool by_elements;
+    tie(data_shape, block, input_2, input_3, expected_output_shape) = get<0>(params);
+    by_elements = get<1>(params);
+
+    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic(data_shape.size()));
+    data->get_default_output().get_tensor().add_names({"data"});
+    const auto block_p = make_shared<Constant>(element::i64, Shape{block.size()}, block);
+    const auto input_2_p = make_shared<Constant>(element::i64, Shape{input_2.size()}, input_2);
+    const auto input_3_p = make_shared<Constant>(element::i64, Shape{input_3.size()}, input_3);
+    const auto batch_to_space = make_shared<Op>(data, block_p, input_2_p, input_3_p);
+    const auto f = make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
+
+    Manager m;
+    m.register_pass<Conversion>();
+    ASSERT_NO_THROW(m.run_passes(f));
+    ASSERT_EQ(count_ops_of_type<Op>(f), 0);
+    EXPECT_TRUE(f->get_result()->get_input_partial_shape(0).is_dynamic());
+
+    f->reshape({{"data", PartialShape{data_shape}}});
+    ASSERT_EQ(f->get_result()->get_input_shape(0), expected_output_shape);
+}
+
 using BatchToSpaceParams = tuple<Shape,            // data_shape
                                  vector<int64_t>,  // block
                                  vector<int64_t>,  // crops_begin
@@ -241,32 +273,7 @@ class BatchToSpaceDecompositionWithParams : public testing::WithParamInterface<B
                                             public TransformationTests {};
 
 TEST_P(BatchToSpaceDecompositionWithParams, DynamicInputs) {
-    using namespace ov::opset10;
-    using namespace ov::pass;
-
-    const auto& params = GetParam();
-    Shape data_shape, expected_output_shape;
-    vector<int64_t> block, crops_begin, crops_end;
-    bool by_elements;
-    tie(data_shape, block, crops_begin, crops_end, expected_output_shape) = get<0>(params);
-    by_elements = get<1>(params);
-
-    const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic(data_shape.size()));
-    data->get_default_output().get_tensor().add_names({"data"});
-    const auto block_shape_p = make_shared<Constant>(element::i64, Shape{block.size()}, block);
-    const auto crops_begin_p = make_shared<Constant>(element::i64, Shape{crops_begin.size()}, crops_begin);
-    const auto crops_end_p = make_shared<Constant>(element::i64, Shape{crops_end.size()}, crops_end);
-    const auto batch_to_space = make_shared<BatchToSpace>(data, block_shape_p, crops_begin_p, crops_end_p);
-    const auto f = make_shared<Function>(NodeVector{batch_to_space}, ParameterVector{data});
-
-    Manager m;
-    m.register_pass<ConvertBatchToSpace>();
-    ASSERT_NO_THROW(m.run_passes(f));
-    ASSERT_EQ(count_ops_of_type<BatchToSpace>(f), 0);
-    EXPECT_TRUE(f->get_result()->get_input_partial_shape(0).is_dynamic());
-
-    f->reshape({{"data", PartialShape{data_shape}}});
-    ASSERT_EQ(f->get_result()->get_input_shape(0), expected_output_shape);
+    op_convertion_test<ov::opset10::BatchToSpace, ov::pass::ConvertBatchToSpace>(GetParam());
 }
 
 static vector<BatchToSpaceParams> batch_to_space_params = {
@@ -279,4 +286,36 @@ static vector<BatchToSpaceParams> batch_to_space_params = {
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          BatchToSpaceDecompositionWithParams,
-                         ::testing::Combine(::testing::ValuesIn(batch_to_space_params), ::testing::ValuesIn({true, false})));
+                         ::testing::Combine(::testing::ValuesIn(batch_to_space_params),
+                                            ::testing::ValuesIn({true, false})));
+
+using SpaceToBatchParams = tuple<Shape,            // data_shape
+                                 vector<int64_t>,  // block
+                                 vector<int64_t>,  // pads_begin
+                                 vector<int64_t>,  // pads_end
+                                 Shape             // expected_output_shape
+                                 >;
+
+using SpaceToBatchDecomposeParams = tuple<SpaceToBatchParams,
+                                          bool  // by_elements
+                                          >;
+
+class SpaceToBatchDecompositionWithParams : public testing::WithParamInterface<SpaceToBatchDecomposeParams>,
+                                            public TransformationTests {};
+
+TEST_P(SpaceToBatchDecompositionWithParams, DynamicInputs) {
+    op_convertion_test<ov::opset10::SpaceToBatch, ov::pass::ConvertSpaceToBatch>(GetParam());
+}
+
+static vector<SpaceToBatchParams> space_to_batch_params = {
+    {{2, 6}, {1, 2}, {0, 0}, {0, 0}, {4, 3}},
+    {{1, 12, 7}, {1, 2, 1}, {0, 0, 0}, {0, 0, 0}, {2, 6, 7}},
+    {{1, 8, 17}, {1, 2, 3}, {0, 1, 2}, {0, 1, 2}, {6, 5, 7}},
+    {{1, 20, 3, 2}, {1, 5, 3, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {30, 4, 1, 1}},
+    {{4, 12, 15, 14, 1}, {1, 4, 3, 2, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {96, 3, 5, 7, 1}},
+};
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         SpaceToBatchDecompositionWithParams,
+                         ::testing::Combine(::testing::ValuesIn(space_to_batch_params),
+                                            ::testing::ValuesIn({true, false})));
