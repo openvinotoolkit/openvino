@@ -5,14 +5,14 @@
 #pragma once
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 
 namespace op {
 namespace util {
 class FrameworkNode;
-}
+}  // namespace util
 }  // namespace op
 
 namespace frontend {
@@ -25,7 +25,7 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 size_t bias_input_idx,
                                 const std::vector<int>& unsqueeze_dims = {});
 
-Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
+Output<ov::Node> reshape_conv_bias(const NodeContext& context, Output<ov::Node> bias, Output<ngraph::Node> conv);
 
 std::shared_ptr<ov::Node> get_rank_node(const Output<Node>& node);
 
@@ -34,9 +34,9 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
                                       const Output<Node>& kernel,
                                       int64_t groups);
 
-std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id);
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id);
 
-std::shared_ptr<Node> numel(NodeContext& context, size_t input_id);
+std::shared_ptr<Node> numel(const NodeContext& context, size_t input_id);
 
 element::Type convert_dtype(int64_t dtype_value);
 ov::op::PadType convert_pad(const std::string& pt_pad);
@@ -86,14 +86,14 @@ OutputVector translate_1to1_match_2_inputs(NodeContext& context) {
 }
 
 inline OutputVector return_false_scalar(NodeContext& context) {
-    return {context.mark_node(opset10::Constant::create(element::boolean, Shape{}, {false}))};
+    return {context.mark_node(ov::op::v0::Constant::create(element::boolean, Shape{}, {false}))};
 }
 
 inline OutputVector skip_node(NodeContext& context) {
     return {context.get_input(0).get_node_shared_ptr()};
 }
-}  // namespace op
 
+}  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

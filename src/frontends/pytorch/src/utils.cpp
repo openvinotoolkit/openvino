@@ -6,6 +6,7 @@
 
 #include "op_table.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 
@@ -43,7 +44,7 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
     }
 }
 
-Output<ov::Node> reshape_conv_bias(NodeContext& context, Output<ov::Node> bias, Output<ov::Node> conv) {
+Output<ov::Node> reshape_conv_bias(const NodeContext& context, Output<ov::Node> bias, Output<ov::Node> conv) {
     auto conv_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(conv));
     auto conv_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(conv_shape));
     auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
@@ -109,7 +110,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context,
     return make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
 }
 
-std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
+std::shared_ptr<Node> get_axes_range(const NodeContext& context, size_t input_id) {
     auto x = context.get_input(input_id);
     auto start = std::make_shared<opset10::Constant>(element::i32, Shape{}, 0);
     auto step = std::make_shared<opset10::Constant>(element::i32, Shape{}, 1);
@@ -119,7 +120,7 @@ std::shared_ptr<Node> get_axes_range(NodeContext& context, size_t input_id) {
     return context.mark_node(std::make_shared<opset10::Range>(start, reduced_rank, step, element::i32));
 };
 
-std::shared_ptr<Node> numel(NodeContext& context, size_t input_id) {
+std::shared_ptr<Node> numel(const NodeContext& context, size_t input_id) {
     auto x = context.get_input(input_id);
     auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x));
     auto axes = context.mark_node(opset10::Constant::create(element::i64, Shape({1}), {0}));
