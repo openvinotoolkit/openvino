@@ -24,23 +24,22 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-using namespace ov::opset10;
-
-OutputVector translate_instance_norm_inference(NodeContext& context,
+namespace {
+OutputVector translate_instance_norm_inference(const NodeContext& context,
                                                const Output<Node>& input,
                                                const Output<Node>& reduction_axes,
                                                float eps) {
-    auto norm =
-        context.mark_node(std::make_shared<MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
+    auto norm = context.mark_node(
+        std::make_shared<ov::op::v6::MVN>(input, reduction_axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT));
     if (!context.input_is_none(1)) {
         auto weight = context.get_input(1);
-        weight = reshape_conv_bias(context, weight, norm);
-        norm = context.mark_node(std::make_shared<Multiply>(norm, weight));
+        weight = reshape_chanelwise(context, weight, norm);
+        norm = context.mark_node(std::make_shared<ov::op::v1::Multiply>(norm, weight));
     }
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
-        bias = reshape_conv_bias(context, bias, norm);
-        norm = context.mark_node(std::make_shared<Add>(norm, bias));
+        bias = reshape_chanelwise(context, bias, norm);
+        norm = context.mark_node(std::make_shared<ov::op::v1::Add>(norm, bias));
     }
     return {norm};
 }
@@ -49,53 +48,55 @@ OutputVector translate_instance_norm_train(NodeContext& context,
                                            const Output<Node>& input,
                                            const Output<Node>& reduction_axes,
                                            float eps) {
-    auto zero = context.mark_node(Constant::create(element::i64, Shape{}, {0}));
-    auto one = context.mark_node(Constant::create(element::i64, Shape{}, {1}));
-    auto input_shape = context.mark_node(std::make_shared<ShapeOf>(input));
-    auto batch_dim = context.mark_node(std::make_shared<Gather>(input_shape, zero, zero));
-    auto channel_dim = context.mark_node(std::make_shared<Gather>(input_shape, one, zero));
-    auto batch_dim_1d = context.mark_node(std::make_shared<Unsqueeze>(batch_dim, zero));
-    auto batch_norm_channels_1d = context.mark_node(std::make_shared<Multiply>(batch_dim_1d, channel_dim));
+    auto zero = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {0}));
+    auto one = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {1}));
+    auto input_shape = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input));
+    auto batch_dim = context.mark_node(std::make_shared<ov::op::v8::Gather>(input_shape, zero, zero));
+    auto channel_dim = context.mark_node(std::make_shared<ov::op::v8::Gather>(input_shape, one, zero));
+    auto batch_dim_1d = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(batch_dim, zero));
+    auto batch_norm_channels_1d = context.mark_node(std::make_shared<ov::op::v1::Multiply>(batch_dim_1d, channel_dim));
     auto one_1d = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{1}, {1}));
-    auto tail_shape = context.mark_node(std::make_shared<Gather>(input_shape, reduction_axes, zero));
+    auto tail_shape = context.mark_node(std::make_shared<ov::op::v8::Gather>(input_shape, reduction_axes, zero));
     auto reshape_shape = context.mark_node(
         std::make_shared<ov::op::v0::Concat>(OutputVector{one_1d, batch_norm_channels_1d, tail_shape}, 0));
-    auto reshaped_input = context.mark_node(std::make_shared<Reshape>(input, reshape_shape, false));
+    auto reshaped_input = context.mark_node(std::make_shared<ov::op::v1::Reshape>(input, reshape_shape, false));
     Output<Node> weight;
     Output<Node> bias;
     if (context.input_is_none(1)) {
-        weight = context.mark_node(std::make_shared<Broadcast>(one, batch_norm_channels_1d));
-        weight = context.mark_node(std::make_shared<ConvertLike>(weight, input));
+        weight = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(one, batch_norm_channels_1d));
+        weight = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(weight, input));
     } else {
         weight = context.get_input(1);
-        weight = context.mark_node(std::make_shared<Tile>(weight, batch_dim_1d));
+        weight = context.mark_node(std::make_shared<ov::op::v0::Tile>(weight, batch_dim_1d));
     }
     if (context.input_is_none(2)) {
-        bias = context.mark_node(std::make_shared<Broadcast>(zero, batch_norm_channels_1d));
-        bias = context.mark_node(std::make_shared<ConvertLike>(bias, input));
+        bias = context.mark_node(std::make_shared<ov::op::v3::Broadcast>(zero, batch_norm_channels_1d));
+        bias = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(bias, input));
     } else {
         bias = context.get_input(2);
-        bias = context.mark_node(std::make_shared<Tile>(bias, batch_dim_1d));
+        bias = context.mark_node(std::make_shared<ov::op::v0::Tile>(bias, batch_dim_1d));
     }
     auto running_mean = context.get_input(3);
-    running_mean = context.mark_node(std::make_shared<Tile>(running_mean, batch_dim_1d));
+    running_mean = context.mark_node(std::make_shared<ov::op::v0::Tile>(running_mean, batch_dim_1d));
     auto running_var = context.get_input(4);
-    running_var = context.mark_node(std::make_shared<Tile>(running_var, batch_dim_1d));
+    running_var = context.mark_node(std::make_shared<ov::op::v0::Tile>(running_var, batch_dim_1d));
     auto batch_norm = context.mark_node(
         std::make_shared<ov::op::v5::BatchNormInference>(reshaped_input, weight, bias, running_mean, running_var, eps));
-    return {context.mark_node(std::make_shared<Reshape>(batch_norm, input_shape, true))};
+    return {context.mark_node(std::make_shared<ov::op::v1::Reshape>(batch_norm, input_shape, true))};
 }
+
+}  // namespace
 
 OutputVector translate_instance_norm(NodeContext& context) {
     num_inputs_check(context, 8, 9);
     auto input = context.get_input(0);
     auto eps = context.const_input<float>(7);
-    auto input_shape = context.mark_node(std::make_shared<ShapeOf>(input));
-    auto rank_1d = context.mark_node(std::make_shared<ShapeOf>(input_shape));
-    auto rank = context.mark_node(std::make_shared<Squeeze>(rank_1d));
-    auto one = context.mark_node(Constant::create(element::i64, Shape{}, {1}));
-    auto two = context.mark_node(Constant::create(element::i64, Shape{}, {2}));
-    auto reduction_axes = context.mark_node(std::make_shared<Range>(two, rank, one, element::i64));
+    auto input_shape = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input));
+    auto rank_1d = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input_shape));
+    auto rank = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(rank_1d));
+    auto one = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {1}));
+    auto two = context.mark_node(ov::op::v0::Constant::create(element::i64, Shape{}, {2}));
+    auto reduction_axes = context.mark_node(std::make_shared<ov::op::v4::Range>(two, rank, one, element::i64));
     if (context.input_is_none(3) && context.input_is_none(4)) {
         return translate_instance_norm_inference(context, input, reduction_axes, eps);
     }
