@@ -1681,15 +1681,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.set_preferred_input_fmt(0, get_preferred_format(node.get_dependency(0)));
 
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
-        for (auto u : node.get_users()) {
-            for (auto dep_idx : u->get_shape_infer_dependencies()) {
-                if (u->get_dependencies().size() <= dep_idx)
-                    continue;
-                if (u->get_dependency(dep_idx).get_unique_id() == node.get_unique_id()) {
-                    expected = format::get_default_format(output_layout.get_rank(), false, false);
-                    return expected;
-                }
-            }
+        if (node.is_shape_infer_dep()) {
+            expected = format::get_default_format(output_layout.get_rank(), false, false);
+            return expected;
         }
     }
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {

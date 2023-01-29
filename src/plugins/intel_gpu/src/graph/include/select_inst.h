@@ -18,6 +18,7 @@ public:
 
     program_node& input(size_t idx = 0) const { return get_dependency(idx); }
     size_t inputs_count() const { return get_dependencies().size(); }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using select_node = typed_program_node<select>;
