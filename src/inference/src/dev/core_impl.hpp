@@ -105,22 +105,22 @@ private:
 
         // Check whether this global config is supported by plugin, and the coresponding propertie will be removed
         // from plugin in the furture. It is a whitelist to check.
-        bool plugin_config_is_supported(const ov::InferencePlugin& plugin, const std::string& config_name) const;
+        bool plugin_config_is_supported(const ov::Plugin& plugin, const std::string& config_name) const;
 
         // Intercept global config that will be set to plugin by calling plugin.set_property().
         // Put it into global config map if this plugin supported
-        void intercept_config(ov::InferencePlugin& plugin, ov::AnyMap& config, bool enable = true);
+        void intercept_config(ov::Plugin& plugin, ov::AnyMap& config, bool enable = true);
 
         // Clean up global config for input config.
-        void cleanup_config(ov::InferencePlugin& plugin, ov::AnyMap& config) const;
-        void process_cache_dir(ov::InferencePlugin& plugin, ov::AnyMap& config) const;
+        void cleanup_config(ov::Plugin& plugin, ov::AnyMap& config) const;
+        void process_cache_dir(ov::Plugin& plugin, ov::AnyMap& config) const;
 
         // Update input config with the help of core_plugins_properties:
         //  1. Remove the global properties that this plugin doesn't support
         //  2. Don't overwritten global properties if they have been in config
         //  3. Add whitelist global properties into config if it doesn't have.
         template <typename T>
-        void update_config(ov::InferencePlugin& plugin, std::map<std::string, T>& config) const;
+        void update_config(ov::Plugin& plugin, std::map<std::string, T>& config) const;
 
         ov::Any get_core_config(const std::string& name) const;
         ov::Any get_device_cache_dir(const std::string& device_name) const;

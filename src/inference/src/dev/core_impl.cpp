@@ -307,7 +307,6 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     apply_auto_batching(model, deviceName, config_with_batch);
-    clean_properties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
     bool forceDisableCache = config_with_batch.count(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE)) > 0;
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
@@ -1010,7 +1009,6 @@ void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& exte
     extensions.emplace_back(extension);
 }
 
-<<<<<<< HEAD
 void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config) {
     for (auto it = config.begin(); it != config.end();) {
         {
@@ -1034,9 +1032,9 @@ void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config) {
         // Some special processing if needed, which is case by case
         if (it->first == ov::cache_dir.name()) {
             std::lock_guard<std::mutex> lock(_cacheConfigMutex);
-            fillConfig(_cacheConfig, it->second.as<std::string>());
+            fill_config(_cacheConfig, it->second.as<std::string>());
             for (auto& deviceCfg : _cacheConfigPerDevice) {
-                fillConfig(deviceCfg.second, it->second.as<std::string>());
+                fill_config(deviceCfg.second, it->second.as<std::string>());
             }
         } else if (it->first == ov::force_tbb_terminate.name()) {
             auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
@@ -1053,7 +1051,7 @@ bool ov::CoreImpl::CoreConfig::is_core_config(const std::string& config_name) co
     return ret;
 }
 
-bool ov::CoreImpl::CoreConfig::plugin_config_is_supported(const ov::InferencePlugin& plugin,
+bool ov::CoreImpl::CoreConfig::plugin_config_is_supported(const ov::Plugin& plugin,
                                                           const std::string& config_name) const {
     std::string device_name = plugin.get_name();
     auto supported = false;
@@ -1078,7 +1076,7 @@ bool ov::CoreImpl::CoreConfig::plugin_config_is_supported(const ov::InferencePlu
     return supported;
 }
 
-void ov::CoreImpl::CoreConfig::intercept_config(ov::InferencePlugin& plugin, ov::AnyMap& config, bool enable) {
+void ov::CoreImpl::CoreConfig::intercept_config(ov::Plugin& plugin, ov::AnyMap& config, bool enable) {
     std::lock_guard<std::mutex> lock(_core_property_mutex);
     for (auto& it : _core_plugins_properties) {
         auto item = config.find(it.first);
@@ -1089,7 +1087,7 @@ void ov::CoreImpl::CoreConfig::intercept_config(ov::InferencePlugin& plugin, ov:
                 _core_plugins_properties[it.first] = item->second;
                 if (it.first == ov::cache_dir.name()) {
                     std::string device_name = plugin.get_name();
-                    setCacheForDevice(item->second, device_name);
+                    set_cache_dir_for_device(item->second, device_name);
                 }
                 // Keep false until cache_dir is not supported by plugin.set_property().
                 if (enable)
@@ -1102,7 +1100,7 @@ void ov::CoreImpl::CoreConfig::intercept_config(ov::InferencePlugin& plugin, ov:
     process_cache_dir(plugin, config);
 }
 
-void ov::CoreImpl::CoreConfig::cleanup_config(ov::InferencePlugin& plugin, ov::AnyMap& config) const {
+void ov::CoreImpl::CoreConfig::cleanup_config(ov::Plugin& plugin, ov::AnyMap& config) const {
     std::lock_guard<std::mutex> lock(_core_property_mutex);
     for (auto& it : _core_plugins_properties) {
         auto item = config.find(it.first);
@@ -1115,10 +1113,10 @@ void ov::CoreImpl::CoreConfig::cleanup_config(ov::InferencePlugin& plugin, ov::A
     process_cache_dir(plugin, config);
 }
 
-void ov::CoreImpl::CoreConfig::process_cache_dir(ov::InferencePlugin& plugin, ov::AnyMap& config) const {
+void ov::CoreImpl::CoreConfig::process_cache_dir(ov::Plugin& plugin, ov::AnyMap& config) const {
     if (plugin_config_is_supported(plugin, ov::cache_dir.name())) {
         std::string device_name = plugin.get_name();
-        auto cacheConfig = getCacheConfigForDevice(device_name);
+        auto cacheConfig = get_cache_config_for_device(device_name);
         if (cacheConfig._cacheManager) {
             config[ov::cache_dir.name()] = cacheConfig._cacheDir;
         }
@@ -1128,7 +1126,7 @@ void ov::CoreImpl::CoreConfig::process_cache_dir(ov::InferencePlugin& plugin, ov
 }
 
 template <typename T>
-void ov::CoreImpl::CoreConfig::update_config(ov::InferencePlugin& plugin, std::map<std::string, T>& config) const {
+void ov::CoreImpl::CoreConfig::update_config(ov::Plugin& plugin, std::map<std::string, T>& config) const {
     std::lock_guard<std::mutex> lock(_core_property_mutex);
     std::string device_name = plugin.get_name();
     for (auto& it : _core_plugins_properties) {
@@ -1150,7 +1148,7 @@ void ov::CoreImpl::CoreConfig::update_config(ov::InferencePlugin& plugin, std::m
         if (plugin_config_is_supported(plugin, it.first)) {
             config[it.first] = it.second.as<std::string>();
             if (it.first == ov::cache_dir.name()) {
-                auto cacheConfig = getCacheConfigForDevice(device_name);
+                auto cacheConfig = get_cache_config_for_device(device_name);
                 if (cacheConfig._cacheManager)
                     config[it.first] = cacheConfig._cacheDir;
             }
@@ -1175,7 +1173,7 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& name) const
 }
 
 ov::Any ov::CoreImpl::CoreConfig::get_device_cache_dir(const std::string& device_name) const {
-    auto cache_config = getCacheConfigForDevice(device_name);
+    auto cache_config = get_cache_config_for_device(device_name);
     return cache_config._cacheDir;
 }
 
