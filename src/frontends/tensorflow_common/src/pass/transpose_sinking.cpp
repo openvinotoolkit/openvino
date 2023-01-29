@@ -289,7 +289,7 @@ static bool sink_binary(const shared_ptr<Node>& binary,
 
     if ((left_order.size() == right_order.size() && left_order == right_order) || (!left_mismatch && !right_mismatch)) {
         // Propagate the reshape which matches the shape of the binary node
-        auto new_transpose = (binary->get_output_shape(0) == left.get_shape()) ? left_t : right_t;
+        auto new_transpose = (binary->get_output_shape(0).size() == left.get_shape().size()) ? left_t : right_t;
         OPENVINO_DEBUG << "Propagating " << describe<Transpose>(new_transpose) << " for " << binary->get_name();
         write_transposemap(reorders, binary, new_transpose);
         // at this point, both transposes will be eventually removed

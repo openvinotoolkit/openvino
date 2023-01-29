@@ -619,3 +619,26 @@ TEST(TransposeSinkingTest, AlexnetPattern) {
     ASSERT_TRUE(new_transpose);
     ASSERT_EQ(new_transpose->get_output_shape(0), (ngraph::Shape{1, 55, 55, 96}));
 }
+
+Output<Node> make_transpose(const Output<Node>& input, const vector<int64_t>& order) {
+    return std::make_shared<opset8::Transpose>(
+            input, opset8::Constant::create(element::i64, {order.size()}, order));
+}
+
+TEST(TransposeSinkingTest, BinarySubTrickyShapes) {
+    auto a = make_shared<Parameter>(ngraph::element::i32, ngraph::Shape{1, 17});
+    auto a_t = make_transpose(a, {0, 1});
+    auto b = make_shared<Parameter>(ngraph::element::i32, ngraph::Shape{48, 48, 17});
+    auto b_t = make_transpose(b, {0, 1, 2});
+    auto binary = make_shared<Subtract>(a, b);
+
+    auto res = make_shared<Result>(binary);
+    auto func = make_shared<ngraph::Function>(ngraph::OutputVector{res}, ngraph::ParameterVector{a, b});
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<TransposeSinking>();
+    pass_manager.run_passes(func);
+
+    size_t transpose_cnt = count_ops_of_type<Transpose>(func);
+    EXPECT_EQ(transpose_cnt, 0);
+}
