@@ -27,8 +27,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"ABS", ov::frontend::tensorflow::op::translate_unary_op<opset8::Abs>},
         {"ADD", translate_binary_op_with_activation<opset10::Add, tflite::AddOptions>},
         {"ADD_N", ov::frontend::tensorflow::op::translate_add_n_op},
-        // ARG_MAX
-        // ARG_MIN
+        {"ARG_MAX", arg_max},
+        {"ARG_MIN", arg_min},
         // ASSIGN_VARIABLE
         // ATAN2
         {"AVERAGE_POOL_2D", avg_pool_2d},
@@ -87,7 +87,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // HASHTABLE_SIZE
         // IF
         // IMAG
-        // L2_NORMALIZATION
+        {"L2_NORMALIZATION", l2_normalization},
         // L2_POOL_2D
         {"LEAKY_RELU", leaky_relu},
         {"LESS", ov::frontend::tensorflow::op::translate_binary_op<opset8::Less>},
