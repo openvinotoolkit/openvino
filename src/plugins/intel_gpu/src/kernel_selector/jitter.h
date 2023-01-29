@@ -94,6 +94,7 @@ std::string toCodeString(size_t val);
 std::string toCodeString(uint8_t val);
 std::string toCodeString(int8_t val);
 std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded = false);
+std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output = false, size_t num_of_inputs = 0);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant

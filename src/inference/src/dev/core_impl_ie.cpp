@@ -138,37 +138,6 @@ InferenceEngine::QueryNetworkResult ov::CoreImpl::QueryNetwork(const InferenceEn
     }
     auto res = query_model(network.getFunction(), deviceName, any_copy(config));
     ret.supportedLayersMap = res;
-    const auto& func = network.getFunction();
-    auto specialized_function = func->clone();
-
-    std::string defDevice = ret.supportedLayersMap.begin()->second;
-    ngraph::pass::ConstantFolding().run_on_model(specialized_function);
-    std::unordered_set<std::string> opNames;
-
-    for (const auto& op : specialized_function->get_ops())
-        opNames.emplace(op->get_friendly_name());
-
-    for (const auto& op : func->get_ops()) {
-        if (opNames.find(op->get_friendly_name()) == opNames.end()) {
-            ret.supportedLayersMap[op->get_friendly_name()] = defDevice;
-        }
-    }
-
-    for (const auto& op : func->get_ops()) {
-        if (!ret.supportedLayersMap.count(op->get_friendly_name()) &&
-            std::dynamic_pointer_cast<ngraph::op::Constant>(op)) {
-            bool are_all_users_supported = true;
-            for (const auto& user : op->output(0).get_target_inputs()) {
-                if (!ret.supportedLayersMap.count(user.get_node()->get_friendly_name())) {
-                    are_all_users_supported = false;
-                    break;
-                }
-            }
-            if (are_all_users_supported) {
-                ret.supportedLayersMap[op->get_friendly_name()] = defDevice;
-            }
-        }
-    }
 
     return ret;
 }
