@@ -63,6 +63,8 @@ ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::Tenso
 }
 
 ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape) {
+    if (!tf_shape)
+        return {};
     return ov::Shape{tf_shape->begin(), tf_shape->end()};
 }
 
