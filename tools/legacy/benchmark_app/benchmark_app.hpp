@@ -45,7 +45,7 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
                                                 "(including HETERO and MULTI cases).";
 
 /// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
+static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU or GPU devices "
                                                 "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just "
                                                 "<nstreams>). "
                                                 "Default value is determined automatically for a device.Please note that although the "

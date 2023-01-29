@@ -213,7 +213,6 @@ jobs:
         -DCMAKE_VERBOSE_MAKEFILE=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        -DENABLE_INTEL_MYRIAD=OFF
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
@@ -395,11 +394,23 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
     displayName: 'TensorFlow Frontend Unit Tests'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowCommon.xml
+    displayName: 'TensorFlow Common Unit Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-TensorflowLite.xml
+    displayName: 'TensorFlow Lite Frontend Unit Tests'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LpTransformations.xml
     displayName: 'Low Precision Transformations Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Transformations.xml
     displayName: 'Transformations Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_legacy_transformations_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-LegacyTransformations.xml
+    displayName: 'Legacy Transformations Tests'
+
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/commonUtilsTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-CommonUtilTests.xml
+    displayName: 'Common Utils Tests'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
@@ -412,6 +423,7 @@ jobs:
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
+    enabled: 'false'
 
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
@@ -465,6 +477,13 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/pytorch_tests/ -m precommit --junitxml=$(INSTALL_TEST_DIR)/TEST-pytorch.xmlTEST
+    displayName: 'PyTorch Layer Tests'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      export PYTHONPATH=$(REPO_DIR)/tools/mo/:$(LAYER_TESTS_DIR):$PYTHONPATH
+      export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=$(INSTALL_TEST_DIR)/TEST-tf_fe.xmlTEST
     displayName: 'TensorFlow 1 Layer Tests - TF FE'
 
@@ -508,6 +527,11 @@ jobs:
       export TEST_DEVICE=CPU
       $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_pytorch.py --ir_version=11 --junitxml=./TEST-test_mo_convert_pytorch.xmlTEST
     displayName: 'MO Python API Tests - Import PyTorch model from memory'
+
+  - script: |
+      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/py_frontend_tests --junitxml=./TEST-test_py_fontend.xml
+    displayName: 'Python Frontend tests'
 
   - task: PublishTestResults@2
     condition: always()

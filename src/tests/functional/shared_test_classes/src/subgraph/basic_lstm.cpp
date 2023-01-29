@@ -48,7 +48,7 @@ void Basic_LSTM_S::SetUp() {
     function = GetNetwork(size_params.first, size_params.second, num_cells, weights_range, netPrecision, &hidden_memory_init, &cell_memory_init);
     if (decompose) {
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<ov::pass::LSTMCellDecomposition>();
         manager.run_passes(function);
     }
 }
