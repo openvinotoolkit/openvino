@@ -105,8 +105,8 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# main openvino dependencies` \
         tbb-devel \
         pugixml-devel \
-        `# GPU plugin dependency`
-        libva-devel
+        `# GPU plugin dependency` \
+        libva-devel \
         `# python API` \
         python3-pip \
         python3-devel \
