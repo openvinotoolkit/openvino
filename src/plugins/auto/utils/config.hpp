@@ -20,7 +20,6 @@ struct PluginConfig {
                 _useProfiling(false),
                 _exclusiveAsyncRequests(false),
                 _disableAutoBatching(false),
-                _batchTimeout("1000"),
                 _devicePriority(""),
                 _modelPriority(1),
                 _deviceBindBuffer(false),
@@ -37,7 +36,6 @@ struct PluginConfig {
             res.push_back(ov::hint::allow_auto_batching.name());
             res.push_back(ov::log::level.name());
             res.push_back(ov::intel_auto::device_bind_buffer.name());
-            res.push_back(ov::auto_batch_timeout.name());
             return res;
         }();
         auto multi_supported_configKeys = supported_configKeys;
@@ -61,7 +59,6 @@ struct PluginConfig {
                                                        RW_property(ov::device::priorities.name()),
                                                        RW_property(ov::enable_profiling.name()),
                                                        RW_property(ov::hint::allow_auto_batching.name()),
-                                                       RW_property(ov::auto_batch_timeout.name()),
                                                        RW_property(ov::hint::performance_mode.name()),
                                                        RW_property(ov::hint::num_requests.name()),
                                                        RW_property(ov::intel_auto::device_bind_buffer.name()),
@@ -129,28 +126,24 @@ struct PluginConfig {
                         << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::allow_auto_batching) {
+                // core.set_property() will not support this property
+                if (!supportHWProprety) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                }
+                // LoadNetwork still need this property for auto_batch_size
                 if (kvp.second == PluginConfigParams::NO) {
                     _disableAutoBatching = true;
-                    // temp flag, to be removed when unify this key to ie core
-                    _isBatchConfigSet = true;
                 } else if (kvp.second == PluginConfigParams::YES) {
                     _disableAutoBatching = false;
-                    _isBatchConfigSet = true;
                 } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::auto_batch_timeout) {
-                try {
-                    auto batchTimeout = std::stoi(kvp.second);
-                    if (batchTimeout < 0) {
-                        IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
-                    }
-                    _batchTimeout = kvp.second;
-                } catch (...) {
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
+                // core.set_property() will not support this property
+                // LoadNetwork will ignore this property due to it will be handed in core level
+                if (!supportHWProprety) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::intel_auto::device_bind_buffer.name()) {
                 if (kvp.second == PluginConfigParams::YES) _deviceBindBuffer = true;
@@ -262,8 +255,6 @@ struct PluginConfig {
         else
             _keyConfigMap[ov::intel_auto::device_bind_buffer.name()] = PluginConfigParams::NO;
 
-        _keyConfigMap[ov::auto_batch_timeout.name()] = _batchTimeout;
-
         _keyConfigMap[ov::log::level.name()] = _logLevel;
 
         _keyConfigMap[ov::cache_dir.name()] = _cacheDir;
@@ -277,7 +268,6 @@ struct PluginConfig {
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
     bool _disableAutoBatching;
-    std::string _batchTimeout;
     std::string _devicePriority;
     int _modelPriority;
     bool _deviceBindBuffer;
@@ -286,7 +276,6 @@ struct PluginConfig {
     // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
     bool _isSetPerHint = false;
     bool _isSetCacheDir = false;
-    bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices = {"AUTO",

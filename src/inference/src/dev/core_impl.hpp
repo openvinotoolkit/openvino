@@ -228,8 +228,6 @@ private:
 
     bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
 
-    bool device_supports_cache_dir(const ov::Plugin& plugin) const;
-
     ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compile_model(ov::Plugin& plugin,
                                                                          const std::shared_ptr<const ov::Model>& model,
                                                                          const ov::RemoteContext& context,
@@ -272,8 +270,6 @@ public:
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
                              ov::AnyMap& config) const;
-
-    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) const;
 
     /**
      * @brief Get the reference to CoreConfig.
