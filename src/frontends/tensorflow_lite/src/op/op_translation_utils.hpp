@@ -89,7 +89,8 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
                               const std::map<std::string, ov::Any>& attrs,
                               ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
                               std::string new_op_type = "",
-                              bool empty_name = false);
+                              bool empty_name = false,
+                              ov::OutputVector inputs = {});
 
 template <typename OV_TYPE>
 OutputVector translate_reduce_op(const ov::frontend::tensorflow_lite::NodeContext& node) {

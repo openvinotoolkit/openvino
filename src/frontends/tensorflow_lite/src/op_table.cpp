@@ -173,7 +173,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"TILE", ov::frontend::tensorflow::op::translate_tile_op},
         {"TOPK_V2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_top_k_v2_op, "TopKV2")},
         {"TRANSPOSE", ov::frontend::tensorflow::op::translate_transpose_op},
-        // TRANSPOSE_CONV
+        {"TRANSPOSE_CONV", transpose_conv},
         // UNIDIRECTIONAL_SEQUENCE_LSTM
         // UNIDIRECTIONAL_SEQUENCE_RNN
         {"UNIQUE", unique},

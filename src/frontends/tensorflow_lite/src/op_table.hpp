@@ -54,6 +54,7 @@ OutputVector unpack(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector l2_normalization(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector arg_min(const ov::frontend::tensorflow_lite::NodeContext& node);
 OutputVector arg_max(const ov::frontend::tensorflow_lite::NodeContext& node);
+OutputVector transpose_conv(const ov::frontend::tensorflow_lite::NodeContext& node);
 
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);

@@ -125,7 +125,8 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
                               const std::map<std::string, ov::Any>& attrs,
                               ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
                               std::string new_op_type,
-                              bool empty_name) {
+                              bool empty_name,
+                              ov::OutputVector inputs) {
     const auto& original_decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
     FRONT_END_GENERAL_CHECK(original_decoder != nullptr,
                             "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
@@ -135,7 +136,8 @@ OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& 
         (new_op_type.empty() ? original_decoder->get_op_type() : new_op_type),
         empty_name);
 
-    OutputVector inputs = node.get_inputs();
+    if (inputs.size() == 0)
+        inputs = node.get_inputs();
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
     auto outputs = converter(context);
     del_output_names(outputs);
