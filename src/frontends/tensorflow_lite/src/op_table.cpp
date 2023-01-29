@@ -46,7 +46,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         // CALL_ONCE
         {"CAST", cast},
         {"CEIL", ov::frontend::tensorflow::op::translate_unary_op<opset8::Ceiling>},
-        // COMPLEX_ABS
+        {"COMPLEX_ABS", complex_abs},
         // CONCAT_EMBEDDINGS
         {"CONCATENATION", concatenation},
         {"CONV_2D", conv2d},
@@ -141,7 +141,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RESIZE_NEAREST_NEIGHBOR", resize_nearest_neightbor},
         {"REVERSE_SEQUENCE", reverse_sequence},
         {"REVERSE_V2", OP_CONVERT_TYPE_RENAME(ov::frontend::tensorflow::op::translate_reverse_v2_op, "ReverseV2")},
-        // RFFT2D
+        {"RFFT2D", rfft2d},
         // RNN
         {"ROUND", ov::frontend::tensorflow::op::translate_round_op},
         {"RSQRT", ov::frontend::tensorflow::op::translate_rsqrt_op},

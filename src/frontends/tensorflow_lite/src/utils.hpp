@@ -20,6 +20,8 @@ ov::PartialShape get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape);
 std::shared_ptr<QuantizationInfo> get_quantization(const tflite::QuantizationParameters* tf_quantization);
 void apply_quantization(ov::Output<ov::Node>& output);
 
+
+
 }  // namespace tensorflow_lite
 }  // namespace frontend
 }  // namespace ov

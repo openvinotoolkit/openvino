@@ -43,9 +43,9 @@ const std::map<tflite::TensorType, ov::element::Type>& TYPE_MAP() {
         {tflite::TensorType_UINT32, element::u32},
         {tflite::TensorType_UINT16, element::u16},
         {tflite::TensorType_INT4, element::i4},
+        {tflite::TensorType_COMPLEX64, element::dynamic},
         // TODO: support the following types
         //          {TensorType_STRING,         element::string},
-        //          {TensorType_COMPLEX64,      element::complex64},
         //          {TensorType_COMPLEX128,     element::complex128},
         //          {TensorType_RESOURCE,       element::resource},
         //          {TensorType_VARIANT,        element::variant},
@@ -56,9 +56,7 @@ const std::map<tflite::TensorType, ov::element::Type>& TYPE_MAP() {
 
 ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::TensorType& tf_type) {
     const auto& mapping = TYPE_MAP();
-    if (mapping.find(tf_type) == mapping.end()) {
-        FRONT_END_THROW("Unexpected type");
-    }
+    FRONT_END_GENERAL_CHECK(mapping.find(tf_type) != mapping.end(), "Unexpected type: ", tflite::EnumNameTensorType(tf_type));
     return mapping.at(tf_type);
 }
 
