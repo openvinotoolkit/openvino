@@ -196,6 +196,7 @@ class TestPadListPaddingings(PytorchLayerTest):
         (0, 0, "constant", -0.57)
     ])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_pad2d(self, pad_w, pad_h, mode, value, ie_device, precision, ir_version):
         self._test(*self.create_model(mode, value), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'ndim': 2, "pad_w": pad_w, "pad_h": pad_h})
