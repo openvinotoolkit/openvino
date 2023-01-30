@@ -222,12 +222,10 @@ bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& o
         return false;
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
-    if (!gmm_params.has_dynamic_tensors()) {
-        bool gemm_leftovers = gmm_params.inputs[0].X().v % 16 || gmm_params.inputs[0].Y().v % 16 ||
-                              gmm_params.inputs[1].X().v % 16 || gmm_params.inputs[1].Y().v % 16;
-        if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && gemm_leftovers)
-            return false;
-    }
+    bool gemm_leftovers = gmm_params.inputs[0].X().v % 16 || gmm_params.inputs[0].Y().v % 16 ||
+                          gmm_params.inputs[1].X().v % 16 || gmm_params.inputs[1].Y().v % 16;
+    if ((gmm_params.transpose_input0 || gmm_params.transpose_input1) && (gemm_leftovers || gmm_params.has_dynamic_inputs()))
+        return false;
 
     for (size_t i = 1; i < gmm_params.inputs.size(); i++)
         if (gmm_params.inputs[0].GetDType() != gmm_params.inputs[i].GetDType())

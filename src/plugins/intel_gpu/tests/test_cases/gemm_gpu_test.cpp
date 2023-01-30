@@ -347,7 +347,7 @@ TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
 
     auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
     auto in1_actual_layout = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
-    auto in2_layout = layout{ ov::PartialShape{ 1, 4 }, data_types::f32, format::bfyx };
+    auto in2_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::f32, format::bfyx };
     auto input1_1 = engine.allocate_memory(in1_actual_layout);
     auto input1_2 = engine.allocate_memory(in1_actual_layout);
     auto input2 = engine.allocate_memory(in2_layout);
@@ -379,7 +379,7 @@ TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
     topology topology;
     topology.add(input_layout("input1", in1_dyn_layout),
                  input_layout("input2", in2_layout),
-                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
     );
 
     ExecutionConfig config;
@@ -428,7 +428,7 @@ TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
     auto in1_dyn_layout = layout{ ov::PartialShape{ 1, 1, ov::Dimension(1, 10), 4 }, data_types::f32, format::bfyx };
     auto in1_actual_layout1 = layout{ ov::PartialShape{ 1, 1, 3, 4 }, data_types::f32, format::bfyx };
     auto in1_actual_layout2 = layout{ ov::PartialShape{ 1, 1, 4, 4 }, data_types::f32, format::bfyx };
-    auto in2_layout = layout{ ov::PartialShape{ 1, 4 }, data_types::f32, format::bfyx };
+    auto in2_layout = layout{ ov::PartialShape{ 4, 1 }, data_types::f32, format::bfyx };
     auto input1_1 = engine.allocate_memory(in1_actual_layout1);
     auto input1_2 = engine.allocate_memory(in1_actual_layout2);
     auto input2 = engine.allocate_memory(in2_layout);
@@ -461,7 +461,7 @@ TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
     topology topology;
     topology.add(input_layout("input1", in1_dyn_layout),
                  input_layout("input2", in2_layout),
-                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
+                 gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
     );
 
     ExecutionConfig config;
