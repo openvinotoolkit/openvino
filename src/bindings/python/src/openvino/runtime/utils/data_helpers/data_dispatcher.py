@@ -225,7 +225,11 @@ def _(
 ) -> None:
     # If shape is "empty", assume this is a scalar value
     if not inputs.shape:
-        set_request_tensor(request, value_to_tensor(inputs, is_shared=False), key)
+        set_request_tensor(
+            request,
+            value_to_tensor(inputs, request=request, is_shared=False),
+            key,
+        )
     else:
         tensor = get_request_tensor(request, key)
         # Update shape if there is a mismatch
