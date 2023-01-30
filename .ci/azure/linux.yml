@@ -107,7 +107,9 @@ jobs:
       echo $(Agent.ToolsDirectory)
       ls $(Agent.ToolsDirectory)
       which python3
-      
+      whereis python3
+      ls -la /usr/bin/python3
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
