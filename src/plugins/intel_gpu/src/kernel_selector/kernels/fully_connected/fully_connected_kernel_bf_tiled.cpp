@@ -51,6 +51,7 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -72,10 +73,10 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
     if (input.GetDType() == Datatype::F16) {
-        if (input.Batch().pitch % 2 != 0 && input.Batch().v > 1)
+        if (input.Batch().pitch % 2 != 0 && (input.Batch().v > 1 || fc_params.is_dynamic))
             return false;
         // for 3d case we have to check feature alignment as well
-        if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && input.Feature().v > 1)
+        if (output.GetLayout() == DataLayout::bfyx && input.Feature().pitch % 2 != 0 && (input.Feature().v > 1 || fc_params.is_dynamic))
             return false;
     }
 
@@ -141,7 +142,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         output_f = params.outputs[0].Y().v;
     }
 
-    if (output_b % (tparams.tile_b * tparams.dispatch_bsv) != 0)
+    auto batch_size = params.is_dynamic ? Align(output_b, tparams.tile_b) : output_b;
+    if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0)
         return false;
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
         return false;
@@ -191,43 +193,51 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     while (max_tile_ofm * 2 * simd <= output_f && max_tile_ofm < 4)
         max_tile_ofm *= 2;
 
-    if (dtype == Datatype::F16) {
-        // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
-        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 4,  2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 8,  1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 2,  2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 4,  1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
+    if (params.is_dynamic) {
+        if (dtype == Datatype::F16) {
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
+        } else if (dtype == Datatype::F32) {
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
+        }
+    } else {
+        if (dtype == Datatype::F16) {
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 16, 1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 4,  2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 8,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 2,  2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 4,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 2, 1,  1, EXE_MODE_AGE_BASED));
+        } else if (dtype == Datatype::F32) {
+            // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
+            selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 8,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 4,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 2,  1, EXE_MODE_AGE_BASED))
+                    .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
+        }
+
+        selector.Case([&](const fully_connected_params&) -> tune_params {
+            tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, EXE_MODE_DEFAULT);
+
+            while (batch % result.tile_b != 0)
+                result.tile_b--;
+
+            result.dispatch_bsv = 16;
+            while (batch % (result.tile_b * result.dispatch_bsv) != 0)
+                result.dispatch_bsv--;
+
+            if (result.tile_b >= 8)
+                result.exec_options = EXE_MODE_AGE_BASED;
+
+            return result;
+        });
     }
-
-    if (dtype == Datatype::F32) {
-        // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, dispatch_bsv, dispatch_fsv, exec_options)
-        selector.Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 8,  1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 4,  1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 2,  1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8,  std::min(max_tile_ofm, 2u), 1, 1, 1,  1, EXE_MODE_AGE_BASED));
-    }
-
-    selector.Case([&](const fully_connected_params&) -> tune_params {
-        tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, EXE_MODE_DEFAULT);
-
-        while (batch % result.tile_b != 0)
-            result.tile_b--;
-
-        result.dispatch_bsv = 16;
-        while (batch % (result.tile_b * result.dispatch_bsv) != 0)
-            result.dispatch_bsv--;
-
-        if (result.tile_b >= 8)
-            result.exec_options = EXE_MODE_AGE_BASED;
-
-        return result;
-    });
 
     return selector.Default(tune_params(1, 1, 1, 1, 1, 1, EXE_MODE_DEFAULT));
 }
@@ -238,11 +248,13 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     auto tparams = GetAutoTuneParams(params, autoTuneIndex);
 
     size_t feature_threads = CeilDiv(params.outputs[0].Feature().v, tparams.tile_ofm * simd);
-    size_t batch_threads = params.outputs[0].Batch().v / tparams.tile_b;
+    size_t batch_threads = params.outputs[0].Batch().v;
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         feature_threads = CeilDiv(params.outputs[0].Y().v, tparams.tile_ofm * simd);
-        batch_threads = (params.outputs[0].Batch().v * params.outputs[0].Feature().v) / tparams.tile_b;
+        batch_threads = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
     }
+
+    batch_threads = CeilDiv(batch_threads, tparams.tile_b);
 
     dispatchData.gws[0] = feature_threads * batch_threads * simd;
     dispatchData.gws[1] = 1;
@@ -308,11 +320,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
+        jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM * OUTPUT_FEATURE_NUM)"));
     } else {
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Feature().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Batch().pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
+        jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
 
     if (!params.fused_ops.empty()) {

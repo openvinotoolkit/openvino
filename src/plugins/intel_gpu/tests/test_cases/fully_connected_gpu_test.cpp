@@ -2059,3 +2059,175 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
         }
     }
 }
+
+namespace {
+    template <typename OutputT,
+              typename InputT,
+              typename WeightsT,
+              typename BiasT,
+              typename AccT = OutputT>
+    VF<OutputT> dynamic_fully_connected_reference_calc(ov::Dimension::value_type batch,
+                                                       ov::Dimension::value_type input_f,
+                                                       ov::Dimension::value_type output_f,
+                                                       VF<InputT>& input,
+                                                       VF<WeightsT>& weights,
+                                                       VF<BiasT>& bias) {
+        VF<OutputT> result(batch * output_f);
+        for (int b = 0; b < batch; b++) {
+            for (int ofm = 0; ofm < output_f; ofm++) {
+                AccT acc = static_cast<AccT>(bias[ofm]);
+                for (int ifm = 0; ifm < input_f; ifm++) {
+                    acc += weights[ofm * input_f + ifm] * input[b * input_f + ifm];
+                }
+                result[b * output_f + ofm] = acc;
+            }
+        }
+
+        return result;
+    }
+} // namespace
+
+using fully_connected_dynamic_test_params = std::tuple<
+    std::vector<ov::Dimension::value_type>, // batch_sizes
+    ov::Dimension::value_type,              // input_f
+    ov::Dimension::value_type,              // output_f
+    bool                                    // 3D case
+>;
+
+template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
+struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dynamic_test_params> {
+    void run_test() {
+        std::vector<ov::Dimension::value_type> batch_sizes;
+        ov::Dimension::value_type input_f;
+        ov::Dimension::value_type output_f;
+        bool fc_3d = false;
+
+        std::tie(batch_sizes, input_f, output_f, fc_3d) = GetParam();
+
+        auto input_dt = cldnn::type_to_data_type<InputT>::value;
+        auto weights_dt = cldnn::type_to_data_type<WeightsT>::value;
+        auto output_dt = cldnn::type_to_data_type<OutputT>::value;
+
+        auto& engine = get_test_engine();
+        auto input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), input_f }, input_dt, format::bfyx };
+        if (fc_3d)
+            input_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), ov::Dimension(), input_f }, input_dt, format::bfyx };
+
+        auto weights_mem = engine.allocate_memory({ ov::PartialShape{ output_f, input_f }, weights_dt, format::bfyx });
+        auto weights_data_vec = generate_random_1d<WeightsT>(output_f * input_f, -1, 1);
+
+        auto bias_mem = engine.allocate_memory({ ov::PartialShape{ output_f }, output_dt, format::bfyx });
+        auto bias_data_vec = generate_random_1d<OutputT>(output_f, 0, 1);
+
+        set_values(weights_mem, weights_data_vec);
+        set_values(bias_mem, bias_data_vec);
+
+        cldnn::topology topology{
+            input_layout("input", input_dyn_layout),
+            data("weights", weights_mem),
+            data("bias", bias_mem),
+        };
+
+        if (fc_3d)
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", padding(), 3));
+        else
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias"));
+
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        for (const auto& batch_size : batch_sizes) {
+            auto input_actual_layout = layout{ ov::PartialShape{ batch_size, input_f }, input_dt, format::bfyx };
+            if (fc_3d)
+                input_actual_layout = layout{ ov::PartialShape{ 1, batch_size, input_f }, input_dt, format::bfyx };
+            cldnn::memory_ptr input_mem = engine.allocate_memory(input_actual_layout);
+            std::vector<InputT> input_data_vec = generate_random_1d<InputT>(batch_size * input_f, 0, 1);
+            set_values(input_mem, input_data_vec);
+            network.set_input_data("input", input_mem);
+
+            auto outputs = network.execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            ASSERT_EQ(outputs.begin()->first, "fc");
+
+            auto output_prim_mem = outputs.begin()->second.get_memory();
+
+            auto out_l = network.get_output_layout(outputs.begin()->first);
+            ASSERT_EQ(out_l.batch(), fc_3d ? 1 : batch_size);
+            ASSERT_EQ(out_l.feature(), fc_3d ? batch_size : output_f);
+            ASSERT_EQ(out_l.spatial(0), 1);
+            ASSERT_EQ(out_l.spatial(1), fc_3d ? output_f : 1);
+
+            cldnn::mem_lock<OutputT> output_ptr(output_prim_mem, get_test_stream());
+
+            auto ref_result = dynamic_fully_connected_reference_calc<OutputT>(batch_size,
+                                                                              input_f,
+                                                                              output_f,
+                                                                              input_data_vec,
+                                                                              weights_data_vec,
+                                                                              bias_data_vec);
+            for (int b = 0; b < batch_size; b++) {
+                for (int ofm = 0; ofm < output_f; ofm++) {
+                    ASSERT_EQ(ref_result[b * output_f + ofm], output_ptr[b * output_f + ofm]);
+                }
+            }
+        }
+    }
+};
+
+using dynamic_fully_connected_gpu_f32_3d = dynamic_fully_connected_gpu<float, float, float, float>;
+using dynamic_fully_connected_gpu_f16_3d = dynamic_fully_connected_gpu<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+
+static const std::vector<ov::Dimension::value_type>
+    dyn_batches_full = {1, 2, 4, 7, 8, 9, 15, 16, 31, 32, 33, 47, 48, 49, 58, 63, 64};
+static const std::vector<ov::Dimension::value_type>
+    dyn_batches_smoke = {1, 2, 7, 8, 9, 16, 32, 33, 47, 48, 58};
+
+TEST_P(dynamic_fully_connected_gpu_f32_3d, basic) {
+    run_test();
+}
+
+TEST_P(dynamic_fully_connected_gpu_f16_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    dynamic_fully_connected_gpu_f32_3d,
+    ::testing::Combine(
+        ::testing::Values(dyn_batches_smoke),
+        ::testing::Values(10, 32, 42, 53, 64, 128),
+        ::testing::Values(2, 9, 128),
+        ::testing::Values(false, true))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    dynamic_fully_connected_gpu_f16_3d,
+    ::testing::Combine(
+        ::testing::Values(dyn_batches_smoke),
+        ::testing::Values(10, 32, 42, 53, 64, 128),
+        ::testing::Values(2, 9, 128),
+        ::testing::Values(false, true))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    full,
+    dynamic_fully_connected_gpu_f32_3d,
+    ::testing::Combine(
+        ::testing::Values(dyn_batches_full),
+        ::testing::Values(10, 32, 42, 53, 64, 128),
+        ::testing::Values(2, 9, 16, 32, 64, 128),
+        ::testing::Values(false, true))
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    full,
+    dynamic_fully_connected_gpu_f16_3d,
+    ::testing::Combine(
+        ::testing::Values(dyn_batches_full),
+        ::testing::Values(10, 32, 42, 53, 64, 128),
+        ::testing::Values(2, 9, 16, 32, 64, 128),
+        ::testing::Values(false, true))
+);

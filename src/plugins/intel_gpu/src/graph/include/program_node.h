@@ -117,6 +117,9 @@ public:
                 break;
             }
         }
+
+        params->is_dynamic = this->is_dynamic();
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
         params->fused_desc_onednn = get_fused_primitives_onednn();
 #endif // ENABLE_ONEDNN_FOR_GPU
