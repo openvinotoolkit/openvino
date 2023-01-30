@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
-#include "include/imad.cl"
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/imad.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 
 #define TYPE_N_(type, n) type##n
 #define TYPE_N(type, n) TYPE_N_(type, n)
@@ -45,36 +46,33 @@
 
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
-#define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
-
 #define SIMD 16
 #define FSV 16
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
-__attribute__((intel_reqd_sub_group_size(SIMD)))
+REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(1, 1, FEATURE_SLM_SPLIT * SIMD)))
 KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const __global INPUT0_TYPE *conv_input,
     __global OUTPUT_TYPE *output,
-    const __global FILTER_TYPE *weights,
+    const __global FILTER_TYPE *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE *biases,
+    , const __global BIAS_TYPE *biases
 #endif
 #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #ifdef ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #ifdef COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx) {
+) {
 
     #define LUT_VALUE_CLAMP(x) (( (IN_BLOCK_WIDTH % SIMD == 0) || ((x) < IN_BLOCK_WIDTH % SIMD) ) ? (x) : 0)
     const int tmp = LUT_VALUE_CLAMP(get_sub_group_local_id());
@@ -129,18 +127,15 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
 #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
     uint4 weights_zp_val[OFM_BLOCKS_PER_SIMD];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+    unroll_for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
         weights_zp_val[ofb] = as_uint4((FILTER_TYPE_16)weights_zp[out_f + ofb * FSV]);
     }
     #if FILTER_IFM_NUM % FSV != 0
         uint4 weights_zp_vec_partial[OFM_BLOCKS_PER_SIMD];
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+        unroll_for(uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
             weights_zp_vec_partial[ofb] = weights_zp_val[ofb];
             FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial[ofb];
-            __attribute__((opencl_unroll_hint))
-            for (uint f = FILTER_IFM_NUM % FSV; f < FSV; f++) {
+            unroll_for(uint f = FILTER_IFM_NUM % FSV; f < FSV; f++) {
                 wzp_p[f] = 0;
             }
         }
@@ -152,8 +147,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
         #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
             #if FILTER_IFM_NUM % FSV != 0
                 if (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV)) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                    unroll_for(uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
                         weights_zp_val[ofb] = weights_zp_vec_partial[ofb];
                     }
                 }
@@ -170,11 +164,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
         #ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
             ACCUMULATOR_TYPE_4 dotProdAZPxWZP[OFM_BLOCKS_PER_SIMD];
-            __attribute__((opencl_unroll_hint))
-            for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+            unroll_for(uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
                 dotProdAZPxWZP[ofb] = 0;
-                __attribute__((opencl_unroll_hint))
-                for (uint ive = 0; ive < 4; ive++) {
+                unroll_for(uint ive = 0; ive < 4; ive++) {
                     dotProdAZPxWZP[ofb][ive] = TO_ACCUMULATOR_TYPE(
                     IMAD(dotProdAZPxWZP[ofb][ive],
                     AS_INPUT0_TYPE_4(data_zp_val[ive]),
@@ -188,12 +180,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
             __attribute__((opencl_unroll_hint(1)))
             for (uint fyn = 0; fyn < FILTER_SIZE_Y / FILTER_SIZE_Y_UNROLL; fyn++) {
                 // Load input block IN_BLOCK_DEPTH x IN_BLOCK_HEIGHT x IN_BLOCK_WIDTH, scattering width along sub-group
-                __attribute__((opencl_unroll_hint))
-                for (uint izb = 0; izb < IN_BLOCK_DEPTH; ++izb) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint iyb = 0; iyb < IN_BLOCK_HEIGHT; ++iyb) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint ixb = 0; ixb < CEIL_DIV(IN_BLOCK_WIDTH, SIMD); ++ixb) {
+                unroll_for(uint izb = 0; izb < IN_BLOCK_DEPTH; ++izb) {
+                    unroll_for(uint iyb = 0; iyb < IN_BLOCK_HEIGHT; ++iyb) {
+                        unroll_for(uint ixb = 0; ixb < CEIL_DIV(IN_BLOCK_WIDTH, SIMD); ++ixb) {
                             uint input_idx = input_start_idx + izb * INPUT0_Z_PITCH * FSV + iyb * INPUT0_Y_PITCH * FSV + ixb * SIMD * FSV;
                             #ifdef SHOULD_USE_DATA_ZP
                                 const int y_idx = input_y + fyn * DILATION_SIZE_Y + iyb;
@@ -300,23 +289,17 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                     }
                 }
 
-                __attribute__((opencl_unroll_hint))
-                for (uint fzu = 0; fzu < FILTER_SIZE_Z_UNROLL; ++fzu) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint fyu = 0; fyu < FILTER_SIZE_Y_UNROLL; ++fyu) {
-                        __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
-                        for (uint fx = 0; fx < FILTER_SIZE_X; fx++) {
+                unroll_for(uint fzu = 0; fzu < FILTER_SIZE_Z_UNROLL; ++fzu) {
+                    unroll_for(uint fyu = 0; fyu < FILTER_SIZE_Y_UNROLL; ++fyu) {
+                        unroll_for (uint fx = 0; fx < FILTER_SIZE_X; fx++) {
 
                             uint4 weights_val[OFM_BLOCKS_PER_SIMD];
-                            __attribute__((opencl_unroll_hint))
-                            for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                            unroll_for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
                                 weights_val[ofb] = vload4(0, (__global uint *)(weights + filter_idx + ofb * filter_idx_diff));
                             }
 
-                            __attribute__((opencl_unroll_hint))
-                            for (uint ive = 0; ive < 4; ive++) {
-                                __attribute__((opencl_unroll_hint))
-                                for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                            unroll_for (uint ive = 0; ive < 4; ive++) {
+                                unroll_for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
                                     #ifdef SHOULD_USE_DATA_ZP
                                         ACCUMULATOR_TYPE dotProdAZPxW = 0;
                                         dotProdAZPxW = TO_ACCUMULATOR_TYPE(
@@ -325,19 +308,16 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         AS_FILTER_TYPE_4(weights_val[ofb][ive])));
                                     #endif
 
-                                    __attribute__((opencl_unroll_hint(OUT_BLOCK_DEPTH)))
-                                    for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-                                    __attribute__((opencl_unroll_hint(OUT_BLOCK_HEIGHT)))
-                                        for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                                            __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-                                            for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ow++) {
+                                    unroll_for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                                        unroll_for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                                            unroll_for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ow++) {
                                                 const uint z_block_idx = od * STRIDE_SIZE_Z + fzu * DILATION_SIZE_Z;
                                                 const uint y_block_idx = oh * STRIDE_SIZE_Y + fyu * DILATION_SIZE_Y;
                                                 const uint x_block_idx = ow * STRIDE_SIZE_X + fx * DILATION_SIZE_X;
                                                 const uint shuffle_wi = x_block_idx % SIMD;
                                                 const uint shuffle_idx = x_block_idx / SIMD;
 
-                                                INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive],
+                                                INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive],
                                                     shuffle_wi));
 
                                                 dotProd[ofb][od][oh][ow] = TO_ACCUMULATOR_TYPE(
@@ -401,17 +381,12 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                 get_sub_group_local_id();
 
     if (get_sub_group_id() < OFM_BLOCKS_PER_SIMD) {
-        __attribute__((opencl_unroll_hint))
-        for (uint wg = 0; wg < OFM_BLOCKS_PER_SIMD; ++wg) {
+        unroll_for(uint wg = 0; wg < OFM_BLOCKS_PER_SIMD; ++wg) {
             if (get_sub_group_id() == wg) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ofb = 0; ofb < wg; ++ofb) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                            __attribute__((opencl_unroll_hint))
-                            for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+                unroll_for(uint ofb = 0; ofb < wg; ++ofb) {
+                    unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                        unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                            unroll_for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                                 const uint partial_acc_ptr_idx =
                                     ofb * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH * SIMD +
                                     od * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH * SIMD +
@@ -422,24 +397,17 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                         }
                     }
                 }
-                __attribute__((opencl_unroll_hint))
-                for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+                unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                    unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                        unroll_for(uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                             dotProd[0][od][oh][ow] = dotProd[wg][od][oh][ow];
                         }
                     }
                 }
-                __attribute__((opencl_unroll_hint))
-                for (uint ofb = wg + 1; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                            __attribute__((opencl_unroll_hint))
-                            for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+                unroll_for(uint ofb = wg + 1; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                    unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                        unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                            unroll_for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                                 const uint partial_acc_ptr_idx =
                                     ((wg != 0) ? OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_DEPTH * OFM_SIZE_PER_SIMD : 0) +
                                     ofb * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH * SIMD +
@@ -454,14 +422,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
             }
         }
     } else {
-        __attribute__((opencl_unroll_hint))
-        for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
-            __attribute__((opencl_unroll_hint))
-            for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-                __attribute__((opencl_unroll_hint))
-                for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                    __attribute__((opencl_unroll_hint))
-                    for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+        unroll_for(uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+            unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                    unroll_for(uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                         const uint partial_acc_ptr_idx =
                             ofb * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH * SIMD +
                             od * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH * SIMD +
@@ -480,14 +444,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
         return;
 
     partial_acc_ptr = partial_acc + get_sub_group_id() * OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_DEPTH * SIMD + get_sub_group_local_id();
-    __attribute__((opencl_unroll_hint))
-    for (uint wg = 0; wg < FEATURE_SLM_SPLIT - 1; ++wg) {
-        __attribute__((opencl_unroll_hint))
-        for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-            __attribute__((opencl_unroll_hint))
-            for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+    unroll_for (uint wg = 0; wg < FEATURE_SLM_SPLIT - 1; ++wg) {
+        unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+            unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                unroll_for(uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                     const uint partial_acc_ptr_idx =
                         wg * OFM_SIZE_PER_SIMD * OUT_BLOCK_DEPTH * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH +
                         od * OUT_BLOCK_HEIGHT * OUT_BLOCK_WIDTH * SIMD +
@@ -510,29 +470,23 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
 #if BIAS_TERM
     BIAS_TYPE bias[OFM_VALUES_PER_WI];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
+    unroll_for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
         bias[ofb] = biases[out_f + ofb * SIMD];
     }
 #endif
 
 #ifdef COMPENSATION_TERM
     COMPENSATION_TYPE comp[OFM_VALUES_PER_WI];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
+    unroll_for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
         comp[ofb] = compensation[out_f + ofb * SIMD];
     }
 #endif
 
     ACTIVATION_TYPE dequantized[OFM_VALUES_PER_WI][OUT_BLOCK_DEPTH][OUT_BLOCK_HEIGHT][OUT_BLOCK_WIDTH];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
-        __attribute__((opencl_unroll_hint))
-        for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-            __attribute__((opencl_unroll_hint))
-            for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+    unroll_for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
+        unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+            unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                unroll_for(uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                     dequantized[ofb][od][oh][ow] = TO_ACTIVATION_TYPE(dotProd[ofb][od][oh][ow]);
 #if BIAS_TERM
                     dequantized[ofb][od][oh][ow] += bias[ofb];
@@ -546,17 +500,13 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     }
 
     OUTPUT_TYPE result[OFM_VALUES_PER_WI][OUT_BLOCK_DEPTH][OUT_BLOCK_HEIGHT][OUT_BLOCK_WIDTH];
-    __attribute__((opencl_unroll_hint))
-    for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
+    unroll_for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD_SCALAR
         FUSED_OPS_PRELOAD_SCALAR;
 #endif
-        __attribute__((opencl_unroll_hint))
-        for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
-            __attribute__((opencl_unroll_hint))
-            for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
+        unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+            unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                unroll_for(uint ow = 0; ow < OUT_BLOCK_WIDTH; ++ow) {
                     ACTIVATION_TYPE dequantized_val = dequantized[ofb][od][oh][ow];
 #if HAS_FUSED_OPS
 #   if FUSED_OPS_CAN_USE_PRELOAD_SCALAR
@@ -585,21 +535,17 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
         for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ofb++) {
             bool good_of_block = (CEIL_DIV(FILTER_OFM_NUM, SIMD) % OFM_BLOCKS_PER_SIMD == 0) || (out_f_sg + ofb * SIMD <= FILTER_OFM_NUM);
             if (good_of_block) {
-                __attribute__((opencl_unroll_hint))
-                for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
                     bool good_z = (OUTPUT_SIZE_Z % OUT_BLOCK_DEPTH == 0) || (out_z + od < OUTPUT_SIZE_Z);
                     if (good_z) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                        unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
                             bool good_y = (OUTPUT_SIZE_Y % OUT_BLOCK_HEIGHT == 0) || (out_y + oh < OUTPUT_SIZE_Y);
                             if (good_y) {
                                 uint ow = 0;
                             #if OUTPUT_TYPE_SIZE == 1
-                                __attribute__((opencl_unroll_hint))
-                                for (; ow + 8 <= OUT_BLOCK_WIDTH; ow += 8) {
+                                unroll_for (; ow + 8 <= OUT_BLOCK_WIDTH; ow += 8) {
                                     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) result_val;
-                                    __attribute__((opencl_unroll_hint))
-                                    for (uint i = 0; i < 8; ++i) {
+                                    unroll_for (uint i = 0; i < 8; ++i) {
                                         result_val[i] = result[ofb][od][oh][ow + i];
                                     }
                                     DT_OUTPUT_BLOCK_WRITE8(output, dst_index, result_val);
@@ -607,11 +553,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                 }
                             #endif
                             #if OUTPUT_TYPE_SIZE <= 2
-                                __attribute__((opencl_unroll_hint))
-                                for (; ow + 4 <= OUT_BLOCK_WIDTH; ow += 4) {
+                                unroll_for (; ow + 4 <= OUT_BLOCK_WIDTH; ow += 4) {
                                     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) result_val;
-                                    __attribute__((opencl_unroll_hint))
-                                    for (uint i = 0; i < 4; ++i) {
+                                    unroll_for (uint i = 0; i < 4; ++i) {
                                         result_val[i] = result[ofb][od][oh][ow + i];
                                     }
                                     DT_OUTPUT_BLOCK_WRITE4(output, dst_index, result_val);
@@ -619,11 +563,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                 }
                             #endif
 
-                                __attribute__((opencl_unroll_hint))
-                                for (; ow + 2 <= OUT_BLOCK_WIDTH; ow += 2) {
+                                unroll_for (; ow + 2 <= OUT_BLOCK_WIDTH; ow += 2) {
                                     MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) result_val;
-                                    __attribute__((opencl_unroll_hint))
-                                    for (uint i = 0; i < 2; ++i) {
+                                    unroll_for (uint i = 0; i < 2; ++i) {
                                         result_val[i] = result[ofb][od][oh][ow + i];
                                     }
                                     DT_OUTPUT_BLOCK_WRITE2(output, dst_index, result_val);
@@ -655,12 +597,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
         #else
                 const uint dst_index = OUTPUT_GET_INDEX(out_b, out_f + ofb * SIMD, out_z, out_y, out_x);
         #endif
-                __attribute__((opencl_unroll_hint))
-                for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
+                unroll_for(uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
                     bool good_z = (OUTPUT_SIZE_Z % OUT_BLOCK_DEPTH == 0) || (out_z + od < OUTPUT_SIZE_Z);
                     if (good_z) {
-                        __attribute__((opencl_unroll_hint))
-                        for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
+                        unroll_for(uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
                             bool good_y = (OUTPUT_SIZE_Y % OUT_BLOCK_HEIGHT == 0) || (out_y + oh < OUTPUT_SIZE_Y);
                             if (good_y) {
                                 __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
@@ -719,9 +659,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #endif
 
 #undef AS_FILTER_TYPE_4
-
-#undef CEIL_DIV
-#undef ALIGN
 
 #undef SIMD
 #undef FSV

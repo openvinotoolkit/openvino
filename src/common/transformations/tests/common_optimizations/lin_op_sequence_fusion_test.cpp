@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, MulAddMulAddFusion) {
         auto add2 = std::make_shared<opset3::Add>(mul2, add2_const);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add2}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
     {
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, MulMulMulFusion) {
         auto mul3 = std::make_shared<opset3::Multiply>(mul2, mul3_const);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul2}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
     {
@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, AddAddAddFusion) {
         auto add3 = std::make_shared<opset3::Add>(add2, add3_const);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{add3}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
     {
@@ -117,7 +117,7 @@ TEST_F(TransformationTestsF, MulAddAddMulFusion) {
         auto mul2 = std::make_shared<opset3::Multiply>(add2, mul2_const);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul2}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+        manager.register_pass<ov::pass::LinOpSequenceFusion>();
     }
 
     {

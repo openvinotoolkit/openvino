@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,6 +76,9 @@ public:
     std::map<std::string, Output<Node>> get_tensor_values() const {
         return m_tensor_values;
     };
+    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_model_name) const;
+    std::vector<std::string> get_input_names() const;
+    std::vector<std::string> get_output_names() const;
 
 private:
     void loadPlaces();
@@ -90,6 +93,9 @@ private:
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
     const ov::frontend::InputModel& m_input_model;
+
+    std::vector<std::string> m_input_names;
+    std::vector<std::string> m_output_names;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
 
@@ -199,6 +205,14 @@ void InputModel::InputModelTFImpl::loadPlaces() {
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
     return topologically_sort_op_nodes();
+}
+
+std::vector<std::string> InputModel::InputModelTFImpl::get_input_names() const {
+    return m_input_names;
+}
+
+std::vector<std::string> InputModel::InputModelTFImpl::get_output_names() const {
+    return m_output_names;
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologically_sort_op_nodes() const {
@@ -314,6 +328,15 @@ InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_i
     loadPlaces();
 }
 
+std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
+    const std::string& body_model_name) const {
+    auto body_graph_iterator = m_graph_iterator->get_body_graph_iterator(body_model_name);
+    if (!body_graph_iterator) {
+        return nullptr;
+    }
+    return std::make_shared<InputModel>(body_graph_iterator, m_telemetry);
+}
+
 InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                                                const ov::frontend::InputModel& input_model,
                                                const std::shared_ptr<TelemetryExtension>& telemetry)
@@ -321,6 +344,8 @@ InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_i
       m_graph_iterator(graph_iterator),
       m_telemetry(telemetry) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
+    m_input_names = graph_iterator->get_input_names();
+    m_output_names = graph_iterator->get_output_names();
     loadPlaces();
 }
 
@@ -423,8 +448,20 @@ void InputModel::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr place
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this, telemetry)} {}
 
+std::vector<std::string> InputModel::get_input_names() const {
+    return _impl->get_input_names();
+}
+
+std::vector<std::string> InputModel::get_output_names() const {
+    return _impl->get_output_names();
+}
+
 std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
     return _impl->get_op_places();
+}
+
+std::shared_ptr<InputModel> InputModel::get_body_input_model(const std::string& body_model_name) const {
+    return _impl->get_body_input_model(body_model_name);
 }
 
 std::map<std::string, std::shared_ptr<TensorPlace>> InputModel::get_tensor_places() const {

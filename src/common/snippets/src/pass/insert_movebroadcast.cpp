@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,8 @@
 
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
@@ -17,42 +19,46 @@ using namespace ngraph;
 
 namespace {
 
-std::shared_ptr<ngraph::Node> broadcast_node_last_dim(const ngraph::Output<ngraph::Node>& value,
-                                                   const ov::Shape& target_shape, const ov::Shape& normalized_shape) {
-    std::shared_ptr<ngraph::Node> broadcasted_node = value.get_node_shared_ptr();
-
-    if (target_shape == value.get_shape()) {
-        return broadcasted_node;
-    }
-    // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
-    // will be handled by pointer arithmetics in TileScheduler
-    if (*target_shape.rbegin() != *normalized_shape.rbegin()) {
-        ov::Shape broadcasted_shape = normalized_shape;
-        *broadcasted_shape.rbegin() = *target_shape.rbegin();
-        broadcasted_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(broadcasted_node, broadcasted_shape);
-    }
-
-    return broadcasted_node;
-}
-
-
-std::pair<ov::Shape, std::vector<ov::Shape>> get_numpy_broadcast_shapes(const std::vector<ov::Shape>& input_shapes) {
+std::pair<ov::PartialShape, std::vector<ov::PartialShape>> get_numpy_broadcast_partial_shapes(const std::vector<ov::PartialShape>& input_shapes) {
     ov::PartialShape target_shape =  input_shapes.front();
     for (auto i = 1; i < input_shapes.size(); i++) {
         if (!ov::PartialShape::broadcast_merge_into(target_shape, input_shapes[i], op::AutoBroadcastType::NUMPY))
             throw ngraph::ngraph_error("InsertMoveBroadcast: Failed broadcast-merge input shapes");
     }
-    std::vector<ov::Shape> normalized_shapes;
+    std::vector<ov::PartialShape> normalized_shapes;
     for (const auto& input : input_shapes) {
-        ov::Shape padded_shape{input};
+        ov::PartialShape padded_shape{input};
         padded_shape.insert(padded_shape.begin(), target_shape.size() - padded_shape.size(), 1);
         normalized_shapes.push_back(std::move(padded_shape));
     }
 
-    return {target_shape.get_shape(), normalized_shapes};
+    return {target_shape, normalized_shapes};
 }
 
 } // namespace
+
+ngraph::Output<ngraph::Node> ngraph::snippets::pass::InsertMoveBroadcast::BroadcastNodeLastDim(
+        const ngraph::Output<ngraph::Node>& value, const ov::PartialShape& target_shape, const ov::PartialShape& normalized_shape) {
+    if (target_shape == value.get_partial_shape()) {
+        return value;
+    }
+
+    // Insert BroadcastMove only if the last dimension needs to be broadcasted. Higher-level dims broadcasting
+    // will be handled by pointer arithmetics inside outer LoopEmitter
+    if (*target_shape.rbegin() != *normalized_shape.rbegin()) {
+        ov::PartialShape broadcasted_shape = normalized_shape;
+        *broadcasted_shape.rbegin() = *target_shape.rbegin();
+        const auto broadcast_node = std::make_shared<ngraph::snippets::op::BroadcastMove>(value, broadcasted_shape);
+        // BroadcastMove should be immediately executed after its input op (input op is node with output which should be broadcasted).
+        // For example, to execute Broadcast outside of a Loop We transfer control dependents and copy rt info
+        broadcast_node->add_node_control_dependents(value.get_node_shared_ptr());
+        ov::copy_runtime_info(value.get_node_shared_ptr(), broadcast_node);
+
+        return broadcast_node->output(0);
+    }
+
+    return value;
+}
 
 ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
     MATCHER_SCOPE(InsertMoveBroadcast);
@@ -64,31 +70,35 @@ ngraph::snippets::pass::InsertMoveBroadcast::InsertMoveBroadcast() {
             return false;
         }
 
-        auto is_scalar_constant = [](const ov::Output<ov::Node>& v){
-            if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(v.get_node_shared_ptr())) {
-                if (constant->get_shape().empty() || ngraph::shape_size(constant->get_shape()) == 1) {
-                    return true;
-                }
-            }
-            return false;
+        auto is_ignored_node = [](const ov::Output<ov::Node>& v){
+            // We don't need to insert BroadcastMove after the following operations:
+            // - Scalar has emitter with explicit broadcasting
+            // - VectorBuffer has scalar output shape to avoid broadcast conflicts and manually shape insertion.
+            return utils::is_scalar_constant(v.get_node_shared_ptr()) ||
+                   ov::is_type<ngraph::snippets::op::VectorBuffer>(v.get_node_shared_ptr());
         };
-        std::vector<ov::Shape> input_shapes;
-        std::vector<bool> ignore_as_scalar;
+        std::vector<ov::PartialShape> input_shapes;
+        std::vector<bool> is_ignored;
         for (const auto& val : values) {
-            input_shapes.emplace_back(val.get_shape());
-            ignore_as_scalar.push_back(is_scalar_constant(val));
+            input_shapes.emplace_back(val.get_partial_shape());
+            is_ignored.push_back(is_ignored_node(val));
+            // Do not insert MoveBroadcast if any of the last dims is dynamic,
+            // since we don't know if we really need it. In these cases, broadcasting will be performed
+            // by outer Loop based on runtime shapes.
+            if (!is_ignored.back() && !input_shapes.back().rbegin()->is_static())
+                return false;
         }
 
         // find the output tensor's shape, then broadcast all inputs so that they are compatible with respect to the last dim
-        auto bcast_shapes = get_numpy_broadcast_shapes(input_shapes);
+        auto bcast_shapes = get_numpy_broadcast_partial_shapes(input_shapes);
 
         ngraph::OutputVector broadcasted_inputs;
         for (size_t i = 0; i < values.size(); ++i) {
-            if (ignore_as_scalar[i]) {
+            if (is_ignored[i]) {
                 broadcasted_inputs.push_back(values[i]);
             } else {
-                auto node = broadcast_node_last_dim(values[i], bcast_shapes.first, bcast_shapes.second[i]);
-                ngraph::copy_runtime_info(root, node);
+                auto node = BroadcastNodeLastDim(values[i], bcast_shapes.first, bcast_shapes.second[i]);
+                ngraph::copy_runtime_info(root, node.get_node_shared_ptr());
                 broadcasted_inputs.push_back(node);
             }
         }

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 project (pyopenvino)
@@ -61,10 +61,14 @@ if(TARGET openvino::frontend::paddle)
     add_subdirectory(frontend/paddle)
 endif()
 
+if(TARGET openvino::frontend::pytorch)
+    add_subdirectory(frontend/pytorch)
+endif()
+
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 

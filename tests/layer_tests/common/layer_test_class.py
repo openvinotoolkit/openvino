@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
@@ -76,6 +76,12 @@ class CommonLayerTest:
         #     (flag, resp) = ir.compare(ref_net)
         #     assert flag, '\n'.join(resp)
 
+        config = None
+        # GPU default execution precision is FP16, so if we want to check FP32 inference
+        # we need to set explicit precision hint
+        if ie_device == 'GPU' and precision == 'FP32':
+            config = {'INFERENCE_PRECISION_HINT': 'f32'}
+
         if self.use_old_api:
             ie_engine = IEInfer(model=path_to_xml,
                                 weights=path_to_bin,
@@ -93,7 +99,7 @@ class CommonLayerTest:
             inputs_dict = self._prepare_input(ie_engine.get_inputs_info(precision))
 
         # IE infer:
-        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout)
+        infer_res = ie_engine.infer(input_data=inputs_dict, infer_timeout=infer_timeout, config=config)
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')

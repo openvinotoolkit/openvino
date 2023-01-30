@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,9 @@
 #include "legacy/ie_layers.h"
 #include "debug.h"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
+
 /**
 * maps type of connection to input and output layers also stores gna_pointer for alloc request
 */
@@ -63,4 +65,6 @@ public:
      */
     float scale_factor = 1.0f;
 };
-}  // namespace GNAPluginNS
+
+}  // namespace intel_gna
+}  // namespace ov

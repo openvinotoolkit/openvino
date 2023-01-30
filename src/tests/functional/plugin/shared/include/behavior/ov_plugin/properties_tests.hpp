@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,6 +76,7 @@ public:
     std::string expectedDeviceName;
 };
 
+using OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES = OVCompileModelGetExecutionDeviceTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov

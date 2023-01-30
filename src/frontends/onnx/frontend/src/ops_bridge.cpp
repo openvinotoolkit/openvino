@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -169,6 +169,7 @@
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
 #include "op/trilu.hpp"
+#include "op/unique.hpp"
 #include "op/unsqueeze.hpp"
 #include "op/upsample.hpp"
 #include "op/where.hpp"
@@ -468,6 +469,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("TopK", 11, topk);
     REGISTER_OPERATOR("Transpose", 1, transpose);
     REGISTER_OPERATOR("Trilu", 1, trilu);
+    REGISTER_OPERATOR("Unique", 1, unique);
     REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
     REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
     REGISTER_OPERATOR("Where", 1, where);

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -14,7 +14,7 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
     set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/frontend/${FRAMEWORK})
 
-    file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+    file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${OpenVINOPython_SOURCE_DIR}/src/pyopenvino/utils/utils.cpp)
 
     # create target
 

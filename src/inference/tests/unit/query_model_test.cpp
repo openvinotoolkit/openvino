@@ -19,6 +19,8 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 
+std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s);
+
 std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s) {
     for (auto it = s.begin(); it != s.end(); ++it) {
         if (it != s.begin()) {
@@ -71,7 +73,7 @@ TEST_F(GetSupportedNodesTest, UnsupportedCompressedConstantCF) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::InitNodeInfo>();
             m.register_pass<ngraph::pass::ConstantFolding>();
             m.run_passes(model);
         },
@@ -106,7 +108,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphCF) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::InitNodeInfo>();
             m.register_pass<ngraph::pass::ConstantFolding>();
             m.run_passes(model);
         },
@@ -140,10 +142,9 @@ TEST_F(GetSupportedNodesTest, SupportedCompressedConstantNop) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::ConvertPrecision>(
-                precisions_array{{ngraph::element::f16, ngraph::element::f32}});
-            m.register_pass<ngraph::pass::NopElimination>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+            m.register_pass<ov::pass::NopElimination>();
             m.run_passes(model);
         },
         [&](const std::shared_ptr<ngraph::Node>& op) {
@@ -168,7 +169,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::InitNodeInfo>();
             m.run_passes(model);
             for (auto& op : model->get_ops()) {
                 if (std::dynamic_pointer_cast<ov::opset9::Multiply>(op) != nullptr) {
@@ -220,7 +221,7 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::InitNodeInfo>();
             m.register_pass<ngraph::pass::ConstantFolding>();
             m.run_passes(model);
         },
@@ -261,9 +262,9 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphSupported) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::InitNodeInfo>();
             m.register_pass<ngraph::pass::ConstantFolding>();
-            m.register_pass<ngraph::pass::NopElimination>();
+            m.register_pass<ov::pass::NopElimination>();
             m.run_passes(model);
         },
         [&](const std::shared_ptr<ngraph::Node>& op) {
@@ -302,7 +303,7 @@ TEST_F(GetSupportedNodesTest, UnmarkedSupportedInputsOutputs) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::InitNodeInfo>();
             m.register_pass<ngraph::pass::ConstantFolding>();
             m.run_passes(model);
         },
@@ -320,12 +321,12 @@ TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
         auto weights = ov::opset9::Constant::create(ov::element::Type_t::f32, {10, 84}, {1});
         weights->set_friendly_name("weights");
         auto matmul = std::make_shared<ov::opset9::MatMul>(param, weights, false, true);
-        matmul->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("add");
+        matmul->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("add");
         matmul->set_friendly_name("matmul");
         auto constant = ngraph::op::Constant::create(ov::element::f32, {1, 10}, {1});
         constant->set_friendly_name("constant");
         auto add = std::make_shared<ov::opset9::Add>(matmul, constant);
-        add->get_rt_info()[ngraph::FusedNames::get_type_info_static()] = ngraph::FusedNames("matmul");
+        add->get_rt_info()[ov::FusedNames::get_type_info_static()] = ov::FusedNames("matmul");
         add->set_friendly_name("add");
         auto result = std::make_shared<ngraph::op::Result>(add);
         result->set_friendly_name("result");
@@ -359,8 +360,8 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::LogSoftmaxDecomposition>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::LogSoftmaxDecomposition>();
             m.run_passes(model);
         },
         [&](const std::shared_ptr<ngraph::Node>& op) {
@@ -408,8 +409,8 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
-            m.register_pass<ngraph::pass::InitNodeInfo>();
-            m.register_pass<ngraph::pass::CommonOptimizations>();
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.register_pass<ov::pass::CommonOptimizations>();
             m.run_passes(model);
         },
         [&](const std::shared_ptr<ngraph::Node>& op) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -129,7 +129,7 @@ public:
 };
 
 TEST_P(MarkupAvgPoolPrecisionsTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
+    ov::pass::InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
     const auto avgPoolOperations = LayerTransformation::get<opset1::AvgPool>(actualFunction);

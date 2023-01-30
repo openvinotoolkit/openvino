@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,6 @@
 #include "intel_gpu/runtime/memory_caps.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs image conversion from one format to another
 struct convert_color : public primitive_base<convert_color> {
@@ -57,7 +51,4 @@ struct convert_color : public primitive_base<convert_color> {
     memory_type mem_type;
     layout output_layout;
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

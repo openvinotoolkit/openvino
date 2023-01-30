@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ namespace {
 
     std::string GetNetworkPrecision(const InferenceEngine::CNNNetwork &network) {
         auto nGraphFunc = network.getFunction();
-        bool isINTModel = ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+        bool isINTModel = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
         if (isINTModel) {
             return METRIC_VALUE(INT8);
         }
@@ -69,17 +69,16 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
                               const std::map<std::string, std::string>& mergedConfig) {
         auto isSetPerHint = mergedConfig.find(PluginConfigParams::KEY_PERFORMANCE_HINT) != mergedConfig.end();
         auto isSetDeviceProperties = mergedConfig.find(targetDevice) != mergedConfig.end();
-        auto isSetNumStreams = deviceConfig.find(ov::num_streams.name()) != deviceConfig.end();
-        if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties && !isSetNumStreams) {
+        if (GetName() == "AUTO" && !isSetPerHint && !isSetDeviceProperties) {
             // setting latency as the default performance mode if
             // 1. no hints setting for AUTO plugin
             // 2. no ov::device::properties(secondary properties) setting for target device
-            // 3. no ov::num_streams setting for target device
             deviceConfig[PluginConfigParams::KEY_PERFORMANCE_HINT] = PluginConfigParams::LATENCY;
             return;
         }
 
         if (GetName() == "MULTI") {
+            auto isSetNumStreams = mergedConfig.find(ov::num_streams.name()) != mergedConfig.end();
             auto isSetAffinity = mergedConfig.find(ov::affinity.name()) != mergedConfig.end();
             auto isSetNumThreads = mergedConfig.find(ov::inference_num_threads.name()) != mergedConfig.end();
             if (!isSetPerHint && !isSetAffinity && !isSetNumThreads && !isSetDeviceProperties && !isSetNumStreams) {
@@ -354,6 +353,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    if (priorities->second.find("AUTO") != std::string::npos || priorities->second.find("MULTI") != std::string::npos) {
+        IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
+    }
     // If the user sets the property, insert the property into the deviceConfig
     auto insertPropToConfig = [&](std::string property,
                                   std::string& deviceName,

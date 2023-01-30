@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-
 class TENSORFLOW_API FrontEnd : public ov::frontend::FrontEnd {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
@@ -66,12 +65,6 @@ protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
-
-    void translate_graph(const ov::frontend::InputModel::Ptr& model,
-                         const std::string& model_name,
-                         bool fail_fast,
-                         bool no_conversion,
-                         std::shared_ptr<ov::Model>& ng_function) const;
 
     TelemetryExtension::Ptr m_telemetry;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
