@@ -23,7 +23,6 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
 
     // retrieve attributes
     auto method = node.get_attribute<string>("method", "bilinear");
-    auto extrapolation_value = node.get_attribute<float>("extrapolation_value", 0.0f);
 
     // try to retrive crop_size as the constant, otherwise, we cannot support it
     Shape crop_sizes;
