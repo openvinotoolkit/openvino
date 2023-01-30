@@ -16,6 +16,7 @@
 #include "transforms/aten_getitem_replacer.hpp"
 #include "transforms/max_prim_list_construct_replacer.hpp"
 #include "transforms/min_prim_list_construct_replacer.hpp"
+#include "transforms/prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_tuple_construct_replacer.hpp"
 
@@ -90,6 +91,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::MaxPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinPrimListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeTupleResults>();
+    manager.register_pass<ov::frontend::pytorch::pass::DecomposeListResults>();
     manager.register_pass<ov::pass::ConstantFolding>();
 
     manager.run_passes(model);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "prim_tuple_construct_replacer.hpp"
+#include "prim_list_construct_replacer.hpp"
 
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/op/result.hpp"
@@ -14,7 +14,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
+bool DecomposeListResults::run_on_model(const std::shared_ptr<Model>& model) {
     bool at_least_one_decomposed = false;
 
     ResultVector results = model->get_results();
@@ -22,7 +22,7 @@ bool DecomposeTupleResults::run_on_model(const std::shared_ptr<Model>& model) {
     for (size_t i = 0; i < results.size(); ++i) {
         auto result = results[i];
         auto input_node = result->get_input_node_shared_ptr(0);
-        auto tuple_construct = cast_fw_node(input_node, "prim::TupleConstruct");
+        auto tuple_construct = cast_fw_node(input_node, "prim::ListConstruct");
         if (!tuple_construct) {
             continue;
         }
