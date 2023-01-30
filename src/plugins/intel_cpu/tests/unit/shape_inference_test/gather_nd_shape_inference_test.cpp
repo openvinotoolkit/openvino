@@ -73,13 +73,24 @@ const auto GatherNDGatherNDTestParams = std::vector<GatherNDParams>{
 
 TYPED_TEST_SUITE_P(StaticShapeInferenceGatherNDTest);
 
-TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_batch_dims_1) {
+TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_common_batch_dims) {
     for (const auto& params : GatherNDGatherNDTestParams) {
         run_gather_nd_test<TypeParam>(params);
     }
 }
 
-REGISTER_TYPED_TEST_SUITE_P(StaticShapeInferenceGatherNDTest, gather_nd_batch_dims_1);
+TYPED_TEST_P(StaticShapeInferenceGatherNDTest, gather_nd_common_default_ctor) {
+    auto op = std::make_shared<TypeParam>();
+    op->set_batch_dims(1);
+
+    ShapeVector input_shapes{{8, 3, 11, 12}, {8, 5, 2}};
+    ShapeVector output_shapes(1);
+
+    shape_infer(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], (StaticShape{8, 5, 12}));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(StaticShapeInferenceGatherNDTest, gather_nd_common_batch_dims, gather_nd_common_default_ctor);
 using GatherNDTypes = Types<op::v5::GatherND, op::v8::GatherND>;
 INSTANTIATE_TYPED_TEST_SUITE_P(shape_infer, StaticShapeInferenceGatherNDTest, GatherNDTypes);
 
