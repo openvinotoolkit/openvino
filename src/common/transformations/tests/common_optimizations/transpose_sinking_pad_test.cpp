@@ -73,15 +73,15 @@ shared_ptr<Model> CreateFunction(size_t num_pad_ops, element::Type input_type) {
     auto X = make_shared<Parameter>(input_type, input_shape);
 
     auto order = make_shared<Constant>(element::i64, Shape{4}, Shape{0, 3, 1, 2});
-    auto transpose = make_shared<Transpose>(X, order);
+    auto transpose = make_shared<Transpose>(X, order); // 96 55 32 55
 
     OutputVector outputs;
     Output<Node> in_op = transpose->output(0);
     auto pad_value = make_shared<Constant>(input_type, Shape{}, 0);
     for (size_t i = 0; i < num_pad_ops; ++i) {
-        auto pad_begin_const = make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>{0, 1, 2, 3});
-        auto pad_end_const = make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>{0, 1, 2, 3});
-        auto pad = make_shared<Pad>(in_op, pad_begin_const, pad_end_const, pad_value, ov::op::PadMode::CONSTANT);
+        auto pad_begin_const = make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>{95, 54, 31, 53});
+        auto pad_end_const = make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>{95, 54, 31, 53});
+        auto pad = make_shared<Pad>(in_op, pad_begin_const, pad_end_const, pad_value, ov::op::PadMode::REFLECT);
         outputs.push_back((pad->output(0)));
         in_op = pad;
     }
@@ -97,7 +97,7 @@ shared_ptr<Model> CreateReferenceFunction(size_t num_pad_ops, element::Type inpu
 
     OutputVector outputs;
     Output<Node> in_op = X->output(0);
-    vector<int64_t> pads{0, 1, 2, 3};
+    vector<int64_t> pads{95, 54, 31, 53};
     auto transpose_pad_values = [&](const vector<size_t>& order) {
         vector<int64_t> new_pads(pads.size());
         for (size_t i = 0; i < pads.size(); ++i) {
@@ -107,10 +107,10 @@ shared_ptr<Model> CreateReferenceFunction(size_t num_pad_ops, element::Type inpu
     };
     auto axis = make_shared<Constant>(element::i64, Shape{}, 0);
     auto pad_value = make_shared<Constant>(input_type, Shape{}, 0);
+    vector<size_t> order_val = {0, 3, 1, 2};
     for (size_t i = 0; i < num_pad_ops; ++i) {
-        vector<size_t> order_val = {0, 3, 1, 2};
-        auto pad_begin_const = make_shared<Constant>(element::i64, Shape{4}, transpose_pad_values(order_val));
-        auto pad_end_const = make_shared<Constant>(element::i64, Shape{4}, transpose_pad_values(order_val));
+        auto pad_begin_const = make_shared<Constant>(element::i64, Shape{4}, transpose_pad_values({0, 2, 3, 1}));
+        auto pad_end_const = make_shared<Constant>(element::i64, Shape{4}, transpose_pad_values({0, 2, 3, 1}));
         auto pad = make_shared<Pad>(in_op, pad_begin_const, pad_end_const, pad_value, ov::op::PadMode::CONSTANT);
 
         auto order = make_shared<Constant>(element::i64, Shape{4}, Shape{order_val});
@@ -119,7 +119,7 @@ shared_ptr<Model> CreateReferenceFunction(size_t num_pad_ops, element::Type inpu
         in_op = pad;
     }
 
-    auto order = make_shared<Constant>(element::i64, Shape{4}, Shape{0, 3, 1, 2});
+    auto order = make_shared<Constant>(element::i64, Shape{4}, order_val);
     auto transpose = make_shared<Transpose>(in_op, order);
     outputs.push_back(transpose);
 
