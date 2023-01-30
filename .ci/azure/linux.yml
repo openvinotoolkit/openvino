@@ -99,16 +99,10 @@ jobs:
     CMAKE_VERSION: 3.24.0
     BUILD_PYTHON: $(WORK_DIR)/build_python
     INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-    # LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10 # Newest version of 3.10
-     
-  steps:
-  - script: |
-      pip --version
-      python3 -V
-      sudo apt install python3.10
-      python3 -V
+    LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
+  steps:
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '3.10'
@@ -116,7 +110,7 @@ jobs:
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python $(OV_PYTHON_VERSION)
+    displayName: Setup Python 3.10
     name: setupPython
   - bash: |
       #!/bin/bash

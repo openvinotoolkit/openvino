@@ -63,7 +63,7 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.9 # Newest version of 3.10
+    OV_PYTHON_VERSION: 3.10.9 # Newest version of Python 3.10. Full version of Python its required for LD_LIBRARY_PATH and required for successful Task setupPython
 
   steps:
   - task: UsePythonVersion@0
@@ -73,7 +73,7 @@ jobs:
       disableDownloadFromRegistry: false
       architecture: 'x64'
       githubToken: $(auth_token)
-    displayName: Setup Python $(OV_PYTHON_VERSION)
+    displayName: Setup Python 3.10
     name: setupPython
   - bash: |
       #!/bin/bash
