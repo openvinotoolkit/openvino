@@ -55,6 +55,13 @@ struct normalize : public primitive_base<normalize> {
     /// @brief Epsilon for not dividing by zero while normalizing.
     float epsilon;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, across_spatial);
+        seed = hash_combine(seed, epsilon);
+        return seed;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {scale_input}; }
 };
