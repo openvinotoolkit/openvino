@@ -1917,10 +1917,6 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 && node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
                 auto& pnode = node.get_users().front()->as<permute>();
                 auto can_optimize_permute = pnode.get_dependencies().size() == 1
-                    && std::find_if(pnode.get_users().begin(), pnode.get_users().end(),
-                        [](program_node *const n) {
-                            return n->is_type<concatenation>();
-                        }) == pnode.get_users().end()
                     && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                     && pnode.is_rotating_except_batch();
                 if (can_optimize_permute) {
