@@ -8,8 +8,7 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
-namespace sh_infer {
-namespace tr {
+namespace util {
 
 /**
  * \brief Trnsform tensor data by cast them to type T
@@ -35,24 +34,17 @@ struct Cast {
  */
 template <class T>
 struct InTypeRange {
-    const std::pair<T, T> m_range{};
+    const T m_min{std::numeric_limits<T>::lowest()}, m_max{std::numeric_limits<T>::max()};
 
-    constexpr InTypeRange() : m_range{std::numeric_limits<T>::min(), std::numeric_limits<T>::max()} {};
+    constexpr InTypeRange() = default;
+    constexpr InTypeRange(const T& min, const T& max) : m_min{min}, m_max{max} {};
 
     template <class U>
     T operator()(const U u) const {
-        OPENVINO_ASSERT(cmp::le(m_range.first, u) && cmp::le(u, m_range.second),
-                        "Value ",
-                        u,
-                        " not in range [",
-                        m_range.first,
-                        ":",
-                        m_range.second,
-                        "]");
+        OPENVINO_ASSERT(cmp::le(m_min, u) && cmp::le(u, m_max), "Value ", u, " not in range [", m_min, ":", m_max, "]");
         return static_cast<T>(u);
     }
 };
 
-}  // namespace tr
-}  // namespace sh_infer
+}  // namespace util
 }  // namespace ov
