@@ -46,7 +46,7 @@ bool ov::pass::AddPreprocessing::run_on_model(const std::shared_ptr<ov::Model>& 
             // nothing to do
             break;
         }
-        preproc.input().model().set_layout("NCHW");
+        preproc.input(i).model().set_layout("NCHW");
 
         switch (legacy_preproc.getMeanVariant()) {
         case InferenceEngine::MEAN_IMAGE: {

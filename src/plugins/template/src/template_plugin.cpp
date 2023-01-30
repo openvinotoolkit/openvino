@@ -110,7 +110,9 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     auto exec = std::make_shared<ExecutableNetwork>(model,
                                                     fullConfig,
                                                     std::static_pointer_cast<const Plugin>(shared_from_this()));
-    // SetExeNetworkInfo(exec, exec->_function);
+    exec->SetPointerToPlugin(
+        ov::legacy_convert::convert_plugin(std::const_pointer_cast<ov::IPlugin>(shared_from_this())));
+    SetExeNetworkInfo(exec, exec->m_model, is_new_api());
     return ov::legacy_convert::convert_compiled_model(exec);
 }
 
