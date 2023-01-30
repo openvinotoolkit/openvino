@@ -40,7 +40,7 @@ std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
 
 void ov::ICompiledModel::loaded_from_cache() {
     if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
-        wrapper->get_model()->loadedFromCache();
+        wrapper->get_executable_network()->loadedFromCache();
         return;
     }
     OPENVINO_NOT_IMPLEMENTED;
