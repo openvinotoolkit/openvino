@@ -49,6 +49,27 @@ class InferRequest(_InferRequestWrapper):
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Any, optional
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.array`
+                              * array-like object with `__array__` attribute
+                              Data that is going to be copied:
+                              * `numpy.array` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using `shared_memory` may result in the extra memory overhead.
+
+                              Default value: False
+        :type shared_memory: bool, optional
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
@@ -90,6 +111,27 @@ class InferRequest(_InferRequestWrapper):
         :type inputs: Any, optional
         :param userdata: Any data that will be passed inside the callback.
         :type userdata: Any
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.array`
+                              * array-like object with `__array__` attribute
+                              Data that is going to be copied:
+                              * `numpy.array` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using shared memory may result in extra memory overhead.
+
+                              Default value: False
+        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
@@ -160,8 +202,58 @@ class CompiledModel(CompiledModelBase):
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
                  shared_memory: bool = True) -> dict:
         """Callable infer wrapper for CompiledModel.
+        Infers specified input(s) in synchronous mode.
 
-        Take a look at `infer_new_request` for reference.
+        Blocks all methods of CompiledModel while request is running.
+
+        Method creates new temporary InferRequest and run inference on it.
+        It is advised to use a dedicated InferRequest class for performance,
+        optimizing workflows, and creating advanced pipelines.
+
+        This method stores created `InferRequest` inside `CompiledModel` object,
+        which can be later reused in consecutive calls.
+
+        The allowed types of keys in the `inputs` dictionary are:
+
+        (1) `int`
+        (2) `str`
+        (3) `openvino.runtime.ConstOutput`
+
+        The allowed types of values in the `inputs` are:
+
+        (1) `numpy.array`
+        (2) `openvino.runtime.Tensor`
+
+        Can be called with only one `openvino.runtime.Tensor` or `numpy.array`,
+        it will work only with one-input models. When model has more inputs,
+        function throws error.
+
+        :param inputs: Data to be set on input tensors.
+        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.array], optional
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.array`
+                              * array-like object with `__array__` attribute
+                              Data that is going to be copied:
+                              * `numpy.array` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using shared memory may result in extra memory overhead.
+
+                              Default value: True
+        :type shared_memory: bool, optional
+
+        :return: Dictionary of results from output tensors with ports as keys.
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
@@ -226,6 +318,26 @@ class AsyncInferQueue(AsyncInferQueueBase):
         :type inputs: Any, optional
         :param userdata: Any data that will be passed to a callback.
         :type userdata: Any, optional
+        :param shared_memory: Enables `shared_memory` mode.
+
+                              If set to `False` inputs the data dispatcher will safely copy data
+                              to existing Tensors (including up- or down-casting according to data type,
+                              resizing of the input Tensor). Keeps Tensor inputs "as-is".
+
+                              If set to `True` the data dispatcher tries to provide "zero-copy"
+                              Tensors for every input in form of:
+                              * `numpy.array`
+                              * array-like object with `__array__` attribute
+                              Data that is going to be copied:
+                              * `numpy.array` which are not C contiguous
+                              * inputs which data types are mismatched from Infer Request's inputs
+                              * inputs that should be in `BF16` data type
+                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              Keeps Tensor inputs "as-is".
+                              Note: Use with extra care, shared data can be modified during runtime!
+                              Note: Using shared memory may result in extra memory overhead.
+
+                              Default value: False
         """
         super().start_async(
             _data_dispatch(
