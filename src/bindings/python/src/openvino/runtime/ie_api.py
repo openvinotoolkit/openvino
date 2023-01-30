@@ -202,6 +202,7 @@ class CompiledModel(CompiledModelBase):
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
                  shared_memory: bool = True) -> dict:
         """Callable infer wrapper for CompiledModel.
+
         Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
