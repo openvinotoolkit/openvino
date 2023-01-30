@@ -224,7 +224,7 @@ bool convert_precision(ov::pass::PassBase& pass,
                 // Convert elimination here
                 for (auto& node : ops) {
                     if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
-                        if (constant_folding_is_disabled(node))
+                        if (pass::constant_folding_is_disabled(node))
                             continue;
                         // WA for topK, dont remove fake convert
                         if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&

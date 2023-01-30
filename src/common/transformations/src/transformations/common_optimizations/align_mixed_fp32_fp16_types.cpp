@@ -34,7 +34,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                 copy_runtime_info(incoming_node, convert);
                 input.replace_source_output(convert);
                 disable_fp16_compression(convert);
-                ov::pass::disable_constant_folding(convert);
+                pass::disable_constant_folding(convert);
                 is_changed = true;
             }
             return is_changed;
@@ -61,7 +61,7 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
                     copy_runtime_info(node, convert);
                     convert->set_friendly_name(node->get_friendly_name() + "_compressed_to_f16");
                     out_inputs.replace_source_output(convert);
-                    ov::pass::disable_constant_folding(convert);
+                    pass::disable_constant_folding(convert);
                     is_changed = true;
                 }
             }
