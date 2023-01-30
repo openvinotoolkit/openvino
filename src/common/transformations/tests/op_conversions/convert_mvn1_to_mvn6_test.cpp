@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -45,7 +45,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_across_channels) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -65,7 +65,7 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     }
 
     {
@@ -77,3 +77,44 @@ TEST_F(TransformationTestsF, ConvertMVN1ToMVN6_5D) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
     }
 }
+
+namespace {
+struct ConvertMVN1ToMVN6_OutOfFloat32Eps_params {
+    double eps_d;
+    float eps_f;
+};
+
+class ConvertMVN1ToMVN6_OutOfFloat32Eps : public testing::WithParamInterface<ConvertMVN1ToMVN6_OutOfFloat32Eps_params>,
+                                          public TransformationTestsF {};
+
+TEST_P(ConvertMVN1ToMVN6_OutOfFloat32Eps, Limits) {
+    manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
+
+    const auto& params = GetParam();
+    {
+        auto data = std::make_shared<ngraph::opset2::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+        auto mvn = std::make_shared<ngraph::op::v0::MVN>(data, true, true, params.eps_d);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
+    }
+    {
+        auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3, 4});
+        auto axes_const = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {1, 2, 3});
+        auto mvn = std::make_shared<ngraph::op::v6::MVN>(data,
+                                                         axes_const,
+                                                         true,
+                                                         params.eps_f,
+                                                         ngraph::op::MVNEpsMode::INSIDE_SQRT);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mvn}, ngraph::ParameterVector{data});
+    }
+}
+
+const auto out_of_f32_epsilons =
+    std::vector<ConvertMVN1ToMVN6_OutOfFloat32Eps_params>{{1e-39, std::numeric_limits<float>::min()},
+                                                          {1e-3, 1e-3f},
+                                                          {1e+39, std::numeric_limits<float>::max()}};
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ConvertMVN1ToMVN6_OutOfFloat32Eps,
+                         ::testing::ValuesIn(out_of_f32_epsilons));

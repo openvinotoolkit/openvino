@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -50,37 +50,33 @@ def test_unary_op_array(graph_api_fn, type_name):
     assert list(node.get_output_shape(0)) == [2, 3, 4]
 
 
-@pytest.mark.parametrize(
-    ("graph_api_fn", "numpy_fn", "input_data"),
-    [
-        pytest.param(ov.absolute, np.abs, np.float32(-3)),
-        pytest.param(ov.abs, np.abs, np.float32(-3)),
-        pytest.param(ov.acos, np.arccos, np.float32(-0.5)),
-        pytest.param(ov.asin, np.arcsin, np.float32(-0.5)),
-        pytest.param(ov.atan, np.arctan, np.float32(-0.5)),
-        pytest.param(ov.ceiling, np.ceil, np.float32(1.5)),
-        pytest.param(ov.ceil, np.ceil, np.float32(1.5)),
-        pytest.param(ov.cos, np.cos, np.float32(np.pi / 4.0)),
-        pytest.param(ov.cosh, np.cosh, np.float32(np.pi / 4.0)),
-        pytest.param(ov.exp, np.exp, np.float32(1.5)),
-        pytest.param(ov.floor, np.floor, np.float32(1.5)),
-        pytest.param(ov.log, np.log, np.float32(1.5)),
-        pytest.param(ov.relu, lambda x: np.maximum(0, x), np.float32(-0.125)),
-        pytest.param(ov.sign, np.sign, np.float32(0.0)),
-        pytest.param(ov.sin, np.sin, np.float32(np.pi / 4.0)),
-        pytest.param(ov.sinh, np.sinh, np.float32(0.0)),
-        pytest.param(ov.sqrt, np.sqrt, np.float32(3.5)),
-        pytest.param(ov.tan, np.tan, np.float32(np.pi / 4.0)),
-        pytest.param(ov.tanh, np.tanh, np.float32(0.1234)),
-    ],
-)
-def test_unary_op_scalar(graph_api_fn, numpy_fn, input_data):
-    expected_shape = numpy_fn(input_data).shape
-    node = graph_api_fn(input_data)
+@pytest.mark.parametrize("graph_api_fn", [
+    ov.absolute,
+    ov.abs,
+    ov.acos,
+    ov.asin,
+    ov.atan,
+    ov.ceiling,
+    ov.ceil,
+    ov.cos,
+    ov.cosh,
+    ov.exp,
+    ov.floor,
+    ov.log,
+    ov.relu,
+    ov.sign,
+    ov.sin,
+    ov.sinh,
+    ov.sqrt,
+    ov.tan,
+    ov.tanh,
+])
+def test_unary_op_scalar(graph_api_fn):
+    node = graph_api_fn(np.float32(-0.5))
 
     assert node.get_output_size() == 1
     assert node.get_output_element_type(0) == ov_runtime.Type.f32
-    assert list(node.get_output_shape(0)) == list(expected_shape)
+    assert list(node.get_output_shape(0)) == []
 
 
 @pytest.mark.parametrize(

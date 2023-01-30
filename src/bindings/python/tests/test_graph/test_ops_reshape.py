@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import openvino.runtime as ov_runtime
@@ -14,14 +14,13 @@ def test_concat():
     input_a = np.array([[1, 2], [3, 4]]).astype(np.float32)
     input_b = np.array([[5, 6]]).astype(np.float32)
     axis = 0
-    expected_shape = np.concatenate((input_a, input_b), axis=0).shape
 
     parameter_a = ov.parameter(list(input_a.shape), name="A", dtype=np.float32)
     parameter_b = ov.parameter(list(input_b.shape), name="B", dtype=np.float32)
     node = ov.concat([parameter_a, parameter_b], axis)
     assert node.get_type_name() == "Concat"
     assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == list(expected_shape)
+    assert list(node.get_output_shape(0)) == [3, 2]
 
 
 @pytest.mark.parametrize(

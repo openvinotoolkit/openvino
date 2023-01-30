@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,7 @@ struct convolution_test_params {
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
+    size_t expected_fused_primitives_onednn;
     size_t expected_not_fused_primitives;
 };
 
@@ -81,14 +82,16 @@ struct conv_eltw_test_params {
 class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, int min=0, int max=0) {
+        if(engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
         cldnn::memory::ptr input_prim;
         if (min == max) {
             input_prim = get_mem(get_input_layout(p));
         } else {
             input_prim = get_mem(get_input_layout(p), min, max);
         }
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -124,8 +127,8 @@ class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -152,8 +155,8 @@ public:
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -186,13 +189,13 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
     public:
     void execute(bc_force_kernel_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        implementation_desc conv_impl = { p.input_format, p.kernel_name };
-        options.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, p.kernel_name };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, options);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, config);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -227,11 +230,11 @@ public:
         // Onednn post operation has issue in a machine that does not support imad.
         if (!engine.get_device_info().supports_immad)
             return;
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        auto impl_forcing_bo = bo_fused.get<build_option_type::force_implementations>();
-        const auto& impl_forcing = impl_forcing_bo->forcing;
+        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
 
         auto forcing_format = p.input_format;
         for (auto& forcing : impl_forcing) {
@@ -240,11 +243,12 @@ public:
             }
         }
 
-        implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { forcing_format, "", impl_types::onednn };
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        auto cfg = cfg_fused;
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -393,19 +397,19 @@ TEST_P(conv_fp32_reorder_fsv16_to_bfyx, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_fsv16_to_bfyx, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_1, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP32_5, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP32_14, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP32_5, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP32_14, 2, 2, 2 },
 
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP16_5, 2, 2 },
-    convolution_test_params{ CASE_CONV_FP16_13, 2, 2 }
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP16_5, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP16_13, 2, 2, 2 }
 }));
 
 class conv_fp32_reorder_fsv16_to_bfyx_conv : public ConvFusingTest {};
@@ -432,19 +436,19 @@ TEST_P(conv_fp32_reorder_fsv16_to_bfyx_conv, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_fsv16_to_bfyx_conv, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_1,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP32_2,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP32_5,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP32_14, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_1, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_2, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_5, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_14, 3, 3, 4 },
 
-    convolution_test_params{ CASE_CONV_FP16_1,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP16_2,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP16_5,  3, 4 },
-    convolution_test_params{ CASE_CONV_FP16_13, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP16_1, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP16_2, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP16_3, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP16_4, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP16_5, 3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP16_13, 3, 3, 4 },
 }));
 
 
@@ -465,15 +469,15 @@ TEST_P(conv_fp32_activation, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
 }));
 
 
@@ -495,17 +499,17 @@ TEST_P(conv_fp32_scale, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_10, 2, 3 },
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 3 },
 
-    // convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_10, 2, 3 },
+    // convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_10, 2, 2, 3 },
 }));
 
 class conv_fp32_bias : public ConvFusingTest {};
@@ -525,17 +529,17 @@ TEST_P(conv_fp32_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_10, 2, 2, 3 },
 }));
 
 class conv_fp32_double_bias : public ConvFusingTest {};
@@ -557,8 +561,8 @@ TEST_P(conv_fp32_double_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_double_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
 }));
 
 class conv_fp32_wrong_bias : public ConvFusingTest {};
@@ -587,16 +591,16 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_15, 3, 3 },
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
 }));
 
 class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
 TEST_P(conv_fp32_add_per_element_planar_const, basic) {
     auto p = GetParam();
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
-    implementation_desc permute_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl },
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    ov::intel_gpu::ImplementationDesc permute_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl },
                                                               { "permute", permute_impl } }));
 
     auto out_layout = get_output_layout(p);
@@ -616,7 +620,7 @@ TEST_P(conv_fp32_add_per_element_planar_const, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_add_per_element_planar_const, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_3, 3, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 3, 3, 4 },
 }));
 
 class conv_fp32_prelu_eltwise : public ConvFusingTest {};
@@ -634,7 +638,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -652,7 +656,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -670,7 +674,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -688,7 +692,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -707,7 +711,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -726,7 +730,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -745,7 +749,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -764,7 +768,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -783,10 +787,10 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -804,10 +808,10 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -826,10 +830,10 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -848,23 +852,23 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
 
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
 }));
 
 class conv_fp32_multi_eltwise_2 : public ConvFusingTest {};
@@ -884,21 +888,21 @@ TEST_P(conv_fp32_multi_eltwise_2, basic) {
         eltwise("eltwise2", input_info("eltwise1"), input_info("conv_prim"), eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise2"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_2, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
 }));
 
 
@@ -920,21 +924,21 @@ TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
         eltwise("eltwise2", input_info("activation"), input_info("conv_prim"), eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise2"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_2_clamp, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 5 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 5 },
 }));
 
 
@@ -960,21 +964,21 @@ TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
         eltwise("eltwise4_add", input_info("eltwise3_div"), input_info("eltwise4_data"), eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("eltwise4_add"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_4_clamp, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 7 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 7 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 7 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 7 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 7 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 7 },
 }));
 
 class conv_fp32_eltwise_fusing_extend_ops : public ConvFusingTest {};
@@ -999,8 +1003,8 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern01_simple_sub) {
         concatenation("concat", { input_info("eltwise4_sum"), input_info("eltwise4_sum") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1027,8 +1031,8 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
         concatenation("concat", { input_info("scale"), input_info("scale") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1056,21 +1060,21 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern03_sub_div) {
         concatenation("concat", { input_info("eltwise4_sum"), input_info("eltwise4_sum") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_fusing_extend_ops, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 3, 7 },
-    convolution_test_params{ CASE_CONV_FP32_3, 3, 7 },
-    convolution_test_params{ CASE_CONV_FP32_4, 3, 7 },
+    convolution_test_params{ CASE_CONV_FP32_2, 3, 3, 7 },
+    convolution_test_params{ CASE_CONV_FP32_3, 3, 3, 7 },
+    convolution_test_params{ CASE_CONV_FP32_4, 3, 3, 7 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 3, 7 },
-    convolution_test_params{ CASE_CONV_FP16_3, 3, 7 },
-    convolution_test_params{ CASE_CONV_FP16_4, 3, 7 },
+    convolution_test_params{ CASE_CONV_FP16_2, 3, 3, 7 },
+    convolution_test_params{ CASE_CONV_FP16_3, 3, 3, 7 },
+    convolution_test_params{ CASE_CONV_FP16_4, 3, 3, 7 },
 }));
 
 class conv_fp32_eltwise_fusing_2conv : public ConvFusingTest {};
@@ -1094,21 +1098,21 @@ TEST_P(conv_fp32_eltwise_fusing_2conv, basic) {
         concatenation("concat", { input_info("eltwise3"), input_info("eltwise3") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim0", conv_impl }, { "conv_prim", conv_impl }  }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim0", conv_impl }, { "conv_prim", conv_impl }  }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_fusing_2conv, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 4, 7 },
-    convolution_test_params{ CASE_CONV_FP32_3, 4, 7 },
-    convolution_test_params{ CASE_CONV_FP32_4, 4, 7 },
+    convolution_test_params{ CASE_CONV_FP32_2, 4, 4, 7 },
+    convolution_test_params{ CASE_CONV_FP32_3, 4, 4, 7 },
+    convolution_test_params{ CASE_CONV_FP32_4, 4, 4, 7 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 4, 7 },
-    convolution_test_params{ CASE_CONV_FP16_3, 4, 7 },
-    convolution_test_params{ CASE_CONV_FP16_4, 4, 7 },
+    convolution_test_params{ CASE_CONV_FP16_2, 4, 4, 7 },
+    convolution_test_params{ CASE_CONV_FP16_3, 4, 4, 7 },
+    convolution_test_params{ CASE_CONV_FP16_4, 4, 4, 7 },
 }));
 
 
@@ -1131,21 +1135,21 @@ TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
         eltwise("eltwise3", input_info("eltwise1"), input_info("eltwise2"), eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise3"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_3_fusing, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 5 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 5 },
 }));
 
 
@@ -1175,12 +1179,12 @@ TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization, ::testing::ValuesIn(std::vector<convolution_test_params>{
-//  convolution_test_params{ CASE_CONV_FP32_2, 4, 5 },
-    convolution_test_params{ CASE_CONV_FP32_4, 4, 5 },
+    // convolution_test_params{ CASE_CONV_FP32_2, 4, 4, 5 },
+    convolution_test_params{ CASE_CONV_FP32_4, 4, 4, 5 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 4, 5 },
-    convolution_test_params{ CASE_CONV_FP16_3, 4, 5 },
-    convolution_test_params{ CASE_CONV_FP16_4, 4, 5 },
+    convolution_test_params{ CASE_CONV_FP16_2, 4, 4, 5 },
+    convolution_test_params{ CASE_CONV_FP16_3, 4, 4, 5 },
+    convolution_test_params{ CASE_CONV_FP16_4, 4, 4, 5 },
 }));
 
 
@@ -1204,21 +1208,21 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
             padding{ { 0, 0, 0, 0 }, 0 }),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(output_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_concat, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 5, 5 },
-    convolution_test_params{ CASE_CONV_FP32_3, 5, 5 },
-    convolution_test_params{ CASE_CONV_FP32_4, 5, 5 },
+    convolution_test_params{ CASE_CONV_FP32_2, 5, 5, 5 },
+    convolution_test_params{ CASE_CONV_FP32_3, 5, 5, 5 },
+    convolution_test_params{ CASE_CONV_FP32_4, 5, 5, 5 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 5, 5 },
-    convolution_test_params{ CASE_CONV_FP16_3, 5, 5 },
-    convolution_test_params{ CASE_CONV_FP16_4, 5, 5 },
+    convolution_test_params{ CASE_CONV_FP16_2, 5, 5, 5 },
+    convolution_test_params{ CASE_CONV_FP16_3, 5, 5, 5 },
+    convolution_test_params{ CASE_CONV_FP16_4, 5, 5, 5 },
 }));
 
 class conv_fp32_eltwise_b_fs_zyx_fsv16 : public ConvFusingTest {};
@@ -1235,8 +1239,8 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_zyx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1260,15 +1264,15 @@ TEST_P(conv_fp32_swish, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
 
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
 }));
 
 TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
@@ -1276,7 +1280,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
 
     std::vector<std::string> weights_idx;
     for (size_t w = 0; w < p.groups; w++) {
-        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p, p.groups))));
+        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p))));
         weights_idx.push_back(("weights" + std::to_string(w)));
     }
 
@@ -1288,8 +1292,8 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_zyx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     //  commented because split mode is disabled
@@ -1297,20 +1301,20 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_6, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_7, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_8, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_12, 2, 3 },
-    // convolution_test_params{ CASE_CONV_FP32_13, 2, 3 }, - leads to mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8.basic/11 test failure
+    convolution_test_params{ CASE_CONV_FP32_6, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_7, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_8, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_12, 2, 2, 3 },
+    // convolution_test_params{ CASE_CONV_FP32_13, 2, 2, 3 }, - leads to mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8.basic/11 test failure
 
-    convolution_test_params{ CASE_CONV_FP16_6, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_7, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_8, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_12, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_6, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_7, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_8, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_12, 2, 2, 3 },
 }));
 
 class conv_fp32_quantize_u8_first_conv : public ConvFusingTest {};
@@ -1336,7 +1340,7 @@ TEST_P(conv_fp32_quantize_u8_first_conv, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_quantize_u8_first_conv, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_14, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_14, 2, 2, 3 },
 }));
 
 class conv_fp32_quantize_u8 : public ConvFusingTest {};
@@ -1362,11 +1366,11 @@ TEST_P(conv_fp32_quantize_u8, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_quantize_u8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
 }));
 
 class conv_fp32_scale_quantize_i8 : public ConvFusingTest {};
@@ -1396,11 +1400,11 @@ TEST_P(conv_fp32_scale_quantize_i8, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
 }));
 
 class conv_fp32_scale_activation_quantize_i8 : public ConvFusingTest {};
@@ -1429,11 +1433,11 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 5 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 5 },
 }));
 
 class conv_fp32_scale_activation_quantize_u8_eltwise_fp32 : public ConvFusingTest {};
@@ -1464,11 +1468,11 @@ TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_u8_eltwise_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // For now only b_fs_yx_fsv16 supports this case
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 6 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 6 },
 }));
 
 class conv_fp32_scale_activation_quantize_i8_activation : public ConvFusingTest {};
@@ -1498,11 +1502,11 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 6 },
 
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 6 },
 }));
 
 
@@ -1539,8 +1543,8 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 7 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 7 },
 }));
 
 class conv_fp32_activation_eltwise_in_u8_fp32 : public ConvFusingTest {};
@@ -1562,16 +1566,16 @@ TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 4 }, - eltwise fusing not supported
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 4 },
-    // convolution_test_params{ CASE_CONV_FP32_5, 2, 4 }, - eltwise fusing not supported
-    convolution_test_params{ CASE_CONV_FP32_6, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_7, 2, 4 },
-    // convolution_test_params{ CASE_CONV_FP32_8, 2, 4 }, - unknown bug
-    convolution_test_params{ CASE_CONV_FP32_9, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_10, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 }, - eltwise fusing not supported
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP32_5, 2, 2, 4 }, - eltwise fusing not supported
+    convolution_test_params{ CASE_CONV_FP32_6, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_7, 2, 2, 4 },
+    // convolution_test_params{ CASE_CONV_FP32_8, 2, 2, 4 }, - unknown bug
+    convolution_test_params{ CASE_CONV_FP32_9, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 4 },
 }));
 
 class conv_fp32_activation_eltwise_diff_sizes : public ConvEltwTest {};
@@ -1603,6 +1607,64 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes, :
     conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 3, 4 },
 }));
 
+class conv_fp32_group_conv_eltwise_sum : public ConvEltwTest {};
+TEST_P(conv_fp32_group_conv_eltwise_sum, basic) {
+    auto p = GetParam();
+
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+        convolution("conv_prim", input_info("input"), { "weights" }, {}, p.groups, p.stride, p.pad, p.dilation, p.out_shape, p.data_type, true),
+        eltwise("sum", { input_info("conv_prim"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f32),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+// in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_GROUP_CONV_ELTW_FP32_1 { 1, 48, 3, 3 }, { 1, 48, 3, 3 }, { 1, 48, 3, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 16, data_types::f32, format::bfyx, data_types::f32, format::g_os_iyx_osv16, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_group_conv_eltwise_sum, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+    conv_eltw_test_params{ CASE_GROUP_CONV_ELTW_FP32_1, 3, 2, 3 },
+}));
+
+class conv_swap_xy_with_eltwise_diff_sizes : public ConvEltwTest {};
+TEST_P(conv_swap_xy_with_eltwise_diff_sizes, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::relu_negative_slope),
+        eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f16),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f16)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+// in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_CONV_ELTW_FP16_SWAP_XY_1 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_2 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_ELTW_FP32_SWAP_XY_1 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_SWAP_XY_2 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_swap_xy_with_eltwise_diff_sizes, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_1, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_2, 3, 3, 4 },
+}));
+
 class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
 TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
@@ -1630,14 +1692,14 @@ TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 3, 6 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 3, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_1, 2, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_2, 2, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_3, 2, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_4, 2, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_5, 3, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_6, 3, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_7, 3, 4, 6 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_8, 3, 4, 6 },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -1678,25 +1740,25 @@ TEST_P(conv_int8_scale, fp16_scale_out) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
 }));
 
 class conv_int8_eltwise : public ConvFusingTest {};
@@ -1717,25 +1779,25 @@ TEST_P(conv_int8_eltwise, fp16_eltwise_out) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
 }));
 
 class conv_int8_scale_shift_swish : public ConvFusingTest {};
@@ -1763,25 +1825,25 @@ TEST_P(conv_int8_scale_shift_swish, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 8 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 8 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 8 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 8 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 8 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 8 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 8 },
 }));
 
 class conv_int8_prelu_eltwise : public ConvFusingTest {};
@@ -1799,7 +1861,7 @@ TEST_P(conv_int8_prelu_eltwise, basic) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -1817,7 +1879,7 @@ TEST_P(conv_int8_prelu_eltwise, basic_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -1836,14 +1898,14 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -1862,41 +1924,41 @@ TEST_P(conv_int8_prelu_eltwise, fsv16_slope_2) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
 
-    tolerance = default_tolerance(p.default_type);
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_prelu_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 4 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 4 },
 }));
 
 class conv_int8_activation_eltwise_quantize : public ConvFusingTest {};
@@ -1920,15 +1982,12 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv16) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives += 2;
 
     tolerance = 1.f;
     execute(p);
@@ -1954,33 +2013,30 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv32, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv32, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives += 2;
 
     tolerance = 1.f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 5 },
 }));
 
 class conv_int8_activation_eltwise : public ConvFusingTest {};
@@ -1998,15 +2054,12 @@ TEST_P(conv_int8_activation_eltwise, fsv16) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives += 2;
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -2026,33 +2079,30 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv32, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv32, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
     }
-    // Activation won't be fused because onednn doesn't support negative activation
-    if (engine.get_device_info().supports_immad)
-        p.expected_fused_primitives += 2;
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 4 },
 }));
 
 class conv_int8_quantize_u8 : public ConvFusingTest {};
@@ -2097,26 +2147,26 @@ TEST_P(conv_int8_quantize_u8, per_tensor) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_quantize_u8, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
 }));
 
 class conv_int8_scale_quantize_i8 : public ConvFusingTest {};
@@ -2145,29 +2195,29 @@ TEST_P(conv_int8_scale_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 4 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 4 },
 }));
 
 class conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8 : public ConvFusingTest {};
@@ -2188,15 +2238,15 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_S8S8_11, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_11, 2, 2, 4 },
 }));
 
 class conv_int8_relu_quantize : public ConvFusingTest {};
@@ -2245,25 +2295,25 @@ TEST_P(conv_int8_relu_quantize, u8) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_relu_quantize, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 4 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 4 },
 }));
 
 class conv_int8_scale_activation_quantize_i8 : public ConvFusingTest {};
@@ -2291,25 +2341,25 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 5 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 5 },
 }));
 
 class conv_int8_scale_activation_quantize_i8_eltwise_fp32 : public ConvFusingTest {};
@@ -2339,25 +2389,25 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 6 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 6 },
 }));
 
 class conv_int8_scale_activation_quantize_i8_activation : public ConvFusingTest {};
@@ -2387,25 +2437,25 @@ TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 6 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 6 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 6 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 6 },
 }));
 
 
@@ -2443,25 +2493,25 @@ TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 7 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 7 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 7 },
 }));
 
 class conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec : public ConvFusingTest {};
@@ -2493,8 +2543,8 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         reorder("reorder_bfyx", input_info("quantize_1"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
@@ -2528,25 +2578,25 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         reorder("reorder_bfyx", input_info("quantize_1"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_5, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_5, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_5, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_5, 2, 2, 7 },
 }));
 
 class conv_int8_asymmetric_weights : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_weights, basic) {
     auto p = GetParam();
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
                                            get_weights_layout(p);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2561,8 +2611,8 @@ TEST_P(conv_int8_asymmetric_weights, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -2591,23 +2641,23 @@ TEST_P(conv_int8_asymmetric_weights, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_weights, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 2 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 2 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 2 },
 }));
 
 class conv_int8_asymmetric_data : public ConvFusingTest {};
@@ -2616,7 +2666,7 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     layout weights_layout = get_weights_layout(p);
     if (!engine.get_device_info().supports_immad) {
         auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-        weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) : get_weights_layout(p);
+        weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) : get_weights_layout(p);
     }
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2631,8 +2681,8 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -2661,32 +2711,32 @@ TEST_P(conv_int8_asymmetric_data, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
 }));
 
 class conv_int8_asymmetric_data_and_weights : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     auto p = GetParam();
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
                           get_weights_layout(p);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2703,8 +2753,8 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -2733,25 +2783,25 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 3 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, 2, 2, 3 },
 }));
 
 
@@ -2850,13 +2900,13 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_basic, basic) {
         reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_basic, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1,  3, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 3, 3, 4 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'mean'
@@ -2875,13 +2925,13 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
         activation("activation", input_info("conv_prim"), activation_func::abs)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_mean, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1,  4, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 4 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'subtract'
@@ -2908,13 +2958,13 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
         convolution("conv_output", input_info("reorder_fsv32"), { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1,  4, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 4 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'fused_activation'
@@ -2938,15 +2988,15 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         activation("activation", input_info("conv_prim2"), activation_func::abs)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
-    bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", conv_impl } }));
 
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 6 }
 }));
 
 // activation will be fused through 'reorder_fsv32' and 'reorder_fsv32' will be fused as well
@@ -2969,15 +3019,15 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused
         activation("activation", input_info("conv_prim2"), activation_func::abs)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
-    bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", conv_impl } }));
 
     execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 6 }
 }));
 
 // 'reorder_fsv32' is being fused even if it has 'padding'
@@ -2999,13 +3049,13 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
         reorder("reorder_out", input_info("conv_prim2"), format::fs_b_yx_fsv32, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
 
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1,  5, 5 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 5 }
 }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -3030,7 +3080,7 @@ TEST_P(conv_fp16_prelu_onednn, basic_activation_eltwise) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_prelu_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
 }));
 
 class conv_int8_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3047,9 +3097,7 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_sum_out) {
         data("shift_data", get_mem(shift_layout)),
         convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("shift", { input_info("conv_prim"), input_info("shift_data") }, eltwise_mode::sum, data_types::f32),
-        // Add 'not fusable' primitive to be able to test full size tensor sum
-        crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
+        reorder("reorder_bfyx", input_info("shift"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -3066,37 +3114,37 @@ TEST_P(conv_int8_eltwise_onednn, u8_eltwise_prod_out) {
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()) ),
         convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
         eltwise("scale", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod, data_types::u8),
-        crop("crop", input_info("scale"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
-        reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
+        reorder("reorder_bfyx", input_info("scale"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
     execute(p);
 }
 
+static const int NOT_FOR_CLDNN = 0;
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 3, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 3, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 3, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 3, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 3, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 3, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, NOT_FOR_CLDNN, 2, 3 },
 
-    convolution_test_params{ CASE_CONV_U8S8_11, 3, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 3, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 3, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 3, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 3, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 3, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_11, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, NOT_FOR_CLDNN, 2, 3 },
 
-    convolution_test_params{ CASE_CONV3D_U8S8_1, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_2, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_3, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_U8S8_5, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_1, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_2, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_3, 3, 4 },
-    convolution_test_params{ CASE_CONV3D_S8S8_5, 3, 4 },
+    convolution_test_params{ CASE_CONV3D_U8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_3, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_U8S8_5, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_1, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_2, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_3, NOT_FOR_CLDNN, 2, 3 },
+    convolution_test_params{ CASE_CONV3D_S8S8_5, NOT_FOR_CLDNN, 2, 3 },
 }));
 
 class conv_fp32_activation_abs_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3116,10 +3164,10 @@ TEST_P(conv_fp32_activation_abs_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_abs_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
 }));
 
 class conv_fp32_activation_mish_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3139,10 +3187,10 @@ TEST_P(conv_fp32_activation_mish_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_mish_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
 }));
 
 class conv_fp32_activation_swish_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3162,10 +3210,10 @@ TEST_P(conv_fp32_activation_swish_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_swish_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
 }));
 
 class conv_fp32_activation_hswish_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3185,10 +3233,10 @@ TEST_P(conv_fp32_activation_hswish_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_hswish_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
 }));
 
 class conv_fp32_activation_exp_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3208,10 +3256,10 @@ TEST_P(conv_fp32_activation_exp_onednn, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_exp_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP16_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 3 },
 }));
 
 class conv_int8_quantize_u8_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3256,12 +3304,12 @@ TEST_P(conv_int8_quantize_u8_onednn, per_tensor) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_quantize_u8_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
 }));
 
 class conv_int8_activation_eltwise_quantize_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3286,35 +3334,35 @@ TEST_P(conv_int8_activation_eltwise_quantize_onednn, bsv32_fsv32) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 5 },
-    //convolution_test_params{ CASE_CONV_U8S8_8, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 2, 5 },
+    //convolution_test_params{ CASE_CONV_U8S8_8, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 5 },
 
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 5 },
-    //convolution_test_params{ CASE_CONV_S8S8_8, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 2, 5 },
+    //convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 5 },
 }));
 
 class conv_int8_scale_shift_swish_onednn : public WeightsPrimitiveFusingTestOneDNN {};
@@ -3335,30 +3383,33 @@ TEST_P(conv_int8_scale_shift_swish_onednn, bsv32_fsv32) {
         reorder("reorder_bfyx", input_info("shift1"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 7 },
 
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 7 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 7 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 7 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 7 },
 }));
 
 class conv_int8_eltwise_scale_onednn : public WeightsPrimitiveFusingTestOneDNN {};
 TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
     auto p = GetParam();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3377,11 +3428,11 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
     auto input_prim = get_mem(get_input_layout(p));
 
     auto forcing_format = p.input_format;
-    implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { forcing_format, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -3393,7 +3444,7 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_scale_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_15, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_15, 2, 2, 4 },
 }));
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -3428,28 +3479,28 @@ TEST_P(post_ops_optimizations_onednn_eltw_linear_eltw_linear, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_linear_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 3 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 3 },
 }));
 
 // Before optimization: eltw_non_linear + eltw_linear
@@ -3480,28 +3531,28 @@ TEST_P(post_ops_optimizations_onednn_eltw_non_linear_eltw_linear, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_non_linear_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 3 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 3 },
 }));
 
 // Before optimization: binary_add + eltw_linear
@@ -3532,28 +3583,28 @@ TEST_P(post_ops_optimizations_onednn_binary_add_eltw_linear, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_add_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 3 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 3 },
 }));
 
 // Before optimization: binary_mul + eltw_linear
@@ -3586,26 +3637,26 @@ TEST_P(post_ops_optimizations_onednn_binary_mul_eltw_linear, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_mul_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 4 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 4 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 4 },
 }));
 
 // Before optimization: o_scale + eltw_linear
@@ -3636,26 +3687,26 @@ TEST_P(post_ops_optimizations_onednn_oscale_eltw_linear, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_oscale_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 3 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 3 },
 }));
 
 // Before optimization: eltw_any + sum + eltw_linear
@@ -3689,26 +3740,26 @@ TEST_P(post_ops_optimizations_onednn_eltw_any_sum_eltw_linear, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_any_sum_eltw_linear, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 5 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 5 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 5 },
 }));
 
 // Input range uses in 2 cases: not per-tensor output range or out_lo > out_hi
@@ -3737,28 +3788,28 @@ TEST_P(post_ops_optimizations_input_range, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_input_range, ::testing::ValuesIn(std::vector<convolution_test_params>{
     // cases with batch = 1
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 3 },
 
     // cases with batch = 16
-    convolution_test_params{ CASE_CONV_U8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_10, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_9, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_10, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_10, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_9, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_10, 2, 2, 3 },
 
     // cases with batch = 32
-    convolution_test_params{ CASE_CONV_U8S8_11, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_U8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_12, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_13, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_14, 2, 3 },
-    convolution_test_params{ CASE_CONV_S8S8_15, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_11, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_U8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_12, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_13, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_14, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_S8S8_15, 2, 2, 3 },
 }));
 
 struct convolution_eltw_sum_test_params {
@@ -3791,8 +3842,8 @@ public:
             return;
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -3825,6 +3876,8 @@ public:
 class onednn_binary_add_full_tensor : public EltwiseSumFusingTestOneDNN {};
 TEST_P(onednn_binary_add_full_tensor, basic) {
     auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3853,15 +3906,17 @@ TEST_P(onednn_binary_add_full_tensor, basic) {
 #define CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1 { 1, 32, 4, 4 }, { 1, 16, 4, 4 }, { 1, 1, 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 1, data_types::u8, format::b_fs_yx_fsv32, data_types::i8, format::bfyx, data_types::i8, format::b_fs_yx_fsv32, data_types::u8, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 3, 5 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 3, 5 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 3, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 4, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 4, 5 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_DIFF_DTYPE_1, 2, 4, 5 },
 }));
 
 
 class onednn_multiple_binary_add_full_tensor : public EltwiseSumFusingTestOneDNN {};
 TEST_P(onednn_multiple_binary_add_full_tensor, basic) {
     auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -3889,8 +3944,8 @@ TEST_P(onednn_multiple_binary_add_full_tensor, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(multiple_eltwise_sum_fusings_gpu, onednn_multiple_binary_add_full_tensor, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 3, 7 },
-    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 3, 7 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_BINARY_ADD_1, 2, 4, 7 },
+    convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_SUM_1, 2, 4, 7 },
 }));
 
 struct implicit_crop_concat_convolution_test_params {
@@ -3918,15 +3973,15 @@ public:
     void execute(implicit_crop_concat_convolution_test_params& p) {
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        bo_not_fused = bo_fused;
-        // implementation_desc quantize_impl = { p.output_format, "quantize_gpu_ref", impl_types::ocl };
-        bo_not_fused.set_option(build_option::force_implementations({
+        cfg_not_fused = cfg_fused;
+        // ov::intel_gpu::ImplementationDesc quantize_impl = { p.output_format, "quantize_gpu_ref", impl_types::ocl };
+        cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
             { "quantize1", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
             { "quantize2", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
             { "quantize3", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } } }));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p);

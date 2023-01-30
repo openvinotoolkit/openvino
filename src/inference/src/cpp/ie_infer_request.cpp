@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
+#include "dev/converter_utils.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_context.hpp"
@@ -237,7 +238,7 @@ std::string get_legacy_name_from_port(const ov::Output<const ov::Node>& port) {
     if (auto node = std::dynamic_pointer_cast<ov::op::v0::Result>(p.get_node_shared_ptr())) {
         p = node->input_value(0);
     }
-    return ngraph::op::util::create_ie_output_name(p);
+    return ov::op::util::create_ie_output_name(p);
 }
 
 }  // namespace
@@ -506,7 +507,8 @@ std::vector<VariableState> InferRequest::query_state() {
 }
 
 CompiledModel InferRequest::get_compiled_model() {
-    OV_INFER_REQ_CALL_STATEMENT(return {_impl->getPointerToExecutableNetworkInternal(), _so});
+    OV_INFER_REQ_CALL_STATEMENT(
+        return {ov::legacy_convert::convert_compiled_model(_impl->getPointerToExecutableNetworkInternal()), _so});
 }
 
 bool InferRequest::operator!() const noexcept {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,4 +46,23 @@ TEST(get_constant_from_source, extract_static_dim_from_dynamic_shape_check) {
 
     ASSERT_TRUE(extract_static_dimension->get_output_tensor(0).get_lower_value());
     ASSERT_TRUE(extract_static_dimension->get_output_tensor(0).get_upper_value());
+}
+
+TEST(constantfold_subgraph, split) {
+    std::vector<float> input{0, 1, 2, 3, 4, 5, 6, 7, 8};
+    auto constant = ov::opset8::Constant::create(ov::element::f32, ov::Shape{input.size()}, input);
+    auto mul = std::make_shared<ov::opset8::Multiply>(constant,
+                                                      ov::opset8::Constant::create(ov::element::f32, ov::Shape{}, {1}));
+    auto shape = std::make_shared<ov::opset8::ShapeOf>(mul);
+    auto len_0 =
+        std::make_shared<ov::opset8::Divide>(shape, ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {2}));
+    auto len_1 = std::make_shared<ov::opset8::Subtract>(shape, len_0);
+    auto lenghts = std::make_shared<ov::opset8::Concat>(ov::OutputVector{len_0, len_1}, 0);
+    auto axis = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto split = std::make_shared<ov::opset8::VariadicSplit>(mul, axis, lenghts);
+    std::vector<float> expected(std::next(input.begin(), input.size() / 2), input.end());
+    auto ret = ov::constantfold_subgraph(split->output(1));
+    ASSERT_NE(ret, nullptr);
+    auto actual = ret->cast_vector<float>();
+    ASSERT_EQ(expected, actual);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -212,6 +212,12 @@ std::string toCodeString(double val) {
         return std::signbit(val) ? "-INFINITY" : "INFINITY";
     // Workaround GCC compiler/STL bug
     snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")/*%.6e*/", *reinterpret_cast<uint64_t*>(&val), val);
+    return buf;
+}
+
+std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output, size_t num_of_inputs) {
+    size_t actual_idx = (num_of_inputs * 6 * (is_output ? 1 : 0)) + (6 * arg_idx) + data_idx_at_6d;
+    snprintf(buf, sizeof(buf), "shape_info[%zu]", actual_idx);
     return buf;
 }
 
@@ -2009,15 +2015,15 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             std::string block_read;
 
             if (input_dt == Datatype::F32 || input_dt == Datatype::INT32 || input_dt == Datatype::UINT32) {
-                block_read = CastToType(" intel_sub_group_block_read" + vs + "("
+                block_read = CastToType(" _sub_group_block_read" + vs + "("
                                         + "(const __global uint*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
             } else if (input_dt == Datatype::F16) {
-                block_read = CastToType(" intel_sub_group_block_read_us" + vs + "("
+                block_read = CastToType(" _sub_group_block_read_us" + vs + "("
                                         + "(const __global ushort*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
             } else if (input_dt == Datatype::UINT8 || input_dt == Datatype::INT8) {
-                block_read = CastToType("BLOCK_READ_UC_" + toCodeString(vec_size) + "("
+                block_read = CastToType(" _sub_group_block_read_uc" + vs + "("
                                         + "(const __global uchar*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
             } else {
@@ -2050,7 +2056,7 @@ std::string FusedOpsCodeGenerator::GetInputPtrName(size_t input_id) const {
 
 std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id, bool is_shuffled, std::string shuffle_var) const {
     if (is_shuffled)
-        return "intel_sub_group_shuffle(" + GetTypeStr() + toCodeString(desc.op_id) + "_data" +
+        return "_sub_group_shuffle(" + GetTypeStr() + toCodeString(desc.op_id) + "_data" +
                toCodeString(input_id) + ", " + shuffle_var + ")";
     return GetTypeStr() + toCodeString(desc.op_id) + "_data" + toCodeString(input_id);
 }

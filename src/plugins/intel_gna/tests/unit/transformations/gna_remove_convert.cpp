@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,7 @@ void RemoveInputConvertTest::SetUp() {
 
 void RemoveInputConvertTest::Validate() {
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
     m.run_passes(func_);
     ASSERT_NO_THROW(check_rt_info(func_));
@@ -134,7 +134,7 @@ public:
     }
     void Validate() override {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         m.run_passes(func_);
         ASSERT_NO_THROW(check_rt_info(func_));
@@ -176,7 +176,7 @@ public:
     }
     void Validate() override {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::intel_gna::pass::RemoveInputConvert>();
         m.register_pass<ov::intel_gna::pass::RemoveOutputConvert>();
         m.run_passes(func_);

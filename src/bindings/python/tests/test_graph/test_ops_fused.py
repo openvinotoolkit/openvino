@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -15,10 +15,9 @@ def test_elu_operator_with_scalar_and_array():
 
     model = ov.elu(data_value, alpha_value)
 
-    expected_shape = [2, 2]
     assert model.get_type_name() == "Elu"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [2, 2]
 
 
 def test_elu_operator_with_scalar():
@@ -27,10 +26,9 @@ def test_elu_operator_with_scalar():
 
     model = ov.elu(parameter_data, alpha_value)
 
-    expected_shape = [2, 2]
     assert model.get_type_name() == "Elu"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [2, 2]
 
 
 def test_fake_quantize():
@@ -53,10 +51,9 @@ def test_fake_quantize():
         levels,
     )
 
-    expected_shape = [1, 2, 3, 4]
     assert model.get_type_name() == "FakeQuantize"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [1, 2, 3, 4]
 
 
 def test_depth_to_space():
@@ -67,10 +64,9 @@ def test_depth_to_space():
 
     model = ov.depth_to_space(parameter_data, mode, block_size)
 
-    expected_shape = [1, 1, 4, 6]
     assert model.get_type_name() == "DepthToSpace"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [1, 1, 4, 6]
 
 
 def test_space_to_batch():
@@ -82,10 +78,9 @@ def test_space_to_batch():
 
     model = ov.space_to_batch(parameter_data, block_shape, pads_begin, pads_end)
 
-    expected_shape = [12, 1, 1, 2]
     assert model.get_type_name() == "SpaceToBatch"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [12, 1, 1, 2]
 
 
 def test_batch_to_space():
@@ -97,10 +92,9 @@ def test_batch_to_space():
 
     model = ov.batch_to_space(parameter_data, block_shape, crops_begin, crops_end)
 
-    expected_shape = [1, 2, 2, 3]
     assert model.get_type_name() == "BatchToSpace"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [1, 2, 2, 3]
 
 
 def test_clamp_operator():
@@ -111,10 +105,9 @@ def test_clamp_operator():
 
     model = ov.clamp(parameter_data, min_value, max_value)
 
-    expected_shape = [2, 2]
     assert model.get_type_name() == "Clamp"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [2, 2]
 
 
 def test_squeeze_operator():
@@ -123,10 +116,9 @@ def test_squeeze_operator():
     axes = [2, 4]
     model = ov.squeeze(parameter_data, axes)
 
-    expected_shape = [1, 2, 3, 1]
     assert model.get_type_name() == "Squeeze"
     assert model.get_output_size() == 1
-    assert list(model.get_output_shape(0)) == expected_shape
+    assert list(model.get_output_shape(0)) == [1, 2, 3, 1]
 
 
 def test_squared_difference_operator():

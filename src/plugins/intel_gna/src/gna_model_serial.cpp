@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@
 #include "serial/headers/latest/gna_model_header.hpp"
 #include "common/versioning.hpp"
 
-using namespace GNAPluginNS;
+using namespace ov::intel_gna;
 
 inline void writeNBytes(const void *ptr, uint32_t size, std::ostream & os) {
     os.write(static_cast<const char*>(ptr), size);
@@ -108,7 +108,7 @@ std::string GNAVersionSerializer::Import(std::istream& is) const {
 
 const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 
-GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
+header_latest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
     is.exceptions(std::istream::failbit);
     auto startPos = is.tellg();
     if (startPos == -1) {
@@ -122,11 +122,11 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     stream_len -= startPos;
     is.seekg(startPos, is.beg);
 
-    HeaderLatest::ModelHeader header;
+    header_latest::ModelHeader header;
     header.version.major = 0u;
     header.version.minor = 0u;
-    auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize)
-                                + sizeof(HeaderLatest::ModelHeader::Version);
+    auto size_of_headers_header = sizeof(header_latest::ModelHeader::gnam) + sizeof(header_latest::ModelHeader::headerSize)
+                                + sizeof(header_latest::ModelHeader::Version);
     if (stream_len > size_of_headers_header) {
         readNBytes(&header, static_cast<uint32_t>(size_of_headers_header), is);
     } else {
@@ -142,34 +142,34 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     }
 
     is.seekg(startPos, is.beg);
-    Header2dot1::ModelHeader tempHeader2dot1;
+    header_2_dot_1::ModelHeader tempheader_2_dot_1;
     switch (header.version.major) {
         case 2:
             switch (header.version.minor) {
                 case 1:
-                    readBits(tempHeader2dot1, is);
-                    header = HeaderLatest::ModelHeader(tempHeader2dot1);
+                    readBits(tempheader_2_dot_1, is);
+                    header = header_latest::ModelHeader(tempheader_2_dot_1);
                     break;
                 case 2:
                 case 3:
                 {
-                    Header2dot3::ModelHeader tempHeader2dot3;
-                    readBits(tempHeader2dot3, is);
-                    header = HeaderLatest::ModelHeader(tempHeader2dot3);
+                    header_2_dot_3::ModelHeader tempheader_2_dot_3;
+                    readBits(tempheader_2_dot_3, is);
+                    header = header_latest::ModelHeader(tempheader_2_dot_3);
                     break;
                 }
                 case 4:
                 {
-                    Header2dot4::ModelHeader tempHeader2dot4;
-                    readBits(tempHeader2dot4, is);
-                    header = HeaderLatest::ModelHeader(tempHeader2dot4);
+                    header_2_dot_4::ModelHeader tempheader_2_dot_4;
+                    readBits(tempheader_2_dot_4, is);
+                    header = header_latest::ModelHeader(tempheader_2_dot_4);
                     break;
                 }
                 case 5:
                 case 6:
                 case 7:
                 case 8:
-                    readNBytes(&header, sizeof(HeaderLatest::ModelHeader), is);
+                    readNBytes(&header, sizeof(header_latest::ModelHeader), is);
                     break;
                 default:
                     THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 8 and is: " << header.version.minor;
@@ -190,10 +190,10 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     return header;
 }
 
-GNAPluginNS::HeaderLatest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::istream &is) {
+header_latest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::istream &is) {
     is.exceptions(std::istream::failbit);
 
-    HeaderLatest::RuntimeEndPoint endPoint;
+    header_latest::RuntimeEndPoint endPoint;
     switch (model_header_.version.major) {
         case 2:
             switch (model_header_.version.minor) {
@@ -204,20 +204,20 @@ GNAPluginNS::HeaderLatest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::ist
                 case 5:
                 case 6:
                 {
-                    Header2dot6::RuntimeEndPoint tempEndPoint2dot6;
+                    header_2_dot_6::RuntimeEndPoint tempEndPoint2dot6;
                     readBits(tempEndPoint2dot6, is);
-                    endPoint = HeaderLatest::RuntimeEndPoint(tempEndPoint2dot6, model_header_.nGroup);
+                    endPoint = header_latest::RuntimeEndPoint(tempEndPoint2dot6, model_header_.nGroup);
                     break;
                 }
                 case 7:
                 {
-                    Header2dot7::RuntimeEndPoint tempEndPoint2dot7;
+                    header_2_dot_7::RuntimeEndPoint tempEndPoint2dot7;
                     readBits(tempEndPoint2dot7, is);
-                    endPoint = HeaderLatest::RuntimeEndPoint(tempEndPoint2dot7);
+                    endPoint = header_latest::RuntimeEndPoint(tempEndPoint2dot7);
                     break;
                 }
                 case 8:
-                    readNBytes(&endPoint, sizeof(HeaderLatest::RuntimeEndPoint), is);
+                    readNBytes(&endPoint, sizeof(header_latest::RuntimeEndPoint), is);
                     break;
                 default:
                     THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 8 and is: "
@@ -259,8 +259,8 @@ static const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
 void GNAModelSerial::Import(void *basePointer,
         size_t gnaGraphSize,
         std::istream &is,
-        GNAPluginNS::GnaInputs &inputs,
-        GNAPluginNS::GnaOutputs &outputs,
+        GnaInputs &inputs,
+        GnaOutputs &outputs,
         TranspositionInfoMap &inputsTranspositionInfo,
         TranspositionInfoMap &outputsTranspositionInfo,
         std::string & libVersionFromFile) {
@@ -269,7 +269,7 @@ void GNAModelSerial::Import(void *basePointer,
     if (model_header_.version.major == 2) {
         for (auto inputIndex = 0; inputIndex < model_header_.nInputs; inputIndex++) {
             std::string name = (model_header_.version.minor >= 3) ? readString(is) : std::string("input" + std::to_string(inputIndex));
-            inputs[name] = GNAPluginNS::InputDesc(name);
+            inputs[name] = InputDesc(name);
         }
         if (model_header_.version.minor >= 5) {
             // 3. Read transposition input info
@@ -294,7 +294,7 @@ void GNAModelSerial::Import(void *basePointer,
     if (model_header_.version.major == 2) {
         for (auto outputIndex = 0; outputIndex < model_header_.nOutputs; outputIndex++) {
             std::string name = (model_header_.version.minor >= 3) ? readString(is) : std::string("output" + std::to_string(outputIndex));
-            outputs[name] = GNAPluginNS::OutputDesc(name);
+            outputs[name] = OutputDesc(name);
         }
     }
     // 7. Read outputs
@@ -416,8 +416,8 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         return out;
     };
 
-    auto convert_to_serial = [&allocationsOrdered](const GNAPluginNS::GnaDesc& desc) {
-        HeaderLatest::RuntimeEndPoint ep;
+    auto convert_to_serial = [&allocationsOrdered](const GnaDesc& desc) {
+        header_latest::RuntimeEndPoint ep;
         ep.elements_count = desc.num_elements;
         ep.scaleFactor = desc.scale_factor;
         ep.element_size = desc.tensor_precision.size();
@@ -441,12 +441,12 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     /**
      * writing header
      */
-    HeaderLatest::ModelHeader header;
+    header_latest::ModelHeader header;
     header.gnam[0] = 'G';
     header.gnam[1] = 'N';
     header.gnam[2] = 'A';
     header.gnam[3] = 'M';
-    header.headerSize = sizeof(HeaderLatest::ModelHeader);
+    header.headerSize = sizeof(header_latest::ModelHeader);
     header.gnaMemSize = gnaGraphSize;
     header.layersCount = layers.size();
     header.nGroup = 1; // just to support the old models
@@ -561,9 +561,9 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     version_.Export(os);
 }
 
-void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::GnaInputs &inputs) {
+void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GnaInputs &inputs) {
     for (auto &input : inputs.Get()) {
-        HeaderLatest::RuntimeEndPoint ep = ReadEndPoint(is);
+        header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
 
         input.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + ep.descriptor_offset));
         input.orientation = ep.orientation;
@@ -589,9 +589,9 @@ void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GNAPluginNS::
     }
 }
 
-void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GNAPluginNS::GnaOutputs &outputs) {
+void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GnaOutputs &outputs) {
     for (auto &output : outputs.Get()) {
-        HeaderLatest::RuntimeEndPoint ep = ReadEndPoint(is);
+        header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
 
         output.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + ep.descriptor_offset));
         output.orientation = ep.orientation;
@@ -648,9 +648,9 @@ void GNAModelSerial::ExportTranspositionInfo(std::ostream &os,
 }
 
 void GNAModelSerial::AppendTensorNameIfNeeded(GnaDesc& nodeDesc) const {
-    static constexpr Header2dot8::ModelHeader::Version kHasTensorNamesVersion;
+    static constexpr header_2_dot_8::ModelHeader::Version kHasTensorNamesVersion;
 
-    if (HeaderLatest::IsFirstVersionLower(model_header_.version, kHasTensorNamesVersion) &&
+    if (header_latest::IsFirstVersionLower(model_header_.version, kHasTensorNamesVersion) &&
         nodeDesc.tensor_names.empty()) {
         nodeDesc.tensor_names.insert(nodeDesc.name);
     }
