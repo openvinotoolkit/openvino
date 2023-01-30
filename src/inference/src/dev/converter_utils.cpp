@@ -336,7 +336,7 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal> CreateInferRequest() override {
-        return m_model->create_infer_request();
+        return legacy_convert::convert_infer_request(m_model->create_infer_request());
     }
 
     void Export(std::ostream& model) override {
@@ -391,4 +391,13 @@ std::shared_ptr<ov::ICompiledModel> ov::legacy_convert::convert_compiled_model(
         return comp_model->get_model();
     }
     return std::make_shared<InferenceEngine::ICompiledModelWrapper>(model);
+}
+
+std::shared_ptr<::InferenceEngine::IInferRequestInternal> ov::legacy_convert::convert_infer_request(
+    const std::shared_ptr<::ov::IInferRequest>& request) {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+std::shared_ptr<::ov::IInferRequest> ov::legacy_convert::convert_infer_request(
+    const std::shared_ptr<::InferenceEngine::IInferRequestInternal>& request) {
+    OPENVINO_NOT_IMPLEMENTED;
 }

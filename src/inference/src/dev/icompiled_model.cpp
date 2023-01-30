@@ -6,6 +6,7 @@
 
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "icompiled_model_wrapper.hpp"
+#include "iinfer_request.hpp"
 #include "openvino/core/model.hpp"
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -29,11 +30,8 @@ const std::vector<ov::Output<const ov::Node>>& ov::ICompiledModel::outputs() con
 const std::vector<ov::Output<const ov::Node>>& ov::ICompiledModel::inputs() const {
     return m_inputs;
 }
-std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request() const {
-    if (m_task_executor && m_callback_executor) {
-        return create_async_infer_request();
-    }
-    return create_sync_infer_request();
+std::shared_ptr<ov::IInferRequest> ov::ICompiledModel::create_infer_request() const {
+    return create_infer_request(create_async_infer_request());
 }
 
 std::shared_ptr<const ov::IPlugin> ov::ICompiledModel::get_plugin() const {
@@ -46,4 +44,14 @@ void ov::ICompiledModel::loaded_from_cache() {
         return;
     }
     OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::IInferRequest> ov::ICompiledModel::create_infer_request(
+    const std::shared_ptr<ov::IAsyncInferRequest>& request) const {
+    return std::make_shared<ov::IInferRequest>(request);
+}
+
+std::shared_ptr<ov::IInferRequest> ov::ICompiledModel::create_infer_request(
+    const std::shared_ptr<ov::ISyncInferRequest>& request) const {
+    return std::make_shared<ov::IInferRequest>(request);
 }
