@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "max_prim_list_construct_replacer.hpp"
+#include "min_prim_list_construct_replacer.hpp"
+
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/minimum.hpp"
@@ -20,7 +21,7 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-MaxPrimListConstructReplacer::MaxPrimListConstructReplacer() {
+MinPrimListConstructReplacer::MinPrimListConstructReplacer() {
     auto min_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
