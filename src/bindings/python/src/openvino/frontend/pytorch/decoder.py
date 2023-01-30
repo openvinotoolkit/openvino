@@ -25,6 +25,8 @@ def get_type_from_py_type(value):
 def ivalue_to_constant(ivalue):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
+        if ov_type == OVType.i32 and torch.iinfo(torch.int).max < ivalue or torch.iinfo(torch.int).min > ivalue:
+            ov_type = OVType.i64
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
 
     if isinstance(ivalue, list):
@@ -33,7 +35,7 @@ def ivalue_to_constant(ivalue):
         assert ov_type.is_static(), "Can't deduce type for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
-    if ivalue.type() in pt_to_ov_type_map:
+    if isinstance(ivalue, torch.Tensor) and ivalue.type() in pt_to_ov_type_map:
         try:
             ovshape = PartialShape(ivalue.size())
             ovtype = pt_to_ov_type_map[ivalue.type()]
@@ -46,6 +48,7 @@ def ivalue_to_constant(ivalue):
             ovshape = PartialShape(nvalues.shape)
             ov_const = op.Constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
         return ov_const.outputs()
+    return None
 
 
 def get_value_from_getattr(getattr_node, self_module):
@@ -69,23 +72,20 @@ def get_value_from_getattr(getattr_node, self_module):
 pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i32,
+    "bool": OVType.boolean,
+    "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
+    "torch.float64": OVType.f64,
+    "torch.uint8": OVType.u8,
+    "torch.int8": OVType.i8,
     "torch.int32": OVType.i32,
-    "torch.bool": OVType.boolean,
     "torch.int64": OVType.i64,
+    "torch.bool": OVType.boolean,
+    "torch.DoubleTensor": OVType.f64,
     "torch.FloatTensor": OVType.f32,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
-}
-
-pt_to_py_type_map = {
-    "float": "float",
-    "int": "int",
-    "torch.float32": "float",
-    "torch.int32": "int",
-    "torch.int64": "int",
-    "torch.bool": "bool",
 }
 
 np_to_ov_type_map = {
@@ -232,7 +232,7 @@ class TorchScriptPythonDecoder (Decoder):
     def try_decode_get_attr(self):
         pt_value = get_value_from_getattr(self.graph_element, self.pt_module)
         assert pt_value is not None, "Couldn't retrieve value from prim::GetAttr"
-        if not isinstance(pt_value, torch.jit.ScriptModule) or isinstance(pt_value, torch.jit.TracedModule):
+        if not isinstance(pt_value, (torch.jit.ScriptModule, torch.jit.TracedModule)):
             return ivalue_to_constant(pt_value)
         else:
             return []
@@ -244,17 +244,8 @@ class TorchScriptPythonDecoder (Decoder):
 
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return self.as_constant_tensor(pt_value)
-        if isinstance(pt_type, torch.ListType):
-            return self.as_constant_list(pt_value)
-        if str(pt_type) in ["torch.int32", "int"]:
-            return op.Constant(OVType.i32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_type) in ["torch.float", "torch.FloatType", "float"]:
-            return op.Constant(OVType.f32, Shape([]), [pt_value.toIValue()]).outputs()
-        if str(pt_type) in ["torch.bool", "bool"]:
-            return op.Constant(OVType.boolean, Shape([]), [pt_value.toIValue()]).outputs()
-
-        return None
+            return self._as_constant_tensor(pt_value)
+        return ivalue_to_constant(pt_value.toIValue())
 
     def as_string(self):
         if not self.get_op_type() == "prim::Constant":
@@ -265,7 +256,8 @@ class TorchScriptPythonDecoder (Decoder):
             return pt_value.toIValue()
         return None
 
-    def as_constant_tensor(self, pt_value):
+    @staticmethod
+    def _as_constant_tensor(pt_value):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():
             try:
@@ -294,19 +286,6 @@ class TorchScriptPythonDecoder (Decoder):
         else:
             return ivalue_to_constant(ivalue)
         return None
-
-    def as_constant_list(self, pt_value):
-        # For now it is treat a list as a 1D tensor; it is required by converters to avoid need to massively
-        # rewrite them in that part where constant attributes are queried
-        pt_element_type = str(pt_value.type().getElementType())
-        ivalue = pt_value.toIValue()
-        is_known_type = pt_element_type in pt_to_ov_type_map
-
-        if is_known_type:
-            ovtype = pt_to_ov_type_map[pt_element_type]
-            ovshape = PartialShape([len(ivalue)])
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
-            return ov_const.outputs()
 
     def input_is_none(self, index):
         if index >= len(self.inputs()) or self._raw_input(index) is None:

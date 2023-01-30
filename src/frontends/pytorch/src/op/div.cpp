@@ -14,6 +14,7 @@ namespace op {
 OutputVector translate_div(NodeContext& context) {
     auto x = context.get_input(0);
     auto y = context.get_input(1);
+    align_eltwise_input_types(context, &x, &y);
     auto res = context.mark_node(std::make_shared<opset10::Divide>(x, y, true));
     if (!context.input_is_none(2)) {
         auto rounding_mode = context.const_input<std::string>(2);

@@ -65,6 +65,7 @@ OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_meshgrid);
+OP_CONVERTER(translate_mul);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_nonzero);
 OP_CONVERTER(translate_norm);
@@ -225,8 +226,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        {"aten::mul", op::translate_1to1_match_2_inputs<opset10::Multiply>},
-        {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Multiply>>},
+        {"aten::mul", op::translate_mul},
+        {"aten::mul_", op::inplace_op<op::translate_mul>},
         {"aten::ne", op::translate_1to1_match_2_inputs<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::norm", op::translate_norm},

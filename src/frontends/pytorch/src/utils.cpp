@@ -459,6 +459,86 @@ Any simplified_type_interpret(Any type) {
     return type;
 }
 
+namespace {
+std::unordered_map<size_t, element::Type> bit_to_float{
+    {16, element::f16},
+    {32, element::f32},
+    {64, element::f64},
+};
+std::unordered_map<size_t, element::Type> bit_to_int{
+    // {4, element::i4}, torch don't have int4
+    {8, element::i8},
+    {16, element::i16},
+    {32, element::i32},
+    {64, element::i64},
+};
+}  // namespace
+
+void align_eltwise_input_types(const NodeContext& context, ov::Output<ov::Node>* lhs, ov::Output<ov::Node>* rhs) {
+    const auto& lhs_type = lhs->get_element_type();
+    const auto& rhs_type = rhs->get_element_type();
+    if (lhs_type.is_dynamic() || rhs_type.is_dynamic()) {
+        // if any of types is not known, align to lhs type.
+        // TODO: can be fixed with special operation?
+        *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+    } else {
+        // Both types are static, align types. If float and int types are used convert int type to f32, after that align
+        // to the largest bitness, if both float or both int, just align bitness
+        if (lhs_type == rhs_type)
+            return;
+
+        // if one of operands is scalar, the resulting type is taken from the other operand
+        const auto& lhs_rank = lhs->get_partial_shape().rank();
+        const auto& rhs_rank = rhs->get_partial_shape().rank();
+        // consider dynamic rank as non scalar
+        const auto is_lhs_scalar = lhs_rank.is_static() && lhs_rank.get_length() == 0;
+        const auto is_rhs_scalar = rhs_rank.is_static() && rhs_rank.get_length() == 0;
+        if (is_lhs_scalar && is_rhs_scalar) {
+            // if both scalar, align to lhs
+            *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+            return;
+        }
+        if (is_lhs_scalar) {
+            *lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*lhs, *rhs));
+            return;
+        } else if (is_rhs_scalar) {
+            *rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(*rhs, *lhs));
+            return;
+        }
+
+        auto lhs_dst_type = lhs_type;
+        auto rhs_dst_type = rhs_type;
+        if (lhs_type.is_integral_number() && lhs_type.is_signed() && rhs_type.is_real()) {
+            lhs_dst_type = element::f32;
+        } else if (lhs_type.is_real() && rhs_type.is_integral_number() && rhs_type.is_signed()) {
+            rhs_dst_type = element::f32;
+        } else {
+            // Do nothing with bool and uint8
+            return;
+        }
+        // Align bitness to higher
+        if (lhs_dst_type.bitwidth() != rhs_dst_type.bitwidth()) {
+            auto dst_bitness = std::max(lhs_dst_type.bitwidth(), rhs_dst_type.bitwidth());
+            element::Type& type_to_align = lhs_dst_type;
+            if (rhs_dst_type.bitwidth() < dst_bitness)
+                type_to_align = rhs_dst_type;
+            if (type_to_align.is_real()) {
+                type_to_align = bit_to_float.at(dst_bitness);
+            } else if (type_to_align.is_signed()) {
+                type_to_align = bit_to_int.at(dst_bitness);
+            }
+        }
+
+        // Cast to destination types
+        if (lhs_dst_type != lhs_type) {
+            *lhs = context.mark_node(std::make_shared<opset10::Convert>(*lhs, lhs_dst_type));
+        }
+        if (rhs_dst_type != rhs_type) {
+            *rhs = context.mark_node(std::make_shared<opset10::Convert>(*rhs, rhs_dst_type));
+        }
+    }
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov
