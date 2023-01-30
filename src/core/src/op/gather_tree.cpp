@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/gather_tree.hpp"
+#include "openvino/op/gather_tree.hpp"
 
-#include <gather_tree_shape_inference.hpp>
-
+#include "gather_tree_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
                                const Output<Node>& parent_idx,
@@ -26,7 +25,7 @@ shared_ptr<Node> op::v1::GatherTree::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::GatherTree>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
-bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
+bool op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_GatherTree_visit_attributes);
     return true;
 }
@@ -59,12 +58,8 @@ void op::v1::GatherTree::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    const auto& step_ids_pshape = get_input_partial_shape(0);
-    const auto& parent_idx_pshape = get_input_partial_shape(1);
-    const auto& max_seq_len_pshape = get_input_partial_shape(2);
-    const auto& end_token_pshape = get_input_partial_shape(3);
-    std::vector<PartialShape> input_shapes = {step_ids_pshape, parent_idx_pshape, max_seq_len_pshape, end_token_pshape},
-                              output_shapes = {PartialShape{}};
+    const auto input_shapes = ov::get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
     shape_infer(this, input_shapes, output_shapes);
 
     set_output_type(0, result_et, output_shapes[0]);
