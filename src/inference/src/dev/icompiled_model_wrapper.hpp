@@ -25,7 +25,7 @@ public:
 
     ov::RemoteContext get_context() const override;
 
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_model();
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_executable_network();
 
 private:
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> m_model;

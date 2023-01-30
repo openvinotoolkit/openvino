@@ -319,7 +319,7 @@ namespace ov {
 
 class IExecutableNetworkWrapper : public InferenceEngine::IExecutableNetworkInternal {
 public:
-    IExecutableNetworkWrapper(const std::shared_ptr<ov::ICompiledModel>& model) : m_model(model) {
+    explicit IExecutableNetworkWrapper(const std::shared_ptr<ov::ICompiledModel>& model) : m_model(model) {
         for (const auto& input : m_model->inputs()) {
             InferenceEngine::InputInfo::Ptr input_info;
             ov::legacy_convert::fill_input_info(input, input_info);
@@ -368,7 +368,7 @@ public:
         return m_model->get_context()._impl;
     }
 
-    std::shared_ptr<ov::ICompiledModel> get_model() {
+    std::shared_ptr<ov::ICompiledModel> get_compiled_model() {
         return m_model;
     }
 
@@ -380,7 +380,7 @@ private:
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::legacy_convert::convert_compiled_model(
     const std::shared_ptr<ov::ICompiledModel>& model) {
     if (auto comp_model = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(model)) {
-        return comp_model->get_model();
+        return comp_model->get_executable_network();
     }
     return std::make_shared<ov::IExecutableNetworkWrapper>(model);
 }
@@ -388,7 +388,7 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ov::legacy_convert:
 std::shared_ptr<ov::ICompiledModel> ov::legacy_convert::convert_compiled_model(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model) {
     if (auto comp_model = std::dynamic_pointer_cast<ov::IExecutableNetworkWrapper>(model)) {
-        return comp_model->get_model();
+        return comp_model->get_compiled_model();
     }
     return std::make_shared<InferenceEngine::ICompiledModelWrapper>(model);
 }

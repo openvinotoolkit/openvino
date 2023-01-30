@@ -140,7 +140,7 @@ protected:
     virtual std::shared_ptr<InferenceEngine::IInferRequestInternal> create_sync_infer_request() const = 0;
 
     /**
-     * @brief Default imolementation of create async inter request method
+     * @brief Default implementation of create async inter request method
      *
      * @tparam AsyncInferRequestType Async infer request type. InferenceEngine::AsyncInferRequestThreadSafeDefault by
      * default
