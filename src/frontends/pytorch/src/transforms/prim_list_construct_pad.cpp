@@ -50,7 +50,7 @@ std::shared_ptr<Node> create_padding(std::shared_ptr<Node> input_rank,
 
 const std::unordered_map<std::string, ov::op::PadMode> PAD_MODES = {{"constant", ov::op::PadMode::CONSTANT},
                                                                     {"reflect", ov::op::PadMode::REFLECT},
-                                                                    {"replicate", ov::op::PadMode::EDGE}}
+                                                                    {"replicate", ov::op::PadMode::EDGE}};
 
 };  // namespace
 
