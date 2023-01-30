@@ -26,9 +26,3 @@ public:
     OPENVINO_RTTI("SetBatchSize", "0");
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SetBatchSize;
-}  // namespace pass
-}  // namespace ngraph
