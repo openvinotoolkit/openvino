@@ -1,4 +1,4 @@
-# Install OpenVINO™ Runtime on Linux Using YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
+# Install OpenVINO™ Runtime on Linux From YUM Repository {#openvino_docs_install_guides_installing_openvino_yum}
 
 @sphinxdirective
 
@@ -58,14 +58,16 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
    sudo mv /tmp/openvino-2022.repo /etc/yum.repos.d
    ```
 3.	Verify that the new repository is set up properly.
+
    a. First, list all valid repositories:
       ```sh
       sudo yum repolist
       ```
-      And enter `y` to the question about adding the GPG key as below:
+      And enter `y` to the question about adding the GPG key, as shown below:
       ```sh
       Is this ok [y/N]: y
       ```
+
    b. Then, query `openvino` in the repository list:
       ```sh
       yum repolist | grep -i openvino
