@@ -41,7 +41,7 @@ public:
      * 1. (default) Use XML configuration file in case of dynamic libraries build;
      * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * @param xmlConfigFile Path to the .xml file with plugins to load from. If the XML configuration file is not
      * specified, default OpenVINO Runtime plugins are loaded from:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.

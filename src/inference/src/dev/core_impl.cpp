@@ -25,6 +25,7 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -59,7 +60,7 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
-ov::util::FilePath ov::getPluginPath(const std::string& plugin) {
+ov::util::FilePath ov::get_plugin_path(const std::string& plugin) {
     // Assume `plugin` may contain:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to working directory
@@ -70,57 +71,57 @@ ov::util::FilePath ov::getPluginPath(const std::string& plugin) {
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos)
         return ov::util::to_file_path(ov::util::get_absolute_file_path(plugin));
 
-    auto libName = plugin;
+    auto lib_name = plugin;
     // For 3rd case - convert to 4th case
     if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        libName = FileUtils::makePluginLibraryName({}, plugin);
+        lib_name = FileUtils::makePluginLibraryName({}, plugin);
 
     // For 4th case
-    auto libPath = ov::util::to_file_path(ov::util::get_absolute_file_path(libName));
-    if (ov::util::file_exists(libPath))
-        return libPath;
-    return ov::util::to_file_path(libName);
+    auto lib_path = ov::util::to_file_path(ov::util::get_absolute_file_path(lib_name));
+    if (ov::util::file_exists(lib_path))
+        return lib_path;
+    return ov::util::to_file_path(lib_name);
 }
 
-ov::util::FilePath ov::getPluginPath(const std::string& plugin, const std::string& xmlPath, bool asAbsOnly) {
+ov::util::FilePath ov::get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only) {
     // Assume `plugin` (from XML "location" record) contains only:
     // 1. /path/to/libexample.so absolute path
     // 2. ../path/to/libexample.so path relative to XML directory
     // 3. example library name - to be converted to 4th case
     // 4. libexample.so - path relative to XML directory (if exists) or file to be found in ENV
-    // (if `asAbsOnly` is false)
+    // (if `as_abs_only` is false)
 
     // For 1st case
     if (ov::util::is_absolute_file_path(plugin))
         return ov::util::to_file_path(plugin);
 
-    auto xmlPath_ = xmlPath;
-    if (xmlPath.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
-        xmlPath_ = FileUtils::makePath(std::string("."), xmlPath);  // treat plugins.xml as CWD/plugins.xml
+    auto xml_path_ = xml_path;
+    if (xml_path.find(ov::util::FileTraits<char>::file_separator) == std::string::npos)
+        xml_path_ = FileUtils::makePath(std::string("."), xml_path);  // treat plugins.xml as CWD/plugins.xml
 
     // For 2nd case
     if (plugin.find(ov::util::FileTraits<char>::file_separator) != std::string::npos) {
-        auto path_ = FileUtils::makePath(ov::util::get_directory(xmlPath_), plugin);
+        auto path_ = FileUtils::makePath(ov::util::get_directory(xml_path_), plugin);
         return ov::util::to_file_path(ov::util::get_absolute_file_path(path_));  // canonicalize path
     }
 
-    auto libFileName = plugin;
+    auto lib_file_name = plugin;
     // For 3rd case - convert to 4th case
     if (!ov::util::ends_with(plugin, ov::util::FileTraits<char>::library_ext()))
-        libFileName = FileUtils::makePluginLibraryName({}, plugin);
+        lib_file_name = FileUtils::makePluginLibraryName({}, plugin);
 
     // For 4th case
-    auto libPath = FileUtils::makePath(ov::util::get_directory(xmlPath_), libFileName);
-    libPath = ov::util::get_absolute_file_path(libPath);  // canonicalize path
-    if (asAbsOnly || ov::util::file_exists(libPath))
-        return ov::util::to_file_path(libPath);
-    return ov::util::to_file_path(libFileName);
+    auto lib_path = FileUtils::makePath(ov::util::get_directory(xml_path_), lib_file_name);
+    lib_path = ov::util::get_absolute_file_path(lib_path);  // canonicalize path
+    if (as_abs_only || ov::util::file_exists(lib_path))
+        return ov::util::to_file_path(lib_path);
+    return ov::util::to_file_path(lib_file_name);
 }
 
-void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile, const bool& ByAbsPath) {
+void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto parse_result = ParseXml(xmlConfigFile.c_str());
+    auto parse_result = ParseXml(xml_config_file.c_str());
     if (!parse_result.error_msg.empty()) {
         IE_THROW() << parse_result.error_msg;
     }
@@ -140,7 +141,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xmlConfigFile
             IE_THROW() << "Device name must not contain dot '.' symbol";
         }
 
-        ov::util::FilePath pluginPath = getPluginPath(GetStrAttr(pluginNode, "location"), xmlConfigFile, ByAbsPath);
+        ov::util::FilePath pluginPath =
+            get_plugin_path(GetStrAttr(pluginNode, "location"), xml_config_file, by_abs_path);
 
         // check properties
         auto propertiesNode = pluginNode.child("properties");
@@ -305,10 +307,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     }
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const std::string& device_name,
-    const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const std::string& device_name,
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
@@ -323,7 +324,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         parsed._config.erase(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE));
     }
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
             ._cacheManager;
@@ -337,9 +338,6 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
-        } else {
-            // Temporary workaround until all plugins support caching of original model inputs
-            InferenceEngine::SetExeNetworkInfo(res._ptr, model, is_new_api());
         }
     } else {
         res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
@@ -347,10 +345,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return {res._ptr, res._so};
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::RemoteContext& context,
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::RemoteContext");
     if (context._impl == nullptr) {
         IE_THROW() << "Remote context is null";
@@ -365,7 +362,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
             ._cacheManager;
@@ -379,21 +376,17 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
-        } else {
-            // Temporary workaround until all plugins support caching of original model inputs
-            InferenceEngine::SetExeNetworkInfo(res._ptr, model, isNewAPI());
         }
     } else {
         res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
     }
     return res;
 }
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(
-    ov::Plugin& plugin,
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& config) const {
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> compiled_model;
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(ov::Plugin& plugin,
+                                                          const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::RemoteContext& context,
+                                                          const ov::AnyMap& config) const {
+    ov::SoPtr<ov::ICompiledModel> compiled_model;
 
     if (!is_new_api() && !std::dynamic_pointer_cast<InferenceEngine::IPluginWrapper>(plugin.m_ptr)) {
         OPENVINO_NOT_IMPLEMENTED;
@@ -407,13 +400,13 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return compiled_model;
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(const std::string& model_path,
-                                                                                   const std::string& device_name,
-                                                                                   const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_path,
+                                                          const std::string& device_name,
+                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
             ._cacheManager;
@@ -438,13 +431,13 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return {res._ptr, res._so};
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model(const std::string& model_str,
-                                                                                   const ov::Tensor& weights,
-                                                                                   const std::string& device_name,
-                                                                                   const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& model_str,
+                                                          const ov::Tensor& weights,
+                                                          const std::string& device_name,
+                                                          const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto plugin = get_plugin(parsed._deviceName);
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> res;
+    ov::SoPtr<ov::ICompiledModel> res;
 
     auto cacheManager =
         coreConfig.get_cache_config_for_device(parsed._deviceName, device_supports_cache_dir(plugin), parsed._config)
@@ -469,9 +462,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return {res._ptr, res._so};
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::import_model(std::istream& model,
-                                                                                  const std::string& device_name,
-                                                                                  const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
+                                                         const std::string& device_name,
+                                                         const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto exec = get_plugin(parsed._deviceName).import_model(model, config);
 
@@ -741,21 +734,21 @@ void ov::CoreImpl::unload_plugin(const std::string& deviceName) {
     plugins.erase(deviceName);
 }
 
-void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& deviceName) {
+void ov::CoreImpl::register_plugin(const std::string& plugin, const std::string& device_name) {
     std::lock_guard<std::mutex> lock(get_mutex());
 
-    auto it = pluginRegistry.find(deviceName);
+    auto it = pluginRegistry.find(device_name);
     if (it != pluginRegistry.end()) {
-        IE_THROW() << "Device with \"" << deviceName << "\"  is already registered in the OpenVINO Runtime";
+        IE_THROW() << "Device with \"" << device_name << "\"  is already registered in the OpenVINO Runtime";
     }
 
-    if (deviceName.find('.') != std::string::npos) {
+    if (device_name.find('.') != std::string::npos) {
         IE_THROW() << "Device name must not contain dot '.' symbol";
     }
 
-    PluginDescriptor desc{getPluginPath(plugin)};
-    pluginRegistry[deviceName] = desc;
-    add_mutex(deviceName);
+    PluginDescriptor desc{get_plugin_path(plugin)};
+    pluginRegistry[device_name] = desc;
+    add_mutex(device_name);
 }
 
 /**
@@ -906,15 +899,14 @@ bool ov::CoreImpl::device_supports_cache_dir(const ov::Plugin& plugin) const {
     return util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir);
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_model_impl(
-    const std::shared_ptr<const ov::Model>& model,
-    ov::Plugin& plugin,
-    const ov::AnyMap& parsedConfig,
-    const ov::RemoteContext& context,
-    const CacheContent& cacheContent,
-    bool forceDisableCache) const {
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared_ptr<const ov::Model>& model,
+                                                               ov::Plugin& plugin,
+                                                               const ov::AnyMap& parsedConfig,
+                                                               const ov::RemoteContext& context,
+                                                               const CacheContent& cacheContent,
+                                                               bool forceDisableCache) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "CoreImpl::compile_model_impl");
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
+    ov::SoPtr<ov::ICompiledModel> execNetwork;
     execNetwork =
         context._impl ? plugin.compile_model(model, context, parsedConfig) : plugin.compile_model(model, parsedConfig);
     if (!forceDisableCache && cacheContent.cacheManager && device_supports_import_export(plugin)) {
@@ -925,7 +917,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
                 networkStream << ov::CompiledBlobHeader(
                     InferenceEngine::GetInferenceEngineVersion()->buildNumber,
                     ov::NetworkCompilationContext::calculate_file_info(cacheContent.modelPath));
-                execNetwork->Export(networkStream);
+                execNetwork->export_model(networkStream);
             });
         } catch (...) {
             cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
@@ -935,13 +927,12 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::compile_mod
     return execNetwork;
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_from_cache(
-    const CacheContent& cacheContent,
-    ov::Plugin& plugin,
-    const ov::AnyMap& config,
-    const ov::RemoteContext& context,
-    bool& networkIsImported) {
-    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> execNetwork;
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheContent& cacheContent,
+                                                                  ov::Plugin& plugin,
+                                                                  const ov::AnyMap& config,
+                                                                  const ov::RemoteContext& context,
+                                                                  bool& networkIsImported) {
+    ov::SoPtr<ov::ICompiledModel> execNetwork;
     struct HeaderException {};
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
@@ -969,7 +960,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::load_model_
             execNetwork = context._impl ? plugin.import_model(networkStream, context, config)
                                         : plugin.import_model(networkStream, config);
             networkIsImported = true;
-            execNetwork->loadedFromCache();
+            execNetwork->loaded_from_cache();
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
