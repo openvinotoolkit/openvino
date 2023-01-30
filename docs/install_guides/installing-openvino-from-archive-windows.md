@@ -162,7 +162,6 @@ To uninstall OpenVINO, follow the steps on the [Uninstalling page](uninstalling-
 
 ## Additional Resources
 
-## Additional Resources
 
 @sphinxdirective
 
