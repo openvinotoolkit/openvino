@@ -104,12 +104,10 @@ jobs:
      
   steps:
   - script: |
-      echo $(Agent.ToolsDirectory)
-      echo $(setupPython.pythonLocation)
-      ls $(Agent.ToolsDirectory)
-      which python3
-      whereis python3
-      ls -la /usr/bin/python3
+      pip --version
+      python3 -V
+      sudo apt install python3.10
+      python3 -V
 
   - task: UsePythonVersion@0
     inputs:
@@ -123,7 +121,6 @@ jobs:
   - bash: |
       #!/bin/bash
       python -V
-      echo $(setupPython.pythonLocation)
 
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
