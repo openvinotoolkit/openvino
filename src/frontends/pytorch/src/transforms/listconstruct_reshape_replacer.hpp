@@ -12,10 +12,10 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-class AtenViewReplacer : public ov::pass::MatcherPass {
+class ListConstructReshapeReplacer : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenViewReplacer");
-    AtenViewReplacer();
+    OPENVINO_RTTI("ov::frontend::pytorch::pass::ListConstructReshapeReplacer");
+    ListConstructReshapeReplacer();
 };
 
 }  // namespace pass
