@@ -10,7 +10,7 @@ import pytest
 
 import openvino.runtime.opset8 as ov
 from openvino.runtime import Model
-from openvino.runtime.passes import Manager, Serialize, ConstantFolding
+from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
 from tests.test_graph.util import count_ops_of_type
 from openvino.runtime import Core
 
@@ -118,7 +118,6 @@ def test_serialize_pass_mixed_args_kwargs_v2(request, tmp_path):
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ov.parameter(shape, dtype=np.float32, name="C")
-    parameter_d = ov.parameter(shape, dtype=np.float32, name="D")
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
@@ -250,7 +249,7 @@ def test_default_version_IR_V11_seperate_paths(request, tmp_path):
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Model(model, [parameter_a, parameter_b, parameter_c], "Model")
     pass_manager = Manager()
-    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, version="IR_V11"))
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path, version=Version.IR_V11))
     pass_manager.run_passes(func)
 
     res_model = core.read_model(model=xml_path, weights=bin_path)
