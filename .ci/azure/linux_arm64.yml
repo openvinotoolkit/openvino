@@ -81,7 +81,7 @@ jobs:
     OPENCV_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_opencv
     ONETBB_CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux_arm64_onetbb
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
-    OV_PYTHON_VERSION: 3.10.7
+    OV_PYTHON_VERSION: 3.10
 
   steps:
   - task: UsePythonVersion@0

@@ -56,7 +56,7 @@ jobs:
     ONNXRUNTIME_UTILS: $(REPO_DIR)/.ci/azure/ci_utils/onnxruntime
     ONNXRUNTIME_BUILD_DIR: $(ONNXRUNTIME_REPO_DIR)/build
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
-    OV_PYTHON_VERSION: 3.10.7
+    OV_PYTHON_VERSION: 3.10
 
   steps:
   - task: UsePythonVersion@0

@@ -63,7 +63,7 @@ jobs:
     SHARE_DIR: /mount/cinfsshare/onnxtestdata
     CCACHE_DIR: $(SHARE_DIR)/ccache/master/android_arm64
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-    OV_PYTHON_VERSION: 3.10.7
+    OV_PYTHON_VERSION: 3.10
 
   steps:
   - task: UsePythonVersion@0

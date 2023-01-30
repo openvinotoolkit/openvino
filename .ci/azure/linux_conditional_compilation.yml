@@ -59,7 +59,7 @@ jobs:
     INSTALL_DIR: $(WORK_DIR)/install_pkg
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
     LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib:$LD_LIBRARY_PATH
-    OV_PYTHON_VERSION: 3.10.7
+    OV_PYTHON_VERSION: 3.10
 
   steps:
   - task: UsePythonVersion@0
