@@ -54,28 +54,29 @@ def next_step(additional_info='', step_id=0):
 
 def get_element_type(precision):
     format_map = {
-      'BOOL' : Type.boolean,
-      'FP16' : Type.f16,
-      'FP32' : Type.f32,
-      'FP64' : Type.f64,
-      'I4'   : Type.i4,
-      'I8'   : Type.i8,
-      'I16'  : Type.i16,
-      'I32'  : Type.i32,
-      'I64'  : Type.i64,
-      'U1'   : Type.u1,
-      'U4'   : Type.u4,
-      'U8'   : Type.u8,
-      'U16'  : Type.u16,
-      'U32'  : Type.u32,
-      'U64'  : Type.u64,
-      'BF16' : Type.bf16,
+      'boolean' : Type.boolean,
+      'bool'    : Type.boolean,
+
+      'f16'  : Type.f16,
+      'fp16' : Type.f16,
+      'f32'  : Type.f32,
+      'fp32' : Type.f32,
+      'f64'  : Type.f64,
+      'fp64' : Type.f64,
+
+      'i8'   : Type.i8,
+      'i16'  : Type.i16,
+      'i32'  : Type.i32,
+      'i64'  : Type.i64,
+
+      'u8'   : Type.u8,
+      'u16'  : Type.u16,
+      'u32'  : Type.u32,
+      'u64'  : Type.u64,
     }
     if precision in format_map.keys():
         return format_map[precision]
-    for element_type in format_map.values():
-        if element_type.get_type_name() == precision:
-            return element_type
+
     raise Exception(f"Undefined precision: '{precision}' !")
 
 
