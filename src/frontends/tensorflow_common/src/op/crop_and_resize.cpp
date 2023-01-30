@@ -39,28 +39,12 @@ OutputVector translate_crop_and_resize_bilinear(const NodeContext& node) {
 
     // boxes are going in the format [y1, x1, y2, x2]
     // so we need to adjust them to the format [x_1, y_1, x_2, y_2]
-    // use Convolution for the swapping
-    auto new_shape = make_shared<Constant>(element::i32, Shape{4}, vector<int32_t>{-1, 5, 1, 1});
-    boxes = make_shared<Reshape>(boxes, new_shape, false);
-    // kernel for the swapping should be the folloging:
-    // 1, 0, 0, 0, 0,
-    // 0, 0, 1, 0, 0,
-    // 0, 1, 0, 0, 0,
-    // 0, 0, 0, 0, 1,
-    // 0, 0, 0, 1, 0
-    auto kernel =
-        make_shared<Constant>(element::f32, Shape{5, 5, 1, 1}, vector<float>{1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
-                                                                             0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0});
-    boxes = make_shared<Convolution>(boxes,
-                                     kernel,
-                                     Strides{1, 1},
-                                     CoordinateDiff{0, 0},
-                                     CoordinateDiff{0, 0},
-                                     Strides{1, 1});
-    // reshape boxes with swapped coordinates back to the shape [num_rois, 5]
-    auto new_shape2 = make_shared<Constant>(element::i32, Shape{2}, vector<int32_t>{-1, 5});
-    boxes = make_shared<Reshape>(boxes, new_shape2, false);
+    // use Gather operation for the swapping
+    auto gather_order = make_shared<Constant>(element::i32, Shape{5}, vector<int32_t>{0, 2, 1, 4, 3});
+    auto gather_axis = make_shared<Constant>(element::i32, Shape{1}, vector<int32_t>{1});
+    boxes = make_shared<Gather>(boxes, gather_order, gather_axis);
 
+    // prepare input image for ROIPooling
     image = make_transpose(image, {0, 3, 1, 2})->output(0);
     Output<Node> roi_pooling = make_shared<ROIPooling>(image, boxes, crop_sizes, 1.0f, "bilinear");
     roi_pooling = make_transpose(roi_pooling, {0, 2, 3, 1})->output(0);
