@@ -663,6 +663,17 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                     "set_property is supported only for BATCH itself (without devices). "
                     "You can configure the devices with set_property before creating the BATCH on top.");
 
+    if (!device_name.empty()) {
+        auto tmp =
+            std::find_if(properties.begin(), properties.end(), [this](const std::pair<std::string, ov::Any>& it) {
+                return coreConfig.is_core_config(it.first);
+            });
+        OPENVINO_ASSERT(tmp == properties.end(),
+                        "set_property is not supported to set core global property to specified device."
+                        "You can set_property without device name for core global property : ",
+                        tmp->first.c_str());
+    }
+
     bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
                         device_name.find("MULTI") != std::string::npos ||
                         device_name.find("HETERO") != std::string::npos;
