@@ -1,19 +1,19 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
-import tensorflow as tf
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import tensorflow as tf
+from tensorflow.lite.tools import flatbuffer_utils as utils
 from common.layer_test_class import CommonLayerTest
 from common.utils.tflite_utils import get_tflite_results, get_tensors_from_graph
-
 
 class TFLiteLayerTest(CommonLayerTest):
     model_path = None
     inputs = None
     outputs = None
+    allowed_ops = None
 
-    @staticmethod
-    def make_model(unary_op: callable, shape: list):
+    def make_model(self, params):
         raise RuntimeError("This is Tensorflow Lite base layer test class, "
                            "please implement make_model function for the specific test")
 
@@ -39,7 +39,27 @@ class TFLiteLayerTest(CommonLayerTest):
     def get_framework_results(self, inputs_dict, model_path):
         return get_tflite_results(self.use_new_frontend, self.use_old_api, inputs_dict, model_path)
 
+    def check_tflite_model_has_only_allowed_ops(self):
+        if self.allowed_ops is None:
+            return
+        BO = utils.schema_fb.BuiltinOperator
+        builtin_operators = {getattr(BO, name): name for name in dir(BO) if not name.startswith("_")}
+        model = utils.read_model(self.model_path)
+
+        op_names = []
+        for op in model.operatorCodes:
+            assert op.customCode is None, "Encountered custom operation in the model"
+            deprecated_code = op.deprecatedBuiltinCode
+            deprecated_vs_normal = utils.schema_fb.BuiltinOperator.PLACEHOLDER_FOR_GREATER_OP_CODES
+            if deprecated_code < deprecated_vs_normal:
+                op_names.append(builtin_operators[op.deprecatedBuiltinCode])
+            else:
+                op_names.append(builtin_operators[op.builtinCode])
+        op_names = sorted(op_names)
+        assert op_names == self.allowed_ops, "TFLite model is not as you expect it to be: " + ", ".join(op_names)
+
     def _test(self, ie_device, precision, temp_dir, params):
-        model = self.make_model(params[0], params[1]['shape'])
+        model = self.make_model(params)
         self.model_path = self.produce_tflite_model(model, temp_dir)
-        super()._test(model, None, ie_device, precision, None, temp_dir, False, True, **params[0])
+        self.check_tflite_model_has_only_allowed_ops()
+        super()._test(model, None, ie_device, precision, None, temp_dir, False, True, **params)

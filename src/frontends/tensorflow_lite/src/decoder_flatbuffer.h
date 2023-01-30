@@ -45,6 +45,7 @@ public:
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
     std::string get_output_tensor_name(size_t idx) const;
+    element::Type get_output_tensor_type(size_t idx) const;
     std::string get_input_tensor_name(size_t idx) const;
 
     const std::string& get_op_type() const override;
