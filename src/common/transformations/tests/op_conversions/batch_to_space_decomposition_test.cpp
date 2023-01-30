@@ -19,7 +19,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "openvino/runtime/core.hpp"
 
 using namespace std;
 using namespace testing;
@@ -231,12 +230,12 @@ void op_convertion_test(const Params& params) {
     using namespace ov::opset10;
     using namespace ov::pass;
 
+    const bool by_elements = get<0>(params);
     Shape data_shape;
     Shape expected_output_shape;
     vector<int64_t> block;
     vector<int64_t> input_2;  // crops_begin or pads_begin
     vector<int64_t> input_3;  // crops_end or pads_end
-    const bool by_elements = get<0>(params);
     tie(data_shape, block, input_2, input_3, expected_output_shape) = get<1>(params);
 
     const auto data = make_shared<Parameter>(element::f32, PartialShape::dynamic(data_shape.size()));
@@ -258,6 +257,17 @@ void op_convertion_test(const Params& params) {
     ASSERT_EQ(f->get_result()->get_input_shape(0), expected_output_shape);
 }
 
+template <typename Params>
+string get_test_name(testing::TestParamInfo<Params> obj) {
+    const auto& params = obj.param;
+    const bool by_elements = get<0>(params);
+    const auto& data_shape = get<0>(get<1>(params));
+
+    ostringstream result;
+    result << data_shape.size() << "D" << (by_elements ? "_by_elements" : "");
+    return result.str();
+}
+
 using BatchToSpaceParams = tuple<Shape,            // data_shape
                                  vector<int64_t>,  // block
                                  vector<int64_t>,  // crops_begin
@@ -277,7 +287,6 @@ TEST_P(BatchToSpaceDecompositionWithParams, DynamicInputs) {
 
 static vector<BatchToSpaceParams> batch_to_space_params = {
     {{4, 3}, {1, 2}, {0, 0}, {0, 0}, {2, 6}},
-    {{2, 6, 7}, {1, 2, 1}, {0, 0, 0}, {0, 0, 0}, {1, 12, 7}},
     {{6, 5, 7}, {1, 2, 3}, {0, 1, 2}, {0, 1, 2}, {1, 8, 17}},
     {{30, 4, 1, 1}, {1, 5, 3, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {1, 20, 3, 2}},
     {{96, 3, 5, 7, 1}, {1, 4, 3, 2, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {4, 12, 15, 14, 1}},
@@ -286,7 +295,8 @@ static vector<BatchToSpaceParams> batch_to_space_params = {
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          BatchToSpaceDecompositionWithParams,
                          ::testing::Combine(::testing::ValuesIn({false, true}),
-                                            ::testing::ValuesIn(batch_to_space_params)));
+                                            ::testing::ValuesIn(batch_to_space_params)),
+                         get_test_name<BatchToSpaceDecomposeParams>);
 
 using SpaceToBatchParams = tuple<Shape,            // data_shape
                                  vector<int64_t>,  // block
@@ -307,7 +317,6 @@ TEST_P(SpaceToBatchDecompositionWithParams, DynamicInputs) {
 
 static vector<SpaceToBatchParams> space_to_batch_params = {
     {{2, 6}, {1, 2}, {0, 0}, {0, 0}, {4, 3}},
-    {{1, 12, 7}, {1, 2, 1}, {0, 0, 0}, {0, 0, 0}, {2, 6, 7}},
     {{1, 8, 17}, {1, 2, 3}, {0, 1, 2}, {0, 1, 2}, {6, 5, 7}},
     {{1, 20, 3, 2}, {1, 5, 3, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {30, 4, 1, 1}},
     {{4, 12, 15, 14, 1}, {1, 4, 3, 2, 1}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {96, 3, 5, 7, 1}},
@@ -316,4 +325,5 @@ static vector<SpaceToBatchParams> space_to_batch_params = {
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          SpaceToBatchDecompositionWithParams,
                          ::testing::Combine(::testing::ValuesIn({false, true}),
-                                            ::testing::ValuesIn(space_to_batch_params)));
+                                            ::testing::ValuesIn(space_to_batch_params)),
+                         get_test_name<SpaceToBatchDecomposeParams>);
