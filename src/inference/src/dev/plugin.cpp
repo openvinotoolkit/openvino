@@ -55,21 +55,19 @@ void ov::Plugin::set_property(const ov::AnyMap& config) {
     OV_PLUGIN_CALL_STATEMENT(m_ptr->set_property(config));
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties) const {
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                        const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties), m_so});
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(const std::string& model_path,
-                                                                                 const ov::AnyMap& properties) const {
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::string& model_path,
+                                                        const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model_path, properties), m_so});
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::RemoteContext& context,
-    const ov::AnyMap& properties) const {
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                        const ov::RemoteContext& context,
+                                                        const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->compile_model(model, properties, context), m_so});
 }
 
@@ -78,14 +76,13 @@ ov::SupportedOpsMap ov::Plugin::query_model(const std::shared_ptr<const ov::Mode
     OV_PLUGIN_CALL_STATEMENT(return m_ptr->query_model(model, properties));
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::import_model(std::istream& model,
-                                                                                const ov::AnyMap& properties) const {
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
 }
 
-ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::Plugin::import_model(std::istream& networkModel,
-                                                                                const ov::RemoteContext& context,
-                                                                                const ov::AnyMap& config) const {
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& networkModel,
+                                                       const ov::RemoteContext& context,
+                                                       const ov::AnyMap& config) const {
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(networkModel, context, config), m_so});
 }
 

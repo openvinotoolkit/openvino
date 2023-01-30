@@ -278,7 +278,7 @@ ov::Tensor get_image_tensor(const std::vector<std::string>& files,
                             std::string* filenames_used = nullptr) {
     auto type = inputInfo.second.type;
     if (type == ov::element::f16) {
-        return create_tensor_from_image<short>(files,
+        return create_tensor_from_image<ov::float16>(files,
                                                inputId,
                                                batchSize,
                                                inputInfo.second,
